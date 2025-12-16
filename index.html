@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Granular Synthesizer</title>
     <style>
         * {
@@ -27,6 +27,7 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            touch-action: none;
         }
 
         .container {
@@ -82,7 +83,7 @@
             letter-spacing: 1px;
             user-select: none;
             -webkit-user-drag: none;
-            touch-action: none;
+            touch-action: manipulation;
         }
 
         button:hover {
@@ -157,7 +158,7 @@
             background: rgba(0, 212, 255, 0.2);
             outline: none;
             -webkit-appearance: none;
-            touch-action: none;
+            touch-action: manipulation;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -401,7 +402,9 @@
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
-        let activeGrains = new Set();
+
+        // Track active notes with their grain schedulers and gain nodes
+        const activeNotes = new Map();
 
         // UI Elements
         const recordBtn = document.getElementById('recordBtn');
@@ -436,6 +439,9 @@
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
         }
 
         // Update slider value displays
@@ -445,7 +451,6 @@
             document.getElementById('positionValue').textContent = positionSlider.value + '%';
             document.getElementById('sprayValue').textContent = spraySlider.value + '%';
             
-            // Format attack/release to show seconds when >= 1000ms
             const attackVal = parseFloat(attackSlider.value);
             document.getElementById('attackValue').textContent = attackVal >= 1000 
                 ? (attackVal / 1000).toFixed(2) + 's' 
@@ -486,7 +491,6 @@
                         drawWaveform(audioBuffer);
                         status.textContent = `Recording complete! Duration: ${audioBuffer.duration.toFixed(2)}s`;
                         
-                        // Stop all tracks
                         stream.getTracks().forEach(track => track.stop());
                     };
 
@@ -554,7 +558,6 @@
 
             ctx.stroke();
 
-            // Draw center line
             ctx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -563,67 +566,46 @@
             ctx.stroke();
         }
 
-        // Granular synthesis engine
-        function playGrain(buffer, position, grainSizeSec, pitch, attackSec, releaseSec, masterVol) {
-            if (!buffer || !audioContext) return;
-
+        // Create a single grain and return its nodes
+        function createGrain(buffer, position, grainSizeSec, pitch, masterGainNode) {
             const source = audioContext.createBufferSource();
-            const gainNode = audioContext.createGain();
-            const masterGain = audioContext.createGain();
+            const grainGain = audioContext.createGain();
 
             source.buffer = buffer;
             source.playbackRate.value = pitch;
 
-            // Calculate start position with spray randomization
             const sprayAmount = parseFloat(spraySlider.value) / 100;
             const randomOffset = (Math.random() - 0.5) * sprayAmount * buffer.duration;
-            let startTime = position * buffer.duration + randomOffset;
+            let startPos = position * buffer.duration + randomOffset;
             
-            // Clamp to valid range, ensure grain size doesn't exceed buffer duration
             const maxStartTime = Math.max(0, buffer.duration - grainSizeSec);
-            startTime = Math.max(0, Math.min(startTime, maxStartTime));
+            startPos = Math.max(0, Math.min(startPos, maxStartTime));
 
-            const currentTime = audioContext.currentTime;
-            const endTime = currentTime + grainSizeSec;
+            const now = audioContext.currentTime;
 
-            // Apply envelope
-            gainNode.gain.setValueAtTime(0, currentTime);
-            gainNode.gain.linearRampToValueAtTime(1, currentTime + attackSec);
-            gainNode.gain.setValueAtTime(1, endTime - releaseSec);
-            gainNode.gain.linearRampToValueAtTime(0, endTime);
+            // Simple grain envelope (quick fade in/out to avoid clicks)
+            grainGain.gain.setValueAtTime(0, now);
+            grainGain.gain.linearRampToValueAtTime(1, now + 0.005);
+            grainGain.gain.setValueAtTime(1, now + grainSizeSec - 0.005);
+            grainGain.gain.linearRampToValueAtTime(0, now + grainSizeSec);
 
-            // Master volume
-            masterGain.gain.value = masterVol;
+            source.connect(grainGain);
+            grainGain.connect(masterGainNode);
 
-            // Connect nodes
-            source.connect(gainNode);
-            gainNode.connect(masterGain);
-            masterGain.connect(audioContext.destination);
+            source.start(now, startPos, grainSizeSec);
 
-            // Play grain
-            source.start(currentTime, startTime, grainSizeSec);
-            source.stop(endTime);
-
-            // Track active grain
-            const grainId = Date.now() + Math.random();
-            activeGrains.add(grainId);
-            
-            source.onended = () => {
-                activeGrains.delete(grainId);
-                try {
-                    source.disconnect();
-                    gainNode.disconnect();
-                    masterGain.disconnect();
-                } catch (e) {
-                    // Nodes may already be disconnected
-                }
-            };
+            return { source, grainGain };
         }
 
-        // Play note with granular synthesis
-        function playNote(note) {
+        // Start playing a note (called on key DOWN)
+        function startNote(note) {
             if (!audioBuffer) {
                 status.textContent = 'Please record audio first!';
+                return;
+            }
+
+            // If note is already playing, don't restart
+            if (activeNotes.has(note)) {
                 return;
             }
 
@@ -631,69 +613,187 @@
 
             const semitones = noteToSemitone[note];
             const pitch = Math.pow(2, semitones / 12);
-            
-            const grainSize = parseFloat(grainSizeSlider.value) / 1000; // Convert to seconds
-            const density = parseInt(densitySlider.value);
-            const position = parseFloat(positionSlider.value) / 100;
-            const attack = parseFloat(attackSlider.value) / 1000; // Convert to seconds
-            const release = parseFloat(releaseSlider.value) / 1000; // Convert to seconds
             const volume = parseFloat(volumeSlider.value) / 100;
+            const attackTime = parseFloat(attackSlider.value) / 1000;
 
-            // Play multiple overlapping grains based on density
-            const grainInterval = grainSize / density;
+            // Create master gain for this note (handles attack/release envelope)
+            const noteGain = audioContext.createGain();
+            noteGain.connect(audioContext.destination);
             
-            for (let i = 0; i < density; i++) {
-                setTimeout(() => {
-                    playGrain(audioBuffer, position, grainSize, pitch, attack, release, volume);
-                }, i * grainInterval * 1000);
-            }
+            // Start at 0 and ramp up (attack)
+            const now = audioContext.currentTime;
+            noteGain.gain.setValueAtTime(0, now);
+            noteGain.gain.linearRampToValueAtTime(volume, now + attackTime);
+
+            // Store active grains for cleanup
+            const grains = [];
+
+            // Function to spawn grains continuously
+            const spawnGrain = () => {
+                if (!activeNotes.has(note)) return;
+
+                const grainSize = parseFloat(grainSizeSlider.value) / 1000;
+                const position = parseFloat(positionSlider.value) / 100;
+
+                const grain = createGrain(audioBuffer, position, grainSize, pitch, noteGain);
+                grains.push(grain);
+
+                // Clean up old grains
+                grain.source.onended = () => {
+                    const idx = grains.indexOf(grain);
+                    if (idx > -1) grains.splice(idx, 1);
+                };
+            };
+
+            // Calculate interval between grains based on density
+            const getGrainInterval = () => {
+                const grainSize = parseFloat(grainSizeSlider.value) / 1000;
+                const density = parseInt(densitySlider.value);
+                return (grainSize / density) * 1000;
+            };
+
+            // Spawn first grain immediately
+            spawnGrain();
+
+            // Set up interval to spawn more grains
+            const intervalId = setInterval(() => {
+                if (activeNotes.has(note)) {
+                    spawnGrain();
+                }
+            }, getGrainInterval());
+
+            // Store note data
+            activeNotes.set(note, {
+                noteGain,
+                grains,
+                intervalId,
+                startTime: now
+            });
         }
 
-        // Keyboard event handlers
+        // Stop playing a note (called on key UP)
+        function stopNote(note) {
+            const noteData = activeNotes.get(note);
+            if (!noteData) return;
+
+            const { noteGain, grains, intervalId } = noteData;
+            const releaseTime = parseFloat(releaseSlider.value) / 1000;
+
+            // Stop spawning new grains
+            clearInterval(intervalId);
+
+            // Apply release envelope
+            const now = audioContext.currentTime;
+            noteGain.gain.cancelScheduledValues(now);
+            noteGain.gain.setValueAtTime(noteGain.gain.value, now);
+            noteGain.gain.linearRampToValueAtTime(0, now + releaseTime);
+
+            // Remove from active notes immediately so no new grains spawn
+            activeNotes.delete(note);
+
+            // Clean up after release
+            setTimeout(() => {
+                try {
+                    noteGain.disconnect();
+                } catch (e) {}
+                grains.forEach(g => {
+                    try {
+                        g.source.stop();
+                        g.source.disconnect();
+                        g.grainGain.disconnect();
+                    } catch (e) {}
+                });
+            }, releaseTime * 1000 + 100);
+        }
+
+        // Keyboard event handlers for on-screen keys
         const keys = document.querySelectorAll('.key');
         const pressedKeys = new Set();
 
         keys.forEach(key => {
-            key.addEventListener('mousedown', () => {
+            // Mouse events
+            key.addEventListener('mousedown', (e) => {
+                e.preventDefault();
                 const note = key.dataset.note;
                 key.classList.add('active');
-                playNote(note);
+                startNote(note);
             });
 
-            key.addEventListener('mouseup', () => {
+            key.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                const note = key.dataset.note;
                 key.classList.remove('active');
+                stopNote(note);
             });
 
-            key.addEventListener('mouseleave', () => {
+            key.addEventListener('mouseleave', (e) => {
+                const note = key.dataset.note;
+                if (key.classList.contains('active')) {
+                    key.classList.remove('active');
+                    stopNote(note);
+                }
+            });
+
+            // Touch events
+            key.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const note = key.dataset.note;
+                key.classList.add('active');
+                startNote(note);
+            });
+
+            key.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                const note = key.dataset.note;
                 key.classList.remove('active');
+                stopNote(note);
+            });
+
+            key.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                const note = key.dataset.note;
+                key.classList.remove('active');
+                stopNote(note);
             });
         });
 
         // Computer keyboard support
         document.addEventListener('keydown', (e) => {
+            // Ignore if in input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
             const key = e.key.toLowerCase();
-            if (keyMap[key] && !pressedKeys.has(key)) {
+            
+            if (keyMap[key]) {
                 e.preventDefault();
                 e.stopPropagation();
+                
+                // Ignore key repeat
+                if (e.repeat || pressedKeys.has(key)) return;
+                
                 pressedKeys.add(key);
                 const note = keyMap[key];
                 const keyElement = document.querySelector(`.key[data-key="${key}"]`);
                 if (keyElement) {
                     keyElement.classList.add('active');
-                    playNote(note);
+                    startNote(note);
                 }
             }
         });
 
         document.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
+            
             if (keyMap[key]) {
                 e.preventDefault();
                 e.stopPropagation();
+                
                 pressedKeys.delete(key);
+                const note = keyMap[key];
                 const keyElement = document.querySelector(`.key[data-key="${key}"]`);
                 if (keyElement) {
                     keyElement.classList.remove('active');
+                    stopNote(note);
                 }
             }
         });
@@ -710,6 +810,15 @@
         document.addEventListener('dragstart', (e) => {
             e.preventDefault();
         });
+
+        // Prevent scrolling on touch
+        document.addEventListener('touchmove', (e) => {
+            if (e.target.closest('.container')) {
+                // Allow scrolling in container
+            } else {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>
