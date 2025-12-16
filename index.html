@@ -645,7 +645,8 @@
             const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
             
             const elapsed = audioContext.currentTime - lfoStartTime;
-            const phase = (elapsed * rate) % 1.0;
+            // Use fract for better precision with long-running oscillators
+            const phase = (elapsed * rate - Math.floor(elapsed * rate));
             
             let value = 0;
             switch (waveform) {
@@ -965,7 +966,7 @@
             if (!audioBuffer) return;
             if (activeGrains.has(note)) return; // Already playing
 
-            let timeoutId;
+            const grainState = { timeoutId: null };
             
             function schedule() {
                 playGrain(note);
@@ -974,14 +975,14 @@
                 const density = getModulatedValue('density');
                 const intervalTime = 1000 / density;
                 
-                timeoutId = setTimeout(schedule, intervalTime);
+                grainState.timeoutId = setTimeout(schedule, intervalTime);
             }
 
-            // Play one immediately
-            schedule();
+            // Store cancellation function before first call
+            activeGrains.set(note, { cancel: () => clearTimeout(grainState.timeoutId) });
             
-            // Store a reference object for cleanup
-            activeGrains.set(note, { cancel: () => clearTimeout(timeoutId) });
+            // Play one immediately and start recursion
+            schedule();
         }
 
         function stopGrainStream(note) {
