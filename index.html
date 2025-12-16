@@ -11,24 +11,34 @@
             box-sizing: border-box;
         }
 
-        body {
+        html, body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
-            min-height: 100vh;
+            height: 100vh;
+            width: 100vw;
             padding: 20px;
+            box-sizing: border-box;
             display: flex;
             justify-content: center;
             align-items: center;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         .container {
             max-width: 1200px;
+            max-height: calc(100vh - 40px);
             width: 100%;
             background: rgba(30, 30, 50, 0.8);
             border-radius: 15px;
             padding: 30px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         h1 {
@@ -70,6 +80,9 @@
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
+            user-select: none;
+            -webkit-user-drag: none;
+            touch-action: none;
         }
 
         button:hover {
@@ -144,6 +157,7 @@
             background: rgba(0, 212, 255, 0.2);
             outline: none;
             -webkit-appearance: none;
+            touch-action: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -182,12 +196,15 @@
             border-radius: 0 0 8px 8px;
             transition: all 0.1s ease;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-user-drag: none;
             display: flex;
             align-items: flex-end;
             justify-content: center;
             padding-bottom: 10px;
             font-size: 12px;
             font-weight: bold;
+            touch-action: none;
         }
 
         .key.white {
@@ -311,7 +328,7 @@
                         <span>Attack</span>
                         <span class="value" id="attackValue">10ms</span>
                     </label>
-                    <input type="range" id="attack" min="1" max="100" value="10" step="1">
+                    <input type="range" id="attack" min="1" max="10000" value="10" step="10">
                 </div>
                 
                 <div class="control-group">
@@ -319,7 +336,7 @@
                         <span>Release</span>
                         <span class="value" id="releaseValue">10ms</span>
                     </label>
-                    <input type="range" id="release" min="1" max="100" value="10" step="1">
+                    <input type="range" id="release" min="1" max="10000" value="10" step="10">
                 </div>
                 
                 <div class="control-group">
@@ -427,8 +444,18 @@
             document.getElementById('densityValue').textContent = densitySlider.value;
             document.getElementById('positionValue').textContent = positionSlider.value + '%';
             document.getElementById('sprayValue').textContent = spraySlider.value + '%';
-            document.getElementById('attackValue').textContent = attackSlider.value + 'ms';
-            document.getElementById('releaseValue').textContent = releaseSlider.value + 'ms';
+            
+            // Format attack/release to show seconds when >= 1000ms
+            const attackVal = parseFloat(attackSlider.value);
+            document.getElementById('attackValue').textContent = attackVal >= 1000 
+                ? (attackVal / 1000).toFixed(2) + 's' 
+                : attackVal + 'ms';
+            
+            const releaseVal = parseFloat(releaseSlider.value);
+            document.getElementById('releaseValue').textContent = releaseVal >= 1000 
+                ? (releaseVal / 1000).toFixed(2) + 's' 
+                : releaseVal + 'ms';
+            
             document.getElementById('volumeValue').textContent = volumeSlider.value + '%';
         }
 
@@ -646,6 +673,8 @@
         document.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (keyMap[key] && !pressedKeys.has(key)) {
+                e.preventDefault();
+                e.stopPropagation();
                 pressedKeys.add(key);
                 const note = keyMap[key];
                 const keyElement = document.querySelector(`.key[data-key="${key}"]`);
@@ -659,6 +688,8 @@
         document.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
             if (keyMap[key]) {
+                e.preventDefault();
+                e.stopPropagation();
                 pressedKeys.delete(key);
                 const keyElement = document.querySelector(`.key[data-key="${key}"]`);
                 if (keyElement) {
@@ -669,6 +700,16 @@
 
         // Initialize displays
         updateSliderDisplays();
+
+        // Prevent context menu on the entire app
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        // Prevent default drag behavior
+        document.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+        });
     </script>
 </body>
 </html>
