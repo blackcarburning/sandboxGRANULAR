@@ -316,12 +316,12 @@
                 
                 <div class="control-group">
                     <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
-                    <input type="range" id="attack" min="1" max="10000" value="10" step="10">
+                    <input type="range" id="attack" min="1" max="5000" value="10" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Release</span><span class="value" id="releaseValue">500ms</span></label>
-                    <input type="range" id="release" min="10" max="10000" value="500" step="10">
+                    <label><span>Release</span><span class="value" id="releaseValue">300ms</span></label>
+                    <input type="range" id="release" min="10" max="5000" value="300" step="1">
                 </div>
                 
                 <div class="control-group">
@@ -364,7 +364,7 @@
                 <div class="key white" data-note="E2" data-key=";"><span>E<br><span class="key-label">;</span></span></div>
                 <div class="key white" data-note="F2" data-key="'"><span>F<br><span class="key-label">'</span></span></div>
                 <div class="key black" data-note="F#2" data-key="]"><span>F#<br><span class="key-label">]</span></span></div>
-                <div class="key white" data-note="G2" data-key="\\"><span>G<br><span class="key-label">\\</span></span></div>
+                <div class="key white" data-note="G2" data-key="\"><span>G<br><span class="key-label">\</span></span></div>
                 <div class="key black" data-note="G#2" data-key=""><span>G#</span></div>
                 <div class="key white" data-note="A2" data-key="z"><span>A<br><span class="key-label">Z</span></span></div>
                 <div class="key black" data-note="A#2" data-key="x"><span>A#<br><span class="key-label">X</span></span></div>
@@ -374,24 +374,19 @@
     </div>
 
     <script>
-        // Web Audio API Setup
         let audioContext;
         let audioBuffer = null;
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
-
-        // Track active notes
         const activeNotes = new Map();
 
-        // UI Elements
         const recordBtn = document.getElementById('recordBtn');
         const clearBtn = document.getElementById('clearBtn');
         const waveformCanvas = document.getElementById('waveformCanvas');
         const ctx = waveformCanvas.getContext('2d');
         const status = document.getElementById('status');
 
-        // Parameter controls
         const grainSizeSlider = document.getElementById('grainSize');
         const densitySlider = document.getElementById('density');
         const positionSlider = document.getElementById('position');
@@ -402,7 +397,6 @@
         const sampleEndSlider = document.getElementById('sampleEnd');
         const volumeSlider = document.getElementById('volume');
 
-        // Note to semitone mapping (C1 = 0, C2 = 12)
         const noteToSemitone = {
             'C1': 0, 'C#1': 1, 'D1': 2, 'D#1': 3, 'E1': 4, 'F1': 5,
             'F#1': 6, 'G1': 7, 'G#1': 8, 'A1': 9, 'A#1': 10, 'B1': 11,
@@ -410,7 +404,6 @@
             'F#2': 18, 'G2': 19, 'G#2': 20, 'A2': 21, 'A#2': 22, 'B2': 23
         };
 
-        // Keyboard mapping for 2 octaves
         const keyMap = {
             'a': 'C1', 'w': 'C#1', 's': 'D1', 'e': 'D#1', 'd': 'E1', 'f': 'F1',
             't': 'F#1', 'g': 'G1', 'y': 'G#1', 'h': 'A1', 'u': 'A#1', 'j': 'B1',
@@ -418,7 +411,6 @@
             ']': 'F#2', '\\': 'G2', 'z': 'A2', 'x': 'A#2', 'c': 'B2'
         };
 
-        // Initialize Audio Context
         function initAudioContext() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -428,35 +420,40 @@
             }
         }
 
-        // Update slider value displays
+        function getAttackTime() {
+            return parseFloat(attackSlider.value) / 1000;
+        }
+
+        function getReleaseTime() {
+            return parseFloat(releaseSlider.value) / 1000;
+        }
+
         function updateSliderDisplays() {
             document.getElementById('grainSizeValue').textContent = grainSizeSlider.value + 'ms';
             document.getElementById('densityValue').textContent = densitySlider.value;
             document.getElementById('positionValue').textContent = positionSlider.value + '%';
             document.getElementById('sprayValue').textContent = spraySlider.value + '%';
             
-            const attackVal = parseFloat(attackSlider.value);
-            document.getElementById('attackValue').textContent = attackVal >= 1000 
-                ? (attackVal / 1000).toFixed(1) + 's' 
-                : attackVal + 'ms';
+            const attackMs = parseFloat(attackSlider.value);
+            document.getElementById('attackValue').textContent = attackMs >= 1000 
+                ? (attackMs / 1000).toFixed(1) + 's' 
+                : Math.round(attackMs) + 'ms';
             
-            const releaseVal = parseFloat(releaseSlider.value);
-            document.getElementById('releaseValue').textContent = releaseVal >= 1000 
-                ? (releaseVal / 1000).toFixed(1) + 's' 
-                : releaseVal + 'ms';
+            const releaseMs = parseFloat(releaseSlider.value);
+            document.getElementById('releaseValue').textContent = releaseMs >= 1000 
+                ? (releaseMs / 1000).toFixed(1) + 's' 
+                : Math.round(releaseMs) + 'ms';
             
             document.getElementById('sampleStartValue').textContent = sampleStartSlider.value + '%';
             document.getElementById('sampleEndValue').textContent = sampleEndSlider.value + '%';
             document.getElementById('volumeValue').textContent = volumeSlider.value + '%';
         }
 
-        // Add event listeners for sliders
         [grainSizeSlider, densitySlider, positionSlider, spraySlider, 
          attackSlider, releaseSlider, sampleStartSlider, sampleEndSlider, volumeSlider].forEach(slider => {
             slider.addEventListener('input', updateSliderDisplays);
         });
 
-        // Recording functionality
         recordBtn.addEventListener('click', async () => {
             initAudioContext();
             
@@ -475,7 +472,7 @@
                         const arrayBuffer = await audioBlob.arrayBuffer();
                         audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                         drawWaveform(audioBuffer);
-                        status.textContent = `Done! ${audioBuffer.duration.toFixed(1)}s`;
+                        status.textContent = 'Done! ' + audioBuffer.duration.toFixed(1) + 's';
                         stream.getTracks().forEach(track => track.stop());
                     };
 
@@ -495,7 +492,6 @@
             }
         });
 
-        // Clear buffer
         clearBtn.addEventListener('click', () => {
             audioBuffer = null;
             audioChunks = [];
@@ -503,7 +499,6 @@
             status.textContent = 'Buffer cleared';
         });
 
-        // Draw waveform with sample start/end markers
         function drawWaveform(buffer) {
             const width = waveformCanvas.width = waveformCanvas.clientWidth;
             const height = waveformCanvas.height = waveformCanvas.clientHeight;
@@ -517,7 +512,6 @@
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
 
-            // Draw sample region
             const startX = (parseFloat(sampleStartSlider.value) / 100) * width;
             const endX = (parseFloat(sampleEndSlider.value) / 100) * width;
             ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
@@ -545,7 +539,6 @@
             }
             ctx.stroke();
 
-            // Draw start/end lines
             ctx.strokeStyle = '#ff0844';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -556,7 +549,6 @@
             ctx.stroke();
         }
 
-        // Update waveform when sample start/end changes
         sampleStartSlider.addEventListener('input', () => {
             if (audioBuffer) drawWaveform(audioBuffer);
         });
@@ -564,7 +556,6 @@
             if (audioBuffer) drawWaveform(audioBuffer);
         });
 
-        // Create a single grain
         function createGrain(buffer, position, grainSizeSec, pitch, masterGainNode) {
             const source = audioContext.createBufferSource();
             const grainGain = audioContext.createGain();
@@ -572,7 +563,6 @@
             source.buffer = buffer;
             source.playbackRate.value = pitch;
 
-            // Get sample region
             const sampleStart = parseFloat(sampleStartSlider.value) / 100;
             const sampleEnd = parseFloat(sampleEndSlider.value) / 100;
             const regionStart = sampleStart * buffer.duration;
@@ -581,14 +571,12 @@
             const sprayAmount = parseFloat(spraySlider.value) / 100;
             const randomOffset = (Math.random() - 0.5) * sprayAmount * regionDuration;
             
-            // Position within the sample region
             let startPos = regionStart + (position * regionDuration) + randomOffset;
             const maxStartTime = Math.max(regionStart, regionStart + regionDuration - grainSizeSec);
             startPos = Math.max(regionStart, Math.min(startPos, maxStartTime));
 
             const now = audioContext.currentTime;
 
-            // Grain envelope
             grainGain.gain.setValueAtTime(0, now);
             grainGain.gain.linearRampToValueAtTime(1, now + 0.005);
             grainGain.gain.setValueAtTime(1, now + grainSizeSec - 0.005);
@@ -602,7 +590,6 @@
             return { source, grainGain };
         }
 
-        // Start playing a note (called on key DOWN)
         function startNote(note) {
             if (!audioBuffer) {
                 status.textContent = 'Record audio first!';
@@ -616,16 +603,14 @@
             const semitones = noteToSemitone[note];
             const pitch = Math.pow(2, semitones / 12);
             const volume = parseFloat(volumeSlider.value) / 100;
-            const attackTime = parseFloat(attackSlider.value) / 1000;
+            const attackTime = getAttackTime();
 
-            // Create master gain for this note
             const noteGain = audioContext.createGain();
             noteGain.connect(audioContext.destination);
             
-            // Attack envelope
             const now = audioContext.currentTime;
             noteGain.gain.setValueAtTime(0.001, now);
-            noteGain.gain.exponentialRampToValueAtTime(volume, now + attackTime);
+            noteGain.gain.exponentialRampToValueAtTime(volume, now + Math.max(0.01, attackTime));
 
             const grains = [];
             let isActive = true;
@@ -666,29 +651,25 @@
             });
         }
 
-        // Stop playing a note (called on key UP)
         function stopNote(note) {
             const noteData = activeNotes.get(note);
             if (!noteData) return;
 
             const { noteGain, grains, intervalId, setInactive } = noteData;
-            const releaseTime = parseFloat(releaseSlider.value) / 1000;
+            const releaseTime = getReleaseTime();
 
-            // Stop spawning new grains
             clearInterval(intervalId);
             setInactive();
 
-            // Release envelope
             const now = audioContext.currentTime;
             const currentGain = noteGain.gain.value;
             
             noteGain.gain.cancelScheduledValues(now);
-            noteGain.gain.setValueAtTime(currentGain, now);
-            noteGain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
+            noteGain.gain.setValueAtTime(Math.max(0.001, currentGain), now);
+            noteGain.gain.exponentialRampToValueAtTime(0.001, now + Math.max(0.01, releaseTime));
 
             activeNotes.delete(note);
 
-            // Cleanup after release completes
             setTimeout(() => {
                 try {
                     noteGain.disconnect();
@@ -703,7 +684,6 @@
             }, (releaseTime * 1000) + 200);
         }
 
-        // Keyboard event handlers
         const keys = document.querySelectorAll('.key');
         const pressedKeys = new Set();
 
@@ -752,7 +732,6 @@
             }, { passive: false });
         });
 
-        // Computer keyboard support
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             
@@ -766,7 +745,7 @@
                 
                 pressedKeys.add(key);
                 const note = keyMap[key];
-                const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+                const keyElement = document.querySelector('.key[data-key="' + key + '"]');
                 if (keyElement) {
                     keyElement.classList.add('active');
                     startNote(note);
@@ -783,7 +762,7 @@
                 
                 pressedKeys.delete(key);
                 const note = keyMap[key];
-                const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+                const keyElement = document.querySelector('.key[data-key="' + key + '"]');
                 if (keyElement) {
                     keyElement.classList.remove('active');
                     stopNote(note);
@@ -791,17 +770,12 @@
             }
         });
 
-        // Initialize
         updateSliderDisplays();
 
-        // Prevent context menu
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('dragstart', (e) => e.preventDefault());
-        
-        // Prevent scrolling
         document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
-        // Force landscape orientation check
         if (screen.orientation && screen.orientation.lock) {
             screen.orientation.lock('landscape').catch(() => {});
         }
