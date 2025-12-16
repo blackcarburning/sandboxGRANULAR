@@ -507,10 +507,13 @@
             ctx.beginPath();
 
             for (let i = 0; i < width; i++) {
-                const min = Math.min(...Array.from({ length: step }, (_, j) => 
-                    data[(i * step) + j] || 0));
-                const max = Math.max(...Array.from({ length: step }, (_, j) => 
-                    data[(i * step) + j] || 0));
+                let min = 1;
+                let max = -1;
+                for (let j = 0; j < step; j++) {
+                    const value = data[(i * step) + j] || 0;
+                    if (value < min) min = value;
+                    if (value > max) max = value;
+                }
                 
                 const yMin = (1 + min) * amp;
                 const yMax = (1 + max) * amp;
@@ -549,8 +552,9 @@
             const randomOffset = (Math.random() - 0.5) * sprayAmount * buffer.duration;
             let startTime = position * buffer.duration + randomOffset;
             
-            // Clamp to valid range
-            startTime = Math.max(0, Math.min(startTime, buffer.duration - grainSizeSec));
+            // Clamp to valid range, ensure grain size doesn't exceed buffer duration
+            const maxStartTime = Math.max(0, buffer.duration - grainSizeSec);
+            startTime = Math.max(0, Math.min(startTime, maxStartTime));
 
             const currentTime = audioContext.currentTime;
             const endTime = currentTime + grainSizeSec;
@@ -579,9 +583,13 @@
             
             source.onended = () => {
                 activeGrains.delete(grainId);
-                source.disconnect();
-                gainNode.disconnect();
-                masterGain.disconnect();
+                try {
+                    source.disconnect();
+                    gainNode.disconnect();
+                    masterGain.disconnect();
+                } catch (e) {
+                    // Nodes may already be disconnected
+                }
             };
         }
 
