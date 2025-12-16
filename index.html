@@ -4,906 +4,708 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Granular LFO Synth</title>
+    <title>Granular LFO</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
-            --panel-bg: rgba(30, 30, 50, 0.95);
+            --panel-bg: #1e1e32;
             --accent: #00d4ff;
-            --accent-glow: rgba(0, 212, 255, 0.5);
-            --record-color: #ff0844;
-            --mod-active: #ffd700; /* Gold */
-            --inv-active: #ff5500; /* Orange for invert */
+            --accent-dim: rgba(0, 212, 255, 0.1);
+            --lfo-color: #ffd700;
+            --lfo-dim: rgba(255, 215, 0, 0.1);
+            --rec-color: #ff3366;
+            --text-main: #cecece;
+            --text-dim: #888;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        html, body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #e0e0e0;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
             height: 100vh;
             width: 100vw;
-            overflow: hidden;
+            overflow: hidden; /* No scroll on body */
+            position: fixed; /* Lock bounce */
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none;
         }
 
-        /* --- Overlays --- */
+        /* Overlays */
         .overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.98); z-index: 9999;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            text-align: center; padding: 20px; transition: opacity 0.3s;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .overlay h1 { color: var(--accent); margin-bottom: 20px; }
-        .overlay p { color: #ccc; margin-bottom: 20px; }
-        
-        #start-btn {
-            padding: 15px 40px; font-size: 1.2rem;
-            background: var(--accent); color: #000; border: none;
-            border-radius: 30px; box-shadow: 0 0 20px var(--accent-glow);
-        }
-
         #orientation-overlay { display: none; }
-        @media screen and (orientation: portrait) {
-            #orientation-overlay { display: flex; }
-            .synth-container { display: none !important; }
+        @media screen and (orientation: portrait) { 
+            #orientation-overlay { display: flex; } 
+            .main-ui { display: none !important; }
         }
 
-        /* --- Layout --- */
-        .synth-container {
-            display: flex; flex-direction: column;
-            height: 100%; width: 100%; padding: 5px; gap: 5px;
+        button.start-btn {
+            background: var(--accent); color: #000; padding: 15px 40px; 
+            border: none; border-radius: 30px; font-size: 16px; font-weight: bold; margin-top: 20px;
         }
 
-        .top-section {
-            display: flex; gap: 5px; flex: 1; min-height: 0;
+        /* Main Grid */
+        .main-ui {
+            display: flex; flex-direction: column; height: 100%; padding: 4px; gap: 4px;
         }
 
-        /* --- Left: Recording --- */
-        .recording-section {
-            flex: 0 0 180px; /* Smaller width */
-            display: flex; flex-direction: column; gap: 5px;
-            background: var(--panel-bg); border-radius: 8px; padding: 8px;
-            border: 1px solid rgba(0, 212, 255, 0.2);
+        /* Top Area: Rec + LFO + Controls */
+        .top-deck {
+            flex: 1; 
+            display: flex; 
+            gap: 4px; 
+            min-height: 0; /* Critical for nested scroll */
         }
-        
-        .section-title {
-            color: var(--accent); font-size: 11px; text-transform: uppercase;
+
+        /* Left Sidebar: Rec & LFO Master */
+        .sidebar {
+            width: 160px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .panel {
+            background: var(--panel-bg); border: 1px solid #333; border-radius: 6px; padding: 6px;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        .rec-panel { flex: 0 0 auto; height: 110px; }
+        .lfo-panel { flex: 0 0 auto; height: 90px; border-color: #554400; }
+
+        .panel-header {
+            font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase; margin-bottom: 4px;
             display: flex; justify-content: space-between;
         }
+        .lfo-panel .panel-header { color: var(--lfo-color); }
 
-        .recording-buttons { display: flex; gap: 4px; }
-        button.action-btn {
-            padding: 8px 4px; font-size: 10px; font-weight: bold;
-            border: none; border-radius: 4px; cursor: pointer; text-transform: uppercase;
+        .btn-row { display: flex; gap: 4px; margin-bottom: 4px; }
+        .btn-std { 
+            flex: 1; background: #333; color: #fff; border: none; border-radius: 3px; 
+            font-size: 10px; padding: 6px 0; font-weight: bold; 
         }
-        #recordBtn { background: var(--record-color); color: white; flex: 1; }
-        #recordBtn.recording { animation: pulse 1s infinite; background: red; }
-        #clearBtn { background: #444; color: white; flex: 1; }
+        #recordBtn { background: #502020; color: #ffadad; }
+        #recordBtn.recording { background: var(--rec-color); color: #fff; animation: flash 1s infinite; }
+        @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        canvas { background: #000; width: 100%; height: 35px; border-radius: 3px; border: 1px solid #333; }
+        .status-text { font-size: 9px; color: #666; text-align: center; margin-top: 2px; height: 12px; overflow: hidden;}
+
+        /* LFO Controls in Sidebar */
+        .lfo-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+        .lfo-row label { font-size: 9px; color: #888; width: 30px; }
+        .lfo-row select { background: #222; color: var(--lfo-color); border: none; font-size: 10px; flex: 1; }
+        .lfo-mini-slider { flex: 1; height: 15px; display: flex; flex-direction: column; justify-content: center; }
+        .lfo-mini-slider input { width: 100%; }
         
-        #waveformCanvas { width: 100%; flex: 1; background: #0a0a15; border-radius: 4px; border: 1px solid #333; }
-        .status { font-size: 10px; color: #888; text-align: center; height: 12px; }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        /* --- Right: Controls --- */
-        .controls-section {
+        /* Main Controls Grid */
+        .controls-grid {
             flex: 1;
+            background: var(--panel-bg); border: 1px solid #333; border-radius: 6px; padding: 4px;
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-auto-rows: minmax(min-content, 1fr); /* Auto fit rows */
+            grid-template-columns: repeat(4, 1fr); /* 4 Columns */
+            grid-auto-rows: min-content;
             gap: 4px;
-            background: var(--panel-bg); border-radius: 8px; padding: 6px;
-            border: 1px solid rgba(0, 212, 255, 0.2);
-            overflow-y: auto;
+            align-content: start;
         }
 
-        .lfo-header {
-            grid-column: 1 / -1; display: flex; align-items: center; gap: 10px;
-            color: var(--accent); font-size: 11px; font-weight: bold;
-            padding-bottom: 2px; border-bottom: 1px solid rgba(0,212,255,0.2); margin-bottom: 2px;
-            height: 20px;
+        /* Individual Control Strip */
+        .control-strip {
+            background: rgba(0,0,0,0.2); border-radius: 4px; padding: 4px;
+            display: flex; flex-direction: column; gap: 2px;
         }
+        .control-strip.hl { background: var(--accent-dim); }
 
-        .control-group {
-            display: flex; flex-direction: column; justify-content: center;
-            background: rgba(0,0,0,0.2); padding: 4px 6px; border-radius: 4px;
-            position: relative;
-        }
+        .strip-header { display: flex; justify-content: space-between; align-items: center; height: 14px; }
+        .strip-label { font-size: 9px; font-weight: 600; color: #aaa; white-space: nowrap; }
+        .strip-val { font-size: 9px; color: var(--accent); font-family: monospace; }
         
-        .control-group.highlight { background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.1); }
-        .control-group.modulating { border: 1px solid var(--mod-active); }
-
-        .control-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 2px;
-        }
-        .control-label { font-size: 10px; color: #aaa; font-weight: 600; white-space: nowrap; }
+        .strip-body { display: flex; align-items: center; gap: 2px; height: 20px; }
         
-        .mod-controls { display: flex; gap: 2px; align-items: center; }
-        
-        /* Mod & Invert Buttons */
-        .tiny-btn {
-            width: 14px; height: 14px; font-size: 8px; line-height: 14px;
-            padding: 0; border: 1px solid #555; border-radius: 2px;
-            background: #222; color: #888; cursor: pointer; text-align: center;
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none; background: transparent; width: 100%; flex: 1;
         }
-        .tiny-btn.mod-btn.active { background: var(--mod-active); color: #000; border-color: var(--mod-active); }
-        .tiny-btn.inv-btn.active { background: var(--inv-active); color: white; border-color: var(--inv-active); }
-        
-        .value { color: var(--accent); font-size: 10px; min-width: 30px; text-align: right; margin-left: 2px; }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 3px; background: #444; border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; 
+            background: var(--accent); margin-top: -5px; border: 1px solid #000;
+        }
+        /* LFO colored sliders */
+        .lfo-slider::-webkit-slider-thumb { background: var(--lfo-color); }
 
-        input[type="range"] {
-            width: 100%; height: 12px; /* Touch target */
-            -webkit-appearance: none; background: transparent;
-            margin: 0; padding: 0;
+        /* Small Toggle Buttons */
+        .tgl-btn {
+            width: 16px; height: 16px; border: 1px solid #444; background: #222; 
+            color: #666; font-size: 8px; font-weight: bold; border-radius: 3px;
+            display: flex; align-items: center; justify-content: center; padding: 0;
         }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 14px; height: 14px;
-            border-radius: 50%; background: var(--accent);
-            margin-top: -5px; box-shadow: 0 0 5px var(--accent-glow);
-        }
-        input[type="range"]::-webkit-slider-runnable-track {
-            height: 2px; background: #444; border-radius: 1px; width: 100%;
-        }
+        .tgl-btn.active-mod { background: var(--lfo-color); color: #000; border-color: var(--lfo-color); }
+        .tgl-btn.active-inv { background: #ff4444; color: #fff; border-color: #ff4444; }
 
-        select { background: #333; color: #fff; border: none; border-radius: 2px; font-size: 10px; }
+        /* Keyboard */
+        .keyboard-area {
+            height: 100px; /* Fixed height */
+            flex-shrink: 0;
+            background: var(--panel-bg); border-radius: 6px; border: 1px solid #333;
+            display: flex; justify-content: center; padding: 0 10px;
+            position: relative; overflow: hidden;
+        }
+        .keys-container {
+            display: flex; position: relative; width: 100%; height: 100%;
+        }
+        .key-white {
+            flex: 1; background: #ddd; border: 1px solid #999; border-top: none; 
+            border-radius: 0 0 4px 4px; margin: 0 1px; z-index: 1;
+            display: flex; align-items: flex-end; justify-content: center; 
+            padding-bottom: 5px; font-size: 9px; color: #444; font-weight: bold;
+        }
+        .key-black {
+            position: absolute; width: 5%; height: 60%; background: #111; z-index: 2;
+            border-radius: 0 0 3px 3px; border: 1px solid #000; top: 0;
+        }
+        .key-white.active { background: var(--accent); transform: scaleY(0.98); transform-origin: top; }
+        .key-black.active { background: var(--accent); }
 
-        /* --- Bottom: Keyboard --- */
-        .keyboard-section {
-            flex: 0 0 90px; /* Reduced height for single page fit */
-            background: var(--panel-bg); border-radius: 8px; padding: 4px;
-            display: flex; justify-content: center;
-            border-top: 1px solid var(--accent);
-        }
-        .keyboard { display: flex; position: relative; height: 100%; width: 100%; }
-        .key {
-            position: relative; flex: 1;
-            border-radius: 0 0 4px 4px; cursor: pointer;
-            display: flex; align-items: flex-end; justify-content: center;
-            padding-bottom: 4px; font-size: 9px; font-weight: bold;
-            user-select: none; touch-action: none;
-        }
-        .key.white { background: #fff; border: 1px solid #999; color: #333; z-index: 1; }
-        .key.black {
-            background: #000; color: #fff; z-index: 2; height: 60%;
-            position: absolute; width: 60%; margin-left: -30%; /* Centered on border */
-            border-radius: 0 0 3px 3px; pointer-events: auto;
-        }
-        .key.active { background: var(--accent) !important; transform: translateY(2px); }
+        /* Black Key Positions (Approximated for 14 white keys) */
+        /* 14 white keys. 1 slot = 100/14 = 7.14% */
+        /* Black keys sit between white keys. */
+        .bk-1 { left: 5%; }   /* C#1 */
+        .bk-2 { left: 12%; }  /* D#1 */
+        .bk-3 { left: 26.5%; } /* F#1 */
+        .bk-4 { left: 33.5%; } /* G#1 */
+        .bk-5 { left: 40.5%; } /* A#1 */
+        .bk-6 { left: 55%; }  /* C#2 */
+        .bk-7 { left: 62%; }  /* D#2 */
+        .bk-8 { left: 76.5%; } /* F#2 */
+        .bk-9 { left: 83.5%; } /* G#2 */
+        .bk-10 { left: 90.5%; } /* A#2 */
 
-        /* --- Offsets for black keys relative to their previous white key --- */
-        /* We rely on Flex for white keys. Black keys need absolute positioning based on percentages or JS.
-           For simplicity in this responsive layout, we'll try a pure CSS percent approach or just approximate.
-           Given "Shrink interface", let's use a simpler flex calculation or standard percentage lefts.
-        */
-        .key-wrapper { position: relative; flex: 1; display: flex; } /* Wrapper for white key to anchor black key? No, standard piano roll is easier with absolute black keys on top of flex white keys */
-        
-        /* Adjusting keyboard HTML structure slightly for robustness */
     </style>
 </head>
 <body>
+
     <div id="orientation-overlay" class="overlay">
-        <h1>Rotate Device</h1>
-        <p>Landscape mode required.</p>
-        <div style="font-size: 40px; margin-top: 10px;">↻</div>
+        <h1 style="color:var(--accent)">Rotate Device</h1>
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1>Granular LFO</h1>
-        <p>Tap Start to initialize Audio</p>
-        <button id="start-btn">START</button>
+        <h1 style="color:var(--accent)">Granular LFO</h1>
+        <p style="color:#aaa; font-size: 12px; margin-top: 10px">Turn off Silent Mode</p>
+        <button id="start-btn" class="start-btn">START</button>
     </div>
 
-    <div class="synth-container">
-        <div class="top-section">
-            <div class="recording-section">
-                <div class="section-title">Source</div>
-                <div class="recording-buttons">
-                    <button id="recordBtn" class="action-btn">Mic</button>
-                    <button id="clearBtn" class="action-btn">Clear</button>
+    <div class="main-ui">
+        <div class="top-deck">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="panel rec-panel">
+                    <div class="panel-header"><span>Audio In</span></div>
+                    <div class="btn-row">
+                        <button id="recordBtn" class="btn-std">REC MIC</button>
+                        <button id="clearBtn" class="btn-std">CLR</button>
+                    </div>
+                    <canvas id="waveCanvas"></canvas>
+                    <div id="status" class="status-text">Ready</div>
                 </div>
-                <canvas id="waveformCanvas"></canvas>
-                <div id="status" class="status">Ready</div>
+
+                <div class="panel lfo-panel">
+                    <div class="panel-header"><span>LFO Master</span> <span id="lfoValDisplay" style="color:var(--lfo-color)"></span></div>
+                    <div class="lfo-row">
+                        <select id="lfoShape">
+                            <option value="sine">Sine</option>
+                            <option value="saw">Saw</option>
+                            <option value="square">Square</option>
+                            <option value="tri">Tri</option>
+                        </select>
+                    </div>
+                    <div class="lfo-row">
+                        <label>Rate</label>
+                        <div class="lfo-mini-slider">
+                            <input type="range" id="lfoRate" class="lfo-slider" min="10" max="400" value="120">
+                        </div>
+                    </div>
+                    <div class="lfo-row">
+                        <label>Dpth</label>
+                        <div class="lfo-mini-slider">
+                            <input type="range" id="lfoDepth" class="lfo-slider" min="0" max="100" value="50">
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="controls-section">
-                <!-- LFO Header -->
-                <div class="lfo-header">
-                    <span>LFO</span>
-                    <select id="lfoWaveform">
-                        <option value="sine">Sine</option>
-                        <option value="saw">Saw</option>
-                        <option value="square">Sq</option>
-                    </select>
-                </div>
-
-                <!-- LFO Params -->
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Tempo</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="lfoTempo">M</button>
-                            <button class="tiny-btn inv-btn" data-target="lfoTempo">I</button>
-                            <span class="value" id="lfoTempoValue">120</span>
-                        </div>
-                    </div>
-                    <input type="range" id="lfoTempo" min="10" max="300" value="120" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Depth</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="lfoDepth">M</button>
-                            <button class="tiny-btn inv-btn" data-target="lfoDepth">I</button>
-                            <span class="value" id="lfoDepthValue">50%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
-                </div>
-                
-                <!-- Spacers to fill top row (4 cols) -->
-                <div class="control-group" style="visibility:hidden"></div>
-                <div class="control-group" style="visibility:hidden"></div>
-
-                <!-- Synth Params -->
-                <div class="control-group highlight">
-                    <div class="control-header">
-                        <span class="control-label">Start</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="sampleStart">M</button>
-                            <button class="tiny-btn inv-btn" data-target="sampleStart">I</button>
-                            <span class="value" id="sampleStartValue">0%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
-                </div>
-
-                <div class="control-group highlight">
-                    <div class="control-header">
-                        <span class="control-label">End</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="sampleEnd">M</button>
-                            <button class="tiny-btn inv-btn" data-target="sampleEnd">I</button>
-                            <span class="value" id="sampleEndValue">100%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Grain</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="grainSize">M</button>
-                            <button class="tiny-btn inv-btn" data-target="grainSize">I</button>
-                            <span class="value" id="grainSizeValue">100ms</span>
-                        </div>
-                    </div>
-                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Dens</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="density">M</button>
-                            <button class="tiny-btn inv-btn" data-target="density">I</button>
-                            <span class="value" id="densityValue">10</span>
-                        </div>
-                    </div>
-                    <input type="range" id="density" min="1" max="40" value="10" step="1">
-                </div>
-
-                <div class="control-group highlight">
-                    <div class="control-header">
-                        <span class="control-label">Pos</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="position">M</button>
-                            <button class="tiny-btn inv-btn" data-target="position">I</button>
-                            <span class="value" id="positionValue">0%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Spray</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="spray">M</button>
-                            <button class="tiny-btn inv-btn" data-target="spray">I</button>
-                            <span class="value" id="sprayValue">0%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Atk</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="attack">M</button>
-                            <button class="tiny-btn inv-btn" data-target="attack">I</button>
-                            <span class="value" id="attackValue">10ms</span>
-                        </div>
-                    </div>
-                    <input type="range" id="attack" min="1" max="200" value="10" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Rel</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="release">M</button>
-                            <button class="tiny-btn inv-btn" data-target="release">I</button>
-                            <span class="value" id="releaseValue">50ms</span>
-                        </div>
-                    </div>
-                    <input type="range" id="release" min="1" max="500" value="50" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">P.Rnd</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="pitchVar">M</button>
-                            <button class="tiny-btn inv-btn" data-target="pitchVar">I</button>
-                            <span class="value" id="pitchVarValue">0%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Pan</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="panSpread">M</button>
-                            <button class="tiny-btn inv-btn" data-target="panSpread">I</button>
-                            <span class="value" id="panSpreadValue">50%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Verb</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="reverb">M</button>
-                            <button class="tiny-btn inv-btn" data-target="reverb">I</button>
-                            <span class="value" id="reverbValue">20%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="reverb" min="0" max="100" value="20" step="1">
-                </div>
-
-                <div class="control-group">
-                    <div class="control-header">
-                        <span class="control-label">Vol</span>
-                        <div class="mod-controls">
-                            <button class="tiny-btn mod-btn" data-target="volume">M</button>
-                            <button class="tiny-btn inv-btn" data-target="volume">I</button>
-                            <span class="value" id="volumeValue">80%</span>
-                        </div>
-                    </div>
-                    <input type="range" id="volume" min="0" max="100" value="80" step="1">
-                </div>
+            <!-- Controls Grid -->
+            <div class="controls-grid" id="controlsContainer">
+                <!-- Generated via JS -->
             </div>
         </div>
 
-        <div class="keyboard-section">
-            <div class="keyboard" id="keyboardContainer">
-                <!-- Manual keys with inline styles for robustness on mobile -->
+        <!-- Keyboard -->
+        <div class="keyboard-area">
+            <div class="keys-container" id="kbd">
                 <!-- White Keys -->
-                <div class="key white" data-note="C1">C1</div>
-                <div class="key white" data-note="D1">D</div>
-                <div class="key white" data-note="E1">E</div>
-                <div class="key white" data-note="F1">F</div>
-                <div class="key white" data-note="G1">G</div>
-                <div class="key white" data-note="A1">A</div>
-                <div class="key white" data-note="B1">B</div>
-                <div class="key white" data-note="C2">C2</div>
-                <div class="key white" data-note="D2">D</div>
-                <div class="key white" data-note="E2">E</div>
-                <div class="key white" data-note="F2">F</div>
-                <div class="key white" data-note="G2">G</div>
-                <div class="key white" data-note="A2">A</div>
-                <div class="key white" data-note="B2">B</div>
+                <div class="key-white" data-note="C1">C</div>
+                <div class="key-white" data-note="D1">D</div>
+                <div class="key-white" data-note="E1">E</div>
+                <div class="key-white" data-note="F1">F</div>
+                <div class="key-white" data-note="G1">G</div>
+                <div class="key-white" data-note="A1">A</div>
+                <div class="key-white" data-note="B1">B</div>
+                <div class="key-white" data-note="C2">C</div>
+                <div class="key-white" data-note="D2">D</div>
+                <div class="key-white" data-note="E2">E</div>
+                <div class="key-white" data-note="F2">F</div>
+                <div class="key-white" data-note="G2">G</div>
+                <div class="key-white" data-note="A2">A</div>
+                <div class="key-white" data-note="B2">B</div>
 
-                <!-- Black Keys (Absolute positioned based on % approx) -->
-                <!-- C#1 between 0% and 7.14% of first octave... Simplification: using left % -->
-                <div class="key black" style="left: 4.5%" data-note="C#1"></div>
-                <div class="key black" style="left: 11.5%" data-note="D#1"></div>
-                <div class="key black" style="left: 25.5%" data-note="F#1"></div>
-                <div class="key black" style="left: 32.5%" data-note="G#1"></div>
-                <div class="key black" style="left: 39.5%" data-note="A#1"></div>
-                
-                <div class="key black" style="left: 54.5%" data-note="C#2"></div>
-                <div class="key black" style="left: 61.5%" data-note="D#2"></div>
-                <div class="key black" style="left: 75.5%" data-note="F#2"></div>
-                <div class="key black" style="left: 82.5%" data-note="G#2"></div>
-                <div class="key black" style="left: 89.5%" data-note="A#2"></div>
+                <!-- Black Keys -->
+                <div class="key-black bk-1" data-note="C#1"></div>
+                <div class="key-black bk-2" data-note="D#1"></div>
+                <div class="key-black bk-3" data-note="F#1"></div>
+                <div class="key-black bk-4" data-note="G#1"></div>
+                <div class="key-black bk-5" data-note="A#1"></div>
+                <div class="key-black bk-6" data-note="C#2"></div>
+                <div class="key-black bk-7" data-note="D#2"></div>
+                <div class="key-black bk-8" data-note="F#2"></div>
+                <div class="key-black bk-9" data-note="G#2"></div>
+                <div class="key-black bk-10" data-note="A#2"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Globals ---
-        let audioContext;
-        let audioBuffer = null;
-        let mediaRecorder = null;
-        let recordedChunks = [];
-        let isRecording = false;
-        let activeGrains = new Map();
-        
-        // Effects
-        let reverbNode = null;
-        let dryGainNode = null;
-        let wetGainNode = null;
-        let masterGain = null;
+        // --- Config ---
+        const CONTROLS = [
+            { id: 'sampleStart', name: 'Start', min: 0, max: 100, val: 0, step: 1, unit: '%', hl: true },
+            { id: 'sampleEnd', name: 'End', min: 0, max: 100, val: 100, step: 1, unit: '%', hl: true },
+            { id: 'grainSize', name: 'Size', min: 10, max: 500, val: 100, step: 1, unit: 'ms' },
+            { id: 'density', name: 'Dens', min: 1, max: 50, val: 15, step: 1, unit: '' },
+            { id: 'position', name: 'Scan', min: 0, max: 100, val: 0, step: 0.1, unit: '%', hl: true },
+            { id: 'spray', name: 'Spray', min: 0, max: 100, val: 10, step: 1, unit: '' },
+            { id: 'attack', name: 'Atk', min: 1, max: 200, val: 20, step: 1, unit: 'ms' },
+            { id: 'release', name: 'Rel', min: 1, max: 500, val: 100, step: 1, unit: 'ms' },
+            { id: 'pitchVar', name: 'P.Rnd', min: 0, max: 100, val: 0, step: 1, unit: '' },
+            { id: 'panSpread', name: 'Width', min: 0, max: 100, val: 80, step: 1, unit: '%' },
+            { id: 'reverb', name: 'Verb', min: 0, max: 100, val: 25, step: 1, unit: '%' },
+            { id: 'volume', name: 'Vol', min: 0, max: 100, val: 85, step: 1, unit: '%' }
+        ];
 
-        // LFO
-        let lfoPhase = 0;
-        let currentLfoValue = 0;
-        let lastTime = 0;
-        let activeModulations = new Set();
-        let invertedModulations = new Set(); // Stores IDs of inverted controls
-
-        const noteFrequencies = {
-            'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
-            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+        const FREQS = {
+            'C1':32.7,'C#1':34.6,'D1':36.7,'D#1':38.9,'E1':41.2,'F1':43.7,'F#1':46.2,'G1':49.0,'G#1':51.9,'A1':55.0,'A#1':58.3,'B1':61.7,
+            'C2':65.4,'C#2':69.3,'D2':73.4,'D#2':77.8,'E2':82.4,'F2':87.3,'F#2':92.5,'G2':98.0,'G#2':103.8,'A2':110.0,'A#2':116.5,'B2':123.5
         };
-        const baseFrequency = 65.41; 
 
-        // --- Initialization ---
-        const startBtn = document.getElementById('start-btn');
-        const startOverlay = document.getElementById('start-overlay');
-        const statusDiv = document.getElementById('status');
+        // --- State ---
+        let actx = null;
+        let buf = null;
+        let mRec = null;
+        let chunks = [];
+        let isRec = false;
+        
+        let revNode, dryNode, wetNode, masterNode;
+        
+        // LFO
+        let lfo = { ph: 0, last: 0, val: 0, bpm: 120, depth: 0.5, shape: 'sine' };
+        
+        // Params { id: { base, min, max, mod: bool, inv: bool } }
+        let params = {};
+        // Current Effective Values (cached)
+        let effective = {};
+        
+        // Active Notes
+        let voices = new Map();
 
-        startBtn.addEventListener('click', async () => {
-            try {
-                // iPhone: Create context inside user event
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioContext = new AudioContext();
-                
-                // iPhone: Play silent buffer to unlock audio
-                const buffer = audioContext.createBuffer(1, 1, 22050);
-                const source = audioContext.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioContext.destination);
-                source.start(0);
+        // --- Init ---
+        function initUI() {
+            const grid = document.getElementById('controlsContainer');
+            CONTROLS.forEach(c => {
+                // Setup State
+                params[c.id] = { base: c.val, min: c.min, max: c.max, mod: false, inv: false };
+                effective[c.id] = c.val;
 
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-                
-                await setupEffects();
-                
-                startOverlay.style.opacity = '0';
-                setTimeout(() => startOverlay.style.display = 'none', 300);
-                
-                statusDiv.textContent = "Engine Ready";
-                
-                // Start Animation Loop
-                requestAnimationFrame(updateLFO);
-            } catch (e) {
-                console.error(e);
-                alert("Audio init error: " + e.message);
+                // Create DOM
+                const div = document.createElement('div');
+                div.className = `control-strip ${c.hl ? 'hl' : ''}`;
+                div.innerHTML = `
+                    <div class="strip-header">
+                        <span class="strip-label">${c.name}</span>
+                        <span class="strip-val" id="val_${c.id}">${c.val}${c.unit}</span>
+                    </div>
+                    <div class="strip-body">
+                        <input type="range" id="sl_${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.val}">
+                        <button class="tgl-btn" id="btn_m_${c.id}">M</button>
+                        <button class="tgl-btn" id="btn_i_${c.id}">I</button>
+                    </div>
+                `;
+                grid.appendChild(div);
+
+                // Events
+                const slider = div.querySelector('input');
+                const mBtn = div.querySelector(`#btn_m_${c.id}`);
+                const iBtn = div.querySelector(`#btn_i_${c.id}`);
+
+                slider.addEventListener('input', e => {
+                    params[c.id].base = parseFloat(e.target.value);
+                    if (!params[c.id].mod) updateLabel(c.id, c.unit);
+                    if(c.id === 'sampleStart' || c.id === 'sampleEnd') drawWave();
+                });
+
+                mBtn.addEventListener('click', () => {
+                    params[c.id].mod = !params[c.id].mod;
+                    mBtn.classList.toggle('active-mod', params[c.id].mod);
+                });
+
+                iBtn.addEventListener('click', () => {
+                    params[c.id].inv = !params[c.id].inv;
+                    iBtn.classList.toggle('active-inv', params[c.id].inv);
+                });
+            });
+
+            // LFO Events
+            document.getElementById('lfoRate').addEventListener('input', e => {
+                lfo.bpm = parseFloat(e.target.value);
+            });
+            document.getElementById('lfoDepth').addEventListener('input', e => {
+                lfo.depth = parseFloat(e.target.value) / 100;
+            });
+            document.getElementById('lfoShape').addEventListener('change', e => {
+                lfo.shape = e.target.value;
+            });
+        }
+
+        function updateLabel(id, unit) {
+            const el = document.getElementById(`val_${id}`);
+            if(el) {
+                let v = effective[id];
+                if(v % 1 !== 0) v = v.toFixed(1);
+                else v = Math.round(v);
+                el.innerText = v + unit;
             }
+        }
+
+        // --- Audio Core ---
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            if(!actx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                actx = new AC({ latencyHint: 'interactive' });
+            }
+            if(actx.state === 'suspended') await actx.resume();
+
+            // Unlock iOS Audio with Silent Buffer
+            const buffer = actx.createBuffer(1, 1, 22050);
+            const source = actx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(actx.destination);
+            source.start(0);
+
+            await buildFX();
+            
+            document.getElementById('start-overlay').style.display = 'none';
+            document.getElementById('status').innerText = "Engine Active";
+            
+            lfo.last = actx.currentTime;
+            requestAnimationFrame(loop);
         });
 
-        // --- LFO Engine ---
-        function updateLFO(time) {
-            if (!lastTime) lastTime = time;
-            const delta = (time - lastTime) / 1000;
-            lastTime = time;
-
-            if (audioContext && audioContext.state === 'running') {
-                const tempo = parseFloat(getControlValue('lfoTempo'));
-                const waveform = document.getElementById('lfoWaveform').value;
-                
-                const frequency = tempo / 60;
-                lfoPhase += frequency * delta;
-                if (lfoPhase > 1) lfoPhase -= 1;
-
-                if (waveform === 'sine') {
-                    currentLfoValue = Math.sin(lfoPhase * Math.PI * 2);
-                } else if (waveform === 'saw') {
-                    currentLfoValue = 2 * (lfoPhase - 0.5);
-                } else if (waveform === 'square') {
-                    currentLfoValue = lfoPhase < 0.5 ? 1 : -1;
-                }
-
-                updateModulatedUI();
+        async function buildFX() {
+            masterNode = actx.createGain();
+            masterNode.connect(actx.destination);
+            
+            revNode = actx.createConvolver();
+            // Impulse
+            const rate = actx.sampleRate;
+            const len = rate * 2.0;
+            const buf = actx.createBuffer(2, len, rate);
+            for(let c=0;c<2;c++) {
+                const d=buf.getChannelData(c);
+                for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
             }
+            revNode.buffer = buf;
 
-            requestAnimationFrame(updateLFO);
+            dryNode = actx.createGain();
+            wetNode = actx.createGain();
+
+            dryNode.connect(masterNode);
+            revNode.connect(wetNode);
+            wetNode.connect(masterNode);
         }
 
-        function getControlValue(id) {
-            const el = document.getElementById(id);
-            if (!el) return 0;
-            
-            let val = parseFloat(el.value);
-            
-            if (activeModulations.has(id)) {
-                // Get Depth from UI (raw, to prevent recursion)
-                const depthRaw = document.getElementById('lfoDepth').value;
-                const depth = parseFloat(depthRaw) / 100;
-                
-                const min = parseFloat(el.min);
-                const max = parseFloat(el.max);
-                const range = max - min;
-                
-                // Handle Inversion
-                let lfo = currentLfoValue;
-                if (invertedModulations.has(id)) lfo *= -1;
+        // --- Main Loop (LFO + UI) ---
+        function loop() {
+            if(!actx) return;
+            const now = actx.currentTime;
+            const dt = now - lfo.last;
+            lfo.last = now;
 
-                const modAmount = lfo * depth * (range * 0.5);
-                val += modAmount;
-                val = Math.max(min, Math.min(max, val));
+            // 1. Calc LFO
+            lfo.ph += dt * (lfo.bpm / 60) * 2 * Math.PI;
+            const p = lfo.ph % (2 * Math.PI);
+            let raw = 0;
+            if(lfo.shape === 'sine') raw = Math.sin(p);
+            else if(lfo.shape === 'square') raw = p < Math.PI ? 1 : -1;
+            else if(lfo.shape === 'saw') raw = (p / (2*Math.PI))*2 - 1;
+            else if(lfo.shape === 'tri') {
+                const n = p / (2*Math.PI);
+                raw = n < 0.5 ? 4*n - 1 : 3 - 4*n;
             }
-            return val;
-        }
+            lfo.val = raw;
 
-        function updateModulatedUI() {
-            activeModulations.forEach(id => {
-                const val = getControlValue(id);
-                const labelSpan = document.getElementById(id + 'Value');
-                if (labelSpan) {
-                    let suffix = '';
-                    if (id.includes('Size') || id.includes('attack') || id.includes('release')) suffix = 'ms';
-                    else if (id === 'density') suffix = 'g/s';
-                    else if (id === 'lfoTempo') suffix = '';
-                    else suffix = '%';
+            // 2. Modulate Params
+            for (const id in params) {
+                const pConfig = params[id];
+                let val = pConfig.base;
+                
+                if (pConfig.mod) {
+                    const range = pConfig.max - pConfig.min;
+                    // Inversion Logic: Multiply raw LFO by -1 if inverted
+                    let lfoFactor = raw;
+                    if (pConfig.inv) lfoFactor *= -1;
+
+                    // Apply Depth scaling
+                    const modAmt = lfoFactor * lfo.depth * (range * 0.5);
+                    val += modAmt;
                     
-                    let displayVal = val;
-                    if (id === 'position') displayVal = val.toFixed(1);
-                    else displayVal = Math.round(val);
-                    
-                    labelSpan.textContent = displayVal + suffix;
-                    labelSpan.style.color = 'var(--mod-active)';
+                    // Clamp
+                    val = Math.max(pConfig.min, Math.min(pConfig.max, val));
                 }
-                if (id === 'reverb' || id === 'volume') updateEffects();
-            });
-
-            // Clean up non-modulated labels color
-            const allSpans = document.querySelectorAll('.value');
-            allSpans.forEach(span => {
-                const id = span.id.replace('Value', '');
-                if (!activeModulations.has(id)) {
-                    span.style.color = 'var(--accent)';
-                }
-            });
-        }
-
-        // --- Mod & Invert Buttons ---
-        document.querySelectorAll('.mod-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const targetId = btn.getAttribute('data-target');
-                if (activeModulations.has(targetId)) {
-                    activeModulations.delete(targetId);
-                    btn.classList.remove('active');
-                    btn.closest('.control-group').classList.remove('modulating');
-                    // Reset UI
-                    const slider = document.getElementById(targetId);
-                    slider.dispatchEvent(new Event('input'));
+                effective[id] = val;
+                
+                // Update UI Labels periodically or always? Always is smoothest.
+                // Find unit
+                const ctrl = CONTROLS.find(c=>c.id===id);
+                if(pConfig.mod) {
+                     updateLabel(id, ctrl ? ctrl.unit : '');
+                     document.getElementById(`val_${id}`).style.color = 'var(--lfo-color)';
                 } else {
-                    activeModulations.add(targetId);
-                    btn.classList.add('active');
-                    btn.closest('.control-group').classList.add('modulating');
-                }
-            });
-        });
-
-        document.querySelectorAll('.inv-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const targetId = btn.getAttribute('data-target');
-                if (invertedModulations.has(targetId)) {
-                    invertedModulations.delete(targetId);
-                    btn.classList.remove('active');
-                } else {
-                    invertedModulations.add(targetId);
-                    btn.classList.add('active');
-                }
-            });
-        });
-
-        // --- Audio Effects ---
-        async function setupEffects() {
-            masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
-
-            reverbNode = audioContext.createConvolver();
-            dryGainNode = audioContext.createGain();
-            wetGainNode = audioContext.createGain();
-
-            const sampleRate = audioContext.sampleRate;
-            const length = sampleRate * 2.5; 
-            const impulse = audioContext.createBuffer(2, length, sampleRate);
-            for (let channel = 0; channel < 2; channel++) {
-                const data = impulse.getChannelData(channel);
-                for (let i = 0; i < length; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                     document.getElementById(`val_${id}`).style.color = 'var(--accent)';
                 }
             }
-            reverbNode.buffer = impulse;
 
-            dryGainNode.connect(masterGain);
-            reverbNode.connect(wetGainNode);
-            wetGainNode.connect(masterGain);
-            updateEffects();
-        }
-
-        function updateEffects() {
-            if (!dryGainNode) return;
-            const reverbAmt = getControlValue('reverb') / 100;
-            const volAmt = getControlValue('volume') / 100;
+            // 3. Update Global FX
+            if(dryNode && wetNode) {
+                const r = effective.reverb / 100;
+                const v = effective.volume / 100;
+                wetNode.gain.value = r;
+                dryNode.gain.value = 1.0 - (r * 0.4);
+                masterNode.gain.value = v;
+            }
             
-            dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
-            wetGainNode.gain.value = reverbAmt;
-            masterGain.gain.value = volAmt;
+            // 4. Redraw Wave if Markers Move
+            if(params['sampleStart'].mod || params['sampleEnd'].mod) drawWave();
+
+            requestAnimationFrame(loop);
         }
 
         // --- Recording ---
-        const recordBtn = document.getElementById('recordBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const waveformCanvas = document.getElementById('waveformCanvas');
-
-        recordBtn.addEventListener('click', () => {
-            if (!audioContext) return alert("Press Start");
-            if (isRecording) stopRecording();
-            else startRecording();
+        document.getElementById('recordBtn').addEventListener('click', toggleRec);
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            buf = null; 
+            drawWave(); 
+            document.getElementById('status').innerText = "Cleared";
         });
 
-        clearBtn.addEventListener('click', () => {
-            audioBuffer = null;
-            recordedChunks = [];
-            const ctx = waveformCanvas.getContext('2d');
-            ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
-            statusDiv.textContent = "Cleared";
-            stopAllGrains();
-        });
-
-        async function startRecording() {
-            try {
-                if (audioContext.state === 'suspended') await audioContext.resume();
-
-                // iOS: constraints must be simple
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                mediaRecorder = new MediaRecorder(stream);
-                recordedChunks = [];
-
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const arrayBuffer = await blob.arrayBuffer();
-                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    drawWaveform();
-                    statusDiv.textContent = `Len: ${audioBuffer.duration.toFixed(1)}s`;
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start();
-                isRecording = true;
-                recordBtn.textContent = "STOP";
-                recordBtn.classList.add('recording');
-                statusDiv.textContent = "Rec...";
-            } catch (err) {
-                console.error(err);
-                statusDiv.textContent = "Err: " + err.message;
-            }
-        }
-
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                recordBtn.textContent = "REC";
-                recordBtn.classList.remove('recording');
-            }
-        }
-
-        // --- Drawing ---
-        function drawWaveform() {
-            if (!audioBuffer) return;
-            
-            waveformCanvas.width = waveformCanvas.offsetWidth;
-            waveformCanvas.height = waveformCanvas.offsetHeight;
-            const ctx = waveformCanvas.getContext('2d');
-            const width = waveformCanvas.width;
-            const height = waveformCanvas.height;
-            const data = audioBuffer.getChannelData(0);
-            const step = Math.ceil(data.length / width);
-            const amp = height / 2;
-
-            ctx.fillStyle = '#0a0a15';
-            ctx.fillRect(0, 0, width, height);
-
-            ctx.beginPath();
-            ctx.strokeStyle = '#00d4ff';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < width; i++) {
-                let min = 1.0; let max = -1.0;
-                for (let j = 0; j < step; j++) {
-                    const val = data[(i * step) + j];
-                    if (val < min) min = val;
-                    if (val > max) max = val;
+        async function toggleRec() {
+            if(!actx) return;
+            if(isRec) {
+                mRec.stop();
+                isRec = false;
+                document.getElementById('recordBtn').classList.remove('recording');
+                document.getElementById('recordBtn').innerText = "REC MIC";
+            } else {
+                if(actx.state === 'suspended') await actx.resume();
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
+                    });
+                    
+                    // iOS Polyfill/Check
+                    let opts = {};
+                    if (MediaRecorder.isTypeSupported('audio/webm')) opts = { mimeType: 'audio/webm' };
+                    else if (MediaRecorder.isTypeSupported('audio/mp4')) opts = { mimeType: 'audio/mp4' };
+                    
+                    mRec = new MediaRecorder(stream, opts);
+                    chunks = [];
+                    mRec.ondataavailable = e => chunks.push(e.data);
+                    mRec.onstop = async () => {
+                        const blob = new Blob(chunks, { type: mRec.mimeType });
+                        const arr = await blob.arrayBuffer();
+                        actx.decodeAudioData(arr, b => {
+                            buf = b;
+                            drawWave();
+                            document.getElementById('status').innerText = `Buffer: ${b.duration.toFixed(2)}s`;
+                        });
+                        stream.getTracks().forEach(t=>t.stop());
+                    };
+                    mRec.start();
+                    isRec = true;
+                    document.getElementById('recordBtn').classList.add('recording');
+                    document.getElementById('recordBtn').innerText = "STOP";
+                    document.getElementById('status').innerText = "Recording...";
+                } catch(e) {
+                    alert("Mic Access Denied/Error: " + e.message);
                 }
-                ctx.moveTo(i, (1 + min) * amp);
-                ctx.lineTo(i, (1 + max) * amp);
+            }
+        }
+
+        // --- Waveform ---
+        function drawWave() {
+            const cvs = document.getElementById('waveCanvas');
+            const ctx = cvs.getContext('2d');
+            const w = cvs.width = cvs.clientWidth;
+            const h = cvs.height = cvs.clientHeight;
+
+            ctx.fillStyle = '#111'; ctx.fillRect(0,0,w,h);
+            if(!buf) return;
+
+            const data = buf.getChannelData(0);
+            const step = Math.ceil(data.length/w);
+            const amp = h/2;
+
+            ctx.beginPath(); ctx.strokeStyle = '#0ff';
+            for(let i=0;i<w;i++) {
+                let max = -1, min = 1;
+                for(let j=0; j<step; j++) {
+                    const val = data[i*step+j];
+                    if(val>max) max=val;
+                    if(val<min) min=val;
+                }
+                ctx.moveTo(i, (1+min)*amp);
+                ctx.lineTo(i, (1+max)*amp);
             }
             ctx.stroke();
 
-            // Visualize Markers (Modulated)
-            const startPct = getControlValue('sampleStart') / 100;
-            const endPct = getControlValue('sampleEnd') / 100;
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fillRect(0, 0, width * startPct, height);
-            ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
-
-            ctx.strokeStyle = '#ff0844';
-            ctx.beginPath();
-            ctx.moveTo(width * startPct, 0); ctx.lineTo(width * startPct, height);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(width * endPct, 0); ctx.lineTo(width * endPct, height);
-            ctx.stroke();
+            // Markers (Modulated)
+            const s = effective.sampleStart / 100;
+            const e = effective.sampleEnd / 100;
+            
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillRect(0,0,w*s,h);
+            ctx.fillRect(w*e,0,w*(1-e),h);
+            
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(w*s, 0, 2, h);
+            ctx.fillRect(w*e, 0, 2, h);
         }
-
-        function animateWaveform() {
-            if(activeModulations.has('sampleStart') || activeModulations.has('sampleEnd')) {
-                drawWaveform();
-            }
-            requestAnimationFrame(animateWaveform);
-        }
-        requestAnimationFrame(animateWaveform);
 
         // --- Granular Engine ---
         function playGrain(note) {
-            if (!audioBuffer || !audioContext) return;
+            if(!buf) return;
+            
+            // Get Params
+            let s = effective.sampleStart/100;
+            let e = effective.sampleEnd/100;
+            if(s>e) [s,e]=[e,s];
+            
+            const dur = buf.duration;
+            const startT = dur * s;
+            const endT = dur * e;
+            const win = endT - startT;
+            if(win <= 0) return;
 
-            const grainSize = getControlValue('grainSize') / 1000;
-            const attack = getControlValue('attack') / 1000;
-            const release = getControlValue('release') / 1000;
-            const spray = getControlValue('spray') / 100;
-            const pitchVar = getControlValue('pitchVar') / 100;
-            const panSpread = getControlValue('panSpread') / 100;
+            const pos = effective.position/100;
+            const size = effective.grainSize/1000;
+            const atk = effective.attack/1000;
+            const rel = effective.release/1000;
+            const spr = effective.spray/100;
+            const pVar = effective.pitchVar/100;
+            const wide = effective.panSpread/100;
 
-            let startPct = getControlValue('sampleStart') / 100;
-            let endPct = getControlValue('sampleEnd') / 100;
-            if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
+            // Calc Position
+            let offset = startT + (pos * win);
+            offset += (Math.random()*2-1)*spr * win * 0.5;
+            offset = Math.max(startT, Math.min(endT-size, offset));
 
-            const bufferDuration = audioBuffer.duration;
-            const validStart = bufferDuration * startPct;
-            const validEnd = bufferDuration * endPct;
-            const validDuration = validEnd - validStart;
+            // Calc Rate
+            const baseF = FREQS[note] || 65.4;
+            let rate = baseF / 65.4; // Base C2
+            rate *= (1 + (Math.random()*2-1)*pVar*0.1);
 
-            const posSlider = getControlValue('position') / 100;
-            let playPosition = validStart + (posSlider * validDuration);
+            // Graph
+            const src = actx.createBufferSource();
+            src.buffer = buf;
+            src.playbackRate.value = rate;
 
-            // Spray
-            playPosition += (Math.random() * 2 - 1) * spray * validDuration * 0.5;
-            playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
+            const env = actx.createGain();
+            const pan = actx.createStereoPanner();
 
-            const noteFreq = noteFrequencies[note];
-            let rate = noteFreq / baseFrequency;
-            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
+            pan.pan.value = (Math.random()*2-1)*wide;
 
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.playbackRate.value = rate;
+            src.connect(env).connect(pan);
+            pan.connect(dryNode);
+            pan.connect(revNode);
 
-            const envelope = audioContext.createGain();
-            const panner = audioContext.createStereoPanner();
+            const t = actx.currentTime;
+            env.gain.setValueAtTime(0, t);
+            env.gain.linearRampToValueAtTime(1, t+atk);
+            env.gain.linearRampToValueAtTime(0, t+size);
 
-            panner.pan.value = (Math.random() * 2 - 1) * panSpread;
-
-            source.connect(envelope);
-            envelope.connect(panner);
-            panner.connect(dryGainNode);
-            panner.connect(reverbNode);
-
-            const now = audioContext.currentTime;
-            envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(1, now + attack);
-            envelope.gain.linearRampToValueAtTime(0, now + grainSize);
-
-            source.start(now, playPosition, grainSize);
-            source.stop(now + grainSize + 0.1); 
+            src.start(t, offset, size);
+            src.stop(t+size+0.1);
         }
 
-        // --- Scheduler ---
-        function startGrainStream(note) {
-            if (!audioBuffer) return;
-            if (activeGrains.has(note)) return;
+        // --- Scheduling ---
+        function startVoice(note) {
+            if(!buf || voices.has(note)) return;
 
-            function schedule() {
-                const density = Math.max(1, getControlValue('density')); 
+            function tick() {
+                if(!voices.has(note)) return;
                 playGrain(note);
-                const nextTime = 1000 / density;
-                const id = setTimeout(schedule, nextTime);
-                activeGrains.set(note, id); 
+                
+                // Dynamic Density
+                let d = effective.density;
+                if(d < 1) d = 1; 
+                const wait = 1000/d;
+                voices.set(note, setTimeout(tick, wait));
             }
-            schedule();
+            tick();
         }
 
-        function stopGrainStream(note) {
-            if (activeGrains.has(note)) {
-                clearTimeout(activeGrains.get(note));
-                activeGrains.delete(note);
+        function stopVoice(note) {
+            if(voices.has(note)) {
+                clearTimeout(voices.get(note));
+                voices.delete(note);
             }
         }
+
+        // --- Keyboard Inputs ---
+        const keys = document.getElementById('kbd');
         
-        function stopAllGrains() {
-            activeGrains.forEach(id => clearTimeout(id));
-            activeGrains.clear();
-        }
-
-        // --- Input Handling ---
-        const keys = document.querySelectorAll('.key');
-        keys.forEach(key => {
-            key.addEventListener('pointerdown', (e) => {
+        // Use pointer events for multi-touch
+        keys.querySelectorAll('div').forEach(k => {
+            k.addEventListener('pointerdown', e => {
                 e.preventDefault();
-                key.classList.add('active');
-                key.setPointerCapture(e.pointerId);
-                startGrainStream(key.dataset.note);
+                k.classList.add('active');
+                k.setPointerCapture(e.pointerId);
+                startVoice(k.dataset.note);
             });
-            key.addEventListener('pointerup', (e) => {
-                key.classList.remove('active');
-                key.releasePointerCapture(e.pointerId);
-                stopGrainStream(key.dataset.note);
+            k.addEventListener('pointerup', e => {
+                k.classList.remove('active');
+                k.releasePointerCapture(e.pointerId);
+                stopVoice(k.dataset.note);
             });
-            key.addEventListener('pointerleave', (e) => {
-                if (key.classList.contains('active')) {
-                   key.classList.remove('active');
-                   stopGrainStream(key.dataset.note);
+            k.addEventListener('pointercancel', e => {
+                k.classList.remove('active');
+                stopVoice(k.dataset.note);
+            });
+             k.addEventListener('pointerleave', e => {
+                // If you slide off key
+                if(k.classList.contains('active')) {
+                     k.classList.remove('active');
+                     stopVoice(k.dataset.note);
                 }
             });
         });
 
-        // Sliders Text Update
-        document.querySelectorAll('input[type="range"]').forEach(slider => {
-            slider.addEventListener('input', (e) => {
-                const id = e.target.id;
-                if (!activeModulations.has(id)) {
-                    const labelSpan = document.getElementById(id + 'Value');
-                    if (labelSpan) {
-                        let suffix = '';
-                        if (id.includes('Size') || id.includes('attack') || id.includes('release')) suffix = 'ms';
-                        else if (id === 'density') suffix = 'g/s';
-                        else if (id === 'lfoTempo') suffix = '';
-                        else suffix = '%';
-                        labelSpan.textContent = e.target.value + suffix;
-                    }
-                }
-                if (id === 'reverb' || id === 'volume') updateEffects();
-                if (id === 'sampleStart' || id === 'sampleEnd') drawWaveform();
-            });
-        });
+        // Run Init
+        initUI();
 
-        window.addEventListener('resize', drawWaveform);
     </script>
 </body>
 </html>
