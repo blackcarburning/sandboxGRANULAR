@@ -563,6 +563,13 @@
             if (availableDuration > 0) {
                  offset += Math.random() * availableDuration;
             }
+            
+            // Apply spread as additional randomization around the chosen position
+            const spreadAmount = spread * duration * 0.1; // 10% of duration max
+            offset += (Math.random() - 0.5) * spreadAmount;
+            
+            // Clamp to valid range
+            offset = Math.max(0, Math.min(duration - grainSize, offset));
 
             // Apply detune + fineTune
             src.detune.value = detune + fineTune;
@@ -581,10 +588,17 @@
             filter.connect(env);
             env.connect(audioCtx.destination);
 
-            // Envelope
+            // Envelope using modulated attack/release
+            const attackTime = Math.min(attack, grainSize * 0.5);
+            const releaseTime = Math.min(release, grainSize * 0.5);
+            const sustainTime = grainSize - attackTime - releaseTime;
+            
             env.gain.setValueAtTime(0, now);
-            env.gain.linearRampToValueAtTime(0.5, now + (grainSize * 0.5)); // Attack (simple triangle window)
-            env.gain.linearRampToValueAtTime(0, now + grainSize); // Decay
+            env.gain.linearRampToValueAtTime(0.5, now + attackTime); // Attack
+            if (sustainTime > 0) {
+                env.gain.setValueAtTime(0.5, now + attackTime + sustainTime); // Sustain
+            }
+            env.gain.linearRampToValueAtTime(0, now + grainSize); // Release
 
             src.start(now, offset);
             src.stop(now + grainSize + 0.1); // Cleanup
