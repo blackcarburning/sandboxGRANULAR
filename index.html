@@ -1,56 +1,791 @@
-<! DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
     <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: rgba(30, 30, 50, 0.95);
+            --accent: #00d4ff;
+            --accent-glow: rgba(0, 212, 255, 0.5);
+            --record-color: #ff0844;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html, body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
-            height:  100vh;
-            width:  100vw;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            height: 100vh;
+            width: 100vw;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            -moz-user-select:  none;
-            -ms-user-select: none;
+            touch-action: none;
         }
 
-        .container {
-            max-width: 1200px;
-            max-height: calc(100vh - 40px);
+        /* Overlays for Orientation and Start */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            background: rgba(30, 30, 50, 0.8);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            overflow-y: auto;
-            overflow-x: hidden;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.3s;
         }
 
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #00d4ff;
-            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-            font-size: 2.5em;
+        .overlay h1 { color: var(--accent); margin-bottom: 20px; }
+        .overlay p { max-width: 400px; line-height: 1.5; color: #ccc; }
+        
+        #start-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 30px;
+            box-shadow: 0 0 20px var(--accent-glow);
         }
+
+        /* Logic to show/hide orientation warning */
+        #orientation-overlay { display: none; }
+        
+        @media screen and (orientation: portrait) {
+            #orientation-overlay { display: flex; }
+            .synth-container { display: none !important; }
+        }
+
+        /* Main App Container */
+        .synth-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            padding: 10px;
+        }
+
+        /* Top Section: Controls + Rec */
+        .top-section {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-height: 0; /* Important for flex overflow */
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        /* Left Side: Recording */
+        .recording-section {
+            flex: 0 0 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .section-title {
+            color: var(--accent);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recording-buttons { display: flex; gap: 8px; }
+
+        button {
+            padding: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        #recordBtn {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: white;
+            flex: 1;
+        }
+
+        #recordBtn.recording {
+            animation: pulse 1s infinite;
+            background: #ff0000;
+        }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        #clearBtn {
+            background: #444;
+            color: white;
+            flex: 1;
+        }
+
+        #waveformCanvas {
+            width: 100%;
+            flex: 1;
+            background: #0a0a15;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .status {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            height: 15px;
+        }
+
+        /* Right Side: Sliders */
+        .controls-section {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4 columns */
+            gap: 12px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .control-group.highlight {
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .control-group .value { color: var(--accent); }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+            margin-top: -7px; /* vertical align */
+        }
+        
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        /* Keyboard Section */
+        .keyboard-section {
+            flex: 0 0 140px;
+            background: var(--panel-bg);
+            border-radius: 12px 12px 0 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            border-top: 2px solid var(--accent);
+            overflow-x: auto;
+        }
+
+        .keyboard {
+            display: flex;
+            position: relative;
+            height: 100%;
+        }
+
+        .key {
+            position: relative;
+            cursor: pointer;
+            border-radius: 0 0 4px 4px;
+            user-select: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            touch-action: none; /* Critical for glissando */
+        }
+
+        .key.white {
+            width: 40px;
+            height: 100%;
+            background: #fff;
+            border: 1px solid #ccc;
+            color: #333;
+            z-index: 1;
+            margin: 0 1px;
+        }
+
+        .key.black {
+            width: 26px;
+            height: 60%;
+            background: #000;
+            color: #fff;
+            position: absolute;
+            z-index: 2;
+            border-radius: 0 0 4px 4px;
+            pointer-events: none; /* Let JS handle hitbox logic if needed, or keeping it simple */
+            pointer-events: auto;
+        }
+
+        .key.active {
+            background: var(--accent) !important;
+            transform: translateY(2px);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Black key positions */
+        .key.black[data-note="C#1"] { left: 28px; }
+        .key.black[data-note="D#1"] { left: 70px; }
+        .key.black[data-note="F#1"] { left: 154px; }
+        .key.black[data-note="G#1"] { left: 196px; }
+        .key.black[data-note="A#1"] { left: 238px; }
+        .key.black[data-note="C#2"] { left: 322px; }
+        .key.black[data-note="D#2"] { left: 364px; }
+        .key.black[data-note="F#2"] { left: 448px; }
+        .key.black[data-note="G#2"] { left: 490px; }
+        .key.black[data-note="A#2"] { left: 532px; }
+
     </style>
 </head>
 <body>
-    <!-- Body content continues...  -->
+
+    <!-- Orientation Overlay -->
+    <div id="orientation-overlay" class="overlay">
+        <h1>Please Rotate Your Device</h1>
+        <p>This synthesizer requires landscape mode for the best experience.</p>
+        <div style="font-size: 40px; margin-top: 20px;">↻</div>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay" class="overlay">
+        <h1>Granular Synth</h1>
+        <p>Touch 'Start' to enable audio and microphone access.</p>
+        <button id="start-btn">START ENGINE</button>
+    </div>
+
+    <div class="synth-container">
+        <div class="top-section">
+            <div class="recording-section">
+                <div class="section-title">Sample Source</div>
+                <div class="recording-buttons">
+                    <button id="recordBtn">Record Mic</button>
+                    <button id="clearBtn">Clear</button>
+                </div>
+                <canvas id="waveformCanvas"></canvas>
+                <div id="status" class="status">Waiting for audio...</div>
+            </div>
+
+            <div class="controls-section">
+                <!-- New Sliders -->
+                <div class="control-group highlight">
+                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
+                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="control-group highlight">
+                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
+                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
+                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Density</span><span class="value" id="densityValue">10</span></label>
+                    <input type="range" id="density" min="1" max="40" value="10" step="1">
+                </div>
+                
+                <div class="control-group highlight">
+                    <label><span>Scan Position</span><span class="value" id="positionValue">0%</span></label>
+                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Spray (Rnd)</span><span class="value" id="sprayValue">0%</span></label>
+                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
+                    <input type="range" id="attack" min="1" max="200" value="10" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
+                    <input type="range" id="release" min="1" max="500" value="50" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Pitch Rand</span><span class="value" id="pitchVarValue">0%</span></label>
+                    <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Stereo</span><span class="value" id="panSpreadValue">50%</span></label>
+                    <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Reverb</span><span class="value" id="reverbValue">20%</span></label>
+                    <input type="range" id="reverb" min="0" max="100" value="20" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Master Vol</span><span class="value" id="volumeValue">80%</span></label>
+                    <input type="range" id="volume" min="0" max="100" value="80" step="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard-section">
+            <div class="keyboard" id="keyboardContainer">
+                <!-- Keys generated by JS or static HTML -->
+                <!-- Octave 1 -->
+                <div class="key white" data-note="C1">C1</div>
+                <div class="key black" data-note="C#1"></div>
+                <div class="key white" data-note="D1">D</div>
+                <div class="key black" data-note="D#1"></div>
+                <div class="key white" data-note="E1">E</div>
+                <div class="key white" data-note="F1">F</div>
+                <div class="key black" data-note="F#1"></div>
+                <div class="key white" data-note="G1">G</div>
+                <div class="key black" data-note="G#1"></div>
+                <div class="key white" data-note="A1">A</div>
+                <div class="key black" data-note="A#1"></div>
+                <div class="key white" data-note="B1">B</div>
+                <!-- Octave 2 -->
+                <div class="key white" data-note="C2">C2</div>
+                <div class="key black" data-note="C#2"></div>
+                <div class="key white" data-note="D2">D</div>
+                <div class="key black" data-note="D#2"></div>
+                <div class="key white" data-note="E2">E</div>
+                <div class="key white" data-note="F2">F</div>
+                <div class="key black" data-note="F#2"></div>
+                <div class="key white" data-note="G2">G</div>
+                <div class="key black" data-note="G#2"></div>
+                <div class="key white" data-note="A2">A</div>
+                <div class="key black" data-note="A#2"></div>
+                <div class="key white" data-note="B2">B</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Globals ---
+        let audioContext;
+        let audioBuffer = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let activeGrains = new Map();
+        
+        // Effects nodes
+        let reverbNode = null;
+        let dryGainNode = null;
+        let wetGainNode = null;
+        let masterGain = null;
+
+        // Frequencies (C2 base)
+        const noteFrequencies = {
+            'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
+            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+        };
+        const baseFrequency = 65.41; // C2
+
+        // --- Initialization ---
+        const startBtn = document.getElementById('start-btn');
+        const startOverlay = document.getElementById('start-overlay');
+        const statusDiv = document.getElementById('status');
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') await audioContext.resume();
+                
+                await setupEffects();
+                
+                // Hide overlay
+                startOverlay.style.opacity = '0';
+                setTimeout(() => startOverlay.style.display = 'none', 300);
+                
+                statusDiv.textContent = "Engine Ready. Record something!";
+            } catch (e) {
+                console.error(e);
+                alert("Audio init failed: " + e.message);
+            }
+        });
+
+        async function setupEffects() {
+            // Master Volume
+            masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+
+            // Reverb Chain
+            reverbNode = audioContext.createConvolver();
+            dryGainNode = audioContext.createGain();
+            wetGainNode = audioContext.createGain();
+
+            // Create simple Impulse Response
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * 2.5; // 2.5 seconds tail
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+            for (let channel = 0; channel < 2; channel++) {
+                const data = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                }
+            }
+            reverbNode.buffer = impulse;
+
+            // Connections
+            // Grain -> dryGain -> Master
+            // Grain -> reverb -> wetGain -> Master
+            dryGainNode.connect(masterGain);
+            reverbNode.connect(wetGainNode);
+            wetGainNode.connect(masterGain);
+
+            updateEffects();
+        }
+
+        function updateEffects() {
+            if (!dryGainNode) return;
+            const reverbAmt = parseFloat(document.getElementById('reverb').value) / 100;
+            const volAmt = parseFloat(document.getElementById('volume').value) / 100;
+            
+            dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
+            wetGainNode.gain.value = reverbAmt;
+            masterGain.gain.value = volAmt;
+        }
+
+        // --- Recording ---
+        const recordBtn = document.getElementById('recordBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+
+        recordBtn.addEventListener('click', () => {
+            if (!audioContext) return alert("Click Start First");
+            if (isRecording) stopRecording();
+            else startRecording();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            audioBuffer = null;
+            recordedChunks = [];
+            const ctx = waveformCanvas.getContext('2d');
+            ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
+            statusDiv.textContent = "Buffer cleared";
+            stopAllGrains();
+        });
+
+        async function startRecording() {
+            try {
+                // Ensure context is running
+                if (audioContext.state === 'suspended') await audioContext.resume();
+
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { 
+                        echoCancellation: false, 
+                        noiseSuppression: false, 
+                        autoGainControl: false 
+                    } 
+                });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    drawWaveform();
+                    statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.textContent = "STOP";
+                recordBtn.classList.add('recording');
+                statusDiv.textContent = "Recording...";
+            } catch (err) {
+                console.error(err);
+                statusDiv.textContent = "Mic Error: " + err.message;
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.textContent = "Record Mic";
+                recordBtn.classList.remove('recording');
+            }
+        }
+
+        // --- Waveform & Visualization ---
+        function drawWaveform() {
+            if (!audioBuffer) return;
+            
+            // Handle resizing
+            waveformCanvas.width = waveformCanvas.offsetWidth;
+            waveformCanvas.height = waveformCanvas.offsetHeight;
+
+            const ctx = waveformCanvas.getContext('2d');
+            const width = waveformCanvas.width;
+            const height = waveformCanvas.height;
+            const data = audioBuffer.getChannelData(0);
+            const step = Math.ceil(data.length / width);
+            const amp = height / 2;
+
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw Wave
+            ctx.beginPath();
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < width; i++) {
+                let min = 1.0;
+                let max = -1.0;
+                for (let j = 0; j < step; j++) {
+                    const val = data[(i * step) + j];
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                ctx.moveTo(i, (1 + min) * amp);
+                ctx.lineTo(i, (1 + max) * amp);
+            }
+            ctx.stroke();
+
+            // Draw Start/End Markers
+            const startPct = document.getElementById('sampleStart').value / 100;
+            const endPct = document.getElementById('sampleEnd').value / 100;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            // Inactive area before start
+            ctx.fillRect(0, 0, width * startPct, height);
+            // Inactive area after end
+            ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
+
+            ctx.strokeStyle = '#ff0844';
+            ctx.beginPath();
+            ctx.moveTo(width * startPct, 0);
+            ctx.lineTo(width * startPct, height);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ff0844';
+            ctx.beginPath();
+            ctx.moveTo(width * endPct, 0);
+            ctx.lineTo(width * endPct, height);
+            ctx.stroke();
+        }
+
+        // --- Granular Engine ---
+        function playGrain(note) {
+            if (!audioBuffer || !audioContext) return;
+
+            // Params
+            const grainSize = parseInt(document.getElementById('grainSize').value) / 1000; // seconds
+            const attack = parseInt(document.getElementById('attack').value) / 1000;
+            const release = parseInt(document.getElementById('release').value) / 1000;
+            const spray = parseInt(document.getElementById('spray').value) / 100;
+            const pitchVar = parseInt(document.getElementById('pitchVar').value) / 100;
+            const panSpread = parseInt(document.getElementById('panSpread').value) / 100;
+
+            // Start/End Logic
+            let startPct = parseInt(document.getElementById('sampleStart').value) / 100;
+            let endPct = parseInt(document.getElementById('sampleEnd').value) / 100;
+            
+            // Swap if user crosses sliders
+            if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
+
+            const bufferDuration = audioBuffer.duration;
+            const validStart = bufferDuration * startPct;
+            const validEnd = bufferDuration * endPct;
+            const validDuration = validEnd - validStart;
+
+            // Playhead Position (within the valid window)
+            const posSlider = parseInt(document.getElementById('position').value) / 100;
+            let playPosition = validStart + (posSlider * validDuration);
+
+            // Add Spray
+            const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
+            playPosition += randomSpray;
+
+            // Clamp
+            playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
+
+            // Pitch Calculation
+            const noteFreq = noteFrequencies[note];
+            let rate = noteFreq / baseFrequency;
+            // Add Pitch Randomness
+            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
+
+            // Audio Graph
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.playbackRate.value = rate;
+
+            const envelope = audioContext.createGain();
+            const panner = audioContext.createStereoPanner();
+
+            // Random Pan
+            panner.pan.value = (Math.random() * 2 - 1) * panSpread;
+
+            source.connect(envelope);
+            envelope.connect(panner);
+            panner.connect(dryGainNode);
+            panner.connect(reverbNode); // Send to reverb
+
+            // Envelope
+            const now = audioContext.currentTime;
+            envelope.gain.setValueAtTime(0, now);
+            envelope.gain.linearRampToValueAtTime(1, now + attack);
+            envelope.gain.linearRampToValueAtTime(0, now + grainSize);
+
+            // Play
+            source.start(now, playPosition, grainSize);
+            source.stop(now + grainSize + 0.1); // Cleanup
+        }
+
+        // --- Scheduler ---
+        function startGrainStream(note) {
+            if (!audioBuffer) return;
+            if (activeGrains.has(note)) return; // Already playing
+
+            const density = parseInt(document.getElementById('density').value);
+            const intervalTime = 1000 / density;
+
+            function schedule() {
+                playGrain(note);
+            }
+
+            // Play one immediately
+            schedule();
+            // Loop
+            const id = setInterval(schedule, intervalTime);
+            activeGrains.set(note, id);
+        }
+
+        function stopGrainStream(note) {
+            if (activeGrains.has(note)) {
+                clearInterval(activeGrains.get(note));
+                activeGrains.delete(note);
+            }
+        }
+
+        function stopAllGrains() {
+            activeGrains.forEach(id => clearInterval(id));
+            activeGrains.clear();
+        }
+
+        // --- Input Handling (Pointer Events) ---
+        const keys = document.querySelectorAll('.key');
+        
+        keys.forEach(key => {
+            // Use pointerdown/up for unified mouse/touch support
+            key.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Prevent scrolling
+                key.classList.add('active');
+                key.setPointerCapture(e.pointerId); // Capture drag
+                startGrainStream(key.dataset.note);
+            });
+
+            key.addEventListener('pointerup', (e) => {
+                key.classList.remove('active');
+                key.releasePointerCapture(e.pointerId);
+                stopGrainStream(key.dataset.note);
+            });
+
+            key.addEventListener('pointerleave', (e) => {
+                if (key.classList.contains('active')) {
+                   key.classList.remove('active');
+                   stopGrainStream(key.dataset.note);
+                }
+            });
+        });
+
+        // --- Slider Listeners ---
+        const sliders = document.querySelectorAll('input[type="range"]');
+        sliders.forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                // Update text label
+                const labelSpan = document.getElementById(e.target.id + 'Value');
+                if (labelSpan) {
+                    let suffix = '';
+                    if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
+                    else if (e.target.id === 'density') suffix = ' gr/s';
+                    else suffix = '%';
+                    labelSpan.textContent = e.target.value + suffix;
+                }
+
+                // Special handling for effects or redraw
+                if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
+                if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
+            });
+        });
+
+        // Window Resize
+        window.addEventListener('resize', drawWaveform);
+
+    </script>
 </body>
 </html>
