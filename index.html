@@ -576,10 +576,17 @@
             startPos = Math.max(regionStart, Math.min(startPos, maxStartTime));
 
             const now = audioContext.currentTime;
+            
+            const attackTime = getAttackTime();
+            const releaseTime = getReleaseTime();
+            
+            const maxEnvelopeTime = grainSizeSec / 2;
+            const effectiveAttack = Math.min(attackTime, maxEnvelopeTime);
+            const effectiveRelease = Math.min(releaseTime, maxEnvelopeTime);
 
             grainGain.gain.setValueAtTime(0, now);
-            grainGain.gain.linearRampToValueAtTime(1, now + 0.005);
-            grainGain.gain.setValueAtTime(1, now + grainSizeSec - 0.005);
+            grainGain.gain.linearRampToValueAtTime(1, now + effectiveAttack);
+            grainGain.gain.setValueAtTime(1, now + grainSizeSec - effectiveRelease);
             grainGain.gain.linearRampToValueAtTime(0, now + grainSizeSec);
 
             source.connect(grainGain);
