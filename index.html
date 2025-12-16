@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Granular Synthesizer</title>
+    <title>Granular Synthesizer + LFO</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -14,6 +13,7 @@
             --accent: #00d4ff;
             --accent-glow: rgba(0, 212, 255, 0.5);
             --record-color: #ff0844;
+            --mod-active: #ffd700; /* Gold for active modulation */
         }
 
         * {
@@ -35,7 +35,7 @@
             touch-action: none;
         }
 
-        /* Overlays for Orientation and Start */
+        /* Overlays */
         .overlay {
             position: fixed;
             top: 0;
@@ -67,7 +67,6 @@
             box-shadow: 0 0 20px var(--accent-glow);
         }
 
-        /* Logic to show/hide orientation warning */
         #orientation-overlay { display: none; }
         
         @media screen and (orientation: portrait) {
@@ -84,12 +83,11 @@
             padding: 10px;
         }
 
-        /* Top Section: Controls + Rec */
         .top-section {
             display: flex;
             gap: 10px;
             flex: 1;
-            min-height: 0; /* Important for flex overflow */
+            min-height: 0;
             overflow: hidden;
             margin-bottom: 10px;
         }
@@ -167,7 +165,7 @@
         .controls-section {
             flex: 1;
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 columns */
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             background: var(--panel-bg);
             border-radius: 12px;
@@ -176,6 +174,21 @@
             overflow-y: auto;
         }
 
+        /* LFO Header specific styling */
+        .lfo-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: bold;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0,212,255,0.2);
+            margin-bottom: 5px;
+        }
+
+        /* Control Groups */
         .control-group {
             display: flex;
             flex-direction: column;
@@ -183,6 +196,7 @@
             background: rgba(0,0,0,0.2);
             padding: 8px;
             border-radius: 6px;
+            position: relative;
         }
 
         .control-group.highlight {
@@ -190,16 +204,46 @@
             background: rgba(0, 212, 255, 0.05);
         }
 
+        .control-group.modulating {
+            border: 1px solid var(--mod-active);
+        }
+
         .control-group label {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 11px;
             color: #aaa;
             margin-bottom: 5px;
             font-weight: 600;
         }
 
-        .control-group .value { color: var(--accent); }
+        .control-group .value { color: var(--accent); min-width: 40px; text-align: right; }
+        
+        /* Mod Button */
+        .mod-btn {
+            background: #333;
+            color: #888;
+            border: 1px solid #555;
+            border-radius: 3px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            margin-left: 5px;
+            margin-right: auto; /* Push label text to right */
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .mod-btn.active {
+            background: var(--mod-active);
+            color: #000;
+            border-color: var(--mod-active);
+            box-shadow: 0 0 5px var(--mod-active);
+        }
 
         input[type="range"] {
             width: 100%;
@@ -217,7 +261,7 @@
             border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 10px var(--accent-glow);
-            margin-top: -7px; /* vertical align */
+            margin-top: -7px;
         }
         
         input[type="range"]::-webkit-slider-runnable-track {
@@ -226,7 +270,17 @@
             border-radius: 2px;
         }
 
-        /* Keyboard Section */
+        select {
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-size: 10px;
+            outline: none;
+        }
+
+        /* Keyboard */
         .keyboard-section {
             flex: 0 0 140px;
             background: var(--panel-bg);
@@ -238,55 +292,17 @@
             overflow-x: auto;
         }
 
-        .keyboard {
-            display: flex;
-            position: relative;
-            height: 100%;
-        }
-
+        .keyboard { display: flex; position: relative; height: 100%; }
         .key {
-            position: relative;
-            cursor: pointer;
-            border-radius: 0 0 4px 4px;
-            user-select: none;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding-bottom: 8px;
-            font-size: 10px;
-            font-weight: bold;
-            touch-action: none; /* Critical for glissando */
+            position: relative; cursor: pointer; border-radius: 0 0 4px 4px;
+            user-select: none; display: flex; align-items: flex-end; justify-content: center;
+            padding-bottom: 8px; font-size: 10px; font-weight: bold; touch-action: none;
         }
+        .key.white { width: 40px; height: 100%; background: #fff; border: 1px solid #ccc; color: #333; z-index: 1; margin: 0 1px; }
+        .key.black { width: 26px; height: 60%; background: #000; color: #fff; position: absolute; z-index: 2; pointer-events: auto; }
+        .key.active { background: var(--accent) !important; transform: translateY(2px); box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
 
-        .key.white {
-            width: 40px;
-            height: 100%;
-            background: #fff;
-            border: 1px solid #ccc;
-            color: #333;
-            z-index: 1;
-            margin: 0 1px;
-        }
-
-        .key.black {
-            width: 26px;
-            height: 60%;
-            background: #000;
-            color: #fff;
-            position: absolute;
-            z-index: 2;
-            border-radius: 0 0 4px 4px;
-            pointer-events: none; /* Let JS handle hitbox logic if needed, or keeping it simple */
-            pointer-events: auto;
-        }
-
-        .key.active {
-            background: var(--accent) !important;
-            transform: translateY(2px);
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
-
-        /* Black key positions */
+        /* Key Positions */
         .key.black[data-note="C#1"] { left: 28px; }
         .key.black[data-note="D#1"] { left: 70px; }
         .key.black[data-note="F#1"] { left: 154px; }
@@ -301,18 +317,15 @@
     </style>
 </head>
 <body>
-
-    <!-- Orientation Overlay -->
     <div id="orientation-overlay" class="overlay">
-        <h1>Please Rotate Your Device</h1>
-        <p>This synthesizer requires landscape mode for the best experience.</p>
+        <h1>Rotate Device</h1>
+        <p>Landscape mode required.</p>
         <div style="font-size: 40px; margin-top: 20px;">↻</div>
     </div>
 
-    <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1>Granular Synth</h1>
-        <p>Touch 'Start' to enable audio and microphone access.</p>
+        <p>Touch 'Start' to enable audio and microphone.</p>
         <button id="start-btn">START ENGINE</button>
     </div>
 
@@ -329,63 +342,143 @@
             </div>
 
             <div class="controls-section">
-                <!-- New Sliders -->
+                <!-- LFO Controls -->
+                <div class="lfo-header">
+                    <span>LFO ENGINE</span>
+                    <select id="lfoWaveform">
+                        <option value="sine">Sine</option>
+                        <option value="saw">Saw</option>
+                        <option value="square">Square</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <span>Tempo</span>
+                        <button class="mod-btn" data-target="lfoTempo">M</button>
+                        <span class="value" id="lfoTempoValue">120bpm</span>
+                    </label>
+                    <input type="range" id="lfoTempo" min="10" max="300" value="120" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <span>Depth</span>
+                        <button class="mod-btn" data-target="lfoDepth">M</button>
+                        <span class="value" id="lfoDepthValue">50%</span>
+                    </label>
+                    <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
+                </div>
+
+                <!-- Spacer/Placeholder to align grid if needed, or just standard controls -->
+                <div class="control-group" style="opacity:0; pointer-events:none;"></div> 
+                <div class="control-group" style="opacity:0; pointer-events:none;"></div> 
+
+                <!-- Synthesis Controls -->
                 <div class="control-group highlight">
-                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
+                    <label>
+                        <span>Start</span>
+                        <button class="mod-btn" data-target="sampleStart">M</button>
+                        <span class="value" id="sampleStartValue">0%</span>
+                    </label>
                     <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="control-group highlight">
-                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
+                    <label>
+                        <span>End</span>
+                        <button class="mod-btn" data-target="sampleEnd">M</button>
+                        <span class="value" id="sampleEndValue">100%</span>
+                    </label>
                     <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
                 </div>
 
                 <div class="control-group">
-                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
+                    <label>
+                        <span>Grain Size</span>
+                        <button class="mod-btn" data-target="grainSize">M</button>
+                        <span class="value" id="grainSizeValue">100ms</span>
+                    </label>
                     <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Density</span><span class="value" id="densityValue">10</span></label>
+                    <label>
+                        <span>Density</span>
+                        <button class="mod-btn" data-target="density">M</button>
+                        <span class="value" id="densityValue">10</span>
+                    </label>
                     <input type="range" id="density" min="1" max="40" value="10" step="1">
                 </div>
                 
                 <div class="control-group highlight">
-                    <label><span>Scan Position</span><span class="value" id="positionValue">0%</span></label>
+                    <label>
+                        <span>Scan Pos</span>
+                        <button class="mod-btn" data-target="position">M</button>
+                        <span class="value" id="positionValue">0%</span>
+                    </label>
                     <input type="range" id="position" min="0" max="100" value="0" step="0.1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Spray (Rnd)</span><span class="value" id="sprayValue">0%</span></label>
+                    <label>
+                        <span>Spray</span>
+                        <button class="mod-btn" data-target="spray">M</button>
+                        <span class="value" id="sprayValue">0%</span>
+                    </label>
                     <input type="range" id="spray" min="0" max="100" value="0" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
+                    <label>
+                        <span>Attack</span>
+                        <button class="mod-btn" data-target="attack">M</button>
+                        <span class="value" id="attackValue">10ms</span>
+                    </label>
                     <input type="range" id="attack" min="1" max="200" value="10" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
+                    <label>
+                        <span>Release</span>
+                        <button class="mod-btn" data-target="release">M</button>
+                        <span class="value" id="releaseValue">50ms</span>
+                    </label>
                     <input type="range" id="release" min="1" max="500" value="50" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Pitch Rand</span><span class="value" id="pitchVarValue">0%</span></label>
+                    <label>
+                        <span>Pitch Rnd</span>
+                        <button class="mod-btn" data-target="pitchVar">M</button>
+                        <span class="value" id="pitchVarValue">0%</span>
+                    </label>
                     <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Stereo</span><span class="value" id="panSpreadValue">50%</span></label>
+                    <label>
+                        <span>Stereo</span>
+                        <button class="mod-btn" data-target="panSpread">M</button>
+                        <span class="value" id="panSpreadValue">50%</span>
+                    </label>
                     <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Reverb</span><span class="value" id="reverbValue">20%</span></label>
+                    <label>
+                        <span>Reverb</span>
+                        <button class="mod-btn" data-target="reverb">M</button>
+                        <span class="value" id="reverbValue">20%</span>
+                    </label>
                     <input type="range" id="reverb" min="0" max="100" value="20" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Master Vol</span><span class="value" id="volumeValue">80%</span></label>
+                    <label>
+                        <span>Volume</span>
+                        <button class="mod-btn" data-target="volume">M</button>
+                        <span class="value" id="volumeValue">80%</span>
+                    </label>
                     <input type="range" id="volume" min="0" max="100" value="80" step="1">
                 </div>
             </div>
@@ -393,8 +486,6 @@
 
         <div class="keyboard-section">
             <div class="keyboard" id="keyboardContainer">
-                <!-- Keys generated by JS or static HTML -->
-                <!-- Octave 1 -->
                 <div class="key white" data-note="C1">C1</div>
                 <div class="key black" data-note="C#1"></div>
                 <div class="key white" data-note="D1">D</div>
@@ -407,7 +498,6 @@
                 <div class="key white" data-note="A1">A</div>
                 <div class="key black" data-note="A#1"></div>
                 <div class="key white" data-note="B1">B</div>
-                <!-- Octave 2 -->
                 <div class="key white" data-note="C2">C2</div>
                 <div class="key black" data-note="C#2"></div>
                 <div class="key white" data-note="D2">D</div>
@@ -433,18 +523,22 @@
         let isRecording = false;
         let activeGrains = new Map();
         
-        // Effects nodes
         let reverbNode = null;
         let dryGainNode = null;
         let wetGainNode = null;
         let masterGain = null;
 
-        // Frequencies (C2 base)
+        // LFO State
+        let lfoPhase = 0;
+        let currentLfoValue = 0;
+        let lastTime = 0;
+        let activeModulations = new Set(); // Stores IDs of controls being modulated
+
         const noteFrequencies = {
             'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
             'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
         };
-        const baseFrequency = 65.41; // C2
+        const baseFrequency = 65.41; 
 
         // --- Initialization ---
         const startBtn = document.getElementById('start-btn');
@@ -458,30 +552,152 @@
                 
                 await setupEffects();
                 
-                // Hide overlay
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
                 
                 statusDiv.textContent = "Engine Ready. Record something!";
+                
+                // Start Animation Loop
+                requestAnimationFrame(updateLFO);
             } catch (e) {
                 console.error(e);
                 alert("Audio init failed: " + e.message);
             }
         });
 
+        // --- LFO Engine ---
+        function updateLFO(time) {
+            if (!lastTime) lastTime = time;
+            const delta = (time - lastTime) / 1000;
+            lastTime = time;
+
+            if (audioContext && audioContext.state === 'running') {
+                const tempo = parseFloat(getControlValue('lfoTempo')); // Recursion possible, usually fine
+                const waveform = document.getElementById('lfoWaveform').value;
+                
+                // Advance Phase
+                // freq = bpm / 60
+                const frequency = tempo / 60;
+                lfoPhase += frequency * delta;
+                if (lfoPhase > 1) lfoPhase -= 1;
+
+                // Calculate Value (-1 to 1)
+                if (waveform === 'sine') {
+                    currentLfoValue = Math.sin(lfoPhase * Math.PI * 2);
+                } else if (waveform === 'saw') {
+                    // Simple saw: -1 to 1
+                    currentLfoValue = 2 * (lfoPhase - 0.5); // shift 0..1 to -0.5..0.5, then x2 to -1..1
+                } else if (waveform === 'square') {
+                    currentLfoValue = lfoPhase < 0.5 ? 1 : -1;
+                }
+
+                // Apply Modulation to UI Labels and Variables
+                updateModulatedUI();
+            }
+
+            requestAnimationFrame(updateLFO);
+        }
+
+        // Helper to get value (either raw slider or modulated)
+        function getControlValue(id) {
+            const el = document.getElementById(id);
+            if (!el) return 0;
+            
+            let val = parseFloat(el.value);
+            
+            if (activeModulations.has(id)) {
+                // Get Depth (global depth setting)
+                // Note: We use the raw depth slider value to avoid infinite recursion if depth modulates depth
+                const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
+                
+                const min = parseFloat(el.min);
+                const max = parseFloat(el.max);
+                const range = max - min;
+                
+                // Calculate offset: LFO (-1 to 1) * Depth * (Half Range)
+                // This modulates AROUND the current slider position
+                const modAmount = currentLfoValue * depth * (range * 0.5);
+                
+                val += modAmount;
+                
+                // Clamp
+                val = Math.max(min, Math.min(max, val));
+            }
+            return val;
+        }
+
+        function updateModulatedUI() {
+            // Only update labels/text for modulated controls so user sees movement
+            activeModulations.forEach(id => {
+                const val = getControlValue(id);
+                const labelSpan = document.getElementById(id + 'Value');
+                if (labelSpan) {
+                    let suffix = '';
+                    if (id.includes('Size') || id.includes('attack') || id.includes('release')) suffix = 'ms';
+                    else if (id === 'density') suffix = ' gr/s';
+                    else if (id === 'lfoTempo') suffix = 'bpm';
+                    else suffix = '%';
+                    
+                    // Round for display
+                    let displayVal = val;
+                    if (id === 'position') displayVal = val.toFixed(1);
+                    else displayVal = Math.round(val);
+                    
+                    labelSpan.textContent = displayVal + suffix;
+                    labelSpan.style.color = 'var(--mod-active)'; // visual feedback
+                }
+                
+                // Continuous updates for effects
+                if (id === 'reverb' || id === 'volume') updateEffects();
+            });
+
+            // Reset color for non-modulated
+            const allSpans = document.querySelectorAll('.value');
+            allSpans.forEach(span => {
+                const id = span.id.replace('Value', '');
+                if (!activeModulations.has(id)) {
+                    span.style.color = 'var(--accent)';
+                    // Re-sync label with slider if not modulated
+                    const el = document.getElementById(id);
+                    if(el) {
+                         // This is just to ensure label is correct if we stopped modulation
+                         // The input event listener handles manual moves
+                    }
+                }
+            });
+        }
+
+        // --- Modulation Buttons ---
+        document.querySelectorAll('.mod-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); // prevent label click
+                const targetId = btn.getAttribute('data-target');
+                
+                if (activeModulations.has(targetId)) {
+                    activeModulations.delete(targetId);
+                    btn.classList.remove('active');
+                    btn.closest('.control-group').classList.remove('modulating');
+                    // Reset text label immediately
+                    const slider = document.getElementById(targetId);
+                    slider.dispatchEvent(new Event('input')); 
+                } else {
+                    activeModulations.add(targetId);
+                    btn.classList.add('active');
+                    btn.closest('.control-group').classList.add('modulating');
+                }
+            });
+        });
+
         async function setupEffects() {
-            // Master Volume
             masterGain = audioContext.createGain();
             masterGain.connect(audioContext.destination);
 
-            // Reverb Chain
             reverbNode = audioContext.createConvolver();
             dryGainNode = audioContext.createGain();
             wetGainNode = audioContext.createGain();
 
-            // Create simple Impulse Response
             const sampleRate = audioContext.sampleRate;
-            const length = sampleRate * 2.5; // 2.5 seconds tail
+            const length = sampleRate * 2.5; 
             const impulse = audioContext.createBuffer(2, length, sampleRate);
             for (let channel = 0; channel < 2; channel++) {
                 const data = impulse.getChannelData(channel);
@@ -491,9 +707,6 @@
             }
             reverbNode.buffer = impulse;
 
-            // Connections
-            // Grain -> dryGain -> Master
-            // Grain -> reverb -> wetGain -> Master
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
@@ -503,8 +716,9 @@
 
         function updateEffects() {
             if (!dryGainNode) return;
-            const reverbAmt = parseFloat(document.getElementById('reverb').value) / 100;
-            const volAmt = parseFloat(document.getElementById('volume').value) / 100;
+            // Use getControlValue to allow modulation
+            const reverbAmt = getControlValue('reverb') / 100;
+            const volAmt = getControlValue('volume') / 100;
             
             dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
             wetGainNode.gain.value = reverbAmt;
@@ -533,15 +747,10 @@
 
         async function startRecording() {
             try {
-                // Ensure context is running
                 if (audioContext.state === 'suspended') await audioContext.resume();
 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { 
-                        echoCancellation: false, 
-                        noiseSuppression: false, 
-                        autoGainControl: false 
-                    } 
+                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
                 });
                 
                 mediaRecorder = new MediaRecorder(stream);
@@ -580,11 +789,10 @@
             }
         }
 
-        // --- Waveform & Visualization ---
+        // --- Waveform ---
         function drawWaveform() {
             if (!audioBuffer) return;
             
-            // Handle resizing
             waveformCanvas.width = waveformCanvas.offsetWidth;
             waveformCanvas.height = waveformCanvas.offsetHeight;
 
@@ -598,7 +806,6 @@
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
 
-            // Draw Wave
             ctx.beginPath();
             ctx.strokeStyle = '#00d4ff';
             ctx.lineWidth = 1;
@@ -616,14 +823,14 @@
             }
             ctx.stroke();
 
-            // Draw Start/End Markers
-            const startPct = document.getElementById('sampleStart').value / 100;
-            const endPct = document.getElementById('sampleEnd').value / 100;
+            // Use getControlValue here too? 
+            // Usually visual markers should reflect user setting OR modulation.
+            // Let's reflect Modulation for cool visual feedback.
+            const startPct = getControlValue('sampleStart') / 100;
+            const endPct = getControlValue('sampleEnd') / 100;
 
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            // Inactive area before start
             ctx.fillRect(0, 0, width * startPct, height);
-            // Inactive area after end
             ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
 
             ctx.strokeStyle = '#ff0844';
@@ -643,19 +850,17 @@
         function playGrain(note) {
             if (!audioBuffer || !audioContext) return;
 
-            // Params
-            const grainSize = parseInt(document.getElementById('grainSize').value) / 1000; // seconds
-            const attack = parseInt(document.getElementById('attack').value) / 1000;
-            const release = parseInt(document.getElementById('release').value) / 1000;
-            const spray = parseInt(document.getElementById('spray').value) / 100;
-            const pitchVar = parseInt(document.getElementById('pitchVar').value) / 100;
-            const panSpread = parseInt(document.getElementById('panSpread').value) / 100;
+            // Use getControlValue wrapper for everything!
+            const grainSize = getControlValue('grainSize') / 1000;
+            const attack = getControlValue('attack') / 1000;
+            const release = getControlValue('release') / 1000;
+            const spray = getControlValue('spray') / 100;
+            const pitchVar = getControlValue('pitchVar') / 100;
+            const panSpread = getControlValue('panSpread') / 100;
 
-            // Start/End Logic
-            let startPct = parseInt(document.getElementById('sampleStart').value) / 100;
-            let endPct = parseInt(document.getElementById('sampleEnd').value) / 100;
+            let startPct = getControlValue('sampleStart') / 100;
+            let endPct = getControlValue('sampleEnd') / 100;
             
-            // Swap if user crosses sliders
             if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
 
             const bufferDuration = audioBuffer.duration;
@@ -663,24 +868,18 @@
             const validEnd = bufferDuration * endPct;
             const validDuration = validEnd - validStart;
 
-            // Playhead Position (within the valid window)
-            const posSlider = parseInt(document.getElementById('position').value) / 100;
+            const posSlider = getControlValue('position') / 100;
             let playPosition = validStart + (posSlider * validDuration);
 
-            // Add Spray
             const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
             playPosition += randomSpray;
 
-            // Clamp
             playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
 
-            // Pitch Calculation
             const noteFreq = noteFrequencies[note];
             let rate = noteFreq / baseFrequency;
-            // Add Pitch Randomness
             rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
 
-            // Audio Graph
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.playbackRate.value = rate;
@@ -688,65 +887,60 @@
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
 
-            // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
 
             source.connect(envelope);
             envelope.connect(panner);
             panner.connect(dryGainNode);
-            panner.connect(reverbNode); // Send to reverb
+            panner.connect(reverbNode);
 
-            // Envelope
             const now = audioContext.currentTime;
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(1, now + attack);
             envelope.gain.linearRampToValueAtTime(0, now + grainSize);
 
-            // Play
             source.start(now, playPosition, grainSize);
-            source.stop(now + grainSize + 0.1); // Cleanup
+            source.stop(now + grainSize + 0.1); 
         }
 
         // --- Scheduler ---
         function startGrainStream(note) {
             if (!audioBuffer) return;
-            if (activeGrains.has(note)) return; // Already playing
-
-            const density = parseInt(document.getElementById('density').value);
-            const intervalTime = 1000 / density;
+            if (activeGrains.has(note)) return;
 
             function schedule() {
+                // Read density dynamically inside loop so modulation works
+                const density = Math.max(1, getControlValue('density')); 
                 playGrain(note);
+                
+                // Recursive timeout for variable density support
+                const nextTime = 1000 / density;
+                const id = setTimeout(schedule, nextTime);
+                activeGrains.set(note, id); 
             }
 
-            // Play one immediately
             schedule();
-            // Loop
-            const id = setInterval(schedule, intervalTime);
-            activeGrains.set(note, id);
         }
 
         function stopGrainStream(note) {
             if (activeGrains.has(note)) {
-                clearInterval(activeGrains.get(note));
+                clearTimeout(activeGrains.get(note));
                 activeGrains.delete(note);
             }
         }
 
         function stopAllGrains() {
-            activeGrains.forEach(id => clearInterval(id));
+            activeGrains.forEach(id => clearTimeout(id));
             activeGrains.clear();
         }
 
-        // --- Input Handling (Pointer Events) ---
+        // --- Input Handling ---
         const keys = document.querySelectorAll('.key');
-        
         keys.forEach(key => {
-            // Use pointerdown/up for unified mouse/touch support
             key.addEventListener('pointerdown', (e) => {
-                e.preventDefault(); // Prevent scrolling
+                e.preventDefault();
                 key.classList.add('active');
-                key.setPointerCapture(e.pointerId); // Capture drag
+                key.setPointerCapture(e.pointerId);
                 startGrainStream(key.dataset.note);
             });
 
@@ -768,24 +962,35 @@
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
             slider.addEventListener('input', (e) => {
-                // Update text label
-                const labelSpan = document.getElementById(e.target.id + 'Value');
-                if (labelSpan) {
-                    let suffix = '';
-                    if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
-                    else if (e.target.id === 'density') suffix = ' gr/s';
-                    else suffix = '%';
-                    labelSpan.textContent = e.target.value + suffix;
+                const id = e.target.id;
+                // Only update label if NOT modulating (modulator handles label updates)
+                if (!activeModulations.has(id)) {
+                    const labelSpan = document.getElementById(id + 'Value');
+                    if (labelSpan) {
+                        let suffix = '';
+                        if (id.includes('Size') || id.includes('attack') || id.includes('release')) suffix = 'ms';
+                        else if (id === 'density') suffix = ' gr/s';
+                        else if (id === 'lfoTempo') suffix = 'bpm';
+                        else suffix = '%';
+                        labelSpan.textContent = e.target.value + suffix;
+                    }
                 }
 
-                // Special handling for effects or redraw
-                if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
-                if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
+                if (id === 'reverb' || id === 'volume') updateEffects();
+                if (id === 'sampleStart' || id === 'sampleEnd') drawWaveform();
             });
         });
 
-        // Window Resize
         window.addEventListener('resize', drawWaveform);
+
+        // Constant redraw of waveform to show LFO moving markers
+        function animateWaveform() {
+            if(activeModulations.has('sampleStart') || activeModulations.has('sampleEnd')) {
+                drawWaveform();
+            }
+            requestAnimationFrame(animateWaveform);
+        }
+        requestAnimationFrame(animateWaveform);
 
     </script>
 </body>
