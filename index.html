@@ -20,6 +20,8 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            /* CRITICAL: Prevents accidental zooming on most elements */
+            touch-action: none; 
         }
 
         html, body {
@@ -31,10 +33,10 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none;
+            /* Prevent rubber-banding and zooming */
+            overscroll-behavior: none;
         }
 
-        /* Overlays for Orientation and Start */
         .overlay {
             position: fixed;
             top: 0;
@@ -66,7 +68,6 @@
             box-shadow: 0 0 20px var(--accent-glow);
         }
 
-        /* Logic to show/hide orientation warning */
         #orientation-overlay { display: none; }
         
         @media screen and (orientation: portrait) {
@@ -74,7 +75,6 @@
             .synth-container { display: none !important; }
         }
 
-        /* Main App Container */
         .synth-container {
             display: flex;
             flex-direction: column;
@@ -83,17 +83,15 @@
             padding: 10px;
         }
 
-        /* Top Section: Controls + Rec */
         .top-section {
             display: flex;
             gap: 10px;
             flex: 1;
-            min-height: 0; /* Important for flex overflow */
+            min-height: 0;
             overflow: hidden;
             margin-bottom: 10px;
         }
 
-        /* Left Side: Recording */
         .recording-section {
             flex: 0 0 220px;
             display: flex;
@@ -126,6 +124,7 @@
             border-radius: 6px;
             cursor: pointer;
             text-transform: uppercase;
+            touch-action: manipulation;
         }
 
         #recordBtn {
@@ -162,17 +161,18 @@
             height: 15px;
         }
 
-        /* Right Side: Sliders */
         .controls-section {
             flex: 1;
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 columns */
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             background: var(--panel-bg);
             border-radius: 12px;
             padding: 15px;
             border: 1px solid rgba(0, 212, 255, 0.2);
             overflow-y: auto;
+            /* Allow scrolling within controls but prevent page scroll */
+            overscroll-behavior: contain;
         }
 
         .control-group {
@@ -202,30 +202,33 @@
 
         input[type="range"] {
             width: 100%;
-            height: 4px;
+            height: 20px; /* Taller touch target */
             border-radius: 2px;
-            background: #333;
+            background: transparent;
             outline: none;
             -webkit-appearance: none;
+            /* Ensure slider is draggable without moving viewport */
+            touch-action: pan-x; 
+        }
+
+        /* Custom track styling to make the hit area visible */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 24px; /* Larger thumb for touch */
+            height: 24px;
             border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 10px var(--accent-glow);
-            margin-top: -7px; /* vertical align */
-        }
-        
-        input[type="range"]::-webkit-slider-runnable-track {
-            height: 4px;
-            background: #333;
-            border-radius: 2px;
+            margin-top: -10px; /* Center on track */
         }
 
-        /* Keyboard Section */
         .keyboard-section {
             flex: 0 0 140px;
             background: var(--panel-bg);
@@ -234,7 +237,7 @@
             display: flex;
             justify-content: center;
             border-top: 2px solid var(--accent);
-            overflow-x: auto;
+            overflow: hidden;
         }
 
         .keyboard {
@@ -254,7 +257,7 @@
             padding-bottom: 8px;
             font-size: 10px;
             font-weight: bold;
-            touch-action: none; /* Critical for glissando */
+            touch-action: none;
         }
 
         .key.white {
@@ -275,8 +278,7 @@
             position: absolute;
             z-index: 2;
             border-radius: 0 0 4px 4px;
-            pointer-events: none; /* Let JS handle hitbox logic if needed, or keeping it simple */
-            pointer-events: auto;
+            pointer-events: none;
         }
 
         .key.active {
@@ -285,7 +287,6 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
-        /* Black key positions */
         .key.black[data-note="C#1"] { left: 28px; }
         .key.black[data-note="D#1"] { left: 70px; }
         .key.black[data-note="F#1"] { left: 154px; }
@@ -301,17 +302,15 @@
 </head>
 <body>
 
-    <!-- Orientation Overlay -->
     <div id="orientation-overlay" class="overlay">
         <h1>Please Rotate Your Device</h1>
         <p>This synthesizer requires landscape mode for the best experience.</p>
         <div style="font-size: 40px; margin-top: 20px;">↻</div>
     </div>
 
-    <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1>Granular Synth</h1>
-        <p>Touch 'Start' to enable audio and microphone access.</p>
+        <p>Touch 'Start' to enable audio.</p>
         <button id="start-btn">START ENGINE</button>
     </div>
 
@@ -328,7 +327,6 @@
             </div>
 
             <div class="controls-section">
-                <!-- New Sliders -->
                 <div class="control-group highlight">
                     <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
                     <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
@@ -338,9 +336,10 @@
                     <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
                 </div>
 
+                <!-- Increased max grain size for better release tails -->
                 <div class="control-group">
                     <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
-                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                    <input type="range" id="grainSize" min="50" max="3000" value="100" step="10">
                 </div>
                 
                 <div class="control-group">
@@ -360,12 +359,13 @@
                 
                 <div class="control-group">
                     <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
-                    <input type="range" id="attack" min="1" max="200" value="10" step="1">
+                    <input type="range" id="attack" min="1" max="1000" value="10" step="10">
                 </div>
                 
+                <!-- Increased Max Release -->
                 <div class="control-group">
                     <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
-                    <input type="range" id="release" min="1" max="500" value="50" step="1">
+                    <input type="range" id="release" min="10" max="2000" value="50" step="10">
                 </div>
                 
                 <div class="control-group">
@@ -392,8 +392,6 @@
 
         <div class="keyboard-section">
             <div class="keyboard" id="keyboardContainer">
-                <!-- Keys generated by JS or static HTML -->
-                <!-- Octave 1 -->
                 <div class="key white" data-note="C1">C1</div>
                 <div class="key black" data-note="C#1"></div>
                 <div class="key white" data-note="D1">D</div>
@@ -406,7 +404,6 @@
                 <div class="key white" data-note="A1">A</div>
                 <div class="key black" data-note="A#1"></div>
                 <div class="key white" data-note="B1">B</div>
-                <!-- Octave 2 -->
                 <div class="key white" data-note="C2">C2</div>
                 <div class="key black" data-note="C#2"></div>
                 <div class="key white" data-note="D2">D</div>
@@ -424,28 +421,28 @@
     </div>
 
     <script>
-        // --- Globals ---
         let audioContext;
         let audioBuffer = null;
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
-        let activeGrains = new Map();
         
-        // Effects nodes
+        // Track active voices
+        // Map: Note -> { intervalId, mainGain }
+        let activeVoices = new Map();
+        
         let reverbNode = null;
         let dryGainNode = null;
         let wetGainNode = null;
         let masterGain = null;
 
-        // Frequencies (C2 base)
         const noteFrequencies = {
             'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
             'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
         };
-        const baseFrequency = 65.41; // C2
+        const baseFrequency = 65.41; 
 
-        // --- Initialization ---
+        // --- Init ---
         const startBtn = document.getElementById('start-btn');
         const startOverlay = document.getElementById('start-overlay');
         const statusDiv = document.getElementById('status');
@@ -454,33 +451,26 @@
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioContext.state === 'suspended') await audioContext.resume();
-                
                 await setupEffects();
                 
-                // Hide overlay
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
-                
-                statusDiv.textContent = "Engine Ready. Record something!";
+                statusDiv.textContent = "Engine Ready.";
             } catch (e) {
-                console.error(e);
-                alert("Audio init failed: " + e.message);
+                alert("Init failed: " + e.message);
             }
         });
 
         async function setupEffects() {
-            // Master Volume
             masterGain = audioContext.createGain();
             masterGain.connect(audioContext.destination);
 
-            // Reverb Chain
             reverbNode = audioContext.createConvolver();
             dryGainNode = audioContext.createGain();
             wetGainNode = audioContext.createGain();
 
-            // Create simple Impulse Response
             const sampleRate = audioContext.sampleRate;
-            const length = sampleRate * 2.5; // 2.5 seconds tail
+            const length = sampleRate * 2.5;
             const impulse = audioContext.createBuffer(2, length, sampleRate);
             for (let channel = 0; channel < 2; channel++) {
                 const data = impulse.getChannelData(channel);
@@ -490,13 +480,9 @@
             }
             reverbNode.buffer = impulse;
 
-            // Connections
-            // Grain -> dryGain -> Master
-            // Grain -> reverb -> wetGain -> Master
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
-
             updateEffects();
         }
 
@@ -504,7 +490,6 @@
             if (!dryGainNode) return;
             const reverbAmt = parseFloat(document.getElementById('reverb').value) / 100;
             const volAmt = parseFloat(document.getElementById('volume').value) / 100;
-            
             dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
             wetGainNode.gain.value = reverbAmt;
             masterGain.gain.value = volAmt;
@@ -516,7 +501,7 @@
         const waveformCanvas = document.getElementById('waveformCanvas');
 
         recordBtn.addEventListener('click', () => {
-            if (!audioContext) return alert("Click Start First");
+            if (!audioContext) return;
             if (isRecording) stopRecording();
             else startRecording();
         });
@@ -527,29 +512,16 @@
             const ctx = waveformCanvas.getContext('2d');
             ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
             statusDiv.textContent = "Buffer cleared";
-            stopAllGrains();
+            stopAllVoices();
         });
 
         async function startRecording() {
             try {
-                // Ensure context is running
                 if (audioContext.state === 'suspended') await audioContext.resume();
-
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { 
-                        echoCancellation: false, 
-                        noiseSuppression: false, 
-                        autoGainControl: false 
-                    } 
-                });
-                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 recordedChunks = [];
-
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const arrayBuffer = await blob.arrayBuffer();
@@ -558,15 +530,12 @@
                     statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
                     stream.getTracks().forEach(track => track.stop());
                 };
-
                 mediaRecorder.start();
                 isRecording = true;
                 recordBtn.textContent = "STOP";
                 recordBtn.classList.add('recording');
-                statusDiv.textContent = "Recording...";
             } catch (err) {
-                console.error(err);
-                statusDiv.textContent = "Mic Error: " + err.message;
+                statusDiv.textContent = "Mic Error";
             }
         }
 
@@ -579,14 +548,10 @@
             }
         }
 
-        // --- Waveform & Visualization ---
         function drawWaveform() {
             if (!audioBuffer) return;
-            
-            // Handle resizing
             waveformCanvas.width = waveformCanvas.offsetWidth;
             waveformCanvas.height = waveformCanvas.offsetHeight;
-
             const ctx = waveformCanvas.getContext('2d');
             const width = waveformCanvas.width;
             const height = waveformCanvas.height;
@@ -596,15 +561,12 @@
 
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
-
-            // Draw Wave
             ctx.beginPath();
             ctx.strokeStyle = '#00d4ff';
             ctx.lineWidth = 1;
 
             for (let i = 0; i < width; i++) {
-                let min = 1.0;
-                let max = -1.0;
+                let min = 1.0, max = -1.0;
                 for (let j = 0; j < step; j++) {
                     const val = data[(i * step) + j];
                     if (val < min) min = val;
@@ -615,46 +577,41 @@
             }
             ctx.stroke();
 
-            // Draw Start/End Markers
             const startPct = document.getElementById('sampleStart').value / 100;
             const endPct = document.getElementById('sampleEnd').value / 100;
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            // Inactive area before start
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.fillRect(0, 0, width * startPct, height);
-            // Inactive area after end
             ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
-
             ctx.strokeStyle = '#ff0844';
             ctx.beginPath();
             ctx.moveTo(width * startPct, 0);
             ctx.lineTo(width * startPct, height);
-            ctx.stroke();
-
-            ctx.strokeStyle = '#ff0844';
-            ctx.beginPath();
             ctx.moveTo(width * endPct, 0);
             ctx.lineTo(width * endPct, height);
             ctx.stroke();
         }
 
         // --- Granular Engine ---
-        function playGrain(note) {
+        function playGrain(note, voiceGainNode) {
             if (!audioBuffer || !audioContext) return;
 
-            // Params
-            const grainSize = parseInt(document.getElementById('grainSize').value) / 1000; // seconds
-            const attack = parseInt(document.getElementById('attack').value) / 1000;
-            const release = parseInt(document.getElementById('release').value) / 1000;
+            let grainSize = parseInt(document.getElementById('grainSize').value) / 1000;
+            let attack = parseInt(document.getElementById('attack').value) / 1000;
+            let release = parseInt(document.getElementById('release').value) / 1000;
             const spray = parseInt(document.getElementById('spray').value) / 100;
             const pitchVar = parseInt(document.getElementById('pitchVar').value) / 100;
             const panSpread = parseInt(document.getElementById('panSpread').value) / 100;
 
-            // Start/End Logic
+            // FIX: Ensure Attack + Release fits inside Grain Size
+            // If they are too long, scale them down proportionally
+            if (attack + release > grainSize) {
+                const ratio = grainSize / (attack + release);
+                attack *= (ratio * 0.99); // 0.99 for safety margin
+                release *= (ratio * 0.99);
+            }
+
             let startPct = parseInt(document.getElementById('sampleStart').value) / 100;
             let endPct = parseInt(document.getElementById('sampleEnd').value) / 100;
-            
-            // Swap if user crosses sliders
             if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
 
             const bufferDuration = audioBuffer.duration;
@@ -662,24 +619,17 @@
             const validEnd = bufferDuration * endPct;
             const validDuration = validEnd - validStart;
 
-            // Playhead Position (within the valid window)
             const posSlider = parseInt(document.getElementById('position').value) / 100;
             let playPosition = validStart + (posSlider * validDuration);
+            playPosition += (Math.random() * 2 - 1) * spray * validDuration * 0.5;
+            
+            // Safety clamp
+            playPosition = Math.max(0, Math.min(bufferDuration - grainSize, playPosition));
 
-            // Add Spray
-            const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
-            playPosition += randomSpray;
-
-            // Clamp
-            playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
-
-            // Pitch Calculation
             const noteFreq = noteFrequencies[note];
             let rate = noteFreq / baseFrequency;
-            // Add Pitch Randomness
             rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
 
-            // Audio Graph
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.playbackRate.value = rate;
@@ -687,87 +637,116 @@
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
 
-            // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
 
             source.connect(envelope);
             envelope.connect(panner);
-            panner.connect(dryGainNode);
-            panner.connect(reverbNode); // Send to reverb
+            // Connect to the VOICE gain node, which handles the main Note Off release
+            panner.connect(voiceGainNode);
 
-            // Envelope
             const now = audioContext.currentTime;
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(1, now + attack);
-            envelope.gain.linearRampToValueAtTime(0, now + grainSize);
+            envelope.gain.linearRampToValueAtTime(0, now + grainSize); // This is the GRAIN release
 
-            // Play
             source.start(now, playPosition, grainSize);
-            source.stop(now + grainSize + 0.1); // Cleanup
+            source.stop(now + grainSize + 0.1);
         }
 
-        // --- Scheduler ---
-        function startGrainStream(note) {
+        function startVoice(note) {
             if (!audioBuffer) return;
-            if (activeGrains.has(note)) return; // Already playing
+            if (activeVoices.has(note)) {
+                // If key is pressed again, restart envelope
+                const voice = activeVoices.get(note);
+                voice.mainGain.gain.cancelScheduledValues(audioContext.currentTime);
+                voice.mainGain.gain.setValueAtTime(1, audioContext.currentTime);
+                return;
+            }
+
+            // Create a Master Gain for this voice (for Note Release)
+            const voiceGain = audioContext.createGain();
+            voiceGain.connect(dryGainNode);
+            voiceGain.connect(reverbNode);
+            voiceGain.gain.setValueAtTime(1, audioContext.currentTime);
 
             const density = parseInt(document.getElementById('density').value);
             const intervalTime = 1000 / density;
 
             function schedule() {
-                playGrain(note);
+                playGrain(note, voiceGain);
             }
 
-            // Play one immediately
             schedule();
-            // Loop
             const id = setInterval(schedule, intervalTime);
-            activeGrains.set(note, id);
+            
+            activeVoices.set(note, { 
+                intervalId: id, 
+                mainGain: voiceGain 
+            });
         }
 
-        function stopGrainStream(note) {
-            if (activeGrains.has(note)) {
-                clearInterval(activeGrains.get(note));
-                activeGrains.delete(note);
+        function stopVoice(note) {
+            if (activeVoices.has(note)) {
+                const voice = activeVoices.get(note);
+                
+                // 1. Stop generating NEW grains immediately
+                clearInterval(voice.intervalId);
+                
+                // 2. Fade out existing grains naturally using the Release slider value
+                // We use the same Release slider for both Grain Envelope and Voice Release for simplicity,
+                // or we could assume a standard release time. Let's use the slider value but scaled up.
+                const releaseTime = (parseInt(document.getElementById('release').value) / 1000) * 2; 
+                
+                const now = audioContext.currentTime;
+                voice.mainGain.gain.cancelScheduledValues(now);
+                voice.mainGain.gain.setValueAtTime(voice.mainGain.gain.value, now);
+                voice.mainGain.gain.linearRampToValueAtTime(0, now + releaseTime);
+
+                // Garbage collection
+                setTimeout(() => {
+                    voice.mainGain.disconnect();
+                }, releaseTime * 1000 + 100);
+
+                activeVoices.delete(note);
             }
         }
 
-        function stopAllGrains() {
-            activeGrains.forEach(id => clearInterval(id));
-            activeGrains.clear();
+        function stopAllVoices() {
+            activeVoices.forEach(voice => {
+                clearInterval(voice.intervalId);
+                voice.mainGain.disconnect();
+            });
+            activeVoices.clear();
         }
 
-        // --- Input Handling (Pointer Events) ---
+        // --- Interaction ---
         const keys = document.querySelectorAll('.key');
         
         keys.forEach(key => {
-            // Use pointerdown/up for unified mouse/touch support
             key.addEventListener('pointerdown', (e) => {
-                e.preventDefault(); // Prevent scrolling
+                e.preventDefault(); 
                 key.classList.add('active');
-                key.setPointerCapture(e.pointerId); // Capture drag
-                startGrainStream(key.dataset.note);
+                key.setPointerCapture(e.pointerId);
+                startVoice(key.dataset.note);
             });
 
             key.addEventListener('pointerup', (e) => {
                 key.classList.remove('active');
                 key.releasePointerCapture(e.pointerId);
-                stopGrainStream(key.dataset.note);
+                stopVoice(key.dataset.note);
             });
 
             key.addEventListener('pointerleave', (e) => {
-                if (key.classList.contains('active')) {
+                if(key.classList.contains('active')) {
                    key.classList.remove('active');
-                   stopGrainStream(key.dataset.note);
+                   stopVoice(key.dataset.note);
                 }
             });
         });
 
-        // --- Slider Listeners ---
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
             slider.addEventListener('input', (e) => {
-                // Update text label
                 const labelSpan = document.getElementById(e.target.id + 'Value');
                 if (labelSpan) {
                     let suffix = '';
@@ -776,16 +755,12 @@
                     else suffix = '%';
                     labelSpan.textContent = e.target.value + suffix;
                 }
-
-                // Special handling for effects or redraw
                 if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
             });
         });
 
-        // Window Resize
         window.addEventListener('resize', drawWaveform);
-
     </script>
 </body>
 </html>
