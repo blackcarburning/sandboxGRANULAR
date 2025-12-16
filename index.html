@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Granular Synthesizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(30, 30, 50, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            font-size: 2.5em;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(50, 50, 70, 0.5);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .section h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .recording-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #recordBtn {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: white;
+        }
+
+        #recordBtn.recording {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        #clearBtn {
+            background: linear-gradient(135deg, #666 0%, #888 100%);
+            color: white;
+        }
+
+        #waveformCanvas {
+            width: 100%;
+            height: 150px;
+            background: #0a0a15;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group .value {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: rgba(0, 212, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .keyboard {
+            display: flex;
+            justify-content: center;
+            gap: 2px;
+            margin-top: 20px;
+            position: relative;
+            height: 200px;
+        }
+
+        .key {
+            position: relative;
+            cursor: pointer;
+            border-radius: 0 0 8px 8px;
+            transition: all 0.1s ease;
+            user-select: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .key.white {
+            width: 60px;
+            height: 200px;
+            background: linear-gradient(to bottom, #ffffff 0%, #e0e0e0 100%);
+            border: 1px solid #333;
+            color: #333;
+            z-index: 1;
+        }
+
+        .key.black {
+            width: 40px;
+            height: 130px;
+            background: linear-gradient(to bottom, #2a2a2a 0%, #000000 100%);
+            border: 1px solid #000;
+            color: #fff;
+            position: absolute;
+            z-index: 2;
+        }
+
+        .key.white:hover {
+            background: linear-gradient(to bottom, #f0f0f0 0%, #d0d0d0 100%);
+        }
+
+        .key.black:hover {
+            background: linear-gradient(to bottom, #3a3a3a 0%, #1a1a1a 100%);
+        }
+
+        .key.active {
+            transform: translateY(2px);
+            box-shadow: inset 0 3px 10px rgba(0, 212, 255, 0.8);
+        }
+
+        .key.white.active {
+            background: linear-gradient(to bottom, #00d4ff 0%, #0088aa 100%);
+        }
+
+        .key.black.active {
+            background: linear-gradient(to bottom, #00d4ff 0%, #0066aa 100%);
+        }
+
+        .keyboard-container {
+            position: relative;
+        }
+
+        .key-label {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            text-align: center;
+            color: #00d4ff;
+            font-size: 14px;
+        }
+
+        /* Position black keys */
+        .key.black[data-note="C#"] { left: 42px; }
+        .key.black[data-note="D#"] { left: 106px; }
+        .key.black[data-note="F#"] { left: 234px; }
+        .key.black[data-note="G#"] { left: 298px; }
+        .key.black[data-note="A#"] { left: 362px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Granular Synthesizer</h1>
+        
+        <div class="section">
+            <h2>Recording</h2>
+            <div class="recording-controls">
+                <button id="recordBtn">Start Recording</button>
+                <button id="clearBtn">Clear Buffer</button>
+            </div>
+            <canvas id="waveformCanvas"></canvas>
+            <div id="status" class="status">No audio recorded. Click "Start Recording" to begin.</div>
+        </div>
+
+        <div class="section">
+            <h2>Granular Parameters</h2>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>
+                        <span>Grain Size</span>
+                        <span class="value" id="grainSizeValue">100ms</span>
+                    </label>
+                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span>Grain Density</span>
+                        <span class="value" id="densityValue">5</span>
+                    </label>
+                    <input type="range" id="density" min="1" max="20" value="5" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span>Position</span>
+                        <span class="value" id="positionValue">0%</span>
+                    </label>
+                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span>Spray / Scatter</span>
+                        <span class="value" id="sprayValue">0%</span>
+                    </label>
+                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span>Attack</span>
+                        <span class="value" id="attackValue">10ms</span>
+                    </label>
+                    <input type="range" id="attack" min="1" max="100" value="10" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span>Release</span>
+                        <span class="value" id="releaseValue">10ms</span>
+                    </label>
+                    <input type="range" id="release" min="1" max="100" value="10" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label>
+                        <span>Master Volume</span>
+                        <span class="value" id="volumeValue">70%</span>
+                    </label>
+                    <input type="range" id="volume" min="0" max="100" value="70" step="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>12-Note Keyboard</h2>
+            <div class="keyboard-container">
+                <div class="keyboard">
+                    <div class="key white" data-note="C" data-key="a">
+                        <span>C<br><span class="key-label">(A)</span></span>
+                    </div>
+                    <div class="key black" data-note="C#" data-key="w">
+                        <span>C#<br><span class="key-label">(W)</span></span>
+                    </div>
+                    <div class="key white" data-note="D" data-key="s">
+                        <span>D<br><span class="key-label">(S)</span></span>
+                    </div>
+                    <div class="key black" data-note="D#" data-key="e">
+                        <span>D#<br><span class="key-label">(E)</span></span>
+                    </div>
+                    <div class="key white" data-note="E" data-key="d">
+                        <span>E<br><span class="key-label">(D)</span></span>
+                    </div>
+                    <div class="key white" data-note="F" data-key="f">
+                        <span>F<br><span class="key-label">(F)</span></span>
+                    </div>
+                    <div class="key black" data-note="F#" data-key="t">
+                        <span>F#<br><span class="key-label">(T)</span></span>
+                    </div>
+                    <div class="key white" data-note="G" data-key="g">
+                        <span>G<br><span class="key-label">(G)</span></span>
+                    </div>
+                    <div class="key black" data-note="G#" data-key="y">
+                        <span>G#<br><span class="key-label">(Y)</span></span>
+                    </div>
+                    <div class="key white" data-note="A" data-key="h">
+                        <span>A<br><span class="key-label">(H)</span></span>
+                    </div>
+                    <div class="key black" data-note="A#" data-key="u">
+                        <span>A#<br><span class="key-label">(U)</span></span>
+                    </div>
+                    <div class="key white" data-note="B" data-key="j">
+                        <span>B<br><span class="key-label">(J)</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio API Setup
+        let audioContext;
+        let audioBuffer = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let activeGrains = new Set();
+
+        // UI Elements
+        const recordBtn = document.getElementById('recordBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const ctx = waveformCanvas.getContext('2d');
+        const status = document.getElementById('status');
+
+        // Parameter controls
+        const grainSizeSlider = document.getElementById('grainSize');
+        const densitySlider = document.getElementById('density');
+        const positionSlider = document.getElementById('position');
+        const spraySlider = document.getElementById('spray');
+        const attackSlider = document.getElementById('attack');
+        const releaseSlider = document.getElementById('release');
+        const volumeSlider = document.getElementById('volume');
+
+        // Note to semitone mapping (C = 0)
+        const noteToSemitone = {
+            'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+            'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+        };
+
+        // Keyboard mapping
+        const keyMap = {
+            'a': 'C', 'w': 'C#', 's': 'D', 'e': 'D#', 'd': 'E', 'f': 'F',
+            't': 'F#', 'g': 'G', 'y': 'G#', 'h': 'A', 'u': 'A#', 'j': 'B'
+        };
+
+        // Initialize Audio Context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Update slider value displays
+        function updateSliderDisplays() {
+            document.getElementById('grainSizeValue').textContent = grainSizeSlider.value + 'ms';
+            document.getElementById('densityValue').textContent = densitySlider.value;
+            document.getElementById('positionValue').textContent = positionSlider.value + '%';
+            document.getElementById('sprayValue').textContent = spraySlider.value + '%';
+            document.getElementById('attackValue').textContent = attackSlider.value + 'ms';
+            document.getElementById('releaseValue').textContent = releaseSlider.value + 'ms';
+            document.getElementById('volumeValue').textContent = volumeSlider.value + '%';
+        }
+
+        // Add event listeners for sliders
+        [grainSizeSlider, densitySlider, positionSlider, spraySlider, 
+         attackSlider, releaseSlider, volumeSlider].forEach(slider => {
+            slider.addEventListener('input', updateSliderDisplays);
+        });
+
+        // Recording functionality
+        recordBtn.addEventListener('click', async () => {
+            initAudioContext();
+            
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const arrayBuffer = await audioBlob.arrayBuffer();
+                        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        drawWaveform(audioBuffer);
+                        status.textContent = `Recording complete! Duration: ${audioBuffer.duration.toFixed(2)}s`;
+                        
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordBtn.textContent = 'Stop Recording';
+                    recordBtn.classList.add('recording');
+                    status.textContent = 'Recording... Click "Stop Recording" when done.';
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    status.textContent = 'Error: Could not access microphone. Please allow microphone access.';
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.textContent = 'Start Recording';
+                recordBtn.classList.remove('recording');
+            }
+        });
+
+        // Clear buffer
+        clearBtn.addEventListener('click', () => {
+            audioBuffer = null;
+            audioChunks = [];
+            ctx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+            status.textContent = 'Buffer cleared. Ready for new recording.';
+        });
+
+        // Draw waveform
+        function drawWaveform(buffer) {
+            const width = waveformCanvas.width = waveformCanvas.clientWidth;
+            const height = waveformCanvas.height = waveformCanvas.clientHeight;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            const data = buffer.getChannelData(0);
+            const step = Math.ceil(data.length / width);
+            const amp = height / 2;
+
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            for (let i = 0; i < width; i++) {
+                let min = 1;
+                let max = -1;
+                for (let j = 0; j < step; j++) {
+                    const value = data[(i * step) + j] || 0;
+                    if (value < min) min = value;
+                    if (value > max) max = value;
+                }
+                
+                const yMin = (1 + min) * amp;
+                const yMax = (1 + max) * amp;
+
+                if (i === 0) {
+                    ctx.moveTo(i, yMax);
+                }
+                ctx.lineTo(i, yMax);
+                ctx.lineTo(i, yMin);
+            }
+
+            ctx.stroke();
+
+            // Draw center line
+            ctx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, amp);
+            ctx.lineTo(width, amp);
+            ctx.stroke();
+        }
+
+        // Granular synthesis engine
+        function playGrain(buffer, position, grainSizeSec, pitch, attackSec, releaseSec, masterVol) {
+            if (!buffer || !audioContext) return;
+
+            const source = audioContext.createBufferSource();
+            const gainNode = audioContext.createGain();
+            const masterGain = audioContext.createGain();
+
+            source.buffer = buffer;
+            source.playbackRate.value = pitch;
+
+            // Calculate start position with spray randomization
+            const sprayAmount = parseFloat(spraySlider.value) / 100;
+            const randomOffset = (Math.random() - 0.5) * sprayAmount * buffer.duration;
+            let startTime = position * buffer.duration + randomOffset;
+            
+            // Clamp to valid range, ensure grain size doesn't exceed buffer duration
+            const maxStartTime = Math.max(0, buffer.duration - grainSizeSec);
+            startTime = Math.max(0, Math.min(startTime, maxStartTime));
+
+            const currentTime = audioContext.currentTime;
+            const endTime = currentTime + grainSizeSec;
+
+            // Apply envelope
+            gainNode.gain.setValueAtTime(0, currentTime);
+            gainNode.gain.linearRampToValueAtTime(1, currentTime + attackSec);
+            gainNode.gain.setValueAtTime(1, endTime - releaseSec);
+            gainNode.gain.linearRampToValueAtTime(0, endTime);
+
+            // Master volume
+            masterGain.gain.value = masterVol;
+
+            // Connect nodes
+            source.connect(gainNode);
+            gainNode.connect(masterGain);
+            masterGain.connect(audioContext.destination);
+
+            // Play grain
+            source.start(currentTime, startTime, grainSizeSec);
+            source.stop(endTime);
+
+            // Track active grain
+            const grainId = Date.now() + Math.random();
+            activeGrains.add(grainId);
+            
+            source.onended = () => {
+                activeGrains.delete(grainId);
+                try {
+                    source.disconnect();
+                    gainNode.disconnect();
+                    masterGain.disconnect();
+                } catch (e) {
+                    // Nodes may already be disconnected
+                }
+            };
+        }
+
+        // Play note with granular synthesis
+        function playNote(note) {
+            if (!audioBuffer) {
+                status.textContent = 'Please record audio first!';
+                return;
+            }
+
+            initAudioContext();
+
+            const semitones = noteToSemitone[note];
+            const pitch = Math.pow(2, semitones / 12);
+            
+            const grainSize = parseFloat(grainSizeSlider.value) / 1000; // Convert to seconds
+            const density = parseInt(densitySlider.value);
+            const position = parseFloat(positionSlider.value) / 100;
+            const attack = parseFloat(attackSlider.value) / 1000; // Convert to seconds
+            const release = parseFloat(releaseSlider.value) / 1000; // Convert to seconds
+            const volume = parseFloat(volumeSlider.value) / 100;
+
+            // Play multiple overlapping grains based on density
+            const grainInterval = grainSize / density;
+            
+            for (let i = 0; i < density; i++) {
+                setTimeout(() => {
+                    playGrain(audioBuffer, position, grainSize, pitch, attack, release, volume);
+                }, i * grainInterval * 1000);
+            }
+        }
+
+        // Keyboard event handlers
+        const keys = document.querySelectorAll('.key');
+        const pressedKeys = new Set();
+
+        keys.forEach(key => {
+            key.addEventListener('mousedown', () => {
+                const note = key.dataset.note;
+                key.classList.add('active');
+                playNote(note);
+            });
+
+            key.addEventListener('mouseup', () => {
+                key.classList.remove('active');
+            });
+
+            key.addEventListener('mouseleave', () => {
+                key.classList.remove('active');
+            });
+        });
+
+        // Computer keyboard support
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (keyMap[key] && !pressedKeys.has(key)) {
+                pressedKeys.add(key);
+                const note = keyMap[key];
+                const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+                if (keyElement) {
+                    keyElement.classList.add('active');
+                    playNote(note);
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (keyMap[key]) {
+                pressedKeys.delete(key);
+                const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+                if (keyElement) {
+                    keyElement.classList.remove('active');
+                }
+            }
+        });
+
+        // Initialize displays
+        updateSliderDisplays();
+    </script>
+</body>
+</html>
