@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="screen-orientation" content="landscape">
+    <meta name="x5-orientation" content="landscape">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
     <style>
         * {
@@ -11,93 +15,91 @@
             box-sizing: border-box;
         }
 
+        @media screen and (orientation: portrait) {
+            html {
+                transform: rotate(90deg);
+                transform-origin: left top;
+                width: 100vh;
+                height: 100vw;
+                overflow-x: hidden;
+                position: absolute;
+                top: 100%;
+                left: 0;
+            }
+        }
+
         html, body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
             height: 100vh;
             width: 100vw;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             touch-action: none;
+            -webkit-touch-callout: none;
         }
 
-        .container {
-            max-width: 1200px;
-            max-height: calc(100vh - 40px);
+        .synth-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             width: 100%;
+            padding: 10px;
+            padding-bottom: 0;
+        }
+
+        .top-section {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .recording-section {
+            flex: 0 0 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             background: rgba(30, 30, 50, 0.8);
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #00d4ff;
-            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-            font-size: 2.5em;
-        }
-
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: rgba(50, 50, 70, 0.5);
             border-radius: 10px;
+            padding: 10px;
             border: 1px solid rgba(0, 212, 255, 0.2);
         }
 
-        .section h2 {
+        .recording-section h2 {
             color: #00d4ff;
-            margin-bottom: 15px;
-            font-size: 1.5em;
+            font-size: 14px;
+            margin-bottom: 5px;
         }
 
-        .recording-controls {
+        .recording-buttons {
             display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
+            gap: 5px;
         }
 
         button {
-            padding: 12px 24px;
-            font-size: 16px;
+            padding: 8px 12px;
+            font-size: 11px;
             font-weight: bold;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.3s ease;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             user-select: none;
             -webkit-user-drag: none;
             touch-action: manipulation;
         }
 
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
         #recordBtn {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
             color: white;
+            flex: 1;
         }
 
         #recordBtn.recording {
@@ -117,33 +119,47 @@
 
         #waveformCanvas {
             width: 100%;
-            height: 150px;
+            flex: 1;
+            min-height: 60px;
             background: #0a0a15;
-            border-radius: 8px;
-            margin-top: 15px;
+            border-radius: 6px;
             border: 1px solid rgba(0, 212, 255, 0.3);
         }
 
-        .controls-grid {
+        .status {
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            text-align: center;
+            color: #00d4ff;
+            font-size: 10px;
+        }
+
+        .controls-section {
+            flex: 1;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            background: rgba(30, 30, 50, 0.8);
+            border-radius: 10px;
+            padding: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow: hidden;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 4px;
         }
 
         .control-group label {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
+            font-size: 10px;
             color: #b0b0b0;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .control-group .value {
@@ -153,8 +169,8 @@
 
         input[type="range"] {
             width: 100%;
-            height: 8px;
-            border-radius: 5px;
+            height: 6px;
+            border-radius: 3px;
             background: rgba(0, 212, 255, 0.2);
             outline: none;
             -webkit-appearance: none;
@@ -164,233 +180,195 @@
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: #00d4ff;
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: #00d4ff;
             cursor: pointer;
             border: none;
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+        }
+
+        .keyboard-section {
+            flex: 0 0 120px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 5px 0;
+            background: rgba(20, 20, 40, 0.9);
+            border-top: 2px solid rgba(0, 212, 255, 0.3);
         }
 
         .keyboard {
             display: flex;
-            justify-content: center;
-            gap: 2px;
-            margin-top: 20px;
             position: relative;
-            height: 200px;
+            height: 110px;
         }
 
         .key {
             position: relative;
             cursor: pointer;
-            border-radius: 0 0 8px 8px;
-            transition: all 0.1s ease;
+            border-radius: 0 0 6px 6px;
+            transition: all 0.05s ease;
             user-select: none;
             -webkit-user-select: none;
             -webkit-user-drag: none;
             display: flex;
             align-items: flex-end;
             justify-content: center;
-            padding-bottom: 10px;
-            font-size: 12px;
+            padding-bottom: 5px;
+            font-size: 9px;
             font-weight: bold;
             touch-action: none;
         }
 
         .key.white {
-            width: 60px;
-            height: 200px;
-            background: linear-gradient(to bottom, #ffffff 0%, #e0e0e0 100%);
-            border: 1px solid #333;
+            width: 36px;
+            height: 110px;
+            background: linear-gradient(to bottom, #ffffff 0%, #e8e8e8 100%);
+            border: 1px solid #999;
             color: #333;
             z-index: 1;
+            margin: 0 1px;
         }
 
         .key.black {
-            width: 40px;
-            height: 130px;
-            background: linear-gradient(to bottom, #2a2a2a 0%, #000000 100%);
+            width: 24px;
+            height: 70px;
+            background: linear-gradient(to bottom, #333 0%, #000000 100%);
             border: 1px solid #000;
             color: #fff;
             position: absolute;
             z-index: 2;
+            font-size: 7px;
         }
 
-        .key.white:hover {
-            background: linear-gradient(to bottom, #f0f0f0 0%, #d0d0d0 100%);
-        }
-
-        .key.black:hover {
-            background: linear-gradient(to bottom, #3a3a3a 0%, #1a1a1a 100%);
-        }
-
-        .key.active {
+        .key.white:active, .key.white.active {
+            background: linear-gradient(to bottom, #00d4ff 0%, #0099cc 100%);
             transform: translateY(2px);
-            box-shadow: inset 0 3px 10px rgba(0, 212, 255, 0.8);
         }
 
-        .key.white.active {
-            background: linear-gradient(to bottom, #00d4ff 0%, #0088aa 100%);
-        }
-
-        .key.black.active {
-            background: linear-gradient(to bottom, #00d4ff 0%, #0066aa 100%);
-        }
-
-        .keyboard-container {
-            position: relative;
+        .key.black:active, .key.black.active {
+            background: linear-gradient(to bottom, #00a0cc 0%, #006688 100%);
+            transform: translateY(2px);
         }
 
         .key-label {
-            font-size: 10px;
-            opacity: 0.7;
+            font-size: 7px;
+            opacity: 0.6;
         }
 
-        .status {
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 5px;
-            text-align: center;
-            color: #00d4ff;
-            font-size: 14px;
-        }
-
-        /* Position black keys */
-        .key.black[data-note="C#"] { left: 42px; }
-        .key.black[data-note="D#"] { left: 106px; }
-        .key.black[data-note="F#"] { left: 234px; }
-        .key.black[data-note="G#"] { left: 298px; }
-        .key.black[data-note="A#"] { left: 362px; }
+        /* Position black keys for 2 octaves */
+        .key.black[data-note="C#1"] { left: 26px; }
+        .key.black[data-note="D#1"] { left: 64px; }
+        .key.black[data-note="F#1"] { left: 140px; }
+        .key.black[data-note="G#1"] { left: 178px; }
+        .key.black[data-note="A#1"] { left: 216px; }
+        .key.black[data-note="C#2"] { left: 292px; }
+        .key.black[data-note="D#2"] { left: 330px; }
+        .key.black[data-note="F#2"] { left: 406px; }
+        .key.black[data-note="G#2"] { left: 444px; }
+        .key.black[data-note="A#2"] { left: 482px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎵 Granular Synthesizer</h1>
-        
-        <div class="section">
-            <h2>Recording</h2>
-            <div class="recording-controls">
-                <button id="recordBtn">Start Recording</button>
-                <button id="clearBtn">Clear Buffer</button>
+    <div class="synth-container">
+        <div class="top-section">
+            <div class="recording-section">
+                <h2>🎤 Recording</h2>
+                <div class="recording-buttons">
+                    <button id="recordBtn">Record</button>
+                    <button id="clearBtn">Clear</button>
+                </div>
+                <canvas id="waveformCanvas"></canvas>
+                <div id="status" class="status">No audio recorded</div>
             </div>
-            <canvas id="waveformCanvas"></canvas>
-            <div id="status" class="status">No audio recorded. Click "Start Recording" to begin.</div>
-        </div>
 
-        <div class="section">
-            <h2>Granular Parameters</h2>
-            <div class="controls-grid">
+            <div class="controls-section">
                 <div class="control-group">
-                    <label>
-                        <span>Grain Size</span>
-                        <span class="value" id="grainSizeValue">100ms</span>
-                    </label>
+                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
                     <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label>
-                        <span>Grain Density</span>
-                        <span class="value" id="densityValue">5</span>
-                    </label>
+                    <label><span>Density</span><span class="value" id="densityValue">5</span></label>
                     <input type="range" id="density" min="1" max="20" value="5" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label>
-                        <span>Position</span>
-                        <span class="value" id="positionValue">0%</span>
-                    </label>
+                    <label><span>Position</span><span class="value" id="positionValue">0%</span></label>
                     <input type="range" id="position" min="0" max="100" value="0" step="0.1">
                 </div>
                 
                 <div class="control-group">
-                    <label>
-                        <span>Spray / Scatter</span>
-                        <span class="value" id="sprayValue">0%</span>
-                    </label>
+                    <label><span>Spray</span><span class="value" id="sprayValue">0%</span></label>
                     <input type="range" id="spray" min="0" max="100" value="0" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label>
-                        <span>Attack</span>
-                        <span class="value" id="attackValue">10ms</span>
-                    </label>
+                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
                     <input type="range" id="attack" min="1" max="10000" value="10" step="10">
                 </div>
                 
                 <div class="control-group">
-                    <label>
-                        <span>Release</span>
-                        <span class="value" id="releaseValue">10ms</span>
-                    </label>
-                    <input type="range" id="release" min="1" max="10000" value="10" step="10">
+                    <label><span>Release</span><span class="value" id="releaseValue">500ms</span></label>
+                    <input type="range" id="release" min="10" max="10000" value="500" step="10">
                 </div>
                 
                 <div class="control-group">
-                    <label>
-                        <span>Master Volume</span>
-                        <span class="value" id="volumeValue">70%</span>
-                    </label>
+                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
+                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="0.1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
+                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="0.1">
+                </div>
+                
+                <div class="control-group">
+                    <label><span>Volume</span><span class="value" id="volumeValue">70%</span></label>
                     <input type="range" id="volume" min="0" max="100" value="70" step="1">
                 </div>
             </div>
         </div>
 
-        <div class="section">
-            <h2>12-Note Keyboard</h2>
-            <div class="keyboard-container">
-                <div class="keyboard">
-                    <div class="key white" data-note="C" data-key="a">
-                        <span>C<br><span class="key-label">(A)</span></span>
-                    </div>
-                    <div class="key black" data-note="C#" data-key="w">
-                        <span>C#<br><span class="key-label">(W)</span></span>
-                    </div>
-                    <div class="key white" data-note="D" data-key="s">
-                        <span>D<br><span class="key-label">(S)</span></span>
-                    </div>
-                    <div class="key black" data-note="D#" data-key="e">
-                        <span>D#<br><span class="key-label">(E)</span></span>
-                    </div>
-                    <div class="key white" data-note="E" data-key="d">
-                        <span>E<br><span class="key-label">(D)</span></span>
-                    </div>
-                    <div class="key white" data-note="F" data-key="f">
-                        <span>F<br><span class="key-label">(F)</span></span>
-                    </div>
-                    <div class="key black" data-note="F#" data-key="t">
-                        <span>F#<br><span class="key-label">(T)</span></span>
-                    </div>
-                    <div class="key white" data-note="G" data-key="g">
-                        <span>G<br><span class="key-label">(G)</span></span>
-                    </div>
-                    <div class="key black" data-note="G#" data-key="y">
-                        <span>G#<br><span class="key-label">(Y)</span></span>
-                    </div>
-                    <div class="key white" data-note="A" data-key="h">
-                        <span>A<br><span class="key-label">(H)</span></span>
-                    </div>
-                    <div class="key black" data-note="A#" data-key="u">
-                        <span>A#<br><span class="key-label">(U)</span></span>
-                    </div>
-                    <div class="key white" data-note="B" data-key="j">
-                        <span>B<br><span class="key-label">(J)</span></span>
-                    </div>
-                </div>
+        <div class="keyboard-section">
+            <div class="keyboard">
+                <!-- Octave 1 -->
+                <div class="key white" data-note="C1" data-key="a"><span>C<br><span class="key-label">A</span></span></div>
+                <div class="key black" data-note="C#1" data-key="w"><span>C#<br><span class="key-label">W</span></span></div>
+                <div class="key white" data-note="D1" data-key="s"><span>D<br><span class="key-label">S</span></span></div>
+                <div class="key black" data-note="D#1" data-key="e"><span>D#<br><span class="key-label">E</span></span></div>
+                <div class="key white" data-note="E1" data-key="d"><span>E<br><span class="key-label">D</span></span></div>
+                <div class="key white" data-note="F1" data-key="f"><span>F<br><span class="key-label">F</span></span></div>
+                <div class="key black" data-note="F#1" data-key="t"><span>F#<br><span class="key-label">T</span></span></div>
+                <div class="key white" data-note="G1" data-key="g"><span>G<br><span class="key-label">G</span></span></div>
+                <div class="key black" data-note="G#1" data-key="y"><span>G#<br><span class="key-label">Y</span></span></div>
+                <div class="key white" data-note="A1" data-key="h"><span>A<br><span class="key-label">H</span></span></div>
+                <div class="key black" data-note="A#1" data-key="u"><span>A#<br><span class="key-label">U</span></span></div>
+                <div class="key white" data-note="B1" data-key="j"><span>B<br><span class="key-label">J</span></span></div>
+                <!-- Octave 2 -->
+                <div class="key white" data-note="C2" data-key="k"><span>C<br><span class="key-label">K</span></span></div>
+                <div class="key black" data-note="C#2" data-key="o"><span>C#<br><span class="key-label">O</span></span></div>
+                <div class="key white" data-note="D2" data-key="l"><span>D<br><span class="key-label">L</span></span></div>
+                <div class="key black" data-note="D#2" data-key="p"><span>D#<br><span class="key-label">P</span></span></div>
+                <div class="key white" data-note="E2" data-key=";"><span>E<br><span class="key-label">;</span></span></div>
+                <div class="key white" data-note="F2" data-key="'"><span>F<br><span class="key-label">'</span></span></div>
+                <div class="key black" data-note="F#2" data-key="]"><span>F#<br><span class="key-label">]</span></span></div>
+                <div class="key white" data-note="G2" data-key="\\"><span>G<br><span class="key-label">\\</span></span></div>
+                <div class="key black" data-note="G#2" data-key=""><span>G#</span></div>
+                <div class="key white" data-note="A2" data-key="z"><span>A<br><span class="key-label">Z</span></span></div>
+                <div class="key black" data-note="A#2" data-key="x"><span>A#<br><span class="key-label">X</span></span></div>
+                <div class="key white" data-note="B2" data-key="c"><span>B<br><span class="key-label">C</span></span></div>
             </div>
         </div>
     </div>
@@ -403,7 +381,7 @@
         let audioChunks = [];
         let isRecording = false;
 
-        // Track active notes with their grain schedulers and gain nodes
+        // Track active notes
         const activeNotes = new Map();
 
         // UI Elements
@@ -420,18 +398,24 @@
         const spraySlider = document.getElementById('spray');
         const attackSlider = document.getElementById('attack');
         const releaseSlider = document.getElementById('release');
+        const sampleStartSlider = document.getElementById('sampleStart');
+        const sampleEndSlider = document.getElementById('sampleEnd');
         const volumeSlider = document.getElementById('volume');
 
-        // Note to semitone mapping (C = 0)
+        // Note to semitone mapping (C1 = 0, C2 = 12)
         const noteToSemitone = {
-            'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
-            'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+            'C1': 0, 'C#1': 1, 'D1': 2, 'D#1': 3, 'E1': 4, 'F1': 5,
+            'F#1': 6, 'G1': 7, 'G#1': 8, 'A1': 9, 'A#1': 10, 'B1': 11,
+            'C2': 12, 'C#2': 13, 'D2': 14, 'D#2': 15, 'E2': 16, 'F2': 17,
+            'F#2': 18, 'G2': 19, 'G#2': 20, 'A2': 21, 'A#2': 22, 'B2': 23
         };
 
-        // Keyboard mapping
+        // Keyboard mapping for 2 octaves
         const keyMap = {
-            'a': 'C', 'w': 'C#', 's': 'D', 'e': 'D#', 'd': 'E', 'f': 'F',
-            't': 'F#', 'g': 'G', 'y': 'G#', 'h': 'A', 'u': 'A#', 'j': 'B'
+            'a': 'C1', 'w': 'C#1', 's': 'D1', 'e': 'D#1', 'd': 'E1', 'f': 'F1',
+            't': 'F#1', 'g': 'G1', 'y': 'G#1', 'h': 'A1', 'u': 'A#1', 'j': 'B1',
+            'k': 'C2', 'o': 'C#2', 'l': 'D2', 'p': 'D#2', ';': 'E2', "'": 'F2',
+            ']': 'F#2', '\\': 'G2', 'z': 'A2', 'x': 'A#2', 'c': 'B2'
         };
 
         // Initialize Audio Context
@@ -453,20 +437,22 @@
             
             const attackVal = parseFloat(attackSlider.value);
             document.getElementById('attackValue').textContent = attackVal >= 1000 
-                ? (attackVal / 1000).toFixed(2) + 's' 
+                ? (attackVal / 1000).toFixed(1) + 's' 
                 : attackVal + 'ms';
             
             const releaseVal = parseFloat(releaseSlider.value);
             document.getElementById('releaseValue').textContent = releaseVal >= 1000 
-                ? (releaseVal / 1000).toFixed(2) + 's' 
+                ? (releaseVal / 1000).toFixed(1) + 's' 
                 : releaseVal + 'ms';
             
+            document.getElementById('sampleStartValue').textContent = sampleStartSlider.value + '%';
+            document.getElementById('sampleEndValue').textContent = sampleEndSlider.value + '%';
             document.getElementById('volumeValue').textContent = volumeSlider.value + '%';
         }
 
         // Add event listeners for sliders
         [grainSizeSlider, densitySlider, positionSlider, spraySlider, 
-         attackSlider, releaseSlider, volumeSlider].forEach(slider => {
+         attackSlider, releaseSlider, sampleStartSlider, sampleEndSlider, volumeSlider].forEach(slider => {
             slider.addEventListener('input', updateSliderDisplays);
         });
 
@@ -489,24 +475,22 @@
                         const arrayBuffer = await audioBlob.arrayBuffer();
                         audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                         drawWaveform(audioBuffer);
-                        status.textContent = `Recording complete! Duration: ${audioBuffer.duration.toFixed(2)}s`;
-                        
+                        status.textContent = `Done! ${audioBuffer.duration.toFixed(1)}s`;
                         stream.getTracks().forEach(track => track.stop());
                     };
 
                     mediaRecorder.start();
                     isRecording = true;
-                    recordBtn.textContent = 'Stop Recording';
+                    recordBtn.textContent = 'Stop';
                     recordBtn.classList.add('recording');
-                    status.textContent = 'Recording... Click "Stop Recording" when done.';
+                    status.textContent = 'Recording...';
                 } catch (error) {
-                    console.error('Error accessing microphone:', error);
-                    status.textContent = 'Error: Could not access microphone. Please allow microphone access.';
+                    status.textContent = 'Mic access denied';
                 }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
-                recordBtn.textContent = 'Start Recording';
+                recordBtn.textContent = 'Record';
                 recordBtn.classList.remove('recording');
             }
         });
@@ -516,10 +500,10 @@
             audioBuffer = null;
             audioChunks = [];
             ctx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
-            status.textContent = 'Buffer cleared. Ready for new recording.';
+            status.textContent = 'Buffer cleared';
         });
 
-        // Draw waveform
+        // Draw waveform with sample start/end markers
         function drawWaveform(buffer) {
             const width = waveformCanvas.width = waveformCanvas.clientWidth;
             const height = waveformCanvas.height = waveformCanvas.clientHeight;
@@ -533,8 +517,14 @@
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
 
+            // Draw sample region
+            const startX = (parseFloat(sampleStartSlider.value) / 100) * width;
+            const endX = (parseFloat(sampleEndSlider.value) / 100) * width;
+            ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
+            ctx.fillRect(startX, 0, endX - startX, height);
+
             ctx.strokeStyle = '#00d4ff';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
             ctx.beginPath();
 
             for (let i = 0; i < width; i++) {
@@ -549,24 +539,32 @@
                 const yMin = (1 + min) * amp;
                 const yMax = (1 + max) * amp;
 
-                if (i === 0) {
-                    ctx.moveTo(i, yMax);
-                }
+                if (i === 0) ctx.moveTo(i, yMax);
                 ctx.lineTo(i, yMax);
                 ctx.lineTo(i, yMin);
             }
-
             ctx.stroke();
 
-            ctx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
-            ctx.lineWidth = 1;
+            // Draw start/end lines
+            ctx.strokeStyle = '#ff0844';
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(0, amp);
-            ctx.lineTo(width, amp);
+            ctx.moveTo(startX, 0);
+            ctx.lineTo(startX, height);
+            ctx.moveTo(endX, 0);
+            ctx.lineTo(endX, height);
             ctx.stroke();
         }
 
-        // Create a single grain and return its nodes
+        // Update waveform when sample start/end changes
+        sampleStartSlider.addEventListener('input', () => {
+            if (audioBuffer) drawWaveform(audioBuffer);
+        });
+        sampleEndSlider.addEventListener('input', () => {
+            if (audioBuffer) drawWaveform(audioBuffer);
+        });
+
+        // Create a single grain
         function createGrain(buffer, position, grainSizeSec, pitch, masterGainNode) {
             const source = audioContext.createBufferSource();
             const grainGain = audioContext.createGain();
@@ -574,16 +572,23 @@
             source.buffer = buffer;
             source.playbackRate.value = pitch;
 
+            // Get sample region
+            const sampleStart = parseFloat(sampleStartSlider.value) / 100;
+            const sampleEnd = parseFloat(sampleEndSlider.value) / 100;
+            const regionStart = sampleStart * buffer.duration;
+            const regionDuration = (sampleEnd - sampleStart) * buffer.duration;
+
             const sprayAmount = parseFloat(spraySlider.value) / 100;
-            const randomOffset = (Math.random() - 0.5) * sprayAmount * buffer.duration;
-            let startPos = position * buffer.duration + randomOffset;
+            const randomOffset = (Math.random() - 0.5) * sprayAmount * regionDuration;
             
-            const maxStartTime = Math.max(0, buffer.duration - grainSizeSec);
-            startPos = Math.max(0, Math.min(startPos, maxStartTime));
+            // Position within the sample region
+            let startPos = regionStart + (position * regionDuration) + randomOffset;
+            const maxStartTime = Math.max(regionStart, regionStart + regionDuration - grainSizeSec);
+            startPos = Math.max(regionStart, Math.min(startPos, maxStartTime));
 
             const now = audioContext.currentTime;
 
-            // Simple grain envelope (quick fade in/out to avoid clicks)
+            // Grain envelope
             grainGain.gain.setValueAtTime(0, now);
             grainGain.gain.linearRampToValueAtTime(1, now + 0.005);
             grainGain.gain.setValueAtTime(1, now + grainSizeSec - 0.005);
@@ -600,14 +605,11 @@
         // Start playing a note (called on key DOWN)
         function startNote(note) {
             if (!audioBuffer) {
-                status.textContent = 'Please record audio first!';
+                status.textContent = 'Record audio first!';
                 return;
             }
 
-            // If note is already playing, don't restart
-            if (activeNotes.has(note)) {
-                return;
-            }
+            if (activeNotes.has(note)) return;
 
             initAudioContext();
 
@@ -616,21 +618,20 @@
             const volume = parseFloat(volumeSlider.value) / 100;
             const attackTime = parseFloat(attackSlider.value) / 1000;
 
-            // Create master gain for this note (handles attack/release envelope)
+            // Create master gain for this note
             const noteGain = audioContext.createGain();
             noteGain.connect(audioContext.destination);
             
-            // Start at 0 and ramp up (attack)
+            // Attack envelope
             const now = audioContext.currentTime;
-            noteGain.gain.setValueAtTime(0, now);
-            noteGain.gain.linearRampToValueAtTime(volume, now + attackTime);
+            noteGain.gain.setValueAtTime(0.001, now);
+            noteGain.gain.exponentialRampToValueAtTime(volume, now + attackTime);
 
-            // Store active grains for cleanup
             const grains = [];
+            let isActive = true;
 
-            // Function to spawn grains continuously
             const spawnGrain = () => {
-                if (!activeNotes.has(note)) return;
+                if (!isActive) return;
 
                 const grainSize = parseFloat(grainSizeSlider.value) / 1000;
                 const position = parseFloat(positionSlider.value) / 100;
@@ -638,36 +639,30 @@
                 const grain = createGrain(audioBuffer, position, grainSize, pitch, noteGain);
                 grains.push(grain);
 
-                // Clean up old grains
                 grain.source.onended = () => {
                     const idx = grains.indexOf(grain);
                     if (idx > -1) grains.splice(idx, 1);
                 };
             };
 
-            // Calculate interval between grains based on density
             const getGrainInterval = () => {
                 const grainSize = parseFloat(grainSizeSlider.value) / 1000;
                 const density = parseInt(densitySlider.value);
                 return (grainSize / density) * 1000;
             };
 
-            // Spawn first grain immediately
             spawnGrain();
 
-            // Set up interval to spawn more grains
             const intervalId = setInterval(() => {
-                if (activeNotes.has(note)) {
-                    spawnGrain();
-                }
+                if (isActive) spawnGrain();
             }, getGrainInterval());
 
-            // Store note data
             activeNotes.set(note, {
                 noteGain,
                 grains,
                 intervalId,
-                startTime: now
+                isActive: true,
+                setInactive: () => { isActive = false; }
             });
         }
 
@@ -676,22 +671,24 @@
             const noteData = activeNotes.get(note);
             if (!noteData) return;
 
-            const { noteGain, grains, intervalId } = noteData;
+            const { noteGain, grains, intervalId, setInactive } = noteData;
             const releaseTime = parseFloat(releaseSlider.value) / 1000;
 
             // Stop spawning new grains
             clearInterval(intervalId);
+            setInactive();
 
-            // Apply release envelope
+            // Release envelope
             const now = audioContext.currentTime;
+            const currentGain = noteGain.gain.value;
+            
             noteGain.gain.cancelScheduledValues(now);
-            noteGain.gain.setValueAtTime(noteGain.gain.value, now);
-            noteGain.gain.linearRampToValueAtTime(0, now + releaseTime);
+            noteGain.gain.setValueAtTime(currentGain, now);
+            noteGain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
 
-            // Remove from active notes immediately so no new grains spawn
             activeNotes.delete(note);
 
-            // Clean up after release
+            // Cleanup after release completes
             setTimeout(() => {
                 try {
                     noteGain.disconnect();
@@ -703,15 +700,14 @@
                         g.grainGain.disconnect();
                     } catch (e) {}
                 });
-            }, releaseTime * 1000 + 100);
+            }, (releaseTime * 1000) + 200);
         }
 
-        // Keyboard event handlers for on-screen keys
+        // Keyboard event handlers
         const keys = document.querySelectorAll('.key');
         const pressedKeys = new Set();
 
         keys.forEach(key => {
-            // Mouse events
             key.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 const note = key.dataset.note;
@@ -734,32 +730,30 @@
                 }
             });
 
-            // Touch events
             key.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const note = key.dataset.note;
                 key.classList.add('active');
                 startNote(note);
-            });
+            }, { passive: false });
 
             key.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 const note = key.dataset.note;
                 key.classList.remove('active');
                 stopNote(note);
-            });
+            }, { passive: false });
 
             key.addEventListener('touchcancel', (e) => {
                 e.preventDefault();
                 const note = key.dataset.note;
                 key.classList.remove('active');
                 stopNote(note);
-            });
+            }, { passive: false });
         });
 
         // Computer keyboard support
         document.addEventListener('keydown', (e) => {
-            // Ignore if in input field
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             
             const key = e.key.toLowerCase();
@@ -768,7 +762,6 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Ignore key repeat
                 if (e.repeat || pressedKeys.has(key)) return;
                 
                 pressedKeys.add(key);
@@ -798,27 +791,20 @@
             }
         });
 
-        // Initialize displays
+        // Initialize
         updateSliderDisplays();
 
-        // Prevent context menu on the entire app
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
+        // Prevent context menu
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('dragstart', (e) => e.preventDefault());
+        
+        // Prevent scrolling
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
-        // Prevent default drag behavior
-        document.addEventListener('dragstart', (e) => {
-            e.preventDefault();
-        });
-
-        // Prevent scrolling on touch
-        document.addEventListener('touchmove', (e) => {
-            if (e.target.closest('.container')) {
-                // Allow scrolling in container
-            } else {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        // Force landscape orientation check
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+        }
     </script>
 </body>
 </html>
