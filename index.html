@@ -105,42 +105,6 @@
             color: var(--secondary-color);
         }
 
-        select {
-            flex: 1;
-            height: 2.5vmin;
-            background: var(--control-bg);
-            color: var(--text-color);
-            border: 1px solid var(--control-border);
-            border-radius: 4px;
-            font-size: 1.8vmin;
-            cursor: pointer;
-            padding: 0 0.5vmin;
-        }
-
-        .lfo-btn {
-            width: 5vmin;
-            height: 2.5vmin;
-            background: var(--control-bg);
-            color: var(--text-color);
-            border: 1px solid var(--control-border);
-            border-radius: 4px;
-            font-size: 1.4vmin;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-
-        .lfo-btn:hover {
-            border-color: var(--accent-color);
-        }
-
-        .lfo-btn.active {
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-            color: var(--bg-color);
-        }
-
         .visualizer-container {
             flex: 1;
             background: #000;
@@ -238,19 +202,16 @@
                     <label for="grainSize">Size</label>
                     <input type="range" id="grainSize" min="0.01" max="0.5" step="0.01" value="0.1">
                     <span class="value-display" id="grainSizeVal">100ms</span>
-                    <button class="lfo-btn" data-param="grainSize">LFO</button>
                 </div>
                 <div class="slider-container">
                     <label for="overlap">Overlap</label>
                     <input type="range" id="overlap" min="0" max="1" step="0.01" value="0.5">
                     <span class="value-display" id="overlapVal">50%</span>
-                    <button class="lfo-btn" data-param="overlap">LFO</button>
                 </div>
                 <div class="slider-container">
                     <label for="density">Density</label>
                     <input type="range" id="density" min="1" max="50" step="1" value="10">
                     <span class="value-display" id="densityVal">10Hz</span>
-                    <button class="lfo-btn" data-param="density">LFO</button>
                 </div>
             </div>
 
@@ -260,19 +221,16 @@
                     <label for="startPos">Start</label>
                     <input type="range" id="startPos" min="0" max="1" step="0.001" value="0">
                     <span class="value-display" id="startPosVal">0%</span>
-                    <button class="lfo-btn" data-param="startPos">LFO</button>
                 </div>
                 <div class="slider-container">
                     <label for="endPos">End</label>
                     <input type="range" id="endPos" min="0" max="1" step="0.001" value="1">
                     <span class="value-display" id="endPosVal">100%</span>
-                    <button class="lfo-btn" data-param="endPos">LFO</button>
                 </div>
                 <div class="slider-container">
                     <label for="spread">Spread</label>
                     <input type="range" id="spread" min="0" max="1" step="0.01" value="0.2">
                     <span class="value-display" id="spreadVal">20%</span>
-                    <button class="lfo-btn" data-param="spread">LFO</button>
                 </div>
             </div>
 
@@ -282,13 +240,11 @@
                     <label for="attack">Attack</label>
                     <input type="range" id="attack" min="0.01" max="2" step="0.01" value="0.1">
                     <span class="value-display" id="attackVal">0.1s</span>
-                    <button class="lfo-btn" data-param="attack">LFO</button>
                 </div>
                 <div class="slider-container">
                     <label for="release">Release</label>
                     <input type="range" id="release" min="0.01" max="5" step="0.01" value="0.5">
                     <span class="value-display" id="releaseVal">0.5s</span>
-                    <button class="lfo-btn" data-param="release">LFO</button>
                 </div>
             </div>
 
@@ -298,41 +254,11 @@
                     <label for="detune">Detune</label>
                     <input type="range" id="detune" min="-1200" max="1200" step="10" value="0">
                     <span class="value-display" id="detuneVal">0c</span>
-                    <button class="lfo-btn" data-param="detune">LFO</button>
-                </div>
-                <div class="slider-container">
-                    <label for="fineTune">Fine</label>
-                    <input type="range" id="fineTune" min="-100" max="100" step="1" value="0">
-                    <span class="value-display" id="fineTuneVal">0c</span>
-                    <button class="lfo-btn" data-param="fineTune">LFO</button>
                 </div>
                 <div class="slider-container">
                     <label for="filterCutoff">Filter</label>
                     <input type="range" id="filterCutoff" min="20" max="20000" step="10" value="20000">
                     <span class="value-display" id="filterCutoffVal">20k</span>
-                    <button class="lfo-btn" data-param="filterCutoff">LFO</button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <h3>LFO</h3>
-                <div class="slider-container">
-                    <label for="lfoTempo">Tempo</label>
-                    <input type="range" id="lfoTempo" min="0.1" max="20" step="0.1" value="1">
-                    <span class="value-display" id="lfoTempoVal">1Hz</span>
-                </div>
-                <div class="slider-container">
-                    <label for="lfoWaveform">Wave</label>
-                    <select id="lfoWaveform">
-                        <option value="sine">Sine</option>
-                        <option value="saw">Saw</option>
-                        <option value="square">Square</option>
-                    </select>
-                </div>
-                <div class="slider-container">
-                    <label for="lfoDepth">Depth</label>
-                    <input type="range" id="lfoDepth" min="0" max="1" step="0.01" value="0.5">
-                    <span class="value-display" id="lfoDepthVal">50%</span>
                 </div>
             </div>
         </div>
@@ -363,15 +289,8 @@
             attack: 0.1,
             release: 0.5,
             detune: 0,
-            fineTune: 0,
-            filterCutoff: 20000,
-            lfoTempo: 1,
-            lfoWaveform: 'sine',
-            lfoDepth: 0.5
+            filterCutoff: 20000
         };
-
-        // LFO state - tracks which parameters have LFO enabled
-        const lfoActive = new Set();
 
         // UI Elements
         const canvas = document.getElementById('visualizer');
@@ -394,67 +313,6 @@
                 drawWaveform();
             }
         });
-
-        // LFO Functions
-        function getLFO(time) {
-            const rate = params.lfoTempo;
-            const phase = (time * rate) % 1;
-            
-            switch(params.lfoWaveform) {
-                case 'sine':
-                    return Math.sin(phase * Math.PI * 2);
-                case 'saw':
-                    return (phase * 2) - 1;
-                case 'square':
-                    return phase < 0.5 ? 1 : -1;
-                default:
-                    return 0;
-            }
-        }
-
-        // Parameter scaling factors for LFO modulation
-        const lfoScaling = {
-            grainSize: 0.2,      // +/- 0.2 seconds
-            overlap: 0.5,        // +/- 50%
-            density: 20,         // +/- 20Hz
-            startPos: 0.3,       // +/- 30%
-            endPos: 0.3,         // +/- 30%
-            spread: 0.5,         // +/- 50%
-            attack: 0.5,         // +/- 0.5 seconds
-            release: 1,          // +/- 1 second
-            detune: 500,         // +/- 500 cents
-            fineTune: 50,        // +/- 50 cents
-            filterCutoff: 5000   // +/- 5000Hz
-        };
-
-        function getModulated(param) {
-            const baseValue = params[param];
-            
-            if (!lfoActive.has(param)) {
-                return baseValue;
-            }
-            
-            const time = audioCtx.currentTime;
-            const lfoValue = getLFO(time);
-            const depth = params.lfoDepth;
-            const scaling = lfoScaling[param] || 0;
-            
-            const modulation = lfoValue * depth * scaling;
-            let result = baseValue + modulation;
-            
-            // Clamp values to reasonable ranges
-            if (param === 'grainSize') result = Math.max(0.01, Math.min(0.5, result));
-            else if (param === 'overlap') result = Math.max(0, Math.min(1, result));
-            else if (param === 'density') result = Math.max(1, Math.min(50, result));
-            else if (param === 'startPos') result = Math.max(0, Math.min(1, result));
-            else if (param === 'endPos') result = Math.max(0, Math.min(1, result));
-            else if (param === 'spread') result = Math.max(0, Math.min(1, result));
-            else if (param === 'attack') result = Math.max(0.01, Math.min(2, result));
-            else if (param === 'release') result = Math.max(0.01, Math.min(5, result));
-            else if (param === 'filterCutoff') result = Math.max(20, Math.min(20000, result));
-            
-            return result;
-        }
 
         // Controls
         function setupControl(id, param, displaySuffix = '') {
@@ -492,42 +350,7 @@
         setupControl('attack', 'attack', 's');
         setupControl('release', 'release', 's');
         setupControl('detune', 'detune', 'c');
-        setupControl('fineTune', 'fineTune', 'c');
         setupControl('filterCutoff', 'filterCutoff');
-
-        // LFO Controls
-        const lfoTempoSlider = document.getElementById('lfoTempo');
-        const lfoTempoDisplay = document.getElementById('lfoTempoVal');
-        lfoTempoSlider.addEventListener('input', (e) => {
-            params.lfoTempo = parseFloat(e.target.value);
-            lfoTempoDisplay.textContent = params.lfoTempo.toFixed(1) + 'Hz';
-        });
-
-        const lfoWaveformSelect = document.getElementById('lfoWaveform');
-        lfoWaveformSelect.addEventListener('change', (e) => {
-            params.lfoWaveform = e.target.value;
-        });
-
-        const lfoDepthSlider = document.getElementById('lfoDepth');
-        const lfoDepthDisplay = document.getElementById('lfoDepthVal');
-        lfoDepthSlider.addEventListener('input', (e) => {
-            params.lfoDepth = parseFloat(e.target.value);
-            lfoDepthDisplay.textContent = Math.round(params.lfoDepth * 100) + '%';
-        });
-
-        // LFO Button Handlers
-        document.querySelectorAll('.lfo-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const param = btn.dataset.param;
-                if (lfoActive.has(param)) {
-                    lfoActive.delete(param);
-                    btn.classList.remove('active');
-                } else {
-                    lfoActive.add(param);
-                    btn.classList.add('active');
-                }
-            });
-        });
 
         // Grain Engine
         function createGrain(noteFreq) {
@@ -537,44 +360,68 @@
             const src = audioCtx.createBufferSource();
             src.buffer = audioBuffer;
 
-            // Get modulated parameters
-            const grainSize = getModulated('grainSize');
-            const startPos = getModulated('startPos');
-            const endPos = getModulated('endPos');
-            const spread = getModulated('spread');
-            const detune = getModulated('detune');
-            const fineTune = getModulated('fineTune');
-            const filterCutoff = getModulated('filterCutoff');
-            const attack = getModulated('attack');
-            const release = getModulated('release');
-
             // Calculate start position with randomness (spread)
+            // Ensure startPos doesn't exceed endPos
+            const safeStart = Math.min(params.startPos, params.endPos); 
+            // The playable range is the difference
+            const range = Math.max(0, params.endPos - safeStart);
+            
+            // Random offset within the spread, centered around current playback head if we were implementing a playhead, 
+            // but for granular, often spread is around the start pos.
+            // Let's interpret Start/End as the window of the sample we can pick grains from.
+            
+            // Actually, usually "Start" is the center and "Spread" is the random deviation.
+            // But user asked to "fix" start/end sample logic.
+            // Let's implement: Pick a random spot between Start and End.
+            
+            let grainPosition = safeStart + (Math.random() * range);
+            
+            // Apply spread as jitter if needed, or just rely on the Start/End window.
+            // Let's add 'spread' as additional jitter around that chosen point?
+            // Or simpler: Start/End defines the boundaries. Spread defines how much we use of that boundary?
+            // Let's stick to: Start = min point, End = max point.
+            // Spread: Adds randomness to the grain pitch or position? Usually position.
+            // Let's re-read typical granular logic:
+            // Position: where in file. Spray/Spread: Randomness added to Position.
+            // So: basePosition = params.startPos + (progress * (params.endPos - params.startPos)) ? No, that's time stretching.
+            
+            // Simple Logic requested previously:
+            // Start/End are hard clamps.
+            // Spread creates a random window around the 'Start' pointer?
+            // Let's assume Start/End define the VALID region of the buffer.
+            // We pick a random position inside [Start, End].
+            
+            // Refined Logic based on "fix start/end":
+            // Grain offset is calculated from the startPos relative to duration.
             const duration = audioBuffer.duration;
-            const startTime = startPos * duration;
-            const endTime = endPos * duration;
+            const startTime = params.startPos * duration;
+            const endTime = params.endPos * duration;
             
             // Ensure start is before end
             const actualStart = Math.min(startTime, endTime);
             const actualEnd = Math.max(startTime, endTime);
             const availableDuration = actualEnd - actualStart;
             
-            // Pick a random position inside [Start, End]
+            // If Spread is used as a "Spray" factor:
+            // We pick a point. Let's say we just scan linearly? Or random?
+            // Granular synthesis usually picks random grains from the window.
             let offset = actualStart;
             if (availableDuration > 0) {
                  offset += Math.random() * availableDuration;
             }
             
-            // Apply spread as additional randomization around the chosen position
-            const spreadAmount = spread * duration * 0.1; // 10% of duration max
-            offset += (Math.random() - 0.5) * spreadAmount;
-            
-            // Clamp to valid range
-            offset = Math.max(0, Math.min(duration - grainSize, offset));
+            // Apply Spread as additional randomization width?
+            // If the user wants specific start/end behavior, usually just constraining the random pick to that window is enough.
+            // Let's assume Spread is redundant if Start/End are manually set wide, OR Spread forces a width around Start.
+            // Let's stick to Start/End defining the window exclusively for now to be robust.
 
-            // Apply detune + fineTune
-            src.detune.value = detune + fineTune;
+            src.detune.value = params.detune;
             
-            // Pitch shifting based on keyboard note
+            // Pitch shifting based on keyboard note (relative to C4 middle C ~261.63Hz)
+            // Or just playing sample at different rates.
+            // Let's assume root note is C4.
+            // noteFreq passed in.
+            // playbackRate = noteFreq / 261.63;
             const rootFreq = 261.63; 
             src.playbackRate.value = noteFreq / rootFreq;
 
@@ -582,26 +429,20 @@
             const filter = audioCtx.createBiquadFilter();
             
             filter.type = 'lowpass';
-            filter.frequency.value = filterCutoff;
+            filter.frequency.value = params.filterCutoff;
 
             src.connect(filter);
             filter.connect(env);
             env.connect(audioCtx.destination);
 
-            // Envelope using modulated attack/release
-            const attackTime = Math.min(attack, grainSize * 0.5);
-            const releaseTime = Math.min(release, grainSize * 0.5);
-            const sustainTime = grainSize - attackTime - releaseTime;
-            
+            // Envelope
+            const grainDur = params.grainSize;
             env.gain.setValueAtTime(0, now);
-            env.gain.linearRampToValueAtTime(0.5, now + attackTime); // Attack
-            if (sustainTime > 0) {
-                env.gain.setValueAtTime(0.5, now + attackTime + sustainTime); // Sustain
-            }
-            env.gain.linearRampToValueAtTime(0, now + grainSize); // Release
+            env.gain.linearRampToValueAtTime(0.5, now + (grainDur * 0.5)); // Attack (simple triangle window)
+            env.gain.linearRampToValueAtTime(0, now + grainDur); // Decay
 
             src.start(now, offset);
-            src.stop(now + grainSize + 0.1); // Cleanup
+            src.stop(now + grainDur + 0.1); // Cleanup
 
             // Garbage collection helper
             src.onended = () => {
@@ -623,9 +464,8 @@
             if (keyEl) keyEl.classList.add('active');
 
             // Scheduling Grains
-            // Use modulated density for interval calculation
-            const density = getModulated('density');
-            const interval = 1000 / density;
+            // Density = grains per second. Interval = 1000 / density
+            const interval = 1000 / params.density;
             
             // Play one immediately
             createGrain(freq);
