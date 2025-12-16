@@ -104,6 +104,32 @@
             border-radius: 12px;
             padding: 15px;
             border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow-y: auto;
+        }
+
+        /* LFO Section */
+        .lfo-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .lfo-section select {
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: var(--accent);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .lfo-section .control-group {
+            margin: 0;
         }
 
         .section-title {
@@ -193,13 +219,51 @@
         .control-group label {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 11px;
             color: #aaa;
             margin-bottom: 5px;
             font-weight: 600;
         }
 
-        .control-group .value { color: var(--accent); }
+        .control-group label .param-name {
+            flex: 1;
+        }
+
+        .control-group label .value { 
+            color: var(--accent); 
+            margin-left: 5px;
+        }
+
+        .control-group .button-group {
+            display: flex;
+            gap: 3px;
+            margin-left: auto;
+        }
+
+        .lfo-toggle, .inv-toggle {
+            padding: 2px 6px;
+            font-size: 9px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #444;
+            border-radius: 3px;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .lfo-toggle.active {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+
+        .inv-toggle.active {
+            background: #ff0844;
+            color: #fff;
+            border-color: #ff0844;
+        }
 
         input[type="range"] {
             width: 100%;
@@ -326,66 +390,171 @@
                 </div>
                 <canvas id="waveformCanvas"></canvas>
                 <div id="status" class="status">Waiting for audio...</div>
+
+                <div class="lfo-section">
+                    <div class="section-title">LFO Controls</div>
+                    <div class="control-group">
+                        <label><span>Rate</span><span class="value" id="lfoRateValue">1.0Hz</span></label>
+                        <input type="range" id="lfoRate" min="0.1" max="20" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Waveform</span></label>
+                        <select id="lfoWaveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
+                        <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
+                    </div>
+                </div>
             </div>
 
             <div class="controls-section">
                 <!-- New Sliders -->
                 <div class="control-group highlight">
-                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
+                    <label>
+                        <span class="param-name">Sample Start</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="sampleStart">LFO</button>
+                            <button class="inv-toggle" data-param="sampleStart">INV</button>
+                        </div>
+                        <span class="value" id="sampleStartValue">0%</span>
+                    </label>
                     <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="control-group highlight">
-                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
+                    <label>
+                        <span class="param-name">Sample End</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="sampleEnd">LFO</button>
+                            <button class="inv-toggle" data-param="sampleEnd">INV</button>
+                        </div>
+                        <span class="value" id="sampleEndValue">100%</span>
+                    </label>
                     <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
                 </div>
 
                 <div class="control-group">
-                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
+                    <label>
+                        <span class="param-name">Grain Size</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="grainSize">LFO</button>
+                            <button class="inv-toggle" data-param="grainSize">INV</button>
+                        </div>
+                        <span class="value" id="grainSizeValue">100ms</span>
+                    </label>
                     <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Density</span><span class="value" id="densityValue">10</span></label>
+                    <label>
+                        <span class="param-name">Density</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="density">LFO</button>
+                            <button class="inv-toggle" data-param="density">INV</button>
+                        </div>
+                        <span class="value" id="densityValue">10</span>
+                    </label>
                     <input type="range" id="density" min="1" max="40" value="10" step="1">
                 </div>
                 
                 <div class="control-group highlight">
-                    <label><span>Scan Position</span><span class="value" id="positionValue">0%</span></label>
+                    <label>
+                        <span class="param-name">Scan Position</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="position">LFO</button>
+                            <button class="inv-toggle" data-param="position">INV</button>
+                        </div>
+                        <span class="value" id="positionValue">0%</span>
+                    </label>
                     <input type="range" id="position" min="0" max="100" value="0" step="0.1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Spray (Rnd)</span><span class="value" id="sprayValue">0%</span></label>
+                    <label>
+                        <span class="param-name">Spray (Rnd)</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="spray">LFO</button>
+                            <button class="inv-toggle" data-param="spray">INV</button>
+                        </div>
+                        <span class="value" id="sprayValue">0%</span>
+                    </label>
                     <input type="range" id="spray" min="0" max="100" value="0" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
+                    <label>
+                        <span class="param-name">Attack</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="attack">LFO</button>
+                            <button class="inv-toggle" data-param="attack">INV</button>
+                        </div>
+                        <span class="value" id="attackValue">10ms</span>
+                    </label>
                     <input type="range" id="attack" min="1" max="200" value="10" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
+                    <label>
+                        <span class="param-name">Release</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="release">LFO</button>
+                            <button class="inv-toggle" data-param="release">INV</button>
+                        </div>
+                        <span class="value" id="releaseValue">50ms</span>
+                    </label>
                     <input type="range" id="release" min="1" max="500" value="50" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Pitch Rand</span><span class="value" id="pitchVarValue">0%</span></label>
+                    <label>
+                        <span class="param-name">Pitch Rand</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="pitchVar">LFO</button>
+                            <button class="inv-toggle" data-param="pitchVar">INV</button>
+                        </div>
+                        <span class="value" id="pitchVarValue">0%</span>
+                    </label>
                     <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Stereo</span><span class="value" id="panSpreadValue">50%</span></label>
+                    <label>
+                        <span class="param-name">Stereo</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="panSpread">LFO</button>
+                            <button class="inv-toggle" data-param="panSpread">INV</button>
+                        </div>
+                        <span class="value" id="panSpreadValue">50%</span>
+                    </label>
                     <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Reverb</span><span class="value" id="reverbValue">20%</span></label>
+                    <label>
+                        <span class="param-name">Reverb</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="reverb">LFO</button>
+                            <button class="inv-toggle" data-param="reverb">INV</button>
+                        </div>
+                        <span class="value" id="reverbValue">20%</span>
+                    </label>
                     <input type="range" id="reverb" min="0" max="100" value="20" step="1">
                 </div>
                 
                 <div class="control-group">
-                    <label><span>Master Vol</span><span class="value" id="volumeValue">80%</span></label>
+                    <label>
+                        <span class="param-name">Master Vol</span>
+                        <div class="button-group">
+                            <button class="lfo-toggle" data-param="volume">LFO</button>
+                            <button class="inv-toggle" data-param="volume">INV</button>
+                        </div>
+                        <span class="value" id="volumeValue">80%</span>
+                    </label>
                     <input type="range" id="volume" min="0" max="100" value="80" step="1">
                 </div>
             </div>
@@ -446,6 +615,79 @@
         };
         const baseFrequency = 65.41; // C2
 
+        // LFO State
+        let lfoStartTime = 0;
+        let lfoEnabled = {};
+        let lfoInverted = {};
+        
+        // Parameter ranges for clamping
+        const paramRanges = {
+            sampleStart: { min: 0, max: 100 },
+            sampleEnd: { min: 0, max: 100 },
+            grainSize: { min: 10, max: 500 },
+            density: { min: 1, max: 40 },
+            position: { min: 0, max: 100 },
+            spray: { min: 0, max: 100 },
+            attack: { min: 1, max: 200 },
+            release: { min: 1, max: 500 },
+            pitchVar: { min: 0, max: 100 },
+            panSpread: { min: 0, max: 100 },
+            reverb: { min: 0, max: 100 },
+            volume: { min: 0, max: 100 }
+        };
+
+        // --- LFO Engine ---
+        function getLFOValue() {
+            if (!audioContext) return 0;
+            
+            const rate = parseFloat(document.getElementById('lfoRate').value);
+            const waveform = document.getElementById('lfoWaveform').value;
+            const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
+            
+            const elapsed = audioContext.currentTime - lfoStartTime;
+            // Use fract for better precision with long-running oscillators
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
+            
+            let value = 0;
+            switch (waveform) {
+                case 'sine':
+                    value = Math.sin(phase * Math.PI * 2);
+                    break;
+                case 'triangle':
+                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                    break;
+                case 'sawtooth':
+                    value = phase * 2 - 1;
+                    break;
+                case 'square':
+                    value = phase < 0.5 ? -1 : 1;
+                    break;
+            }
+            
+            return value * depth;
+        }
+
+        function getModulatedValue(paramId) {
+            const slider = document.getElementById(paramId);
+            if (!slider) return 0;
+            
+            const baseValue = parseFloat(slider.value);
+            
+            if (!lfoEnabled[paramId]) {
+                return baseValue;
+            }
+            
+            const lfoValue = getLFOValue();
+            const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
+            
+            const range = paramRanges[paramId];
+            const rangeSize = range.max - range.min;
+            const offset = invertedLFO * rangeSize * 0.5;
+            
+            const modulated = baseValue + offset;
+            return Math.max(range.min, Math.min(range.max, modulated));
+        }
+
         // --- Initialization ---
         const startBtn = document.getElementById('start-btn');
         const startOverlay = document.getElementById('start-overlay');
@@ -456,7 +698,10 @@
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioContext.state === 'suspended') await audioContext.resume();
                 
+                lfoStartTime = audioContext.currentTime;
+                
                 await setupEffects();
+                startModulationLoop();
                 
                 // Hide overlay
                 startOverlay.style.opacity = '0';
@@ -503,12 +748,21 @@
 
         function updateEffects() {
             if (!dryGainNode) return;
-            const reverbAmt = parseFloat(document.getElementById('reverb').value) / 100;
-            const volAmt = parseFloat(document.getElementById('volume').value) / 100;
+            const reverbAmt = getModulatedValue('reverb') / 100;
+            const volAmt = getModulatedValue('volume') / 100;
             
             dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
             wetGainNode.gain.value = reverbAmt;
             masterGain.gain.value = volAmt;
+        }
+
+        // Real-time modulation loop for global parameters
+        function startModulationLoop() {
+            function loop() {
+                updateEffects();
+                requestAnimationFrame(loop);
+            }
+            loop();
         }
 
         // --- Recording ---
@@ -643,17 +897,17 @@
         function playGrain(note) {
             if (!audioBuffer || !audioContext) return;
 
-            // Params
-            const grainSize = parseInt(document.getElementById('grainSize').value) / 1000; // seconds
-            const attack = parseInt(document.getElementById('attack').value) / 1000;
-            const release = parseInt(document.getElementById('release').value) / 1000;
-            const spray = parseInt(document.getElementById('spray').value) / 100;
-            const pitchVar = parseInt(document.getElementById('pitchVar').value) / 100;
-            const panSpread = parseInt(document.getElementById('panSpread').value) / 100;
+            // Params with LFO modulation
+            const grainSize = getModulatedValue('grainSize') / 1000; // seconds
+            const attack = getModulatedValue('attack') / 1000;
+            const release = getModulatedValue('release') / 1000;
+            const spray = getModulatedValue('spray') / 100;
+            const pitchVar = getModulatedValue('pitchVar') / 100;
+            const panSpread = getModulatedValue('panSpread') / 100;
 
-            // Start/End Logic
-            let startPct = parseInt(document.getElementById('sampleStart').value) / 100;
-            let endPct = parseInt(document.getElementById('sampleEnd').value) / 100;
+            // Start/End Logic with LFO modulation
+            let startPct = getModulatedValue('sampleStart') / 100;
+            let endPct = getModulatedValue('sampleEnd') / 100;
             
             // Swap if user crosses sliders
             if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
@@ -663,8 +917,8 @@
             const validEnd = bufferDuration * endPct;
             const validDuration = validEnd - validStart;
 
-            // Playhead Position (within the valid window)
-            const posSlider = parseInt(document.getElementById('position').value) / 100;
+            // Playhead Position (within the valid window) with LFO modulation
+            const posSlider = getModulatedValue('position') / 100;
             let playPosition = validStart + (posSlider * validDuration);
 
             // Add Spray
@@ -712,29 +966,34 @@
             if (!audioBuffer) return;
             if (activeGrains.has(note)) return; // Already playing
 
-            const density = parseInt(document.getElementById('density').value);
-            const intervalTime = 1000 / density;
-
+            const grainState = { timeoutId: null };
+            
             function schedule() {
                 playGrain(note);
+                
+                // Get current modulated density for next iteration
+                const density = getModulatedValue('density');
+                const intervalTime = 1000 / density;
+                
+                grainState.timeoutId = setTimeout(schedule, intervalTime);
             }
 
-            // Play one immediately
+            // Store cancellation function before first call
+            activeGrains.set(note, { cancel: () => clearTimeout(grainState.timeoutId) });
+            
+            // Play one immediately and start recursion
             schedule();
-            // Loop
-            const id = setInterval(schedule, intervalTime);
-            activeGrains.set(note, id);
         }
 
         function stopGrainStream(note) {
             if (activeGrains.has(note)) {
-                clearInterval(activeGrains.get(note));
+                activeGrains.get(note).cancel();
                 activeGrains.delete(note);
             }
         }
 
         function stopAllGrains() {
-            activeGrains.forEach(id => clearInterval(id));
+            activeGrains.forEach(grain => grain.cancel());
             activeGrains.clear();
         }
 
@@ -774,6 +1033,7 @@
                     let suffix = '';
                     if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
                     else if (e.target.id === 'density') suffix = ' gr/s';
+                    else if (e.target.id === 'lfoRate') suffix = 'Hz';
                     else suffix = '%';
                     labelSpan.textContent = e.target.value + suffix;
                 }
@@ -781,6 +1041,23 @@
                 // Special handling for effects or redraw
                 if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
+            });
+        });
+
+        // --- LFO Toggle Listeners ---
+        document.querySelectorAll('.lfo-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const param = btn.dataset.param;
+                lfoEnabled[param] = !lfoEnabled[param];
+                btn.classList.toggle('active');
+            });
+        });
+
+        document.querySelectorAll('.inv-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const param = btn.dataset.param;
+                lfoInverted[param] = !lfoInverted[param];
+                btn.classList.toggle('active');
             });
         });
 
