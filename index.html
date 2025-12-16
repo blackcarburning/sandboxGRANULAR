@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="screen-orientation" content="landscape">
-    <meta name="x5-orientation" content="landscape">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
@@ -15,44 +13,77 @@
             box-sizing: border-box;
         }
 
-        @media screen and (orientation: portrait) {
-            html {
-                transform: rotate(90deg);
-                transform-origin:  left top;
-                width: 100vh;
-                height: 100vw;
-                overflow-x: hidden;
-                position:  absolute;
-                top: 100%;
-                left: 0;
-            }
-        }
-
         html, body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color:  #e0e0e0;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
+            color: #e0e0e0;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            width: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
             user-select: none;
-            -webkit-user-select:  none;
+            -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
-            touch-action: none;
             -webkit-touch-callout: none;
         }
 
         .synth-container {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
             width: 100%;
             padding: 10px;
-            padding-bottom: 0;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
         }
 
-        .top-section {
+        /* Portrait orientation message for mobile */
+        . rotate-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:  linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #00d4ff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .rotate-message svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            animation: rotate-phone 2s ease-in-out infinite;
+        }
+
+        @keyframes rotate-phone {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+        }
+
+        . rotate-message p {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+
+        @media screen and (max-width: 768px) and (orientation: portrait) {
+            .rotate-message {
+                display: flex;
+            }
+            . synth-container {
+                display: none;
+            }
+        }
+
+        . top-section {
             display: flex;
             gap: 10px;
             flex:  1;
@@ -74,7 +105,7 @@
         .recording-section h2 {
             color: #00d4ff;
             font-size: 14px;
-            margin-bottom: 5px;
+            margin-bottom:  5px;
         }
 
         . recording-buttons {
@@ -189,9 +220,9 @@
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            border-radius:  50%;
+            width:  16px;
+            height:  16px;
+            border-radius: 50%;
             background: #00d4ff;
             cursor: pointer;
             border: none;
@@ -257,7 +288,7 @@
             transform: translateY(2px);
         }
 
-        . key.black:active, .key.black.active {
+        .key.black:active, .key.black.active {
             background: linear-gradient(to bottom, #00a0cc 0%, #006688 100%);
             transform:  translateY(2px);
         }
@@ -267,518 +298,564 @@
             opacity: 0.6;
         }
 
-        .key. black[data-note="C#1"] { left: 26px; }
+        /* Position black keys for 2 octaves */
+        .key.black[data-note="C#1"] { left: 26px; }
         .key. black[data-note="D#1"] { left: 64px; }
         .key. black[data-note="F#1"] { left: 140px; }
         .key. black[data-note="G#1"] { left: 178px; }
         .key. black[data-note="A#1"] { left: 216px; }
-        .key.black[data-note="C#2"] { left: 292px; }
+        .key. black[data-note="C#2"] { left: 292px; }
         .key. black[data-note="D#2"] { left: 330px; }
         .key. black[data-note="F#2"] { left: 406px; }
         .key. black[data-note="G#2"] { left: 444px; }
         .key. black[data-note="A#2"] { left: 482px; }
+
+        /* Mobile landscape adjustments */
+        @media screen and (max-height: 500px) {
+            .keyboard-section {
+                flex:  0 0 90px;
+            }
+            . keyboard {
+                height: 85px;
+            }
+            . key. white {
+                width: 28px;
+                height: 85px;
+            }
+            .key.black {
+                width: 18px;
+                height: 55px;
+            }
+            .key.black[data-note="C#1"] { left:  20px; }
+            .key. black[data-note="D#1"] { left: 50px; }
+            .key. black[data-note="F#1"] { left: 110px; }
+            .key. black[data-note="G#1"] { left: 140px; }
+            .key. black[data-note="A#1"] { left: 170px; }
+            .key.black[data-note="C#2"] { left: 230px; }
+            .key. black[data-note="D#2"] { left: 260px; }
+            .key. black[data-note="F#2"] { left: 320px; }
+            .key. black[data-note="G#2"] { left: 350px; }
+            .key. black[data-note="A#2"] { left: 380px; }
+            .controls-section {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 5px;
+                padding: 5px;
+            }
+            .control-group label {
+                font-size: 8px;
+            }
+            .recording-section {
+                flex: 0 0 150px;
+                padding: 5px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Rotate message for portrait mode on mobile -->
+    <div class="rotate-message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12" y2="18"/>
+        </svg>
+        <p>Please rotate your device to landscape mode</p>
+    </div>
+
     <div class="synth-container">
         <div class="top-section">
             <div class="recording-section">
-                <h2>🎤 Recording</h2>
+                <h2>🎙️ Record Audio</h2>
                 <div class="recording-buttons">
                     <button id="recordBtn">Record</button>
                     <button id="clearBtn">Clear</button>
                 </div>
                 <canvas id="waveformCanvas"></canvas>
-                <div id="status" class="status">No audio recorded</div>
+                <div class="status" id="status">Ready to record</div>
             </div>
-
+            
             <div class="controls-section">
                 <div class="control-group">
-                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
-                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                    <label>Grain Size <span class="value" id="grainSizeValue">50ms</span></label>
+                    <input type="range" id="grainSize" min="10" max="500" value="50">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Density</span><span class="value" id="densityValue">5</span></label>
-                    <input type="range" id="density" min="1" max="20" value="5" step="1">
+                    <label>Density <span class="value" id="densityValue">10/s</span></label>
+                    <input type="range" id="density" min="1" max="50" value="10">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Position</span><span class="value" id="positionValue">0%</span></label>
-                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+                    <label>Position <span class="value" id="positionValue">0%</span></label>
+                    <input type="range" id="position" min="0" max="100" value="0">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Spray</span><span class="value" id="sprayValue">0%</span></label>
-                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
+                    <label>Spread <span class="value" id="spreadValue">10%</span></label>
+                    <input type="range" id="spread" min="0" max="100" value="10">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
-                    <input type="range" id="attack" min="1" max="5000" value="10" step="1">
+                    <label>Pitch <span class="value" id="pitchValue">1. 0x</span></label>
+                    <input type="range" id="pitch" min="0.25" max="4" value="1" step="0.01">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Release</span><span class="value" id="releaseValue">300ms</span></label>
-                    <input type="range" id="release" min="10" max="5000" value="300" step="1">
+                    <label>Pitch Var <span class="value" id="pitchVarValue">0%</span></label>
+                    <input type="range" id="pitchVariation" min="0" max="100" value="0">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
-                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="0.1">
+                    <label>Attack <span class="value" id="attackValue">10ms</span></label>
+                    <input type="range" id="attack" min="1" max="100" value="10">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
-                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="0.1">
+                    <label>Release <span class="value" id="releaseValue">10ms</span></label>
+                    <input type="range" id="release" min="1" max="100" value="10">
                 </div>
-                
                 <div class="control-group">
-                    <label><span>Volume</span><span class="value" id="volumeValue">70%</span></label>
-                    <input type="range" id="volume" min="0" max="100" value="70" step="1">
+                    <label>Volume <span class="value" id="volumeValue">70%</span></label>
+                    <input type="range" id="volume" min="0" max="100" value="70">
+                </div>
+                <div class="control-group">
+                    <label>Reverb <span class="value" id="reverbValue">30%</span></label>
+                    <input type="range" id="reverb" min="0" max="100" value="30">
                 </div>
             </div>
         </div>
 
         <div class="keyboard-section">
-            <div class="keyboard">
-                <div class="key white" data-note="C1" data-key="a"><span>C<br><span class="key-label">A</span></span></div>
-                <div class="key black" data-note="C#1" data-key="w"><span>C#<br><span class="key-label">W</span></span></div>
-                <div class="key white" data-note="D1" data-key="s"><span>D<br><span class="key-label">S</span></span></div>
-                <div class="key black" data-note="D#1" data-key="e"><span>D#<br><span class="key-label">E</span></span></div>
-                <div class="key white" data-note="E1" data-key="d"><span>E<br><span class="key-label">D</span></span></div>
-                <div class="key white" data-note="F1" data-key="f"><span>F<br><span class="key-label">F</span></span></div>
-                <div class="key black" data-note="F#1" data-key="t"><span>F#<br><span class="key-label">T</span></span></div>
-                <div class="key white" data-note="G1" data-key="g"><span>G<br><span class="key-label">G</span></span></div>
-                <div class="key black" data-note="G#1" data-key="y"><span>G#<br><span class="key-label">Y</span></span></div>
-                <div class="key white" data-note="A1" data-key="h"><span>A<br><span class="key-label">H</span></span></div>
-                <div class="key black" data-note="A#1" data-key="u"><span>A#<br><span class="key-label">U</span></span></div>
-                <div class="key white" data-note="B1" data-key="j"><span>B<br><span class="key-label">J</span></span></div>
-                <div class="key white" data-note="C2" data-key="k"><span>C<br><span class="key-label">K</span></span></div>
-                <div class="key black" data-note="C#2" data-key="o"><span>C#<br><span class="key-label">O</span></span></div>
-                <div class="key white" data-note="D2" data-key="l"><span>D<br><span class="key-label">L</span></span></div>
-                <div class="key black" data-note="D#2" data-key="p"><span>D#<br><span class="key-label">P</span></span></div>
-                <div class="key white" data-note="E2" data-key=";"><span>E<br><span class="key-label">;</span></span></div>
-                <div class="key white" data-note="F2" data-key="'"><span>F<br><span class="key-label">'</span></span></div>
-                <div class="key black" data-note="F#2" data-key="]"><span>F#<br><span class="key-label">]</span></span></div>
-                <div class="key white" data-note="G2" data-key="\"><span>G<br><span class="key-label">\</span></span></div>
-                <div class="key black" data-note="G#2" data-key=""><span>G#</span></div>
-                <div class="key white" data-note="A2" data-key="z"><span>A<br><span class="key-label">Z</span></span></div>
-                <div class="key black" data-note="A#2" data-key="x"><span>A#<br><span class="key-label">X</span></span></div>
-                <div class="key white" data-note="B2" data-key="c"><span>B<br><span class="key-label">C</span></span></div>
+            <div class="keyboard" id="keyboard">
+                <!-- White keys - Octave 1 -->
+                <div class="key white" data-note="C1"><span class="key-label">C</span></div>
+                <div class="key white" data-note="D1"><span class="key-label">D</span></div>
+                <div class="key white" data-note="E1"><span class="key-label">E</span></div>
+                <div class="key white" data-note="F1"><span class="key-label">F</span></div>
+                <div class="key white" data-note="G1"><span class="key-label">G</span></div>
+                <div class="key white" data-note="A1"><span class="key-label">A</span></div>
+                <div class="key white" data-note="B1"><span class="key-label">B</span></div>
+                <!-- White keys - Octave 2 -->
+                <div class="key white" data-note="C2"><span class="key-label">C</span></div>
+                <div class="key white" data-note="D2"><span class="key-label">D</span></div>
+                <div class="key white" data-note="E2"><span class="key-label">E</span></div>
+                <div class="key white" data-note="F2"><span class="key-label">F</span></div>
+                <div class="key white" data-note="G2"><span class="key-label">G</span></div>
+                <div class="key white" data-note="A2"><span class="key-label">A</span></div>
+                <div class="key white" data-note="B2"><span class="key-label">B</span></div>
+                <!-- Black keys - Octave 1 -->
+                <div class="key black" data-note="C#1"><span class="key-label">C#</span></div>
+                <div class="key black" data-note="D#1"><span class="key-label">D#</span></div>
+                <div class="key black" data-note="F#1"><span class="key-label">F#</span></div>
+                <div class="key black" data-note="G#1"><span class="key-label">G#</span></div>
+                <div class="key black" data-note="A#1"><span class="key-label">A#</span></div>
+                <!-- Black keys - Octave 2 -->
+                <div class="key black" data-note="C#2"><span class="key-label">C#</span></div>
+                <div class="key black" data-note="D#2"><span class="key-label">D#</span></div>
+                <div class="key black" data-note="F#2"><span class="key-label">F#</span></div>
+                <div class="key black" data-note="G#2"><span class="key-label">G#</span></div>
+                <div class="key black" data-note="A#2"><span class="key-label">A#</span></div>
             </div>
         </div>
     </div>
 
     <script>
+        // Note frequencies (starting at C3 = 130. 81 Hz)
+        const noteFrequencies = {
+            'C1': 130.81, 'C#1': 138.59, 'D1':  146.83, 'D#1': 155.56,
+            'E1': 164.81, 'F1':  174.61, 'F#1': 185.00, 'G1': 196.00,
+            'G#1': 207.65, 'A1': 220.00, 'A#1': 233.08, 'B1':  246.94,
+            'C2': 261.63, 'C#2': 277.18, 'D2':  293.66, 'D#2': 311.13,
+            'E2': 329.63, 'F2':  349.23, 'F#2': 369.99, 'G2': 392.00,
+            'G#2': 415.30, 'A2': 440.00, 'A#2': 466.16, 'B2':  493.88
+        };
+
+        // Base frequency for pitch calculation (C4)
+        const baseFreq = 261.63;
+
         let audioContext;
-        let audioBuffer = null;
-        let mediaRecorder = null;
+        let recordedBuffer = null;
+        let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
-        const activeNotes = new Map();
+        let activeGrains = new Map();
+        let convolverNode = null;
+        let reverbGain = null;
+        let dryGain = null;
+        let masterGain = null;
 
-        const recordBtn = document.getElementById('recordBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const waveformCanvas = document.getElementById('waveformCanvas');
-        const ctx = waveformCanvas.getContext('2d');
-        const status = document.getElementById('status');
-
-        const grainSizeSlider = document.getElementById('grainSize');
-        const densitySlider = document.getElementById('density');
-        const positionSlider = document.getElementById('position');
-        const spraySlider = document.getElementById('spray');
-        const attackSlider = document.getElementById('attack');
-        const releaseSlider = document.getElementById('release');
-        const sampleStartSlider = document.getElementById('sampleStart');
-        const sampleEndSlider = document.getElementById('sampleEnd');
-        const volumeSlider = document.getElementById('volume');
-
-        const noteToSemitone = {
-            'C1': 0, 'C#1': 1, 'D1': 2, 'D#1': 3, 'E1': 4, 'F1': 5,
-            'F#1': 6, 'G1': 7, 'G#1':  8, 'A1':  9, 'A#1': 10, 'B1': 11,
-            'C2': 12, 'C#2': 13, 'D2': 14, 'D#2': 15, 'E2': 16, 'F2': 17,
-            'F#2': 18, 'G2': 19, 'G#2': 20, 'A2': 21, 'A#2':  22, 'B2':  23
-        };
-
-        const keyMap = {
-            'a': 'C1', 'w': 'C#1', 's': 'D1', 'e': 'D#1', 'd': 'E1', 'f': 'F1',
-            't': 'F#1', 'g':  'G1', 'y': 'G#1', 'h': 'A1', 'u': 'A#1', 'j': 'B1',
-            'k':  'C2', 'o': 'C#2', 'l': 'D2', 'p': 'D#2', ';': 'E2', "'": 'F2',
-            ']': 'F#2', '\\': 'G2', 'z': 'A2', 'x': 'A#2', 'c':  'B2'
-        };
-
-        function initAudioContext() {
-            if (! audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Initialize Audio Context
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window. webkitAudioContext)();
+                setupReverb();
             }
             if (audioContext. state === 'suspended') {
                 audioContext.resume();
             }
         }
 
-        // Direct mapping:  slider value in ms / 1000 = seconds
-        function getAttackTime() {
-            return parseFloat(attackSlider.value) / 1000;
-        }
+        // Setup reverb using convolver
+        async function setupReverb() {
+            masterGain = audioContext.createGain();
+            masterGain. connect(audioContext.destination);
 
-        function getReleaseTime() {
-            return parseFloat(releaseSlider. value) / 1000;
-        }
-
-        function updateSliderDisplays() {
-            document.getElementById('grainSizeValue').textContent = grainSizeSlider.value + 'ms';
-            document. getElementById('densityValue').textContent = densitySlider.value;
-            document.getElementById('positionValue').textContent = positionSlider.value + '%';
-            document.getElementById('sprayValue').textContent = spraySlider. value + '%';
+            dryGain = audioContext.createGain();
+            reverbGain = audioContext.createGain();
             
-            // Attack display:  show ms or seconds
-            const attackMs = parseFloat(attackSlider.value);
-            document.getElementById('attackValue').textContent = attackMs >= 1000 
-                ? (attackMs / 1000).toFixed(1) + 's' 
-                : Math.round(attackMs) + 'ms';
+            convolverNode = audioContext.createConvolver();
             
-            // Release display: show ms or seconds
-            const releaseMs = parseFloat(releaseSlider.value);
-            document.getElementById('releaseValue').textContent = releaseMs >= 1000 
-                ?  (releaseMs / 1000).toFixed(1) + 's' 
-                : Math. round(releaseMs) + 'ms';
+            // Create impulse response for reverb
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * 2;
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
             
-            document.getElementById('sampleStartValue').textContent = sampleStartSlider.value + '%';
-            document.getElementById('sampleEndValue').textContent = sampleEndSlider.value + '%';
-            document.getElementById('volumeValue').textContent = volumeSlider.value + '%';
-        }
-
-        [grainSizeSlider, densitySlider, positionSlider, spraySlider, 
-         attackSlider, releaseSlider, sampleStartSlider, sampleEndSlider, volumeSlider].forEach(slider => {
-            slider.addEventListener('input', updateSliderDisplays);
-        });
-
-        recordBtn.addEventListener('click', async () => {
-            initAudioContext();
-            
-            if (!isRecording) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-
-                    mediaRecorder.ondataavailable = (event) => {
-                        audioChunks.push(event.data);
-                    };
-
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        const arrayBuffer = await audioBlob.arrayBuffer();
-                        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                        drawWaveform(audioBuffer);
-                        status.textContent = 'Done!  ' + audioBuffer.duration. toFixed(1) + 's';
-                        stream.getTracks().forEach(track => track.stop());
-                    };
-
-                    mediaRecorder. start();
-                    isRecording = true;
-                    recordBtn.textContent = 'Stop';
-                    recordBtn.classList.add('recording');
-                    status.textContent = 'Recording...';
-                } catch (error) {
-                    status.textContent = 'Mic access denied';
+            for (let channel = 0; channel < 2; channel++) {
+                const channelData = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
                 }
-            } else {
-                mediaRecorder.stop();
-                isRecording = false;
-                recordBtn. textContent = 'Record';
-                recordBtn.classList.remove('recording');
             }
-        });
-
-        clearBtn.addEventListener('click', () => {
-            audioBuffer = null;
-            audioChunks = [];
-            ctx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
-            status.textContent = 'Buffer cleared';
-        });
-
-        function drawWaveform(buffer) {
-            const width = waveformCanvas.width = waveformCanvas.clientWidth;
-            const height = waveformCanvas.height = waveformCanvas.clientHeight;
             
-            ctx.clearRect(0, 0, width, height);
+            convolverNode.buffer = impulse;
             
-            const data = buffer.getChannelData(0);
-            const step = Math.ceil(data.length / width);
-            const amp = height / 2;
+            dryGain.connect(masterGain);
+            convolverNode.connect(reverbGain);
+            reverbGain.connect(masterGain);
+            
+            updateReverb();
+        }
 
+        function updateReverb() {
+            const reverbAmount = document.getElementById('reverb').value / 100;
+            if (dryGain && reverbGain) {
+                dryGain.gain.value = 1 - reverbAmount * 0.5;
+                reverbGain. gain.value = reverbAmount;
+            }
+        }
+
+        // Recording functions
+        async function startRecording() {
+            try {
+                initAudio();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    recordedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    drawWaveform();
+                    document.getElementById('status').textContent = 
+                        `Recorded: ${recordedBuffer.duration.toFixed(2)}s`;
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                document.getElementById('recordBtn').textContent = 'Stop';
+                document.getElementById('recordBtn').classList.add('recording');
+                document.getElementById('status').textContent = 'Recording... ';
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                document.getElementById('status').textContent = 'Microphone access denied';
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder. stop();
+                isRecording = false;
+                document.getElementById('recordBtn').textContent = 'Record';
+                document.getElementById('recordBtn').classList.remove('recording');
+            }
+        }
+
+        function clearRecording() {
+            recordedBuffer = null;
+            stopAllGrains();
+            const canvas = document.getElementById('waveformCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('status').textContent = 'Ready to record';
+        }
+
+        // Draw waveform
+        function drawWaveform() {
+            if (!recordedBuffer) return;
+            
+            const canvas = document. getElementById('waveformCanvas');
+            const ctx = canvas.getContext('2d');
+            const data = recordedBuffer.getChannelData(0);
+            
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
-
-            const startX = (parseFloat(sampleStartSlider.value) / 100) * width;
-            const endX = (parseFloat(sampleEndSlider.value) / 100) * width;
-            ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
-            ctx.fillRect(startX, 0, endX - startX, height);
-
+            
             ctx.strokeStyle = '#00d4ff';
             ctx.lineWidth = 1;
             ctx.beginPath();
-
-            for (let i = 0; i < width; i++) {
-                let min = 1;
-                let max = -1;
-                for (let j = 0; j < step; j++) {
-                    const value = data[(i * step) + j] || 0;
-                    if (value < min) min = value;
-                    if (value > max) max = value;
-                }
-                
-                const yMin = (1 + min) * amp;
-                const yMax = (1 + max) * amp;
-
-                if (i === 0) ctx.moveTo(i, yMax);
-                ctx.lineTo(i, yMax);
-                ctx.lineTo(i, yMin);
-            }
-            ctx.stroke();
-
-            ctx.strokeStyle = '#ff0844';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(startX, 0);
-            ctx.lineTo(startX, height);
-            ctx.moveTo(endX, 0);
-            ctx.lineTo(endX, height);
-            ctx.stroke();
-        }
-
-        sampleStartSlider.addEventListener('input', () => {
-            if (audioBuffer) drawWaveform(audioBuffer);
-        });
-        sampleEndSlider.addEventListener('input', () => {
-            if (audioBuffer) drawWaveform(audioBuffer);
-        });
-
-        function createGrain(buffer, position, grainSizeSec, pitch, masterGainNode) {
-            const source = audioContext.createBufferSource();
-            const grainGain = audioContext.createGain();
-
-            source.buffer = buffer;
-            source.playbackRate.value = pitch;
-
-            const sampleStart = parseFloat(sampleStartSlider. value) / 100;
-            const sampleEnd = parseFloat(sampleEndSlider.value) / 100;
-            const regionStart = sampleStart * buffer.duration;
-            const regionDuration = (sampleEnd - sampleStart) * buffer.duration;
-
-            const sprayAmount = parseFloat(spraySlider.value) / 100;
-            const randomOffset = (Math.random() - 0.5) * sprayAmount * regionDuration;
             
-            let startPos = regionStart + (position * regionDuration) + randomOffset;
-            const maxStartTime = Math.max(regionStart, regionStart + regionDuration - grainSizeSec);
-            startPos = Math.max(regionStart, Math.min(startPos, maxStartTime));
-
-            const now = audioContext.currentTime;
-
-            grainGain.gain.setValueAtTime(0, now);
-            grainGain.gain.linearRampToValueAtTime(1, now + 0.005);
-            grainGain. gain.setValueAtTime(1, now + grainSizeSec - 0.005);
-            grainGain.gain. linearRampToValueAtTime(0, now + grainSizeSec);
-
-            source.connect(grainGain);
-            grainGain.connect(masterGainNode);
-
-            source.start(now, startPos, grainSizeSec);
-
-            return { source, grainGain };
+            const step = Math.ceil(data.length / width);
+            const amp = height / 2;
+            
+            for (let i = 0; i < width; i++) {
+                let min = 1. 0, max = -1.0;
+                for (let j = 0; j < step; j++) {
+                    const datum = data[(i * step) + j];
+                    if (datum < min) min = datum;
+                    if (datum > max) max = datum;
+                }
+                ctx.moveTo(i, (1 + min) * amp);
+                ctx. lineTo(i, (1 + max) * amp);
+            }
+            
+            ctx.stroke();
         }
 
-        function startNote(note) {
-            if (! audioBuffer) {
-                status.textContent = 'Record audio first! ';
+        // Granular synthesis
+        function playGrain(noteFreq) {
+            if (!recordedBuffer || !audioContext) return null;
+            
+            const grainSize = document.getElementById('grainSize').value / 1000;
+            const position = document.getElementById('position').value / 100;
+            const spread = document.getElementById('spread').value / 100;
+            const basePitch = parseFloat(document.getElementById('pitch').value);
+            const pitchVar = document.getElementById('pitchVariation').value / 100;
+            const attack = document.getElementById('attack').value / 1000;
+            const release = document.getElementById('release').value / 1000;
+            const volume = document.getElementById('volume').value / 100;
+
+            // Calculate pitch based on note frequency
+            const pitchMultiplier = noteFreq / baseFreq;
+            const randomPitchVar = 1 + (Math.random() - 0.5) * pitchVar;
+            const finalPitch = basePitch * pitchMultiplier * randomPitchVar;
+
+            // Calculate start position with spread
+            const randomSpread = (Math.random() - 0.5) * spread;
+            const startPosition = Math.max(0, Math.min(1, position + randomSpread));
+            const startTime = startPosition * (recordedBuffer.duration - grainSize);
+
+            // Create grain
+            const source = audioContext.createBufferSource();
+            source.buffer = recordedBuffer;
+            source.playbackRate.value = finalPitch;
+
+            // Envelope
+            const gainNode = audioContext.createGain();
+            const now = audioContext.currentTime;
+            
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode. gain.linearRampToValueAtTime(volume, now + attack);
+            gainNode.gain.linearRampToValueAtTime(volume, now + grainSize - release);
+            gainNode.gain.linearRampToValueAtTime(0, now + grainSize);
+
+            source.connect(gainNode);
+            gainNode.connect(dryGain);
+            gainNode.connect(convolverNode);
+
+            source.start(now, startTime, grainSize);
+
+            return { source, gainNode };
+        }
+
+        function startGrainStream(note) {
+            if (!recordedBuffer) {
+                document.getElementById('status').textContent = 'Record audio first! ';
                 return;
             }
 
-            if (activeNotes.has(note)) return;
-
-            initAudioContext();
-
-            const semitones = noteToSemitone[note];
-            const pitch = Math.pow(2, semitones / 12);
-            const volume = parseFloat(volumeSlider.value) / 100;
-            const attackTime = getAttackTime();
-
-            const noteGain = audioContext.createGain();
-            noteGain.connect(audioContext.destination);
+            initAudio();
             
-            const now = audioContext.currentTime;
-            noteGain.gain.setValueAtTime(0.001, now);
-            noteGain.gain.exponentialRampToValueAtTime(volume, now + Math.max(0.01, attackTime));
-
+            const noteFreq = noteFrequencies[note];
             const grains = [];
-            let isActive = true;
-
-            const spawnGrain = () => {
-                if (! isActive) return;
-
-                const grainSize = parseFloat(grainSizeSlider.value) / 1000;
-                const position = parseFloat(positionSlider.value) / 100;
-
-                const grain = createGrain(audioBuffer, position, grainSize, pitch, noteGain);
-                grains.push(grain);
-
-                grain.source.onended = () => {
-                    const idx = grains.indexOf(grain);
-                    if (idx > -1) grains.splice(idx, 1);
-                };
-            };
-
-            const getGrainInterval = () => {
-                const grainSize = parseFloat(grainSizeSlider.value) / 1000;
-                const density = parseInt(densitySlider.value);
-                return (grainSize / density) * 1000;
-            };
-
-            spawnGrain();
-
-            const intervalId = setInterval(() => {
-                if (isActive) spawnGrain();
-            }, getGrainInterval());
-
-            activeNotes.set(note, {
-                noteGain,
-                grains,
-                intervalId,
-                isActive:  true,
-                setInactive: () => { isActive = false; }
-            });
-        }
-
-        function stopNote(note) {
-            const noteData = activeNotes.get(note);
-            if (!noteData) return;
-
-            const { noteGain, grains, intervalId, setInactive } = noteData;
-            const releaseTime = getReleaseTime();
-
-            clearInterval(intervalId);
-            setInactive();
-
-            const now = audioContext.currentTime;
-            const currentGain = noteGain.gain.value;
             
-            noteGain.gain.cancelScheduledValues(now);
-            noteGain.gain.setValueAtTime(Math.max(0.001, currentGain), now);
-            noteGain. gain.exponentialRampToValueAtTime(0.001, now + Math.max(0.01, releaseTime));
+            function scheduleGrain() {
+                const grain = playGrain(noteFreq);
+                if (grain) {
+                    grains.push(grain);
+                    // Clean up old grains
+                    while (grains.length > 20) {
+                        grains. shift();
+                    }
+                }
+            }
 
-            activeNotes.delete(note);
-
-            setTimeout(() => {
-                try {
-                    noteGain.disconnect();
-                } catch (e) {}
-                grains.forEach(g => {
-                    try {
-                        g.source.stop();
-                        g.source.disconnect();
-                        g.grainGain.disconnect();
-                    } catch (e) {}
-                });
-            }, (releaseTime * 1000) + 200);
+            // Schedule grains based on density
+            const density = document.getElementById('density').value;
+            const interval = 1000 / density;
+            
+            scheduleGrain(); // Play first grain immediately
+            const intervalId = setInterval(scheduleGrain, interval);
+            
+            activeGrains.set(note, { intervalId, grains });
         }
 
-        const keys = document.querySelectorAll('. key');
-        const pressedKeys = new Set();
+        function stopGrainStream(note) {
+            const grainData = activeGrains. get(note);
+            if (grainData) {
+                clearInterval(grainData.intervalId);
+                activeGrains. delete(note);
+            }
+        }
+
+        function stopAllGrains() {
+            activeGrains.forEach((grainData, note) => {
+                clearInterval(grainData.intervalId);
+            });
+            activeGrains. clear();
+        }
+
+        // Event Listeners
+        document.getElementById('recordBtn').addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', clearRecording);
+        document.getElementById('reverb').addEventListener('input', updateReverb);
+
+        // Update value displays
+        const controls = [
+            { id: 'grainSize', suffix: 'ms' },
+            { id: 'density', suffix: '/s' },
+            { id:  'position', suffix: '%' },
+            { id: 'spread', suffix: '%' },
+            { id: 'pitch', suffix: 'x', decimals: 2 },
+            { id: 'pitchVariation', suffix: '%', displayId: 'pitchVarValue' },
+            { id: 'attack', suffix: 'ms' },
+            { id:  'release', suffix: 'ms' },
+            { id:  'volume', suffix: '%' },
+            { id: 'reverb', suffix: '%' }
+        ];
+
+        controls.forEach(control => {
+            const element = document.getElementById(control. id);
+            const displayId = control.displayId || control.id + 'Value';
+            element. addEventListener('input', () => {
+                const value = control.decimals 
+                    ? parseFloat(element.value).toFixed(control.decimals)
+                    : element.value;
+                document.getElementById(displayId).textContent = value + control.suffix;
+            });
+        });
+
+        // Keyboard interaction with touch support
+        const keyboard = document.getElementById('keyboard');
+        const keys = keyboard.querySelectorAll('.key');
+        
+        // Track active touches
+        const activeTouches = new Map();
+
+        function handleKeyStart(note, element) {
+            element.classList.add('active');
+            startGrainStream(note);
+        }
+
+        function handleKeyEnd(note, element) {
+            element.classList.remove('active');
+            stopGrainStream(note);
+        }
 
         keys.forEach(key => {
+            const note = key.dataset.note;
+            
+            // Mouse events
             key.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                const note = key.dataset.note;
-                key.classList.add('active');
-                startNote(note);
+                initAudio();
+                handleKeyStart(note, key);
             });
-
-            key.addEventListener('mouseup', (e) => {
-                e. preventDefault();
-                const note = key.dataset.note;
-                key.classList.remove('active');
-                stopNote(note);
-            });
-
-            key.addEventListener('mouseleave', (e) => {
-                const note = key.dataset.note;
+            
+            key.addEventListener('mouseup', () => handleKeyEnd(note, key));
+            key.addEventListener('mouseleave', () => {
                 if (key.classList.contains('active')) {
-                    key.classList.remove('active');
-                    stopNote(note);
+                    handleKeyEnd(note, key);
                 }
             });
-
-            key.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const note = key.dataset.note;
-                key.classList.add('active');
-                startNote(note);
-            }, { passive: false });
-
-            key.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                const note = key. dataset.note;
-                key. classList.remove('active');
-                stopNote(note);
-            }, { passive: false });
-
-            key.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                const note = key.dataset.note;
-                key.classList.remove('active');
-                stopNote(note);
-            }, { passive: false });
         });
 
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        // Touch events on keyboard container
+        keyboard.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            initAudio();
             
-            const key = e.key. toLowerCase();
+            for (const touch of e.changedTouches) {
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                const key = element?. closest('.key');
+                if (key) {
+                    const note = key.dataset.note;
+                    activeTouches.set(touch. identifier, { note, element:  key });
+                    handleKeyStart(note, key);
+                }
+            }
+        }, { passive: false });
+
+        keyboard.addEventListener('touchmove', (e) => {
+            e.preventDefault();
             
-            if (keyMap[key]) {
-                e.preventDefault();
-                e.stopPropagation();
+            for (const touch of e. changedTouches) {
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                const key = element?.closest('.key');
+                const activeTouch = activeTouches.get(touch.identifier);
                 
-                if (e.repeat || pressedKeys.has(key)) return;
-                
-                pressedKeys.add(key);
-                const note = keyMap[key];
-                const keyElement = document.querySelector('. key[data-key="' + key + '"]');
-                if (keyElement) {
-                    keyElement.classList.add('active');
-                    startNote(note);
+                if (activeTouch) {
+                    if (key && key.dataset.note !== activeTouch.note) {
+                        // Moved to a different key
+                        handleKeyEnd(activeTouch.note, activeTouch.element);
+                        activeTouches.set(touch.identifier, { note: key.dataset.note, element: key });
+                        handleKeyStart(key.dataset. note, key);
+                    } else if (!key) {
+                        // Moved off keyboard
+                        handleKeyEnd(activeTouch.note, activeTouch.element);
+                        activeTouches.delete(touch.identifier);
+                    }
+                }
+            }
+        }, { passive: false });
+
+        keyboard.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            
+            for (const touch of e.changedTouches) {
+                const activeTouch = activeTouches.get(touch.identifier);
+                if (activeTouch) {
+                    handleKeyEnd(activeTouch.note, activeTouch.element);
+                    activeTouches.delete(touch.identifier);
+                }
+            }
+        }, { passive: false });
+
+        keyboard.addEventListener('touchcancel', (e) => {
+            for (const touch of e.changedTouches) {
+                const activeTouch = activeTouches.get(touch.identifier);
+                if (activeTouch) {
+                    handleKeyEnd(activeTouch.note, activeTouch.element);
+                    activeTouches.delete(touch.identifier);
                 }
             }
         });
 
-        document.addEventListener('keyup', (e) => {
-            const key = e.key.toLowerCase();
-            
-            if (keyMap[key]) {
-                e. preventDefault();
-                e.stopPropagation();
-                
-                pressedKeys.delete(key);
-                const note = keyMap[key];
-                const keyElement = document.querySelector('.key[data-key="' + key + '"]');
-                if (keyElement) {
-                    keyElement.classList. remove('active');
-                    stopNote(note);
-                }
+        // Resize handler
+        window.addEventListener('resize', () => {
+            if (recordedBuffer) {
+                drawWaveform();
             }
         });
 
-        updateSliderDisplays();
-
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('dragstart', (e) => e.preventDefault());
-        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation. lock('landscape').catch(() => {});
-        }
+        // Prevent default touch behaviors on the whole document
+        document.addEventListener('touchmove', (e) => {
+            if (e.target.closest('.synth-container')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>
