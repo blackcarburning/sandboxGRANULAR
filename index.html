@@ -2,765 +2,607 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Granular Synthesizer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Granular Sampler</title>
     <style>
         :root {
-            --bg-color: #1a1a2e;
-            --panel-bg: rgba(30, 30, 50, 0.95);
-            --accent: #00d4ff;
-            --accent-glow: rgba(0, 212, 255, 0.5);
-            --record-color: #ff0844;
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --accent-color: #4CAF50;
+            --secondary-color: #2196F3;
+            --control-bg: #2d2d2d;
+            --control-border: #444;
         }
 
-        * {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            /* CRITICAL: Prevents accidental zooming on most elements */
-            touch-action: none; 
-        }
-
-        html, body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh;
             width: 100vw;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            /* Prevent rubber-banding and zooming */
-            overscroll-behavior: none;
         }
 
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 9999;
+        .container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            width: 98vw;
+            height: 98vh;
+            max-width: 1000px;
+            gap: 1vmin;
+            box-sizing: border-box;
+            padding: 1vmin;
+        }
+
+        h1 {
+            font-size: 3vmin;
+            margin: 0;
             text-align: center;
-            padding: 20px;
-            transition: opacity 0.3s;
+            flex-shrink: 0;
         }
 
-        .overlay h1 { color: var(--accent); margin-bottom: 20px; }
-        .overlay p { max-width: 400px; line-height: 1.5; color: #ccc; }
-        
-        #start-btn {
-            margin-top: 30px;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            background: var(--accent);
-            color: #000;
-            border: none;
-            border-radius: 30px;
-            box-shadow: 0 0 20px var(--accent-glow);
-        }
-
-        #orientation-overlay { display: none; }
-        
-        @media screen and (orientation: portrait) {
-            #orientation-overlay { display: flex; }
-            .synth-container { display: none !important; }
-        }
-
-        .synth-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            width: 100%;
-            padding: 10px;
-        }
-
-        .top-section {
-            display: flex;
-            gap: 10px;
-            flex: 1;
-            min-height: 0;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-
-        .recording-section {
-            flex: 0 0 220px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: var(--panel-bg);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid rgba(0, 212, 255, 0.2);
-        }
-
-        .section-title {
-            color: var(--accent);
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .recording-buttons { display: flex; gap: 8px; }
-
-        button {
-            padding: 10px;
-            font-size: 12px;
-            font-weight: bold;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            text-transform: uppercase;
-            touch-action: manipulation;
-        }
-
-        #recordBtn {
-            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
-            color: white;
-            flex: 1;
-        }
-
-        #recordBtn.recording {
-            animation: pulse 1s infinite;
-            background: #ff0000;
-        }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        #clearBtn {
-            background: #444;
-            color: white;
-            flex: 1;
-        }
-
-        #waveformCanvas {
-            width: 100%;
-            flex: 1;
-            background: #0a0a15;
-            border-radius: 6px;
-            border: 1px solid #333;
-        }
-
-        .status {
-            font-size: 11px;
-            color: #888;
-            text-align: center;
-            height: 15px;
-        }
-
-        .controls-section {
-            flex: 1;
+        .controls-wrapper {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            background: var(--panel-bg);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid rgba(0, 212, 255, 0.2);
-            overflow-y: auto;
-            /* Allow scrolling within controls but prevent page scroll */
-            overscroll-behavior: contain;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5vmin;
+            flex: 1;
+            min-height: 0; /* Important for scroll/overflow handling */
         }
 
         .control-group {
+            background: var(--control-bg);
+            padding: 1.5vmin;
+            border-radius: 8px;
+            border: 1px solid var(--control-border);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 6px;
         }
 
-        .control-group.highlight {
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            background: rgba(0, 212, 255, 0.05);
+        .control-group h3 {
+            margin: 0 0 1vmin 0;
+            font-size: 2vmin;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .control-group label {
+        .slider-container {
+            margin-bottom: 0.5vmin;
             display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #aaa;
-            margin-bottom: 5px;
-            font-weight: 600;
+            align-items: center;
+            gap: 1vmin;
         }
 
-        .control-group .value { color: var(--accent); }
+        .slider-container:last-child {
+            margin-bottom: 0;
+        }
+
+        .slider-container label {
+            width: 12vmin;
+            font-size: 1.8vmin;
+            white-space: nowrap;
+        }
 
         input[type="range"] {
-            width: 100%;
-            height: 20px; /* Taller touch target */
-            border-radius: 2px;
-            background: transparent;
-            outline: none;
-            -webkit-appearance: none;
-            /* Ensure slider is draggable without moving viewport */
-            touch-action: pan-x; 
+            flex: 1;
+            height: 2vmin;
+            cursor: pointer;
         }
 
-        /* Custom track styling to make the hit area visible */
-        input[type="range"]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            background: #333;
-            border-radius: 2px;
+        .value-display {
+            width: 6vmin;
+            text-align: right;
+            font-family: monospace;
+            font-size: 1.8vmin;
+            color: var(--secondary-color);
         }
 
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 24px; /* Larger thumb for touch */
-            height: 24px;
-            border-radius: 50%;
-            background: var(--accent);
-            box-shadow: 0 0 10px var(--accent-glow);
-            margin-top: -10px; /* Center on track */
-        }
-
-        .keyboard-section {
-            flex: 0 0 140px;
-            background: var(--panel-bg);
-            border-radius: 12px 12px 0 0;
-            padding: 10px;
-            display: flex;
-            justify-content: center;
-            border-top: 2px solid var(--accent);
+        .visualizer-container {
+            flex: 1;
+            background: #000;
+            border-radius: 8px;
             overflow: hidden;
+            position: relative;
+            min-height: 15vmin; /* Ensure some height */
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         .keyboard {
             display: flex;
-            position: relative;
-            height: 100%;
+            justify-content: center;
+            gap: 0.5vmin;
+            height: 15vmin; /* Fixed height relative to viewport min dimension */
+            flex-shrink: 0;
+            padding-top: 0.5vmin;
         }
 
         .key {
+            flex: 1;
+            background: white;
+            border-radius: 0 0 4px 4px;
             position: relative;
             cursor: pointer;
-            border-radius: 0 0 4px 4px;
-            user-select: none;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding-bottom: 8px;
-            font-size: 10px;
-            font-weight: bold;
-            touch-action: none;
-        }
-
-        .key.white {
-            width: 40px;
-            height: 100%;
-            background: #fff;
-            border: 1px solid #ccc;
-            color: #333;
-            z-index: 1;
-            margin: 0 1px;
+            transition: background 0.1s;
+            max-width: 6vmin;
         }
 
         .key.black {
-            width: 26px;
-            height: 60%;
             background: #000;
-            color: #fff;
-            position: absolute;
-            z-index: 2;
-            border-radius: 0 0 4px 4px;
-            pointer-events: none;
+            height: 60%;
+            width: 60%;
+            margin-left: -30%;
+            margin-right: -30%;
+            z-index: 1;
+            border: 1px solid #333;
         }
 
         .key.active {
-            background: var(--accent) !important;
-            transform: translateY(2px);
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            background: var(--accent-color);
         }
 
-        .key.black[data-note="C#1"] { left: 28px; }
-        .key.black[data-note="D#1"] { left: 70px; }
-        .key.black[data-note="F#1"] { left: 154px; }
-        .key.black[data-note="G#1"] { left: 196px; }
-        .key.black[data-note="A#1"] { left: 238px; }
-        .key.black[data-note="C#2"] { left: 322px; }
-        .key.black[data-note="D#2"] { left: 364px; }
-        .key.black[data-note="F#2"] { left: 448px; }
-        .key.black[data-note="G#2"] { left: 490px; }
-        .key.black[data-note="A#2"] { left: 532px; }
+        .key.black.active {
+            background: #2E7D32;
+        }
+        
+        /* File input styling */
+        .file-input-wrapper {
+            margin-bottom: 1vmin;
+            text-align: center;
+        }
+        
+        input[type="file"] {
+            font-size: 1.5vmin;
+        }
+
+        /* Overlay for "Click to Start" */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-size: 4vmin;
+            cursor: pointer;
+        }
 
     </style>
 </head>
 <body>
+    <div id="start-overlay">Tap to Start</div>
+    
+    <div class="container">
+        <h1>Granular Sampler</h1>
+        
+        <div class="file-input-wrapper">
+             <input type="file" id="audioLoader" accept="audio/*">
+        </div>
 
-    <div id="orientation-overlay" class="overlay">
-        <h1>Please Rotate Your Device</h1>
-        <p>This synthesizer requires landscape mode for the best experience.</p>
-        <div style="font-size: 40px; margin-top: 20px;">↻</div>
-    </div>
-
-    <div id="start-overlay" class="overlay">
-        <h1>Granular Synth</h1>
-        <p>Touch 'Start' to enable audio.</p>
-        <button id="start-btn">START ENGINE</button>
-    </div>
-
-    <div class="synth-container">
-        <div class="top-section">
-            <div class="recording-section">
-                <div class="section-title">Sample Source</div>
-                <div class="recording-buttons">
-                    <button id="recordBtn">Record Mic</button>
-                    <button id="clearBtn">Clear</button>
+        <div class="controls-wrapper">
+            <div class="control-group">
+                <h3>Grain</h3>
+                <div class="slider-container">
+                    <label for="grainSize">Size</label>
+                    <input type="range" id="grainSize" min="0.01" max="0.5" step="0.01" value="0.1">
+                    <span class="value-display" id="grainSizeVal">100ms</span>
                 </div>
-                <canvas id="waveformCanvas"></canvas>
-                <div id="status" class="status">Waiting for audio...</div>
+                <div class="slider-container">
+                    <label for="overlap">Overlap</label>
+                    <input type="range" id="overlap" min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="overlapVal">50%</span>
+                </div>
+                <div class="slider-container">
+                    <label for="density">Density</label>
+                    <input type="range" id="density" min="1" max="50" step="1" value="10">
+                    <span class="value-display" id="densityVal">10Hz</span>
+                </div>
             </div>
 
-            <div class="controls-section">
-                <div class="control-group highlight">
-                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
-                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
+            <div class="control-group">
+                <h3>Playback</h3>
+                <div class="slider-container">
+                    <label for="startPos">Start</label>
+                    <input type="range" id="startPos" min="0" max="1" step="0.001" value="0">
+                    <span class="value-display" id="startPosVal">0%</span>
                 </div>
-                <div class="control-group highlight">
-                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
-                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
+                <div class="slider-container">
+                    <label for="endPos">End</label>
+                    <input type="range" id="endPos" min="0" max="1" step="0.001" value="1">
+                    <span class="value-display" id="endPosVal">100%</span>
                 </div>
+                <div class="slider-container">
+                    <label for="spread">Spread</label>
+                    <input type="range" id="spread" min="0" max="1" step="0.01" value="0.2">
+                    <span class="value-display" id="spreadVal">20%</span>
+                </div>
+            </div>
 
-                <!-- Increased max grain size for better release tails -->
-                <div class="control-group">
-                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
-                    <input type="range" id="grainSize" min="50" max="3000" value="100" step="10">
+            <div class="control-group">
+                <h3>Envelope</h3>
+                <div class="slider-container">
+                    <label for="attack">Attack</label>
+                    <input type="range" id="attack" min="0.01" max="2" step="0.01" value="0.1">
+                    <span class="value-display" id="attackVal">0.1s</span>
                 </div>
-                
-                <div class="control-group">
-                    <label><span>Density</span><span class="value" id="densityValue">10</span></label>
-                    <input type="range" id="density" min="1" max="40" value="10" step="1">
+                <div class="slider-container">
+                    <label for="release">Release</label>
+                    <input type="range" id="release" min="0.01" max="5" step="0.01" value="0.5">
+                    <span class="value-display" id="releaseVal">0.5s</span>
                 </div>
-                
-                <div class="control-group highlight">
-                    <label><span>Scan Position</span><span class="value" id="positionValue">0%</span></label>
-                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <h3>Effects</h3>
+                 <div class="slider-container">
+                    <label for="detune">Detune</label>
+                    <input type="range" id="detune" min="-1200" max="1200" step="10" value="0">
+                    <span class="value-display" id="detuneVal">0c</span>
                 </div>
-                
-                <div class="control-group">
-                    <label><span>Spray (Rnd)</span><span class="value" id="sprayValue">0%</span></label>
-                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
-                    <input type="range" id="attack" min="1" max="1000" value="10" step="10">
-                </div>
-                
-                <!-- Increased Max Release -->
-                <div class="control-group">
-                    <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
-                    <input type="range" id="release" min="10" max="2000" value="50" step="10">
-                </div>
-                
-                <div class="control-group">
-                    <label><span>Pitch Rand</span><span class="value" id="pitchVarValue">0%</span></label>
-                    <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label><span>Stereo</span><span class="value" id="panSpreadValue">50%</span></label>
-                    <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label><span>Reverb</span><span class="value" id="reverbValue">20%</span></label>
-                    <input type="range" id="reverb" min="0" max="100" value="20" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label><span>Master Vol</span><span class="value" id="volumeValue">80%</span></label>
-                    <input type="range" id="volume" min="0" max="100" value="80" step="1">
+                <div class="slider-container">
+                    <label for="filterCutoff">Filter</label>
+                    <input type="range" id="filterCutoff" min="20" max="20000" step="10" value="20000">
+                    <span class="value-display" id="filterCutoffVal">20k</span>
                 </div>
             </div>
         </div>
 
-        <div class="keyboard-section">
-            <div class="keyboard" id="keyboardContainer">
-                <div class="key white" data-note="C1">C1</div>
-                <div class="key black" data-note="C#1"></div>
-                <div class="key white" data-note="D1">D</div>
-                <div class="key black" data-note="D#1"></div>
-                <div class="key white" data-note="E1">E</div>
-                <div class="key white" data-note="F1">F</div>
-                <div class="key black" data-note="F#1"></div>
-                <div class="key white" data-note="G1">G</div>
-                <div class="key black" data-note="G#1"></div>
-                <div class="key white" data-note="A1">A</div>
-                <div class="key black" data-note="A#1"></div>
-                <div class="key white" data-note="B1">B</div>
-                <div class="key white" data-note="C2">C2</div>
-                <div class="key black" data-note="C#2"></div>
-                <div class="key white" data-note="D2">D</div>
-                <div class="key black" data-note="D#2"></div>
-                <div class="key white" data-note="E2">E</div>
-                <div class="key white" data-note="F2">F</div>
-                <div class="key black" data-note="F#2"></div>
-                <div class="key white" data-note="G2">G</div>
-                <div class="key black" data-note="G#2"></div>
-                <div class="key white" data-note="A2">A</div>
-                <div class="key black" data-note="A#2"></div>
-                <div class="key white" data-note="B2">B</div>
-            </div>
+        <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
+        </div>
+
+        <div class="keyboard" id="keyboard">
+            <!-- Keys generated by JS -->
         </div>
     </div>
 
     <script>
-        let audioContext;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let audioBuffer = null;
-        let mediaRecorder = null;
-        let recordedChunks = [];
-        let isRecording = false;
-        
-        // Track active voices
-        // Map: Note -> { intervalId, mainGain }
+        let isPlaying = false;
         let activeVoices = new Map();
         
-        let reverbNode = null;
-        let dryGainNode = null;
-        let wetGainNode = null;
-        let masterGain = null;
-
-        const noteFrequencies = {
-            'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
-            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+        // Parameters
+        const params = {
+            grainSize: 0.1,
+            overlap: 0.5,
+            density: 10,
+            startPos: 0,
+            endPos: 1, // Default endPos is 1 (end of file)
+            spread: 0.2,
+            attack: 0.1,
+            release: 0.5,
+            detune: 0,
+            filterCutoff: 20000
         };
-        const baseFrequency = 65.41; 
 
-        // --- Init ---
-        const startBtn = document.getElementById('start-btn');
-        const startOverlay = document.getElementById('start-overlay');
-        const statusDiv = document.getElementById('status');
+        // UI Elements
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
-        startBtn.addEventListener('click', async () => {
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioContext.state === 'suspended') await audioContext.resume();
-                await setupEffects();
+        // Audio Loading
+        document.getElementById('audioLoader').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                drawWaveform();
+            }
+        });
+
+        // Controls
+        function setupControl(id, param, displaySuffix = '') {
+            const slider = document.getElementById(id);
+            const display = document.getElementById(id + 'Val');
+            
+            slider.addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                params[param] = val;
                 
-                startOverlay.style.opacity = '0';
-                setTimeout(() => startOverlay.style.display = 'none', 300);
-                statusDiv.textContent = "Engine Ready.";
-            } catch (e) {
-                alert("Init failed: " + e.message);
-            }
-        });
-
-        async function setupEffects() {
-            masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
-
-            reverbNode = audioContext.createConvolver();
-            dryGainNode = audioContext.createGain();
-            wetGainNode = audioContext.createGain();
-
-            const sampleRate = audioContext.sampleRate;
-            const length = sampleRate * 2.5;
-            const impulse = audioContext.createBuffer(2, length, sampleRate);
-            for (let channel = 0; channel < 2; channel++) {
-                const data = impulse.getChannelData(channel);
-                for (let i = 0; i < length; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                // Special formatting
+                if (param === 'filterCutoff') {
+                     display.textContent = val >= 1000 ? (val/1000).toFixed(1) + 'k' : val + 'Hz';
+                } else if (param === 'overlap' || param.includes('Pos') || param === 'spread') {
+                    display.textContent = Math.round(val * 100) + '%';
+                } else if (param === 'grainSize') {
+                     display.textContent = Math.round(val * 1000) + 'ms';
+                } else {
+                     display.textContent = val + displaySuffix;
                 }
-            }
-            reverbNode.buffer = impulse;
 
-            dryGainNode.connect(masterGain);
-            reverbNode.connect(wetGainNode);
-            wetGainNode.connect(masterGain);
-            updateEffects();
-        }
-
-        function updateEffects() {
-            if (!dryGainNode) return;
-            const reverbAmt = parseFloat(document.getElementById('reverb').value) / 100;
-            const volAmt = parseFloat(document.getElementById('volume').value) / 100;
-            dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
-            wetGainNode.gain.value = reverbAmt;
-            masterGain.gain.value = volAmt;
-        }
-
-        // --- Recording ---
-        const recordBtn = document.getElementById('recordBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const waveformCanvas = document.getElementById('waveformCanvas');
-
-        recordBtn.addEventListener('click', () => {
-            if (!audioContext) return;
-            if (isRecording) stopRecording();
-            else startRecording();
-        });
-
-        clearBtn.addEventListener('click', () => {
-            audioBuffer = null;
-            recordedChunks = [];
-            const ctx = waveformCanvas.getContext('2d');
-            ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
-            statusDiv.textContent = "Buffer cleared";
-            stopAllVoices();
-        });
-
-        async function startRecording() {
-            try {
-                if (audioContext.state === 'suspended') await audioContext.resume();
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                recordedChunks = [];
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const arrayBuffer = await blob.arrayBuffer();
-                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                // Visualizer update for start/end/spread
+                if (['startPos', 'endPos', 'spread'].includes(param)) {
                     drawWaveform();
-                    statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
-                    stream.getTracks().forEach(track => track.stop());
+                }
+            });
+        }
+
+        setupControl('grainSize', 'grainSize');
+        setupControl('overlap', 'overlap');
+        setupControl('density', 'density', 'Hz');
+        setupControl('startPos', 'startPos');
+        setupControl('endPos', 'endPos');
+        setupControl('spread', 'spread');
+        setupControl('attack', 'attack', 's');
+        setupControl('release', 'release', 's');
+        setupControl('detune', 'detune', 'c');
+        setupControl('filterCutoff', 'filterCutoff');
+
+        // Grain Engine
+        function createGrain(noteFreq) {
+            if (!audioBuffer) return;
+
+            const now = audioCtx.currentTime;
+            const src = audioCtx.createBufferSource();
+            src.buffer = audioBuffer;
+
+            // Calculate start position with randomness (spread)
+            // Ensure startPos doesn't exceed endPos
+            const safeStart = Math.min(params.startPos, params.endPos); 
+            // The playable range is the difference
+            const range = Math.max(0, params.endPos - safeStart);
+            
+            // Random offset within the spread, centered around current playback head if we were implementing a playhead, 
+            // but for granular, often spread is around the start pos.
+            // Let's interpret Start/End as the window of the sample we can pick grains from.
+            
+            // Actually, usually "Start" is the center and "Spread" is the random deviation.
+            // But user asked to "fix" start/end sample logic.
+            // Let's implement: Pick a random spot between Start and End.
+            
+            let grainPosition = safeStart + (Math.random() * range);
+            
+            // Apply spread as jitter if needed, or just rely on the Start/End window.
+            // Let's add 'spread' as additional jitter around that chosen point?
+            // Or simpler: Start/End defines the boundaries. Spread defines how much we use of that boundary?
+            // Let's stick to: Start = min point, End = max point.
+            // Spread: Adds randomness to the grain pitch or position? Usually position.
+            // Let's re-read typical granular logic:
+            // Position: where in file. Spray/Spread: Randomness added to Position.
+            // So: basePosition = params.startPos + (progress * (params.endPos - params.startPos)) ? No, that's time stretching.
+            
+            // Simple Logic requested previously:
+            // Start/End are hard clamps.
+            // Spread creates a random window around the 'Start' pointer?
+            // Let's assume Start/End define the VALID region of the buffer.
+            // We pick a random position inside [Start, End].
+            
+            // Refined Logic based on "fix start/end":
+            // Grain offset is calculated from the startPos relative to duration.
+            const duration = audioBuffer.duration;
+            const startTime = params.startPos * duration;
+            const endTime = params.endPos * duration;
+            
+            // Ensure start is before end
+            const actualStart = Math.min(startTime, endTime);
+            const actualEnd = Math.max(startTime, endTime);
+            const availableDuration = actualEnd - actualStart;
+            
+            // If Spread is used as a "Spray" factor:
+            // We pick a point. Let's say we just scan linearly? Or random?
+            // Granular synthesis usually picks random grains from the window.
+            let offset = actualStart;
+            if (availableDuration > 0) {
+                 offset += Math.random() * availableDuration;
+            }
+            
+            // Apply Spread as additional randomization width?
+            // If the user wants specific start/end behavior, usually just constraining the random pick to that window is enough.
+            // Let's assume Spread is redundant if Start/End are manually set wide, OR Spread forces a width around Start.
+            // Let's stick to Start/End defining the window exclusively for now to be robust.
+
+            src.detune.value = params.detune;
+            
+            // Pitch shifting based on keyboard note (relative to C4 middle C ~261.63Hz)
+            // Or just playing sample at different rates.
+            // Let's assume root note is C4.
+            // noteFreq passed in.
+            // playbackRate = noteFreq / 261.63;
+            const rootFreq = 261.63; 
+            src.playbackRate.value = noteFreq / rootFreq;
+
+            const env = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            filter.type = 'lowpass';
+            filter.frequency.value = params.filterCutoff;
+
+            src.connect(filter);
+            filter.connect(env);
+            env.connect(audioCtx.destination);
+
+            // Envelope
+            const grainDur = params.grainSize;
+            env.gain.setValueAtTime(0, now);
+            env.gain.linearRampToValueAtTime(0.5, now + (grainDur * 0.5)); // Attack (simple triangle window)
+            env.gain.linearRampToValueAtTime(0, now + grainDur); // Decay
+
+            src.start(now, offset);
+            src.stop(now + grainDur + 0.1); // Cleanup
+
+            // Garbage collection helper
+            src.onended = () => {
+                src.disconnect();
+                filter.disconnect();
+                env.disconnect();
+            };
+        }
+
+        let schedulerMap = new Map(); // key: note, value: intervalID
+
+        function startNote(note, freq) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            if (schedulerMap.has(note)) return; // Already playing
+
+            // Visuals
+            const keyEl = document.querySelector(`[data-note="${note}"]`);
+            if (keyEl) keyEl.classList.add('active');
+
+            // Scheduling Grains
+            // Density = grains per second. Interval = 1000 / density
+            const interval = 1000 / params.density;
+            
+            // Play one immediately
+            createGrain(freq);
+            
+            const id = setInterval(() => {
+                createGrain(freq);
+            }, interval);
+            
+            schedulerMap.set(note, id);
+        }
+
+        function stopNote(note) {
+            if (schedulerMap.has(note)) {
+                clearInterval(schedulerMap.get(note));
+                schedulerMap.delete(note);
+            }
+             // Visuals
+            const keyEl = document.querySelector(`[data-note="${note}"]`);
+            if (keyEl) keyEl.classList.remove('active');
+        }
+
+        // Keyboard Generation
+        const keyboard = document.getElementById('keyboard');
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const startOctave = 3;
+        const endOctave = 5;
+
+        for (let oct = startOctave; oct <= endOctave; oct++) {
+            notes.forEach(note => {
+                const div = document.createElement('div');
+                const isBlack = note.includes('#');
+                div.className = `key ${isBlack ? 'black' : 'white'}`;
+                div.dataset.note = note + oct;
+                
+                // Calculate frequency
+                // f = 440 * 2^((n-69)/12)
+                // MIDI note number. A4 = 69. C4 = 60.
+                // Simple lookup or calc?
+                // Let's use a library-free calc.
+                // A4 (440) is in octave 4. Index of A is 9.
+                // semitone offset from A4
+                const noteIndex = notes.indexOf(note);
+                const absNote = (oct * 12) + noteIndex;
+                const a4 = 57; // 4 * 12 + 9 = 57 (C0 is 0? MIDI C4 is 60. standard: C-1=0. C4=60.)
+                // Standard MIDI: C4 = 60. A4 = 69.
+                // My loop: oct=3. C3 is 3*12=36.
+                // A4 is 4*12+9 = 57. Wait. 4*12=48. +9=57.
+                // Actually MIDI 69 is A4. So C4 is 60.
+                // oct * 12 + noteIndex + 12 (to shift to MIDI standard roughly). 
+                // Let's just align relative to A4=440.
+                
+                // C3 (midi 48) to B5.
+                const midiNum = (oct + 1) * 12 + noteIndex;
+                const freq = 440 * Math.pow(2, (midiNum - 69) / 12);
+                
+                div.dataset.freq = freq;
+
+                // Touch/Mouse Events
+                const start = (e) => {
+                    e.preventDefault();
+                    startNote(div.dataset.note, freq);
                 };
-                mediaRecorder.start();
-                isRecording = true;
-                recordBtn.textContent = "STOP";
-                recordBtn.classList.add('recording');
-            } catch (err) {
-                statusDiv.textContent = "Mic Error";
-            }
+                const end = (e) => {
+                    e.preventDefault();
+                    stopNote(div.dataset.note);
+                };
+
+                div.addEventListener('mousedown', start);
+                div.addEventListener('mouseup', end);
+                div.addEventListener('mouseleave', end);
+                div.addEventListener('touchstart', start);
+                div.addEventListener('touchend', end);
+
+                keyboard.appendChild(div);
+            });
         }
 
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                recordBtn.textContent = "Record Mic";
-                recordBtn.classList.remove('recording');
-            }
-        }
+        // Overlay handling
+        document.getElementById('start-overlay').addEventListener('click', function() {
+            audioCtx.resume();
+            this.style.display = 'none';
+        });
 
+        // Waveform Visualization
         function drawWaveform() {
             if (!audioBuffer) return;
-            waveformCanvas.width = waveformCanvas.offsetWidth;
-            waveformCanvas.height = waveformCanvas.offsetHeight;
-            const ctx = waveformCanvas.getContext('2d');
-            const width = waveformCanvas.width;
-            const height = waveformCanvas.height;
+            
+            const width = canvas.width;
+            const height = canvas.height;
             const data = audioBuffer.getChannelData(0);
             const step = Math.ceil(data.length / width);
             const amp = height / 2;
 
-            ctx.fillStyle = '#0a0a15';
-            ctx.fillRect(0, 0, width, height);
-            ctx.beginPath();
-            ctx.strokeStyle = '#00d4ff';
-            ctx.lineWidth = 1;
-
+            canvasCtx.fillStyle = '#000';
+            canvasCtx.fillRect(0, 0, width, height);
+            
+            // Draw waveform
+            canvasCtx.beginPath();
+            canvasCtx.strokeStyle = '#4CAF50';
+            canvasCtx.lineWidth = 1;
+            
             for (let i = 0; i < width; i++) {
-                let min = 1.0, max = -1.0;
+                let min = 1.0;
+                let max = -1.0;
                 for (let j = 0; j < step; j++) {
-                    const val = data[(i * step) + j];
-                    if (val < min) min = val;
-                    if (val > max) max = val;
+                    const datum = data[(i * step) + j];
+                    if (datum < min) min = datum;
+                    if (datum > max) max = datum;
                 }
-                ctx.moveTo(i, (1 + min) * amp);
-                ctx.lineTo(i, (1 + max) * amp);
+                canvasCtx.moveTo(i, (1 + min) * amp);
+                canvasCtx.lineTo(i, (1 + max) * amp);
             }
-            ctx.stroke();
+            canvasCtx.stroke();
 
-            const startPct = document.getElementById('sampleStart').value / 100;
-            const endPct = document.getElementById('sampleEnd').value / 100;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(0, 0, width * startPct, height);
-            ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
-            ctx.strokeStyle = '#ff0844';
-            ctx.beginPath();
-            ctx.moveTo(width * startPct, 0);
-            ctx.lineTo(width * startPct, height);
-            ctx.moveTo(width * endPct, 0);
-            ctx.lineTo(width * endPct, height);
-            ctx.stroke();
-        }
+            // Draw Markers
+            const duration = audioBuffer.duration;
+            const startX = params.startPos * width;
+            const endX = params.endPos * width;
 
-        // --- Granular Engine ---
-        function playGrain(note, voiceGainNode) {
-            if (!audioBuffer || !audioContext) return;
-
-            let grainSize = parseInt(document.getElementById('grainSize').value) / 1000;
-            let attack = parseInt(document.getElementById('attack').value) / 1000;
-            let release = parseInt(document.getElementById('release').value) / 1000;
-            const spray = parseInt(document.getElementById('spray').value) / 100;
-            const pitchVar = parseInt(document.getElementById('pitchVar').value) / 100;
-            const panSpread = parseInt(document.getElementById('panSpread').value) / 100;
-
-            // FIX: Ensure Attack + Release fits inside Grain Size
-            // If they are too long, scale them down proportionally
-            if (attack + release > grainSize) {
-                const ratio = grainSize / (attack + release);
-                attack *= (ratio * 0.99); // 0.99 for safety margin
-                release *= (ratio * 0.99);
-            }
-
-            let startPct = parseInt(document.getElementById('sampleStart').value) / 100;
-            let endPct = parseInt(document.getElementById('sampleEnd').value) / 100;
-            if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
-
-            const bufferDuration = audioBuffer.duration;
-            const validStart = bufferDuration * startPct;
-            const validEnd = bufferDuration * endPct;
-            const validDuration = validEnd - validStart;
-
-            const posSlider = parseInt(document.getElementById('position').value) / 100;
-            let playPosition = validStart + (posSlider * validDuration);
-            playPosition += (Math.random() * 2 - 1) * spray * validDuration * 0.5;
+            // Start Marker
+            canvasCtx.fillStyle = 'rgba(33, 150, 243, 0.5)';
+            canvasCtx.fillRect(0, 0, startX, height);
             
-            // Safety clamp
-            playPosition = Math.max(0, Math.min(bufferDuration - grainSize, playPosition));
-
-            const noteFreq = noteFrequencies[note];
-            let rate = noteFreq / baseFrequency;
-            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
-
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.playbackRate.value = rate;
-
-            const envelope = audioContext.createGain();
-            const panner = audioContext.createStereoPanner();
-
-            panner.pan.value = (Math.random() * 2 - 1) * panSpread;
-
-            source.connect(envelope);
-            envelope.connect(panner);
-            // Connect to the VOICE gain node, which handles the main Note Off release
-            panner.connect(voiceGainNode);
-
-            const now = audioContext.currentTime;
-            envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(1, now + attack);
-            envelope.gain.linearRampToValueAtTime(0, now + grainSize); // This is the GRAIN release
-
-            source.start(now, playPosition, grainSize);
-            source.stop(now + grainSize + 0.1);
-        }
-
-        function startVoice(note) {
-            if (!audioBuffer) return;
-            if (activeVoices.has(note)) {
-                // If key is pressed again, restart envelope
-                const voice = activeVoices.get(note);
-                voice.mainGain.gain.cancelScheduledValues(audioContext.currentTime);
-                voice.mainGain.gain.setValueAtTime(1, audioContext.currentTime);
-                return;
-            }
-
-            // Create a Master Gain for this voice (for Note Release)
-            const voiceGain = audioContext.createGain();
-            voiceGain.connect(dryGainNode);
-            voiceGain.connect(reverbNode);
-            voiceGain.gain.setValueAtTime(1, audioContext.currentTime);
-
-            const density = parseInt(document.getElementById('density').value);
-            const intervalTime = 1000 / density;
-
-            function schedule() {
-                playGrain(note, voiceGain);
-            }
-
-            schedule();
-            const id = setInterval(schedule, intervalTime);
+            // End Marker
+            canvasCtx.fillStyle = 'rgba(33, 150, 243, 0.5)';
+            canvasCtx.fillRect(endX, 0, width - endX, height);
             
-            activeVoices.set(note, { 
-                intervalId: id, 
-                mainGain: voiceGain 
-            });
+            // Lines
+            canvasCtx.strokeStyle = '#2196F3';
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(startX, 0);
+            canvasCtx.lineTo(startX, height);
+            canvasCtx.moveTo(endX, 0);
+            canvasCtx.lineTo(endX, height);
+            canvasCtx.stroke();
         }
 
-        function stopVoice(note) {
-            if (activeVoices.has(note)) {
-                const voice = activeVoices.get(note);
-                
-                // 1. Stop generating NEW grains immediately
-                clearInterval(voice.intervalId);
-                
-                // 2. Fade out existing grains naturally using the Release slider value
-                // We use the same Release slider for both Grain Envelope and Voice Release for simplicity,
-                // or we could assume a standard release time. Let's use the slider value but scaled up.
-                const releaseTime = (parseInt(document.getElementById('release').value) / 1000) * 2; 
-                
-                const now = audioContext.currentTime;
-                voice.mainGain.gain.cancelScheduledValues(now);
-                voice.mainGain.gain.setValueAtTime(voice.mainGain.gain.value, now);
-                voice.mainGain.gain.linearRampToValueAtTime(0, now + releaseTime);
-
-                // Garbage collection
-                setTimeout(() => {
-                    voice.mainGain.disconnect();
-                }, releaseTime * 1000 + 100);
-
-                activeVoices.delete(note);
-            }
-        }
-
-        function stopAllVoices() {
-            activeVoices.forEach(voice => {
-                clearInterval(voice.intervalId);
-                voice.mainGain.disconnect();
-            });
-            activeVoices.clear();
-        }
-
-        // --- Interaction ---
-        const keys = document.querySelectorAll('.key');
-        
-        keys.forEach(key => {
-            key.addEventListener('pointerdown', (e) => {
-                e.preventDefault(); 
-                key.classList.add('active');
-                key.setPointerCapture(e.pointerId);
-                startVoice(key.dataset.note);
-            });
-
-            key.addEventListener('pointerup', (e) => {
-                key.classList.remove('active');
-                key.releasePointerCapture(e.pointerId);
-                stopVoice(key.dataset.note);
-            });
-
-            key.addEventListener('pointerleave', (e) => {
-                if(key.classList.contains('active')) {
-                   key.classList.remove('active');
-                   stopVoice(key.dataset.note);
-                }
-            });
-        });
-
-        const sliders = document.querySelectorAll('input[type="range"]');
-        sliders.forEach(slider => {
-            slider.addEventListener('input', (e) => {
-                const labelSpan = document.getElementById(e.target.id + 'Value');
-                if (labelSpan) {
-                    let suffix = '';
-                    if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
-                    else if (e.target.id === 'density') suffix = ' gr/s';
-                    else suffix = '%';
-                    labelSpan.textContent = e.target.value + suffix;
-                }
-                if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
-                if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
-            });
-        });
-
-        window.addEventListener('resize', drawWaveform);
     </script>
 </body>
 </html>
