@@ -241,7 +241,7 @@
             margin-left: auto;
         }
 
-        .lfo-toggle, .inv-toggle {
+        .lfo-toggle, .inv-toggle, .mode-toggle {
             padding: 2px 6px;
             font-size: 9px;
             background: rgba(0,0,0,0.4);
@@ -263,6 +263,14 @@
             background: #ff0844;
             color: #fff;
             border-color: #ff0844;
+        }
+
+        .mode-toggle {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent);
+            border-color: var(--accent);
+            font-weight: bold;
+            min-width: 32px;
         }
 
         input[type="range"] {
@@ -394,8 +402,8 @@
                 <div class="lfo-section">
                     <div class="section-title">LFO Controls</div>
                     <div class="control-group">
-                        <label><span>Rate</span><span class="value" id="lfoRateValue">1.0Hz</span></label>
-                        <input type="range" id="lfoRate" min="0.1" max="20" value="1.0" step="0.1">
+                        <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">Hz</button><span class="value" id="lfoRateValue">1.0Hz</span></label>
+                        <input type="range" id="lfoRate" min="0.1" max="10000" value="1.0" step="0.1">
                     </div>
                     <div class="control-group">
                         <label><span>Waveform</span></label>
@@ -619,6 +627,7 @@
         let lfoStartTime = 0;
         let lfoEnabled = {};
         let lfoInverted = {};
+        let lfoMode = 'hz'; // 'hz' or 'bpm'
         
         // Parameter ranges for clamping
         const paramRanges = {
@@ -640,7 +649,11 @@
         function getLFOValue() {
             if (!audioContext) return 0;
             
-            const rate = parseFloat(document.getElementById('lfoRate').value);
+            let rate = parseFloat(document.getElementById('lfoRate').value);
+            // Convert BPM to Hz if in BPM mode
+            if (lfoMode === 'bpm') {
+                rate = rate / 60;
+            }
             const waveform = document.getElementById('lfoWaveform').value;
             const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
             
@@ -1027,21 +1040,73 @@
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
             slider.addEventListener('input', (e) => {
-                // Update text label
-                const labelSpan = document.getElementById(e.target.id + 'Value');
-                if (labelSpan) {
-                    let suffix = '';
-                    if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
-                    else if (e.target.id === 'density') suffix = ' gr/s';
-                    else if (e.target.id === 'lfoRate') suffix = 'Hz';
-                    else suffix = '%';
-                    labelSpan.textContent = e.target.value + suffix;
+                // Special handling for LFO rate
+                if (e.target.id === 'lfoRate') {
+                    updateLFORateDisplay();
+                } else {
+                    // Update text label
+                    const labelSpan = document.getElementById(e.target.id + 'Value');
+                    if (labelSpan) {
+                        let suffix = '';
+                        if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
+                        else if (e.target.id === 'density') suffix = ' gr/s';
+                        else suffix = '%';
+                        labelSpan.textContent = e.target.value + suffix;
+                    }
                 }
 
                 // Special handling for effects or redraw
                 if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
             });
+        });
+
+        // --- LFO Rate Display Update ---
+        function updateLFORateDisplay() {
+            const rateSlider = document.getElementById('lfoRate');
+            const rateValue = document.getElementById('lfoRateValue');
+            const value = parseFloat(rateSlider.value);
+            
+            if (lfoMode === 'hz') {
+                if (value >= 1000) {
+                    rateValue.textContent = (value / 1000).toFixed(1) + 'kHz';
+                } else {
+                    rateValue.textContent = value.toFixed(1) + 'Hz';
+                }
+            } else {
+                rateValue.textContent = Math.round(value) + 'BPM';
+            }
+        }
+
+        // --- LFO Mode Toggle ---
+        document.getElementById('lfoModeToggle').addEventListener('click', () => {
+            const rateSlider = document.getElementById('lfoRate');
+            const modeToggle = document.getElementById('lfoModeToggle');
+            const currentValue = parseFloat(rateSlider.value);
+            
+            if (lfoMode === 'hz') {
+                // Switch to BPM
+                lfoMode = 'bpm';
+                modeToggle.textContent = 'BPM';
+                // Convert current Hz value to BPM (Hz * 60)
+                const bpmValue = currentValue * 60;
+                rateSlider.min = '1';
+                rateSlider.max = '600000';
+                rateSlider.step = '1';
+                rateSlider.value = bpmValue;
+            } else {
+                // Switch to Hz
+                lfoMode = 'hz';
+                modeToggle.textContent = 'Hz';
+                // Convert current BPM value to Hz (BPM / 60)
+                const hzValue = currentValue / 60;
+                rateSlider.min = '0.1';
+                rateSlider.max = '10000';
+                rateSlider.step = '0.1';
+                rateSlider.value = hzValue;
+            }
+            
+            updateLFORateDisplay();
         });
 
         // --- LFO Toggle Listeners ---
