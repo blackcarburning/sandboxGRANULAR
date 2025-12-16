@@ -40,7 +40,7 @@
         }
 
         /* Portrait orientation message for mobile */
-        . rotate-message {
+        .rotate-message {
             display: none;
             position: fixed;
             top: 0;
@@ -69,7 +69,7 @@
             50% { transform: rotate(90deg); }
         }
 
-        . rotate-message p {
+        .rotate-message p {
             font-size: 18px;
             margin-top: 10px;
         }
@@ -78,12 +78,12 @@
             .rotate-message {
                 display: flex;
             }
-            . synth-container {
+            .synth-container {
                 display: none;
             }
         }
 
-        . top-section {
+        .top-section {
             display: flex;
             gap: 10px;
             flex:  1;
@@ -108,7 +108,7 @@
             margin-bottom:  5px;
         }
 
-        . recording-buttons {
+        .recording-buttons {
             display: flex;
             gap: 5px;
         }
@@ -133,7 +133,7 @@
             flex:  1;
         }
 
-        #recordBtn. recording {
+        #recordBtn.recording {
             background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
             animation: pulse 1s infinite;
         }
@@ -166,7 +166,7 @@
             font-size: 10px;
         }
 
-        . controls-section {
+        .controls-section {
             flex: 1;
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -178,13 +178,13 @@
             overflow:  hidden;
         }
 
-        . control-group {
+        .control-group {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
-        . control-group label {
+        .control-group label {
             display: flex;
             justify-content: space-between;
             font-size: 10px;
@@ -193,7 +193,7 @@
             letter-spacing: 0.3px;
         }
 
-        . control-group . value {
+        .control-group .value {
             color: #00d4ff;
             font-weight: bold;
         }
@@ -229,7 +229,7 @@
             box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
         }
 
-        . keyboard-section {
+        .keyboard-section {
             flex: 0 0 120px;
             display: flex;
             justify-content: center;
@@ -272,7 +272,7 @@
             margin:  0 1px;
         }
 
-        . key.black {
+        .key.black {
             width: 24px;
             height: 70px;
             background: linear-gradient(to bottom, #333 0%, #000000 100%);
@@ -283,7 +283,7 @@
             font-size: 7px;
         }
 
-        .key.white: active, .key.white. active {
+        .key.white:active, .key.white.active {
             background: linear-gradient(to bottom, #00d4ff 0%, #0099cc 100%);
             transform: translateY(2px);
         }
@@ -300,25 +300,25 @@
 
         /* Position black keys for 2 octaves */
         .key.black[data-note="C#1"] { left: 26px; }
-        .key. black[data-note="D#1"] { left: 64px; }
-        .key. black[data-note="F#1"] { left: 140px; }
-        .key. black[data-note="G#1"] { left: 178px; }
-        .key. black[data-note="A#1"] { left: 216px; }
-        .key. black[data-note="C#2"] { left: 292px; }
-        .key. black[data-note="D#2"] { left: 330px; }
-        .key. black[data-note="F#2"] { left: 406px; }
-        .key. black[data-note="G#2"] { left: 444px; }
-        .key. black[data-note="A#2"] { left: 482px; }
+        .key.black[data-note="D#1"] { left: 64px; }
+        .key.black[data-note="F#1"] { left: 140px; }
+        .key.black[data-note="G#1"] { left: 178px; }
+        .key.black[data-note="A#1"] { left: 216px; }
+        .key.black[data-note="C#2"] { left: 292px; }
+        .key.black[data-note="D#2"] { left: 330px; }
+        .key.black[data-note="F#2"] { left: 406px; }
+        .key.black[data-note="G#2"] { left: 444px; }
+        .key.black[data-note="A#2"] { left: 482px; }
 
         /* Mobile landscape adjustments */
         @media screen and (max-height: 500px) {
             .keyboard-section {
                 flex:  0 0 90px;
             }
-            . keyboard {
+            .keyboard {
                 height: 85px;
             }
-            . key. white {
+            .key.white {
                 width: 28px;
                 height: 85px;
             }
@@ -327,15 +327,15 @@
                 height: 55px;
             }
             .key.black[data-note="C#1"] { left:  20px; }
-            .key. black[data-note="D#1"] { left: 50px; }
-            .key. black[data-note="F#1"] { left: 110px; }
-            .key. black[data-note="G#1"] { left: 140px; }
-            .key. black[data-note="A#1"] { left: 170px; }
+            .key.black[data-note="D#1"] { left: 50px; }
+            .key.black[data-note="F#1"] { left: 110px; }
+            .key.black[data-note="G#1"] { left: 140px; }
+            .key.black[data-note="A#1"] { left: 170px; }
             .key.black[data-note="C#2"] { left: 230px; }
-            .key. black[data-note="D#2"] { left: 260px; }
-            .key. black[data-note="F#2"] { left: 320px; }
-            .key. black[data-note="G#2"] { left: 350px; }
-            .key. black[data-note="A#2"] { left: 380px; }
+            .key.black[data-note="D#2"] { left: 260px; }
+            .key.black[data-note="F#2"] { left: 320px; }
+            .key.black[data-note="G#2"] { left: 350px; }
+            .key.black[data-note="A#2"] { left: 380px; }
             .controls-section {
                 grid-template-columns: repeat(5, 1fr);
                 gap: 5px;
@@ -391,7 +391,7 @@
                     <input type="range" id="spread" min="0" max="100" value="10">
                 </div>
                 <div class="control-group">
-                    <label>Pitch <span class="value" id="pitchValue">1. 0x</span></label>
+                    <label>Pitch <span class="value" id="pitchValue">1.0x</span></label>
                     <input type="range" id="pitch" min="0.25" max="4" value="1" step="0.01">
                 </div>
                 <div class="control-group">
@@ -452,7 +452,7 @@
     </div>
 
     <script>
-        // Note frequencies (starting at C3 = 130. 81 Hz)
+        // Note frequencies (starting at C3 = 130.81 Hz)
         const noteFrequencies = {
             'C1': 130.81, 'C#1': 138.59, 'D1':  146.83, 'D#1': 155.56,
             'E1': 164.81, 'F1':  174.61, 'F#1': 185.00, 'G1': 196.00,
@@ -479,10 +479,10 @@
         // Initialize Audio Context
         function initAudio() {
             if (!audioContext) {
-                audioContext = new (window.AudioContext || window. webkitAudioContext)();
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 setupReverb();
             }
-            if (audioContext. state === 'suspended') {
+            if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
         }
@@ -490,7 +490,7 @@
         // Setup reverb using convolver
         async function setupReverb() {
             masterGain = audioContext.createGain();
-            masterGain. connect(audioContext.destination);
+            masterGain.connect(audioContext.destination);
 
             dryGain = audioContext.createGain();
             reverbGain = audioContext.createGain();
@@ -522,7 +522,7 @@
             const reverbAmount = document.getElementById('reverb').value / 100;
             if (dryGain && reverbGain) {
                 dryGain.gain.value = 1 - reverbAmount * 0.5;
-                reverbGain. gain.value = reverbAmount;
+                reverbGain.gain.value = reverbAmount;
             }
         }
 
@@ -561,7 +561,7 @@
 
         function stopRecording() {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder. stop();
+                mediaRecorder.stop();
                 isRecording = false;
                 document.getElementById('recordBtn').textContent = 'Record';
                 document.getElementById('recordBtn').classList.remove('recording');
@@ -582,7 +582,7 @@
         function drawWaveform() {
             if (!recordedBuffer) return;
             
-            const canvas = document. getElementById('waveformCanvas');
+            const canvas = document.getElementById('waveformCanvas');
             const ctx = canvas.getContext('2d');
             const data = recordedBuffer.getChannelData(0);
             
@@ -604,14 +604,14 @@
             const amp = height / 2;
             
             for (let i = 0; i < width; i++) {
-                let min = 1. 0, max = -1.0;
+                let min = 1.0, max = -1.0;
                 for (let j = 0; j < step; j++) {
                     const datum = data[(i * step) + j];
                     if (datum < min) min = datum;
                     if (datum > max) max = datum;
                 }
                 ctx.moveTo(i, (1 + min) * amp);
-                ctx. lineTo(i, (1 + max) * amp);
+                ctx.lineTo(i, (1 + max) * amp);
             }
             
             ctx.stroke();
@@ -650,7 +650,7 @@
             const now = audioContext.currentTime;
             
             gainNode.gain.setValueAtTime(0, now);
-            gainNode. gain.linearRampToValueAtTime(volume, now + attack);
+            gainNode.gain.linearRampToValueAtTime(volume, now + attack);
             gainNode.gain.linearRampToValueAtTime(volume, now + grainSize - release);
             gainNode.gain.linearRampToValueAtTime(0, now + grainSize);
 
@@ -680,7 +680,7 @@
                     grains.push(grain);
                     // Clean up old grains
                     while (grains.length > 20) {
-                        grains. shift();
+                        grains.shift();
                     }
                 }
             }
@@ -696,10 +696,10 @@
         }
 
         function stopGrainStream(note) {
-            const grainData = activeGrains. get(note);
+            const grainData = activeGrains.get(note);
             if (grainData) {
                 clearInterval(grainData.intervalId);
-                activeGrains. delete(note);
+                activeGrains.delete(note);
             }
         }
 
@@ -707,7 +707,7 @@
             activeGrains.forEach((grainData, note) => {
                 clearInterval(grainData.intervalId);
             });
-            activeGrains. clear();
+            activeGrains.clear();
         }
 
         // Event Listeners
@@ -737,9 +737,9 @@
         ];
 
         controls.forEach(control => {
-            const element = document.getElementById(control. id);
+            const element = document.getElementById(control.id);
             const displayId = control.displayId || control.id + 'Value';
-            element. addEventListener('input', () => {
+            element.addEventListener('input', () => {
                 const value = control.decimals 
                     ? parseFloat(element.value).toFixed(control.decimals)
                     : element.value;
@@ -789,10 +789,10 @@
             
             for (const touch of e.changedTouches) {
                 const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                const key = element?. closest('.key');
+                const key = element?.closest('.key');
                 if (key) {
                     const note = key.dataset.note;
-                    activeTouches.set(touch. identifier, { note, element:  key });
+                    activeTouches.set(touch.identifier, { note, element:  key });
                     handleKeyStart(note, key);
                 }
             }
@@ -801,7 +801,7 @@
         keyboard.addEventListener('touchmove', (e) => {
             e.preventDefault();
             
-            for (const touch of e. changedTouches) {
+            for (const touch of e.changedTouches) {
                 const element = document.elementFromPoint(touch.clientX, touch.clientY);
                 const key = element?.closest('.key');
                 const activeTouch = activeTouches.get(touch.identifier);
@@ -811,7 +811,7 @@
                         // Moved to a different key
                         handleKeyEnd(activeTouch.note, activeTouch.element);
                         activeTouches.set(touch.identifier, { note: key.dataset.note, element: key });
-                        handleKeyStart(key.dataset. note, key);
+                        handleKeyStart(key.dataset.note, key);
                     } else if (!key) {
                         // Moved off keyboard
                         handleKeyEnd(activeTouch.note, activeTouch.element);
