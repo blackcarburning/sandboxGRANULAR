@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="screen-orientation" content="landscape">
+    <meta name="x5-orientation" content="landscape">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
@@ -13,74 +15,41 @@
             box-sizing: border-box;
         }
 
+        @media screen and (orientation: portrait) {
+            html {
+                transform: rotate(90deg);
+                transform-origin: left top;
+                width: 100vh;
+                height: 100vw;
+                overflow-x: hidden;
+                position: absolute;
+                top: 100%;
+                left: 0;
+            }
+        }
+
         html, body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background:  linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
-            width: 100%;
-            overflow-x: hidden;
-            overflow-y: auto;
+            height: 100vh;
+            width: 100vw;
+            overflow:  hidden;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            touch-action: none;
             -webkit-touch-callout: none;
         }
 
-        .synth-container {
+        . synth-container {
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
+            height: 100%;
             width: 100%;
             padding: 10px;
-            padding-bottom: env(safe-area-inset-bottom, 10px);
-        }
-
-        /* Portrait orientation message for mobile */
-        .rotate-message {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background:  linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: #00d4ff;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .rotate-message svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-            animation: rotate-phone 2s ease-in-out infinite;
-        }
-
-        @keyframes rotate-phone {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(90deg); }
-        }
-
-        .rotate-message p {
-            font-size: 18px;
-            margin-top: 10px;
-        }
-
-        @media screen and (max-width: 768px) and (orientation: portrait) {
-            .rotate-message {
-                display: flex;
-            }
-            .synth-container {
-                display: none;
-            }
+            padding-bottom: 0;
         }
 
         .top-section {
@@ -108,7 +77,7 @@
             margin-bottom:  5px;
         }
 
-        .recording-buttons {
+        . recording-buttons {
             display: flex;
             gap: 5px;
         }
@@ -133,7 +102,7 @@
             flex:  1;
         }
 
-        #recordBtn.recording {
+        #recordBtn. recording {
             background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
             animation: pulse 1s infinite;
         }
@@ -168,7 +137,7 @@
 
         .controls-section {
             flex: 1;
-            display: grid;
+            display:  grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             background: rgba(30, 30, 50, 0.8);
@@ -178,9 +147,9 @@
             overflow:  hidden;
         }
 
-        .control-group {
-            display: flex;
-            flex-direction: column;
+        . control-group {
+            display:  flex;
+            flex-direction:  column;
             gap: 4px;
         }
 
@@ -193,7 +162,7 @@
             letter-spacing: 0.3px;
         }
 
-        .control-group .value {
+        . control-group . value {
             color: #00d4ff;
             font-weight: bold;
         }
@@ -209,7 +178,7 @@
         }
 
         input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
+            -webkit-appearance:  none;
             appearance: none;
             width: 16px;
             height: 16px;
@@ -220,16 +189,16 @@
         }
 
         input[type="range"]::-moz-range-thumb {
-            width:  16px;
-            height:  16px;
-            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            border-radius:  50%;
             background: #00d4ff;
             cursor: pointer;
             border: none;
             box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
         }
 
-        .keyboard-section {
+        . keyboard-section {
             flex: 0 0 120px;
             display: flex;
             justify-content: center;
@@ -272,7 +241,7 @@
             margin:  0 1px;
         }
 
-        .key.black {
+        . key.black {
             width: 24px;
             height: 70px;
             background: linear-gradient(to bottom, #333 0%, #000000 100%);
@@ -283,7 +252,7 @@
             font-size: 7px;
         }
 
-        .key.white:active, .key.white.active {
+        .key.white: active, .key.white.active {
             background: linear-gradient(to bottom, #00d4ff 0%, #0099cc 100%);
             transform: translateY(2px);
         }
@@ -299,203 +268,163 @@
         }
 
         /* Position black keys for 2 octaves */
-        .key.black[data-note="C#1"] { left: 26px; }
-        .key.black[data-note="D#1"] { left: 64px; }
-        .key.black[data-note="F#1"] { left: 140px; }
-        .key.black[data-note="G#1"] { left: 178px; }
-        .key.black[data-note="A#1"] { left: 216px; }
-        .key.black[data-note="C#2"] { left: 292px; }
-        .key.black[data-note="D#2"] { left: 330px; }
-        .key.black[data-note="F#2"] { left: 406px; }
-        .key.black[data-note="G#2"] { left: 444px; }
-        .key.black[data-note="A#2"] { left: 482px; }
-
-        /* Mobile landscape adjustments */
-        @media screen and (max-height: 500px) {
-            .keyboard-section {
-                flex:  0 0 90px;
-            }
-            .keyboard {
-                height: 85px;
-            }
-            .key.white {
-                width: 28px;
-                height: 85px;
-            }
-            .key.black {
-                width: 18px;
-                height: 55px;
-            }
-            .key.black[data-note="C#1"] { left:  20px; }
-            .key.black[data-note="D#1"] { left: 50px; }
-            .key.black[data-note="F#1"] { left: 110px; }
-            .key.black[data-note="G#1"] { left: 140px; }
-            .key.black[data-note="A#1"] { left: 170px; }
-            .key.black[data-note="C#2"] { left: 230px; }
-            .key.black[data-note="D#2"] { left: 260px; }
-            .key.black[data-note="F#2"] { left: 320px; }
-            .key.black[data-note="G#2"] { left: 350px; }
-            .key.black[data-note="A#2"] { left: 380px; }
-            .controls-section {
-                grid-template-columns: repeat(5, 1fr);
-                gap: 5px;
-                padding: 5px;
-            }
-            .control-group label {
-                font-size: 8px;
-            }
-            .recording-section {
-                flex: 0 0 150px;
-                padding: 5px;
-            }
-        }
+        .key. black[data-note="C#1"] { left: 26px; }
+        .key. black[data-note="D#1"] { left: 64px; }
+        .key. black[data-note="F#1"] { left: 140px; }
+        .key. black[data-note="G#1"] { left: 178px; }
+        .key. black[data-note="A#1"] { left: 216px; }
+        .key. black[data-note="C#2"] { left: 292px; }
+        .key. black[data-note="D#2"] { left: 330px; }
+        .key. black[data-note="F#2"] { left: 406px; }
+        .key. black[data-note="G#2"] { left: 444px; }
+        .key. black[data-note="A#2"] { left: 482px; }
     </style>
 </head>
 <body>
-    <!-- Rotate message for portrait mode on mobile -->
-    <div class="rotate-message">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-            <line x1="12" y1="18" x2="12" y2="18"/>
-        </svg>
-        <p>Please rotate your device to landscape mode</p>
-    </div>
-
     <div class="synth-container">
         <div class="top-section">
             <div class="recording-section">
-                <h2>🎙️ Record Audio</h2>
+                <h2>🎤 Recording</h2>
                 <div class="recording-buttons">
                     <button id="recordBtn">Record</button>
                     <button id="clearBtn">Clear</button>
                 </div>
                 <canvas id="waveformCanvas"></canvas>
-                <div class="status" id="status">Ready to record</div>
+                <div id="status" class="status">No audio recorded</div>
             </div>
-            
+
             <div class="controls-section">
                 <div class="control-group">
-                    <label>Grain Size <span class="value" id="grainSizeValue">50ms</span></label>
-                    <input type="range" id="grainSize" min="10" max="500" value="50">
+                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
+                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Density <span class="value" id="densityValue">10/s</span></label>
-                    <input type="range" id="density" min="1" max="50" value="10">
+                    <label><span>Density</span><span class="value" id="densityValue">5</span></label>
+                    <input type="range" id="density" min="1" max="20" value="5" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Position <span class="value" id="positionValue">0%</span></label>
-                    <input type="range" id="position" min="0" max="100" value="0">
+                    <label><span>Position</span><span class="value" id="positionValue">0%</span></label>
+                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Spread <span class="value" id="spreadValue">10%</span></label>
-                    <input type="range" id="spread" min="0" max="100" value="10">
+                    <label><span>Spray</span><span class="value" id="sprayValue">0%</span></label>
+                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Pitch <span class="value" id="pitchValue">1.0x</span></label>
-                    <input type="range" id="pitch" min="0.25" max="4" value="1" step="0.01">
+                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
+                    <input type="range" id="attack" min="1" max="100" value="10" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Pitch Var <span class="value" id="pitchVarValue">0%</span></label>
-                    <input type="range" id="pitchVariation" min="0" max="100" value="0">
+                    <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
+                    <input type="range" id="release" min="1" max="200" value="50" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Attack <span class="value" id="attackValue">10ms</span></label>
-                    <input type="range" id="attack" min="1" max="100" value="10">
+                    <label><span>Pitch Var</span><span class="value" id="pitchVarValue">0%</span></label>
+                    <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Release <span class="value" id="releaseValue">10ms</span></label>
-                    <input type="range" id="release" min="1" max="100" value="10">
+                    <label><span>Pan Spread</span><span class="value" id="panSpreadValue">0%</span></label>
+                    <input type="range" id="panSpread" min="0" max="100" value="0" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Volume <span class="value" id="volumeValue">70%</span></label>
-                    <input type="range" id="volume" min="0" max="100" value="70">
+                    <label><span>Reverb</span><span class="value" id="reverbValue">0%</span></label>
+                    <input type="range" id="reverb" min="0" max="100" value="0" step="1">
                 </div>
+                
                 <div class="control-group">
-                    <label>Reverb <span class="value" id="reverbValue">30%</span></label>
-                    <input type="range" id="reverb" min="0" max="100" value="30">
+                    <label><span>Volume</span><span class="value" id="volumeValue">80%</span></label>
+                    <input type="range" id="volume" min="0" max="100" value="80" step="1">
                 </div>
             </div>
         </div>
 
         <div class="keyboard-section">
-            <div class="keyboard" id="keyboard">
-                <!-- White keys - Octave 1 -->
-                <div class="key white" data-note="C1"><span class="key-label">C</span></div>
-                <div class="key white" data-note="D1"><span class="key-label">D</span></div>
-                <div class="key white" data-note="E1"><span class="key-label">E</span></div>
-                <div class="key white" data-note="F1"><span class="key-label">F</span></div>
-                <div class="key white" data-note="G1"><span class="key-label">G</span></div>
-                <div class="key white" data-note="A1"><span class="key-label">A</span></div>
-                <div class="key white" data-note="B1"><span class="key-label">B</span></div>
-                <!-- White keys - Octave 2 -->
-                <div class="key white" data-note="C2"><span class="key-label">C</span></div>
-                <div class="key white" data-note="D2"><span class="key-label">D</span></div>
-                <div class="key white" data-note="E2"><span class="key-label">E</span></div>
-                <div class="key white" data-note="F2"><span class="key-label">F</span></div>
-                <div class="key white" data-note="G2"><span class="key-label">G</span></div>
-                <div class="key white" data-note="A2"><span class="key-label">A</span></div>
-                <div class="key white" data-note="B2"><span class="key-label">B</span></div>
-                <!-- Black keys - Octave 1 -->
-                <div class="key black" data-note="C#1"><span class="key-label">C#</span></div>
-                <div class="key black" data-note="D#1"><span class="key-label">D#</span></div>
-                <div class="key black" data-note="F#1"><span class="key-label">F#</span></div>
-                <div class="key black" data-note="G#1"><span class="key-label">G#</span></div>
-                <div class="key black" data-note="A#1"><span class="key-label">A#</span></div>
-                <!-- Black keys - Octave 2 -->
-                <div class="key black" data-note="C#2"><span class="key-label">C#</span></div>
-                <div class="key black" data-note="D#2"><span class="key-label">D#</span></div>
-                <div class="key black" data-note="F#2"><span class="key-label">F#</span></div>
-                <div class="key black" data-note="G#2"><span class="key-label">G#</span></div>
-                <div class="key black" data-note="A#2"><span class="key-label">A#</span></div>
+            <div class="keyboard">
+                <!-- Octave 1 -->
+                <div class="key white" data-note="C1">C</div>
+                <div class="key black" data-note="C#1">C#</div>
+                <div class="key white" data-note="D1">D</div>
+                <div class="key black" data-note="D#1">D#</div>
+                <div class="key white" data-note="E1">E</div>
+                <div class="key white" data-note="F1">F</div>
+                <div class="key black" data-note="F#1">F#</div>
+                <div class="key white" data-note="G1">G</div>
+                <div class="key black" data-note="G#1">G#</div>
+                <div class="key white" data-note="A1">A</div>
+                <div class="key black" data-note="A#1">A#</div>
+                <div class="key white" data-note="B1">B</div>
+                <!-- Octave 2 -->
+                <div class="key white" data-note="C2">C</div>
+                <div class="key black" data-note="C#2">C#</div>
+                <div class="key white" data-note="D2">D</div>
+                <div class="key black" data-note="D#2">D#</div>
+                <div class="key white" data-note="E2">E</div>
+                <div class="key white" data-note="F2">F</div>
+                <div class="key black" data-note="F#2">F#</div>
+                <div class="key white" data-note="G2">G</div>
+                <div class="key black" data-note="G#2">G#</div>
+                <div class="key white" data-note="A2">A</div>
+                <div class="key black" data-note="A#2">A#</div>
+                <div class="key white" data-note="B2">B</div>
             </div>
         </div>
     </div>
 
     <script>
-        // Note frequencies (starting at C3 = 130.81 Hz)
-        const noteFrequencies = {
-            'C1': 130.81, 'C#1': 138.59, 'D1':  146.83, 'D#1': 155.56,
-            'E1': 164.81, 'F1':  174.61, 'F#1': 185.00, 'G1': 196.00,
-            'G#1': 207.65, 'A1': 220.00, 'A#1': 233.08, 'B1':  246.94,
-            'C2': 261.63, 'C#2': 277.18, 'D2':  293.66, 'D#2': 311.13,
-            'E2': 329.63, 'F2':  349.23, 'F#2': 369.99, 'G2': 392.00,
-            'G#2': 415.30, 'A2': 440.00, 'A#2': 466.16, 'B2':  493.88
-        };
+        // Prevent default touch behaviors
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.type !== 'range') {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
-        // Base frequency for pitch calculation (C4)
-        const baseFreq = 261.63;
-
+        // Audio Context
         let audioContext;
-        let recordedBuffer = null;
+        let audioBuffer = null;
         let mediaRecorder;
-        let audioChunks = [];
+        let recordedChunks = [];
         let isRecording = false;
         let activeGrains = new Map();
-        let convolverNode = null;
-        let reverbGain = null;
-        let dryGain = null;
-        let masterGain = null;
+        let reverbNode = null;
+        let dryGainNode = null;
+        let wetGainNode = null;
+
+        // Note frequencies (C1 = 32. 7 Hz as base)
+        const noteFrequencies = {
+            'C1': 32.70, 'C#1': 34.65, 'D1':  36.71, 'D#1': 38.89,
+            'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1':  49.00,
+            'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
+            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78,
+            'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00,
+            'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+        };
+
+        const baseFrequency = 65.41; // C2 as reference
 
         // Initialize Audio Context
-        function initAudio() {
-            if (!audioContext) {
+        async function initAudio() {
+            if (! audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                setupReverb();
+                await setupReverb();
             }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
+            if (audioContext. state === 'suspended') {
+                await audioContext.resume();
             }
         }
 
-        // Setup reverb using convolver
+        // Setup Reverb
         async function setupReverb() {
-            masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
-
-            dryGain = audioContext.createGain();
-            reverbGain = audioContext.createGain();
-            
-            convolverNode = audioContext.createConvolver();
+            reverbNode = audioContext.createConvolver();
+            dryGainNode = audioContext. createGain();
+            wetGainNode = audioContext.createGain();
             
             // Create impulse response for reverb
             const sampleRate = audioContext.sampleRate;
@@ -509,59 +438,61 @@
                 }
             }
             
-            convolverNode.buffer = impulse;
-            
-            dryGain.connect(masterGain);
-            convolverNode.connect(reverbGain);
-            reverbGain.connect(masterGain);
+            reverbNode.buffer = impulse;
+            dryGainNode. connect(audioContext.destination);
+            reverbNode.connect(wetGainNode);
+            wetGainNode.connect(audioContext. destination);
             
             updateReverb();
         }
 
         function updateReverb() {
             const reverbAmount = document.getElementById('reverb').value / 100;
-            if (dryGain && reverbGain) {
-                dryGain.gain.value = 1 - reverbAmount * 0.5;
-                reverbGain.gain.value = reverbAmount;
+            if (dryGainNode && wetGainNode) {
+                dryGainNode.gain.value = 1 - reverbAmount * 0.5;
+                wetGainNode. gain.value = reverbAmount;
             }
         }
 
         // Recording functions
         async function startRecording() {
+            await initAudio();
+            
             try {
-                initAudio();
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
+                recordedChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data. size > 0) {
+                        recordedChunks.push(e.data);
+                    }
                 };
-
+                
                 mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    const arrayBuffer = await audioBlob.arrayBuffer();
-                    recordedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     drawWaveform();
                     document.getElementById('status').textContent = 
-                        `Recorded: ${recordedBuffer.duration.toFixed(2)}s`;
+                        `Recorded: ${audioBuffer.duration.toFixed(2)}s`;
                     stream.getTracks().forEach(track => track.stop());
                 };
-
-                mediaRecorder.start();
+                
+                mediaRecorder. start();
                 isRecording = true;
                 document.getElementById('recordBtn').textContent = 'Stop';
                 document.getElementById('recordBtn').classList.add('recording');
-                document.getElementById('status').textContent = 'Recording... ';
+                document.getElementById('status').textContent = 'Recording...';
             } catch (err) {
                 console.error('Error accessing microphone:', err);
-                document.getElementById('status').textContent = 'Microphone access denied';
+                document. getElementById('status').textContent = 'Microphone access denied';
             }
         }
 
         function stopRecording() {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
+            if (mediaRecorder && isRecording) {
+                mediaRecorder. stop();
                 isRecording = false;
                 document.getElementById('recordBtn').textContent = 'Record';
                 document.getElementById('recordBtn').classList.remove('recording');
@@ -569,22 +500,20 @@
         }
 
         function clearRecording() {
-            recordedBuffer = null;
-            stopAllGrains();
+            audioBuffer = null;
+            recordedChunks = [];
             const canvas = document.getElementById('waveformCanvas');
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('status').textContent = 'Ready to record';
+            document.getElementById('status').textContent = 'No audio recorded';
+            stopAllGrains();
         }
 
         // Draw waveform
         function drawWaveform() {
-            if (!recordedBuffer) return;
-            
             const canvas = document.getElementById('waveformCanvas');
             const ctx = canvas.getContext('2d');
-            const data = recordedBuffer.getChannelData(0);
             
             canvas.width = canvas.offsetWidth * window.devicePixelRatio;
             canvas.height = canvas.offsetHeight * window.devicePixelRatio;
@@ -596,12 +525,15 @@
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
             
-            ctx.strokeStyle = '#00d4ff';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
+            if (! audioBuffer) return;
             
+            const data = audioBuffer.getChannelData(0);
             const step = Math.ceil(data.length / width);
             const amp = height / 2;
+            
+            ctx.strokeStyle = '#00d4ff';
+            ctx. lineWidth = 1;
+            ctx.beginPath();
             
             for (let i = 0; i < width; i++) {
                 let min = 1.0, max = -1.0;
@@ -611,103 +543,99 @@
                     if (datum > max) max = datum;
                 }
                 ctx.moveTo(i, (1 + min) * amp);
-                ctx.lineTo(i, (1 + max) * amp);
+                ctx. lineTo(i, (1 + max) * amp);
             }
             
             ctx.stroke();
         }
 
         // Granular synthesis
-        function playGrain(noteFreq) {
-            if (!recordedBuffer || !audioContext) return null;
+        function playGrain(note) {
+            if (!audioBuffer || !audioContext) return null;
             
             const grainSize = document.getElementById('grainSize').value / 1000;
             const position = document.getElementById('position').value / 100;
-            const spread = document.getElementById('spread').value / 100;
-            const basePitch = parseFloat(document.getElementById('pitch').value);
-            const pitchVar = document.getElementById('pitchVariation').value / 100;
+            const spray = document.getElementById('spray').value / 100;
             const attack = document.getElementById('attack').value / 1000;
             const release = document.getElementById('release').value / 1000;
+            const pitchVar = document.getElementById('pitchVar').value / 100;
+            const panSpread = document.getElementById('panSpread').value / 100;
             const volume = document.getElementById('volume').value / 100;
-
-            // Calculate pitch based on note frequency
-            const pitchMultiplier = noteFreq / baseFreq;
-            const randomPitchVar = 1 + (Math.random() - 0.5) * pitchVar;
-            const finalPitch = basePitch * pitchMultiplier * randomPitchVar;
-
-            // Calculate start position with spread
-            const randomSpread = (Math.random() - 0.5) * spread;
-            const startPosition = Math.max(0, Math.min(1, position + randomSpread));
-            const startTime = startPosition * (recordedBuffer.duration - grainSize);
-
-            // Create grain
-            const source = audioContext.createBufferSource();
-            source.buffer = recordedBuffer;
-            source.playbackRate.value = finalPitch;
-
-            // Envelope
-            const gainNode = audioContext.createGain();
-            const now = audioContext.currentTime;
             
+            const noteFreq = noteFrequencies[note];
+            const playbackRate = noteFreq / baseFrequency;
+            
+            const maxOffset = Math.max(0, audioBuffer.duration - grainSize);
+            const baseOffset = position * maxOffset;
+            const sprayOffset = (Math.random() - 0.5) * spray * maxOffset;
+            const startOffset = Math.max(0, Math.min(maxOffset, baseOffset + sprayOffset));
+            
+            const pitchMultiplier = 1 + (Math.random() - 0.5) * pitchVar * 0.5;
+            
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.playbackRate.value = playbackRate * pitchMultiplier;
+            
+            const gainNode = audioContext.createGain();
+            const panNode = audioContext.createStereoPanner();
+            
+            panNode.pan.value = (Math.random() - 0.5) * 2 * panSpread;
+            
+            source.connect(gainNode);
+            gainNode.connect(panNode);
+            panNode.connect(dryGainNode);
+            panNode.connect(reverbNode);
+            
+            const now = audioContext.currentTime;
             gainNode.gain.setValueAtTime(0, now);
             gainNode.gain.linearRampToValueAtTime(volume, now + attack);
             gainNode.gain.linearRampToValueAtTime(volume, now + grainSize - release);
             gainNode.gain.linearRampToValueAtTime(0, now + grainSize);
-
-            source.connect(gainNode);
-            gainNode.connect(dryGain);
-            gainNode.connect(convolverNode);
-
-            source.start(now, startTime, grainSize);
-
-            return { source, gainNode };
+            
+            source.start(now, startOffset, grainSize);
+            
+            return { source, gainNode, panNode };
         }
 
         function startGrainStream(note) {
-            if (!recordedBuffer) {
-                document.getElementById('status').textContent = 'Record audio first! ';
-                return;
-            }
-
-            initAudio();
+            if (!audioBuffer) return;
             
-            const noteFreq = noteFrequencies[note];
-            const grains = [];
-            
-            function scheduleGrain() {
-                const grain = playGrain(noteFreq);
-                if (grain) {
-                    grains.push(grain);
-                    // Clean up old grains
-                    while (grains.length > 20) {
-                        grains.shift();
-                    }
-                }
-            }
-
-            // Schedule grains based on density
             const density = document.getElementById('density').value;
             const interval = 1000 / density;
             
-            scheduleGrain(); // Play first grain immediately
-            const intervalId = setInterval(scheduleGrain, interval);
+            const grainStream = {
+                intervalId: null,
+                grains: []
+            };
             
-            activeGrains.set(note, { intervalId, grains });
+            function scheduleGrain() {
+                const grain = playGrain(note);
+                if (grain) {
+                    grainStream.grains.push(grain);
+                    // Clean up old grains
+                    grainStream.grains = grainStream.grains.slice(-20);
+                }
+            }
+            
+            scheduleGrain();
+            grainStream.intervalId = setInterval(scheduleGrain, interval);
+            
+            activeGrains.set(note, grainStream);
         }
 
         function stopGrainStream(note) {
-            const grainData = activeGrains.get(note);
-            if (grainData) {
-                clearInterval(grainData.intervalId);
+            const grainStream = activeGrains.get(note);
+            if (grainStream) {
+                clearInterval(grainStream.intervalId);
                 activeGrains.delete(note);
             }
         }
 
         function stopAllGrains() {
-            activeGrains.forEach((grainData, note) => {
-                clearInterval(grainData.intervalId);
+            activeGrains.forEach((stream, note) => {
+                clearInterval(stream.intervalId);
             });
-            activeGrains.clear();
+            activeGrains. clear();
         }
 
         // Event Listeners
@@ -720,142 +648,93 @@
         });
 
         document.getElementById('clearBtn').addEventListener('click', clearRecording);
-        document.getElementById('reverb').addEventListener('input', updateReverb);
 
-        // Update value displays
-        const controls = [
-            { id: 'grainSize', suffix: 'ms' },
-            { id: 'density', suffix: '/s' },
-            { id:  'position', suffix: '%' },
-            { id: 'spread', suffix: '%' },
-            { id: 'pitch', suffix: 'x', decimals: 2 },
-            { id: 'pitchVariation', suffix: '%', displayId: 'pitchVarValue' },
-            { id: 'attack', suffix: 'ms' },
-            { id:  'release', suffix: 'ms' },
-            { id:  'volume', suffix: '%' },
-            { id: 'reverb', suffix: '%' }
+        // Slider value displays
+        const sliders = [
+            { id: 'grainSize', valueId: 'grainSizeValue', suffix: 'ms' },
+            { id: 'density', valueId: 'densityValue', suffix: '' },
+            { id: 'position', valueId: 'positionValue', suffix: '%' },
+            { id: 'spray', valueId: 'sprayValue', suffix: '%' },
+            { id: 'attack', valueId: 'attackValue', suffix: 'ms' },
+            { id:  'release', valueId: 'releaseValue', suffix: 'ms' },
+            { id: 'pitchVar', valueId: 'pitchVarValue', suffix: '%' },
+            { id: 'panSpread', valueId: 'panSpreadValue', suffix: '%' },
+            { id: 'reverb', valueId: 'reverbValue', suffix: '%', onChange: updateReverb },
+            { id: 'volume', valueId: 'volumeValue', suffix: '%' }
         ];
 
-        controls.forEach(control => {
-            const element = document.getElementById(control.id);
-            const displayId = control.displayId || control.id + 'Value';
-            element.addEventListener('input', () => {
-                const value = control.decimals 
-                    ? parseFloat(element.value).toFixed(control.decimals)
-                    : element.value;
-                document.getElementById(displayId).textContent = value + control.suffix;
+        sliders.forEach(slider => {
+            const element = document.getElementById(slider. id);
+            const valueElement = document.getElementById(slider.valueId);
+            
+            element. addEventListener('input', () => {
+                valueElement.textContent = element.value + slider. suffix;
+                if (slider.onChange) slider.onChange();
             });
         });
 
-        // Keyboard interaction with touch support
-        const keyboard = document.getElementById('keyboard');
-        const keys = keyboard.querySelectorAll('.key');
-        
-        // Track active touches
-        const activeTouches = new Map();
-
-        function handleKeyStart(note, element) {
-            element.classList.add('active');
-            startGrainStream(note);
-        }
-
-        function handleKeyEnd(note, element) {
-            element.classList.remove('active');
-            stopGrainStream(note);
-        }
+        // Keyboard interaction
+        const keys = document.querySelectorAll('.key');
 
         keys.forEach(key => {
             const note = key.dataset.note;
             
             // Mouse events
-            key.addEventListener('mousedown', (e) => {
+            key.addEventListener('mousedown', async (e) => {
                 e.preventDefault();
-                initAudio();
-                handleKeyStart(note, key);
+                await initAudio();
+                key.classList.add('active');
+                startGrainStream(note);
             });
             
-            key.addEventListener('mouseup', () => handleKeyEnd(note, key));
+            key.addEventListener('mouseup', () => {
+                key.classList.remove('active');
+                stopGrainStream(note);
+            });
+            
             key.addEventListener('mouseleave', () => {
-                if (key.classList.contains('active')) {
-                    handleKeyEnd(note, key);
-                }
+                key.classList. remove('active');
+                stopGrainStream(note);
             });
-        });
-
-        // Touch events on keyboard container
-        keyboard.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            initAudio();
             
-            for (const touch of e.changedTouches) {
-                const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                const key = element?.closest('.key');
-                if (key) {
-                    const note = key.dataset.note;
-                    activeTouches.set(touch.identifier, { note, element:  key });
-                    handleKeyStart(note, key);
-                }
-            }
-        }, { passive: false });
-
-        keyboard.addEventListener('touchmove', (e) => {
-            e.preventDefault();
+            // Touch events
+            key.addEventListener('touchstart', async (e) => {
+                e.preventDefault();
+                await initAudio();
+                key.classList. add('active');
+                startGrainStream(note);
+            }, { passive: false });
             
-            for (const touch of e.changedTouches) {
-                const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                const key = element?.closest('.key');
-                const activeTouch = activeTouches.get(touch.identifier);
-                
-                if (activeTouch) {
-                    if (key && key.dataset.note !== activeTouch.note) {
-                        // Moved to a different key
-                        handleKeyEnd(activeTouch.note, activeTouch.element);
-                        activeTouches.set(touch.identifier, { note: key.dataset.note, element: key });
-                        handleKeyStart(key.dataset.note, key);
-                    } else if (!key) {
-                        // Moved off keyboard
-                        handleKeyEnd(activeTouch.note, activeTouch.element);
-                        activeTouches.delete(touch.identifier);
-                    }
-                }
-            }
-        }, { passive: false });
-
-        keyboard.addEventListener('touchend', (e) => {
-            e.preventDefault();
+            key.addEventListener('touchend', (e) => {
+                e. preventDefault();
+                key.classList. remove('active');
+                stopGrainStream(note);
+            }, { passive: false });
             
-            for (const touch of e.changedTouches) {
-                const activeTouch = activeTouches.get(touch.identifier);
-                if (activeTouch) {
-                    handleKeyEnd(activeTouch.note, activeTouch.element);
-                    activeTouches.delete(touch.identifier);
-                }
-            }
-        }, { passive: false });
-
-        keyboard.addEventListener('touchcancel', (e) => {
-            for (const touch of e.changedTouches) {
-                const activeTouch = activeTouches.get(touch.identifier);
-                if (activeTouch) {
-                    handleKeyEnd(activeTouch.note, activeTouch.element);
-                    activeTouches.delete(touch.identifier);
-                }
-            }
+            key.addEventListener('touchcancel', (e) => {
+                e. preventDefault();
+                key.classList. remove('active');
+                stopGrainStream(note);
+            }, { passive: false });
         });
 
         // Resize handler
         window.addEventListener('resize', () => {
-            if (recordedBuffer) {
+            if (audioBuffer) {
                 drawWaveform();
             }
         });
 
-        // Prevent default touch behaviors on the whole document
-        document.addEventListener('touchmove', (e) => {
-            if (e.target.closest('.synth-container')) {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        // Initialize canvas
+        window.addEventListener('load', () => {
+            const canvas = document.getElementById('waveformCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas. offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window. devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        });
     </script>
 </body>
 </html>
