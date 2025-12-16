@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,26 +8,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
     <style>
-        : root {
+        :root {
             --bg-color: #1a1a2e;
             --panel-bg: rgba(30, 30, 50, 0.95);
             --accent: #00d4ff;
             --accent-glow: rgba(0, 212, 255, 0.5);
             --record-color: #ff0844;
-            --lfo-color: #ff9500;
-            --lfo-glow: rgba(255, 149, 0, 0.5);
         }
 
         * {
             margin: 0;
-            padding:  0;
+            padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color:  transparent;
+            -webkit-tap-highlight-color: transparent;
         }
 
         html, body {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background:  linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
             height: 100vh;
             width: 100vw;
@@ -36,12 +35,13 @@
             touch-action: none;
         }
 
-        . overlay {
+        /* Overlays for Orientation and Start */
+        .overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            height:  100%;
+            height: 100%;
             background: rgba(0,0,0,0.95);
             z-index: 9999;
             display: flex;
@@ -59,7 +59,7 @@
         #start-btn {
             margin-top: 30px;
             padding: 15px 40px;
-            font-size:  1.2rem;
+            font-size: 1.2rem;
             background: var(--accent);
             color: #000;
             border: none;
@@ -67,14 +67,16 @@
             box-shadow: 0 0 20px var(--accent-glow);
         }
 
+        /* Logic to show/hide orientation warning */
         #orientation-overlay { display: none; }
         
         @media screen and (orientation: portrait) {
             #orientation-overlay { display: flex; }
-            . synth-container { display: none ! important; }
+            .synth-container { display: none !important; }
         }
 
-        . synth-container {
+        /* Main App Container */
+        .synth-container {
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -82,23 +84,19 @@
             padding: 10px;
         }
 
+        /* Top Section: Controls + Rec */
         .top-section {
             display: flex;
             gap: 10px;
-            flex:  1;
-            min-height: 0;
+            flex: 1;
+            min-height: 0; /* Important for flex overflow */
             overflow: hidden;
             margin-bottom: 10px;
         }
 
-        .left-panel {
-            flex: 0 0 220px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
+        /* Left Side: Recording */
         .recording-section {
+            flex: 0 0 220px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -106,17 +104,6 @@
             border-radius: 12px;
             padding: 15px;
             border: 1px solid rgba(0, 212, 255, 0.2);
-        }
-
-        .lfo-section {
-            display:  flex;
-            flex-direction:  column;
-            gap: 8px;
-            background: var(--panel-bg);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid rgba(255, 149, 0, 0.3);
-            flex:  1;
         }
 
         .section-title {
@@ -128,10 +115,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .section-title. lfo-title {
-            color: var(--lfo-color);
         }
 
         .recording-buttons { display: flex; gap: 8px; }
@@ -152,12 +135,12 @@
             flex: 1;
         }
 
-        #recordBtn. recording {
+        #recordBtn.recording {
             animation: pulse 1s infinite;
             background: #ff0000;
         }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity:  1; } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         #clearBtn {
             background: #444;
@@ -168,7 +151,6 @@
         #waveformCanvas {
             width: 100%;
             flex: 1;
-            min-height: 60px;
             background: #0a0a15;
             border-radius: 6px;
             border: 1px solid #333;
@@ -181,62 +163,11 @@
             height: 15px;
         }
 
-        .lfo-control {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .lfo-control label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            color: #aaa;
-        }
-
-        . lfo-control . value { color: var(--lfo-color); }
-
-        .lfo-control input[type="range"]::-webkit-slider-thumb {
-            background: var(--lfo-color);
-            box-shadow: 0 0 10px var(--lfo-glow);
-        }
-
-        .waveform-selector {
-            display: flex;
-            gap: 4px;
-            margin-top: 4px;
-        }
-
-        . wave-btn {
-            flex: 1;
-            padding:  6px 4px;
-            font-size:  9px;
-            background: #333;
-            color: #888;
-            border: 1px solid #444;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
-
-        .wave-btn. active {
-            background: var(--lfo-color);
-            color:  #000;
-            border-color: var(--lfo-color);
-        }
-
-        #lfoVisualizer {
-            width: 100%;
-            height:  40px;
-            background: #0a0a15;
-            border-radius: 4px;
-            border: 1px solid #333;
-            margin-top: 4px;
-        }
-
+        /* Right Side: Sliders */
         .controls-section {
             flex: 1;
-            display:  grid;
-            grid-template-columns: repeat(4, 1fr);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4 columns */
             gap: 12px;
             background: var(--panel-bg);
             border-radius: 12px;
@@ -251,79 +182,28 @@
             justify-content: center;
             background: rgba(0,0,0,0.2);
             padding: 8px;
-            border-radius:  6px;
-            position: relative;
+            border-radius: 6px;
         }
 
         .control-group.highlight {
-            border:  1px solid rgba(0, 212, 255, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
             background: rgba(0, 212, 255, 0.05);
         }
 
-        .control-group. lfo-active {
-            border: 1px solid rgba(255, 149, 0, 0.5);
-            background: rgba(255, 149, 0, 0.1);
-        }
-
-        .control-header {
+        .control-group label {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-
-        . control-label {
             font-size: 11px;
             color: #aaa;
+            margin-bottom: 5px;
             font-weight: 600;
         }
 
-        .control-value {
-            font-size: 11px;
-            color: var(--accent);
-        }
-
-        .control-buttons {
-            display: flex;
-            gap: 3px;
-        }
-
-        . mod-btn, .inv-btn {
-            width: 20px;
-            height: 20px;
-            padding: 0;
-            font-size: 9px;
-            font-weight: bold;
-            border-radius: 3px;
-            background: #333;
-            color:  #666;
-            border: 1px solid #444;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .mod-btn. active {
-            background: var(--lfo-color);
-            color:  #000;
-            border-color: var(--lfo-color);
-            box-shadow: 0 0 8px var(--lfo-glow);
-        }
-
-        . inv-btn.active {
-            background: #9c27b0;
-            color:  #fff;
-            border-color: #9c27b0;
-            box-shadow: 0 0 8px rgba(156, 39, 176, 0.5);
-        }
-
-        .slider-container {
-            position: relative;
-        }
+        .control-group .value { color: var(--accent); }
 
         input[type="range"] {
             width: 100%;
-            height:  4px;
+            height: 4px;
             border-radius: 2px;
             background: #333;
             outline: none;
@@ -331,13 +211,13 @@
         }
 
         input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance:  none;
+            -webkit-appearance: none;
             width: 18px;
             height: 18px;
-            border-radius:  50%;
+            border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 10px var(--accent-glow);
-            margin-top: -7px;
+            margin-top: -7px; /* vertical align */
         }
         
         input[type="range"]::-webkit-slider-runnable-track {
@@ -346,17 +226,7 @@
             border-radius: 2px;
         }
 
-        . lfo-indicator {
-            position:  absolute;
-            bottom: -2px;
-            left: 0;
-            height: 2px;
-            background: var(--lfo-color);
-            border-radius: 1px;
-            width: 0%;
-            transition: width 0.05s linear;
-        }
-
+        /* Keyboard Section */
         .keyboard-section {
             flex: 0 0 140px;
             background: var(--panel-bg);
@@ -383,9 +253,9 @@
             align-items: flex-end;
             justify-content: center;
             padding-bottom: 8px;
-            font-size:  10px;
-            font-weight:  bold;
-            touch-action: none;
+            font-size: 10px;
+            font-weight: bold;
+            touch-action: none; /* Critical for glissando */
         }
 
         .key.white {
@@ -395,10 +265,10 @@
             border: 1px solid #ccc;
             color: #333;
             z-index: 1;
-            margin:  0 1px;
+            margin: 0 1px;
         }
 
-        . key.black {
+        .key.black {
             width: 26px;
             height: 60%;
             background: #000;
@@ -406,6 +276,7 @@
             position: absolute;
             z-index: 2;
             border-radius: 0 0 4px 4px;
+            pointer-events: none; /* Let JS handle hitbox logic if needed, or keeping it simple */
             pointer-events: auto;
         }
 
@@ -415,263 +286,115 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
+        /* Black key positions */
         .key.black[data-note="C#1"] { left: 28px; }
-        .key. black[data-note="D#1"] { left: 70px; }
-        .key. black[data-note="F#1"] { left: 154px; }
-        .key. black[data-note="G#1"] { left: 196px; }
-        .key. black[data-note="A#1"] { left: 238px; }
+        .key.black[data-note="D#1"] { left: 70px; }
+        .key.black[data-note="F#1"] { left: 154px; }
+        .key.black[data-note="G#1"] { left: 196px; }
+        .key.black[data-note="A#1"] { left: 238px; }
         .key.black[data-note="C#2"] { left: 322px; }
-        .key. black[data-note="D#2"] { left: 364px; }
-        .key. black[data-note="F#2"] { left: 448px; }
-        .key. black[data-note="G#2"] { left: 490px; }
-        .key. black[data-note="A#2"] { left: 532px; }
+        .key.black[data-note="D#2"] { left: 364px; }
+        .key.black[data-note="F#2"] { left: 448px; }
+        .key.black[data-note="G#2"] { left: 490px; }
+        .key.black[data-note="A#2"] { left: 532px; }
+
     </style>
 </head>
 <body>
 
+    <!-- Orientation Overlay -->
     <div id="orientation-overlay" class="overlay">
         <h1>Please Rotate Your Device</h1>
         <p>This synthesizer requires landscape mode for the best experience.</p>
         <div style="font-size: 40px; margin-top: 20px;">↻</div>
     </div>
 
+    <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1>Granular Synth</h1>
-        <p>Touch 'Start' to enable audio and microphone access. </p>
+        <p>Touch 'Start' to enable audio and microphone access.</p>
         <button id="start-btn">START ENGINE</button>
     </div>
 
     <div class="synth-container">
         <div class="top-section">
-            <div class="left-panel">
-                <div class="recording-section">
-                    <div class="section-title">Sample Source</div>
-                    <div class="recording-buttons">
-                        <button id="recordBtn">Record Mic</button>
-                        <button id="clearBtn">Clear</button>
-                    </div>
-                    <canvas id="waveformCanvas"></canvas>
-                    <div id="status" class="status">Waiting for audio...</div>
+            <div class="recording-section">
+                <div class="section-title">Sample Source</div>
+                <div class="recording-buttons">
+                    <button id="recordBtn">Record Mic</button>
+                    <button id="clearBtn">Clear</button>
                 </div>
-
-                <div class="lfo-section">
-                    <div class="section-title lfo-title">LFO</div>
-                    <canvas id="lfoVisualizer"></canvas>
-                    
-                    <div class="lfo-control">
-                        <div class="control-header">
-                            <span class="control-label">Tempo</span>
-                            <div class="control-buttons">
-                                <button class="mod-btn" data-target="lfoTempo" title="LFO Mod">L</button>
-                                <button class="inv-btn" data-target="lfoTempo" title="Invert">I</button>
-                            </div>
-                        </div>
-                        <label><span></span><span class="value" id="lfoTempoValue">120 BPM</span></label>
-                        <input type="range" id="lfoTempo" min="1" max="960" value="120" step="1">
-                    </div>
-                    
-                    <div class="lfo-control">
-                        <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
-                        <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
-                    </div>
-                    
-                    <div class="lfo-control">
-                        <label><span>Waveform</span></label>
-                        <div class="waveform-selector">
-                            <button class="wave-btn active" data-wave="sine">Sin</button>
-                            <button class="wave-btn" data-wave="square">Sqr</button>
-                            <button class="wave-btn" data-wave="saw">Saw</button>
-                            <button class="wave-btn" data-wave="tri">Tri</button>
-                        </div>
-                    </div>
-                </div>
+                <canvas id="waveformCanvas"></canvas>
+                <div id="status" class="status">Waiting for audio...</div>
             </div>
 
             <div class="controls-section">
-                <div class="control-group highlight" data-control="sampleStart">
-                    <div class="control-header">
-                        <span class="control-label">Sample Start</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="sampleStart" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="sampleStart" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="sampleStartValue">0%</span>
-                    <div class="slider-container">
-                        <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
-                        <div class="lfo-indicator" id="sampleStartIndicator"></div>
-                    </div>
+                <!-- New Sliders -->
+                <div class="control-group highlight">
+                    <label><span>Sample Start</span><span class="value" id="sampleStartValue">0%</span></label>
+                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
                 </div>
-                
-                <div class="control-group highlight" data-control="sampleEnd">
-                    <div class="control-header">
-                        <span class="control-label">Sample End</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="sampleEnd" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="sampleEnd" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="sampleEndValue">100%</span>
-                    <div class="slider-container">
-                        <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
-                        <div class="lfo-indicator" id="sampleEndIndicator"></div>
-                    </div>
+                <div class="control-group highlight">
+                    <label><span>Sample End</span><span class="value" id="sampleEndValue">100%</span></label>
+                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
                 </div>
 
-                <div class="control-group" data-control="grainSize">
-                    <div class="control-header">
-                        <span class="control-label">Grain Size</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="grainSize" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="grainSize" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="grainSizeValue">100ms</span>
-                    <div class="slider-container">
-                        <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
-                        <div class="lfo-indicator" id="grainSizeIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Grain Size</span><span class="value" id="grainSizeValue">100ms</span></label>
+                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
                 </div>
                 
-                <div class="control-group" data-control="density">
-                    <div class="control-header">
-                        <span class="control-label">Density</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="density" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="density" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="densityValue">10</span>
-                    <div class="slider-container">
-                        <input type="range" id="density" min="1" max="40" value="10" step="1">
-                        <div class="lfo-indicator" id="densityIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Density</span><span class="value" id="densityValue">10</span></label>
+                    <input type="range" id="density" min="1" max="40" value="10" step="1">
                 </div>
                 
-                <div class="control-group highlight" data-control="position">
-                    <div class="control-header">
-                        <span class="control-label">Scan Position</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="position" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="position" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="positionValue">0%</span>
-                    <div class="slider-container">
-                        <input type="range" id="position" min="0" max="100" value="0" step="0.1">
-                        <div class="lfo-indicator" id="positionIndicator"></div>
-                    </div>
+                <div class="control-group highlight">
+                    <label><span>Scan Position</span><span class="value" id="positionValue">0%</span></label>
+                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
                 </div>
                 
-                <div class="control-group" data-control="spray">
-                    <div class="control-header">
-                        <span class="control-label">Spray (Rnd)</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="spray" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="spray" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="sprayValue">0%</span>
-                    <div class="slider-container">
-                        <input type="range" id="spray" min="0" max="100" value="0" step="1">
-                        <div class="lfo-indicator" id="sprayIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Spray (Rnd)</span><span class="value" id="sprayValue">0%</span></label>
+                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
                 </div>
                 
-                <div class="control-group" data-control="attack">
-                    <div class="control-header">
-                        <span class="control-label">Attack</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="attack" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="attack" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="attackValue">10ms</span>
-                    <div class="slider-container">
-                        <input type="range" id="attack" min="1" max="200" value="10" step="1">
-                        <div class="lfo-indicator" id="attackIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Attack</span><span class="value" id="attackValue">10ms</span></label>
+                    <input type="range" id="attack" min="1" max="200" value="10" step="1">
                 </div>
                 
-                <div class="control-group" data-control="release">
-                    <div class="control-header">
-                        <span class="control-label">Release</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="release" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="release" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="releaseValue">50ms</span>
-                    <div class="slider-container">
-                        <input type="range" id="release" min="1" max="500" value="50" step="1">
-                        <div class="lfo-indicator" id="releaseIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Release</span><span class="value" id="releaseValue">50ms</span></label>
+                    <input type="range" id="release" min="1" max="500" value="50" step="1">
                 </div>
                 
-                <div class="control-group" data-control="pitchVar">
-                    <div class="control-header">
-                        <span class="control-label">Pitch Rand</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="pitchVar" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="pitchVar" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="pitchVarValue">0%</span>
-                    <div class="slider-container">
-                        <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
-                        <div class="lfo-indicator" id="pitchVarIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Pitch Rand</span><span class="value" id="pitchVarValue">0%</span></label>
+                    <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
                 </div>
                 
-                <div class="control-group" data-control="panSpread">
-                    <div class="control-header">
-                        <span class="control-label">Stereo</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="panSpread" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="panSpread" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="panSpreadValue">50%</span>
-                    <div class="slider-container">
-                        <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
-                        <div class="lfo-indicator" id="panSpreadIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Stereo</span><span class="value" id="panSpreadValue">50%</span></label>
+                    <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
                 </div>
                 
-                <div class="control-group" data-control="reverb">
-                    <div class="control-header">
-                        <span class="control-label">Reverb</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="reverb" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="reverb" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="reverbValue">20%</span>
-                    <div class="slider-container">
-                        <input type="range" id="reverb" min="0" max="100" value="20" step="1">
-                        <div class="lfo-indicator" id="reverbIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Reverb</span><span class="value" id="reverbValue">20%</span></label>
+                    <input type="range" id="reverb" min="0" max="100" value="20" step="1">
                 </div>
                 
-                <div class="control-group" data-control="volume">
-                    <div class="control-header">
-                        <span class="control-label">Master Vol</span>
-                        <div class="control-buttons">
-                            <button class="mod-btn" data-target="volume" title="LFO Mod">L</button>
-                            <button class="inv-btn" data-target="volume" title="Invert">I</button>
-                        </div>
-                    </div>
-                    <span class="control-value" id="volumeValue">80%</span>
-                    <div class="slider-container">
-                        <input type="range" id="volume" min="0" max="100" value="80" step="1">
-                        <div class="lfo-indicator" id="volumeIndicator"></div>
-                    </div>
+                <div class="control-group">
+                    <label><span>Master Vol</span><span class="value" id="volumeValue">80%</span></label>
+                    <input type="range" id="volume" min="0" max="100" value="80" step="1">
                 </div>
             </div>
         </div>
 
         <div class="keyboard-section">
             <div class="keyboard" id="keyboardContainer">
+                <!-- Keys generated by JS or static HTML -->
+                <!-- Octave 1 -->
                 <div class="key white" data-note="C1">C1</div>
                 <div class="key black" data-note="C#1"></div>
                 <div class="key white" data-note="D1">D</div>
@@ -684,6 +407,7 @@
                 <div class="key white" data-note="A1">A</div>
                 <div class="key black" data-note="A#1"></div>
                 <div class="key white" data-note="B1">B</div>
+                <!-- Octave 2 -->
                 <div class="key white" data-note="C2">C2</div>
                 <div class="key black" data-note="C#2"></div>
                 <div class="key white" data-note="D2">D</div>
@@ -701,6 +425,7 @@
     </div>
 
     <script>
+        // --- Globals ---
         let audioContext;
         let audioBuffer = null;
         let mediaRecorder = null;
@@ -708,235 +433,55 @@
         let isRecording = false;
         let activeGrains = new Map();
         
+        // Effects nodes
         let reverbNode = null;
         let dryGainNode = null;
         let wetGainNode = null;
         let masterGain = null;
 
-        let lfoPhase = 0;
-        let lfoWaveform = 'sine';
-        let lfoAnimationId = null;
-        let lastLfoTime = 0;
-
-        const lfoTargets = {
-            sampleStart: { enabled: false, inverted: false, baseValue: 0 },
-            sampleEnd: { enabled: false, inverted: false, baseValue: 100 },
-            grainSize: { enabled: false, inverted: false, baseValue:  100 },
-            density:  { enabled: false, inverted:  false, baseValue: 10 },
-            position: { enabled:  false, inverted: false, baseValue: 0 },
-            spray: { enabled: false, inverted: false, baseValue: 0 },
-            attack: { enabled: false, inverted: false, baseValue: 10 },
-            release: { enabled: false, inverted: false, baseValue: 50 },
-            pitchVar: { enabled: false, inverted: false, baseValue:  0 },
-            panSpread: { enabled: false, inverted: false, baseValue: 50 },
-            reverb:  { enabled: false, inverted:  false, baseValue: 20 },
-            volume: { enabled:  false, inverted: false, baseValue: 80 },
-            lfoTempo: { enabled: false, inverted: false, baseValue: 120 }
-        };
-
-        const controlRanges = {
-            sampleStart: { min: 0, max: 100 },
-            sampleEnd: { min: 0, max: 100 },
-            grainSize: { min: 10, max: 500 },
-            density: { min: 1, max: 40 },
-            position: { min: 0, max: 100 },
-            spray: { min: 0, max: 100 },
-            attack: { min: 1, max: 200 },
-            release: { min: 1, max: 500 },
-            pitchVar: { min: 0, max: 100 },
-            panSpread: { min:  0, max: 100 },
-            reverb: { min: 0, max: 100 },
-            volume: { min: 0, max: 100 },
-            lfoTempo: { min: 1, max: 960 }
-        };
-
+        // Frequencies (C2 base)
         const noteFrequencies = {
-            'C1': 32.70, 'C#1': 34.65, 'D1':  36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
-            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2':  82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+            'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
+            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
         };
-        const baseFrequency = 65.41;
+        const baseFrequency = 65.41; // C2
 
-        function getLfoValue(phase, waveform) {
-            const normalizedPhase = phase % 1;
-            switch (waveform) {
-                case 'sine':
-                    return (Math.sin(normalizedPhase * 2 * Math.PI) + 1) / 2;
-                case 'square':
-                    return normalizedPhase < 0.5 ? 1 : 0;
-                case 'saw': 
-                    return normalizedPhase;
-                case 'tri':
-                    return normalizedPhase < 0.5 ?  normalizedPhase * 2 :  2 - (normalizedPhase * 2);
-                default:
-                    return 0.5;
-            }
-        }
-
-        function updateLfo(timestamp) {
-            if (!lastLfoTime) lastLfoTime = timestamp;
-            const deltaTime = (timestamp - lastLfoTime) / 1000;
-            lastLfoTime = timestamp;
-
-            let baseTempo = lfoTargets.lfoTempo.baseValue;
-            
-            if (lfoTargets.lfoTempo.enabled) {
-                const selfModPhase = (timestamp / 1000) * 0.1;
-                let selfModValue = getLfoValue(selfModPhase, lfoWaveform);
-                if (lfoTargets.lfoTempo.inverted) selfModValue = 1 - selfModValue;
-                const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
-                const range = controlRanges.lfoTempo;
-                const modRange = (range.max - range.min) * depth;
-                baseTempo = lfoTargets.lfoTempo.baseValue + (selfModValue - 0.5) * modRange;
-                baseTempo = Math.max(range.min, Math.min(range.max, baseTempo));
-            }
-
-            const lfoFrequency = baseTempo / 60;
-            lfoPhase += lfoFrequency * deltaTime;
-            if (lfoPhase > 1) lfoPhase -= Math.floor(lfoPhase);
-
-            const lfoValue = getLfoValue(lfoPhase, lfoWaveform);
-            const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
-
-            for (const [targetId, target] of Object.entries(lfoTargets)) {
-                if (targetId === 'lfoTempo') continue;
-                
-                const slider = document.getElementById(targetId);
-                const range = controlRanges[targetId];
-                const indicator = document.getElementById(targetId + 'Indicator');
-                const controlGroup = document.querySelector('[data-control="' + targetId + '"]');
-
-                if (target.enabled && slider && range) {
-                    let modValue = lfoValue;
-                    if (target.inverted) modValue = 1 - modValue;
-                    
-                    const modRange = (range.max - range.min) * depth;
-                    let newValue = target.baseValue + (modValue - 0.5) * modRange;
-                    newValue = Math.max(range.min, Math.min(range.max, newValue));
-                    
-                    slider.dataset.modulatedValue = newValue;
-                    
-                    if (indicator) {
-                        indicator.style.width = (modValue * 100) + '%';
-                    }
-                    
-                    if (controlGroup) {
-                        controlGroup.classList.add('lfo-active');
-                    }
-                } else {
-                    if (slider) {
-                        delete slider.dataset.modulatedValue;
-                    }
-                    if (indicator) {
-                        indicator.style. width = '0%';
-                    }
-                    if (controlGroup) {
-                        controlGroup.classList.remove('lfo-active');
-                    }
-                }
-            }
-
-            if (lfoTargets.lfoTempo.enabled) {
-                document.getElementById('lfoTempoValue').textContent = Math.round(baseTempo) + ' BPM';
-            }
-
-            drawLfoVisualizer(lfoPhase, lfoValue);
-            updateEffects();
-
-            lfoAnimationId = requestAnimationFrame(updateLfo);
-        }
-
-        function drawLfoVisualizer(phase, currentValue) {
-            const canvas = document.getElementById('lfoVisualizer');
-            if (!canvas) return;
-            
-            const ctx = canvas. getContext('2d');
-            const width = canvas.width = canvas.offsetWidth;
-            const height = canvas.height = canvas.offsetHeight;
-
-            ctx.fillStyle = '#0a0a15';
-            ctx.fillRect(0, 0, width, height);
-
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255, 149, 0, 0.5)';
-            ctx.lineWidth = 1;
-
-            for (let x = 0; x < width; x++) {
-                const p = x / width;
-                const y = (1 - getLfoValue(p, lfoWaveform)) * height;
-                if (x === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-
-            const currentX = phase * width;
-            const currentY = (1 - currentValue) * height;
-            
-            ctx.beginPath();
-            ctx.fillStyle = '#ff9500';
-            ctx.arc(currentX, currentY, 4, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255, 149, 0, 0.3)';
-            ctx.moveTo(currentX, 0);
-            ctx.lineTo(currentX, height);
-            ctx.stroke();
-        }
-
-        function startLfo() {
-            if (! lfoAnimationId) {
-                lastLfoTime = 0;
-                lfoAnimationId = requestAnimationFrame(updateLfo);
-            }
-        }
-
-        function stopLfo() {
-            if (lfoAnimationId) {
-                cancelAnimationFrame(lfoAnimationId);
-                lfoAnimationId = null;
-            }
-        }
-
-        function getParamValue(paramId) {
-            const slider = document.getElementById(paramId);
-            if (slider && slider.dataset.modulatedValue !== undefined) {
-                return parseFloat(slider.dataset.modulatedValue);
-            }
-            return parseFloat(slider.value);
-        }
-
+        // --- Initialization ---
         const startBtn = document.getElementById('start-btn');
         const startOverlay = document.getElementById('start-overlay');
         const statusDiv = document.getElementById('status');
 
-        startBtn.addEventListener('click', async function() {
+        startBtn.addEventListener('click', async () => {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioContext. state === 'suspended') await audioContext.resume();
+                if (audioContext.state === 'suspended') await audioContext.resume();
                 
                 await setupEffects();
-                startLfo();
                 
+                // Hide overlay
                 startOverlay.style.opacity = '0';
-                setTimeout(function() { startOverlay.style.display = 'none'; }, 300);
+                setTimeout(() => startOverlay.style.display = 'none', 300);
                 
-                statusDiv. textContent = "Engine Ready.  Record something!";
+                statusDiv.textContent = "Engine Ready. Record something!";
             } catch (e) {
                 console.error(e);
-                alert("Audio init failed:  " + e.message);
+                alert("Audio init failed: " + e.message);
             }
         });
 
         async function setupEffects() {
+            // Master Volume
             masterGain = audioContext.createGain();
-            masterGain. connect(audioContext.destination);
+            masterGain.connect(audioContext.destination);
 
-            reverbNode = audioContext. createConvolver();
-            dryGainNode = audioContext. createGain();
+            // Reverb Chain
+            reverbNode = audioContext.createConvolver();
+            dryGainNode = audioContext.createGain();
             wetGainNode = audioContext.createGain();
 
+            // Create simple Impulse Response
             const sampleRate = audioContext.sampleRate;
-            const length = sampleRate * 2. 5;
+            const length = sampleRate * 2.5; // 2.5 seconds tail
             const impulse = audioContext.createBuffer(2, length, sampleRate);
             for (let channel = 0; channel < 2; channel++) {
                 const data = impulse.getChannelData(channel);
@@ -946,6 +491,9 @@
             }
             reverbNode.buffer = impulse;
 
+            // Connections
+            // Grain -> dryGain -> Master
+            // Grain -> reverb -> wetGain -> Master
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
@@ -954,44 +502,43 @@
         }
 
         function updateEffects() {
-            if (! dryGainNode || !audioContext) return;
-            const reverbAmt = getParamValue('reverb') / 100;
-            const volAmt = getParamValue('volume') / 100;
+            if (!dryGainNode) return;
+            const reverbAmt = parseFloat(document.getElementById('reverb').value) / 100;
+            const volAmt = parseFloat(document.getElementById('volume').value) / 100;
             
-            const now = audioContext.currentTime;
-            const smoothTime = 0.02;
-            
-            dryGainNode.gain.setTargetAtTime(1. 0 - (reverbAmt * 0.4), now, smoothTime);
-            wetGainNode.gain.setTargetAtTime(reverbAmt, now, smoothTime);
-            masterGain.gain.setTargetAtTime(volAmt, now, smoothTime);
+            dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
+            wetGainNode.gain.value = reverbAmt;
+            masterGain.gain.value = volAmt;
         }
 
+        // --- Recording ---
         const recordBtn = document.getElementById('recordBtn');
         const clearBtn = document.getElementById('clearBtn');
         const waveformCanvas = document.getElementById('waveformCanvas');
 
-        recordBtn.addEventListener('click', function() {
-            if (! audioContext) return alert("Click Start First");
+        recordBtn.addEventListener('click', () => {
+            if (!audioContext) return alert("Click Start First");
             if (isRecording) stopRecording();
             else startRecording();
         });
 
-        clearBtn.addEventListener('click', function() {
+        clearBtn.addEventListener('click', () => {
             audioBuffer = null;
             recordedChunks = [];
             const ctx = waveformCanvas.getContext('2d');
-            ctx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+            ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
             statusDiv.textContent = "Buffer cleared";
             stopAllGrains();
         });
 
         async function startRecording() {
             try {
+                // Ensure context is running
                 if (audioContext.state === 'suspended') await audioContext.resume();
 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
-                        echoCancellation:  false, 
+                        echoCancellation: false, 
                         noiseSuppression: false, 
                         autoGainControl: false 
                     } 
@@ -1000,27 +547,27 @@
                 mediaRecorder = new MediaRecorder(stream);
                 recordedChunks = [];
 
-                mediaRecorder.ondataavailable = function(e) {
+                mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) recordedChunks.push(e.data);
                 };
 
-                mediaRecorder.onstop = async function() {
+                mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
                     const arrayBuffer = await blob.arrayBuffer();
                     audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     drawWaveform();
-                    statusDiv.textContent = 'Buffer:  ' + audioBuffer.duration. toFixed(2) + 's';
-                    stream.getTracks().forEach(function(track) { track.stop(); });
+                    statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
+                    stream.getTracks().forEach(track => track.stop());
                 };
 
                 mediaRecorder.start();
                 isRecording = true;
                 recordBtn.textContent = "STOP";
                 recordBtn.classList.add('recording');
-                statusDiv.textContent = "Recording... ";
+                statusDiv.textContent = "Recording...";
             } catch (err) {
                 console.error(err);
-                statusDiv.textContent = "Mic Error:  " + err.message;
+                statusDiv.textContent = "Mic Error: " + err.message;
             }
         }
 
@@ -1029,13 +576,15 @@
                 mediaRecorder.stop();
                 isRecording = false;
                 recordBtn.textContent = "Record Mic";
-                recordBtn.classList. remove('recording');
+                recordBtn.classList.remove('recording');
             }
         }
 
+        // --- Waveform & Visualization ---
         function drawWaveform() {
             if (!audioBuffer) return;
             
+            // Handle resizing
             waveformCanvas.width = waveformCanvas.offsetWidth;
             waveformCanvas.height = waveformCanvas.offsetHeight;
 
@@ -1049,12 +598,13 @@
             ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, width, height);
 
+            // Draw Wave
             ctx.beginPath();
             ctx.strokeStyle = '#00d4ff';
             ctx.lineWidth = 1;
 
             for (let i = 0; i < width; i++) {
-                let min = 1. 0;
+                let min = 1.0;
                 let max = -1.0;
                 for (let j = 0; j < step; j++) {
                     const val = data[(i * step) + j];
@@ -1066,12 +616,15 @@
             }
             ctx.stroke();
 
-            const startPct = getParamValue('sampleStart') / 100;
-            const endPct = getParamValue('sampleEnd') / 100;
+            // Draw Start/End Markers
+            const startPct = document.getElementById('sampleStart').value / 100;
+            const endPct = document.getElementById('sampleEnd').value / 100;
 
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            // Inactive area before start
             ctx.fillRect(0, 0, width * startPct, height);
-            ctx.fillRect(width * endPct, 0, width * (1 - endPct), height);
+            // Inactive area after end
+            ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
 
             ctx.strokeStyle = '#ff0844';
             ctx.beginPath();
@@ -1086,45 +639,48 @@
             ctx.stroke();
         }
 
+        // --- Granular Engine ---
         function playGrain(note) {
             if (!audioBuffer || !audioContext) return;
 
-            const grainSize = getParamValue('grainSize') / 1000;
-            const attack = getParamValue('attack') / 1000;
-            const release = getParamValue('release') / 1000;
-            const spray = getParamValue('spray') / 100;
-            const pitchVar = getParamValue('pitchVar') / 100;
-            const panSpread = getParamValue('panSpread') / 100;
+            // Params
+            const grainSize = parseInt(document.getElementById('grainSize').value) / 1000; // seconds
+            const attack = parseInt(document.getElementById('attack').value) / 1000;
+            const release = parseInt(document.getElementById('release').value) / 1000;
+            const spray = parseInt(document.getElementById('spray').value) / 100;
+            const pitchVar = parseInt(document.getElementById('pitchVar').value) / 100;
+            const panSpread = parseInt(document.getElementById('panSpread').value) / 100;
 
-            let startPct = getParamValue('sampleStart') / 100;
-            let endPct = getParamValue('sampleEnd') / 100;
+            // Start/End Logic
+            let startPct = parseInt(document.getElementById('sampleStart').value) / 100;
+            let endPct = parseInt(document.getElementById('sampleEnd').value) / 100;
             
-            if (startPct > endPct) {
-                const temp = startPct;
-                startPct = endPct;
-                endPct = temp;
-            }
+            // Swap if user crosses sliders
+            if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
 
             const bufferDuration = audioBuffer.duration;
             const validStart = bufferDuration * startPct;
             const validEnd = bufferDuration * endPct;
             const validDuration = validEnd - validStart;
 
-            if (validDuration <= 0) return;
-
-            const posSlider = getParamValue('position') / 100;
+            // Playhead Position (within the valid window)
+            const posSlider = parseInt(document.getElementById('position').value) / 100;
             let playPosition = validStart + (posSlider * validDuration);
 
+            // Add Spray
             const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
             playPosition += randomSpray;
 
+            // Clamp
             playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
-            if (playPosition < 0) playPosition = 0;
 
+            // Pitch Calculation
             const noteFreq = noteFrequencies[note];
             let rate = noteFreq / baseFrequency;
-            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1);
+            // Add Pitch Randomness
+            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
 
+            // Audio Graph
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.playbackRate.value = rate;
@@ -1132,165 +688,105 @@
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
 
+            // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
 
             source.connect(envelope);
             envelope.connect(panner);
             panner.connect(dryGainNode);
-            panner.connect(reverbNode);
+            panner.connect(reverbNode); // Send to reverb
 
+            // Envelope
             const now = audioContext.currentTime;
-            const attackTime = Math.min(attack, grainSize * 0.4);
-            const releaseTime = Math.min(release, grainSize * 0.4);
-            
             envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(1, now + attackTime);
-            envelope.gain.setValueAtTime(1, now + grainSize - releaseTime);
+            envelope.gain.linearRampToValueAtTime(1, now + attack);
             envelope.gain.linearRampToValueAtTime(0, now + grainSize);
 
+            // Play
             source.start(now, playPosition, grainSize);
-            source. stop(now + grainSize + 0.1);
+            source.stop(now + grainSize + 0.1); // Cleanup
         }
 
+        // --- Scheduler ---
         function startGrainStream(note) {
             if (!audioBuffer) return;
-            if (activeGrains.has(note)) return;
+            if (activeGrains.has(note)) return; // Already playing
+
+            const density = parseInt(document.getElementById('density').value);
+            const intervalTime = 1000 / density;
 
             function schedule() {
-                const density = getParamValue('density');
                 playGrain(note);
-                
-                if (activeGrains.has(note)) {
-                    const intervalTime = 1000 / density;
-                    const timeoutId = setTimeout(schedule, intervalTime);
-                    activeGrains.set(note, timeoutId);
-                }
             }
 
-            activeGrains.set(note, true);
+            // Play one immediately
             schedule();
+            // Loop
+            const id = setInterval(schedule, intervalTime);
+            activeGrains.set(note, id);
         }
 
         function stopGrainStream(note) {
             if (activeGrains.has(note)) {
-                const timeoutId = activeGrains.get(note);
-                if (typeof timeoutId === 'number') {
-                    clearTimeout(timeoutId);
-                }
+                clearInterval(activeGrains.get(note));
                 activeGrains.delete(note);
             }
         }
 
         function stopAllGrains() {
-            activeGrains.forEach(function(timeoutId, note) {
-                if (typeof timeoutId === 'number') {
-                    clearTimeout(timeoutId);
-                }
-            });
-            activeGrains. clear();
+            activeGrains.forEach(id => clearInterval(id));
+            activeGrains.clear();
         }
 
-        const keys = document.querySelectorAll('. key');
+        // --- Input Handling (Pointer Events) ---
+        const keys = document.querySelectorAll('.key');
         
-        keys.forEach(function(key) {
-            key.addEventListener('pointerdown', function(e) {
-                e.preventDefault();
+        keys.forEach(key => {
+            // Use pointerdown/up for unified mouse/touch support
+            key.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Prevent scrolling
                 key.classList.add('active');
-                key.setPointerCapture(e.pointerId);
+                key.setPointerCapture(e.pointerId); // Capture drag
                 startGrainStream(key.dataset.note);
             });
 
-            key.addEventListener('pointerup', function(e) {
+            key.addEventListener('pointerup', (e) => {
                 key.classList.remove('active');
                 key.releasePointerCapture(e.pointerId);
-                stopGrainStream(key. dataset.note);
+                stopGrainStream(key.dataset.note);
             });
 
-            key.addEventListener('pointerleave', function(e) {
+            key.addEventListener('pointerleave', (e) => {
                 if (key.classList.contains('active')) {
-                    key.classList.remove('active');
-                    stopGrainStream(key.dataset.note);
+                   key.classList.remove('active');
+                   stopGrainStream(key.dataset.note);
                 }
             });
         });
 
-        document.querySelectorAll('.wave-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.wave-btn').forEach(function(b) { b.classList.remove('active'); });
-                btn.classList.add('active');
-                lfoWaveform = btn.dataset.wave;
-            });
-        });
-
-        document. querySelectorAll('.mod-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const target = btn.dataset.target;
-                if (lfoTargets[target]) {
-                    lfoTargets[target].enabled = ! lfoTargets[target].enabled;
-                    btn.classList.toggle('active');
-                    
-                    if (lfoTargets[target].enabled) {
-                        const slider = document.getElementById(target);
-                        if (slider) {
-                            lfoTargets[target].baseValue = parseFloat(slider.value);
-                        }
-                    }
-                }
-            });
-        });
-
-        document.querySelectorAll('.inv-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const target = btn.dataset.target;
-                if (lfoTargets[target]) {
-                    lfoTargets[target].inverted = !lfoTargets[target].inverted;
-                    btn.classList.toggle('active');
-                }
-            });
-        });
-
+        // --- Slider Listeners ---
         const sliders = document.querySelectorAll('input[type="range"]');
-        sliders.forEach(function(slider) {
-            slider.addEventListener('input', function(e) {
+        sliders.forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                // Update text label
                 const labelSpan = document.getElementById(e.target.id + 'Value');
                 if (labelSpan) {
                     let suffix = '';
-                    if (e.target.id. indexOf('Size') !== -1 || e.target.id.indexOf('attack') !== -1 || e.target.id.indexOf('release') !== -1) {
-                        suffix = 'ms';
-                    } else if (e.target.id === 'density') {
-                        suffix = ' gr/s';
-                    } else if (e.target.id === 'lfoTempo') {
-                        suffix = ' BPM';
-                    } else if (e.target.id === 'lfoDepth') {
-                        suffix = '%';
-                    } else {
-                        suffix = '%';
-                    }
+                    if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
+                    else if (e.target.id === 'density') suffix = ' gr/s';
+                    else suffix = '%';
                     labelSpan.textContent = e.target.value + suffix;
                 }
 
-                if (lfoTargets[e.target. id]) {
-                    lfoTargets[e.target.id].baseValue = parseFloat(e.target.value);
-                }
-
+                // Special handling for effects or redraw
                 if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
-                if (e.target.id === 'sampleStart' || e.target. id === 'sampleEnd') drawWaveform();
+                if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
             });
         });
 
-        Object.keys(lfoTargets).forEach(function(targetId) {
-            const slider = document.getElementById(targetId);
-            if (slider) {
-                lfoTargets[targetId].baseValue = parseFloat(slider.value);
-            }
-        });
-
+        // Window Resize
         window.addEventListener('resize', drawWaveform);
 
-        window.addEventListener('beforeunload', function() {
-            stopLfo();
-            stopAllGrains();
-        });
     </script>
 </body>
 </html>
