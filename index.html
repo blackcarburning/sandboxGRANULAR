@@ -646,7 +646,7 @@
             
             const elapsed = audioContext.currentTime - lfoStartTime;
             // Use fract for better precision with long-running oscillators
-            const phase = (elapsed * rate - Math.floor(elapsed * rate));
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
             
             let value = 0;
             switch (waveform) {
