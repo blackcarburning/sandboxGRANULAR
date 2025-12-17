@@ -211,9 +211,10 @@
             border-radius: 8px;
             padding: 6px;
             border: 1px solid rgba(0, 212, 255, 0.2);
-            overflow: hidden;
+            overflow: hidden !important;
             position: relative;
-            touch-action: none;
+            touch-action: manipulation;
+            -webkit-overflow-scrolling: auto;
         }
 
         .control-group {
@@ -250,6 +251,9 @@
             cursor: pointer;
             text-decoration: underline;
             text-decoration-style: dotted;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .control-group .button-group {
@@ -298,6 +302,9 @@
             outline: none;
             -webkit-appearance: none;
             touch-action: pan-x;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -492,9 +499,10 @@
             gap: 6px;
             height: 300px;
             max-height: 300px;
-            overflow: hidden;
+            overflow: hidden !important;
             position: relative;
-            touch-action: none;
+            touch-action: manipulation;
+            -webkit-overflow-scrolling: auto;
         }
 
         #utility-tab.active {
@@ -2067,6 +2075,7 @@
         // --- Slider Listeners ---
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
+            // Input event for real-time updates while dragging
             slider.addEventListener('input', (e) => {
                 // Special handling for LFO rate
                 if (e.target.id === 'lfoRate') {
@@ -2098,17 +2107,39 @@
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
             });
+            
+            // Change event for when slider is released
+            slider.addEventListener('change', (e) => {
+                // Ensure final value update
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+            });
 
             // Prevent scrolling when touching/dragging sliders
+            slider.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+            }, { passive: true });
+            
             slider.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-            }, { passive: false });
+                e.stopPropagation();
+            }, { passive: true });
+            
+            // Ensure pointer events work correctly
+            slider.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+            });
+            
+            slider.addEventListener('pointermove', (e) => {
+                if (e.buttons > 0) { // Only if mouse button is pressed
+                    e.stopPropagation();
+                }
+            });
         });
 
         // --- Manual Number Input for Parameters ---
         document.querySelectorAll('.control-group label .value').forEach(valueDisplay => {
             valueDisplay.addEventListener('click', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 
                 // Find the associated slider
                 const sliderId = valueDisplay.id.replace('Value', '');
@@ -2363,23 +2394,39 @@
 
         // Helper function to prevent scrolling while allowing interactive elements to work
         function preventScrollingOnContainer(container) {
+            // Prevent touchstart on the container itself (not on interactive elements)
             container.addEventListener('touchstart', (e) => {
-                // Allow touch events on interactive elements (sliders, buttons, inputs, selects)
                 const target = e.target;
-                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
+                // Allow touch events on interactive elements
+                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
+                    target.tagName === 'SELECT' || target.classList.contains('value')) {
                     return; // Let the element handle the event
                 }
-                // Prevent default for everything else to stop scrolling
-                e.preventDefault();
+                // Only prevent if touching the container background directly
+                if (target === container || target.classList.contains('control-group') || 
+                    target.classList.contains('tab-content') || target.tagName === 'LABEL') {
+                    e.preventDefault();
+                }
             }, { passive: false });
 
+            // Prevent touchmove on the container to stop scrolling
             container.addEventListener('touchmove', (e) => {
-                // Allow touch events on interactive elements (sliders, buttons, inputs, selects)
                 const target = e.target;
-                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
-                    return; // Let the element handle the event
+                // Allow sliders to work - they need pan-x touch action
+                if (target.tagName === 'INPUT' && target.type === 'range') {
+                    return; // Let the slider handle the event
                 }
-                // Prevent all other touch moves to stop scrolling
+                // Allow buttons, selects, and editable fields
+                if (target.tagName === 'BUTTON' || target.tagName === 'SELECT' || 
+                    (target.tagName === 'INPUT' && target.type !== 'range')) {
+                    return;
+                }
+                // Prevent scrolling for everything else
+                e.preventDefault();
+            }, { passive: false });
+            
+            // Prevent wheel scrolling on desktop
+            container.addEventListener('wheel', (e) => {
                 e.preventDefault();
             }, { passive: false });
         }
