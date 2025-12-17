@@ -1148,11 +1148,22 @@
             const target = e.target;
             
             // Check if touch is on an empty/non-interactive area
+            // Allow interactive elements to work normally
+            if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
+                target.tagName === 'SELECT' || target.classList.contains('key') ||
+                target.classList.contains('value') || target.tagName === 'LABEL') {
+                return;
+            }
+            
+            // Prevent default on container backgrounds and empty areas
             if (target === document.body || 
                 target.classList.contains('synth-container') ||
                 target.classList.contains('top-section') ||
-                (target.classList.contains('recording-section') && target === e.currentTarget) ||
-                (target.classList.contains('controls-section') && target === e.currentTarget)) {
+                target.classList.contains('recording-section') ||
+                target.classList.contains('controls-section') ||
+                target.classList.contains('keyboard-section') ||
+                target.classList.contains('tab-content') ||
+                target.classList.contains('control-group')) {
                 e.preventDefault();
             }
         }, { passive: false });
