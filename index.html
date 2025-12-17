@@ -451,6 +451,9 @@
         }
 
         #utility-tab button {
+            width: 100%;
+            padding: 10px;
+            font-size: 11px;
             background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
             color: #000;
             font-weight: bold;
@@ -833,22 +836,22 @@
                 <!-- Utility Tab -->
                 <div class="tab-content" id="utility-tab">
                     <div class="control-group">
-                        <button id="saveAudioBtn" style="width: 100%; padding: 10px; font-size: 11px;">Save Audio</button>
+                        <button id="saveAudioBtn">Save Audio</button>
                     </div>
                     <div class="control-group">
-                        <button id="loadAudioBtn" style="width: 100%; padding: 10px; font-size: 11px;">Load Audio</button>
+                        <button id="loadAudioBtn">Load Audio</button>
                     </div>
                     <div class="control-group">
-                        <button id="savePresetBtn" style="width: 100%; padding: 10px; font-size: 11px;">Save Preset</button>
+                        <button id="savePresetBtn">Save Preset</button>
                     </div>
                     <div class="control-group">
-                        <button id="loadPresetBtn" style="width: 100%; padding: 10px; font-size: 11px;">Load Preset</button>
+                        <button id="loadPresetBtn">Load Preset</button>
                     </div>
                     <div class="control-group">
-                        <button id="resetEngineBtn" style="width: 100%; padding: 10px; font-size: 11px;">Reset Engine</button>
+                        <button id="resetEngineBtn">Reset Engine</button>
                     </div>
                     <div class="control-group">
-                        <button id="randomizeBtn" style="width: 100%; padding: 10px; font-size: 11px;">Randomize</button>
+                        <button id="randomizeBtn">Randomize</button>
                     </div>
                 </div>
             </div>
@@ -1831,7 +1834,7 @@
         // Save Audio Button
         document.getElementById('saveAudioBtn').addEventListener('click', () => {
             if (!audioBuffer) {
-                alert('No audio buffer to save. Please record audio first.');
+                alert('No audio buffer to save. Please load or record audio first.');
                 return;
             }
             
@@ -1957,8 +1960,8 @@
                 const range = max - min;
                 let randomValue = min + (Math.random() * range);
                 
-                // Round to step
-                if (step) {
+                // Round to step if step is positive
+                if (step > 0) {
                     randomValue = Math.round(randomValue / step) * step;
                 }
                 
@@ -2003,7 +2006,7 @@
 
         // Helper function to apply preset
         function applyPreset(preset) {
-            if (!preset || typeof preset !== 'object') {
+            if (!preset || typeof preset !== 'object' || Array.isArray(preset)) {
                 throw new Error('Invalid preset format');
             }
             
