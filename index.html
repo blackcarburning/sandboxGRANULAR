@@ -854,8 +854,10 @@
         let distortionNode = null;
         let phaserNodes = [];
         let phaserLFO = null;
+        let phaserLFOGain = null;
         let tremoloGain = null;
         let tremoloLFO = null;
+        let tremoloLFOGain = null;
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -1032,7 +1034,7 @@
             // Phaser LFO
             phaserLFO = audioContext.createOscillator();
             phaserLFO.frequency.value = 0.5;
-            const phaserLFOGain = audioContext.createGain();
+            phaserLFOGain = audioContext.createGain();
             phaserLFOGain.gain.value = 0;
             phaserLFO.connect(phaserLFOGain);
             // Connect LFO to phaser frequencies
@@ -1044,7 +1046,7 @@
             tremoloGain.gain.value = 1;
             tremoloLFO = audioContext.createOscillator();
             tremoloLFO.frequency.value = 5;
-            const tremoloLFOGain = audioContext.createGain();
+            tremoloLFOGain = audioContext.createGain();
             tremoloLFOGain.gain.value = 0;
             tremoloLFO.connect(tremoloLFOGain);
             tremoloLFOGain.connect(tremoloGain.gain);
@@ -1145,13 +1147,13 @@
             }
 
             // Update phaser
-            if (phaserLFO && phaserNodes.length > 0) {
+            if (phaserLFO && phaserLFOGain && phaserNodes.length > 0) {
                 const phaserRate = getModulatedValue('phaserRate');
                 const phaserDepth = getModulatedValue('phaserDepth') / 100;
                 phaserLFO.frequency.value = phaserRate;
-                // Set the depth by adjusting the LFO gain that modulates frequency
-                const phaserLFOGain = phaserLFO.connect ? null : phaserLFO;
-                // Update base frequency for phaser nodes
+                // Control depth via LFO gain - modulates all-pass filter frequencies
+                phaserLFOGain.gain.value = phaserDepth * 1000; // 0-1000 Hz modulation range
+                // Update base frequency and Q for phaser nodes
                 const baseFreq = 1000;
                 phaserNodes.forEach((node, i) => {
                     node.frequency.value = baseFreq * (i + 1);
@@ -1160,14 +1162,13 @@
             }
 
             // Update tremolo
-            if (tremoloLFO && tremoloGain) {
+            if (tremoloLFO && tremoloLFOGain) {
                 const tremoloRate = getModulatedValue('tremoloRate');
                 const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
                 tremoloLFO.frequency.value = tremoloRate;
-                // Tremolo depth is controlled by the LFO gain amount
-                // The base gain stays at 1, and the LFO modulates around it
-                const tremoloLFOGainNode = tremoloLFO.context.createGain();
-                tremoloLFOGainNode.gain.value = tremoloDepth;
+                // Control tremolo depth via LFO gain - modulates output gain
+                // With depth=0, no modulation; with depth=1, full amplitude modulation
+                tremoloLFOGain.gain.value = tremoloDepth;
             }
 
             // Update filters
@@ -1469,7 +1470,7 @@
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(1, now + attack);
             envelope.gain.setValueAtTime(1, now + grainSize - release);
-            envelope.gain.linearRampToValueAtTime(0, now + grainSize);
+            envelope.gain.linearRampToValueAtTime(0, now + grainSize + release);
         }
 
         // --- Scheduler ---
@@ -1496,8 +1497,9 @@
             });
             
             // Apply filter envelope when note starts
-            const release = getModulatedValue('release') / 1000;
-            applyFilterEnvelope(note, grainState.startTime, release * 10); // Use a duration long enough for the envelope
+            // Use a long duration (60 seconds) to allow envelope to sustain until note is released
+            const FILTER_ENVELOPE_MAX_DURATION = 60;
+            applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
             
             // Play one immediately and start recursion
             schedule();
