@@ -1820,7 +1820,7 @@
         // Hidden file input for audio loading
         const audioFileInput = document.createElement('input');
         audioFileInput.type = 'file';
-        audioFileInput.accept = 'audio/*';
+        audioFileInput.accept = 'audio/*,.wav,.mp3,.ogg,.webm,.m4a';
         audioFileInput.style.display = 'none';
         document.body.appendChild(audioFileInput);
 
@@ -1969,6 +1969,39 @@
                 
                 // Trigger input event to update display and effects
                 slider.dispatchEvent(new Event('input'));
+            });
+            
+            // Randomize LFO and INV toggles
+            document.querySelectorAll('.lfo-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                // 40% chance of enabling LFO (within 30-50% target range)
+                const shouldEnable = Math.random() < 0.4;
+                const isCurrentlyEnabled = lfoEnabled[param];
+                
+                // Toggle if needed
+                if (shouldEnable !== isCurrentlyEnabled) {
+                    btn.click();
+                }
+            });
+            
+            document.querySelectorAll('.inv-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                // Only randomize INV if LFO is enabled for this parameter
+                if (lfoEnabled[param]) {
+                    // 40% chance of enabling INV (within 30-50% target range)
+                    const shouldInvert = Math.random() < 0.4;
+                    const isCurrentlyInverted = lfoInverted[param];
+                    
+                    // Toggle if needed
+                    if (shouldInvert !== isCurrentlyInverted) {
+                        btn.click();
+                    }
+                } else {
+                    // If LFO is not enabled, ensure INV is disabled
+                    if (lfoInverted[param]) {
+                        btn.click();
+                    }
+                }
             });
             
             statusDiv.textContent = 'All parameters randomized';
