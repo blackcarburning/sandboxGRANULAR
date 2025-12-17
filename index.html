@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
     <style>
@@ -368,7 +369,7 @@
             padding-bottom: 5px;
             font-size: 8px;
             font-weight: bold;
-            touch-action: none; /* Critical for glissando */
+            touch-action: manipulation; /* Prevent double-tap zoom */
         }
 
         .key.white {
@@ -542,6 +543,47 @@
             transform: translateY(0);
         }
 
+        /* Smaller utility buttons to fit without scrolling */
+        #utility-tab button {
+            padding: 6px 8px !important;
+            font-size: 9px !important;
+            margin: 0 !important;
+        }
+
+        /* Red Randomize button */
+        #randomizeBtn {
+            background: linear-gradient(135deg, #ff0844 0%, #cc0033 100%) !important;
+            color: white !important;
+        }
+
+        /* Fullscreen button */
+        #fullscreenBtn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9998;
+            padding: 8px 12px;
+            font-size: 10px;
+            background: rgba(0, 212, 255, 0.8);
+            color: #000;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+        }
+
+        #fullscreenBtn:hover {
+            background: var(--accent);
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        #fullscreenBtn.hidden {
+            display: none;
+        }
+
     </style>
 </head>
 <body>
@@ -559,6 +601,9 @@
         <p>Touch 'Start' to enable audio and microphone access.</p>
         <button id="start-btn">START ENGINE</button>
     </div>
+
+    <!-- Fullscreen Button -->
+    <button id="fullscreenBtn" class="hidden">Go Fullscreen</button>
 
     <div class="synth-container">
         <div class="top-section">
@@ -973,6 +1018,9 @@
                 <!-- Utility Tab -->
                 <div class="tab-content" id="utility-tab">
                     <div class="control-group">
+                        <button id="randomizeBtn">Randomize</button>
+                    </div>
+                    <div class="control-group">
                         <button id="saveAudioBtn">Save Audio</button>
                     </div>
                     <div class="control-group">
@@ -989,9 +1037,6 @@
                     </div>
                     <div class="control-group">
                         <button id="resetDefaultBtn">Reset to Default</button>
-                    </div>
-                    <div class="control-group">
-                        <button id="randomizeBtn">Randomize</button>
                     </div>
                 </div>
 
@@ -2154,7 +2199,33 @@
         // --- Input Handling (Pointer Events) ---
         const keys = document.querySelectorAll('.key');
         
+        // Track last touch time per key to prevent double-tap zoom
+        const keyLastTouchTime = new Map();
+        
         keys.forEach(key => {
+            // Add specific touch event handlers to prevent double-tap zoom
+            key.addEventListener('touchstart', (e) => {
+                const now = Date.now();
+                const lastTouch = keyLastTouchTime.get(key) || 0;
+                
+                // If touches are very close together (< 300ms), prevent default to block zoom
+                if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
+                    e.preventDefault();
+                }
+                
+                keyLastTouchTime.set(key, now);
+            }, { passive: false });
+            
+            key.addEventListener('touchend', (e) => {
+                // Prevent double-tap zoom on touchend as well
+                const now = Date.now();
+                const lastTouch = keyLastTouchTime.get(key) || 0;
+                
+                if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
             // Use pointerdown/up for unified mouse/touch support
             key.addEventListener('pointerdown', (e) => {
                 e.preventDefault(); // Prevent scrolling
@@ -3105,6 +3176,63 @@
                 view.setUint8(offset + i, string.charCodeAt(i));
             }
         }
+
+        // --- Fullscreen Button Handler ---
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        // Show fullscreen button after start overlay is dismissed
+        document.getElementById('start-btn').addEventListener('click', () => {
+            // Show fullscreen button after a delay to allow audio context to initialize
+            setTimeout(() => {
+                if (document.fullscreenEnabled || document.webkitFullscreenEnabled) {
+                    fullscreenBtn.classList.remove('hidden');
+                }
+            }, 1000);
+        });
+        
+        // Handle fullscreen button click
+        fullscreenBtn.addEventListener('click', async () => {
+            try {
+                const elem = document.documentElement;
+                
+                if (document.fullscreenElement || document.webkitFullscreenElement) {
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        await document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        await document.webkitExitFullscreen();
+                    }
+                    fullscreenBtn.textContent = 'Go Fullscreen';
+                } else {
+                    // Enter fullscreen
+                    if (elem.requestFullscreen) {
+                        await elem.requestFullscreen();
+                    } else if (elem.webkitRequestFullscreen) {
+                        await elem.webkitRequestFullscreen();
+                    }
+                    fullscreenBtn.textContent = 'Exit Fullscreen';
+                }
+            } catch (err) {
+                console.error('Fullscreen error:', err);
+            }
+        });
+        
+        // Update button text when fullscreen state changes
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenBtn.textContent = 'Exit Fullscreen';
+            } else {
+                fullscreenBtn.textContent = 'Go Fullscreen';
+            }
+        });
+        
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (document.webkitFullscreenElement) {
+                fullscreenBtn.textContent = 'Exit Fullscreen';
+            } else {
+                fullscreenBtn.textContent = 'Go Fullscreen';
+            }
+        });
 
     </script>
 </body>
