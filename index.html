@@ -1114,32 +1114,38 @@
             e.preventDefault();
         }, { passive: false });
 
-        // Prevent double-tap zoom on non-interactive elements
+        // Consolidated touch handling
+        const touchStartPositions = new Map();
         let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
+        
+        // Unified touchstart handler
+        document.addEventListener('touchstart', (e) => {
             const target = e.target;
             
-            // Allow double-tap on interactive elements
-            if (isInteractiveElement(target)) {
-                return;
-            }
-            
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, { passive: false });
-
-        // Prevent pull-to-refresh and address bar appearance
-        const touchStartPositions = new Map();
-        document.addEventListener('touchstart', (e) => {
-            // Store start position for each touch
+            // Store start position for each touch (for pull-to-refresh prevention)
             for (let i = 0; i < e.touches.length; i++) {
                 const touch = e.touches[i];
                 touchStartPositions.set(touch.identifier, touch.clientY);
             }
-        }, { passive: true });
+            
+            // Block touch on empty areas
+            // Allow interactive elements to work normally
+            if (isInteractiveElement(target)) {
+                return;
+            }
+            
+            // Prevent default on container backgrounds and empty areas
+            if (target === document.body || 
+                target.classList.contains('synth-container') ||
+                target.classList.contains('top-section') ||
+                target.classList.contains('recording-section') ||
+                target.classList.contains('controls-section') ||
+                target.classList.contains('keyboard-section') ||
+                target.classList.contains('tab-content') ||
+                target.classList.contains('control-group')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
             const target = e.target;
@@ -1168,33 +1174,22 @@
             }
         }, { passive: false });
 
+        // Unified touchend handler
         document.addEventListener('touchend', (e) => {
+            const target = e.target;
+            
             // Clean up stored positions for ended touches
             for (let i = 0; i < e.changedTouches.length; i++) {
                 touchStartPositions.delete(e.changedTouches[i].identifier);
             }
-        }, { passive: true });
-
-        // Block touch on empty areas - add event listener to document
-        document.addEventListener('touchstart', (e) => {
-            const target = e.target;
             
-            // Check if touch is on an empty/non-interactive area
-            // Allow interactive elements to work normally
-            if (isInteractiveElement(target)) {
-                return;
-            }
-            
-            // Prevent default on container backgrounds and empty areas
-            if (target === document.body || 
-                target.classList.contains('synth-container') ||
-                target.classList.contains('top-section') ||
-                target.classList.contains('recording-section') ||
-                target.classList.contains('controls-section') ||
-                target.classList.contains('keyboard-section') ||
-                target.classList.contains('tab-content') ||
-                target.classList.contains('control-group')) {
-                e.preventDefault();
+            // Prevent double-tap zoom on non-interactive elements
+            if (!isInteractiveElement(target)) {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    e.preventDefault();
+                }
+                lastTouchEnd = now;
             }
         }, { passive: false });
 
