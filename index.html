@@ -2361,9 +2361,9 @@
             });
         });
 
-        // Prevent scrolling/moving in tab content areas
-        document.querySelectorAll('.tab-content').forEach(tabContent => {
-            tabContent.addEventListener('touchstart', (e) => {
+        // Helper function to prevent scrolling while allowing interactive elements to work
+        function preventScrollingOnContainer(container) {
+            container.addEventListener('touchstart', (e) => {
                 // Allow touch events on interactive elements (sliders, buttons, inputs)
                 const target = e.target;
                 if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
@@ -2373,7 +2373,7 @@
                 e.preventDefault();
             }, { passive: false });
 
-            tabContent.addEventListener('touchmove', (e) => {
+            container.addEventListener('touchmove', (e) => {
                 // Allow touch events on sliders specifically
                 const target = e.target;
                 if (target.tagName === 'INPUT' && target.type === 'range') {
@@ -2382,26 +2382,15 @@
                 // Prevent all other touch moves to stop scrolling
                 e.preventDefault();
             }, { passive: false });
-        });
+        }
+
+        // Prevent scrolling/moving in tab content areas
+        document.querySelectorAll('.tab-content').forEach(preventScrollingOnContainer);
 
         // Prevent scrolling in controls-section container
         const controlsSection = document.querySelector('.controls-section');
         if (controlsSection) {
-            controlsSection.addEventListener('touchstart', (e) => {
-                const target = e.target;
-                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
-                    return;
-                }
-                e.preventDefault();
-            }, { passive: false });
-
-            controlsSection.addEventListener('touchmove', (e) => {
-                const target = e.target;
-                if (target.tagName === 'INPUT' && target.type === 'range') {
-                    return;
-                }
-                e.preventDefault();
-            }, { passive: false });
+            preventScrollingOnContainer(controlsSection);
         }
 
         // Window Resize
