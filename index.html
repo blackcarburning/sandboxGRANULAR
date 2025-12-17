@@ -444,7 +444,7 @@
 
         .volume-bias-container input[type="range"] {
             width: 80px;
-            writing-mode: bt-lr;
+            writing-mode: vertical-rl;
             -webkit-appearance: slider-vertical;
             height: 80px;
         }
@@ -1363,17 +1363,17 @@
                 try {
                     auditionSource.stop();
                 } catch (e) {
-                    // Already stopped
+                    console.debug('Audition source already stopped:', e);
                 }
                 auditionSource = null;
             }
             
-            // Create a simple buffer source that plays directly to output
+            // Create a simple buffer source that plays through master gain
             auditionSource = audioContext.createBufferSource();
             auditionSource.buffer = audioBuffer;
             
-            // Connect directly to destination, bypassing all effects
-            auditionSource.connect(audioContext.destination);
+            // Connect through master gain to respect volume control, but bypass effects
+            auditionSource.connect(masterGain);
             
             // Start playback
             auditionSource.start(0);
@@ -1618,7 +1618,9 @@
             // Map note frequency to a 0-1 range (using log scale for better distribution)
             const minFreq = 32.70; // C1
             const maxFreq = 123.47; // B2
-            const normalizedPitch = (Math.log(noteFreq) - Math.log(minFreq)) / (Math.log(maxFreq) - Math.log(minFreq));
+            let normalizedPitch = (Math.log(noteFreq) - Math.log(minFreq)) / (Math.log(maxFreq) - Math.log(minFreq));
+            // Clamp to 0-1 range to handle octave offsets that go beyond C1-B2
+            normalizedPitch = Math.max(0, Math.min(1, normalizedPitch));
             // Apply bias: at bias=-1, bass loud (low pitch = 1.0, high pitch = 0.3)
             //             at bias=+1, treble loud (low pitch = 0.3, high pitch = 1.0)
             //             at bias=0, equal volume (all = 1.0)
