@@ -446,6 +446,29 @@
             gap: 6px;
         }
 
+        #utility-tab.active {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        #utility-tab button {
+            width: 100%;
+            padding: 10px;
+            font-size: 11px;
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: #000;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        #utility-tab button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        #utility-tab button:active {
+            transform: translateY(0);
+        }
+
     </style>
 </head>
 <body>
@@ -504,6 +527,7 @@
                     <button class="tab-button" data-tab="filter">Filter</button>
                     <button class="tab-button" data-tab="noise">Noise</button>
                     <button class="tab-button" data-tab="fx">FX/LFO</button>
+                    <button class="tab-button" data-tab="utility">Utility</button>
                 </div>
 
                 <!-- Grain Tab -->
@@ -806,6 +830,28 @@
                             <span class="value" id="volumeValue">100%</span>
                         </label>
                         <input type="range" id="volume" min="0" max="100" value="100" step="1">
+                    </div>
+                </div>
+
+                <!-- Utility Tab -->
+                <div class="tab-content" id="utility-tab">
+                    <div class="control-group">
+                        <button id="saveAudioBtn">Save Audio</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="loadAudioBtn">Load Audio</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="savePresetBtn">Save Preset</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="loadPresetBtn">Load Preset</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="resetEngineBtn">Reset Engine</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="randomizeBtn">Randomize</button>
                     </div>
                 </div>
             </div>
@@ -1768,6 +1814,328 @@
 
         // Window Resize
         window.addEventListener('resize', drawWaveform);
+
+        // --- Utility Functions ---
+        
+        // Hidden file input for audio loading
+        const audioFileInput = document.createElement('input');
+        audioFileInput.type = 'file';
+        audioFileInput.accept = 'audio/*';
+        audioFileInput.style.display = 'none';
+        document.body.appendChild(audioFileInput);
+
+        // Hidden file input for preset loading
+        const presetFileInput = document.createElement('input');
+        presetFileInput.type = 'file';
+        presetFileInput.accept = '.json';
+        presetFileInput.style.display = 'none';
+        document.body.appendChild(presetFileInput);
+
+        // Save Audio Button
+        document.getElementById('saveAudioBtn').addEventListener('click', () => {
+            if (!audioBuffer) {
+                alert('No audio buffer to save. Please load or record audio first.');
+                return;
+            }
+            
+            // Convert audioBuffer to WAV
+            const wav = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wav], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `granular-sample-${Date.now()}.wav`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            statusDiv.textContent = 'Audio saved successfully';
+        });
+
+        // Load Audio Button
+        document.getElementById('loadAudioBtn').addEventListener('click', () => {
+            if (!audioContext) {
+                alert('Please start the engine first.');
+                return;
+            }
+            audioFileInput.click();
+        });
+
+        audioFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                drawWaveform();
+                statusDiv.textContent = `Loaded: ${file.name} (${audioBuffer.duration.toFixed(2)}s)`;
+                normalizeBtn.disabled = false;
+            } catch (err) {
+                console.error(err);
+                alert('Failed to load audio file: ' + err.message);
+            }
+            
+            // Reset input
+            e.target.value = '';
+        });
+
+        // Save Preset Button
+        document.getElementById('savePresetBtn').addEventListener('click', () => {
+            const preset = gatherPreset();
+            const json = JSON.stringify(preset, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `granular-preset-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            statusDiv.textContent = 'Preset saved successfully';
+        });
+
+        // Load Preset Button
+        document.getElementById('loadPresetBtn').addEventListener('click', () => {
+            presetFileInput.click();
+        });
+
+        presetFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const text = await file.text();
+                const preset = JSON.parse(text);
+                applyPreset(preset);
+                statusDiv.textContent = `Preset loaded: ${file.name}`;
+            } catch (err) {
+                console.error(err);
+                alert('Failed to load preset: ' + err.message);
+            }
+            
+            // Reset input
+            e.target.value = '';
+        });
+
+        // Reset Engine Button
+        document.getElementById('resetEngineBtn').addEventListener('click', async () => {
+            if (!audioContext) {
+                alert('Engine not initialized yet.');
+                return;
+            }
+            
+            // Stop all active grains
+            stopAllGrains();
+            
+            // Close existing context
+            await audioContext.close();
+            
+            // Create new context
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+            
+            lfoStartTime = audioContext.currentTime;
+            
+            // Reinitialize effects
+            await setupEffects();
+            startModulationLoop();
+            
+            statusDiv.textContent = 'Engine reset successfully';
+        });
+
+        // Randomize Button
+        document.getElementById('randomizeBtn').addEventListener('click', () => {
+            // Get all sliders
+            const allSliders = document.querySelectorAll('input[type="range"]');
+            
+            allSliders.forEach(slider => {
+                const min = parseFloat(slider.min);
+                const max = parseFloat(slider.max);
+                const step = parseFloat(slider.step);
+                
+                // Generate random value
+                const range = max - min;
+                let randomValue = min + (Math.random() * range);
+                
+                // Round to step if step is positive
+                if (step > 0) {
+                    randomValue = Math.round(randomValue / step) * step;
+                }
+                
+                slider.value = randomValue;
+                
+                // Trigger input event to update display and effects
+                slider.dispatchEvent(new Event('input'));
+            });
+            
+            statusDiv.textContent = 'All parameters randomized';
+        });
+
+        // Helper function to gather all preset data
+        function gatherPreset() {
+            const preset = {
+                version: '1.0',
+                timestamp: new Date().toISOString(),
+                sliders: {},
+                lfo: {
+                    mode: lfoMode,
+                    enabled: {},
+                    inverted: {}
+                },
+                octave: octaveOffset
+            };
+            
+            // Gather all slider values
+            document.querySelectorAll('input[type="range"]').forEach(slider => {
+                preset.sliders[slider.id] = slider.value;
+            });
+            
+            // Gather dropdown values
+            preset.lfoWaveform = document.getElementById('lfoWaveform').value;
+            preset.noiseType = document.getElementById('noiseType').value;
+            
+            // Gather LFO enabled/inverted states
+            preset.lfo.enabled = { ...lfoEnabled };
+            preset.lfo.inverted = { ...lfoInverted };
+            
+            return preset;
+        }
+
+        // Helper function to apply preset
+        function applyPreset(preset) {
+            if (!preset || typeof preset !== 'object' || Array.isArray(preset)) {
+                throw new Error('Invalid preset format');
+            }
+            
+            // Apply slider values
+            if (preset.sliders) {
+                Object.keys(preset.sliders).forEach(id => {
+                    const slider = document.getElementById(id);
+                    if (slider) {
+                        slider.value = preset.sliders[id];
+                        slider.dispatchEvent(new Event('input'));
+                    }
+                });
+            }
+            
+            // Apply dropdown values
+            if (preset.lfoWaveform) {
+                document.getElementById('lfoWaveform').value = preset.lfoWaveform;
+            }
+            if (preset.noiseType) {
+                document.getElementById('noiseType').value = preset.noiseType;
+            }
+            
+            // Apply LFO mode
+            if (preset.lfo && preset.lfo.mode && preset.lfo.mode !== lfoMode) {
+                document.getElementById('lfoModeToggle').click();
+            }
+            
+            // Apply LFO enabled states
+            if (preset.lfo && preset.lfo.enabled) {
+                Object.keys(preset.lfo.enabled).forEach(param => {
+                    const shouldBeEnabled = preset.lfo.enabled[param];
+                    const isEnabled = lfoEnabled[param];
+                    
+                    if (shouldBeEnabled !== isEnabled) {
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply LFO inverted states
+            if (preset.lfo && preset.lfo.inverted) {
+                Object.keys(preset.lfo.inverted).forEach(param => {
+                    const shouldBeInverted = preset.lfo.inverted[param];
+                    const isInverted = lfoInverted[param];
+                    
+                    if (shouldBeInverted !== isInverted) {
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply octave offset
+            if (preset.octave !== undefined) {
+                octaveOffset = preset.octave;
+                updateOctaveDisplay();
+            }
+        }
+
+        // Helper function to convert AudioBuffer to WAV
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            
+            const data = [];
+            for (let i = 0; i < numChannels; i++) {
+                data.push(buffer.getChannelData(i));
+            }
+            
+            const interleaved = interleaveChannels(data);
+            const dataLength = interleaved.length * bytesPerSample;
+            const headerLength = 44;
+            const totalLength = headerLength + dataLength;
+            
+            const arrayBuffer = new ArrayBuffer(totalLength);
+            const view = new DataView(arrayBuffer);
+            
+            // Write WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, totalLength - 8, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // fmt chunk size
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+            
+            // Write audio data
+            let offset = 44;
+            for (let i = 0; i < interleaved.length; i++) {
+                const sample = Math.max(-1, Math.min(1, interleaved[i]));
+                const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                view.setInt16(offset, intSample, true);
+                offset += 2;
+            }
+            
+            return arrayBuffer;
+        }
+
+        function interleaveChannels(channels) {
+            const length = channels[0].length;
+            const numChannels = channels.length;
+            const interleaved = new Float32Array(length * numChannels);
+            
+            for (let i = 0; i < length; i++) {
+                for (let ch = 0; ch < numChannels; ch++) {
+                    interleaved[i * numChannels + ch] = channels[ch][i];
+                }
+            }
+            
+            return interleaved;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
 
     </script>
 </body>
