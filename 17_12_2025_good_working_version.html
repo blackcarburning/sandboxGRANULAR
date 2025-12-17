@@ -1,0 +1,2444 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Granular Synthesizer</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: rgba(30, 30, 50, 0.95);
+            --accent: #00d4ff;
+            --accent-glow: rgba(0, 212, 255, 0.5);
+            --record-color: #ff0844;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        /* Overlays for Orientation and Start */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.3s;
+        }
+
+        .overlay h1 { color: var(--accent); margin-bottom: 20px; }
+        .overlay p { max-width: 400px; line-height: 1.5; color: #ccc; }
+        
+        #start-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 30px;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        /* Logic to show/hide orientation warning */
+        #orientation-overlay { display: none; }
+        
+        @media screen and (orientation: portrait) {
+            #orientation-overlay { display: flex; }
+            .synth-container { display: none !important; }
+        }
+
+        /* Main App Container */
+        .synth-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            padding: 5px;
+        }
+
+        /* Top Section: Controls + Rec */
+        .top-section {
+            display: flex;
+            gap: 5px;
+            flex: 1;
+            min-height: 0; /* Important for flex overflow */
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        /* Left Side: Recording */
+        .recording-section {
+            flex: 0 0 160px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow-y: auto;
+        }
+
+        /* LFO Section */
+        .lfo-section {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .lfo-section select, .control-group select {
+            padding: 4px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: var(--accent);
+            font-size: 10px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .lfo-section .control-group {
+            margin: 0;
+        }
+
+        .section-title {
+            color: var(--accent);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recording-buttons { display: flex; gap: 4px; }
+
+        button {
+            padding: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        #recordBtn {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: white;
+            flex: 1;
+        }
+
+        #recordBtn.recording {
+            animation: pulse 1s infinite;
+            background: #ff0000;
+        }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        #clearBtn {
+            background: #444;
+            color: white;
+            flex: 1;
+        }
+
+        #normalizeBtn {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: white;
+            flex: 1;
+        }
+
+        #normalizeBtn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        #waveformCanvas {
+            width: 100%;
+            flex: 1;
+            background: #0a0a15;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .status {
+            font-size: 9px;
+            color: #888;
+            text-align: center;
+            height: 12px;
+        }
+
+        /* Right Side: Sliders */
+        .controls-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .control-group.highlight {
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            color: #aaa;
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+
+        .control-group label .param-name {
+            flex: 1;
+        }
+
+        .control-group label .value { 
+            color: var(--accent); 
+            margin-left: 3px;
+        }
+
+        .control-group .button-group {
+            display: flex;
+            gap: 2px;
+            margin-left: auto;
+        }
+
+        .lfo-toggle, .inv-toggle, .mode-toggle {
+            padding: 1px 4px;
+            font-size: 8px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #444;
+            border-radius: 2px;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .lfo-toggle.active {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+
+        .inv-toggle.active {
+            background: #ff0844;
+            color: #fff;
+            border-color: #ff0844;
+        }
+
+        .mode-toggle {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--accent);
+            border-color: var(--accent);
+            font-weight: bold;
+            min-width: 28px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 3px;
+            border-radius: 2px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+            margin-top: -5.5px; /* vertical align */
+        }
+        
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 3px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        /* Keyboard Section */
+        .keyboard-section {
+            flex: 0 0 180px;
+            background: var(--panel-bg);
+            border-radius: 8px 8px 0 0;
+            padding: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-top: 2px solid var(--accent);
+            overflow-x: auto;
+            gap: 10px;
+        }
+
+        .keyboard {
+            display: flex;
+            position: relative;
+            height: 100%;
+        }
+
+        .key {
+            position: relative;
+            cursor: pointer;
+            border-radius: 0 0 3px 3px;
+            user-select: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 5px;
+            font-size: 8px;
+            font-weight: bold;
+            touch-action: none; /* Critical for glissando */
+        }
+
+        .key.white {
+            width: 40px;
+            height: 100%;
+            background: #fff;
+            border: 1px solid #ccc;
+            color: #333;
+            z-index: 1;
+            margin: 0 1px;
+        }
+
+        .key.black {
+            width: 26px;
+            height: 60%;
+            background: #000;
+            color: #fff;
+            position: absolute;
+            z-index: 2;
+            border-radius: 0 0 3px 3px;
+            pointer-events: auto;
+        }
+
+        .key.active {
+            background: var(--accent) !important;
+            transform: translateY(2px);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Black key positions */
+        .key.black[data-note="C#1"] { left: 28px; }
+        .key.black[data-note="D#1"] { left: 70px; }
+        .key.black[data-note="F#1"] { left: 154px; }
+        .key.black[data-note="G#1"] { left: 196px; }
+        .key.black[data-note="A#1"] { left: 238px; }
+        .key.black[data-note="C#2"] { left: 322px; }
+        .key.black[data-note="D#2"] { left: 364px; }
+        .key.black[data-note="F#2"] { left: 448px; }
+        .key.black[data-note="G#2"] { left: 490px; }
+        .key.black[data-note="A#2"] { left: 532px; }
+
+        /* Octave Controls */
+        .octave-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .octave-btn {
+            padding: 8px 12px;
+            font-size: 16px;
+            font-weight: bold;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            min-width: 40px;
+        }
+
+        .octave-display {
+            font-size: 10px;
+            color: var(--accent);
+            text-align: center;
+        }
+
+        .hold-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            min-width: 60px;
+            transition: all 0.2s;
+        }
+
+        .hold-btn.active {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .volume-bias-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+            padding: 5px;
+        }
+
+        .volume-bias-container label {
+            font-size: 9px;
+            color: #aaa;
+            text-align: center;
+        }
+
+        .volume-bias-container input[type="range"] {
+            width: 80px;
+            writing-mode: vertical-rl;
+            -webkit-appearance: slider-vertical;
+            height: 80px;
+        }
+
+        /* Tab System */
+        .tab-container {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .tab-button {
+            padding: 4px 8px;
+            font-size: 9px;
+            background: rgba(0,0,0,0.3);
+            border: none;
+            border-radius: 4px 4px 0 0;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .tab-button.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        #utility-tab.active {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        #utility-tab button {
+            width: 100%;
+            padding: 10px;
+            font-size: 11px;
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: #000;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        #utility-tab button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        #utility-tab button:active {
+            transform: translateY(0);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Orientation Overlay -->
+    <div id="orientation-overlay" class="overlay">
+        <h1>Please Rotate Your Device</h1>
+        <p>This synthesizer requires landscape mode for the best experience.</p>
+        <div style="font-size: 40px; margin-top: 20px;">↻</div>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay" class="overlay">
+        <h1>Granular Synth</h1>
+        <p>Touch 'Start' to enable audio and microphone access.</p>
+        <button id="start-btn">START ENGINE</button>
+    </div>
+
+    <div class="synth-container">
+        <div class="top-section">
+            <div class="recording-section">
+                <div class="section-title">Sample Source</div>
+                <div class="recording-buttons">
+                    <button id="recordBtn">Record Mic</button>
+                    <button id="normalizeBtn" disabled>Normalize</button>
+                    <button id="clearBtn">Clear</button>
+                </div>
+                <canvas id="waveformCanvas"></canvas>
+                <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
+                <div id="status" class="status">Waiting for audio...</div>
+
+                <div class="lfo-section">
+                    <div class="section-title">LFO Controls</div>
+                    <div class="control-group">
+                        <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">Hz</button><span class="value" id="lfoRateValue">1.0Hz</span></label>
+                        <input type="range" id="lfoRate" min="1" max="1000" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Waveform</span></label>
+                        <select id="lfoWaveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
+                        <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <div class="tab-container">
+                    <button class="tab-button active" data-tab="grain">Grain</button>
+                    <button class="tab-button" data-tab="filter">Filter</button>
+                    <button class="tab-button" data-tab="noise">Noise</button>
+                    <button class="tab-button" data-tab="fx">FX/LFO</button>
+                    <button class="tab-button" data-tab="utility">Utility</button>
+                </div>
+
+                <!-- Grain Tab -->
+                <div class="tab-content active" id="grain-tab">
+                    <div class="control-group highlight">
+                        <label>
+                            <span class="param-name">Sample Start</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="sampleStart">LFO</button>
+                                <button class="inv-toggle" data-param="sampleStart">INV</button>
+                            </div>
+                            <span class="value" id="sampleStartValue">0%</span>
+                        </label>
+                        <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group highlight">
+                        <label>
+                            <span class="param-name">Sample End</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="sampleEnd">LFO</button>
+                                <button class="inv-toggle" data-param="sampleEnd">INV</button>
+                            </div>
+                            <span class="value" id="sampleEndValue">100%</span>
+                        </label>
+                        <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Grain Size</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="grainSize">LFO</button>
+                                <button class="inv-toggle" data-param="grainSize">INV</button>
+                            </div>
+                            <span class="value" id="grainSizeValue">100ms</span>
+                        </label>
+                        <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Density</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="density">LFO</button>
+                                <button class="inv-toggle" data-param="density">INV</button>
+                            </div>
+                            <span class="value" id="densityValue">10</span>
+                        </label>
+                        <input type="range" id="density" min="1" max="40" value="10" step="1">
+                    </div>
+                    <div class="control-group highlight">
+                        <label>
+                            <span class="param-name">Scan Position</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="position">LFO</button>
+                                <button class="inv-toggle" data-param="position">INV</button>
+                            </div>
+                            <span class="value" id="positionValue">0%</span>
+                        </label>
+                        <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Spray (Rnd)</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="spray">LFO</button>
+                                <button class="inv-toggle" data-param="spray">INV</button>
+                            </div>
+                            <span class="value" id="sprayValue">0%</span>
+                        </label>
+                        <input type="range" id="spray" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Attack</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="attack">LFO</button>
+                                <button class="inv-toggle" data-param="attack">INV</button>
+                            </div>
+                            <span class="value" id="attackValue">10ms</span>
+                        </label>
+                        <input type="range" id="attack" min="1" max="200" value="10" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Release</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="release">LFO</button>
+                                <button class="inv-toggle" data-param="release">INV</button>
+                            </div>
+                            <span class="value" id="releaseValue">50ms</span>
+                        </label>
+                        <input type="range" id="release" min="1" max="5000" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Pitch Rand</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="pitchVar">LFO</button>
+                                <button class="inv-toggle" data-param="pitchVar">INV</button>
+                            </div>
+                            <span class="value" id="pitchVarValue">0%</span>
+                        </label>
+                        <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Stereo</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="panSpread">LFO</button>
+                                <button class="inv-toggle" data-param="panSpread">INV</button>
+                            </div>
+                            <span class="value" id="panSpreadValue">50%</span>
+                        </label>
+                        <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
+                    </div>
+                </div>
+
+                <!-- Filter Tab -->
+                <div class="tab-content" id="filter-tab">
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">LPF Cutoff</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfCutoff">LFO</button>
+                                <button class="inv-toggle" data-param="lpfCutoff">INV</button>
+                            </div>
+                            <span class="value" id="lpfCutoffValue">20000Hz</span>
+                        </label>
+                        <input type="range" id="lpfCutoff" min="20" max="20000" value="20000" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">LPF Resonance</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfQ">LFO</button>
+                                <button class="inv-toggle" data-param="lpfQ">INV</button>
+                            </div>
+                            <span class="value" id="lpfQValue">0.7</span>
+                        </label>
+                        <input type="range" id="lpfQ" min="0.1" max="20" value="0.7" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">HPF Cutoff</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfCutoff">LFO</button>
+                                <button class="inv-toggle" data-param="hpfCutoff">INV</button>
+                            </div>
+                            <span class="value" id="hpfCutoffValue">20Hz</span>
+                        </label>
+                        <input type="range" id="hpfCutoff" min="20" max="5000" value="20" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">HPF Resonance</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfQ">LFO</button>
+                                <button class="inv-toggle" data-param="hpfQ">INV</button>
+                            </div>
+                            <span class="value" id="hpfQValue">0.7</span>
+                        </label>
+                        <input type="range" id="hpfQ" min="0.1" max="20" value="0.7" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Amount</span>
+                            <span class="value" id="filterEnvAmountValue">0%</span>
+                        </label>
+                        <input type="range" id="filterEnvAmount" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Attack</span>
+                            <span class="value" id="filterEnvAttackValue">10ms</span>
+                        </label>
+                        <input type="range" id="filterEnvAttack" min="1" max="2000" value="10" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Decay</span>
+                            <span class="value" id="filterEnvDecayValue">200ms</span>
+                        </label>
+                        <input type="range" id="filterEnvDecay" min="1" max="5000" value="200" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Sustain</span>
+                            <span class="value" id="filterEnvSustainValue">50%</span>
+                        </label>
+                        <input type="range" id="filterEnvSustain" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Release</span>
+                            <span class="value" id="filterEnvReleaseValue">100ms</span>
+                        </label>
+                        <input type="range" id="filterEnvRelease" min="1" max="5000" value="100" step="1">
+                    </div>
+                </div>
+
+                <!-- Noise Tab -->
+                <div class="tab-content" id="noise-tab">
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Noise Type</span>
+                        </label>
+                        <select id="noiseType">
+                            <option value="none">None</option>
+                            <option value="white">White Noise</option>
+                            <option value="pink">Pink Noise</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Noise Mix</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="noiseMix">LFO</button>
+                                <button class="inv-toggle" data-param="noiseMix">INV</button>
+                            </div>
+                            <span class="value" id="noiseMixValue">0%</span>
+                        </label>
+                        <input type="range" id="noiseMix" min="0" max="100" value="0" step="1">
+                    </div>
+                </div>
+
+                <!-- FX/LFO Tab -->
+                <div class="tab-content" id="fx-tab">
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Reverb</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="reverb">LFO</button>
+                                <button class="inv-toggle" data-param="reverb">INV</button>
+                            </div>
+                            <span class="value" id="reverbValue">20%</span>
+                        </label>
+                        <input type="range" id="reverb" min="0" max="100" value="20" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Distortion</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="distortion">LFO</button>
+                                <button class="inv-toggle" data-param="distortion">INV</button>
+                            </div>
+                            <span class="value" id="distortionValue">0%</span>
+                        </label>
+                        <input type="range" id="distortion" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Phaser Rate</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="phaserRate">LFO</button>
+                                <button class="inv-toggle" data-param="phaserRate">INV</button>
+                            </div>
+                            <span class="value" id="phaserRateValue">0.5Hz</span>
+                        </label>
+                        <input type="range" id="phaserRate" min="0.1" max="10" value="0.5" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Phaser Depth</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="phaserDepth">LFO</button>
+                                <button class="inv-toggle" data-param="phaserDepth">INV</button>
+                            </div>
+                            <span class="value" id="phaserDepthValue">0%</span>
+                        </label>
+                        <input type="range" id="phaserDepth" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Tremolo Rate</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="tremoloRate">LFO</button>
+                                <button class="inv-toggle" data-param="tremoloRate">INV</button>
+                            </div>
+                            <span class="value" id="tremoloRateValue">5Hz</span>
+                        </label>
+                        <input type="range" id="tremoloRate" min="0.1" max="20" value="5" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Tremolo Depth</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="tremoloDepth">LFO</button>
+                                <button class="inv-toggle" data-param="tremoloDepth">INV</button>
+                            </div>
+                            <span class="value" id="tremoloDepthValue">0%</span>
+                        </label>
+                        <input type="range" id="tremoloDepth" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Master Vol</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="volume">LFO</button>
+                                <button class="inv-toggle" data-param="volume">INV</button>
+                            </div>
+                            <span class="value" id="volumeValue">100%</span>
+                        </label>
+                        <input type="range" id="volume" min="0" max="100" value="100" step="1">
+                    </div>
+                </div>
+
+                <!-- Utility Tab -->
+                <div class="tab-content" id="utility-tab">
+                    <div class="control-group">
+                        <button id="saveAudioBtn">Save Audio</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="loadAudioBtn">Load Audio</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="savePresetBtn">Save Preset</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="loadPresetBtn">Load Preset</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="resetEngineBtn">Reset Engine</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="resetDefaultBtn">Reset to Default</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="randomizeBtn">Randomize</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard-section">
+            <div class="octave-controls">
+                <button class="octave-btn" id="octaveUpBtn">+</button>
+                <div class="octave-display" id="octaveDisplay">Oct: 0</div>
+                <button class="octave-btn" id="octaveDownBtn">-</button>
+            </div>
+            <div class="volume-bias-container">
+                <label>Vol Bias</label>
+                <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
+                <div style="font-size: 8px; color: #666;">
+                    <div>Treble</div>
+                    <div style="margin-top: 40px;">Bass</div>
+                </div>
+            </div>
+            <button class="hold-btn" id="holdBtn">Hold</button>
+            <div class="keyboard" id="keyboardContainer">
+                <!-- Keys generated by JS or static HTML -->
+                <!-- Octave 1 -->
+                <div class="key white" data-note="C1">C1</div>
+                <div class="key black" data-note="C#1"></div>
+                <div class="key white" data-note="D1">D</div>
+                <div class="key black" data-note="D#1"></div>
+                <div class="key white" data-note="E1">E</div>
+                <div class="key white" data-note="F1">F</div>
+                <div class="key black" data-note="F#1"></div>
+                <div class="key white" data-note="G1">G</div>
+                <div class="key black" data-note="G#1"></div>
+                <div class="key white" data-note="A1">A</div>
+                <div class="key black" data-note="A#1"></div>
+                <div class="key white" data-note="B1">B</div>
+                <!-- Octave 2 -->
+                <div class="key white" data-note="C2">C2</div>
+                <div class="key black" data-note="C#2"></div>
+                <div class="key white" data-note="D2">D</div>
+                <div class="key black" data-note="D#2"></div>
+                <div class="key white" data-note="E2">E</div>
+                <div class="key white" data-note="F2">F</div>
+                <div class="key black" data-note="F#2"></div>
+                <div class="key white" data-note="G2">G</div>
+                <div class="key black" data-note="G#2"></div>
+                <div class="key white" data-note="A2">A</div>
+                <div class="key black" data-note="A#2"></div>
+                <div class="key white" data-note="B2">B</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Globals ---
+        let audioContext;
+        let audioBuffer = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let activeGrains = new Map();
+        let octaveOffset = 0;
+        let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
+        let holdEnabled = false;
+        let heldNotes = new Set();
+        
+        // Effects nodes
+        let reverbNode = null;
+        let dryGainNode = null;
+        let wetGainNode = null;
+        let masterGain = null;
+        let distortionNode = null;
+        let phaserNodes = [];
+        let phaserLFO = null;
+        let phaserLFOGain = null;
+        let tremoloGain = null;
+        let tremoloLFO = null;
+        let tremoloLFOGain = null;
+        let makeupGain = null; // Compensation for filter losses
+
+        // Filter nodes (4 stages each for 48dB)
+        let lpfNodes = [];
+        let hpfNodes = [];
+
+        // Noise buffers
+        let whiteNoiseBuffer = null;
+        let pinkNoiseBuffer = null;
+
+        // Frequencies (C2 base)
+        const noteFrequencies = {
+            'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
+            'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+        };
+        const baseFrequency = 65.41; // C2
+
+        // LFO State
+        let lfoStartTime = 0;
+        let lfoEnabled = {};
+        let lfoInverted = {};
+        let lfoMode = 'hz'; // 'hz' or 'bpm'
+        
+        // Parameter ranges for clamping
+        const paramRanges = {
+            sampleStart: { min: 0, max: 100 },
+            sampleEnd: { min: 0, max: 100 },
+            grainSize: { min: 10, max: 500 },
+            density: { min: 1, max: 40 },
+            position: { min: 0, max: 100 },
+            spray: { min: 0, max: 100 },
+            attack: { min: 1, max: 200 },
+            release: { min: 1, max: 5000 },
+            pitchVar: { min: 0, max: 100 },
+            panSpread: { min: 0, max: 100 },
+            reverb: { min: 0, max: 100 },
+            volume: { min: 0, max: 100 },
+            lpfCutoff: { min: 20, max: 20000 },
+            lpfQ: { min: 0.1, max: 20 },
+            hpfCutoff: { min: 20, max: 5000 },
+            hpfQ: { min: 0.1, max: 20 },
+            noiseMix: { min: 0, max: 100 },
+            distortion: { min: 0, max: 100 },
+            phaserRate: { min: 0.1, max: 10 },
+            phaserDepth: { min: 0, max: 100 },
+            tremoloRate: { min: 0.1, max: 20 },
+            tremoloDepth: { min: 0, max: 100 }
+        };
+
+        // --- LFO Engine ---
+        function getLFOValue() {
+            if (!audioContext) return 0;
+            
+            let rate = parseFloat(document.getElementById('lfoRate').value);
+            // Convert BPM to Hz if in BPM mode
+            if (lfoMode === 'bpm') {
+                rate = rate / 60;
+            }
+            const waveform = document.getElementById('lfoWaveform').value;
+            const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
+            
+            const elapsed = audioContext.currentTime - lfoStartTime;
+            // Use fract for better precision with long-running oscillators
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
+            
+            let value = 0;
+            switch (waveform) {
+                case 'sine':
+                    value = Math.sin(phase * Math.PI * 2);
+                    break;
+                case 'triangle':
+                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                    break;
+                case 'sawtooth':
+                    value = phase * 2 - 1;
+                    break;
+                case 'square':
+                    value = phase < 0.5 ? -1 : 1;
+                    break;
+            }
+            
+            return value * depth;
+        }
+
+        function getModulatedValue(paramId) {
+            const slider = document.getElementById(paramId);
+            if (!slider) return 0;
+            
+            const baseValue = parseFloat(slider.value);
+            
+            if (!lfoEnabled[paramId]) {
+                return baseValue;
+            }
+            
+            const lfoValue = getLFOValue();
+            const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
+            
+            const range = paramRanges[paramId];
+            const rangeSize = range.max - range.min;
+            const offset = invertedLFO * rangeSize * 0.5;
+            
+            const modulated = baseValue + offset;
+            return Math.max(range.min, Math.min(range.max, modulated));
+        }
+
+        // --- Initialization ---
+        const startBtn = document.getElementById('start-btn');
+        const startOverlay = document.getElementById('start-overlay');
+        const statusDiv = document.getElementById('status');
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') await audioContext.resume();
+                
+                lfoStartTime = audioContext.currentTime;
+                
+                await setupEffects();
+                startModulationLoop();
+                
+                // Run reset engine routine to ensure proper gain staging
+                // The full reset routine fixes the volume issue by reinitializing
+                // the audio context and chain with proper connections and gain values
+                await resetEngineRoutine();
+                
+                // Hide overlay
+                startOverlay.style.opacity = '0';
+                setTimeout(() => startOverlay.style.display = 'none', 300);
+                
+                statusDiv.textContent = "Engine Ready. Record something!";
+            } catch (e) {
+                console.error(e);
+                alert("Audio init failed: " + e.message);
+            }
+        });
+
+        async function setupEffects() {
+            // Master Volume
+            masterGain = audioContext.createGain();
+            masterGain.connect(audioContext.destination);
+
+            // Create 48dB filters (4 stages of 12dB each)
+            lpfNodes = [];
+            hpfNodes = [];
+            for (let i = 0; i < 4; i++) {
+                lpfNodes.push(audioContext.createBiquadFilter());
+                lpfNodes[i].type = 'lowpass';
+                hpfNodes.push(audioContext.createBiquadFilter());
+                hpfNodes[i].type = 'highpass';
+            }
+
+            // Chain filters together to create 48dB slope
+            // Each biquad filter provides 12dB/octave, cascading 4 stages gives 48dB/octave
+            for (let i = 0; i < 3; i++) {
+                lpfNodes[i].connect(lpfNodes[i + 1]);
+                hpfNodes[i].connect(hpfNodes[i + 1]);
+            }
+
+            // Distortion using WaveShaper
+            distortionNode = audioContext.createWaveShaper();
+            distortionNode.curve = makeDistortionCurve(0);
+            distortionNode.oversample = '4x';
+
+            // Phaser effect (using all-pass filters)
+            phaserNodes = [];
+            for (let i = 0; i < 4; i++) {
+                const allpass = audioContext.createBiquadFilter();
+                allpass.type = 'allpass';
+                allpass.frequency.value = 1000;
+                phaserNodes.push(allpass);
+            }
+            // Chain phaser nodes
+            for (let i = 0; i < 3; i++) {
+                phaserNodes[i].connect(phaserNodes[i + 1]);
+            }
+
+            // Phaser LFO
+            phaserLFO = audioContext.createOscillator();
+            phaserLFO.frequency.value = 0.5;
+            phaserLFOGain = audioContext.createGain();
+            phaserLFOGain.gain.value = 0;
+            phaserLFO.connect(phaserLFOGain);
+            // Connect LFO to phaser frequencies
+            phaserNodes.forEach(node => phaserLFOGain.connect(node.frequency));
+            phaserLFO.start();
+
+            // Tremolo effect (amplitude modulation)
+            tremoloGain = audioContext.createGain();
+            tremoloGain.gain.value = 1;
+            tremoloLFO = audioContext.createOscillator();
+            tremoloLFO.frequency.value = 5;
+            tremoloLFOGain = audioContext.createGain();
+            tremoloLFOGain.gain.value = 0;
+            tremoloLFO.connect(tremoloLFOGain);
+            tremoloLFOGain.connect(tremoloGain.gain);
+            tremoloLFO.start();
+
+            // Reverb Chain
+            reverbNode = audioContext.createConvolver();
+            dryGainNode = audioContext.createGain();
+            wetGainNode = audioContext.createGain();
+
+            // Create simple Impulse Response
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * 2.5; // 2.5 seconds tail
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+            for (let channel = 0; channel < 2; channel++) {
+                const data = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                }
+            }
+            reverbNode.buffer = impulse;
+
+            // Makeup gain to compensate for cascading filter losses
+            makeupGain = audioContext.createGain();
+            makeupGain.gain.value = 2.0; // Compensate for filter and effect losses
+
+            // Connections
+            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
+            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
+            hpfNodes[3].connect(lpfNodes[0]);
+            lpfNodes[3].connect(makeupGain);
+            makeupGain.connect(distortionNode);
+            distortionNode.connect(phaserNodes[0]);
+            phaserNodes[3].connect(tremoloGain);
+            tremoloGain.connect(dryGainNode);
+            tremoloGain.connect(reverbNode);
+            dryGainNode.connect(masterGain);
+            reverbNode.connect(wetGainNode);
+            wetGainNode.connect(masterGain);
+
+            // Generate noise buffers
+            createNoiseBuffers();
+
+            updateEffects();
+        }
+
+        function makeDistortionCurve(amount) {
+            const samples = 44100;
+            const curve = new Float32Array(samples);
+            const deg = Math.PI / 180;
+            const k = amount * 100;
+            
+            for (let i = 0; i < samples; i++) {
+                const x = (i * 2 / samples) - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+        function createNoiseBuffers() {
+            const sampleRate = audioContext.sampleRate;
+            const bufferSize = sampleRate * 2; // 2 seconds
+
+            // White Noise
+            whiteNoiseBuffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const whiteData = whiteNoiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                whiteData[i] = Math.random() * 2 - 1;
+            }
+
+            // Pink Noise (using Paul Kellett's approach)
+            // These filter coefficients create 1/f spectrum approximation
+            pinkNoiseBuffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const pinkData = pinkNoiseBuffer.getChannelData(0);
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                // Apply Kellett's pole-zero filters at different frequencies
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                pinkData[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                b6 = white * 0.115926;
+            }
+        }
+
+        function updateEffects() {
+            if (!dryGainNode) return;
+            const reverbAmt = getModulatedValue('reverb') / 100;
+            const volAmt = getModulatedValue('volume') / 100;
+            
+            // Improved dry/wet mix - maintain better unity gain
+            // Use equal-power crossfade for smoother transitions
+            dryGainNode.gain.value = Math.cos(reverbAmt * Math.PI / 2);
+            wetGainNode.gain.value = Math.sin(reverbAmt * Math.PI / 2) * 0.5; // Scale wet down to avoid overwhelming
+            masterGain.gain.value = volAmt;
+
+            // Update distortion
+            if (distortionNode) {
+                const distortionAmt = getModulatedValue('distortion') / 100;
+                distortionNode.curve = makeDistortionCurve(distortionAmt);
+            }
+
+            // Update phaser
+            if (phaserLFO && phaserLFOGain && phaserNodes.length > 0) {
+                const phaserRate = getModulatedValue('phaserRate');
+                const phaserDepth = getModulatedValue('phaserDepth') / 100;
+                phaserLFO.frequency.value = phaserRate;
+                // Control depth via LFO gain - modulates all-pass filter frequencies
+                phaserLFOGain.gain.value = phaserDepth * 1000; // 0-1000 Hz modulation range
+                // Update base frequency and Q for phaser nodes
+                const baseFreq = 1000;
+                phaserNodes.forEach((node, i) => {
+                    node.frequency.value = baseFreq * (i + 1);
+                    node.Q.value = 1 + (phaserDepth * 10);
+                });
+            }
+
+            // Update tremolo
+            if (tremoloLFO && tremoloLFOGain) {
+                const tremoloRate = getModulatedValue('tremoloRate');
+                const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
+                tremoloLFO.frequency.value = tremoloRate;
+                // Control tremolo depth via LFO gain - modulates output gain
+                // With depth=0, no modulation; with depth=1, full amplitude modulation
+                tremoloLFOGain.gain.value = tremoloDepth;
+            }
+
+            // Update filters
+            if (lpfNodes.length > 0) {
+                const lpfCutoff = getModulatedValue('lpfCutoff');
+                const lpfQ = getModulatedValue('lpfQ');
+                lpfNodes.forEach(node => {
+                    node.frequency.value = lpfCutoff;
+                    node.Q.value = lpfQ;
+                });
+            }
+
+            if (hpfNodes.length > 0) {
+                const hpfCutoff = getModulatedValue('hpfCutoff');
+                const hpfQ = getModulatedValue('hpfQ');
+                hpfNodes.forEach(node => {
+                    node.frequency.value = hpfCutoff;
+                    node.Q.value = hpfQ;
+                });
+            }
+        }
+
+        // Real-time modulation loop for global parameters
+        function startModulationLoop() {
+            function loop() {
+                updateEffects();
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // --- Recording ---
+        const recordBtn = document.getElementById('recordBtn');
+        const normalizeBtn = document.getElementById('normalizeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+
+        recordBtn.addEventListener('click', () => {
+            if (!audioContext) return alert("Click Start First");
+            if (isRecording) stopRecording();
+            else startRecording();
+        });
+
+        normalizeBtn.addEventListener('click', () => {
+            if (!audioBuffer) return;
+            normalizeAudio();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            audioBuffer = null;
+            recordedChunks = [];
+            const ctx = waveformCanvas.getContext('2d');
+            ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
+            statusDiv.textContent = "Buffer cleared";
+            normalizeBtn.disabled = true;
+            document.getElementById('auditionBtn').disabled = true;
+            stopAllGrains();
+        });
+
+        // --- Audition Button ---
+        let auditionSource = null;
+        document.getElementById('auditionBtn').addEventListener('click', () => {
+            if (!audioBuffer || !audioContext) return;
+            
+            // Stop any currently playing audition
+            if (auditionSource) {
+                try {
+                    auditionSource.stop();
+                } catch (e) {
+                    console.debug('Audition source already stopped:', e);
+                }
+                auditionSource = null;
+            }
+            
+            // Create a simple buffer source that plays through master gain
+            auditionSource = audioContext.createBufferSource();
+            auditionSource.buffer = audioBuffer;
+            
+            // Connect through master gain to respect volume control, but bypass effects
+            auditionSource.connect(masterGain);
+            
+            // Start playback
+            auditionSource.start(0);
+            
+            // Clear reference when finished
+            auditionSource.onended = () => {
+                auditionSource = null;
+            };
+            
+            statusDiv.textContent = 'Playing raw sample...';
+        });
+
+        async function startRecording() {
+            try {
+                // Ensure context is running
+                if (audioContext.state === 'suspended') await audioContext.resume();
+
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { 
+                        echoCancellation: false, 
+                        noiseSuppression: false, 
+                        autoGainControl: false 
+                    } 
+                });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    drawWaveform();
+                    statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
+                    normalizeBtn.disabled = false; // Enable normalize button
+                    document.getElementById('auditionBtn').disabled = false; // Enable audition button
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.textContent = "STOP";
+                recordBtn.classList.add('recording');
+                statusDiv.textContent = "Recording...";
+            } catch (err) {
+                console.error(err);
+                statusDiv.textContent = "Mic Error: " + err.message;
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.textContent = "Record Mic";
+                recordBtn.classList.remove('recording');
+            }
+        }
+
+        function normalizeAudio() {
+            if (!audioBuffer) return;
+            
+            // Find the peak amplitude across all channels
+            let peak = 0;
+            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                const channelData = audioBuffer.getChannelData(channel);
+                for (let i = 0; i < channelData.length; i++) {
+                    const abs = Math.abs(channelData[i]);
+                    if (abs > peak) peak = abs;
+                }
+            }
+            
+            // Avoid division by zero and handle silent buffers
+            // Use epsilon for floating-point comparison
+            const epsilon = 0.0001;
+            if (peak === 0 || Math.abs(peak - 1.0) < epsilon) {
+                statusDiv.textContent = peak === 0 ? "Buffer is silent" : "Already normalized";
+                return;
+            }
+            
+            // Calculate scaling factor to make peak = 1.0
+            const scaleFactor = 1.0 / peak;
+            
+            // Create a new buffer with the normalized data
+            const normalizedBuffer = audioContext.createBuffer(
+                audioBuffer.numberOfChannels,
+                audioBuffer.length,
+                audioBuffer.sampleRate
+            );
+            
+            // Scale all samples
+            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                const sourceData = audioBuffer.getChannelData(channel);
+                const destData = normalizedBuffer.getChannelData(channel);
+                for (let i = 0; i < sourceData.length; i++) {
+                    destData[i] = sourceData[i] * scaleFactor;
+                }
+            }
+            
+            // Replace the audio buffer with normalized version
+            audioBuffer = normalizedBuffer;
+            
+            // Update the waveform display
+            drawWaveform();
+            
+            // Update status
+            statusDiv.textContent = `Normalized (peak: ${(peak * 100).toFixed(1)}% → 100%)`;
+        }
+
+        // --- Waveform & Visualization ---
+        function drawWaveform() {
+            if (!audioBuffer) return;
+            
+            // Handle resizing
+            waveformCanvas.width = waveformCanvas.offsetWidth;
+            waveformCanvas.height = waveformCanvas.offsetHeight;
+
+            const ctx = waveformCanvas.getContext('2d');
+            const width = waveformCanvas.width;
+            const height = waveformCanvas.height;
+            const data = audioBuffer.getChannelData(0);
+            const step = Math.ceil(data.length / width);
+            const amp = height / 2;
+
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw Wave
+            ctx.beginPath();
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < width; i++) {
+                let min = 1.0;
+                let max = -1.0;
+                for (let j = 0; j < step; j++) {
+                    const val = data[(i * step) + j];
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                ctx.moveTo(i, (1 + min) * amp);
+                ctx.lineTo(i, (1 + max) * amp);
+            }
+            ctx.stroke();
+
+            // Draw Start/End Markers
+            const startPct = document.getElementById('sampleStart').value / 100;
+            const endPct = document.getElementById('sampleEnd').value / 100;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            // Inactive area before start
+            ctx.fillRect(0, 0, width * startPct, height);
+            // Inactive area after end
+            ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
+
+            ctx.strokeStyle = '#ff0844';
+            ctx.beginPath();
+            ctx.moveTo(width * startPct, 0);
+            ctx.lineTo(width * startPct, height);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ff0844';
+            ctx.beginPath();
+            ctx.moveTo(width * endPct, 0);
+            ctx.lineTo(width * endPct, height);
+            ctx.stroke();
+        }
+
+        // --- Helper Functions ---
+        function canPlayGrains() {
+            // Allow playback if we have either audio buffer or noise selected
+            const noiseType = document.getElementById('noiseType').value;
+            return audioContext && (audioBuffer || noiseType !== 'none');
+        }
+
+        // --- Filter Envelope ---
+        function applyFilterEnvelope(note, startTime, duration) {
+            const filterEnvAmount = parseFloat(document.getElementById('filterEnvAmount').value) / 100;
+            if (filterEnvAmount <= 0 || lpfNodes.length === 0) return;
+
+            const attack = parseFloat(document.getElementById('filterEnvAttack').value) / 1000;
+            const decay = parseFloat(document.getElementById('filterEnvDecay').value) / 1000;
+            const sustain = parseFloat(document.getElementById('filterEnvSustain').value) / 100;
+            const release = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+
+            const baseCutoff = getModulatedValue('lpfCutoff');
+            const maxCutoff = 20000;
+            const envelopedCutoff = baseCutoff + (filterEnvAmount * (maxCutoff - baseCutoff));
+
+            const now = startTime;
+            const peakTime = now + attack;
+            const sustainTime = now + attack + decay;
+            const releaseStart = now + duration;
+            const releaseEnd = releaseStart + release;
+
+            lpfNodes.forEach(node => {
+                // Cancel any previous scheduled values
+                node.frequency.cancelScheduledValues(now);
+                // Set initial value to base cutoff
+                node.frequency.setValueAtTime(baseCutoff, now);
+                // Attack phase: rise to enveloped cutoff
+                node.frequency.linearRampToValueAtTime(envelopedCutoff, peakTime);
+                // Decay phase: fall to sustain level
+                const sustainCutoff = baseCutoff + ((envelopedCutoff - baseCutoff) * sustain);
+                node.frequency.linearRampToValueAtTime(sustainCutoff, sustainTime);
+                // Hold at sustain
+                node.frequency.setValueAtTime(sustainCutoff, releaseStart);
+                // Release phase: return to base cutoff
+                node.frequency.linearRampToValueAtTime(baseCutoff, releaseEnd);
+            });
+        }
+
+        // --- Granular Engine ---
+        function playGrain(note) {
+            if (!canPlayGrains()) return;
+
+            // Params with LFO modulation
+            const grainSize = getModulatedValue('grainSize') / 1000; // seconds
+            const attack = getModulatedValue('attack') / 1000;
+            const release = getModulatedValue('release') / 1000;
+            const spray = getModulatedValue('spray') / 100;
+            const pitchVar = getModulatedValue('pitchVar') / 100;
+            const panSpread = getModulatedValue('panSpread') / 100;
+            const noiseMix = getModulatedValue('noiseMix') / 100;
+
+            // Pitch Calculation with octave offset
+            const noteFreq = noteFrequencies[note];
+            const octaveMultiplier = Math.pow(2, octaveOffset);
+            let rate = (noteFreq / baseFrequency) * octaveMultiplier;
+            // Add Pitch Randomness
+            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
+
+            const envelope = audioContext.createGain();
+            const panner = audioContext.createStereoPanner();
+            const mixer = audioContext.createGain();
+
+            // Calculate keyboard volume bias based on note pitch
+            // Map note frequency to a 0-1 range (using log scale for better distribution)
+            const minFreq = 32.70; // C1
+            const maxFreq = 123.47; // B2
+            let normalizedPitch = (Math.log(noteFreq) - Math.log(minFreq)) / (Math.log(maxFreq) - Math.log(minFreq));
+            // Clamp to 0-1 range to handle octave offsets that go beyond C1-B2
+            normalizedPitch = Math.max(0, Math.min(1, normalizedPitch));
+            // Apply bias: at bias=-1, bass loud (low pitch = 1.0, high pitch = 0.3)
+            //             at bias=+1, treble loud (low pitch = 0.3, high pitch = 1.0)
+            //             at bias=0, equal volume (all = 1.0)
+            let volumeMultiplier = 1.0;
+            if (keyboardVolumeBias !== 0) {
+                // Linear interpolation based on pitch position and bias
+                // At center (bias=0): all notes = 1.0
+                // At extremes: range from 0.3 to 1.0
+                const range = 0.7; // Volume range (1.0 - 0.3)
+                const minVol = 0.3;
+                if (keyboardVolumeBias < 0) {
+                    // Bass emphasis: low notes loud, high notes quiet
+                    volumeMultiplier = minVol + range * (1 - normalizedPitch * Math.abs(keyboardVolumeBias));
+                } else {
+                    // Treble emphasis: high notes loud, low notes quiet
+                    volumeMultiplier = minVol + range * (normalizedPitch * keyboardVolumeBias + (1 - keyboardVolumeBias));
+                }
+            }
+
+            // Random Pan
+            panner.pan.value = (Math.random() * 2 - 1) * panSpread;
+
+            // Create sample source if available and needed
+            if (audioBuffer && noiseMix < 1.0) {
+                // Start/End Logic with LFO modulation
+                let startPct = getModulatedValue('sampleStart') / 100;
+                let endPct = getModulatedValue('sampleEnd') / 100;
+                
+                // Swap if user crosses sliders
+                if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
+
+                const bufferDuration = audioBuffer.duration;
+                const validStart = bufferDuration * startPct;
+                const validEnd = bufferDuration * endPct;
+                const validDuration = validEnd - validStart;
+
+                // Playhead Position (within the valid window) with LFO modulation
+                const posSlider = getModulatedValue('position') / 100;
+                let playPosition = validStart + (posSlider * validDuration);
+
+                // Add Spray
+                const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
+                playPosition += randomSpray;
+
+                // Clamp
+                playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
+
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.playbackRate.value = rate;
+                source.loop = true; // Enable looping
+
+                const sampleGain = audioContext.createGain();
+                sampleGain.gain.value = 1 - noiseMix;
+
+                source.connect(sampleGain);
+                sampleGain.connect(mixer);
+
+                const now = audioContext.currentTime;
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
+                source.start(now, playPosition);
+                // Stop after envelope completes
+                source.stop(now + totalDuration);
+            }
+
+            // Create noise source if selected
+            const noiseType = document.getElementById('noiseType').value;
+            if (noiseType !== 'none' && noiseMix > 0) {
+                const noiseSource = audioContext.createBufferSource();
+                noiseSource.buffer = noiseType === 'white' ? whiteNoiseBuffer : pinkNoiseBuffer;
+                noiseSource.playbackRate.value = rate;
+                noiseSource.loop = true;
+
+                const noiseGain = audioContext.createGain();
+                noiseGain.gain.value = noiseMix;
+
+                noiseSource.connect(noiseGain);
+                noiseGain.connect(mixer);
+
+                const now = audioContext.currentTime;
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
+                noiseSource.start(now);
+                noiseSource.stop(now + totalDuration);
+            }
+
+            // Connect through filters
+            mixer.connect(envelope);
+            envelope.connect(panner);
+            panner.connect(hpfNodes[0]);
+
+            // Envelope - extend to include release time, scaled by volume multiplier
+            const now = audioContext.currentTime;
+            const sustainTime = Math.max(grainSize - attack, 0.001); // Ensure positive sustain duration
+            envelope.gain.setValueAtTime(0, now);
+            envelope.gain.linearRampToValueAtTime(volumeMultiplier, now + attack);
+            envelope.gain.setValueAtTime(volumeMultiplier, now + attack + sustainTime);
+            envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
+        }
+
+        // --- Scheduler ---
+        function startGrainStream(note) {
+            if (!canPlayGrains()) return;
+            if (activeGrains.has(note)) return; // Already playing
+
+            const grainState = { timeoutId: null, startTime: audioContext.currentTime };
+            
+            function schedule() {
+                playGrain(note);
+                
+                // Get current modulated density for next iteration
+                const density = getModulatedValue('density');
+                const intervalTime = 1000 / density;
+                
+                grainState.timeoutId = setTimeout(schedule, intervalTime);
+            }
+
+            // Store cancellation function before first call
+            activeGrains.set(note, { 
+                cancel: () => clearTimeout(grainState.timeoutId),
+                startTime: grainState.startTime
+            });
+            
+            // Apply filter envelope when note starts
+            // Use a long duration (60 seconds) to allow envelope to sustain until note is released
+            const FILTER_ENVELOPE_MAX_DURATION = 60;
+            applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
+            
+            // Play one immediately and start recursion
+            schedule();
+        }
+
+        function stopGrainStream(note) {
+            if (activeGrains.has(note)) {
+                const grainInfo = activeGrains.get(note);
+                grainInfo.cancel();
+                
+                // Trigger filter envelope release
+                const now = audioContext.currentTime;
+                const filterRelease = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+                const baseCutoff = getModulatedValue('lpfCutoff');
+                
+                if (lpfNodes.length > 0) {
+                    lpfNodes.forEach(node => {
+                        node.frequency.cancelScheduledValues(now);
+                        node.frequency.setValueAtTime(node.frequency.value, now);
+                        node.frequency.linearRampToValueAtTime(baseCutoff, now + filterRelease);
+                    });
+                }
+                
+                activeGrains.delete(note);
+            }
+        }
+
+        function stopAllGrains() {
+            activeGrains.forEach(grain => grain.cancel());
+            activeGrains.clear();
+        }
+
+        // --- Input Handling (Pointer Events) ---
+        const keys = document.querySelectorAll('.key');
+        
+        keys.forEach(key => {
+            // Use pointerdown/up for unified mouse/touch support
+            key.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Prevent scrolling
+                const note = key.dataset.note;
+                
+                // If note is already held, release it
+                if (heldNotes.has(note)) {
+                    heldNotes.delete(note);
+                    stopGrainStream(note);
+                    key.classList.remove('active');
+                    return;
+                }
+                
+                key.classList.add('active');
+                key.setPointerCapture(e.pointerId); // Capture drag
+                startGrainStream(note);
+            });
+
+            key.addEventListener('pointerup', (e) => {
+                const note = key.dataset.note;
+                key.releasePointerCapture(e.pointerId);
+                
+                // If Hold is enabled, add to held notes instead of stopping
+                if (holdEnabled && !heldNotes.has(note)) {
+                    heldNotes.add(note);
+                    // Keep the key visually active
+                } else if (!holdEnabled) {
+                    key.classList.remove('active');
+                    stopGrainStream(note);
+                }
+            });
+
+            key.addEventListener('pointerleave', (e) => {
+                const note = key.dataset.note;
+                // Only stop if not in hold mode and key is being played
+                if (key.classList.contains('active') && !holdEnabled && !heldNotes.has(note)) {
+                   key.classList.remove('active');
+                   stopGrainStream(note);
+                }
+            });
+        });
+
+        // --- Slider Listeners ---
+        const sliders = document.querySelectorAll('input[type="range"]');
+        sliders.forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                // Special handling for LFO rate
+                if (e.target.id === 'lfoRate') {
+                    updateLFORateDisplay();
+                } else {
+                    // Update text label
+                    const labelSpan = document.getElementById(e.target.id + 'Value');
+                    if (labelSpan) {
+                        let suffix = '';
+                        if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
+                        else if (e.target.id === 'density') suffix = ' gr/s';
+                        else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff') suffix = 'Hz';
+                        else if (e.target.id === 'lpfQ' || e.target.id === 'hpfQ') suffix = '';
+                        else if (e.target.id === 'phaserRate' || e.target.id === 'tremoloRate') suffix = 'Hz';
+                        else suffix = '%';
+                        labelSpan.textContent = e.target.value + suffix;
+                    }
+                }
+
+                // Special handling for effects or redraw
+                if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' || 
+                    e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
+                    e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth') {
+                    updateEffects();
+                }
+                if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
+                if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
+            });
+        });
+
+        // --- LFO Rate Display Update ---
+        function updateLFORateDisplay() {
+            const rateSlider = document.getElementById('lfoRate');
+            const rateValue = document.getElementById('lfoRateValue');
+            const value = parseFloat(rateSlider.value);
+            
+            if (lfoMode === 'hz') {
+                if (value >= 1000) {
+                    rateValue.textContent = (value / 1000).toFixed(1) + 'kHz';
+                } else {
+                    rateValue.textContent = value.toFixed(1) + 'Hz';
+                }
+            } else {
+                rateValue.textContent = Math.round(value) + 'BPM';
+            }
+        }
+
+        // --- LFO Mode Toggle ---
+        document.getElementById('lfoModeToggle').addEventListener('click', () => {
+            const rateSlider = document.getElementById('lfoRate');
+            const modeToggle = document.getElementById('lfoModeToggle');
+            const currentValue = parseFloat(rateSlider.value);
+            
+            if (lfoMode === 'hz') {
+                // Switch to BPM
+                lfoMode = 'bpm';
+                modeToggle.textContent = 'BPM';
+                // Convert current Hz value to BPM (Hz * 60)
+                const bpmValue = currentValue * 60;
+                rateSlider.min = '1';
+                rateSlider.max = '250';
+                rateSlider.step = '1';
+                rateSlider.value = bpmValue;
+            } else {
+                // Switch to Hz
+                lfoMode = 'hz';
+                modeToggle.textContent = 'Hz';
+                // Convert current BPM value to Hz (BPM / 60)
+                const hzValue = currentValue / 60;
+                rateSlider.min = '1';
+                rateSlider.max = '1000';
+                rateSlider.step = '0.1';
+                rateSlider.value = hzValue;
+            }
+            
+            updateLFORateDisplay();
+        });
+
+        // --- LFO Toggle Listeners ---
+        document.querySelectorAll('.lfo-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const param = btn.dataset.param;
+                lfoEnabled[param] = !lfoEnabled[param];
+                btn.classList.toggle('active');
+            });
+        });
+
+        document.querySelectorAll('.inv-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const param = btn.dataset.param;
+                lfoInverted[param] = !lfoInverted[param];
+                btn.classList.toggle('active');
+            });
+        });
+
+        // --- Octave Controls ---
+        function updateOctaveDisplay() {
+            const sign = octaveOffset > 0 ? '+' : '';
+            document.getElementById('octaveDisplay').textContent = `Oct: ${sign}${octaveOffset}`;
+        }
+
+        document.getElementById('octaveUpBtn').addEventListener('click', () => {
+            octaveOffset = Math.min(octaveOffset + 1, 3);
+            updateOctaveDisplay();
+        });
+
+        document.getElementById('octaveDownBtn').addEventListener('click', () => {
+            octaveOffset = Math.max(octaveOffset - 1, -3);
+            updateOctaveDisplay();
+        });
+
+        // --- Volume Bias Control ---
+        document.getElementById('volumeBiasSlider').addEventListener('input', (e) => {
+            keyboardVolumeBias = parseFloat(e.target.value) / 100; // Convert to -1 to +1 range
+        });
+
+        // --- Hold Button ---
+        document.getElementById('holdBtn').addEventListener('click', () => {
+            const holdBtn = document.getElementById('holdBtn');
+            if (holdEnabled) {
+                // Disable hold and release all held notes
+                holdEnabled = false;
+                holdBtn.classList.remove('active');
+                heldNotes.forEach(note => {
+                    stopGrainStream(note);
+                    const key = document.querySelector(`.key[data-note="${note}"]`);
+                    if (key) key.classList.remove('active');
+                });
+                heldNotes.clear();
+            } else {
+                // Enable hold
+                holdEnabled = true;
+                holdBtn.classList.add('active');
+            }
+        });
+
+        // --- Tab System ---
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+                
+                // Update button states
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update content visibility
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(targetTab + '-tab').classList.add('active');
+            });
+        });
+
+        // Window Resize
+        window.addEventListener('resize', drawWaveform);
+
+        // --- Utility Functions ---
+        
+        // Hidden file input for audio loading
+        const audioFileInput = document.createElement('input');
+        audioFileInput.type = 'file';
+        audioFileInput.accept = 'audio/*,.wav,.mp3,.ogg,.webm,.m4a';
+        audioFileInput.style.display = 'none';
+        document.body.appendChild(audioFileInput);
+
+        // Hidden file input for preset loading
+        const presetFileInput = document.createElement('input');
+        presetFileInput.type = 'file';
+        presetFileInput.accept = '.json';
+        presetFileInput.style.display = 'none';
+        document.body.appendChild(presetFileInput);
+
+        // Save Audio Button
+        document.getElementById('saveAudioBtn').addEventListener('click', () => {
+            if (!audioBuffer) {
+                alert('No audio buffer to save. Please load or record audio first.');
+                return;
+            }
+            
+            // Convert audioBuffer to WAV
+            const wav = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wav], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `granular-sample-${Date.now()}.wav`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            statusDiv.textContent = 'Audio saved successfully';
+        });
+
+        // Load Audio Button
+        document.getElementById('loadAudioBtn').addEventListener('click', () => {
+            if (!audioContext) {
+                alert('Please start the engine first.');
+                return;
+            }
+            audioFileInput.click();
+        });
+
+        audioFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                drawWaveform();
+                statusDiv.textContent = `Loaded: ${file.name} (${audioBuffer.duration.toFixed(2)}s)`;
+                normalizeBtn.disabled = false;
+                document.getElementById('auditionBtn').disabled = false;
+            } catch (err) {
+                console.error(err);
+                alert('Failed to load audio file: ' + err.message);
+            }
+            
+            // Reset input
+            e.target.value = '';
+        });
+
+        // Save Preset Button
+        document.getElementById('savePresetBtn').addEventListener('click', () => {
+            const preset = gatherPreset();
+            const json = JSON.stringify(preset, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `granular-preset-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            statusDiv.textContent = 'Preset saved successfully';
+        });
+
+        // Load Preset Button
+        document.getElementById('loadPresetBtn').addEventListener('click', () => {
+            presetFileInput.click();
+        });
+
+        presetFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const text = await file.text();
+                const preset = JSON.parse(text);
+                applyPreset(preset);
+                statusDiv.textContent = `Preset loaded: ${file.name}`;
+            } catch (err) {
+                console.error(err);
+                alert('Failed to load preset: ' + err.message);
+            }
+            
+            // Reset input
+            e.target.value = '';
+        });
+
+        // Reset Engine Routine - extracted for reuse
+        async function resetEngineRoutine() {
+            if (!audioContext) {
+                return;
+            }
+            
+            // Stop all active grains
+            stopAllGrains();
+            
+            // Close existing context
+            await audioContext.close();
+            
+            // Create new context
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+            
+            lfoStartTime = audioContext.currentTime;
+            
+            // Reinitialize effects
+            await setupEffects();
+            startModulationLoop();
+        }
+
+        // Reset Engine Button
+        document.getElementById('resetEngineBtn').addEventListener('click', async () => {
+            if (!audioContext) {
+                alert('Engine not initialized yet.');
+                return;
+            }
+            
+            await resetEngineRoutine();
+            
+            statusDiv.textContent = 'Engine reset successfully';
+        });
+
+        // Randomize Button
+        document.getElementById('randomizeBtn').addEventListener('click', () => {
+            // Get all sliders
+            const allSliders = document.querySelectorAll('input[type="range"]');
+            
+            allSliders.forEach(slider => {
+                const min = parseFloat(slider.min);
+                const max = parseFloat(slider.max);
+                const step = parseFloat(slider.step);
+                
+                // Generate random value
+                const range = max - min;
+                let randomValue = min + (Math.random() * range);
+                
+                // Round to step if step is positive
+                if (step > 0) {
+                    randomValue = Math.round(randomValue / step) * step;
+                }
+                
+                slider.value = randomValue;
+                
+                // Trigger input event to update display and effects
+                slider.dispatchEvent(new Event('input'));
+            });
+            
+            // Randomize LFO and INV toggles
+            document.querySelectorAll('.lfo-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                // 40% chance of enabling LFO (within 30-50% target range)
+                const shouldEnable = Math.random() < 0.4;
+                const isCurrentlyEnabled = lfoEnabled[param];
+                
+                // Toggle if needed
+                if (shouldEnable !== isCurrentlyEnabled) {
+                    btn.click();
+                }
+            });
+            
+            document.querySelectorAll('.inv-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                // Only randomize INV if LFO is enabled for this parameter
+                if (lfoEnabled[param]) {
+                    // 40% chance of enabling INV (within 30-50% target range)
+                    const shouldInvert = Math.random() < 0.4;
+                    const isCurrentlyInverted = lfoInverted[param];
+                    
+                    // Toggle if needed
+                    if (shouldInvert !== isCurrentlyInverted) {
+                        btn.click();
+                    }
+                } else {
+                    // If LFO is not enabled, ensure INV is disabled
+                    if (lfoInverted[param]) {
+                        btn.click();
+                    }
+                }
+            });
+            
+            statusDiv.textContent = 'All parameters randomized';
+        });
+
+        // Reset to Default Button
+        document.getElementById('resetDefaultBtn').addEventListener('click', () => {
+            // Define default values based on HTML initial values
+            const defaults = {
+                sampleStart: 0,
+                sampleEnd: 100,
+                grainSize: 100,
+                density: 10,
+                position: 0,
+                spray: 0,
+                attack: 10,
+                release: 50,
+                pitchVar: 0,
+                panSpread: 50,
+                lpfCutoff: 20000,
+                lpfQ: 0.7,
+                hpfCutoff: 20,
+                hpfQ: 0.7,
+                filterEnvAmount: 0,
+                filterEnvAttack: 10,
+                filterEnvDecay: 200,
+                filterEnvSustain: 50,
+                filterEnvRelease: 100,
+                noiseMix: 0,
+                reverb: 20,
+                distortion: 0,
+                phaserRate: 0.5,
+                phaserDepth: 0,
+                tremoloRate: 5,
+                tremoloDepth: 0,
+                volume: 100,
+                lfoRate: 1.0,
+                lfoDepth: 50
+            };
+            
+            // Reset all sliders to default values
+            Object.keys(defaults).forEach(id => {
+                const slider = document.getElementById(id);
+                if (slider) {
+                    slider.value = defaults[id];
+                    slider.dispatchEvent(new Event('input'));
+                }
+            });
+            
+            // Reset dropdowns to default
+            document.getElementById('lfoWaveform').value = 'sine';
+            document.getElementById('noiseType').value = 'none';
+            
+            // Reset LFO mode to Hz if it's in BPM
+            if (lfoMode === 'bpm') {
+                const rateSlider = document.getElementById('lfoRate');
+                const modeToggle = document.getElementById('lfoModeToggle');
+                lfoMode = 'hz';
+                modeToggle.textContent = 'Hz';
+                rateSlider.min = '1';
+                rateSlider.max = '1000';
+                rateSlider.step = '0.1';
+                rateSlider.value = 1.0;
+                updateLFORateDisplay();
+            }
+            
+            // Turn off all LFO toggles
+            document.querySelectorAll('.lfo-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                if (lfoEnabled[param]) {
+                    lfoEnabled[param] = false;
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Turn off all INV toggles
+            document.querySelectorAll('.inv-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                if (lfoInverted[param]) {
+                    lfoInverted[param] = false;
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Reset octave offset
+            octaveOffset = 0;
+            updateOctaveDisplay();
+            
+            // Update waveform display if audio buffer exists
+            if (audioBuffer) {
+                drawWaveform();
+            }
+            
+            statusDiv.textContent = 'All parameters reset to defaults';
+        });
+
+        // Helper function to gather all preset data
+        function gatherPreset() {
+            const preset = {
+                version: '1.0',
+                timestamp: new Date().toISOString(),
+                sliders: {},
+                lfo: {
+                    mode: lfoMode,
+                    enabled: {},
+                    inverted: {}
+                },
+                octave: octaveOffset
+            };
+            
+            // Gather all slider values
+            document.querySelectorAll('input[type="range"]').forEach(slider => {
+                preset.sliders[slider.id] = slider.value;
+            });
+            
+            // Gather dropdown values
+            preset.lfoWaveform = document.getElementById('lfoWaveform').value;
+            preset.noiseType = document.getElementById('noiseType').value;
+            
+            // Gather LFO enabled/inverted states
+            preset.lfo.enabled = { ...lfoEnabled };
+            preset.lfo.inverted = { ...lfoInverted };
+            
+            return preset;
+        }
+
+        // Helper function to apply preset
+        function applyPreset(preset) {
+            if (!preset || typeof preset !== 'object' || Array.isArray(preset)) {
+                throw new Error('Invalid preset format');
+            }
+            
+            // Apply slider values
+            if (preset.sliders) {
+                Object.keys(preset.sliders).forEach(id => {
+                    const slider = document.getElementById(id);
+                    if (slider) {
+                        slider.value = preset.sliders[id];
+                        slider.dispatchEvent(new Event('input'));
+                    }
+                });
+            }
+            
+            // Apply dropdown values
+            if (preset.lfoWaveform) {
+                document.getElementById('lfoWaveform').value = preset.lfoWaveform;
+            }
+            if (preset.noiseType) {
+                document.getElementById('noiseType').value = preset.noiseType;
+            }
+            
+            // Apply LFO mode
+            if (preset.lfo && preset.lfo.mode && preset.lfo.mode !== lfoMode) {
+                document.getElementById('lfoModeToggle').click();
+            }
+            
+            // Apply LFO enabled states
+            if (preset.lfo && preset.lfo.enabled) {
+                Object.keys(preset.lfo.enabled).forEach(param => {
+                    const shouldBeEnabled = preset.lfo.enabled[param];
+                    const isEnabled = lfoEnabled[param];
+                    
+                    if (shouldBeEnabled !== isEnabled) {
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply LFO inverted states
+            if (preset.lfo && preset.lfo.inverted) {
+                Object.keys(preset.lfo.inverted).forEach(param => {
+                    const shouldBeInverted = preset.lfo.inverted[param];
+                    const isInverted = lfoInverted[param];
+                    
+                    if (shouldBeInverted !== isInverted) {
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply octave offset
+            if (preset.octave !== undefined) {
+                octaveOffset = preset.octave;
+                updateOctaveDisplay();
+            }
+        }
+
+        // Helper function to convert AudioBuffer to WAV
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            
+            const data = [];
+            for (let i = 0; i < numChannels; i++) {
+                data.push(buffer.getChannelData(i));
+            }
+            
+            const interleaved = interleaveChannels(data);
+            const dataLength = interleaved.length * bytesPerSample;
+            const headerLength = 44;
+            const totalLength = headerLength + dataLength;
+            
+            const arrayBuffer = new ArrayBuffer(totalLength);
+            const view = new DataView(arrayBuffer);
+            
+            // Write WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, totalLength - 8, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // fmt chunk size
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+            
+            // Write audio data
+            let offset = 44;
+            for (let i = 0; i < interleaved.length; i++) {
+                const sample = Math.max(-1, Math.min(1, interleaved[i]));
+                const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                view.setInt16(offset, intSample, true);
+                offset += 2;
+            }
+            
+            return arrayBuffer;
+        }
+
+        function interleaveChannels(channels) {
+            const length = channels[0].length;
+            const numChannels = channels.length;
+            const interleaved = new Float32Array(length * numChannels);
+            
+            for (let i = 0; i < length; i++) {
+                for (let ch = 0; ch < numChannels; ch++) {
+                    interleaved[i * numChannels + ch] = channels[ch][i];
+                }
+            }
+            
+            return interleaved;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+    </script>
+</body>
+</html>
