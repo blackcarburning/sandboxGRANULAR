@@ -1090,6 +1090,17 @@
 
     <script>
         // --- Prevent Zoom and Browser UI Interference ---
+        // Helper function to check if element is interactive
+        function isInteractiveElement(target) {
+            return target.tagName === 'INPUT' || 
+                   target.tagName === 'BUTTON' || 
+                   target.tagName === 'SELECT' || 
+                   target.tagName === 'CANVAS' ||
+                   target.classList.contains('key') ||
+                   target.classList.contains('value') || 
+                   target.tagName === 'LABEL';
+        }
+        
         // Prevent gesturestart and gesturechange events (pinch zoom on iOS)
         document.addEventListener('gesturestart', (e) => {
             e.preventDefault();
@@ -1103,9 +1114,16 @@
             e.preventDefault();
         }, { passive: false });
 
-        // Prevent double-tap zoom on document
+        // Prevent double-tap zoom on non-interactive elements
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (e) => {
+            const target = e.target;
+            
+            // Allow double-tap on interactive elements
+            if (isInteractiveElement(target)) {
+                return;
+            }
+            
             const now = Date.now();
             if (now - lastTouchEnd <= 300) {
                 e.preventDefault();
@@ -1114,34 +1132,48 @@
         }, { passive: false });
 
         // Prevent pull-to-refresh and address bar appearance
-        let startY = 0;
+        const touchStartPositions = new Map();
         document.addEventListener('touchstart', (e) => {
-            startY = e.touches[0].clientY;
+            // Store start position for each touch
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                touchStartPositions.set(touch.identifier, touch.clientY);
+            }
         }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
             const target = e.target;
             
             // Allow touch events on interactive elements
-            if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
-                target.tagName === 'SELECT' || target.classList.contains('key')) {
+            if (isInteractiveElement(target)) {
                 return;
             }
 
             // Prevent scrolling on document level
-            const currentY = e.touches[0].clientY;
-            const scrollingUp = currentY < startY;
-            const scrollingDown = currentY > startY;
-            
-            // Prevent pull-down (address bar) when at top
-            if (scrollingDown && window.scrollY === 0) {
-                e.preventDefault();
-            }
-            // Prevent pull-up when at bottom
-            if (scrollingUp && (window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
-                e.preventDefault();
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                const startY = touchStartPositions.get(touch.identifier) || touch.clientY;
+                const currentY = touch.clientY;
+                const scrollingUp = currentY < startY;
+                const scrollingDown = currentY > startY;
+                
+                // Prevent pull-down (address bar) when at top
+                if (scrollingDown && window.scrollY === 0) {
+                    e.preventDefault();
+                }
+                // Prevent pull-up when at bottom
+                if (scrollingUp && (window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
+                    e.preventDefault();
+                }
             }
         }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            // Clean up stored positions for ended touches
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                touchStartPositions.delete(e.changedTouches[i].identifier);
+            }
+        }, { passive: true });
 
         // Block touch on empty areas - add event listener to document
         document.addEventListener('touchstart', (e) => {
@@ -1149,9 +1181,7 @@
             
             // Check if touch is on an empty/non-interactive area
             // Allow interactive elements to work normally
-            if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
-                target.tagName === 'SELECT' || target.classList.contains('key') ||
-                target.classList.contains('value') || target.tagName === 'LABEL') {
+            if (isInteractiveElement(target)) {
                 return;
             }
             
