@@ -253,7 +253,6 @@
             text-decoration-style: dotted;
             pointer-events: auto;
             user-select: none;
-            -webkit-user-select: none;
         }
 
         .control-group .button-group {
@@ -2107,21 +2106,15 @@
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
             });
-            
-            // Change event for when slider is released
-            slider.addEventListener('change', (e) => {
-                // Ensure final value update
-                slider.dispatchEvent(new Event('input', { bubbles: true }));
-            });
 
             // Prevent scrolling when touching/dragging sliders
             slider.addEventListener('touchstart', (e) => {
                 e.stopPropagation();
-            }, { passive: true });
+            }, { passive: false });
             
             slider.addEventListener('touchmove', (e) => {
                 e.stopPropagation();
-            }, { passive: true });
+            }, { passive: false });
             
             // Ensure pointer events work correctly
             slider.addEventListener('pointerdown', (e) => {
