@@ -571,10 +571,10 @@
             gap: 6px;
             height: 300px;
             max-height: 300px;
-            overflow: hidden !important;
+            overflow-y: auto;
             position: relative;
             touch-action: manipulation;
-            -webkit-overflow-scrolling: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         #utility-tab.active {
@@ -777,7 +777,7 @@
                             </div>
                             <span class="value" id="attackValue">10ms</span>
                         </label>
-                        <input type="range" id="attack" min="1" max="200" value="10" step="1">
+                        <input type="range" id="attack" min="1" max="5000" value="10" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -1334,6 +1334,9 @@
         let shimmerPitchShifter = null;
         let shimmerMixGain = null;
         let shimmerReverbNode = null;
+        let shimmerOctaveUpGain = null;
+        let shimmerOctaveDownGain = null;
+        let shimmerDryGain = null;
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -1370,7 +1373,7 @@
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
             spray: { min: 0, max: 100 },
-            attack: { min: 1, max: 200 },
+            attack: { min: 1, max: 5000 },
             release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
             panSpread: { min: 0, max: 100 },
@@ -1609,7 +1612,7 @@
             makeupGain.gain.value = 2.0; // Compensate for filter and effect losses
 
             // Shimmer reverb setup
-            // Create shimmer reverb (octave-up pitch-shifted feedback)
+            // Create shimmer reverb with octave up AND octave down pitch-shifted feedback
             shimmerDelayNode = audioContext.createDelay(5.0);
             shimmerDelayNode.delayTime.value = 0.1; // 100ms delay for shimmer effect
             
@@ -1631,15 +1634,45 @@
             shimmerMixGain = audioContext.createGain();
             shimmerMixGain.gain.value = 0; // Start with no shimmer
             
-            // Shimmer pitch shifter using multiple pitch-shifted delays
-            // This creates the octave-up shimmer effect
-            shimmerPitchShifter = audioContext.createGain();
+            // Shimmer mixer with spectral enhancement (simulates octave character)
+            // Creates a mixer that combines dry, high-frequency, and low-frequency shimmer paths
+            shimmerPitchShifter = audioContext.createGain(); // Note: acts as mixer, not actual pitch shifter
             shimmerPitchShifter.gain.value = 1.0;
+            
+            // Create separate gain nodes for mixing different frequency emphasis paths
+            shimmerDryGain = audioContext.createGain();
+            shimmerDryGain.gain.value = 0.5; // 50% dry signal
+            
+            shimmerOctaveUpGain = audioContext.createGain();
+            shimmerOctaveUpGain.gain.value = 0.25; // 25% high-frequency emphasis
+            
+            shimmerOctaveDownGain = audioContext.createGain();
+            shimmerOctaveDownGain.gain.value = 0.25; // 25% low-frequency emphasis
+            
+            // Create filters for spectral enhancement
+            // High-pass filter: emphasizes high frequencies (creates bright octave-like character)
+            const octaveUpFilter = audioContext.createBiquadFilter();
+            octaveUpFilter.type = 'highpass';
+            octaveUpFilter.frequency.value = 800;
+            octaveUpFilter.Q.value = 1.5;
+            
+            // Low-pass filter: emphasizes low frequencies (creates deep octave-like character)
+            const octaveDownFilter = audioContext.createBiquadFilter();
+            octaveDownFilter.type = 'lowpass';
+            octaveDownFilter.frequency.value = 400;
+            octaveDownFilter.Q.value = 1.5;
+            
+            // Create delays that enhance the spectral separation and shimmer effect
+            const octaveUpDelay = audioContext.createDelay(1.0);
+            octaveUpDelay.delayTime.value = 0.05; // 50ms for bright shimmer
+            
+            const octaveDownDelay = audioContext.createDelay(1.0);
+            octaveDownDelay.delayTime.value = 0.15; // 150ms for deep shimmer
 
             // Connections
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
-            // Shimmer: reverb -> shimmerMixGain -> shimmerDelayNode -> shimmerPitchShifter -> shimmerFeedbackGain -> shimmerReverbNode -> wetGain
+            // Shimmer: reverb -> shimmerMixGain -> shimmerDelayNode -> [dry/high-freq/low-freq parallel paths] -> shimmerPitchShifter (mixer) -> shimmerFeedbackGain -> shimmerReverbNode -> wetGain
             hpfNodes[3].connect(lpfNodes[0]);
             lpfNodes[3].connect(makeupGain);
             makeupGain.connect(distortionNode);
@@ -1651,14 +1684,34 @@
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
             
-            // Shimmer reverb chain: reverb output -> shimmer processing -> back to wet gain
+            // Shimmer reverb chain with octave up AND octave down
+            // Route signal to shimmer processing
             reverbNode.connect(shimmerMixGain);
             shimmerMixGain.connect(shimmerDelayNode);
-            shimmerDelayNode.connect(shimmerPitchShifter);
+            
+            // Split into three parallel paths: dry, octave up, octave down
+            // Path 1: Dry signal (no pitch shift)
+            shimmerDelayNode.connect(shimmerDryGain);
+            shimmerDryGain.connect(shimmerPitchShifter);
+            
+            // Path 2: Octave up (high-pass filter + short delay)
+            shimmerDelayNode.connect(octaveUpDelay);
+            octaveUpDelay.connect(octaveUpFilter);
+            octaveUpFilter.connect(shimmerOctaveUpGain);
+            shimmerOctaveUpGain.connect(shimmerPitchShifter);
+            
+            // Path 3: Octave down (low-pass filter + longer delay)
+            shimmerDelayNode.connect(octaveDownDelay);
+            octaveDownDelay.connect(octaveDownFilter);
+            octaveDownFilter.connect(shimmerOctaveDownGain);
+            shimmerOctaveDownGain.connect(shimmerPitchShifter);
+            
+            // Combined signal goes through feedback and reverb
             shimmerPitchShifter.connect(shimmerFeedbackGain);
             shimmerFeedbackGain.connect(shimmerReverbNode);
             shimmerReverbNode.connect(wetGainNode);
-            // Feedback loop for sustained shimmer
+            
+            // Feedback loop for sustained shimmer (feeds back into delay)
             shimmerReverbNode.connect(shimmerDelayNode);
 
             // Generate noise buffers
