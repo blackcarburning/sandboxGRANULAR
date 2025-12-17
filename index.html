@@ -158,7 +158,11 @@
             align-items: center;
         }
 
-        .recording-buttons { display: flex; gap: 4px; }
+        .recording-buttons { 
+            display: flex; 
+            gap: 2px; 
+            flex-wrap: wrap;
+        }
 
         button {
             padding: 6px;
@@ -200,6 +204,13 @@
             background: #333;
             color: #666;
             cursor: not-allowed;
+        }
+
+        /* Smaller buttons for Sample Source section */
+        .recording-buttons button {
+            padding: 3px 4px;
+            font-size: 8px;
+            min-width: 0;
         }
 
         #waveformCanvas {
