@@ -581,7 +581,7 @@
                             </div>
                             <span class="value" id="releaseValue">50ms</span>
                         </label>
-                        <input type="range" id="release" min="1" max="500" value="50" step="1">
+                        <input type="range" id="release" min="1" max="5000" value="50" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -653,6 +653,41 @@
                         </label>
                         <input type="range" id="hpfQ" min="0.1" max="20" value="0.7" step="0.1">
                     </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Amount</span>
+                            <span class="value" id="filterEnvAmountValue">0%</span>
+                        </label>
+                        <input type="range" id="filterEnvAmount" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Attack</span>
+                            <span class="value" id="filterEnvAttackValue">10ms</span>
+                        </label>
+                        <input type="range" id="filterEnvAttack" min="1" max="2000" value="10" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Decay</span>
+                            <span class="value" id="filterEnvDecayValue">200ms</span>
+                        </label>
+                        <input type="range" id="filterEnvDecay" min="1" max="5000" value="200" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Sustain</span>
+                            <span class="value" id="filterEnvSustainValue">50%</span>
+                        </label>
+                        <input type="range" id="filterEnvSustain" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Filter Env Release</span>
+                            <span class="value" id="filterEnvReleaseValue">100ms</span>
+                        </label>
+                        <input type="range" id="filterEnvRelease" min="1" max="5000" value="100" step="1">
+                    </div>
                 </div>
 
                 <!-- Noise Tab -->
@@ -692,6 +727,61 @@
                             <span class="value" id="reverbValue">20%</span>
                         </label>
                         <input type="range" id="reverb" min="0" max="100" value="20" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Distortion</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="distortion">LFO</button>
+                                <button class="inv-toggle" data-param="distortion">INV</button>
+                            </div>
+                            <span class="value" id="distortionValue">0%</span>
+                        </label>
+                        <input type="range" id="distortion" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Phaser Rate</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="phaserRate">LFO</button>
+                                <button class="inv-toggle" data-param="phaserRate">INV</button>
+                            </div>
+                            <span class="value" id="phaserRateValue">0.5Hz</span>
+                        </label>
+                        <input type="range" id="phaserRate" min="0.1" max="10" value="0.5" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Phaser Depth</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="phaserDepth">LFO</button>
+                                <button class="inv-toggle" data-param="phaserDepth">INV</button>
+                            </div>
+                            <span class="value" id="phaserDepthValue">0%</span>
+                        </label>
+                        <input type="range" id="phaserDepth" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Tremolo Rate</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="tremoloRate">LFO</button>
+                                <button class="inv-toggle" data-param="tremoloRate">INV</button>
+                            </div>
+                            <span class="value" id="tremoloRateValue">5Hz</span>
+                        </label>
+                        <input type="range" id="tremoloRate" min="0.1" max="20" value="5" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Tremolo Depth</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="tremoloDepth">LFO</button>
+                                <button class="inv-toggle" data-param="tremoloDepth">INV</button>
+                            </div>
+                            <span class="value" id="tremoloDepthValue">0%</span>
+                        </label>
+                        <input type="range" id="tremoloDepth" min="0" max="100" value="0" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -761,6 +851,13 @@
         let dryGainNode = null;
         let wetGainNode = null;
         let masterGain = null;
+        let distortionNode = null;
+        let phaserNodes = [];
+        let phaserLFO = null;
+        let phaserLFOGain = null;
+        let tremoloGain = null;
+        let tremoloLFO = null;
+        let tremoloLFOGain = null;
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -792,7 +889,7 @@
             position: { min: 0, max: 100 },
             spray: { min: 0, max: 100 },
             attack: { min: 1, max: 200 },
-            release: { min: 1, max: 500 },
+            release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
             panSpread: { min: 0, max: 100 },
             reverb: { min: 0, max: 100 },
@@ -801,7 +898,12 @@
             lpfQ: { min: 0.1, max: 20 },
             hpfCutoff: { min: 20, max: 5000 },
             hpfQ: { min: 0.1, max: 20 },
-            noiseMix: { min: 0, max: 100 }
+            noiseMix: { min: 0, max: 100 },
+            distortion: { min: 0, max: 100 },
+            phaserRate: { min: 0.1, max: 10 },
+            phaserDepth: { min: 0, max: 100 },
+            tremoloRate: { min: 0.1, max: 20 },
+            tremoloDepth: { min: 0, max: 100 }
         };
 
         // --- LFO Engine ---
@@ -908,6 +1010,45 @@
                 hpfNodes[i].connect(hpfNodes[i + 1]);
             }
 
+            // Distortion using WaveShaper
+            distortionNode = audioContext.createWaveShaper();
+            distortionNode.curve = makeDistortionCurve(0);
+            distortionNode.oversample = '4x';
+
+            // Phaser effect (using all-pass filters)
+            phaserNodes = [];
+            for (let i = 0; i < 4; i++) {
+                const allpass = audioContext.createBiquadFilter();
+                allpass.type = 'allpass';
+                allpass.frequency.value = 1000;
+                phaserNodes.push(allpass);
+            }
+            // Chain phaser nodes
+            for (let i = 0; i < 3; i++) {
+                phaserNodes[i].connect(phaserNodes[i + 1]);
+            }
+
+            // Phaser LFO
+            phaserLFO = audioContext.createOscillator();
+            phaserLFO.frequency.value = 0.5;
+            phaserLFOGain = audioContext.createGain();
+            phaserLFOGain.gain.value = 0;
+            phaserLFO.connect(phaserLFOGain);
+            // Connect LFO to phaser frequencies
+            phaserNodes.forEach(node => phaserLFOGain.connect(node.frequency));
+            phaserLFO.start();
+
+            // Tremolo effect (amplitude modulation)
+            tremoloGain = audioContext.createGain();
+            tremoloGain.gain.value = 1;
+            tremoloLFO = audioContext.createOscillator();
+            tremoloLFO.frequency.value = 5;
+            tremoloLFOGain = audioContext.createGain();
+            tremoloLFOGain.gain.value = 0;
+            tremoloLFO.connect(tremoloLFOGain);
+            tremoloLFOGain.connect(tremoloGain.gain);
+            tremoloLFO.start();
+
             // Reverb Chain
             reverbNode = audioContext.createConvolver();
             dryGainNode = audioContext.createGain();
@@ -926,11 +1067,14 @@
             reverbNode.buffer = impulse;
 
             // Connections
-            // Grain -> HPF -> LPF -> dryGain -> Master
-            // Grain -> HPF -> LPF -> reverb -> wetGain -> Master
+            // Grain -> HPF -> LPF -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
+            // Grain -> HPF -> LPF -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
             hpfNodes[3].connect(lpfNodes[0]);
-            lpfNodes[3].connect(dryGainNode);
-            lpfNodes[3].connect(reverbNode);
+            lpfNodes[3].connect(distortionNode);
+            distortionNode.connect(phaserNodes[0]);
+            phaserNodes[3].connect(tremoloGain);
+            tremoloGain.connect(dryGainNode);
+            tremoloGain.connect(reverbNode);
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
@@ -939,6 +1083,19 @@
             createNoiseBuffers();
 
             updateEffects();
+        }
+
+        function makeDistortionCurve(amount) {
+            const samples = 44100;
+            const curve = new Float32Array(samples);
+            const deg = Math.PI / 180;
+            const k = amount * 100;
+            
+            for (let i = 0; i < samples; i++) {
+                const x = (i * 2 / samples) - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
         }
 
         function createNoiseBuffers() {
@@ -979,6 +1136,37 @@
             dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
             wetGainNode.gain.value = reverbAmt;
             masterGain.gain.value = volAmt;
+
+            // Update distortion
+            if (distortionNode) {
+                const distortionAmt = getModulatedValue('distortion') / 100;
+                distortionNode.curve = makeDistortionCurve(distortionAmt);
+            }
+
+            // Update phaser
+            if (phaserLFO && phaserLFOGain && phaserNodes.length > 0) {
+                const phaserRate = getModulatedValue('phaserRate');
+                const phaserDepth = getModulatedValue('phaserDepth') / 100;
+                phaserLFO.frequency.value = phaserRate;
+                // Control depth via LFO gain - modulates all-pass filter frequencies
+                phaserLFOGain.gain.value = phaserDepth * 1000; // 0-1000 Hz modulation range
+                // Update base frequency and Q for phaser nodes
+                const baseFreq = 1000;
+                phaserNodes.forEach((node, i) => {
+                    node.frequency.value = baseFreq * (i + 1);
+                    node.Q.value = 1 + (phaserDepth * 10);
+                });
+            }
+
+            // Update tremolo
+            if (tremoloLFO && tremoloLFOGain) {
+                const tremoloRate = getModulatedValue('tremoloRate');
+                const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
+                tremoloLFO.frequency.value = tremoloRate;
+                // Control tremolo depth via LFO gain - modulates output gain
+                // With depth=0, no modulation; with depth=1, full amplitude modulation
+                tremoloLFOGain.gain.value = tremoloDepth;
+            }
 
             // Update filters
             if (lpfNodes.length > 0) {
@@ -1144,6 +1332,43 @@
             return audioContext && (audioBuffer || noiseType !== 'none');
         }
 
+        // --- Filter Envelope ---
+        function applyFilterEnvelope(note, startTime, duration) {
+            const filterEnvAmount = parseFloat(document.getElementById('filterEnvAmount').value) / 100;
+            if (filterEnvAmount <= 0 || lpfNodes.length === 0) return;
+
+            const attack = parseFloat(document.getElementById('filterEnvAttack').value) / 1000;
+            const decay = parseFloat(document.getElementById('filterEnvDecay').value) / 1000;
+            const sustain = parseFloat(document.getElementById('filterEnvSustain').value) / 100;
+            const release = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+
+            const baseCutoff = getModulatedValue('lpfCutoff');
+            const maxCutoff = 20000;
+            const envelopedCutoff = baseCutoff + (filterEnvAmount * (maxCutoff - baseCutoff));
+
+            const now = startTime;
+            const peakTime = now + attack;
+            const sustainTime = now + attack + decay;
+            const releaseStart = now + duration;
+            const releaseEnd = releaseStart + release;
+
+            lpfNodes.forEach(node => {
+                // Cancel any previous scheduled values
+                node.frequency.cancelScheduledValues(now);
+                // Set initial value to base cutoff
+                node.frequency.setValueAtTime(baseCutoff, now);
+                // Attack phase: rise to enveloped cutoff
+                node.frequency.linearRampToValueAtTime(envelopedCutoff, peakTime);
+                // Decay phase: fall to sustain level
+                const sustainCutoff = baseCutoff + ((envelopedCutoff - baseCutoff) * sustain);
+                node.frequency.linearRampToValueAtTime(sustainCutoff, sustainTime);
+                // Hold at sustain
+                node.frequency.setValueAtTime(sustainCutoff, releaseStart);
+                // Release phase: return to base cutoff
+                node.frequency.linearRampToValueAtTime(baseCutoff, releaseEnd);
+            });
+        }
+
         // --- Granular Engine ---
         function playGrain(note) {
             if (!canPlayGrains()) return;
@@ -1199,6 +1424,7 @@
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 source.playbackRate.value = rate;
+                source.loop = true; // Enable looping
 
                 const sampleGain = audioContext.createGain();
                 sampleGain.gain.value = 1 - noiseMix;
@@ -1207,8 +1433,10 @@
                 sampleGain.connect(mixer);
 
                 const now = audioContext.currentTime;
-                source.start(now, playPosition, grainSize);
-                source.stop(now + grainSize + 0.1);
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
+                source.start(now, playPosition);
+                // Stop after envelope completes
+                source.stop(now + totalDuration);
             }
 
             // Create noise source if selected
@@ -1226,8 +1454,9 @@
                 noiseGain.connect(mixer);
 
                 const now = audioContext.currentTime;
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
                 noiseSource.start(now);
-                noiseSource.stop(now + grainSize + 0.1);
+                noiseSource.stop(now + totalDuration);
             }
 
             // Connect through filters
@@ -1235,11 +1464,13 @@
             envelope.connect(panner);
             panner.connect(hpfNodes[0]);
 
-            // Envelope
+            // Envelope - extend to include release time
             const now = audioContext.currentTime;
+            const sustainTime = Math.max(grainSize - attack, 0.001); // Ensure positive sustain duration
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(1, now + attack);
-            envelope.gain.linearRampToValueAtTime(0, now + grainSize);
+            envelope.gain.setValueAtTime(1, now + attack + sustainTime);
+            envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
         }
 
         // --- Scheduler ---
@@ -1247,7 +1478,7 @@
             if (!canPlayGrains()) return;
             if (activeGrains.has(note)) return; // Already playing
 
-            const grainState = { timeoutId: null };
+            const grainState = { timeoutId: null, startTime: audioContext.currentTime };
             
             function schedule() {
                 playGrain(note);
@@ -1260,7 +1491,15 @@
             }
 
             // Store cancellation function before first call
-            activeGrains.set(note, { cancel: () => clearTimeout(grainState.timeoutId) });
+            activeGrains.set(note, { 
+                cancel: () => clearTimeout(grainState.timeoutId),
+                startTime: grainState.startTime
+            });
+            
+            // Apply filter envelope when note starts
+            // Use a long duration (60 seconds) to allow envelope to sustain until note is released
+            const FILTER_ENVELOPE_MAX_DURATION = 60;
+            applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
             
             // Play one immediately and start recursion
             schedule();
@@ -1268,7 +1507,22 @@
 
         function stopGrainStream(note) {
             if (activeGrains.has(note)) {
-                activeGrains.get(note).cancel();
+                const grainInfo = activeGrains.get(note);
+                grainInfo.cancel();
+                
+                // Trigger filter envelope release
+                const now = audioContext.currentTime;
+                const filterRelease = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+                const baseCutoff = getModulatedValue('lpfCutoff');
+                
+                if (lpfNodes.length > 0) {
+                    lpfNodes.forEach(node => {
+                        node.frequency.cancelScheduledValues(now);
+                        node.frequency.setValueAtTime(node.frequency.value, now);
+                        node.frequency.linearRampToValueAtTime(baseCutoff, now + filterRelease);
+                    });
+                }
+                
                 activeGrains.delete(note);
             }
         }
@@ -1316,17 +1570,22 @@
                     const labelSpan = document.getElementById(e.target.id + 'Value');
                     if (labelSpan) {
                         let suffix = '';
-                        if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
+                        if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
                         else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff') suffix = 'Hz';
                         else if (e.target.id === 'lpfQ' || e.target.id === 'hpfQ') suffix = '';
+                        else if (e.target.id === 'phaserRate' || e.target.id === 'tremoloRate') suffix = 'Hz';
                         else suffix = '%';
                         labelSpan.textContent = e.target.value + suffix;
                     }
                 }
 
                 // Special handling for effects or redraw
-                if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
+                if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' || 
+                    e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
+                    e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth') {
+                    updateEffects();
+                }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
             });
