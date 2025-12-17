@@ -1662,12 +1662,12 @@
             octaveDownFilter.frequency.value = 400;
             octaveDownFilter.Q.value = 1.5;
             
-            // Create delays that, combined with filtering, create the illusion of pitch shifting
+            // Create delays that enhance the spectral separation and shimmer effect
             const octaveUpDelay = audioContext.createDelay(1.0);
-            octaveUpDelay.delayTime.value = 0.05; // 50ms for shimmer effect
+            octaveUpDelay.delayTime.value = 0.05; // 50ms for bright shimmer
             
             const octaveDownDelay = audioContext.createDelay(1.0);
-            octaveDownDelay.delayTime.value = 0.15; // 150ms for deeper shimmer effect
+            octaveDownDelay.delayTime.value = 0.15; // 150ms for deep shimmer
 
             // Connections
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
