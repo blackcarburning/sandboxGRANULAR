@@ -310,31 +310,86 @@
 
         input[type="range"] {
             width: 100%;
-            height: 3px;
+            height: 14px; /* Increased from 3px for larger touch target */
             border-radius: 2px;
-            background: #333;
+            background: transparent; /* Track styling moved to ::-webkit-slider-runnable-track */
             outline: none;
             -webkit-appearance: none;
             touch-action: pan-x;
             pointer-events: auto;
             position: relative;
             z-index: 10;
+            padding: 8px 0; /* Add vertical padding for larger touch area */
+            margin: 4px 0; /* Spacing to prevent overlap */
+            cursor: pointer;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 14px;
-            height: 14px;
+            width: 28px; /* Increased from 14px for better grip */
+            height: 28px; /* Increased from 14px for better grip */
             border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 8px var(--accent-glow);
-            margin-top: -5.5px; /* vertical align */
+            cursor: grab;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+            box-shadow: 0 0 16px var(--accent-glow);
         }
         
         input[type="range"]::-webkit-slider-runnable-track {
-            height: 3px;
+            height: 14px; /* Increased from 3px for easier targeting */
             background: #333;
-            border-radius: 2px;
+            border-radius: 7px; /* Rounded to match height */
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 28px; /* Increased from 14px for better grip */
+            height: 28px; /* Increased from 14px for better grip */
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+            border: none;
+            cursor: grab;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        input[type="range"]::-moz-range-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 14px; /* Increased from 3px for easier targeting */
+            background: #333;
+            border-radius: 7px;
+        }
+
+        input[type="range"]:focus {
+            outline: none;
+        }
+
+        input[type="range"]:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 16px var(--accent-glow), 0 0 4px rgba(255, 255, 255, 0.5);
+        }
+
+        input[type="range"]:focus::-moz-range-thumb {
+            box-shadow: 0 0 16px var(--accent-glow), 0 0 4px rgba(255, 255, 255, 0.5);
         }
 
         /* Keyboard Section */
@@ -475,6 +530,8 @@
             writing-mode: vertical-rl;
             -webkit-appearance: slider-vertical;
             height: 80px;
+            padding: 0 8px; /* Horizontal padding for vertical slider */
+            touch-action: pan-y; /* Allow vertical panning for vertical slider */
         }
 
         /* Tab System */
