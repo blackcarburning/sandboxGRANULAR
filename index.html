@@ -851,6 +851,9 @@
                         <button id="resetEngineBtn">Reset Engine</button>
                     </div>
                     <div class="control-group">
+                        <button id="resetDefaultBtn">Reset to Default</button>
+                    </div>
+                    <div class="control-group">
                         <button id="randomizeBtn">Randomize</button>
                     </div>
                 </div>
@@ -1036,6 +1039,11 @@
                 
                 await setupEffects();
                 startModulationLoop();
+                
+                // Run reset engine routine to ensure proper gain staging
+                // Calling setupEffects() again fixes the volume issue by reinitializing
+                // the audio chain with proper connections and gain values
+                await setupEffects();
                 
                 // Hide overlay
                 startOverlay.style.opacity = '0';
@@ -1920,10 +1928,9 @@
             e.target.value = '';
         });
 
-        // Reset Engine Button
-        document.getElementById('resetEngineBtn').addEventListener('click', async () => {
+        // Reset Engine Routine - extracted for reuse
+        async function resetEngineRoutine() {
             if (!audioContext) {
-                alert('Engine not initialized yet.');
                 return;
             }
             
@@ -1942,6 +1949,16 @@
             // Reinitialize effects
             await setupEffects();
             startModulationLoop();
+        }
+
+        // Reset Engine Button
+        document.getElementById('resetEngineBtn').addEventListener('click', async () => {
+            if (!audioContext) {
+                alert('Engine not initialized yet.');
+                return;
+            }
+            
+            await resetEngineRoutine();
             
             statusDiv.textContent = 'Engine reset successfully';
         });
@@ -2005,6 +2022,97 @@
             });
             
             statusDiv.textContent = 'All parameters randomized';
+        });
+
+        // Reset to Default Button
+        document.getElementById('resetDefaultBtn').addEventListener('click', () => {
+            // Define default values based on HTML initial values
+            const defaults = {
+                sampleStart: 0,
+                sampleEnd: 100,
+                grainSize: 100,
+                density: 10,
+                position: 0,
+                spray: 0,
+                attack: 10,
+                release: 50,
+                pitchVar: 0,
+                panSpread: 50,
+                lpfCutoff: 20000,
+                lpfQ: 0.7,
+                hpfCutoff: 20,
+                hpfQ: 0.7,
+                filterEnvAmount: 0,
+                filterEnvAttack: 10,
+                filterEnvDecay: 200,
+                filterEnvSustain: 50,
+                filterEnvRelease: 100,
+                noiseMix: 0,
+                reverb: 20,
+                distortion: 0,
+                phaserRate: 0.5,
+                phaserDepth: 0,
+                tremoloRate: 5,
+                tremoloDepth: 0,
+                volume: 100,
+                lfoRate: 1.0,
+                lfoDepth: 50
+            };
+            
+            // Reset all sliders to default values
+            Object.keys(defaults).forEach(id => {
+                const slider = document.getElementById(id);
+                if (slider) {
+                    slider.value = defaults[id];
+                    slider.dispatchEvent(new Event('input'));
+                }
+            });
+            
+            // Reset dropdowns to default
+            document.getElementById('lfoWaveform').value = 'sine';
+            document.getElementById('noiseType').value = 'none';
+            
+            // Reset LFO mode to Hz if it's in BPM
+            if (lfoMode === 'bpm') {
+                const rateSlider = document.getElementById('lfoRate');
+                const modeToggle = document.getElementById('lfoModeToggle');
+                lfoMode = 'hz';
+                modeToggle.textContent = 'Hz';
+                rateSlider.min = '1';
+                rateSlider.max = '1000';
+                rateSlider.step = '0.1';
+                rateSlider.value = 1.0;
+                updateLFORateDisplay();
+            }
+            
+            // Turn off all LFO toggles
+            document.querySelectorAll('.lfo-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                if (lfoEnabled[param]) {
+                    lfoEnabled[param] = false;
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Turn off all INV toggles
+            document.querySelectorAll('.inv-toggle').forEach(btn => {
+                const param = btn.dataset.param;
+                if (lfoInverted[param]) {
+                    lfoInverted[param] = false;
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Reset octave offset
+            octaveOffset = 0;
+            updateOctaveDisplay();
+            
+            // Update waveform display if audio buffer exists
+            if (audioBuffer) {
+                drawWaveform();
+            }
+            
+            statusDiv.textContent = 'All parameters reset to defaults';
         });
 
         // Helper function to gather all preset data
