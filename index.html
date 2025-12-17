@@ -175,6 +175,18 @@
             flex: 1;
         }
 
+        #normalizeBtn {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: white;
+            flex: 1;
+        }
+
+        #normalizeBtn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
         #waveformCanvas {
             width: 100%;
             flex: 1;
@@ -458,6 +470,7 @@
                 <div class="section-title">Sample Source</div>
                 <div class="recording-buttons">
                     <button id="recordBtn">Record Mic</button>
+                    <button id="normalizeBtn" disabled>Normalize</button>
                     <button id="clearBtn">Clear</button>
                 </div>
                 <canvas id="waveformCanvas"></canvas>
@@ -790,9 +803,9 @@
                                 <button class="lfo-toggle" data-param="volume">LFO</button>
                                 <button class="inv-toggle" data-param="volume">INV</button>
                             </div>
-                            <span class="value" id="volumeValue">80%</span>
+                            <span class="value" id="volumeValue">100%</span>
                         </label>
-                        <input type="range" id="volume" min="0" max="100" value="80" step="1">
+                        <input type="range" id="volume" min="0" max="100" value="100" step="1">
                     </div>
                 </div>
             </div>
@@ -858,6 +871,7 @@
         let tremoloGain = null;
         let tremoloLFO = null;
         let tremoloLFOGain = null;
+        let makeupGain = null; // Compensation for filter losses
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -1066,11 +1080,16 @@
             }
             reverbNode.buffer = impulse;
 
+            // Makeup gain to compensate for cascading filter losses
+            makeupGain = audioContext.createGain();
+            makeupGain.gain.value = 2.0; // Compensate for filter and effect losses
+
             // Connections
-            // Grain -> HPF -> LPF -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
-            // Grain -> HPF -> LPF -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
+            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
+            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
             hpfNodes[3].connect(lpfNodes[0]);
-            lpfNodes[3].connect(distortionNode);
+            lpfNodes[3].connect(makeupGain);
+            makeupGain.connect(distortionNode);
             distortionNode.connect(phaserNodes[0]);
             phaserNodes[3].connect(tremoloGain);
             tremoloGain.connect(dryGainNode);
@@ -1133,8 +1152,10 @@
             const reverbAmt = getModulatedValue('reverb') / 100;
             const volAmt = getModulatedValue('volume') / 100;
             
-            dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
-            wetGainNode.gain.value = reverbAmt;
+            // Improved dry/wet mix - maintain better unity gain
+            // Use equal-power crossfade for smoother transitions
+            dryGainNode.gain.value = Math.cos(reverbAmt * Math.PI / 2);
+            wetGainNode.gain.value = Math.sin(reverbAmt * Math.PI / 2) * 0.5; // Scale wet down to avoid overwhelming
             masterGain.gain.value = volAmt;
 
             // Update distortion
@@ -1199,6 +1220,7 @@
 
         // --- Recording ---
         const recordBtn = document.getElementById('recordBtn');
+        const normalizeBtn = document.getElementById('normalizeBtn');
         const clearBtn = document.getElementById('clearBtn');
         const waveformCanvas = document.getElementById('waveformCanvas');
 
@@ -1208,12 +1230,18 @@
             else startRecording();
         });
 
+        normalizeBtn.addEventListener('click', () => {
+            if (!audioBuffer) return;
+            normalizeAudio();
+        });
+
         clearBtn.addEventListener('click', () => {
             audioBuffer = null;
             recordedChunks = [];
             const ctx = waveformCanvas.getContext('2d');
             ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
             statusDiv.textContent = "Buffer cleared";
+            normalizeBtn.disabled = true;
             stopAllGrains();
         });
 
@@ -1243,6 +1271,7 @@
                     audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     drawWaveform();
                     statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
+                    normalizeBtn.disabled = false; // Enable normalize button
                     stream.getTracks().forEach(track => track.stop());
                 };
 
@@ -1264,6 +1293,54 @@
                 recordBtn.textContent = "Record Mic";
                 recordBtn.classList.remove('recording');
             }
+        }
+
+        function normalizeAudio() {
+            if (!audioBuffer) return;
+            
+            // Find the peak amplitude across all channels
+            let peak = 0;
+            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                const channelData = audioBuffer.getChannelData(channel);
+                for (let i = 0; i < channelData.length; i++) {
+                    const abs = Math.abs(channelData[i]);
+                    if (abs > peak) peak = abs;
+                }
+            }
+            
+            // Avoid division by zero and handle silent buffers
+            if (peak === 0 || peak === 1.0) {
+                statusDiv.textContent = peak === 0 ? "Buffer is silent" : "Already normalized";
+                return;
+            }
+            
+            // Calculate scaling factor to make peak = 1.0
+            const scaleFactor = 1.0 / peak;
+            
+            // Create a new buffer with the normalized data
+            const normalizedBuffer = audioContext.createBuffer(
+                audioBuffer.numberOfChannels,
+                audioBuffer.length,
+                audioBuffer.sampleRate
+            );
+            
+            // Scale all samples
+            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                const sourceData = audioBuffer.getChannelData(channel);
+                const destData = normalizedBuffer.getChannelData(channel);
+                for (let i = 0; i < sourceData.length; i++) {
+                    destData[i] = sourceData[i] * scaleFactor;
+                }
+            }
+            
+            // Replace the audio buffer with normalized version
+            audioBuffer = normalizedBuffer;
+            
+            // Update the waveform display
+            drawWaveform();
+            
+            // Update status
+            statusDiv.textContent = `Normalized (peak: ${(peak * 100).toFixed(1)}% → 100%)`;
         }
 
         // --- Waveform & Visualization ---
