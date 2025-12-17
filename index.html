@@ -211,7 +211,9 @@
             border-radius: 8px;
             padding: 6px;
             border: 1px solid rgba(0, 212, 255, 0.2);
-            overflow-y: auto;
+            overflow: hidden;
+            position: relative;
+            touch-action: none;
         }
 
         .control-group {
@@ -295,7 +297,7 @@
             background: #333;
             outline: none;
             -webkit-appearance: none;
-            touch-action: none;
+            touch-action: pan-x;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -489,7 +491,10 @@
             grid-template-columns: repeat(4, 1fr);
             gap: 6px;
             height: 300px;
-            overflow-y: auto;
+            max-height: 300px;
+            overflow: hidden;
+            position: relative;
+            touch-action: none;
         }
 
         #utility-tab.active {
@@ -2355,6 +2360,38 @@
                 document.getElementById(targetTab + '-tab').classList.add('active');
             });
         });
+
+        // Helper function to prevent scrolling while allowing interactive elements to work
+        function preventScrollingOnContainer(container) {
+            container.addEventListener('touchstart', (e) => {
+                // Allow touch events on interactive elements (sliders, buttons, inputs, selects)
+                const target = e.target;
+                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
+                    return; // Let the element handle the event
+                }
+                // Prevent default for everything else to stop scrolling
+                e.preventDefault();
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                // Allow touch events on interactive elements (sliders, buttons, inputs, selects)
+                const target = e.target;
+                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
+                    return; // Let the element handle the event
+                }
+                // Prevent all other touch moves to stop scrolling
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        // Prevent scrolling/moving in tab content areas
+        document.querySelectorAll('.tab-content').forEach(preventScrollingOnContainer);
+
+        // Prevent scrolling in controls-section container
+        const controlsSection = document.querySelector('.controls-section');
+        if (controlsSection) {
+            preventScrollingOnContainer(controlsSection);
+        }
 
         // Window Resize
         window.addEventListener('resize', drawWaveform);
