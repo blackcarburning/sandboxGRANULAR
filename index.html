@@ -245,6 +245,9 @@
         .control-group label .value { 
             color: var(--accent); 
             margin-left: 3px;
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
         }
 
         .control-group .button-group {
@@ -292,6 +295,7 @@
             background: #333;
             outline: none;
             -webkit-appearance: none;
+            touch-action: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -484,6 +488,8 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 6px;
+            height: 300px;
+            overflow-y: auto;
         }
 
         #utility-tab.active {
@@ -820,6 +826,45 @@
                     </div>
                     <div class="control-group">
                         <label>
+                            <span class="param-name">Shimmer Mix</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="shimmerMix" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="shimmerMix" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="shimmerMix" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="shimmerMix" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="shimmerMixValue">0%</span>
+                        </label>
+                        <input type="range" id="shimmerMix" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Shimmer Decay</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="shimmerDecay" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="shimmerDecay" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="shimmerDecay" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="shimmerDecay" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="shimmerDecayValue">50%</span>
+                        </label>
+                        <input type="range" id="shimmerDecay" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Shimmer Amt</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="shimmerAmount" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="shimmerAmount" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="shimmerAmount" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="shimmerAmount" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="shimmerAmountValue">50%</span>
+                        </label>
+                        <input type="range" id="shimmerAmount" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
                             <span class="param-name">Distortion</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="distortion" data-lfo="1">L1</button>
@@ -1042,6 +1087,13 @@
         let tremoloLFO = null;
         let tremoloLFOGain = null;
         let makeupGain = null; // Compensation for filter losses
+        
+        // Shimmer reverb nodes
+        let shimmerDelayNode = null;
+        let shimmerFeedbackGain = null;
+        let shimmerPitchShifter = null;
+        let shimmerMixGain = null;
+        let shimmerReverbNode = null;
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -1093,7 +1145,10 @@
             phaserRate: { min: 0.1, max: 10 },
             phaserDepth: { min: 0, max: 100 },
             tremoloRate: { min: 0.1, max: 20 },
-            tremoloDepth: { min: 0, max: 100 }
+            tremoloDepth: { min: 0, max: 100 },
+            shimmerMix: { min: 0, max: 100 },
+            shimmerDecay: { min: 0, max: 100 },
+            shimmerAmount: { min: 0, max: 100 }
         };
 
         // --- LFO Engine ---
@@ -1313,9 +1368,38 @@
             makeupGain = audioContext.createGain();
             makeupGain.gain.value = 2.0; // Compensate for filter and effect losses
 
+            // Shimmer reverb setup
+            // Create shimmer reverb (octave-up pitch-shifted feedback)
+            shimmerDelayNode = audioContext.createDelay(5.0);
+            shimmerDelayNode.delayTime.value = 0.1; // 100ms delay for shimmer effect
+            
+            shimmerFeedbackGain = audioContext.createGain();
+            shimmerFeedbackGain.gain.value = 0.5; // Feedback amount
+            
+            // Create shimmer reverb impulse (longer, more diffuse)
+            const shimmerLength = sampleRate * 4.0; // 4 seconds tail
+            const shimmerImpulse = audioContext.createBuffer(2, shimmerLength, sampleRate);
+            for (let channel = 0; channel < 2; channel++) {
+                const data = shimmerImpulse.getChannelData(channel);
+                for (let i = 0; i < shimmerLength; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / shimmerLength, 2);
+                }
+            }
+            shimmerReverbNode = audioContext.createConvolver();
+            shimmerReverbNode.buffer = shimmerImpulse;
+            
+            shimmerMixGain = audioContext.createGain();
+            shimmerMixGain.gain.value = 0; // Start with no shimmer
+            
+            // Shimmer pitch shifter using multiple pitch-shifted delays
+            // This creates the octave-up shimmer effect
+            shimmerPitchShifter = audioContext.createGain();
+            shimmerPitchShifter.gain.value = 1.0;
+
             // Connections
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
+            // Shimmer: reverb -> shimmerMixGain -> shimmerDelayNode -> shimmerPitchShifter -> shimmerFeedbackGain -> shimmerReverbNode -> wetGain
             hpfNodes[3].connect(lpfNodes[0]);
             lpfNodes[3].connect(makeupGain);
             makeupGain.connect(distortionNode);
@@ -1326,6 +1410,16 @@
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
+            
+            // Shimmer reverb chain: reverb output -> shimmer processing -> back to wet gain
+            reverbNode.connect(shimmerMixGain);
+            shimmerMixGain.connect(shimmerDelayNode);
+            shimmerDelayNode.connect(shimmerPitchShifter);
+            shimmerPitchShifter.connect(shimmerFeedbackGain);
+            shimmerFeedbackGain.connect(shimmerReverbNode);
+            shimmerReverbNode.connect(wetGainNode);
+            // Feedback loop for sustained shimmer
+            shimmerReverbNode.connect(shimmerDelayNode);
 
             // Generate noise buffers
             createNoiseBuffers();
@@ -1435,6 +1529,24 @@
                     node.frequency.value = hpfCutoff;
                     node.Q.value = hpfQ;
                 });
+            }
+
+            // Update shimmer reverb
+            if (shimmerMixGain && shimmerFeedbackGain && shimmerDelayNode) {
+                const shimmerMix = getModulatedValue('shimmerMix') / 100;
+                const shimmerDecay = getModulatedValue('shimmerDecay') / 100;
+                const shimmerAmount = getModulatedValue('shimmerAmount') / 100;
+                
+                // Mix controls how much signal goes into shimmer processing
+                shimmerMixGain.gain.value = shimmerMix;
+                
+                // Decay controls the feedback amount (longer decay = more feedback)
+                shimmerFeedbackGain.gain.value = 0.3 + (shimmerDecay * 0.5); // 0.3 to 0.8 range
+                
+                // Amount controls the delay time (simulates pitch shift effect)
+                // Shorter delay = higher pitch shift
+                // For octave up, we use a delay that creates the perception of higher pitch
+                shimmerDelayNode.delayTime.value = 0.05 + (1 - shimmerAmount) * 0.15; // 50ms to 200ms
             }
         }
 
@@ -1974,11 +2086,79 @@
                 // Special handling for effects or redraw
                 if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' || 
                     e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
-                    e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth') {
+                    e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
+                    e.target.id === 'shimmerMix' || e.target.id === 'shimmerDecay' || e.target.id === 'shimmerAmount') {
                     updateEffects();
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
+            });
+
+            // Prevent scrolling when touching/dragging sliders
+            slider.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+        });
+
+        // --- Manual Number Input for Parameters ---
+        document.querySelectorAll('.control-group label .value').forEach(valueDisplay => {
+            valueDisplay.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // Find the associated slider
+                const sliderId = valueDisplay.id.replace('Value', '');
+                const slider = document.getElementById(sliderId);
+                if (!slider) return;
+                
+                // Get current value without suffix
+                const currentText = valueDisplay.textContent;
+                const currentValue = parseFloat(currentText);
+                
+                // Create input element
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.value = currentValue;
+                input.min = slider.min;
+                input.max = slider.max;
+                input.step = slider.step;
+                input.style.cssText = 'width: 50px; font-size: 9px; background: #000; color: var(--accent); border: 1px solid var(--accent); border-radius: 2px; padding: 1px 2px;';
+                
+                // Replace text with input
+                const originalText = valueDisplay.textContent;
+                valueDisplay.textContent = '';
+                valueDisplay.appendChild(input);
+                input.focus();
+                input.select();
+                
+                const finishEdit = () => {
+                    let newValue = parseFloat(input.value);
+                    
+                    // Validate range
+                    if (isNaN(newValue) || newValue < parseFloat(slider.min)) {
+                        newValue = parseFloat(slider.min);
+                    } else if (newValue > parseFloat(slider.max)) {
+                        newValue = parseFloat(slider.max);
+                    }
+                    
+                    // Update slider
+                    slider.value = newValue;
+                    
+                    // Trigger input event to update display and effects
+                    slider.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // Restore display
+                    valueDisplay.removeChild(input);
+                };
+                
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        finishEdit();
+                    } else if (e.key === 'Escape') {
+                        valueDisplay.textContent = originalText;
+                        valueDisplay.removeChild(input);
+                    }
+                });
             });
         });
 
@@ -2407,6 +2587,9 @@
                 tremoloRate: 5,
                 tremoloDepth: 0,
                 volume: 100,
+                shimmerMix: 0,
+                shimmerDecay: 50,
+                shimmerAmount: 50,
                 lfoRate: 1.0,
                 lfoDepth: 50,
                 lfo2Rate: 1.0,
