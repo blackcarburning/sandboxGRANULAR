@@ -105,7 +105,7 @@
             touch-action: none;
         }
 
-        /* Left Side: Recording */
+        /* Left Side: Recording - Extended to bottom */
         .recording-section {
             flex: 0 0 160px;
             display: flex;
@@ -115,8 +115,9 @@
             border-radius: 8px;
             padding: 8px;
             border: 1px solid rgba(0, 212, 255, 0.2);
-            overflow-y: auto;
+            overflow-y: visible;
             touch-action: none;
+            height: calc(100vh - 195px); /* Extend to bottom: full height minus keyboard section (180px) and padding (15px) */
         }
 
         /* LFO Section */
@@ -404,19 +405,27 @@
             box-shadow: 0 0 16px var(--accent-glow), 0 0 4px rgba(255, 255, 255, 0.5);
         }
 
-        /* Keyboard Section */
+        /* Keyboard Section with controls on the right */
         .keyboard-section {
             flex: 0 0 180px;
             background: var(--panel-bg);
             border-radius: 8px 8px 0 0;
             padding: 8px;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             border-top: 2px solid var(--accent);
             overflow-x: auto;
             gap: 10px;
             touch-action: none;
+        }
+
+        /* Right side controls container */
+        .keyboard-right-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-shrink: 0;
         }
 
         .keyboard {
@@ -624,16 +633,71 @@
             color: white !important;
         }
 
-        /* Lock BPM button */
-        #lockBpmBtn {
-            background: linear-gradient(135deg, #444 0%, #666 100%) !important;
-            color: #888 !important;
-            transition: all 0.2s;
+        /* Toggle Switch for BPM Lock */
+        .toggle-switch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
         }
 
-        #lockBpmBtn.active {
-            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%) !important;
-            color: #000 !important;
+        .toggle-switch-label {
+            font-size: 8px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #666;
+            transition: 0.3s;
+            border-radius: 24px;
+            border: 1px solid #444;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #00d4ff;
+            border-color: #00d4ff;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .toggle-slider:hover {
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
         }
 
         /* Fullscreen button */
@@ -1109,7 +1173,13 @@
                         <button id="randomizeBtn">Randomize</button>
                     </div>
                     <div class="control-group">
-                        <button id="lockBpmBtn" class="active">Lock BPM</button>
+                        <div class="toggle-switch-container">
+                            <label class="toggle-switch-label">Lock BPM</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="lockBpmToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                     <div class="control-group">
                         <button id="saveAudioBtn">Save Audio</button>
@@ -1178,20 +1248,6 @@
         </div>
 
         <div class="keyboard-section">
-            <div class="octave-controls">
-                <button class="octave-btn" id="octaveUpBtn">+</button>
-                <div class="octave-display" id="octaveDisplay">Oct: 0</div>
-                <button class="octave-btn" id="octaveDownBtn">-</button>
-            </div>
-            <div class="volume-bias-container">
-                <label>Vol Bias</label>
-                <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
-                <div style="font-size: 8px; color: #666;">
-                    <div>Treble</div>
-                    <div style="margin-top: 40px;">Bass</div>
-                </div>
-            </div>
-            <button class="hold-btn" id="holdBtn">Hold</button>
             <div class="keyboard" id="keyboardContainer">
                 <!-- Keys generated by JS or static HTML -->
                 <!-- Octave 1 -->
@@ -1220,6 +1276,22 @@
                 <div class="key white" data-note="A2">A</div>
                 <div class="key black" data-note="A#2"></div>
                 <div class="key white" data-note="B2">B</div>
+            </div>
+            <div class="keyboard-right-controls">
+                <div class="octave-controls">
+                    <button class="octave-btn" id="octaveUpBtn">+</button>
+                    <div class="octave-display" id="octaveDisplay">Oct: 0</div>
+                    <button class="octave-btn" id="octaveDownBtn">-</button>
+                </div>
+                <div class="volume-bias-container">
+                    <label>Vol Bias</label>
+                    <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
+                    <div style="font-size: 8px; color: #666;">
+                        <div>Treble</div>
+                        <div style="margin-top: 40px;">Bass</div>
+                    </div>
+                </div>
+                <button class="hold-btn" id="holdBtn">Hold</button>
             </div>
         </div>
     </div>
@@ -2671,15 +2743,9 @@
             updateEffects();
         });
 
-        // --- Lock BPM Button ---
-        document.getElementById('lockBpmBtn').addEventListener('click', () => {
-            const lockBtn = document.getElementById('lockBpmBtn');
-            bpmLocked = !bpmLocked;
-            if (bpmLocked) {
-                lockBtn.classList.add('active');
-            } else {
-                lockBtn.classList.remove('active');
-            }
+        // --- Lock BPM Toggle Switch ---
+        document.getElementById('lockBpmToggle').addEventListener('change', (e) => {
+            bpmLocked = e.target.checked;
         });
 
         // --- Tab System ---
