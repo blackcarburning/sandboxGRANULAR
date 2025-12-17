@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Granular Synthesizer</title>
@@ -27,12 +27,16 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
-            height: 100vh;
-            width: 100vw;
+            height: 100%;
+            width: 100%;
             overflow: hidden;
+            position: fixed;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: auto;
         }
 
         /* Overlays for Orientation and Start */
@@ -82,6 +86,11 @@
             height: 100%;
             width: 100%;
             padding: 5px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            overscroll-behavior: none;
+            touch-action: manipulation;
         }
 
         /* Top Section: Controls + Rec */
@@ -92,6 +101,7 @@
             min-height: 0; /* Important for flex overflow */
             overflow: hidden;
             margin-bottom: 5px;
+            touch-action: none;
         }
 
         /* Left Side: Recording */
@@ -105,6 +115,7 @@
             padding: 8px;
             border: 1px solid rgba(0, 212, 255, 0.2);
             overflow-y: auto;
+            touch-action: none;
         }
 
         /* LFO Section */
@@ -116,6 +127,7 @@
             border-radius: 8px;
             padding: 8px;
             border: 1px solid rgba(0, 212, 255, 0.2);
+            touch-action: none;
         }
 
         .lfo-section select, .control-group select {
@@ -127,6 +139,7 @@
             font-size: 10px;
             cursor: pointer;
             width: 100%;
+            touch-action: manipulation;
         }
 
         .lfo-section .control-group {
@@ -154,6 +167,7 @@
             border-radius: 4px;
             cursor: pointer;
             text-transform: uppercase;
+            touch-action: manipulation;
         }
 
         #recordBtn {
@@ -334,6 +348,7 @@
             border-top: 2px solid var(--accent);
             overflow-x: auto;
             gap: 10px;
+            touch-action: none;
         }
 
         .keyboard {
@@ -1074,6 +1089,74 @@
     </div>
 
     <script>
+        // --- Prevent Zoom and Browser UI Interference ---
+        // Prevent gesturestart and gesturechange events (pinch zoom on iOS)
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('gesturechange', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('gestureend', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        // Prevent double-tap zoom on document
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, { passive: false });
+
+        // Prevent pull-to-refresh and address bar appearance
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            const target = e.target;
+            
+            // Allow touch events on interactive elements
+            if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
+                target.tagName === 'SELECT' || target.classList.contains('key')) {
+                return;
+            }
+
+            // Prevent scrolling on document level
+            const currentY = e.touches[0].clientY;
+            const scrollingUp = currentY < startY;
+            const scrollingDown = currentY > startY;
+            
+            // Prevent pull-down (address bar) when at top
+            if (scrollingDown && window.scrollY === 0) {
+                e.preventDefault();
+            }
+            // Prevent pull-up when at bottom
+            if (scrollingUp && (window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Block touch on empty areas - add event listener to document
+        document.addEventListener('touchstart', (e) => {
+            const target = e.target;
+            
+            // Check if touch is on an empty/non-interactive area
+            if (target === document.body || 
+                target.classList.contains('synth-container') ||
+                target.classList.contains('top-section') ||
+                (target.classList.contains('recording-section') && target === e.currentTarget) ||
+                (target.classList.contains('controls-section') && target === e.currentTarget)) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
         // --- Globals ---
         let audioContext;
         let audioBuffer = null;
