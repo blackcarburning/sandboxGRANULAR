@@ -1974,7 +1974,7 @@
             // Randomize LFO and INV toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
                 const param = btn.dataset.param;
-                // 30-50% chance of enabling LFO (using 40% as midpoint)
+                // 40% chance of enabling LFO (within 30-50% target range)
                 const shouldEnable = Math.random() < 0.4;
                 const isCurrentlyEnabled = lfoEnabled[param];
                 
@@ -1988,7 +1988,7 @@
                 const param = btn.dataset.param;
                 // Only randomize INV if LFO is enabled for this parameter
                 if (lfoEnabled[param]) {
-                    // 30-50% chance of enabling INV (using 40% as midpoint)
+                    // 40% chance of enabling INV (within 30-50% target range)
                     const shouldInvert = Math.random() < 0.4;
                     const isCurrentlyInverted = lfoInverted[param];
                     
