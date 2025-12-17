@@ -2130,7 +2130,12 @@
                 input.focus();
                 input.select();
                 
+                let isEscaping = false;
+                
                 const finishEdit = () => {
+                    // Don't finish if we're escaping
+                    if (isEscaping) return;
+                    
                     let newValue = parseFloat(input.value);
                     
                     // Validate range
@@ -2146,8 +2151,10 @@
                     // Trigger input event to update display and effects
                     slider.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // Restore display
-                    valueDisplay.removeChild(input);
+                    // Restore display - check if input still exists
+                    if (valueDisplay.contains(input)) {
+                        valueDisplay.removeChild(input);
+                    }
                 };
                 
                 input.addEventListener('blur', finishEdit);
@@ -2155,8 +2162,13 @@
                     if (e.key === 'Enter') {
                         finishEdit();
                     } else if (e.key === 'Escape') {
+                        // Set flag to prevent blur handler from running
+                        isEscaping = true;
+                        // Remove input first, then restore text
+                        if (valueDisplay.contains(input)) {
+                            valueDisplay.removeChild(input);
+                        }
                         valueDisplay.textContent = originalText;
-                        valueDisplay.removeChild(input);
                     }
                 });
             });
