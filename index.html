@@ -979,10 +979,10 @@
                             <option value="1">1/4</option>
                             <option value="2">1/8</option>
                             <option value="4">1/16</option>
-                            <option value="0.667">1/4 Dot</option>
-                            <option value="1.333">1/8 Dot</option>
-                            <option value="0.667t">1/4 Trip</option>
-                            <option value="1.333t">1/8 Trip</option>
+                            <option value="1d">1/4 Dot</option>
+                            <option value="2d">1/8 Dot</option>
+                            <option value="1t">1/4 Trip</option>
+                            <option value="2t">1/8 Trip</option>
                         </select>
                     </div>
                     <div class="control-group">
@@ -1775,6 +1775,7 @@
 
             // Update BPM-synced delay
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
+                const MAX_DELAY_FEEDBACK = 0.9; // Maximum feedback for stability
                 const bpm = parseFloat(document.getElementById('delayBpm').value);
                 const division = document.getElementById('delayDivision').value;
                 const feedback = getModulatedValue('delayFeedback') / 100;
@@ -1784,12 +1785,17 @@
                 // Quarter note = 60000ms / BPM
                 let delayTime = (60000 / bpm) / 1000; // Convert to seconds
                 
-                // Apply division
-                if (division.includes('t')) {
-                    // Triplet
+                // Apply division with proper dotted and triplet handling
+                if (division.includes('d')) {
+                    // Dotted: multiply by 1.5 (add half the value)
+                    const baseDivision = parseFloat(division.replace('d', ''));
+                    delayTime = (delayTime / baseDivision) * 1.5;
+                } else if (division.includes('t')) {
+                    // Triplet: multiply by 2/3
                     const baseDivision = parseFloat(division.replace('t', ''));
-                    delayTime = delayTime / baseDivision * (2/3);
+                    delayTime = (delayTime / baseDivision) * (2/3);
                 } else {
+                    // Standard division
                     delayTime = delayTime / parseFloat(division);
                 }
                 
@@ -1797,8 +1803,8 @@
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
                 delayNode.delayTime.value = delayTime;
                 
-                // Update feedback (0 to 90% max for stability)
-                delayFeedbackGain.gain.value = feedback * 0.9;
+                // Update feedback (0 to MAX_DELAY_FEEDBACK for stability)
+                delayFeedbackGain.gain.value = feedback * MAX_DELAY_FEEDBACK;
                 
                 // Update mix (equal-power crossfade)
                 delayWetGain.gain.value = Math.sin(mix * Math.PI / 2);
