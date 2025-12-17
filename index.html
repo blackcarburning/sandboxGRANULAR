@@ -1309,7 +1309,9 @@
             }
             
             // Avoid division by zero and handle silent buffers
-            if (peak === 0 || peak === 1.0) {
+            // Use epsilon for floating-point comparison
+            const epsilon = 0.0001;
+            if (peak === 0 || Math.abs(peak - 1.0) < epsilon) {
                 statusDiv.textContent = peak === 0 ? "Buffer is silent" : "Already normalized";
                 return;
             }
