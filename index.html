@@ -2364,7 +2364,7 @@
         // Helper function to prevent scrolling while allowing interactive elements to work
         function preventScrollingOnContainer(container) {
             container.addEventListener('touchstart', (e) => {
-                // Allow touch events on interactive elements (sliders, buttons, inputs)
+                // Allow touch events on interactive elements (sliders, buttons, inputs, selects)
                 const target = e.target;
                 if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
                     return; // Let the element handle the event
@@ -2374,10 +2374,10 @@
             }, { passive: false });
 
             container.addEventListener('touchmove', (e) => {
-                // Allow touch events on sliders specifically
+                // Allow touch events on interactive elements (sliders, buttons, inputs, selects)
                 const target = e.target;
-                if (target.tagName === 'INPUT' && target.type === 'range') {
-                    return; // Let sliders handle drag events
+                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'SELECT') {
+                    return; // Let the element handle the event
                 }
                 // Prevent all other touch moves to stop scrolling
                 e.preventDefault();
