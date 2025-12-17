@@ -15,8 +15,6 @@
             --accent: #00d4ff;
             --accent-glow: rgba(0, 212, 255, 0.5);
             --record-color: #ff0844;
-            --keyboard-height: 180px;
-            --container-padding: 15px;
         }
 
         * {
@@ -119,7 +117,7 @@
             border: 1px solid rgba(0, 212, 255, 0.2);
             overflow-y: auto;
             touch-action: none;
-            height: calc(100vh - var(--keyboard-height) - var(--container-padding)); /* Extend to bottom: full height minus keyboard section and padding */
+            align-self: stretch; /* Extend to fill parent height */
         }
 
         /* LFO Section */
