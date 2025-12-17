@@ -158,7 +158,11 @@
             align-items: center;
         }
 
-        .recording-buttons { display: flex; gap: 4px; }
+        .recording-buttons { 
+            display: flex; 
+            gap: 2px; 
+            flex-wrap: wrap;
+        }
 
         button {
             padding: 6px;
@@ -200,6 +204,14 @@
             background: #333;
             color: #666;
             cursor: not-allowed;
+        }
+
+        /* Smaller buttons specifically for Sample Source section to fit within 160px container */
+        /* Overrides general button styles for Record Mic, Normalize, and Clear buttons */
+        .recording-buttons button {
+            padding: 3px 4px;
+            font-size: 8px;
+            min-width: 0;
         }
 
         #waveformCanvas {
