@@ -1373,7 +1373,7 @@
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
             spray: { min: 0, max: 100 },
-            attack: { min: 1, max: 200 },
+            attack: { min: 1, max: 5000 },
             release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
             panSpread: { min: 0, max: 100 },
@@ -1634,45 +1634,45 @@
             shimmerMixGain = audioContext.createGain();
             shimmerMixGain.gain.value = 0; // Start with no shimmer
             
-            // Shimmer pitch shifter with octave up AND octave down
-            // Create a mixer that combines dry, octave up, and octave down signals
-            shimmerPitchShifter = audioContext.createGain();
+            // Shimmer mixer with frequency-based octave simulation
+            // Creates a mixer that combines dry, high-frequency, and low-frequency shimmer paths
+            shimmerPitchShifter = audioContext.createGain(); // Note: acts as mixer, not actual pitch shifter
             shimmerPitchShifter.gain.value = 1.0;
             
-            // Create separate gain nodes for mixing different pitch components
+            // Create separate gain nodes for mixing different frequency emphasis paths
             shimmerDryGain = audioContext.createGain();
             shimmerDryGain.gain.value = 0.5; // 50% dry signal
             
             shimmerOctaveUpGain = audioContext.createGain();
-            shimmerOctaveUpGain.gain.value = 0.25; // 25% octave up
+            shimmerOctaveUpGain.gain.value = 0.25; // 25% high-frequency emphasis
             
             shimmerOctaveDownGain = audioContext.createGain();
-            shimmerOctaveDownGain.gain.value = 0.25; // 25% octave down
+            shimmerOctaveDownGain.gain.value = 0.25; // 25% low-frequency emphasis
             
-            // Create high-pass and low-pass filters for octave simulation
-            // Octave up: emphasize high frequencies (doubles frequency perception)
+            // Create filters for frequency-based pitch simulation
+            // High-pass filter: emphasizes high frequencies to simulate octave up effect
             const octaveUpFilter = audioContext.createBiquadFilter();
             octaveUpFilter.type = 'highpass';
             octaveUpFilter.frequency.value = 800;
             octaveUpFilter.Q.value = 1.5;
             
-            // Octave down: emphasize low frequencies (halves frequency perception)
+            // Low-pass filter: emphasizes low frequencies to simulate octave down effect
             const octaveDownFilter = audioContext.createBiquadFilter();
             octaveDownFilter.type = 'lowpass';
             octaveDownFilter.frequency.value = 400;
             octaveDownFilter.Q.value = 1.5;
             
-            // Create delays for pitch shift approximation
+            // Create delays that, combined with filtering, create the illusion of pitch shifting
             const octaveUpDelay = audioContext.createDelay(1.0);
-            octaveUpDelay.delayTime.value = 0.05; // 50ms for octave up effect
+            octaveUpDelay.delayTime.value = 0.05; // 50ms for shimmer effect
             
             const octaveDownDelay = audioContext.createDelay(1.0);
-            octaveDownDelay.delayTime.value = 0.15; // 150ms for octave down effect
+            octaveDownDelay.delayTime.value = 0.15; // 150ms for deeper shimmer effect
 
             // Connections
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
-            // Shimmer: reverb -> shimmerMixGain -> shimmerDelayNode -> [dry/octave-up/octave-down parallel paths] -> shimmerPitchShifter -> shimmerFeedbackGain -> shimmerReverbNode -> wetGain
+            // Shimmer: reverb -> shimmerMixGain -> shimmerDelayNode -> [dry/high-freq/low-freq parallel paths] -> shimmerPitchShifter (mixer) -> shimmerFeedbackGain -> shimmerReverbNode -> wetGain
             hpfNodes[3].connect(lpfNodes[0]);
             lpfNodes[3].connect(makeupGain);
             makeupGain.connect(distortionNode);
