@@ -226,10 +226,11 @@
             border-radius: 8px;
             padding: 6px;
             border: 1px solid rgba(0, 212, 255, 0.2);
-            overflow: hidden !important;
+            overflow: hidden;
             position: relative;
             touch-action: manipulation;
-            -webkit-overflow-scrolling: auto;
+            -webkit-overflow-scrolling: touch;
+            min-height: 0;
         }
 
         .control-group {
@@ -569,12 +570,13 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 6px;
-            height: 300px;
-            max-height: 300px;
-            overflow: hidden !important;
+            min-height: 300px;
+            max-height: calc(100vh - 300px);
+            overflow-x: hidden;
+            overflow-y: auto;
             position: relative;
             touch-action: manipulation;
-            -webkit-overflow-scrolling: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         #utility-tab.active {
