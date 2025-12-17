@@ -1041,7 +1041,8 @@
                 startModulationLoop();
                 
                 // Run reset engine routine to ensure proper gain staging
-                await resetEngineRoutine();
+                // On startup, just reinitialize without recreating context
+                await setupEffects();
                 
                 // Hide overlay
                 startOverlay.style.opacity = '0';
@@ -2072,14 +2073,23 @@
             
             // Reset LFO mode to Hz if it's in BPM
             if (lfoMode === 'bpm') {
-                document.getElementById('lfoModeToggle').click();
+                const rateSlider = document.getElementById('lfoRate');
+                const modeToggle = document.getElementById('lfoModeToggle');
+                lfoMode = 'hz';
+                modeToggle.textContent = 'Hz';
+                rateSlider.min = '1';
+                rateSlider.max = '1000';
+                rateSlider.step = '0.1';
+                rateSlider.value = 1.0;
+                updateLFORateDisplay();
             }
             
             // Turn off all LFO toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
                 const param = btn.dataset.param;
                 if (lfoEnabled[param]) {
-                    btn.click();
+                    lfoEnabled[param] = false;
+                    btn.classList.remove('active');
                 }
             });
             
@@ -2087,7 +2097,8 @@
             document.querySelectorAll('.inv-toggle').forEach(btn => {
                 const param = btn.dataset.param;
                 if (lfoInverted[param]) {
-                    btn.click();
+                    lfoInverted[param] = false;
+                    btn.classList.remove('active');
                 }
             });
             
