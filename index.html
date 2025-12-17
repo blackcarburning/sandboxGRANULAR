@@ -237,7 +237,7 @@
             flex-direction: column;
             justify-content: center;
             background: rgba(0,0,0,0.2);
-            padding: 5px;
+            padding: 3px;
             border-radius: 4px;
         }
 
@@ -250,9 +250,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 9px;
+            font-size: 8px;
             color: #aaa;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
             font-weight: 600;
         }
 
@@ -277,8 +277,8 @@
         }
 
         .lfo-toggle, .inv-toggle, .mode-toggle {
-            padding: 1px 4px;
-            font-size: 8px;
+            padding: 1px 3px;
+            font-size: 7px;
             background: rgba(0,0,0,0.4);
             border: 1px solid #444;
             border-radius: 2px;
@@ -310,27 +310,27 @@
 
         input[type="range"] {
             width: 100%;
-            height: 14px; /* Increased from 3px for larger touch target */
+            height: 12px;
             border-radius: 2px;
-            background: transparent; /* Track styling moved to ::-webkit-slider-runnable-track */
+            background: transparent;
             outline: none;
             -webkit-appearance: none;
             touch-action: pan-x;
             pointer-events: auto;
             position: relative;
             z-index: 10;
-            padding: 8px 0; /* Add vertical padding for larger touch area */
-            margin: 4px 0; /* Spacing to prevent overlap */
+            padding: 6px 0;
+            margin: 2px 0;
             cursor: pointer;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 28px; /* Increased from 14px for better grip */
-            height: 28px; /* Increased from 14px for better grip */
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             background: var(--accent);
-            box-shadow: 0 0 8px var(--accent-glow);
+            box-shadow: 0 0 6px var(--accent-glow);
             cursor: grab;
             transition: transform 0.1s ease, box-shadow 0.1s ease;
         }
@@ -347,17 +347,17 @@
         }
         
         input[type="range"]::-webkit-slider-runnable-track {
-            height: 14px; /* Increased from 3px for easier targeting */
+            height: 12px;
             background: #333;
-            border-radius: 7px; /* Rounded to match height */
+            border-radius: 6px;
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 28px; /* Increased from 14px for better grip */
-            height: 28px; /* Increased from 14px for better grip */
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             background: var(--accent);
-            box-shadow: 0 0 8px var(--accent-glow);
+            box-shadow: 0 0 6px var(--accent-glow);
             border: none;
             cursor: grab;
             transition: transform 0.1s ease, box-shadow 0.1s ease;
@@ -375,9 +375,9 @@
         }
 
         input[type="range"]::-moz-range-track {
-            height: 14px; /* Increased from 3px for easier targeting */
+            height: 12px;
             background: #333;
-            border-radius: 7px;
+            border-radius: 6px;
         }
 
         input[type="range"]:focus {
@@ -568,13 +568,12 @@
         .tab-content.active {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
+            gap: 4px;
             height: 300px;
             max-height: 300px;
-            overflow-y: auto;
+            overflow: hidden;
             position: relative;
             touch-action: manipulation;
-            -webkit-overflow-scrolling: touch;
         }
 
         #utility-tab.active {
@@ -611,6 +610,18 @@
         #randomizeBtn {
             background: linear-gradient(135deg, #ff0844 0%, #cc0033 100%) !important;
             color: white !important;
+        }
+
+        /* Lock BPM button */
+        #lockBpmBtn {
+            background: linear-gradient(135deg, #444 0%, #666 100%) !important;
+            color: #888 !important;
+            transition: all 0.2s;
+        }
+
+        #lockBpmBtn.active {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%) !important;
+            color: #000 !important;
         }
 
         /* Fullscreen button */
@@ -955,42 +966,50 @@
                     </div>
                     <div class="control-group">
                         <label>
-                            <span class="param-name">Shimmer Mix</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="shimmerMix" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="shimmerMix" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="shimmerMix" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="shimmerMix" data-lfo="2">INV</button>
-                            </div>
-                            <span class="value" id="shimmerMixValue">0%</span>
+                            <span class="param-name">BPM</span>
+                            <span class="value" id="delayBpmValue">120</span>
                         </label>
-                        <input type="range" id="shimmerMix" min="0" max="100" value="0" step="1">
+                        <input type="range" id="delayBpm" min="40" max="200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
-                            <span class="param-name">Shimmer Decay</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="shimmerDecay" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="shimmerDecay" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="shimmerDecay" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="shimmerDecay" data-lfo="2">INV</button>
-                            </div>
-                            <span class="value" id="shimmerDecayValue">50%</span>
+                            <span class="param-name">Delay Time</span>
                         </label>
-                        <input type="range" id="shimmerDecay" min="0" max="100" value="50" step="1">
+                        <select id="delayDivision">
+                            <option value="1">1/4</option>
+                            <option value="2">1/8</option>
+                            <option value="4">1/16</option>
+                            <option value="1d">1/4 Dot</option>
+                            <option value="2d">1/8 Dot</option>
+                            <option value="1t">1/4 Trip</option>
+                            <option value="2t">1/8 Trip</option>
+                        </select>
                     </div>
                     <div class="control-group">
                         <label>
-                            <span class="param-name">Shimmer Amt</span>
+                            <span class="param-name">Delay Fdbk</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="shimmerAmount" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="shimmerAmount" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="shimmerAmount" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="shimmerAmount" data-lfo="2">INV</button>
+                                <button class="lfo-toggle" data-param="delayFeedback" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="delayFeedback" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="delayFeedback" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="delayFeedback" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="shimmerAmountValue">50%</span>
+                            <span class="value" id="delayFeedbackValue">30%</span>
                         </label>
-                        <input type="range" id="shimmerAmount" min="0" max="100" value="50" step="1">
+                        <input type="range" id="delayFeedback" min="0" max="100" value="30" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Delay Mix</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="delayMix" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="delayMix" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="delayMix" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="delayMix" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="delayMixValue">0%</span>
+                        </label>
+                        <input type="range" id="delayMix" min="0" max="100" value="0" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -1076,6 +1095,9 @@
                 <div class="tab-content" id="utility-tab">
                     <div class="control-group">
                         <button id="randomizeBtn">Randomize</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="lockBpmBtn" class="active">Lock BPM</button>
                     </div>
                     <div class="control-group">
                         <button id="saveAudioBtn">Save Audio</button>
@@ -1328,15 +1350,15 @@
         let tremoloLFOGain = null;
         let makeupGain = null; // Compensation for filter losses
         
-        // Shimmer reverb nodes
-        let shimmerDelayNode = null;
-        let shimmerFeedbackGain = null;
-        let shimmerPitchShifter = null;
-        let shimmerMixGain = null;
-        let shimmerReverbNode = null;
-        let shimmerOctaveUpGain = null;
-        let shimmerOctaveDownGain = null;
-        let shimmerDryGain = null;
+        // BPM-synced delay nodes
+        let delayNode = null;
+        let delayFeedbackGain = null;
+        let delayWetGain = null;
+        let delayDryGain = null;
+        let bpmLocked = true; // BPM lock state (ON by default)
+        
+        // Delay constants
+        const MAX_DELAY_FEEDBACK = 0.9; // Maximum feedback for stability (prevents runaway feedback)
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -1389,9 +1411,8 @@
             phaserDepth: { min: 0, max: 100 },
             tremoloRate: { min: 0.1, max: 20 },
             tremoloDepth: { min: 0, max: 100 },
-            shimmerMix: { min: 0, max: 100 },
-            shimmerDecay: { min: 0, max: 100 },
-            shimmerAmount: { min: 0, max: 100 }
+            delayFeedback: { min: 0, max: 100 },
+            delayMix: { min: 0, max: 100 }
         };
 
         // --- LFO Engine ---
@@ -1611,108 +1632,39 @@
             makeupGain = audioContext.createGain();
             makeupGain.gain.value = 2.0; // Compensate for filter and effect losses
 
-            // Shimmer reverb setup
-            // Create shimmer reverb with octave up AND octave down pitch-shifted feedback
-            shimmerDelayNode = audioContext.createDelay(5.0);
-            shimmerDelayNode.delayTime.value = 0.1; // 100ms delay for shimmer effect
+            // BPM-synced delay setup
+            delayNode = audioContext.createDelay(5.0);
+            delayNode.delayTime.value = 0.5; // Default 500ms (120 BPM quarter note)
             
-            shimmerFeedbackGain = audioContext.createGain();
-            shimmerFeedbackGain.gain.value = 0.5; // Feedback amount
+            delayFeedbackGain = audioContext.createGain();
+            delayFeedbackGain.gain.value = 0.3; // 30% feedback
             
-            // Create shimmer reverb impulse (longer, more diffuse)
-            const shimmerLength = sampleRate * 4.0; // 4 seconds tail
-            const shimmerImpulse = audioContext.createBuffer(2, shimmerLength, sampleRate);
-            for (let channel = 0; channel < 2; channel++) {
-                const data = shimmerImpulse.getChannelData(channel);
-                for (let i = 0; i < shimmerLength; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / shimmerLength, 2);
-                }
-            }
-            shimmerReverbNode = audioContext.createConvolver();
-            shimmerReverbNode.buffer = shimmerImpulse;
+            delayWetGain = audioContext.createGain();
+            delayWetGain.gain.value = 0; // Start with no delay
             
-            shimmerMixGain = audioContext.createGain();
-            shimmerMixGain.gain.value = 0; // Start with no shimmer
-            
-            // Shimmer mixer with spectral enhancement (simulates octave character)
-            // Creates a mixer that combines dry, high-frequency, and low-frequency shimmer paths
-            shimmerPitchShifter = audioContext.createGain(); // Note: acts as mixer, not actual pitch shifter
-            shimmerPitchShifter.gain.value = 1.0;
-            
-            // Create separate gain nodes for mixing different frequency emphasis paths
-            shimmerDryGain = audioContext.createGain();
-            shimmerDryGain.gain.value = 0.5; // 50% dry signal
-            
-            shimmerOctaveUpGain = audioContext.createGain();
-            shimmerOctaveUpGain.gain.value = 0.25; // 25% high-frequency emphasis
-            
-            shimmerOctaveDownGain = audioContext.createGain();
-            shimmerOctaveDownGain.gain.value = 0.25; // 25% low-frequency emphasis
-            
-            // Create filters for spectral enhancement
-            // High-pass filter: emphasizes high frequencies (creates bright octave-like character)
-            const octaveUpFilter = audioContext.createBiquadFilter();
-            octaveUpFilter.type = 'highpass';
-            octaveUpFilter.frequency.value = 800;
-            octaveUpFilter.Q.value = 1.5;
-            
-            // Low-pass filter: emphasizes low frequencies (creates deep octave-like character)
-            const octaveDownFilter = audioContext.createBiquadFilter();
-            octaveDownFilter.type = 'lowpass';
-            octaveDownFilter.frequency.value = 400;
-            octaveDownFilter.Q.value = 1.5;
-            
-            // Create delays that enhance the spectral separation and shimmer effect
-            const octaveUpDelay = audioContext.createDelay(1.0);
-            octaveUpDelay.delayTime.value = 0.05; // 50ms for bright shimmer
-            
-            const octaveDownDelay = audioContext.createDelay(1.0);
-            octaveDownDelay.delayTime.value = 0.15; // 150ms for deep shimmer
+            delayDryGain = audioContext.createGain();
+            delayDryGain.gain.value = 1.0; // Full dry signal
 
             // Connections
-            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> dryGain -> Master
+            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> delayDry -> Master
+            // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> delay -> delayWet -> Master
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
-            // Shimmer: reverb -> shimmerMixGain -> shimmerDelayNode -> [dry/high-freq/low-freq parallel paths] -> shimmerPitchShifter (mixer) -> shimmerFeedbackGain -> shimmerReverbNode -> wetGain
             hpfNodes[3].connect(lpfNodes[0]);
             lpfNodes[3].connect(makeupGain);
             makeupGain.connect(distortionNode);
             distortionNode.connect(phaserNodes[0]);
             phaserNodes[3].connect(tremoloGain);
-            tremoloGain.connect(dryGainNode);
+            tremoloGain.connect(delayDryGain);
+            tremoloGain.connect(delayNode);
             tremoloGain.connect(reverbNode);
+            delayDryGain.connect(dryGainNode);
+            delayNode.connect(delayWetGain);
+            delayNode.connect(delayFeedbackGain);
+            delayFeedbackGain.connect(delayNode); // Feedback loop
+            delayWetGain.connect(dryGainNode);
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
-            
-            // Shimmer reverb chain with octave up AND octave down
-            // Route signal to shimmer processing
-            reverbNode.connect(shimmerMixGain);
-            shimmerMixGain.connect(shimmerDelayNode);
-            
-            // Split into three parallel paths: dry, octave up, octave down
-            // Path 1: Dry signal (no pitch shift)
-            shimmerDelayNode.connect(shimmerDryGain);
-            shimmerDryGain.connect(shimmerPitchShifter);
-            
-            // Path 2: Octave up (high-pass filter + short delay)
-            shimmerDelayNode.connect(octaveUpDelay);
-            octaveUpDelay.connect(octaveUpFilter);
-            octaveUpFilter.connect(shimmerOctaveUpGain);
-            shimmerOctaveUpGain.connect(shimmerPitchShifter);
-            
-            // Path 3: Octave down (low-pass filter + longer delay)
-            shimmerDelayNode.connect(octaveDownDelay);
-            octaveDownDelay.connect(octaveDownFilter);
-            octaveDownFilter.connect(shimmerOctaveDownGain);
-            shimmerOctaveDownGain.connect(shimmerPitchShifter);
-            
-            // Combined signal goes through feedback and reverb
-            shimmerPitchShifter.connect(shimmerFeedbackGain);
-            shimmerFeedbackGain.connect(shimmerReverbNode);
-            shimmerReverbNode.connect(wetGainNode);
-            
-            // Feedback loop for sustained shimmer (feeds back into delay)
-            shimmerReverbNode.connect(shimmerDelayNode);
 
             // Generate noise buffers
             createNoiseBuffers();
@@ -1824,22 +1776,41 @@
                 });
             }
 
-            // Update shimmer reverb
-            if (shimmerMixGain && shimmerFeedbackGain && shimmerDelayNode) {
-                const shimmerMix = getModulatedValue('shimmerMix') / 100;
-                const shimmerDecay = getModulatedValue('shimmerDecay') / 100;
-                const shimmerAmount = getModulatedValue('shimmerAmount') / 100;
+            // Update BPM-synced delay
+            if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
+                const bpm = parseFloat(document.getElementById('delayBpm').value);
+                const division = document.getElementById('delayDivision').value;
+                const feedback = getModulatedValue('delayFeedback') / 100;
+                const mix = getModulatedValue('delayMix') / 100;
                 
-                // Mix controls how much signal goes into shimmer processing
-                shimmerMixGain.gain.value = shimmerMix;
+                // Calculate delay time from BPM and division
+                // Quarter note = 60000ms / BPM
+                let delayTime = (60000 / bpm) / 1000; // Convert to seconds
                 
-                // Decay controls the feedback amount (longer decay = more feedback)
-                shimmerFeedbackGain.gain.value = 0.3 + (shimmerDecay * 0.5); // 0.3 to 0.8 range
+                // Apply division with proper dotted and triplet handling
+                if (division.includes('d')) {
+                    // Dotted: multiply by 1.5 (add half the value)
+                    const baseDivision = parseFloat(division.replace('d', ''));
+                    delayTime = (delayTime / baseDivision) * 1.5;
+                } else if (division.includes('t')) {
+                    // Triplet: multiply by 2/3
+                    const baseDivision = parseFloat(division.replace('t', ''));
+                    delayTime = (delayTime / baseDivision) * (2/3);
+                } else {
+                    // Standard division
+                    delayTime = delayTime / parseFloat(division);
+                }
                 
-                // Amount controls the delay time (simulates pitch shift effect)
-                // Shorter delay = higher pitch shift
-                // For octave up, we use a delay that creates the perception of higher pitch
-                shimmerDelayNode.delayTime.value = 0.05 + (1 - shimmerAmount) * 0.15; // 50ms to 200ms
+                // Clamp delay time to safe range (10ms to 5s)
+                delayTime = Math.max(0.01, Math.min(5.0, delayTime));
+                delayNode.delayTime.value = delayTime;
+                
+                // Update feedback (0 to MAX_DELAY_FEEDBACK for stability)
+                delayFeedbackGain.gain.value = feedback * MAX_DELAY_FEEDBACK;
+                
+                // Update mix (equal-power crossfade)
+                delayWetGain.gain.value = Math.sin(mix * Math.PI / 2);
+                delayDryGain.gain.value = Math.cos(mix * Math.PI / 2);
             }
         }
 
@@ -2388,6 +2359,12 @@
                     updateLFORateDisplay();
                 } else if (e.target.id === 'lfo2Rate') {
                     updateLFO2RateDisplay();
+                } else if (e.target.id === 'delayBpm') {
+                    // Update BPM display (no suffix, just the number)
+                    const labelSpan = document.getElementById('delayBpmValue');
+                    if (labelSpan) {
+                        labelSpan.textContent = e.target.value;
+                    }
                 } else {
                     // Update text label
                     const labelSpan = document.getElementById(e.target.id + 'Value');
@@ -2407,7 +2384,7 @@
                 if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' || 
                     e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
-                    e.target.id === 'shimmerMix' || e.target.id === 'shimmerDecay' || e.target.id === 'shimmerAmount') {
+                    e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix') {
                     updateEffects();
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
@@ -2677,6 +2654,22 @@
             }
         });
 
+        // --- Delay Division Selector ---
+        document.getElementById('delayDivision').addEventListener('change', () => {
+            updateEffects();
+        });
+
+        // --- Lock BPM Button ---
+        document.getElementById('lockBpmBtn').addEventListener('click', () => {
+            const lockBtn = document.getElementById('lockBpmBtn');
+            bpmLocked = !bpmLocked;
+            if (bpmLocked) {
+                lockBtn.classList.add('active');
+            } else {
+                lockBtn.classList.remove('active');
+            }
+        });
+
         // --- Tab System ---
         document.querySelectorAll('.tab-button').forEach(button => {
             button.addEventListener('click', () => {
@@ -2891,6 +2884,11 @@
             const allSliders = document.querySelectorAll('input[type="range"]');
             
             allSliders.forEach(slider => {
+                // Skip BPM slider if locked
+                if (slider.id === 'delayBpm' && bpmLocked) {
+                    return;
+                }
+                
                 const min = parseFloat(slider.min);
                 const max = parseFloat(slider.max);
                 const step = parseFloat(slider.step);
@@ -2983,9 +2981,9 @@
                 tremoloRate: 5,
                 tremoloDepth: 0,
                 volume: 100,
-                shimmerMix: 0,
-                shimmerDecay: 50,
-                shimmerAmount: 50,
+                delayBpm: 120,
+                delayFeedback: 30,
+                delayMix: 0,
                 lfoRate: 1.0,
                 lfoDepth: 50,
                 lfo2Rate: 1.0,
@@ -3005,6 +3003,7 @@
             document.getElementById('lfoWaveform').value = 'sine';
             document.getElementById('lfo2Waveform').value = 'sine';
             document.getElementById('noiseType').value = 'none';
+            document.getElementById('delayDivision').value = '1';
             
             // Reset LFO mode to Hz if it's in BPM
             if (lfoMode === 'bpm') {
