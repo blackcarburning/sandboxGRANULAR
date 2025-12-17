@@ -350,7 +350,6 @@
             position: absolute;
             z-index: 2;
             border-radius: 0 0 3px 3px;
-            pointer-events: none; /* Let JS handle hitbox logic if needed, or keeping it simple */
             pointer-events: auto;
         }
 
@@ -660,6 +659,8 @@
 
         // Octave control
         let octaveOffset = 0;
+        const MAX_OCTAVE_OFFSET = 3;
+        const MIN_OCTAVE_OFFSET = -3;
 
         // Frequencies (C2 base)
         const noteFrequencies = {
@@ -1177,16 +1178,21 @@
         window.addEventListener('resize', drawWaveform);
 
         // --- Octave Controls ---
+        function updateOctaveDisplay() {
+            const displayText = octaveOffset > 0 ? '+' + octaveOffset : octaveOffset;
+            document.getElementById('octaveDisplay').textContent = displayText;
+        }
+
         document.getElementById('octaveUp').addEventListener('click', () => {
             octaveOffset++;
-            if (octaveOffset > 3) octaveOffset = 3; // Limit to +3 octaves
-            document.getElementById('octaveDisplay').textContent = octaveOffset > 0 ? '+' + octaveOffset : octaveOffset;
+            if (octaveOffset > MAX_OCTAVE_OFFSET) octaveOffset = MAX_OCTAVE_OFFSET;
+            updateOctaveDisplay();
         });
 
         document.getElementById('octaveDown').addEventListener('click', () => {
             octaveOffset--;
-            if (octaveOffset < -3) octaveOffset = -3; // Limit to -3 octaves
-            document.getElementById('octaveDisplay').textContent = octaveOffset > 0 ? '+' + octaveOffset : octaveOffset;
+            if (octaveOffset < MIN_OCTAVE_OFFSET) octaveOffset = MIN_OCTAVE_OFFSET;
+            updateOctaveDisplay();
         });
 
     </script>
