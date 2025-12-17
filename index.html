@@ -1356,6 +1356,9 @@
         let delayWetGain = null;
         let delayDryGain = null;
         let bpmLocked = true; // BPM lock state (ON by default)
+        
+        // Delay constants
+        const MAX_DELAY_FEEDBACK = 0.9; // Maximum feedback for stability (prevents runaway feedback)
 
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
@@ -1775,7 +1778,6 @@
 
             // Update BPM-synced delay
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
-                const MAX_DELAY_FEEDBACK = 0.9; // Maximum feedback for stability
                 const bpm = parseFloat(document.getElementById('delayBpm').value);
                 const division = document.getElementById('delayDivision').value;
                 const feedback = getModulatedValue('delayFeedback') / 100;
