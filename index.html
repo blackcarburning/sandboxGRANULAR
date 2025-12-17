@@ -901,7 +901,8 @@
                 hpfNodes[i].type = 'highpass';
             }
 
-            // Chain filters together
+            // Chain filters together to create 48dB slope
+            // Each biquad filter provides 12dB/octave, cascading 4 stages gives 48dB/octave
             for (let i = 0; i < 3; i++) {
                 lpfNodes[i].connect(lpfNodes[i + 1]);
                 hpfNodes[i].connect(hpfNodes[i + 1]);
@@ -951,12 +952,14 @@
                 whiteData[i] = Math.random() * 2 - 1;
             }
 
-            // Pink Noise (using Paul Kellet's approach)
+            // Pink Noise (using Paul Kellett's approach)
+            // These filter coefficients create 1/f spectrum approximation
             pinkNoiseBuffer = audioContext.createBuffer(1, bufferSize, sampleRate);
             const pinkData = pinkNoiseBuffer.getChannelData(0);
             let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
             for (let i = 0; i < bufferSize; i++) {
                 const white = Math.random() * 2 - 1;
+                // Apply Kellett's pole-zero filters at different frequencies
                 b0 = 0.99886 * b0 + white * 0.0555179;
                 b1 = 0.99332 * b1 + white * 0.0750759;
                 b2 = 0.96900 * b2 + white * 0.1538520;
@@ -1134,9 +1137,16 @@
             ctx.stroke();
         }
 
+        // --- Helper Functions ---
+        function canPlayGrains() {
+            // Allow playback if we have either audio buffer or noise selected
+            const noiseType = document.getElementById('noiseType').value;
+            return audioContext && (audioBuffer || noiseType !== 'none');
+        }
+
         // --- Granular Engine ---
         function playGrain(note) {
-            if ((!audioBuffer && document.getElementById('noiseType').value === 'none') || !audioContext) return;
+            if (!canPlayGrains()) return;
 
             // Params with LFO modulation
             const grainSize = getModulatedValue('grainSize') / 1000; // seconds
@@ -1161,8 +1171,8 @@
             // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
 
-            // Create sample source if available
-            if (audioBuffer && noiseMix < 1) {
+            // Create sample source if available and needed
+            if (audioBuffer && noiseMix < 1.0) {
                 // Start/End Logic with LFO modulation
                 let startPct = getModulatedValue('sampleStart') / 100;
                 let endPct = getModulatedValue('sampleEnd') / 100;
@@ -1234,9 +1244,7 @@
 
         // --- Scheduler ---
         function startGrainStream(note) {
-            // Allow playback if we have either audio buffer or noise selected
-            const noiseType = document.getElementById('noiseType').value;
-            if (!audioBuffer && noiseType === 'none') return;
+            if (!canPlayGrains()) return;
             if (activeGrains.has(note)) return; // Already playing
 
             const grainState = { timeoutId: null };
