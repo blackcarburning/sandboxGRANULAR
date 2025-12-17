@@ -118,7 +118,7 @@
             border: 1px solid rgba(0, 212, 255, 0.2);
         }
 
-        .lfo-section select {
+        .lfo-section select, .control-group select {
             padding: 4px;
             background: rgba(0,0,0,0.3);
             border: 1px solid #333;
@@ -126,6 +126,7 @@
             color: var(--accent);
             font-size: 10px;
             cursor: pointer;
+            width: 100%;
         }
 
         .lfo-section .control-group {
@@ -192,12 +193,11 @@
         /* Right Side: Sliders */
         .controls-section {
             flex: 1;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 columns */
-            gap: 6px;
+            display: flex;
+            flex-direction: column;
             background: var(--panel-bg);
             border-radius: 8px;
-            padding: 8px;
+            padding: 6px;
             border: 1px solid rgba(0, 212, 255, 0.2);
             overflow-y: auto;
         }
@@ -300,10 +300,10 @@
 
         /* Keyboard Section */
         .keyboard-section {
-            flex: 0 0 100px;
+            flex: 0 0 180px;
             background: var(--panel-bg);
             border-radius: 8px 8px 0 0;
-            padding: 5px;
+            padding: 8px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -333,7 +333,7 @@
         }
 
         .key.white {
-            width: 32px;
+            width: 40px;
             height: 100%;
             background: #fff;
             border: 1px solid #ccc;
@@ -343,7 +343,7 @@
         }
 
         .key.black {
-            width: 20px;
+            width: 26px;
             height: 60%;
             background: #000;
             color: #fff;
@@ -360,16 +360,16 @@
         }
 
         /* Black key positions */
-        .key.black[data-note="C#1"] { left: 22px; }
-        .key.black[data-note="D#1"] { left: 56px; }
-        .key.black[data-note="F#1"] { left: 123px; }
-        .key.black[data-note="G#1"] { left: 157px; }
-        .key.black[data-note="A#1"] { left: 190px; }
-        .key.black[data-note="C#2"] { left: 257px; }
-        .key.black[data-note="D#2"] { left: 291px; }
-        .key.black[data-note="F#2"] { left: 358px; }
-        .key.black[data-note="G#2"] { left: 392px; }
-        .key.black[data-note="A#2"] { left: 426px; }
+        .key.black[data-note="C#1"] { left: 28px; }
+        .key.black[data-note="D#1"] { left: 70px; }
+        .key.black[data-note="F#1"] { left: 154px; }
+        .key.black[data-note="G#1"] { left: 196px; }
+        .key.black[data-note="A#1"] { left: 238px; }
+        .key.black[data-note="C#2"] { left: 322px; }
+        .key.black[data-note="D#2"] { left: 364px; }
+        .key.black[data-note="F#2"] { left: 448px; }
+        .key.black[data-note="G#2"] { left: 490px; }
+        .key.black[data-note="A#2"] { left: 532px; }
 
         /* Octave Controls */
         .octave-controls {
@@ -395,6 +395,43 @@
             font-size: 10px;
             color: var(--accent);
             text-align: center;
+        }
+
+        /* Tab System */
+        .tab-container {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .tab-button {
+            padding: 4px 8px;
+            font-size: 9px;
+            background: rgba(0,0,0,0.3);
+            border: none;
+            border-radius: 4px 4px 0 0;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .tab-button.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
         }
 
     </style>
@@ -449,148 +486,224 @@
             </div>
 
             <div class="controls-section">
-                <!-- New Sliders -->
-                <div class="control-group highlight">
-                    <label>
-                        <span class="param-name">Sample Start</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="sampleStart">LFO</button>
-                            <button class="inv-toggle" data-param="sampleStart">INV</button>
-                        </div>
-                        <span class="value" id="sampleStartValue">0%</span>
-                    </label>
-                    <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
-                </div>
-                <div class="control-group highlight">
-                    <label>
-                        <span class="param-name">Sample End</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="sampleEnd">LFO</button>
-                            <button class="inv-toggle" data-param="sampleEnd">INV</button>
-                        </div>
-                        <span class="value" id="sampleEndValue">100%</span>
-                    </label>
-                    <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
+                <div class="tab-container">
+                    <button class="tab-button active" data-tab="grain">Grain</button>
+                    <button class="tab-button" data-tab="filter">Filter</button>
+                    <button class="tab-button" data-tab="noise">Noise</button>
+                    <button class="tab-button" data-tab="fx">FX/LFO</button>
                 </div>
 
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Grain Size</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="grainSize">LFO</button>
-                            <button class="inv-toggle" data-param="grainSize">INV</button>
-                        </div>
-                        <span class="value" id="grainSizeValue">100ms</span>
-                    </label>
-                    <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                <!-- Grain Tab -->
+                <div class="tab-content active" id="grain-tab">
+                    <div class="control-group highlight">
+                        <label>
+                            <span class="param-name">Sample Start</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="sampleStart">LFO</button>
+                                <button class="inv-toggle" data-param="sampleStart">INV</button>
+                            </div>
+                            <span class="value" id="sampleStartValue">0%</span>
+                        </label>
+                        <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group highlight">
+                        <label>
+                            <span class="param-name">Sample End</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="sampleEnd">LFO</button>
+                                <button class="inv-toggle" data-param="sampleEnd">INV</button>
+                            </div>
+                            <span class="value" id="sampleEndValue">100%</span>
+                        </label>
+                        <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Grain Size</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="grainSize">LFO</button>
+                                <button class="inv-toggle" data-param="grainSize">INV</button>
+                            </div>
+                            <span class="value" id="grainSizeValue">100ms</span>
+                        </label>
+                        <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Density</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="density">LFO</button>
+                                <button class="inv-toggle" data-param="density">INV</button>
+                            </div>
+                            <span class="value" id="densityValue">10</span>
+                        </label>
+                        <input type="range" id="density" min="1" max="40" value="10" step="1">
+                    </div>
+                    <div class="control-group highlight">
+                        <label>
+                            <span class="param-name">Scan Position</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="position">LFO</button>
+                                <button class="inv-toggle" data-param="position">INV</button>
+                            </div>
+                            <span class="value" id="positionValue">0%</span>
+                        </label>
+                        <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Spray (Rnd)</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="spray">LFO</button>
+                                <button class="inv-toggle" data-param="spray">INV</button>
+                            </div>
+                            <span class="value" id="sprayValue">0%</span>
+                        </label>
+                        <input type="range" id="spray" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Attack</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="attack">LFO</button>
+                                <button class="inv-toggle" data-param="attack">INV</button>
+                            </div>
+                            <span class="value" id="attackValue">10ms</span>
+                        </label>
+                        <input type="range" id="attack" min="1" max="200" value="10" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Release</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="release">LFO</button>
+                                <button class="inv-toggle" data-param="release">INV</button>
+                            </div>
+                            <span class="value" id="releaseValue">50ms</span>
+                        </label>
+                        <input type="range" id="release" min="1" max="500" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Pitch Rand</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="pitchVar">LFO</button>
+                                <button class="inv-toggle" data-param="pitchVar">INV</button>
+                            </div>
+                            <span class="value" id="pitchVarValue">0%</span>
+                        </label>
+                        <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Stereo</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="panSpread">LFO</button>
+                                <button class="inv-toggle" data-param="panSpread">INV</button>
+                            </div>
+                            <span class="value" id="panSpreadValue">50%</span>
+                        </label>
+                        <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
+                    </div>
                 </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Density</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="density">LFO</button>
-                            <button class="inv-toggle" data-param="density">INV</button>
-                        </div>
-                        <span class="value" id="densityValue">10</span>
-                    </label>
-                    <input type="range" id="density" min="1" max="40" value="10" step="1">
+
+                <!-- Filter Tab -->
+                <div class="tab-content" id="filter-tab">
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">LPF Cutoff</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfCutoff">LFO</button>
+                                <button class="inv-toggle" data-param="lpfCutoff">INV</button>
+                            </div>
+                            <span class="value" id="lpfCutoffValue">20000Hz</span>
+                        </label>
+                        <input type="range" id="lpfCutoff" min="20" max="20000" value="20000" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">LPF Resonance</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfQ">LFO</button>
+                                <button class="inv-toggle" data-param="lpfQ">INV</button>
+                            </div>
+                            <span class="value" id="lpfQValue">0.7</span>
+                        </label>
+                        <input type="range" id="lpfQ" min="0.1" max="20" value="0.7" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">HPF Cutoff</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfCutoff">LFO</button>
+                                <button class="inv-toggle" data-param="hpfCutoff">INV</button>
+                            </div>
+                            <span class="value" id="hpfCutoffValue">20Hz</span>
+                        </label>
+                        <input type="range" id="hpfCutoff" min="20" max="5000" value="20" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">HPF Resonance</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfQ">LFO</button>
+                                <button class="inv-toggle" data-param="hpfQ">INV</button>
+                            </div>
+                            <span class="value" id="hpfQValue">0.7</span>
+                        </label>
+                        <input type="range" id="hpfQ" min="0.1" max="20" value="0.7" step="0.1">
+                    </div>
                 </div>
-                
-                <div class="control-group highlight">
-                    <label>
-                        <span class="param-name">Scan Position</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="position">LFO</button>
-                            <button class="inv-toggle" data-param="position">INV</button>
-                        </div>
-                        <span class="value" id="positionValue">0%</span>
-                    </label>
-                    <input type="range" id="position" min="0" max="100" value="0" step="0.1">
+
+                <!-- Noise Tab -->
+                <div class="tab-content" id="noise-tab">
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Noise Type</span>
+                        </label>
+                        <select id="noiseType">
+                            <option value="none">None</option>
+                            <option value="white">White Noise</option>
+                            <option value="pink">Pink Noise</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Noise Mix</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="noiseMix">LFO</button>
+                                <button class="inv-toggle" data-param="noiseMix">INV</button>
+                            </div>
+                            <span class="value" id="noiseMixValue">0%</span>
+                        </label>
+                        <input type="range" id="noiseMix" min="0" max="100" value="0" step="1">
+                    </div>
                 </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Spray (Rnd)</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="spray">LFO</button>
-                            <button class="inv-toggle" data-param="spray">INV</button>
-                        </div>
-                        <span class="value" id="sprayValue">0%</span>
-                    </label>
-                    <input type="range" id="spray" min="0" max="100" value="0" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Attack</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="attack">LFO</button>
-                            <button class="inv-toggle" data-param="attack">INV</button>
-                        </div>
-                        <span class="value" id="attackValue">10ms</span>
-                    </label>
-                    <input type="range" id="attack" min="1" max="200" value="10" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Release</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="release">LFO</button>
-                            <button class="inv-toggle" data-param="release">INV</button>
-                        </div>
-                        <span class="value" id="releaseValue">50ms</span>
-                    </label>
-                    <input type="range" id="release" min="1" max="500" value="50" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Pitch Rand</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="pitchVar">LFO</button>
-                            <button class="inv-toggle" data-param="pitchVar">INV</button>
-                        </div>
-                        <span class="value" id="pitchVarValue">0%</span>
-                    </label>
-                    <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Stereo</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="panSpread">LFO</button>
-                            <button class="inv-toggle" data-param="panSpread">INV</button>
-                        </div>
-                        <span class="value" id="panSpreadValue">50%</span>
-                    </label>
-                    <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Reverb</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="reverb">LFO</button>
-                            <button class="inv-toggle" data-param="reverb">INV</button>
-                        </div>
-                        <span class="value" id="reverbValue">20%</span>
-                    </label>
-                    <input type="range" id="reverb" min="0" max="100" value="20" step="1">
-                </div>
-                
-                <div class="control-group">
-                    <label>
-                        <span class="param-name">Master Vol</span>
-                        <div class="button-group">
-                            <button class="lfo-toggle" data-param="volume">LFO</button>
-                            <button class="inv-toggle" data-param="volume">INV</button>
-                        </div>
-                        <span class="value" id="volumeValue">80%</span>
-                    </label>
-                    <input type="range" id="volume" min="0" max="100" value="80" step="1">
+
+                <!-- FX/LFO Tab -->
+                <div class="tab-content" id="fx-tab">
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Reverb</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="reverb">LFO</button>
+                                <button class="inv-toggle" data-param="reverb">INV</button>
+                            </div>
+                            <span class="value" id="reverbValue">20%</span>
+                        </label>
+                        <input type="range" id="reverb" min="0" max="100" value="20" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Master Vol</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="volume">LFO</button>
+                                <button class="inv-toggle" data-param="volume">INV</button>
+                            </div>
+                            <span class="value" id="volumeValue">80%</span>
+                        </label>
+                        <input type="range" id="volume" min="0" max="100" value="80" step="1">
+                    </div>
                 </div>
             </div>
         </div>
@@ -649,6 +762,14 @@
         let wetGainNode = null;
         let masterGain = null;
 
+        // Filter nodes (4 stages each for 48dB)
+        let lpfNodes = [];
+        let hpfNodes = [];
+
+        // Noise buffers
+        let whiteNoiseBuffer = null;
+        let pinkNoiseBuffer = null;
+
         // Frequencies (C2 base)
         const noteFrequencies = {
             'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65, 'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
@@ -675,7 +796,12 @@
             pitchVar: { min: 0, max: 100 },
             panSpread: { min: 0, max: 100 },
             reverb: { min: 0, max: 100 },
-            volume: { min: 0, max: 100 }
+            volume: { min: 0, max: 100 },
+            lpfCutoff: { min: 20, max: 20000 },
+            lpfQ: { min: 0.1, max: 20 },
+            hpfCutoff: { min: 20, max: 5000 },
+            hpfQ: { min: 0.1, max: 20 },
+            noiseMix: { min: 0, max: 100 }
         };
 
         // --- LFO Engine ---
@@ -765,6 +891,23 @@
             masterGain = audioContext.createGain();
             masterGain.connect(audioContext.destination);
 
+            // Create 48dB filters (4 stages of 12dB each)
+            lpfNodes = [];
+            hpfNodes = [];
+            for (let i = 0; i < 4; i++) {
+                lpfNodes.push(audioContext.createBiquadFilter());
+                lpfNodes[i].type = 'lowpass';
+                hpfNodes.push(audioContext.createBiquadFilter());
+                hpfNodes[i].type = 'highpass';
+            }
+
+            // Chain filters together to create 48dB slope
+            // Each biquad filter provides 12dB/octave, cascading 4 stages gives 48dB/octave
+            for (let i = 0; i < 3; i++) {
+                lpfNodes[i].connect(lpfNodes[i + 1]);
+                hpfNodes[i].connect(hpfNodes[i + 1]);
+            }
+
             // Reverb Chain
             reverbNode = audioContext.createConvolver();
             dryGainNode = audioContext.createGain();
@@ -783,13 +926,49 @@
             reverbNode.buffer = impulse;
 
             // Connections
-            // Grain -> dryGain -> Master
-            // Grain -> reverb -> wetGain -> Master
+            // Grain -> HPF -> LPF -> dryGain -> Master
+            // Grain -> HPF -> LPF -> reverb -> wetGain -> Master
+            hpfNodes[3].connect(lpfNodes[0]);
+            lpfNodes[3].connect(dryGainNode);
+            lpfNodes[3].connect(reverbNode);
             dryGainNode.connect(masterGain);
             reverbNode.connect(wetGainNode);
             wetGainNode.connect(masterGain);
 
+            // Generate noise buffers
+            createNoiseBuffers();
+
             updateEffects();
+        }
+
+        function createNoiseBuffers() {
+            const sampleRate = audioContext.sampleRate;
+            const bufferSize = sampleRate * 2; // 2 seconds
+
+            // White Noise
+            whiteNoiseBuffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const whiteData = whiteNoiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                whiteData[i] = Math.random() * 2 - 1;
+            }
+
+            // Pink Noise (using Paul Kellett's approach)
+            // These filter coefficients create 1/f spectrum approximation
+            pinkNoiseBuffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const pinkData = pinkNoiseBuffer.getChannelData(0);
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                // Apply Kellett's pole-zero filters at different frequencies
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                pinkData[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                b6 = white * 0.115926;
+            }
         }
 
         function updateEffects() {
@@ -800,6 +979,25 @@
             dryGainNode.gain.value = 1.0 - (reverbAmt * 0.4);
             wetGainNode.gain.value = reverbAmt;
             masterGain.gain.value = volAmt;
+
+            // Update filters
+            if (lpfNodes.length > 0) {
+                const lpfCutoff = getModulatedValue('lpfCutoff');
+                const lpfQ = getModulatedValue('lpfQ');
+                lpfNodes.forEach(node => {
+                    node.frequency.value = lpfCutoff;
+                    node.Q.value = lpfQ;
+                });
+            }
+
+            if (hpfNodes.length > 0) {
+                const hpfCutoff = getModulatedValue('hpfCutoff');
+                const hpfQ = getModulatedValue('hpfQ');
+                hpfNodes.forEach(node => {
+                    node.frequency.value = hpfCutoff;
+                    node.Q.value = hpfQ;
+                });
+            }
         }
 
         // Real-time modulation loop for global parameters
@@ -939,9 +1137,16 @@
             ctx.stroke();
         }
 
+        // --- Helper Functions ---
+        function canPlayGrains() {
+            // Allow playback if we have either audio buffer or noise selected
+            const noiseType = document.getElementById('noiseType').value;
+            return audioContext && (audioBuffer || noiseType !== 'none');
+        }
+
         // --- Granular Engine ---
         function playGrain(note) {
-            if (!audioBuffer || !audioContext) return;
+            if (!canPlayGrains()) return;
 
             // Params with LFO modulation
             const grainSize = getModulatedValue('grainSize') / 1000; // seconds
@@ -950,29 +1155,7 @@
             const spray = getModulatedValue('spray') / 100;
             const pitchVar = getModulatedValue('pitchVar') / 100;
             const panSpread = getModulatedValue('panSpread') / 100;
-
-            // Start/End Logic with LFO modulation
-            let startPct = getModulatedValue('sampleStart') / 100;
-            let endPct = getModulatedValue('sampleEnd') / 100;
-            
-            // Swap if user crosses sliders
-            if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
-
-            const bufferDuration = audioBuffer.duration;
-            const validStart = bufferDuration * startPct;
-            const validEnd = bufferDuration * endPct;
-            const validDuration = validEnd - validStart;
-
-            // Playhead Position (within the valid window) with LFO modulation
-            const posSlider = getModulatedValue('position') / 100;
-            let playPosition = validStart + (posSlider * validDuration);
-
-            // Add Spray
-            const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
-            playPosition += randomSpray;
-
-            // Clamp
-            playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
+            const noiseMix = getModulatedValue('noiseMix') / 100;
 
             // Pitch Calculation with octave offset
             const noteFreq = noteFrequencies[note];
@@ -981,36 +1164,87 @@
             // Add Pitch Randomness
             rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
 
-            // Audio Graph
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.playbackRate.value = rate;
-
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
+            const mixer = audioContext.createGain();
 
             // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
 
-            source.connect(envelope);
+            // Create sample source if available and needed
+            if (audioBuffer && noiseMix < 1.0) {
+                // Start/End Logic with LFO modulation
+                let startPct = getModulatedValue('sampleStart') / 100;
+                let endPct = getModulatedValue('sampleEnd') / 100;
+                
+                // Swap if user crosses sliders
+                if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
+
+                const bufferDuration = audioBuffer.duration;
+                const validStart = bufferDuration * startPct;
+                const validEnd = bufferDuration * endPct;
+                const validDuration = validEnd - validStart;
+
+                // Playhead Position (within the valid window) with LFO modulation
+                const posSlider = getModulatedValue('position') / 100;
+                let playPosition = validStart + (posSlider * validDuration);
+
+                // Add Spray
+                const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
+                playPosition += randomSpray;
+
+                // Clamp
+                playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
+
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.playbackRate.value = rate;
+
+                const sampleGain = audioContext.createGain();
+                sampleGain.gain.value = 1 - noiseMix;
+
+                source.connect(sampleGain);
+                sampleGain.connect(mixer);
+
+                const now = audioContext.currentTime;
+                source.start(now, playPosition, grainSize);
+                source.stop(now + grainSize + 0.1);
+            }
+
+            // Create noise source if selected
+            const noiseType = document.getElementById('noiseType').value;
+            if (noiseType !== 'none' && noiseMix > 0) {
+                const noiseSource = audioContext.createBufferSource();
+                noiseSource.buffer = noiseType === 'white' ? whiteNoiseBuffer : pinkNoiseBuffer;
+                noiseSource.playbackRate.value = rate;
+                noiseSource.loop = true;
+
+                const noiseGain = audioContext.createGain();
+                noiseGain.gain.value = noiseMix;
+
+                noiseSource.connect(noiseGain);
+                noiseGain.connect(mixer);
+
+                const now = audioContext.currentTime;
+                noiseSource.start(now);
+                noiseSource.stop(now + grainSize + 0.1);
+            }
+
+            // Connect through filters
+            mixer.connect(envelope);
             envelope.connect(panner);
-            panner.connect(dryGainNode);
-            panner.connect(reverbNode); // Send to reverb
+            panner.connect(hpfNodes[0]);
 
             // Envelope
             const now = audioContext.currentTime;
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(1, now + attack);
             envelope.gain.linearRampToValueAtTime(0, now + grainSize);
-
-            // Play
-            source.start(now, playPosition, grainSize);
-            source.stop(now + grainSize + 0.1); // Cleanup
         }
 
         // --- Scheduler ---
         function startGrainStream(note) {
-            if (!audioBuffer) return;
+            if (!canPlayGrains()) return;
             if (activeGrains.has(note)) return; // Already playing
 
             const grainState = { timeoutId: null };
@@ -1084,6 +1318,8 @@
                         let suffix = '';
                         if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
+                        else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff') suffix = 'Hz';
+                        else if (e.target.id === 'lpfQ' || e.target.id === 'hpfQ') suffix = '';
                         else suffix = '%';
                         labelSpan.textContent = e.target.value + suffix;
                     }
@@ -1092,6 +1328,7 @@
                 // Special handling for effects or redraw
                 if (e.target.id === 'reverb' || e.target.id === 'volume') updateEffects();
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
+                if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
             });
         });
 
@@ -1174,6 +1411,21 @@
         document.getElementById('octaveDownBtn').addEventListener('click', () => {
             octaveOffset = Math.max(octaveOffset - 1, -3);
             updateOctaveDisplay();
+        });
+
+        // --- Tab System ---
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+                
+                // Update button states
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update content visibility
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(targetTab + '-tab').classList.add('active');
+            });
         });
 
         // Window Resize
