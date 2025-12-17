@@ -350,7 +350,6 @@
             position: absolute;
             z-index: 2;
             border-radius: 0 0 3px 3px;
-            pointer-events: none; /* Let JS handle hitbox logic if needed, or keeping it simple */
             pointer-events: auto;
         }
 
@@ -1162,14 +1161,19 @@
         });
 
         // --- Octave Controls ---
+        function updateOctaveDisplay() {
+            const sign = octaveOffset > 0 ? '+' : '';
+            document.getElementById('octaveDisplay').textContent = `Oct: ${sign}${octaveOffset}`;
+        }
+
         document.getElementById('octaveUpBtn').addEventListener('click', () => {
             octaveOffset = Math.min(octaveOffset + 1, 3);
-            document.getElementById('octaveDisplay').textContent = `Oct: ${octaveOffset > 0 ? '+' : ''}${octaveOffset}`;
+            updateOctaveDisplay();
         });
 
         document.getElementById('octaveDownBtn').addEventListener('click', () => {
             octaveOffset = Math.max(octaveOffset - 1, -3);
-            document.getElementById('octaveDisplay').textContent = `Oct: ${octaveOffset > 0 ? '+' : ''}${octaveOffset}`;
+            updateOctaveDisplay();
         });
 
         // Window Resize
