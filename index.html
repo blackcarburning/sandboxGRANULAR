@@ -1634,7 +1634,7 @@
             shimmerMixGain = audioContext.createGain();
             shimmerMixGain.gain.value = 0; // Start with no shimmer
             
-            // Shimmer mixer with frequency-based octave simulation
+            // Shimmer mixer with spectral enhancement (simulates octave character)
             // Creates a mixer that combines dry, high-frequency, and low-frequency shimmer paths
             shimmerPitchShifter = audioContext.createGain(); // Note: acts as mixer, not actual pitch shifter
             shimmerPitchShifter.gain.value = 1.0;
@@ -1649,14 +1649,14 @@
             shimmerOctaveDownGain = audioContext.createGain();
             shimmerOctaveDownGain.gain.value = 0.25; // 25% low-frequency emphasis
             
-            // Create filters for frequency-based pitch simulation
-            // High-pass filter: emphasizes high frequencies to simulate octave up effect
+            // Create filters for spectral enhancement
+            // High-pass filter: emphasizes high frequencies (creates bright octave-like character)
             const octaveUpFilter = audioContext.createBiquadFilter();
             octaveUpFilter.type = 'highpass';
             octaveUpFilter.frequency.value = 800;
             octaveUpFilter.Q.value = 1.5;
             
-            // Low-pass filter: emphasizes low frequencies to simulate octave down effect
+            // Low-pass filter: emphasizes low frequencies (creates deep octave-like character)
             const octaveDownFilter = audioContext.createBiquadFilter();
             octaveDownFilter.type = 'lowpass';
             octaveDownFilter.frequency.value = 400;
