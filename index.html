@@ -1041,7 +1041,8 @@
                 startModulationLoop();
                 
                 // Run reset engine routine to ensure proper gain staging
-                // On startup, just reinitialize without recreating context
+                // Calling setupEffects() again fixes the volume issue by reinitializing
+                // the audio chain with proper connections and gain values
                 await setupEffects();
                 
                 // Hide overlay
