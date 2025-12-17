@@ -862,9 +862,6 @@
         // Filter nodes (4 stages each for 48dB)
         let lpfNodes = [];
         let hpfNodes = [];
-        
-        // Filter envelope tracking
-        let activeFilterEnvelopes = new Map();
 
         // Noise buffers
         let whiteNoiseBuffer = null;
@@ -1436,9 +1433,10 @@
                 sampleGain.connect(mixer);
 
                 const now = audioContext.currentTime;
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
                 source.start(now, playPosition);
-                // Stop after grainSize + release time
-                source.stop(now + grainSize + release);
+                // Stop after envelope completes
+                source.stop(now + totalDuration);
             }
 
             // Create noise source if selected
@@ -1456,8 +1454,9 @@
                 noiseGain.connect(mixer);
 
                 const now = audioContext.currentTime;
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
                 noiseSource.start(now);
-                noiseSource.stop(now + grainSize + release);
+                noiseSource.stop(now + totalDuration);
             }
 
             // Connect through filters
@@ -1467,10 +1466,11 @@
 
             // Envelope - extend to include release time
             const now = audioContext.currentTime;
+            const sustainTime = Math.max(grainSize - attack, 0.001); // Ensure positive sustain duration
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(1, now + attack);
-            envelope.gain.setValueAtTime(1, now + grainSize - release);
-            envelope.gain.linearRampToValueAtTime(0, now + grainSize + release);
+            envelope.gain.setValueAtTime(1, now + attack + sustainTime);
+            envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
         }
 
         // --- Scheduler ---
