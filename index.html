@@ -1090,7 +1090,12 @@
 
     <script>
         // --- Prevent Zoom and Browser UI Interference ---
-        // Helper function to check if element is interactive
+        
+        /**
+         * Helper function to determine if an element is interactive and should allow touch events.
+         * @param {HTMLElement} target - The DOM element to check
+         * @returns {boolean} True if element should receive normal touch events, false otherwise
+         */
         function isInteractiveElement(target) {
             return target.tagName === 'INPUT' || 
                    target.tagName === 'BUTTON' || 
@@ -1100,6 +1105,9 @@
                    target.classList.contains('value') || 
                    target.tagName === 'LABEL';
         }
+        
+        // Constants for touch handling
+        const DOUBLE_TAP_TIMEOUT = 300; // milliseconds
         
         // Prevent gesturestart and gesturechange events (pinch zoom on iOS)
         document.addEventListener('gesturestart', (e) => {
@@ -1123,8 +1131,7 @@
             const target = e.target;
             
             // Store start position for each touch (for pull-to-refresh prevention)
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
+            for (const touch of e.touches) {
                 touchStartPositions.set(touch.identifier, touch.clientY);
             }
             
@@ -1179,14 +1186,14 @@
             const target = e.target;
             
             // Clean up stored positions for ended touches
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                touchStartPositions.delete(e.changedTouches[i].identifier);
+            for (const touch of e.changedTouches) {
+                touchStartPositions.delete(touch.identifier);
             }
             
             // Prevent double-tap zoom on non-interactive elements
             if (!isInteractiveElement(target)) {
                 const now = Date.now();
-                if (now - lastTouchEnd <= 300) {
+                if (now - lastTouchEnd <= DOUBLE_TAP_TIMEOUT) {
                     e.preventDefault();
                 }
                 lastTouchEnd = now;
