@@ -539,27 +539,6 @@
                 <canvas id="waveformCanvas"></canvas>
                 <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
                 <div id="status" class="status">Waiting for audio...</div>
-
-                <div class="lfo-section">
-                    <div class="section-title">LFO Controls</div>
-                    <div class="control-group">
-                        <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">Hz</button><span class="value" id="lfoRateValue">1.0Hz</span></label>
-                        <input type="range" id="lfoRate" min="1" max="1000" value="1.0" step="0.1">
-                    </div>
-                    <div class="control-group">
-                        <label><span>Waveform</span></label>
-                        <select id="lfoWaveform">
-                            <option value="sine">Sine</option>
-                            <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
-                            <option value="square">Square</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
-                        <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
-                    </div>
-                </div>
             </div>
 
             <div class="controls-section">
@@ -567,7 +546,8 @@
                     <button class="tab-button active" data-tab="grain">Grain</button>
                     <button class="tab-button" data-tab="filter">Filter</button>
                     <button class="tab-button" data-tab="noise">Noise</button>
-                    <button class="tab-button" data-tab="fx">FX/LFO</button>
+                    <button class="tab-button" data-tab="fx">FX</button>
+                    <button class="tab-button" data-tab="lfo">LFO</button>
                     <button class="tab-button" data-tab="utility">Utility</button>
                 </div>
 
@@ -577,8 +557,10 @@
                         <label>
                             <span class="param-name">Sample Start</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="sampleStart">LFO</button>
-                                <button class="inv-toggle" data-param="sampleStart">INV</button>
+                                <button class="lfo-toggle" data-param="sampleStart" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="sampleStart" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="sampleStart" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="sampleStart" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="sampleStartValue">0%</span>
                         </label>
@@ -588,8 +570,10 @@
                         <label>
                             <span class="param-name">Sample End</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="sampleEnd">LFO</button>
-                                <button class="inv-toggle" data-param="sampleEnd">INV</button>
+                                <button class="lfo-toggle" data-param="sampleEnd" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="sampleEnd" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="sampleEnd" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="sampleEnd" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="sampleEndValue">100%</span>
                         </label>
@@ -599,8 +583,10 @@
                         <label>
                             <span class="param-name">Grain Size</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSize">LFO</button>
-                                <button class="inv-toggle" data-param="grainSize">INV</button>
+                                <button class="lfo-toggle" data-param="grainSize" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="grainSize" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="grainSize" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="grainSize" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="grainSizeValue">100ms</span>
                         </label>
@@ -610,8 +596,10 @@
                         <label>
                             <span class="param-name">Density</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="density">LFO</button>
-                                <button class="inv-toggle" data-param="density">INV</button>
+                                <button class="lfo-toggle" data-param="density" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="density" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="density" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="density" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="densityValue">10</span>
                         </label>
@@ -621,8 +609,10 @@
                         <label>
                             <span class="param-name">Scan Position</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="position">LFO</button>
-                                <button class="inv-toggle" data-param="position">INV</button>
+                                <button class="lfo-toggle" data-param="position" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="position" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="position" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="position" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="positionValue">0%</span>
                         </label>
@@ -632,8 +622,10 @@
                         <label>
                             <span class="param-name">Spray (Rnd)</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="spray">LFO</button>
-                                <button class="inv-toggle" data-param="spray">INV</button>
+                                <button class="lfo-toggle" data-param="spray" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="spray" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="spray" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="spray" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="sprayValue">0%</span>
                         </label>
@@ -643,8 +635,10 @@
                         <label>
                             <span class="param-name">Attack</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="attack">LFO</button>
-                                <button class="inv-toggle" data-param="attack">INV</button>
+                                <button class="lfo-toggle" data-param="attack" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="attack" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="attack" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="attack" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="attackValue">10ms</span>
                         </label>
@@ -654,8 +648,10 @@
                         <label>
                             <span class="param-name">Release</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="release">LFO</button>
-                                <button class="inv-toggle" data-param="release">INV</button>
+                                <button class="lfo-toggle" data-param="release" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="release" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="release" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="release" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="releaseValue">50ms</span>
                         </label>
@@ -665,8 +661,10 @@
                         <label>
                             <span class="param-name">Pitch Rand</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="pitchVar">LFO</button>
-                                <button class="inv-toggle" data-param="pitchVar">INV</button>
+                                <button class="lfo-toggle" data-param="pitchVar" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="pitchVar" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="pitchVar" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="pitchVar" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="pitchVarValue">0%</span>
                         </label>
@@ -676,8 +674,10 @@
                         <label>
                             <span class="param-name">Stereo</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="panSpread">LFO</button>
-                                <button class="inv-toggle" data-param="panSpread">INV</button>
+                                <button class="lfo-toggle" data-param="panSpread" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="panSpread" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="panSpread" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="panSpread" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="panSpreadValue">50%</span>
                         </label>
@@ -691,8 +691,10 @@
                         <label>
                             <span class="param-name">LPF Cutoff</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfCutoff">LFO</button>
-                                <button class="inv-toggle" data-param="lpfCutoff">INV</button>
+                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="lpfCutoffValue">20000Hz</span>
                         </label>
@@ -702,8 +704,10 @@
                         <label>
                             <span class="param-name">LPF Resonance</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfQ">LFO</button>
-                                <button class="inv-toggle" data-param="lpfQ">INV</button>
+                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="lpfQ" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="lpfQ" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="lpfQValue">0.7</span>
                         </label>
@@ -713,8 +717,10 @@
                         <label>
                             <span class="param-name">HPF Cutoff</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfCutoff">LFO</button>
-                                <button class="inv-toggle" data-param="hpfCutoff">INV</button>
+                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="hpfCutoffValue">20Hz</span>
                         </label>
@@ -724,8 +730,10 @@
                         <label>
                             <span class="param-name">HPF Resonance</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfQ">LFO</button>
-                                <button class="inv-toggle" data-param="hpfQ">INV</button>
+                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="hpfQ" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="hpfQ" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="hpfQValue">0.7</span>
                         </label>
@@ -784,8 +792,10 @@
                         <label>
                             <span class="param-name">Noise Mix</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="noiseMix">LFO</button>
-                                <button class="inv-toggle" data-param="noiseMix">INV</button>
+                                <button class="lfo-toggle" data-param="noiseMix" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="noiseMix" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="noiseMix" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="noiseMix" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="noiseMixValue">0%</span>
                         </label>
@@ -793,14 +803,16 @@
                     </div>
                 </div>
 
-                <!-- FX/LFO Tab -->
+                <!-- FX Tab -->
                 <div class="tab-content" id="fx-tab">
                     <div class="control-group">
                         <label>
                             <span class="param-name">Reverb</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="reverb">LFO</button>
-                                <button class="inv-toggle" data-param="reverb">INV</button>
+                                <button class="lfo-toggle" data-param="reverb" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="reverb" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="reverb" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="reverb" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="reverbValue">20%</span>
                         </label>
@@ -810,8 +822,10 @@
                         <label>
                             <span class="param-name">Distortion</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="distortion">LFO</button>
-                                <button class="inv-toggle" data-param="distortion">INV</button>
+                                <button class="lfo-toggle" data-param="distortion" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="distortion" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="distortion" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="distortion" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="distortionValue">0%</span>
                         </label>
@@ -821,8 +835,10 @@
                         <label>
                             <span class="param-name">Phaser Rate</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="phaserRate">LFO</button>
-                                <button class="inv-toggle" data-param="phaserRate">INV</button>
+                                <button class="lfo-toggle" data-param="phaserRate" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="phaserRate" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="phaserRate" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="phaserRate" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="phaserRateValue">0.5Hz</span>
                         </label>
@@ -832,8 +848,10 @@
                         <label>
                             <span class="param-name">Phaser Depth</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="phaserDepth">LFO</button>
-                                <button class="inv-toggle" data-param="phaserDepth">INV</button>
+                                <button class="lfo-toggle" data-param="phaserDepth" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="phaserDepth" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="phaserDepth" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="phaserDepth" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="phaserDepthValue">0%</span>
                         </label>
@@ -843,8 +861,10 @@
                         <label>
                             <span class="param-name">Tremolo Rate</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="tremoloRate">LFO</button>
-                                <button class="inv-toggle" data-param="tremoloRate">INV</button>
+                                <button class="lfo-toggle" data-param="tremoloRate" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="tremoloRate" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="tremoloRate" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="tremoloRate" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="tremoloRateValue">5Hz</span>
                         </label>
@@ -854,8 +874,10 @@
                         <label>
                             <span class="param-name">Tremolo Depth</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="tremoloDepth">LFO</button>
-                                <button class="inv-toggle" data-param="tremoloDepth">INV</button>
+                                <button class="lfo-toggle" data-param="tremoloDepth" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="tremoloDepth" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="tremoloDepth" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="tremoloDepth" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="tremoloDepthValue">0%</span>
                         </label>
@@ -865,8 +887,10 @@
                         <label>
                             <span class="param-name">Master Vol</span>
                             <div class="button-group">
-                                <button class="lfo-toggle" data-param="volume">LFO</button>
-                                <button class="inv-toggle" data-param="volume">INV</button>
+                                <button class="lfo-toggle" data-param="volume" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="volume" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="volume" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="volume" data-lfo="2">INV</button>
                             </div>
                             <span class="value" id="volumeValue">100%</span>
                         </label>
@@ -896,6 +920,50 @@
                     </div>
                     <div class="control-group">
                         <button id="randomizeBtn">Randomize</button>
+                    </div>
+                </div>
+
+                <!-- LFO Tab -->
+                <div class="tab-content" id="lfo-tab">
+                    <div class="control-group">
+                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px;">LFO 1</label>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">Hz</button><span class="value" id="lfoRateValue">1.0Hz</span></label>
+                        <input type="range" id="lfoRate" min="1" max="1000" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
+                        <input type="range" id="lfoDepth" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Waveform</span></label>
+                        <select id="lfoWaveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 2</label>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Rate</span><button class="mode-toggle" id="lfo2ModeToggle">Hz</button><span class="value" id="lfo2RateValue">1.0Hz</span></label>
+                        <input type="range" id="lfo2Rate" min="1" max="1000" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Depth</span><span class="value" id="lfo2DepthValue">50%</span></label>
+                        <input type="range" id="lfo2Depth" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Waveform</span></label>
+                        <select id="lfo2Waveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -996,6 +1064,12 @@
         let lfoInverted = {};
         let lfoMode = 'hz'; // 'hz' or 'bpm'
         
+        // LFO2 State
+        let lfo2StartTime = 0;
+        let lfo2Enabled = {};
+        let lfo2Inverted = {};
+        let lfo2Mode = 'hz'; // 'hz' or 'bpm'
+        
         // Parameter ranges for clamping
         const paramRanges = {
             sampleStart: { min: 0, max: 100 },
@@ -1057,24 +1131,71 @@
             return value * depth;
         }
 
+        function getLFOValue2() {
+            if (!audioContext) return 0;
+            
+            let rate = parseFloat(document.getElementById('lfo2Rate').value);
+            // Convert BPM to Hz if in BPM mode
+            if (lfo2Mode === 'bpm') {
+                rate = rate / 60;
+            }
+            const waveform = document.getElementById('lfo2Waveform').value;
+            const depth = parseFloat(document.getElementById('lfo2Depth').value) / 100;
+            
+            const elapsed = audioContext.currentTime - lfo2StartTime;
+            // Use fract for better precision with long-running oscillators
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
+            
+            let value = 0;
+            switch (waveform) {
+                case 'sine':
+                    value = Math.sin(phase * Math.PI * 2);
+                    break;
+                case 'triangle':
+                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                    break;
+                case 'sawtooth':
+                    value = phase * 2 - 1;
+                    break;
+                case 'square':
+                    value = phase < 0.5 ? -1 : 1;
+                    break;
+            }
+            
+            return value * depth;
+        }
+
         function getModulatedValue(paramId) {
             const slider = document.getElementById(paramId);
             if (!slider) return 0;
             
             const baseValue = parseFloat(slider.value);
             
-            if (!lfoEnabled[paramId]) {
+            // Calculate total modulation from both LFOs
+            let totalOffset = 0;
+            const range = paramRanges[paramId];
+            const rangeSize = range.max - range.min;
+            
+            // Apply LFO1 if enabled
+            if (lfoEnabled[paramId]) {
+                const lfoValue = getLFOValue();
+                const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
+                totalOffset += invertedLFO * rangeSize * 0.5;
+            }
+            
+            // Apply LFO2 if enabled
+            if (lfo2Enabled[paramId]) {
+                const lfo2Value = getLFOValue2();
+                const invertedLFO2 = lfo2Inverted[paramId] ? -lfo2Value : lfo2Value;
+                totalOffset += invertedLFO2 * rangeSize * 0.5;
+            }
+            
+            // If no LFOs are enabled, return base value
+            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId]) {
                 return baseValue;
             }
             
-            const lfoValue = getLFOValue();
-            const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
-            
-            const range = paramRanges[paramId];
-            const rangeSize = range.max - range.min;
-            const offset = invertedLFO * rangeSize * 0.5;
-            
-            const modulated = baseValue + offset;
+            const modulated = baseValue + totalOffset;
             return Math.max(range.min, Math.min(range.max, modulated));
         }
 
@@ -1089,6 +1210,7 @@
                 if (audioContext.state === 'suspended') await audioContext.resume();
                 
                 lfoStartTime = audioContext.currentTime;
+                lfo2StartTime = audioContext.currentTime;
                 
                 await setupEffects();
                 startModulationLoop();
@@ -1832,6 +1954,8 @@
                 // Special handling for LFO rate
                 if (e.target.id === 'lfoRate') {
                     updateLFORateDisplay();
+                } else if (e.target.id === 'lfo2Rate') {
+                    updateLFO2RateDisplay();
                 } else {
                     // Update text label
                     const labelSpan = document.getElementById(e.target.id + 'Value');
@@ -1875,6 +1999,22 @@
             }
         }
 
+        function updateLFO2RateDisplay() {
+            const rateSlider = document.getElementById('lfo2Rate');
+            const rateValue = document.getElementById('lfo2RateValue');
+            const value = parseFloat(rateSlider.value);
+            
+            if (lfo2Mode === 'hz') {
+                if (value >= 1000) {
+                    rateValue.textContent = (value / 1000).toFixed(1) + 'kHz';
+                } else {
+                    rateValue.textContent = value.toFixed(1) + 'Hz';
+                }
+            } else {
+                rateValue.textContent = Math.round(value) + 'BPM';
+            }
+        }
+
         // --- LFO Mode Toggle ---
         document.getElementById('lfoModeToggle').addEventListener('click', () => {
             const rateSlider = document.getElementById('lfoRate');
@@ -1906,11 +2046,49 @@
             updateLFORateDisplay();
         });
 
+        // --- LFO2 Mode Toggle ---
+        document.getElementById('lfo2ModeToggle').addEventListener('click', () => {
+            const rateSlider = document.getElementById('lfo2Rate');
+            const modeToggle = document.getElementById('lfo2ModeToggle');
+            const currentValue = parseFloat(rateSlider.value);
+            
+            if (lfo2Mode === 'hz') {
+                // Switch to BPM
+                lfo2Mode = 'bpm';
+                modeToggle.textContent = 'BPM';
+                // Convert current Hz value to BPM (Hz * 60)
+                const bpmValue = currentValue * 60;
+                rateSlider.min = '1';
+                rateSlider.max = '250';
+                rateSlider.step = '1';
+                rateSlider.value = bpmValue;
+            } else {
+                // Switch to Hz
+                lfo2Mode = 'hz';
+                modeToggle.textContent = 'Hz';
+                // Convert current BPM value to Hz (BPM / 60)
+                const hzValue = currentValue / 60;
+                rateSlider.min = '1';
+                rateSlider.max = '1000';
+                rateSlider.step = '0.1';
+                rateSlider.value = hzValue;
+            }
+            
+            updateLFO2RateDisplay();
+        });
+
         // --- LFO Toggle Listeners ---
         document.querySelectorAll('.lfo-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 const param = btn.dataset.param;
-                lfoEnabled[param] = !lfoEnabled[param];
+                const lfoNum = btn.dataset.lfo;
+                
+                if (lfoNum === '1') {
+                    lfoEnabled[param] = !lfoEnabled[param];
+                } else if (lfoNum === '2') {
+                    lfo2Enabled[param] = !lfo2Enabled[param];
+                }
+                
                 btn.classList.toggle('active');
             });
         });
@@ -1918,7 +2096,14 @@
         document.querySelectorAll('.inv-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
                 const param = btn.dataset.param;
-                lfoInverted[param] = !lfoInverted[param];
+                const lfoNum = btn.dataset.lfo;
+                
+                if (lfoNum === '1') {
+                    lfoInverted[param] = !lfoInverted[param];
+                } else if (lfoNum === '2') {
+                    lfo2Inverted[param] = !lfo2Inverted[param];
+                }
+                
                 btn.classList.toggle('active');
             });
         });
@@ -2105,6 +2290,7 @@
             if (audioContext.state === 'suspended') await audioContext.resume();
             
             lfoStartTime = audioContext.currentTime;
+            lfo2StartTime = audioContext.currentTime;
             
             // Reinitialize effects
             await setupEffects();
@@ -2151,9 +2337,11 @@
             // Randomize LFO and INV toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
                 const param = btn.dataset.param;
+                const lfoNum = btn.dataset.lfo;
+                
                 // 40% chance of enabling LFO (within 30-50% target range)
                 const shouldEnable = Math.random() < 0.4;
-                const isCurrentlyEnabled = lfoEnabled[param];
+                const isCurrentlyEnabled = lfoNum === '1' ? lfoEnabled[param] : lfo2Enabled[param];
                 
                 // Toggle if needed
                 if (shouldEnable !== isCurrentlyEnabled) {
@@ -2163,11 +2351,15 @@
             
             document.querySelectorAll('.inv-toggle').forEach(btn => {
                 const param = btn.dataset.param;
-                // Only randomize INV if LFO is enabled for this parameter
-                if (lfoEnabled[param]) {
+                const lfoNum = btn.dataset.lfo;
+                
+                // Only randomize INV if corresponding LFO is enabled for this parameter
+                const lfoIsEnabled = lfoNum === '1' ? lfoEnabled[param] : lfo2Enabled[param];
+                const isCurrentlyInverted = lfoNum === '1' ? lfoInverted[param] : lfo2Inverted[param];
+                
+                if (lfoIsEnabled) {
                     // 40% chance of enabling INV (within 30-50% target range)
                     const shouldInvert = Math.random() < 0.4;
-                    const isCurrentlyInverted = lfoInverted[param];
                     
                     // Toggle if needed
                     if (shouldInvert !== isCurrentlyInverted) {
@@ -2175,7 +2367,7 @@
                     }
                 } else {
                     // If LFO is not enabled, ensure INV is disabled
-                    if (lfoInverted[param]) {
+                    if (isCurrentlyInverted) {
                         btn.click();
                     }
                 }
@@ -2216,7 +2408,9 @@
                 tremoloDepth: 0,
                 volume: 100,
                 lfoRate: 1.0,
-                lfoDepth: 50
+                lfoDepth: 50,
+                lfo2Rate: 1.0,
+                lfo2Depth: 50
             };
             
             // Reset all sliders to default values
@@ -2230,6 +2424,7 @@
             
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
+            document.getElementById('lfo2Waveform').value = 'sine';
             document.getElementById('noiseType').value = 'none';
             
             // Reset LFO mode to Hz if it's in BPM
@@ -2245,21 +2440,52 @@
                 updateLFORateDisplay();
             }
             
+            // Reset LFO2 mode to Hz if it's in BPM
+            if (lfo2Mode === 'bpm') {
+                const rateSlider = document.getElementById('lfo2Rate');
+                const modeToggle = document.getElementById('lfo2ModeToggle');
+                lfo2Mode = 'hz';
+                modeToggle.textContent = 'Hz';
+                rateSlider.min = '1';
+                rateSlider.max = '1000';
+                rateSlider.step = '0.1';
+                rateSlider.value = 1.0;
+                updateLFO2RateDisplay();
+            }
+            
             // Turn off all LFO toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
                 const param = btn.dataset.param;
-                if (lfoEnabled[param]) {
-                    lfoEnabled[param] = false;
-                    btn.classList.remove('active');
+                const lfoNum = btn.dataset.lfo;
+                
+                if (lfoNum === '1') {
+                    if (lfoEnabled[param]) {
+                        lfoEnabled[param] = false;
+                        btn.classList.remove('active');
+                    }
+                } else if (lfoNum === '2') {
+                    if (lfo2Enabled[param]) {
+                        lfo2Enabled[param] = false;
+                        btn.classList.remove('active');
+                    }
                 }
             });
             
             // Turn off all INV toggles
             document.querySelectorAll('.inv-toggle').forEach(btn => {
                 const param = btn.dataset.param;
-                if (lfoInverted[param]) {
-                    lfoInverted[param] = false;
-                    btn.classList.remove('active');
+                const lfoNum = btn.dataset.lfo;
+                
+                if (lfoNum === '1') {
+                    if (lfoInverted[param]) {
+                        lfoInverted[param] = false;
+                        btn.classList.remove('active');
+                    }
+                } else if (lfoNum === '2') {
+                    if (lfo2Inverted[param]) {
+                        lfo2Inverted[param] = false;
+                        btn.classList.remove('active');
+                    }
                 }
             });
             
@@ -2278,11 +2504,16 @@
         // Helper function to gather all preset data
         function gatherPreset() {
             const preset = {
-                version: '1.0',
+                version: '2.0',
                 timestamp: new Date().toISOString(),
                 sliders: {},
                 lfo: {
                     mode: lfoMode,
+                    enabled: {},
+                    inverted: {}
+                },
+                lfo2: {
+                    mode: lfo2Mode,
                     enabled: {},
                     inverted: {}
                 },
@@ -2296,11 +2527,16 @@
             
             // Gather dropdown values
             preset.lfoWaveform = document.getElementById('lfoWaveform').value;
+            preset.lfo2Waveform = document.getElementById('lfo2Waveform').value;
             preset.noiseType = document.getElementById('noiseType').value;
             
             // Gather LFO enabled/inverted states
             preset.lfo.enabled = { ...lfoEnabled };
             preset.lfo.inverted = { ...lfoInverted };
+            
+            // Gather LFO2 enabled/inverted states
+            preset.lfo2.enabled = { ...lfo2Enabled };
+            preset.lfo2.inverted = { ...lfo2Inverted };
             
             return preset;
         }
@@ -2326,6 +2562,9 @@
             if (preset.lfoWaveform) {
                 document.getElementById('lfoWaveform').value = preset.lfoWaveform;
             }
+            if (preset.lfo2Waveform) {
+                document.getElementById('lfo2Waveform').value = preset.lfo2Waveform;
+            }
             if (preset.noiseType) {
                 document.getElementById('noiseType').value = preset.noiseType;
             }
@@ -2335,6 +2574,11 @@
                 document.getElementById('lfoModeToggle').click();
             }
             
+            // Apply LFO2 mode
+            if (preset.lfo2 && preset.lfo2.mode && preset.lfo2.mode !== lfo2Mode) {
+                document.getElementById('lfo2ModeToggle').click();
+            }
+            
             // Apply LFO enabled states
             if (preset.lfo && preset.lfo.enabled) {
                 Object.keys(preset.lfo.enabled).forEach(param => {
@@ -2342,7 +2586,7 @@
                     const isEnabled = lfoEnabled[param];
                     
                     if (shouldBeEnabled !== isEnabled) {
-                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"]`);
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="1"]`);
                         if (btn) btn.click();
                     }
                 });
@@ -2355,7 +2599,33 @@
                     const isInverted = lfoInverted[param];
                     
                     if (shouldBeInverted !== isInverted) {
-                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"]`);
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="1"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply LFO2 enabled states
+            if (preset.lfo2 && preset.lfo2.enabled) {
+                Object.keys(preset.lfo2.enabled).forEach(param => {
+                    const shouldBeEnabled = preset.lfo2.enabled[param];
+                    const isEnabled = lfo2Enabled[param];
+                    
+                    if (shouldBeEnabled !== isEnabled) {
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="2"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply LFO2 inverted states
+            if (preset.lfo2 && preset.lfo2.inverted) {
+                Object.keys(preset.lfo2.inverted).forEach(param => {
+                    const shouldBeInverted = preset.lfo2.inverted[param];
+                    const isInverted = lfo2Inverted[param];
+                    
+                    if (shouldBeInverted !== isInverted) {
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="2"]`);
                         if (btn) btn.click();
                     }
                 });
