@@ -1700,12 +1700,22 @@
                 statusDiv.textContent = "Engine Ready. Record something!";
                 
                 // Restore state from localStorage and setup state saving
-                setTimeout(() => {
+                setTimeout(async () => {
                     const restored = restoreState();
                     if (restored) {
                         console.log('State restored from localStorage');
                     }
                     setupStateSaving();
+                    
+                    // Restore audio buffer from IndexedDB
+                    const restoredBuffer = await loadAudioBufferFromDB();
+                    if (restoredBuffer) {
+                        audioBuffer = restoredBuffer;
+                        drawWaveform();
+                        statusDiv.textContent = `Audio restored (${audioBuffer.duration.toFixed(2)}s)`;
+                        normalizeBtn.disabled = false;
+                        document.getElementById('auditionBtn').disabled = false;
+                    }
                 }, 500);
             } catch (e) {
                 console.error(e);
@@ -2079,6 +2089,9 @@
                     normalizeBtn.disabled = false; // Enable normalize button
                     document.getElementById('auditionBtn').disabled = false; // Enable audition button
                     stream.getTracks().forEach(track => track.stop());
+                    
+                    // Save audio buffer to IndexedDB
+                    await saveAudioBufferToDB(audioBuffer);
                 };
 
                 mediaRecorder.start();
@@ -2149,6 +2162,9 @@
             
             // Update status
             statusDiv.textContent = `Normalized (peak: ${(peak * 100).toFixed(1)}% → 100%)`;
+            
+            // Save normalized audio buffer to IndexedDB
+            saveAudioBufferToDB(audioBuffer);
         }
 
         // --- Waveform & Visualization ---
@@ -2962,6 +2978,9 @@
                 statusDiv.textContent = `Loaded: ${file.name} (${audioBuffer.duration.toFixed(2)}s)`;
                 normalizeBtn.disabled = false;
                 document.getElementById('auditionBtn').disabled = false;
+                
+                // Save audio buffer to IndexedDB
+                await saveAudioBufferToDB(audioBuffer);
             } catch (err) {
                 console.error(err);
                 alert('Failed to load audio file: ' + err.message);
@@ -3525,6 +3544,106 @@
             lockBpmSlider.classList.add('locked');
         }
 
+        // --- INDEXEDDB AUDIO BUFFER STORAGE ---
+        const AUDIO_DB_NAME = 'GranularSynthAudioDB';
+        const AUDIO_DB_VERSION = 1;
+        const AUDIO_STORE_NAME = 'audioBuffers';
+        const AUDIO_BUFFER_KEY = 'currentAudioBuffer';
+
+        // Open IndexedDB
+        function openAudioDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(AUDIO_DB_NAME, AUDIO_DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
+                        db.createObjectStore(AUDIO_STORE_NAME);
+                    }
+                };
+            });
+        }
+
+        // Save audio buffer to IndexedDB
+        async function saveAudioBufferToDB(buffer) {
+            if (!buffer) return;
+            
+            try {
+                const db = await openAudioDB();
+                
+                // Convert AudioBuffer to storable format
+                const audioData = {
+                    sampleRate: buffer.sampleRate,
+                    length: buffer.length,
+                    numberOfChannels: buffer.numberOfChannels,
+                    channelData: []
+                };
+                
+                // Extract channel data as Float32Arrays
+                for (let i = 0; i < buffer.numberOfChannels; i++) {
+                    audioData.channelData.push(Array.from(buffer.getChannelData(i)));
+                }
+                
+                // Store in IndexedDB
+                const transaction = db.transaction([AUDIO_STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(AUDIO_STORE_NAME);
+                store.put(audioData, AUDIO_BUFFER_KEY);
+                
+                await new Promise((resolve, reject) => {
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = () => reject(transaction.error);
+                });
+                
+                db.close();
+                console.log('Audio buffer saved to IndexedDB');
+            } catch (err) {
+                console.error('Failed to save audio buffer to IndexedDB:', err);
+            }
+        }
+
+        // Load audio buffer from IndexedDB
+        async function loadAudioBufferFromDB() {
+            try {
+                const db = await openAudioDB();
+                const transaction = db.transaction([AUDIO_STORE_NAME], 'readonly');
+                const store = transaction.objectStore(AUDIO_STORE_NAME);
+                
+                const audioData = await new Promise((resolve, reject) => {
+                    const request = store.get(AUDIO_BUFFER_KEY);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+                
+                db.close();
+                
+                if (!audioData || !audioContext) {
+                    return null;
+                }
+                
+                // Reconstruct AudioBuffer from stored data
+                const buffer = audioContext.createBuffer(
+                    audioData.numberOfChannels,
+                    audioData.length,
+                    audioData.sampleRate
+                );
+                
+                for (let i = 0; i < audioData.numberOfChannels; i++) {
+                    const channelData = buffer.getChannelData(i);
+                    const sourceData = new Float32Array(audioData.channelData[i]);
+                    channelData.set(sourceData);
+                }
+                
+                console.log('Audio buffer restored from IndexedDB');
+                return buffer;
+            } catch (err) {
+                console.error('Failed to load audio buffer from IndexedDB:', err);
+                return null;
+            }
+        }
+
         // --- STATE MEMORY SYSTEM ---
         const STATE_STORAGE_KEY = 'granularSynthState';
 
@@ -3766,6 +3885,9 @@
         let outputMediaRecorder = null;
         let outputRecordedChunks = [];
         let outputDestination = null;
+        let outputScriptProcessor = null;
+        let isOutputRecording = false;
+        let outputRecordingBuffers = [];
 
         // Setup output recording
         function setupOutputRecording() {
@@ -3782,91 +3904,116 @@
             }
         }
 
+        // Helper function to convert AudioBuffer to 24-bit WAV at 48kHz
+        function audioBufferToWav24bit(buffer) {
+            const targetSampleRate = 48000;
+            const numChannels = buffer.numberOfChannels;
+            const bitDepth = 24;
+            
+            // Resample if needed
+            let resampledBuffer = buffer;
+            if (buffer.sampleRate !== targetSampleRate) {
+                const ratio = targetSampleRate / buffer.sampleRate;
+                const newLength = Math.floor(buffer.length * ratio);
+                resampledBuffer = audioContext.createBuffer(numChannels, newLength, targetSampleRate);
+                
+                for (let ch = 0; ch < numChannels; ch++) {
+                    const inputData = buffer.getChannelData(ch);
+                    const outputData = resampledBuffer.getChannelData(ch);
+                    
+                    for (let i = 0; i < newLength; i++) {
+                        const srcIndex = i / ratio;
+                        const index0 = Math.floor(srcIndex);
+                        const index1 = Math.min(index0 + 1, inputData.length - 1);
+                        const frac = srcIndex - index0;
+                        
+                        // Linear interpolation
+                        outputData[i] = inputData[index0] * (1 - frac) + inputData[index1] * frac;
+                    }
+                }
+            }
+            
+            const sampleRate = targetSampleRate;
+            const format = 1; // PCM
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+            
+            const data = [];
+            for (let i = 0; i < numChannels; i++) {
+                data.push(resampledBuffer.getChannelData(i));
+            }
+            
+            const interleaved = interleaveChannels(data);
+            const dataLength = interleaved.length * bytesPerSample;
+            const headerLength = 44;
+            const totalLength = headerLength + dataLength;
+            
+            const arrayBuffer = new ArrayBuffer(totalLength);
+            const view = new DataView(arrayBuffer);
+            
+            // Write WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, totalLength - 8, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // fmt chunk size
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+            
+            // Write audio data as 24-bit
+            let offset = 44;
+            for (let i = 0; i < interleaved.length; i++) {
+                const sample = Math.max(-1, Math.min(1, interleaved[i]));
+                // Convert to 24-bit integer
+                const intSample = sample < 0 ? Math.floor(sample * 0x800000) : Math.floor(sample * 0x7FFFFF);
+                
+                // Write 24-bit little-endian
+                view.setUint8(offset, intSample & 0xFF);
+                view.setUint8(offset + 1, (intSample >> 8) & 0xFF);
+                view.setUint8(offset + 2, (intSample >> 16) & 0xFF);
+                offset += 3;
+            }
+            
+            return arrayBuffer;
+        }
+
         // Start recording output
         document.getElementById('startOutputRecBtn')?.addEventListener('click', () => {
-            if (!audioContext || !outputDestination) {
-                setupOutputRecording();
-                if (!outputDestination) {
-                    alert('Audio engine not initialized. Please start the engine first.');
-                    return;
-                }
+            if (!audioContext || !masterGain) {
+                alert('Audio engine not initialized. Please start the engine first.');
+                return;
             }
 
             try {
-                outputRecordedChunks = [];
+                outputRecordingBuffers = [];
+                isOutputRecording = true;
                 
-                // Create MediaRecorder with the destination stream
-                // Try multiple MIME types in order of preference
-                let mimeType = '';
-                const supportedTypes = [
-                    'audio/webm;codecs=opus',
-                    'audio/webm',
-                    'audio/ogg;codecs=opus',
-                    'audio/ogg',
-                    'audio/mp4',
-                    'audio/wav'
-                ];
+                // Create ScriptProcessor for capturing audio
+                const bufferSize = 4096;
+                outputScriptProcessor = audioContext.createScriptProcessor(bufferSize, 2, 2);
                 
-                for (const type of supportedTypes) {
-                    if (MediaRecorder.isTypeSupported(type)) {
-                        mimeType = type;
-                        break;
-                    }
-                }
-                
-                const options = mimeType ? { mimeType } : {};
-                outputMediaRecorder = new MediaRecorder(outputDestination.stream, options);
-
-                outputMediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        outputRecordedChunks.push(event.data);
-                    }
-                };
-
-                outputMediaRecorder.onstop = () => {
-                    const blob = new Blob(outputRecordedChunks, { 
-                        type: outputMediaRecorder.mimeType || 'audio/webm' 
+                outputScriptProcessor.onaudioprocess = (event) => {
+                    if (!isOutputRecording) return;
+                    
+                    // Capture the audio data
+                    const left = new Float32Array(event.inputBuffer.getChannelData(0));
+                    const right = event.inputBuffer.getChannelData(1);
+                    
+                    outputRecordingBuffers.push({
+                        left: left,
+                        right: new Float32Array(right)
                     });
-                    
-                    // Create download link
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    
-                    // Determine file extension from MIME type using precise matching
-                    let extension = 'webm'; // default
-                    const mimeType = outputMediaRecorder.mimeType || '';
-                    if (mimeType.startsWith('audio/ogg')) {
-                        extension = 'ogg';
-                    } else if (mimeType.startsWith('audio/mp4')) {
-                        extension = 'm4a';
-                    } else if (mimeType.startsWith('audio/wav')) {
-                        extension = 'wav';
-                    } else if (mimeType.startsWith('audio/webm')) {
-                        extension = 'webm';
-                    }
-                    a.download = `granular-recording-${Date.now()}.${extension}`;
-                    
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    // Cleanup
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-
-                    // Reset UI
-                    document.getElementById('outputRecStatus').classList.remove('active');
-                    document.getElementById('outputRecDot').classList.remove('active');
-                    document.getElementById('outputRecText').textContent = 'Recording saved';
-                    setTimeout(() => {
-                        document.getElementById('outputRecText').textContent = 'Ready';
-                    }, 3000);
                 };
-
-                outputMediaRecorder.start(100); // Collect data every 100ms
+                
+                // Connect the script processor
+                masterGain.connect(outputScriptProcessor);
+                outputScriptProcessor.connect(audioContext.destination);
 
                 // Update UI
                 document.getElementById('startOutputRecBtn').disabled = true;
@@ -3884,17 +4031,100 @@
 
         // Stop recording output
         document.getElementById('stopOutputRecBtn')?.addEventListener('click', () => {
-            if (outputMediaRecorder && outputMediaRecorder.state !== 'inactive') {
-                outputMediaRecorder.stop();
-                
-                // Update UI
-                document.getElementById('startOutputRecBtn').disabled = false;
-                document.getElementById('startOutputRecBtn').classList.remove('recording');
-                document.getElementById('stopOutputRecBtn').disabled = true;
-                document.getElementById('outputRecStatus').classList.remove('active');
-                document.getElementById('outputRecDot').classList.remove('active');
-                document.getElementById('outputRecText').textContent = 'Saving...';
+            if (!isOutputRecording) return;
+            
+            isOutputRecording = false;
+            
+            // Disconnect and cleanup the script processor
+            if (outputScriptProcessor) {
+                outputScriptProcessor.disconnect();
+                outputScriptProcessor.onaudioprocess = null;
+                outputScriptProcessor = null;
             }
+            
+            // Update UI
+            document.getElementById('stopOutputRecBtn').disabled = true;
+            document.getElementById('outputRecText').textContent = 'Processing...';
+            
+            // Process the recorded audio in a timeout to avoid blocking UI
+            setTimeout(() => {
+                try {
+                    // Calculate total length
+                    let totalLength = 0;
+                    for (const buffer of outputRecordingBuffers) {
+                        totalLength += buffer.left.length;
+                    }
+                    
+                    if (totalLength === 0) {
+                        alert('No audio was recorded. Please try again.');
+                        document.getElementById('startOutputRecBtn').disabled = false;
+                        document.getElementById('startOutputRecBtn').classList.remove('recording');
+                        document.getElementById('outputRecStatus').classList.remove('active');
+                        document.getElementById('outputRecDot').classList.remove('active');
+                        document.getElementById('outputRecText').textContent = 'Ready';
+                        return;
+                    }
+                    
+                    // Create an AudioBuffer with the recorded data
+                    const recordedBuffer = audioContext.createBuffer(2, totalLength, audioContext.sampleRate);
+                    const leftChannel = recordedBuffer.getChannelData(0);
+                    const rightChannel = recordedBuffer.getChannelData(1);
+                    
+                    let offset = 0;
+                    for (const buffer of outputRecordingBuffers) {
+                        leftChannel.set(buffer.left, offset);
+                        rightChannel.set(buffer.right, offset);
+                        offset += buffer.left.length;
+                    }
+                    
+                    // Convert to 24-bit WAV at 48kHz
+                    const wav = audioBufferToWav24bit(recordedBuffer);
+                    const blob = new Blob([wav], { type: 'audio/wav' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Create download link
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `granular-recording-${Date.now()}.wav`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    // Reset UI
+                    document.getElementById('startOutputRecBtn').disabled = false;
+                    document.getElementById('startOutputRecBtn').classList.remove('recording');
+                    document.getElementById('outputRecStatus').classList.remove('active');
+                    document.getElementById('outputRecDot').classList.remove('active');
+                    document.getElementById('outputRecText').textContent = 'Recording saved';
+                    setTimeout(() => {
+                        document.getElementById('outputRecText').textContent = 'Ready';
+                    }, 3000);
+                    
+                    // Clear buffers
+                    outputRecordingBuffers = [];
+                    
+                } catch (err) {
+                    console.error('Failed to process recording:', err);
+                    alert('Failed to process recording: ' + err.message);
+                    
+                    // Reset UI on error
+                    document.getElementById('startOutputRecBtn').disabled = false;
+                    document.getElementById('startOutputRecBtn').classList.remove('recording');
+                    document.getElementById('outputRecStatus').classList.remove('active');
+                    document.getElementById('outputRecDot').classList.remove('active');
+                    document.getElementById('outputRecText').textContent = 'Error';
+                    setTimeout(() => {
+                        document.getElementById('outputRecText').textContent = 'Ready';
+                    }, 3000);
+                }
+            }, 100);
         });
 
     </script>
