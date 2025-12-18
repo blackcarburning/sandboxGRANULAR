@@ -2544,10 +2544,10 @@
                 const note = key.dataset.note;
                 // Only stop if not in hold mode and key is being played
                 if (key.classList.contains('active') && !holdEnabled && !heldNotes.has(note)) {
-                   // Decrement the active key counter
-                   activeKeyCount = Math.max(0, activeKeyCount - 1);
-                   key.classList.remove('active');
-                   stopGrainStream(note);
+                    // Decrement the active key counter
+                    activeKeyCount = Math.max(0, activeKeyCount - 1);
+                    key.classList.remove('active');
+                    stopGrainStream(note);
                 }
             });
         });
