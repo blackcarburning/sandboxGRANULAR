@@ -249,8 +249,20 @@
             flex-direction: column;
             justify-content: center;
             background: rgba(0,0,0,0.2);
-            padding: 3px;
+            padding: 2px;
             border-radius: 4px;
+        }
+
+        /* More compact control groups in Grain and Filter tabs for iPhone */
+        #grain-tab .control-group,
+        #filter-tab .control-group {
+            padding: 1px 2px;
+            min-height: 0;
+        }
+
+        #grain-tab .control-group label,
+        #filter-tab .control-group label {
+            margin-bottom: 1px;
         }
 
         .control-group.highlight {
@@ -595,7 +607,13 @@
         }
 
         #grain-tab.active {
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: minmax(auto, 1fr);
+        }
+
+        #filter-tab.active {
+            grid-template-columns: repeat(3, 1fr);
+            grid-auto-rows: minmax(auto, 1fr);
         }
 
         #fx-tab.active {
@@ -655,6 +673,24 @@
         #lockBpmValue {
             min-width: 25px;
             text-align: center;
+        }
+
+        /* Default gray background when BPM lock is OFF */
+        #lockBpmSlider::-webkit-slider-runnable-track {
+            background: #333;
+        }
+
+        #lockBpmSlider::-moz-range-track {
+            background: #333;
+        }
+
+        /* Green background when BPM lock is ON (locked class) */
+        #lockBpmSlider.locked::-webkit-slider-runnable-track {
+            background: #228B22;
+        }
+
+        #lockBpmSlider.locked::-moz-range-track {
+            background: #228B22;
         }
 
         /* Fullscreen button */
@@ -2700,6 +2736,13 @@
         document.getElementById('lockBpmSlider').addEventListener('input', (e) => {
             bpmLocked = parseInt(e.target.value) === 1;
             document.getElementById('lockBpmValue').textContent = bpmLocked ? 'ON' : 'OFF';
+            
+            // Update slider appearance based on lock state
+            if (bpmLocked) {
+                e.target.classList.add('locked');
+            } else {
+                e.target.classList.remove('locked');
+            }
         });
 
         // --- Tab System ---
@@ -2916,9 +2959,16 @@
             const allSliders = document.querySelectorAll('input[type="range"]');
             
             allSliders.forEach(slider => {
-                // Skip BPM slider if locked
-                if (slider.id === 'delayBpm' && bpmLocked) {
+                // Skip the BPM lock toggle itself
+                if (slider.id === 'lockBpmSlider') {
                     return;
+                }
+                
+                // Skip BPM-related sliders if locked
+                if (bpmLocked) {
+                    if (slider.id === 'delayBpm' || slider.id === 'lfoRate' || slider.id === 'lfo2Rate') {
+                        return;
+                    }
                 }
                 
                 const min = parseFloat(slider.min);
@@ -3374,6 +3424,13 @@
                 fullscreenBtn.textContent = 'Go Fullscreen';
             }
         });
+
+        // --- Initialize BPM Lock Slider Appearance ---
+        // Since default value is 1 (ON), set initial locked class
+        const lockBpmSlider = document.getElementById('lockBpmSlider');
+        if (lockBpmSlider && parseInt(lockBpmSlider.value) === 1) {
+            lockBpmSlider.classList.add('locked');
+        }
 
     </script>
 </body>
