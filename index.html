@@ -796,6 +796,130 @@
             display: none;
         }
 
+        /* iPhone/Mobile Optimizations */
+        /* Targets iPhone and similar devices in landscape mode (max-height: 430px covers iPhone 14 Pro Max and smaller) */
+        @media screen and (max-height: 430px) and (orientation: landscape) {
+            /* 1. Make Sample Source area narrower on iPhone */
+            .recording-section {
+                flex: 0 0 180px;
+                padding: 5px;
+            }
+
+            .recording-section .section-title {
+                font-size: 9px;
+                margin-bottom: 2px;
+            }
+
+            .recording-buttons button {
+                padding: 3px 5px;
+                font-size: 8px;
+            }
+
+            #waveformCanvas {
+                height: 50px;
+            }
+
+            .recording-section #auditionBtn {
+                padding: 4px;
+                font-size: 8px;
+                margin-top: 3px;
+            }
+
+            .status {
+                font-size: 7px;
+            }
+
+            .output-recording-section {
+                padding: 3px;
+                gap: 2px;
+                margin-top: 3px;
+            }
+
+            .output-recording-section .section-title {
+                font-size: 7px;
+            }
+
+            .output-recording-section button {
+                padding: 3px;
+                font-size: 7px;
+            }
+
+            .recording-indicator {
+                font-size: 7px;
+                min-height: 12px;
+            }
+
+            .recording-dot {
+                width: 4px;
+                height: 4px;
+            }
+
+            /* 2. Fix Grain tab controls going off screen */
+            #grain-tab.active {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 2px;
+                padding: 2px;
+            }
+
+            #grain-tab .control-group {
+                padding: 1px;
+                margin: 0;
+            }
+
+            #grain-tab .control-group label {
+                font-size: 7px;
+                margin-bottom: 1px;
+                flex-wrap: wrap;
+                gap: 1px;
+            }
+
+            #grain-tab .control-group label .param-name {
+                flex: 1 1 100%;
+                margin-bottom: 1px;
+            }
+
+            #grain-tab .control-group .button-group {
+                flex: 1 1 auto;
+                gap: 1px;
+                margin-left: 0;
+            }
+
+            #grain-tab .control-group label .value {
+                margin-left: 2px;
+            }
+
+            #grain-tab .lfo-toggle,
+            #grain-tab .inv-toggle {
+                padding: 1px 2px;
+                font-size: 6px;
+                min-width: 16px;
+            }
+
+            #grain-tab input[type="range"] {
+                height: 10px;
+                padding: 4px 0;
+                margin: 1px 0;
+            }
+
+            #grain-tab input[type="range"]::-webkit-slider-thumb {
+                width: 16px;
+                height: 16px;
+            }
+
+            #grain-tab input[type="range"]::-moz-range-thumb {
+                width: 16px;
+                height: 16px;
+            }
+
+            #grain-tab input[type="range"]::-webkit-slider-runnable-track {
+                height: 10px;
+            }
+
+            #grain-tab input[type="range"]::-moz-range-track {
+                height: 10px;
+            }
+        }
+
     </style>
 </head>
 <body>
