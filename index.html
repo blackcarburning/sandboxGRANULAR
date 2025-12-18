@@ -797,6 +797,7 @@
         }
 
         /* iPhone/Mobile Optimizations */
+        /* Targets iPhone and similar devices in landscape mode (max-height: 430px covers iPhone 14 Pro Max and smaller) */
         @media screen and (max-height: 430px) and (orientation: landscape) {
             /* 1. Make Sample Source area narrower on iPhone */
             .recording-section {
@@ -818,10 +819,10 @@
                 height: 50px;
             }
 
-            #auditionBtn {
+            .recording-section #auditionBtn {
                 padding: 4px;
                 font-size: 8px;
-                margin-top: 3px !important;
+                margin-top: 3px;
             }
 
             .status {
@@ -874,7 +875,6 @@
 
             #grain-tab .control-group label .param-name {
                 flex: 1 1 100%;
-                min-width: 100%;
                 margin-bottom: 1px;
             }
 
