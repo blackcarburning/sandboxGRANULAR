@@ -1698,6 +1698,15 @@
                 setTimeout(() => startOverlay.style.display = 'none', 300);
                 
                 statusDiv.textContent = "Engine Ready. Record something!";
+                
+                // Restore state from localStorage and setup state saving
+                setTimeout(() => {
+                    const restored = restoreState();
+                    if (restored) {
+                        console.log('State restored from localStorage');
+                    }
+                    setupStateSaving();
+                }, 500);
             } catch (e) {
                 console.error(e);
                 alert("Audio init failed: " + e.message);
@@ -3613,10 +3622,10 @@
 
                 // Restore LFO modes
                 if (state.modes) {
-                    if (state.modes.lfoMode && state.modes.lfoMode !== lfoMode) {
+                    if (state.modes.lfoMode !== undefined && state.modes.lfoMode !== lfoMode) {
                         document.getElementById('lfoModeToggle').click();
                     }
-                    if (state.modes.lfo2Mode && state.modes.lfo2Mode !== lfo2Mode) {
+                    if (state.modes.lfo2Mode !== undefined && state.modes.lfo2Mode !== lfo2Mode) {
                         document.getElementById('lfo2ModeToggle').click();
                     }
                     if (state.modes.bpmLocked !== undefined) {
@@ -3717,15 +3726,18 @@
             });
 
             // Save on toggle button clicks
+            // Small delay allows DOM class updates to complete before saving state
             document.querySelectorAll('.lfo-toggle, .inv-toggle').forEach(btn => {
                 btn.addEventListener('click', () => setTimeout(saveState, 50));
             });
 
             // Save on mode toggle clicks
+            // Small delay allows mode variable updates to complete before saving state
             document.getElementById('lfoModeToggle')?.addEventListener('click', () => setTimeout(saveState, 50));
             document.getElementById('lfo2ModeToggle')?.addEventListener('click', () => setTimeout(saveState, 50));
 
             // Save on hold button
+            // Small delay allows holdEnabled variable to update before saving state
             document.getElementById('holdBtn')?.addEventListener('click', () => setTimeout(saveState, 50));
 
             // Save on octave changes
@@ -3736,6 +3748,7 @@
             document.getElementById('volumeBiasSlider')?.addEventListener('change', saveState);
 
             // Save on tab changes
+            // Small delay allows active class to be set before saving state
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.addEventListener('click', () => setTimeout(saveState, 50));
             });
@@ -3744,17 +3757,7 @@
             document.getElementById('lockBpmSlider')?.addEventListener('change', saveState);
         }
 
-        // Restore state when page loads (after engine initialization)
-        document.getElementById('start-btn').addEventListener('click', () => {
-            setTimeout(() => {
-                const restored = restoreState();
-                if (restored) {
-                    console.log('State restored from localStorage');
-                }
-                // Setup state saving after restoration
-                setupStateSaving();
-            }, 500);
-        });
+
 
         // --- OUTPUT RECORDING SYSTEM ---
         let outputMediaRecorder = null;
@@ -3790,14 +3793,25 @@
                 outputRecordedChunks = [];
                 
                 // Create MediaRecorder with the destination stream
-                const options = { mimeType: 'audio/webm' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'audio/ogg';
-                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                        options.mimeType = '';
+                // Try multiple MIME types in order of preference
+                let mimeType = '';
+                const supportedTypes = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/ogg;codecs=opus',
+                    'audio/ogg',
+                    'audio/mp4',
+                    'audio/wav'
+                ];
+                
+                for (const type of supportedTypes) {
+                    if (MediaRecorder.isTypeSupported(type)) {
+                        mimeType = type;
+                        break;
                     }
                 }
-
+                
+                const options = mimeType ? { mimeType } : {};
                 outputMediaRecorder = new MediaRecorder(outputDestination.stream, options);
 
                 outputMediaRecorder.ondataavailable = (event) => {
@@ -3818,7 +3832,15 @@
                     a.href = url;
                     
                     // Determine file extension from MIME type
-                    const extension = outputMediaRecorder.mimeType.includes('ogg') ? 'ogg' : 'webm';
+                    let extension = 'webm'; // default
+                    const mimeType = outputMediaRecorder.mimeType || '';
+                    if (mimeType.includes('ogg')) {
+                        extension = 'ogg';
+                    } else if (mimeType.includes('mp4')) {
+                        extension = 'm4a';
+                    } else if (mimeType.includes('wav')) {
+                        extension = 'wav';
+                    }
                     a.download = `granular-recording-${Date.now()}.${extension}`;
                     
                     document.body.appendChild(a);
