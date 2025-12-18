@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Granular">
     <title>Granular Synthesizer</title>
     <style>
         :root {
@@ -129,6 +130,74 @@
             padding: 8px;
             border: 1px solid rgba(0, 212, 255, 0.2);
             touch-action: none;
+        }
+
+        /* Output Recording Section */
+        .output-recording-section {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            touch-action: none;
+        }
+
+        .output-recording-section .recording-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .output-recording-section button {
+            flex: 1;
+            padding: 8px;
+            font-size: 10px;
+        }
+
+        #startOutputRecBtn {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: white;
+        }
+
+        #startOutputRecBtn.recording {
+            animation: pulse 1s infinite;
+        }
+
+        #stopOutputRecBtn {
+            background: #444;
+            color: white;
+        }
+
+        #stopOutputRecBtn:disabled {
+            background: #222;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: #888;
+            min-height: 20px;
+        }
+
+        .recording-indicator.active {
+            color: var(--accent);
+        }
+
+        .recording-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #444;
+        }
+
+        .recording-dot.active {
+            background: #ff0844;
+            animation: pulse 1s infinite;
         }
 
         .lfo-section select, .control-group select {
@@ -754,6 +823,18 @@
                 <canvas id="waveformCanvas"></canvas>
                 <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
                 <div id="status" class="status">Waiting for audio...</div>
+            </div>
+
+            <div class="output-recording-section">
+                <div class="section-title">Record Output</div>
+                <div class="recording-buttons">
+                    <button id="startOutputRecBtn">Start</button>
+                    <button id="stopOutputRecBtn" disabled>Stop</button>
+                </div>
+                <div class="recording-indicator" id="outputRecStatus">
+                    <div class="recording-dot" id="outputRecDot"></div>
+                    <span id="outputRecText">Ready</span>
+                </div>
             </div>
 
             <div class="controls-section">
@@ -1741,6 +1822,9 @@
 
             // Generate noise buffers
             createNoiseBuffers();
+
+            // Setup output recording destination
+            setupOutputRecording();
 
             updateEffects();
         }
@@ -3431,6 +3515,360 @@
         if (lockBpmSlider && parseInt(lockBpmSlider.value) === 1) {
             lockBpmSlider.classList.add('locked');
         }
+
+        // --- STATE MEMORY SYSTEM ---
+        const STATE_STORAGE_KEY = 'granularSynthState';
+
+        // Function to save current state to localStorage
+        function saveState() {
+            const state = {
+                version: '1.0',
+                timestamp: Date.now(),
+                sliders: {},
+                toggles: {
+                    lfo: {},
+                    lfo2: {},
+                    lfoInverted: {},
+                    lfo2Inverted: {}
+                },
+                selects: {},
+                modes: {
+                    lfoMode: lfoMode,
+                    lfo2Mode: lfo2Mode,
+                    holdEnabled: holdEnabled,
+                    bpmLocked: bpmLocked
+                },
+                octave: octaveOffset,
+                volumeBias: keyboardVolumeBias,
+                activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'grain'
+            };
+
+            // Save all slider values
+            document.querySelectorAll('input[type="range"]').forEach(slider => {
+                state.sliders[slider.id] = slider.value;
+            });
+
+            // Save all select/dropdown values
+            document.querySelectorAll('select').forEach(select => {
+                state.selects[select.id] = select.value;
+            });
+
+            // Save LFO toggle states
+            document.querySelectorAll('.lfo-toggle[data-lfo="1"]').forEach(btn => {
+                const param = btn.dataset.param;
+                state.toggles.lfo[param] = btn.classList.contains('active');
+            });
+
+            document.querySelectorAll('.lfo-toggle[data-lfo="2"]').forEach(btn => {
+                const param = btn.dataset.param;
+                state.toggles.lfo2[param] = btn.classList.contains('active');
+            });
+
+            // Save INV toggle states
+            document.querySelectorAll('.inv-toggle[data-lfo="1"]').forEach(btn => {
+                const param = btn.dataset.param;
+                state.toggles.lfoInverted[param] = btn.classList.contains('active');
+            });
+
+            document.querySelectorAll('.inv-toggle[data-lfo="2"]').forEach(btn => {
+                const param = btn.dataset.param;
+                state.toggles.lfo2Inverted[param] = btn.classList.contains('active');
+            });
+
+            try {
+                localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {
+                console.error('Failed to save state to localStorage:', e);
+            }
+        }
+
+        // Function to restore state from localStorage
+        function restoreState() {
+            try {
+                const savedState = localStorage.getItem(STATE_STORAGE_KEY);
+                if (!savedState) return false;
+
+                const state = JSON.parse(savedState);
+
+                // Restore slider values
+                if (state.sliders) {
+                    Object.keys(state.sliders).forEach(id => {
+                        const slider = document.getElementById(id);
+                        if (slider) {
+                            slider.value = state.sliders[id];
+                            slider.dispatchEvent(new Event('input'));
+                        }
+                    });
+                }
+
+                // Restore select values
+                if (state.selects) {
+                    Object.keys(state.selects).forEach(id => {
+                        const select = document.getElementById(id);
+                        if (select) {
+                            select.value = state.selects[id];
+                        }
+                    });
+                }
+
+                // Restore LFO modes
+                if (state.modes) {
+                    if (state.modes.lfoMode && state.modes.lfoMode !== lfoMode) {
+                        document.getElementById('lfoModeToggle').click();
+                    }
+                    if (state.modes.lfo2Mode && state.modes.lfo2Mode !== lfo2Mode) {
+                        document.getElementById('lfo2ModeToggle').click();
+                    }
+                    if (state.modes.bpmLocked !== undefined) {
+                        const lockSlider = document.getElementById('lockBpmSlider');
+                        if (lockSlider) {
+                            lockSlider.value = state.modes.bpmLocked ? '1' : '0';
+                            lockSlider.dispatchEvent(new Event('input'));
+                        }
+                    }
+                }
+
+                // Restore LFO toggle states
+                if (state.toggles && state.toggles.lfo) {
+                    Object.keys(state.toggles.lfo).forEach(param => {
+                        const shouldBeActive = state.toggles.lfo[param];
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="1"]`);
+                        const isActive = btn?.classList.contains('active');
+                        if (btn && shouldBeActive !== isActive) {
+                            btn.click();
+                        }
+                    });
+                }
+
+                if (state.toggles && state.toggles.lfo2) {
+                    Object.keys(state.toggles.lfo2).forEach(param => {
+                        const shouldBeActive = state.toggles.lfo2[param];
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="2"]`);
+                        const isActive = btn?.classList.contains('active');
+                        if (btn && shouldBeActive !== isActive) {
+                            btn.click();
+                        }
+                    });
+                }
+
+                // Restore INV toggle states
+                if (state.toggles && state.toggles.lfoInverted) {
+                    Object.keys(state.toggles.lfoInverted).forEach(param => {
+                        const shouldBeActive = state.toggles.lfoInverted[param];
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="1"]`);
+                        const isActive = btn?.classList.contains('active');
+                        if (btn && shouldBeActive !== isActive) {
+                            btn.click();
+                        }
+                    });
+                }
+
+                if (state.toggles && state.toggles.lfo2Inverted) {
+                    Object.keys(state.toggles.lfo2Inverted).forEach(param => {
+                        const shouldBeActive = state.toggles.lfo2Inverted[param];
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="2"]`);
+                        const isActive = btn?.classList.contains('active');
+                        if (btn && shouldBeActive !== isActive) {
+                            btn.click();
+                        }
+                    });
+                }
+
+                // Restore octave offset
+                if (state.octave !== undefined) {
+                    octaveOffset = state.octave;
+                    updateOctaveDisplay();
+                }
+
+                // Restore volume bias
+                if (state.volumeBias !== undefined) {
+                    keyboardVolumeBias = state.volumeBias;
+                    const biasSlider = document.getElementById('volumeBiasSlider');
+                    if (biasSlider) {
+                        biasSlider.value = state.volumeBias * 100;
+                    }
+                }
+
+                // Restore active tab
+                if (state.activeTab) {
+                    const tabBtn = document.querySelector(`.tab-button[data-tab="${state.activeTab}"]`);
+                    if (tabBtn && !tabBtn.classList.contains('active')) {
+                        tabBtn.click();
+                    }
+                }
+
+                return true;
+            } catch (e) {
+                console.error('Failed to restore state from localStorage:', e);
+                return false;
+            }
+        }
+
+        // Add event listeners to save state on any control change
+        function setupStateSaving() {
+            // Save on slider changes
+            document.querySelectorAll('input[type="range"]').forEach(slider => {
+                slider.addEventListener('change', saveState);
+            });
+
+            // Save on select changes
+            document.querySelectorAll('select').forEach(select => {
+                select.addEventListener('change', saveState);
+            });
+
+            // Save on toggle button clicks
+            document.querySelectorAll('.lfo-toggle, .inv-toggle').forEach(btn => {
+                btn.addEventListener('click', () => setTimeout(saveState, 50));
+            });
+
+            // Save on mode toggle clicks
+            document.getElementById('lfoModeToggle')?.addEventListener('click', () => setTimeout(saveState, 50));
+            document.getElementById('lfo2ModeToggle')?.addEventListener('click', () => setTimeout(saveState, 50));
+
+            // Save on hold button
+            document.getElementById('holdBtn')?.addEventListener('click', () => setTimeout(saveState, 50));
+
+            // Save on octave changes
+            document.getElementById('octaveUpBtn')?.addEventListener('click', saveState);
+            document.getElementById('octaveDownBtn')?.addEventListener('click', saveState);
+
+            // Save on volume bias change
+            document.getElementById('volumeBiasSlider')?.addEventListener('change', saveState);
+
+            // Save on tab changes
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', () => setTimeout(saveState, 50));
+            });
+
+            // Save on lock BPM change
+            document.getElementById('lockBpmSlider')?.addEventListener('change', saveState);
+        }
+
+        // Restore state when page loads (after engine initialization)
+        document.getElementById('start-btn').addEventListener('click', () => {
+            setTimeout(() => {
+                const restored = restoreState();
+                if (restored) {
+                    console.log('State restored from localStorage');
+                }
+                // Setup state saving after restoration
+                setupStateSaving();
+            }, 500);
+        });
+
+        // --- OUTPUT RECORDING SYSTEM ---
+        let outputMediaRecorder = null;
+        let outputRecordedChunks = [];
+        let outputDestination = null;
+
+        // Setup output recording
+        function setupOutputRecording() {
+            if (!audioContext) return;
+
+            // Create a destination node for recording
+            outputDestination = audioContext.createMediaStreamDestination();
+            
+            // Connect the master output to the destination
+            // The masterGain is connected to audioContext.destination
+            // We need to also connect it to our recording destination
+            if (masterGain) {
+                masterGain.connect(outputDestination);
+            }
+        }
+
+        // Start recording output
+        document.getElementById('startOutputRecBtn')?.addEventListener('click', () => {
+            if (!audioContext || !outputDestination) {
+                setupOutputRecording();
+                if (!outputDestination) {
+                    alert('Audio engine not initialized. Please start the engine first.');
+                    return;
+                }
+            }
+
+            try {
+                outputRecordedChunks = [];
+                
+                // Create MediaRecorder with the destination stream
+                const options = { mimeType: 'audio/webm' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/ogg';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = '';
+                    }
+                }
+
+                outputMediaRecorder = new MediaRecorder(outputDestination.stream, options);
+
+                outputMediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        outputRecordedChunks.push(event.data);
+                    }
+                };
+
+                outputMediaRecorder.onstop = () => {
+                    const blob = new Blob(outputRecordedChunks, { 
+                        type: outputMediaRecorder.mimeType || 'audio/webm' 
+                    });
+                    
+                    // Create download link
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    
+                    // Determine file extension from MIME type
+                    const extension = outputMediaRecorder.mimeType.includes('ogg') ? 'ogg' : 'webm';
+                    a.download = `granular-recording-${Date.now()}.${extension}`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+
+                    // Reset UI
+                    document.getElementById('outputRecStatus').classList.remove('active');
+                    document.getElementById('outputRecDot').classList.remove('active');
+                    document.getElementById('outputRecText').textContent = 'Recording saved';
+                    setTimeout(() => {
+                        document.getElementById('outputRecText').textContent = 'Ready';
+                    }, 3000);
+                };
+
+                outputMediaRecorder.start(100); // Collect data every 100ms
+
+                // Update UI
+                document.getElementById('startOutputRecBtn').disabled = true;
+                document.getElementById('startOutputRecBtn').classList.add('recording');
+                document.getElementById('stopOutputRecBtn').disabled = false;
+                document.getElementById('outputRecStatus').classList.add('active');
+                document.getElementById('outputRecDot').classList.add('active');
+                document.getElementById('outputRecText').textContent = 'Recording...';
+
+            } catch (err) {
+                console.error('Failed to start recording:', err);
+                alert('Failed to start recording: ' + err.message);
+            }
+        });
+
+        // Stop recording output
+        document.getElementById('stopOutputRecBtn')?.addEventListener('click', () => {
+            if (outputMediaRecorder && outputMediaRecorder.state !== 'inactive') {
+                outputMediaRecorder.stop();
+                
+                // Update UI
+                document.getElementById('startOutputRecBtn').disabled = false;
+                document.getElementById('startOutputRecBtn').classList.remove('recording');
+                document.getElementById('stopOutputRecBtn').disabled = true;
+                document.getElementById('outputRecStatus').classList.remove('active');
+                document.getElementById('outputRecDot').classList.remove('active');
+                document.getElementById('outputRecText').textContent = 'Saving...';
+            }
+        });
 
     </script>
 </body>
