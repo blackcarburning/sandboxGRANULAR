@@ -181,6 +181,22 @@
             cursor: not-allowed;
         }
 
+        #armOutputRecBtn {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: white;
+        }
+
+        #armOutputRecBtn.armed {
+            background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+            animation: pulse-arm 1.5s infinite;
+        }
+
+        @keyframes pulse-arm { 
+            0% { opacity: 1; box-shadow: 0 0 5px rgba(255, 149, 0, 0.5); } 
+            50% { opacity: 0.7; box-shadow: 0 0 15px rgba(255, 149, 0, 0.8); } 
+            100% { opacity: 1; box-shadow: 0 0 5px rgba(255, 149, 0, 0.5); } 
+        }
+
         .recording-indicator {
             display: flex;
             align-items: center;
@@ -844,6 +860,15 @@
                 font-size: 7px;
             }
 
+            .output-recording-section .recording-buttons {
+                flex-wrap: wrap;
+            }
+
+            .output-recording-section #armOutputRecBtn {
+                flex-basis: 100%;
+                margin-top: 2px;
+            }
+
             .recording-indicator {
                 font-size: 7px;
                 min-height: 12px;
@@ -959,6 +984,7 @@
                     <div class="recording-buttons">
                         <button id="startOutputRecBtn">Start</button>
                         <button id="stopOutputRecBtn" disabled>Stop</button>
+                        <button id="armOutputRecBtn">Arm</button>
                     </div>
                     <div class="recording-indicator" id="outputRecStatus">
                         <div class="recording-dot" id="outputRecDot"></div>
@@ -1445,6 +1471,17 @@
                             <option value="square">Square</option>
                         </select>
                     </div>
+                    <div class="control-group">
+                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">Cross-Modulation</label>
+                    </div>
+                    <div class="control-group">
+                        <label><span>LFO2 → LFO1 Depth</span><span class="value" id="lfo2ToLfo1ModValue">0%</span></label>
+                        <input type="range" id="lfo2ToLfo1Mod" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>LFO1 → LFO2 Depth</span><span class="value" id="lfo1ToLfo2ModValue">0%</span></label>
+                        <input type="range" id="lfo1ToLfo2Mod" min="0" max="100" value="0" step="1">
+                    </div>
                 </div>
             </div>
         </div>
@@ -1701,7 +1738,8 @@
         };
 
         // --- LFO Engine ---
-        function getLFOValue() {
+        // Raw LFO1 value without cross-modulation (to avoid circular dependency)
+        function getLFOValue1Raw() {
             if (!audioContext) return 0;
             
             let rate = parseFloat(document.getElementById('lfoRate').value);
@@ -1735,7 +1773,51 @@
             return value * depth;
         }
 
-        function getLFOValue2() {
+        function getLFOValue() {
+            if (!audioContext) return 0;
+            
+            let rate = parseFloat(document.getElementById('lfoRate').value);
+            // Convert BPM to Hz if in BPM mode
+            if (lfoMode === 'bpm') {
+                rate = rate / 60;
+            }
+            const waveform = document.getElementById('lfoWaveform').value;
+            let depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
+            
+            // Apply cross-modulation: LFO2 modulates LFO1 depth
+            const lfo2ToLfo1Mod = parseFloat(document.getElementById('lfo2ToLfo1Mod')?.value || 0) / 100;
+            if (lfo2ToLfo1Mod > 0) {
+                const lfo2Value = getLFOValue2Raw(); // Get raw LFO2 value without cross-mod to avoid circular dependency
+                // Map LFO2 output (-1 to 1) to modulation amount (0 to 1)
+                const modAmount = (lfo2Value + 1) * 0.5;
+                depth = depth * (1 - lfo2ToLfo1Mod + modAmount * lfo2ToLfo1Mod);
+            }
+            
+            const elapsed = audioContext.currentTime - lfoStartTime;
+            // Use fract for better precision with long-running oscillators
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
+            
+            let value = 0;
+            switch (waveform) {
+                case 'sine':
+                    value = Math.sin(phase * Math.PI * 2);
+                    break;
+                case 'triangle':
+                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                    break;
+                case 'sawtooth':
+                    value = phase * 2 - 1;
+                    break;
+                case 'square':
+                    value = phase < 0.5 ? -1 : 1;
+                    break;
+            }
+            
+            return value * depth;
+        }
+
+        // Raw LFO2 value without cross-modulation (to avoid circular dependency)
+        function getLFOValue2Raw() {
             if (!audioContext) return 0;
             
             let rate = parseFloat(document.getElementById('lfo2Rate').value);
@@ -1745,6 +1827,49 @@
             }
             const waveform = document.getElementById('lfo2Waveform').value;
             const depth = parseFloat(document.getElementById('lfo2Depth').value) / 100;
+            
+            const elapsed = audioContext.currentTime - lfo2StartTime;
+            // Use fract for better precision with long-running oscillators
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
+            
+            let value = 0;
+            switch (waveform) {
+                case 'sine':
+                    value = Math.sin(phase * Math.PI * 2);
+                    break;
+                case 'triangle':
+                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                    break;
+                case 'sawtooth':
+                    value = phase * 2 - 1;
+                    break;
+                case 'square':
+                    value = phase < 0.5 ? -1 : 1;
+                    break;
+            }
+            
+            return value * depth;
+        }
+
+        function getLFOValue2() {
+            if (!audioContext) return 0;
+            
+            let rate = parseFloat(document.getElementById('lfo2Rate').value);
+            // Convert BPM to Hz if in BPM mode
+            if (lfo2Mode === 'bpm') {
+                rate = rate / 60;
+            }
+            const waveform = document.getElementById('lfo2Waveform').value;
+            let depth = parseFloat(document.getElementById('lfo2Depth').value) / 100;
+            
+            // Apply cross-modulation: LFO1 modulates LFO2 depth
+            const lfo1ToLfo2Mod = parseFloat(document.getElementById('lfo1ToLfo2Mod')?.value || 0) / 100;
+            if (lfo1ToLfo2Mod > 0) {
+                const lfo1Value = getLFOValue1Raw(); // Get raw LFO1 value without cross-mod to avoid circular dependency
+                // Map LFO1 output (-1 to 1) to modulation amount (0 to 1)
+                const modAmount = (lfo1Value + 1) * 0.5;
+                depth = depth * (1 - lfo1ToLfo2Mod + modAmount * lfo1ToLfo2Mod);
+            }
             
             const elapsed = audioContext.currentTime - lfo2StartTime;
             // Use fract for better precision with long-running oscillators
@@ -2624,6 +2749,18 @@
             key.addEventListener('pointerdown', (e) => {
                 e.preventDefault(); // Prevent scrolling
                 const note = key.dataset.note;
+                
+                // Check if output recording is armed - if so, trigger recording and disarm
+                if (isOutputRecordingArmed) {
+                    isOutputRecordingArmed = false;
+                    const armBtn = document.getElementById('armOutputRecBtn');
+                    if (armBtn) {
+                        armBtn.classList.remove('armed');
+                        armBtn.textContent = 'Arm';
+                    }
+                    // Trigger the start recording button
+                    document.getElementById('startOutputRecBtn')?.click();
+                }
                 
                 // If note is already held, release it
                 if (heldNotes.has(note)) {
@@ -4036,6 +4173,7 @@
         let outputSilentGain = null;
         let isOutputRecording = false;
         let outputRecordingBuffers = [];
+        let isOutputRecordingArmed = false;
 
         // Setup output recording
         function setupOutputRecording() {
@@ -4297,6 +4435,30 @@
                     }, 3000);
                 }
             }, 100);
+        });
+
+        // Arm recording output - waits for keyboard key press
+        document.getElementById('armOutputRecBtn')?.addEventListener('click', () => {
+            if (!audioContext || !masterGain) {
+                alert('Audio engine not initialized. Please start the engine first.');
+                return;
+            }
+
+            const armBtn = document.getElementById('armOutputRecBtn');
+            
+            if (isOutputRecordingArmed) {
+                // Disarm
+                isOutputRecordingArmed = false;
+                armBtn.classList.remove('armed');
+                armBtn.textContent = 'Arm';
+                document.getElementById('outputRecText').textContent = 'Ready';
+            } else {
+                // Arm - wait for keyboard press
+                isOutputRecordingArmed = true;
+                armBtn.classList.add('armed');
+                armBtn.textContent = 'Armed...';
+                document.getElementById('outputRecText').textContent = 'Press any key...';
+            }
         });
 
     </script>
