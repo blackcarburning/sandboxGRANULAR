@@ -1130,6 +1130,8 @@
                                 <button class="inv-toggle" data-param="panSpread" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="panSpread" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="panSpread" data-lfo="2">INV</button>
+                                <button class="lfo-toggle" data-param="panSpread" data-lfo="3">L3</button>
+                                <button class="inv-toggle" data-param="panSpread" data-lfo="3">INV</button>
                             </div>
                             <span class="value" id="panSpreadValue">50%</span>
                         </label>
@@ -1339,9 +1341,9 @@
                                 <button class="lfo-toggle" data-param="phaserRate" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="phaserRate" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="phaserRateValue">0.5Hz</span>
+                            <span class="value" id="phaserRateValue">30 BPM</span>
                         </label>
-                        <input type="range" id="phaserRate" min="0.1" max="10" value="0.5" step="0.1">
+                        <input type="range" id="phaserRate" min="1" max="240" value="30" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -1365,9 +1367,9 @@
                                 <button class="lfo-toggle" data-param="tremoloRate" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="tremoloRate" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="tremoloRateValue">5Hz</span>
+                            <span class="value" id="tremoloRateValue">300 BPM</span>
                         </label>
-                        <input type="range" id="tremoloRate" min="0.1" max="20" value="5" step="0.1">
+                        <input type="range" id="tremoloRate" min="1" max="240" value="300" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -1481,6 +1483,26 @@
                     <div class="control-group">
                         <label><span>LFO1 → LFO2 Depth</span><span class="value" id="lfo1ToLfo2ModValue">0%</span></label>
                         <input type="range" id="lfo1ToLfo2Mod" min="0" max="100" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 3 (Stereo Control)</label>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Rate (Hz)</span><span class="value" id="lfo3RateValue">1.0Hz</span></label>
+                        <input type="range" id="lfo3Rate" min="0" max="300" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Depth</span><span class="value" id="lfo3DepthValue">50%</span></label>
+                        <input type="range" id="lfo3Depth" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Waveform</span></label>
+                        <select id="lfo3Waveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -1709,6 +1731,11 @@
         let lfo2Inverted = {};
         let lfo2Mode = 'hz'; // 'hz' or 'bpm'
         
+        // LFO3 State (Hz only, for stereo control)
+        let lfo3StartTime = 0;
+        let lfo3Enabled = {};
+        let lfo3Inverted = {};
+        
         // Parameter ranges for clamping
         const paramRanges = {
             sampleStart: { min: 0, max: 100 },
@@ -1729,9 +1756,9 @@
             hpfQ: { min: 0.1, max: 20 },
             noiseMix: { min: 0, max: 100 },
             distortion: { min: 0, max: 100 },
-            phaserRate: { min: 0.1, max: 10 },
+            phaserRate: { min: 1, max: 240 },
             phaserDepth: { min: 0, max: 100 },
-            tremoloRate: { min: 0.1, max: 20 },
+            tremoloRate: { min: 1, max: 240 },
             tremoloDepth: { min: 0, max: 100 },
             delayFeedback: { min: 0, max: 100 },
             delayMix: { min: 0, max: 100 }
@@ -1894,6 +1921,36 @@
             return value * depth;
         }
 
+        function getLFOValue3() {
+            if (!audioContext) return 0;
+            
+            const rate = parseFloat(document.getElementById('lfo3Rate').value);
+            const waveform = document.getElementById('lfo3Waveform').value;
+            const depth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
+            
+            const elapsed = audioContext.currentTime - lfo3StartTime;
+            // Use fract for better precision with long-running oscillators
+            const phase = elapsed * rate - Math.floor(elapsed * rate);
+            
+            let value = 0;
+            switch (waveform) {
+                case 'sine':
+                    value = Math.sin(phase * Math.PI * 2);
+                    break;
+                case 'triangle':
+                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                    break;
+                case 'sawtooth':
+                    value = phase * 2 - 1;
+                    break;
+                case 'square':
+                    value = phase < 0.5 ? -1 : 1;
+                    break;
+            }
+            
+            return value * depth;
+        }
+
         function getModulatedValue(paramId) {
             const slider = document.getElementById(paramId);
             if (!slider) return 0;
@@ -1919,8 +1976,15 @@
                 totalOffset += invertedLFO2 * rangeSize * 0.5;
             }
             
+            // Apply LFO3 if enabled (only for panSpread/stereo)
+            if (lfo3Enabled[paramId]) {
+                const lfo3Value = getLFOValue3();
+                const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
+                totalOffset += invertedLFO3 * rangeSize * 0.5;
+            }
+            
             // If no LFOs are enabled, return base value
-            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId]) {
+            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId] && !lfo3Enabled[paramId]) {
                 return baseValue;
             }
             
@@ -1940,6 +2004,7 @@
                 
                 lfoStartTime = audioContext.currentTime;
                 lfo2StartTime = audioContext.currentTime;
+                lfo3StartTime = audioContext.currentTime;
                 
                 await setupEffects();
                 startModulationLoop();
@@ -2166,9 +2231,10 @@
 
             // Update phaser
             if (phaserLFO && phaserLFOGain && phaserNodes.length > 0) {
-                const phaserRate = getModulatedValue('phaserRate');
+                const phaserRateBPM = getModulatedValue('phaserRate');
+                const phaserRateHz = phaserRateBPM / 60; // Convert BPM to Hz
                 const phaserDepth = getModulatedValue('phaserDepth') / 100;
-                phaserLFO.frequency.value = phaserRate;
+                phaserLFO.frequency.value = phaserRateHz;
                 // Control depth via LFO gain - modulates all-pass filter frequencies
                 phaserLFOGain.gain.value = phaserDepth * 1000; // 0-1000 Hz modulation range
                 // Update base frequency and Q for phaser nodes
@@ -2181,9 +2247,10 @@
 
             // Update tremolo
             if (tremoloLFO && tremoloLFOGain) {
-                const tremoloRate = getModulatedValue('tremoloRate');
+                const tremoloRateBPM = getModulatedValue('tremoloRate');
+                const tremoloRateHz = tremoloRateBPM / 60; // Convert BPM to Hz
                 const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
-                tremoloLFO.frequency.value = tremoloRate;
+                tremoloLFO.frequency.value = tremoloRateHz;
                 // Control tremolo depth via LFO gain - modulates output gain
                 // With depth=0, no modulation; with depth=1, full amplitude modulation
                 tremoloLFOGain.gain.value = tremoloDepth;
@@ -2774,6 +2841,7 @@
                 if (activeKeyCount === 0 && audioContext) {
                     lfoStartTime = audioContext.currentTime;
                     lfo2StartTime = audioContext.currentTime;
+                    lfo3StartTime = audioContext.currentTime;
                 }
                 
                 // Increment the active key counter
@@ -2823,6 +2891,18 @@
                     updateLFORateDisplay();
                 } else if (e.target.id === 'lfo2Rate') {
                     updateLFO2RateDisplay();
+                } else if (e.target.id === 'lfo3Rate') {
+                    // Update LFO3 rate display (Hz only)
+                    const labelSpan = document.getElementById('lfo3RateValue');
+                    if (labelSpan) {
+                        labelSpan.textContent = e.target.value + 'Hz';
+                    }
+                } else if (e.target.id === 'lfo3Depth') {
+                    // Update LFO3 depth display
+                    const labelSpan = document.getElementById('lfo3DepthValue');
+                    if (labelSpan) {
+                        labelSpan.textContent = e.target.value + '%';
+                    }
                 } else if (e.target.id === 'delayBpm') {
                     // Update BPM display (no suffix, just the number)
                     const labelSpan = document.getElementById('delayBpmValue');
@@ -2838,7 +2918,7 @@
                         else if (e.target.id === 'density') suffix = ' gr/s';
                         else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff') suffix = 'Hz';
                         else if (e.target.id === 'lpfQ' || e.target.id === 'hpfQ') suffix = '';
-                        else if (e.target.id === 'phaserRate' || e.target.id === 'tremoloRate') suffix = 'Hz';
+                        else if (e.target.id === 'phaserRate' || e.target.id === 'tremoloRate') suffix = ' BPM';
                         else suffix = '%';
                         labelSpan.textContent = e.target.value + suffix;
                     }
@@ -3056,6 +3136,8 @@
                     lfoEnabled[param] = !lfoEnabled[param];
                 } else if (lfoNum === '2') {
                     lfo2Enabled[param] = !lfo2Enabled[param];
+                } else if (lfoNum === '3') {
+                    lfo3Enabled[param] = !lfo3Enabled[param];
                 }
                 
                 btn.classList.toggle('active');
@@ -3071,6 +3153,8 @@
                     lfoInverted[param] = !lfoInverted[param];
                 } else if (lfoNum === '2') {
                     lfo2Inverted[param] = !lfo2Inverted[param];
+                } else if (lfoNum === '3') {
+                    lfo3Inverted[param] = !lfo3Inverted[param];
                 }
                 
                 btn.classList.toggle('active');
@@ -3331,6 +3415,7 @@
             
             lfoStartTime = audioContext.currentTime;
             lfo2StartTime = audioContext.currentTime;
+            lfo3StartTime = audioContext.currentTime;
             
             // Reinitialize effects
             await setupEffects();
@@ -3393,7 +3478,8 @@
                 
                 // 40% chance of enabling LFO (within 30-50% target range)
                 const shouldEnable = Math.random() < 0.4;
-                const isCurrentlyEnabled = lfoNum === '1' ? lfoEnabled[param] : lfo2Enabled[param];
+                const isCurrentlyEnabled = lfoNum === '1' ? lfoEnabled[param] : 
+                                          lfoNum === '2' ? lfo2Enabled[param] : lfo3Enabled[param];
                 
                 // Toggle if needed
                 if (shouldEnable !== isCurrentlyEnabled) {
@@ -3406,8 +3492,10 @@
                 const lfoNum = btn.dataset.lfo;
                 
                 // Only randomize INV if corresponding LFO is enabled for this parameter
-                const lfoIsEnabled = lfoNum === '1' ? lfoEnabled[param] : lfo2Enabled[param];
-                const isCurrentlyInverted = lfoNum === '1' ? lfoInverted[param] : lfo2Inverted[param];
+                const lfoIsEnabled = lfoNum === '1' ? lfoEnabled[param] : 
+                                     lfoNum === '2' ? lfo2Enabled[param] : lfo3Enabled[param];
+                const isCurrentlyInverted = lfoNum === '1' ? lfoInverted[param] : 
+                                           lfoNum === '2' ? lfo2Inverted[param] : lfo3Inverted[param];
                 
                 if (lfoIsEnabled) {
                     // 40% chance of enabling INV (within 30-50% target range)
@@ -3454,9 +3542,9 @@
                 noiseMix: 0,
                 reverb: 20,
                 distortion: 0,
-                phaserRate: 0.5,
+                phaserRate: 30,
                 phaserDepth: 0,
-                tremoloRate: 5,
+                tremoloRate: 300,
                 tremoloDepth: 0,
                 volume: 100,
                 delayBpm: 120,
@@ -3465,7 +3553,9 @@
                 lfoRate: 1.0,
                 lfoDepth: 50,
                 lfo2Rate: 1.0,
-                lfo2Depth: 50
+                lfo2Depth: 50,
+                lfo3Rate: 1.0,
+                lfo3Depth: 50
             };
             
             // Reset all sliders to default values
@@ -3480,6 +3570,7 @@
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
             document.getElementById('lfo2Waveform').value = 'sine';
+            document.getElementById('lfo3Waveform').value = 'sine';
             document.getElementById('noiseType').value = 'none';
             document.getElementById('delayDivision').value = '1';
             
@@ -3524,6 +3615,11 @@
                         lfo2Enabled[param] = false;
                         btn.classList.remove('active');
                     }
+                } else if (lfoNum === '3') {
+                    if (lfo3Enabled[param]) {
+                        lfo3Enabled[param] = false;
+                        btn.classList.remove('active');
+                    }
                 }
             });
             
@@ -3540,6 +3636,11 @@
                 } else if (lfoNum === '2') {
                     if (lfo2Inverted[param]) {
                         lfo2Inverted[param] = false;
+                        btn.classList.remove('active');
+                    }
+                } else if (lfoNum === '3') {
+                    if (lfo3Inverted[param]) {
+                        lfo3Inverted[param] = false;
                         btn.classList.remove('active');
                     }
                 }
@@ -3560,7 +3661,7 @@
         // Helper function to gather all preset data
         function gatherPreset() {
             const preset = {
-                version: '2.0',
+                version: '2.1',
                 timestamp: new Date().toISOString(),
                 sliders: {},
                 lfo: {
@@ -3570,6 +3671,10 @@
                 },
                 lfo2: {
                     mode: lfo2Mode,
+                    enabled: {},
+                    inverted: {}
+                },
+                lfo3: {
                     enabled: {},
                     inverted: {}
                 },
@@ -3584,6 +3689,7 @@
             // Gather dropdown values
             preset.lfoWaveform = document.getElementById('lfoWaveform').value;
             preset.lfo2Waveform = document.getElementById('lfo2Waveform').value;
+            preset.lfo3Waveform = document.getElementById('lfo3Waveform').value;
             preset.noiseType = document.getElementById('noiseType').value;
             
             // Gather LFO enabled/inverted states
@@ -3593,6 +3699,10 @@
             // Gather LFO2 enabled/inverted states
             preset.lfo2.enabled = { ...lfo2Enabled };
             preset.lfo2.inverted = { ...lfo2Inverted };
+            
+            // Gather LFO3 enabled/inverted states
+            preset.lfo3.enabled = { ...lfo3Enabled };
+            preset.lfo3.inverted = { ...lfo3Inverted };
             
             return preset;
         }
@@ -3620,6 +3730,9 @@
             }
             if (preset.lfo2Waveform) {
                 document.getElementById('lfo2Waveform').value = preset.lfo2Waveform;
+            }
+            if (preset.lfo3Waveform) {
+                document.getElementById('lfo3Waveform').value = preset.lfo3Waveform;
             }
             if (preset.noiseType) {
                 document.getElementById('noiseType').value = preset.noiseType;
@@ -3682,6 +3795,32 @@
                     
                     if (shouldBeInverted !== isInverted) {
                         const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="2"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply LFO3 enabled states
+            if (preset.lfo3 && preset.lfo3.enabled) {
+                Object.keys(preset.lfo3.enabled).forEach(param => {
+                    const shouldBeEnabled = preset.lfo3.enabled[param];
+                    const isEnabled = lfo3Enabled[param];
+                    
+                    if (shouldBeEnabled !== isEnabled) {
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="3"]`);
+                        if (btn) btn.click();
+                    }
+                });
+            }
+            
+            // Apply LFO3 inverted states
+            if (preset.lfo3 && preset.lfo3.inverted) {
+                Object.keys(preset.lfo3.inverted).forEach(param => {
+                    const shouldBeInverted = preset.lfo3.inverted[param];
+                    const isInverted = lfo3Inverted[param];
+                    
+                    if (shouldBeInverted !== isInverted) {
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="3"]`);
                         if (btn) btn.click();
                     }
                 });
@@ -3934,14 +4073,16 @@
         // Function to save current state to localStorage
         function saveState() {
             const state = {
-                version: '1.0',
+                version: '1.1',
                 timestamp: Date.now(),
                 sliders: {},
                 toggles: {
                     lfo: {},
                     lfo2: {},
+                    lfo3: {},
                     lfoInverted: {},
-                    lfo2Inverted: {}
+                    lfo2Inverted: {},
+                    lfo3Inverted: {}
                 },
                 selects: {},
                 modes: {
@@ -3976,6 +4117,11 @@
                 state.toggles.lfo2[param] = btn.classList.contains('active');
             });
 
+            document.querySelectorAll('.lfo-toggle[data-lfo="3"]').forEach(btn => {
+                const param = btn.dataset.param;
+                state.toggles.lfo3[param] = btn.classList.contains('active');
+            });
+
             // Save INV toggle states
             document.querySelectorAll('.inv-toggle[data-lfo="1"]').forEach(btn => {
                 const param = btn.dataset.param;
@@ -3985,6 +4131,11 @@
             document.querySelectorAll('.inv-toggle[data-lfo="2"]').forEach(btn => {
                 const param = btn.dataset.param;
                 state.toggles.lfo2Inverted[param] = btn.classList.contains('active');
+            });
+
+            document.querySelectorAll('.inv-toggle[data-lfo="3"]').forEach(btn => {
+                const param = btn.dataset.param;
+                state.toggles.lfo3Inverted[param] = btn.classList.contains('active');
             });
 
             try {
@@ -4063,6 +4214,17 @@
                     });
                 }
 
+                if (state.toggles && state.toggles.lfo3) {
+                    Object.keys(state.toggles.lfo3).forEach(param => {
+                        const shouldBeActive = state.toggles.lfo3[param];
+                        const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="3"]`);
+                        const isActive = btn?.classList.contains('active');
+                        if (btn && shouldBeActive !== isActive) {
+                            btn.click();
+                        }
+                    });
+                }
+
                 // Restore INV toggle states
                 if (state.toggles && state.toggles.lfoInverted) {
                     Object.keys(state.toggles.lfoInverted).forEach(param => {
@@ -4079,6 +4241,17 @@
                     Object.keys(state.toggles.lfo2Inverted).forEach(param => {
                         const shouldBeActive = state.toggles.lfo2Inverted[param];
                         const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="2"]`);
+                        const isActive = btn?.classList.contains('active');
+                        if (btn && shouldBeActive !== isActive) {
+                            btn.click();
+                        }
+                    });
+                }
+
+                if (state.toggles && state.toggles.lfo3Inverted) {
+                    Object.keys(state.toggles.lfo3Inverted).forEach(param => {
+                        const shouldBeActive = state.toggles.lfo3Inverted[param];
+                        const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="3"]`);
                         const isActive = btn?.classList.contains('active');
                         if (btn && shouldBeActive !== isActive) {
                             btn.click();
