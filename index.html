@@ -136,23 +136,29 @@
         .output-recording-section {
             display: flex;
             flex-direction: column;
-            gap: 5px;
-            background: var(--panel-bg);
-            border-radius: 8px;
-            padding: 8px;
-            border: 1px solid rgba(0, 212, 255, 0.2);
+            gap: 3px;
+            background: rgba(30, 30, 50, 0.7);
+            border-radius: 6px;
+            padding: 5px;
+            border: 1px solid rgba(0, 212, 255, 0.15);
             touch-action: none;
+            margin-top: 5px;
         }
 
         .output-recording-section .recording-buttons {
             display: flex;
-            gap: 5px;
+            gap: 3px;
         }
 
         .output-recording-section button {
             flex: 1;
-            padding: 8px;
-            font-size: 10px;
+            padding: 5px;
+            font-size: 8px;
+        }
+        
+        .output-recording-section .section-title {
+            font-size: 9px;
+            margin-bottom: 1px;
         }
 
         #startOutputRecBtn {
@@ -178,10 +184,10 @@
         .recording-indicator {
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 10px;
+            gap: 3px;
+            font-size: 8px;
             color: #888;
-            min-height: 20px;
+            min-height: 16px;
         }
 
         .recording-indicator.active {
@@ -189,8 +195,8 @@
         }
 
         .recording-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: #444;
         }
@@ -285,7 +291,7 @@
 
         #waveformCanvas {
             width: 100%;
-            flex: 1;
+            height: 70px;
             background: #0a0a15;
             border-radius: 6px;
             border: 1px solid #333;
@@ -823,17 +829,17 @@
                 <canvas id="waveformCanvas"></canvas>
                 <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
                 <div id="status" class="status">Waiting for audio...</div>
-            </div>
 
-            <div class="output-recording-section">
-                <div class="section-title">Record Output</div>
-                <div class="recording-buttons">
-                    <button id="startOutputRecBtn">Start</button>
-                    <button id="stopOutputRecBtn" disabled>Stop</button>
-                </div>
-                <div class="recording-indicator" id="outputRecStatus">
-                    <div class="recording-dot" id="outputRecDot"></div>
-                    <span id="outputRecText">Ready</span>
+                <div class="output-recording-section">
+                    <div class="section-title">Record Output</div>
+                    <div class="recording-buttons">
+                        <button id="startOutputRecBtn">Start</button>
+                        <button id="stopOutputRecBtn" disabled>Stop</button>
+                    </div>
+                    <div class="recording-indicator" id="outputRecStatus">
+                        <div class="recording-dot" id="outputRecDot"></div>
+                        <span id="outputRecText">Ready</span>
+                    </div>
                 </div>
             </div>
 
@@ -1489,6 +1495,7 @@
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
         let heldNotes = new Set();
+        let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
         
         // Effects nodes
         let reverbNode = null;
@@ -2502,6 +2509,15 @@
                     return;
                 }
                 
+                // Reset LFOs only on the first key press (when counter goes from 0 to 1)
+                if (activeKeyCount === 0 && audioContext) {
+                    lfoStartTime = audioContext.currentTime;
+                    lfo2StartTime = audioContext.currentTime;
+                }
+                
+                // Increment the active key counter
+                activeKeyCount++;
+                
                 key.classList.add('active');
                 key.setPointerCapture(e.pointerId); // Capture drag
                 startGrainStream(note);
@@ -2510,6 +2526,9 @@
             key.addEventListener('pointerup', (e) => {
                 const note = key.dataset.note;
                 key.releasePointerCapture(e.pointerId);
+                
+                // Decrement the active key counter
+                activeKeyCount = Math.max(0, activeKeyCount - 1);
                 
                 // If Hold is enabled, add to held notes instead of stopping
                 if (holdEnabled && !heldNotes.has(note)) {
@@ -2525,6 +2544,8 @@
                 const note = key.dataset.note;
                 // Only stop if not in hold mode and key is being played
                 if (key.classList.contains('active') && !holdEnabled && !heldNotes.has(note)) {
+                   // Decrement the active key counter
+                   activeKeyCount = Math.max(0, activeKeyCount - 1);
                    key.classList.remove('active');
                    stopGrainStream(note);
                 }
@@ -2829,6 +2850,8 @@
                     if (key) key.classList.remove('active');
                 });
                 heldNotes.clear();
+                // Reset active key count when releasing held notes
+                activeKeyCount = 0;
             } else {
                 // Enable hold
                 holdEnabled = true;
