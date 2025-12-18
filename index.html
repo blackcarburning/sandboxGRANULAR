@@ -3698,11 +3698,14 @@
                     }
                 }
 
-                // Restore active tab
+                // Restore active tab (with validation to prevent CSS injection)
                 if (state.activeTab) {
-                    const tabBtn = document.querySelector(`.tab-button[data-tab="${state.activeTab}"]`);
-                    if (tabBtn && !tabBtn.classList.contains('active')) {
-                        tabBtn.click();
+                    const validTabs = ['grain', 'filter', 'noise', 'fx', 'lfo', 'utility'];
+                    if (validTabs.includes(state.activeTab)) {
+                        const tabBtn = document.querySelector(`.tab-button[data-tab="${state.activeTab}"]`);
+                        if (tabBtn && !tabBtn.classList.contains('active')) {
+                            tabBtn.click();
+                        }
                     }
                 }
 
@@ -3726,19 +3729,19 @@
             });
 
             // Save on toggle button clicks
-            // Small delay allows DOM class updates to complete before saving state
+            // Use requestAnimationFrame to save after DOM updates complete
             document.querySelectorAll('.lfo-toggle, .inv-toggle').forEach(btn => {
-                btn.addEventListener('click', () => setTimeout(saveState, 50));
+                btn.addEventListener('click', () => requestAnimationFrame(saveState));
             });
 
             // Save on mode toggle clicks
-            // Small delay allows mode variable updates to complete before saving state
-            document.getElementById('lfoModeToggle')?.addEventListener('click', () => setTimeout(saveState, 50));
-            document.getElementById('lfo2ModeToggle')?.addEventListener('click', () => setTimeout(saveState, 50));
+            // Use requestAnimationFrame to save after mode variable updates complete
+            document.getElementById('lfoModeToggle')?.addEventListener('click', () => requestAnimationFrame(saveState));
+            document.getElementById('lfo2ModeToggle')?.addEventListener('click', () => requestAnimationFrame(saveState));
 
             // Save on hold button
-            // Small delay allows holdEnabled variable to update before saving state
-            document.getElementById('holdBtn')?.addEventListener('click', () => setTimeout(saveState, 50));
+            // Use requestAnimationFrame to save after holdEnabled variable updates
+            document.getElementById('holdBtn')?.addEventListener('click', () => requestAnimationFrame(saveState));
 
             // Save on octave changes
             document.getElementById('octaveUpBtn')?.addEventListener('click', saveState);
@@ -3748,9 +3751,9 @@
             document.getElementById('volumeBiasSlider')?.addEventListener('change', saveState);
 
             // Save on tab changes
-            // Small delay allows active class to be set before saving state
+            // Use requestAnimationFrame to save after active class is set
             document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.addEventListener('click', () => setTimeout(saveState, 50));
+                btn.addEventListener('click', () => requestAnimationFrame(saveState));
             });
 
             // Save on lock BPM change
@@ -3831,15 +3834,17 @@
                     a.style.display = 'none';
                     a.href = url;
                     
-                    // Determine file extension from MIME type
+                    // Determine file extension from MIME type using precise matching
                     let extension = 'webm'; // default
                     const mimeType = outputMediaRecorder.mimeType || '';
-                    if (mimeType.includes('ogg')) {
+                    if (mimeType.startsWith('audio/ogg')) {
                         extension = 'ogg';
-                    } else if (mimeType.includes('mp4')) {
+                    } else if (mimeType.startsWith('audio/mp4')) {
                         extension = 'm4a';
-                    } else if (mimeType.includes('wav')) {
+                    } else if (mimeType.startsWith('audio/wav')) {
                         extension = 'wav';
+                    } else if (mimeType.startsWith('audio/webm')) {
+                        extension = 'webm';
                     }
                     a.download = `granular-recording-${Date.now()}.${extension}`;
                     
