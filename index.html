@@ -4033,6 +4033,7 @@
         let outputRecordedChunks = [];
         let outputDestination = null;
         let outputScriptProcessor = null;
+        let outputSilentGain = null;
         let isOutputRecording = false;
         let outputRecordingBuffers = [];
 
@@ -4148,6 +4149,8 @@
                 outputScriptProcessor.onaudioprocess = (event) => {
                     if (!isOutputRecording) return;
                     
+                    console.log('onaudioprocess called - capturing audio data');
+                    
                     // Capture the audio data
                     const left = new Float32Array(event.inputBuffer.getChannelData(0));
                     const right = new Float32Array(event.inputBuffer.getChannelData(1));
@@ -4158,9 +4161,16 @@
                     });
                 };
                 
-                // Connect the script processor to capture audio without affecting output
-                // The masterGain is already connected to destination, so we only tap into it
+                // Create a silent gain node to prevent double audio output
+                // ScriptProcessor must be connected to destination to fire onaudioprocess events
+                outputSilentGain = audioContext.createGain();
+                outputSilentGain.gain.value = 0;
+                
+                // Connect: masterGain -> scriptProcessor -> silentGain -> destination
+                // This allows the scriptProcessor to process audio without playing it twice
                 masterGain.connect(outputScriptProcessor);
+                outputScriptProcessor.connect(outputSilentGain);
+                outputSilentGain.connect(audioContext.destination);
 
                 // Update UI
                 document.getElementById('startOutputRecBtn').disabled = true;
@@ -4192,6 +4202,16 @@
                 outputScriptProcessor.disconnect();
                 outputScriptProcessor.onaudioprocess = null;
                 outputScriptProcessor = null;
+            }
+            
+            // Cleanup the silent gain node
+            if (outputSilentGain) {
+                try {
+                    outputSilentGain.disconnect();
+                } catch (e) {
+                    // Already disconnected
+                }
+                outputSilentGain = null;
             }
             
             // Update UI
