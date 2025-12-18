@@ -582,14 +582,25 @@
             grid-template-columns: repeat(4, 1fr);
             gap: 4px;
             flex: 1;
-            min-height: 280px;
-            overflow: hidden;
+            min-height: 0;
+            max-height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
             position: relative;
             touch-action: manipulation;
         }
 
         #utility-tab.active {
             grid-template-columns: repeat(2, 1fr);
+        }
+
+        #grain-tab.active {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        #fx-tab.active {
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: minmax(auto, 1fr);
         }
 
         #utility-tab button {
@@ -634,6 +645,16 @@
         #lockBpmBtn.active {
             background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%) !important;
             color: #000 !important;
+        }
+
+        /* BPM Lock Slider Toggle */
+        #lockBpmSlider {
+            width: 50px;
+        }
+
+        #lockBpmValue {
+            min-width: 25px;
+            text-align: center;
         }
 
         /* Fullscreen button */
@@ -1109,7 +1130,11 @@
                         <button id="randomizeBtn">Randomize</button>
                     </div>
                     <div class="control-group">
-                        <button id="lockBpmBtn" class="active">Lock BPM</button>
+                        <label>
+                            <span class="param-name">Lock BPM</span>
+                            <span class="value" id="lockBpmValue">ON</span>
+                        </label>
+                        <input type="range" id="lockBpmSlider" min="0" max="1" value="1" step="1">
                     </div>
                     <div class="control-group">
                         <button id="saveAudioBtn">Save Audio</button>
@@ -2671,15 +2696,10 @@
             updateEffects();
         });
 
-        // --- Lock BPM Button ---
-        document.getElementById('lockBpmBtn').addEventListener('click', () => {
-            const lockBtn = document.getElementById('lockBpmBtn');
-            bpmLocked = !bpmLocked;
-            if (bpmLocked) {
-                lockBtn.classList.add('active');
-            } else {
-                lockBtn.classList.remove('active');
-            }
+        // --- Lock BPM Slider ---
+        document.getElementById('lockBpmSlider').addEventListener('input', (e) => {
+            bpmLocked = parseInt(e.target.value) === 1;
+            document.getElementById('lockBpmValue').textContent = bpmLocked ? 'ON' : 'OFF';
         });
 
         // --- Tab System ---
