@@ -4003,17 +4003,17 @@
                     
                     // Capture the audio data
                     const left = new Float32Array(event.inputBuffer.getChannelData(0));
-                    const right = event.inputBuffer.getChannelData(1);
+                    const right = new Float32Array(event.inputBuffer.getChannelData(1));
                     
                     outputRecordingBuffers.push({
                         left: left,
-                        right: new Float32Array(right)
+                        right: right
                     });
                 };
                 
-                // Connect the script processor
+                // Connect the script processor to capture audio without affecting output
+                // The masterGain is already connected to destination, so we only tap into it
                 masterGain.connect(outputScriptProcessor);
-                outputScriptProcessor.connect(audioContext.destination);
 
                 // Update UI
                 document.getElementById('startOutputRecBtn').disabled = true;
@@ -4037,6 +4037,11 @@
             
             // Disconnect and cleanup the script processor
             if (outputScriptProcessor) {
+                try {
+                    masterGain.disconnect(outputScriptProcessor);
+                } catch (e) {
+                    // Already disconnected
+                }
                 outputScriptProcessor.disconnect();
                 outputScriptProcessor.onaudioprocess = null;
                 outputScriptProcessor = null;
