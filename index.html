@@ -2750,6 +2750,18 @@
                 e.preventDefault(); // Prevent scrolling
                 const note = key.dataset.note;
                 
+                // Check if output recording is armed - if so, trigger recording and disarm
+                if (isOutputRecordingArmed) {
+                    isOutputRecordingArmed = false;
+                    const armBtn = document.getElementById('armOutputRecBtn');
+                    if (armBtn) {
+                        armBtn.classList.remove('armed');
+                        armBtn.textContent = 'Arm';
+                    }
+                    // Trigger the start recording button
+                    document.getElementById('startOutputRecBtn')?.click();
+                }
+                
                 // If note is already held, release it
                 if (heldNotes.has(note)) {
                     heldNotes.delete(note);
@@ -4447,36 +4459,6 @@
                 armBtn.textContent = 'Armed...';
                 document.getElementById('outputRecText').textContent = 'Press any key...';
             }
-        });
-
-        // Add key press listener to start recording when armed
-        // This needs to be added to the existing keyboard key handlers
-        // Find where keyboard keys are handled and add the armed recording trigger
-        document.querySelectorAll('.key').forEach(key => {
-            const existingMouseDown = key.onmousedown;
-            const existingTouchStart = key.ontouchstart;
-            
-            key.addEventListener('mousedown', () => {
-                if (isOutputRecordingArmed) {
-                    isOutputRecordingArmed = false;
-                    const armBtn = document.getElementById('armOutputRecBtn');
-                    armBtn.classList.remove('armed');
-                    armBtn.textContent = 'Arm';
-                    // Trigger the start recording button
-                    document.getElementById('startOutputRecBtn').click();
-                }
-            });
-            
-            key.addEventListener('touchstart', () => {
-                if (isOutputRecordingArmed) {
-                    isOutputRecordingArmed = false;
-                    const armBtn = document.getElementById('armOutputRecBtn');
-                    armBtn.classList.remove('armed');
-                    armBtn.textContent = 'Arm';
-                    // Trigger the start recording button
-                    document.getElementById('startOutputRecBtn').click();
-                }
-            });
         });
 
     </script>
