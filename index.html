@@ -4493,7 +4493,15 @@
                         
                         // Convert recorded audio to WAV
                         const arrayBuffer = await recordedBlob.arrayBuffer();
-                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        let audioBuffer;
+                        try {
+                            audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        } catch (decodeErr) {
+                            console.error('Failed to decode audio data:', decodeErr);
+                            alert('Failed to decode recorded audio. The recording format may not be supported. Please try again.');
+                            resetRecordingUI(true);
+                            return;
+                        }
                         const wav = audioBufferToWav24bit(audioBuffer);
                         const blob = new Blob([wav], { type: 'audio/wav' });
                         
@@ -4586,7 +4594,11 @@
             if (outputMediaRecorder) {
                 // Stop recording if still active (but not if we're already in onstop handler)
                 if (!skipMediaRecorderStop && (outputMediaRecorder.state === 'recording' || outputMediaRecorder.state === 'paused')) {
-                    outputMediaRecorder.stop();
+                    try {
+                        outputMediaRecorder.stop();
+                    } catch (e) {
+                        console.error('Error stopping MediaRecorder:', e);
+                    }
                 }
                 outputMediaRecorder = null;
             }
