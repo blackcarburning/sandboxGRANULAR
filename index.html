@@ -4351,7 +4351,7 @@
         let outputRecordedChunks = [];
         let outputDestination = null;
         let outputScriptProcessor = null;
-        let outputSilentGain = null;
+        let outputSilentGain = null; // Global declaration for silent gain node
         let isOutputRecording = false;
         let outputRecordingBuffers = [];
         let isOutputRecordingArmed = false;
@@ -4463,57 +4463,104 @@
                 console.log('MasterGain connected to destination:', masterGain.context === audioContext);
                 console.log('AudioContext state:', audioContext.state);
                 
-                outputRecordingBuffers = [];
+                outputRecordedChunks = [];
                 isOutputRecording = true;
                 
-                // Create ScriptProcessor for capturing audio
-                const bufferSize = 4096;
-                outputScriptProcessor = audioContext.createScriptProcessor(bufferSize, 2, 2);
+                // Create a MediaStreamDestination and connect masterGain to it
+                const recordingDestination = audioContext.createMediaStreamDestination();
+                masterGain.connect(recordingDestination);
                 
-                let processCount = 0;
-                outputScriptProcessor.onaudioprocess = (event) => {
-                    if (!isOutputRecording) return;
-                    
-                    processCount++;
-                    if (processCount <= 3) {
-                        console.log(`onaudioprocess called (${processCount}) - capturing audio data`);
+                // Use MediaRecorder to record the stream
+                const mimeType = 'audio/webm';
+                outputMediaRecorder = new MediaRecorder(recordingDestination.stream, {
+                    mimeType: mimeType
+                });
+                
+                outputMediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        outputRecordedChunks.push(e.data);
+                        console.log('MediaRecorder chunk received:', e.data.size, 'bytes');
                     }
-                    
-                    // Capture the audio data
-                    const left = new Float32Array(event.inputBuffer.getChannelData(0));
-                    const right = new Float32Array(event.inputBuffer.getChannelData(1));
-                    
-                    // Check if audio data contains non-zero samples
-                    if (processCount <= 3) {
-                        let hasAudio = false;
-                        for (let i = 0; i < left.length; i++) {
-                            if (Math.abs(left[i]) > 0.001 || Math.abs(right[i]) > 0.001) {
-                                hasAudio = true;
-                                break;
-                            }
-                        }
-                        console.log(`Audio data contains non-zero samples: ${hasAudio}`);
-                    }
-                    
-                    outputRecordingBuffers.push({
-                        left: left,
-                        right: right
-                    });
                 };
                 
-                // Create a silent gain node to prevent double audio output
-                // ScriptProcessor must be connected to destination to fire onaudioprocess events
-                outputSilentGain = audioContext.createGain();
-                outputSilentGain.gain.value = 0;
+                outputMediaRecorder.onstop = async () => {
+                    console.log('MediaRecorder stopped, processing', outputRecordedChunks.length, 'chunks');
+                    
+                    if (outputRecordedChunks.length === 0) {
+                        alert('No audio was recorded. Please try again.');
+                        resetRecordingUI();
+                        return;
+                    }
+                    
+                    try {
+                        const webmBlob = new Blob(outputRecordedChunks, { type: 'audio/webm' });
+                        console.log('WebM blob size:', webmBlob.size, 'bytes');
+                        
+                        // Convert webm to WAV
+                        const arrayBuffer = await webmBlob.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        const wav = audioBufferToWav24bit(audioBuffer);
+                        const blob = new Blob([wav], { type: 'audio/wav' });
+                        
+                        // Try Web Share API on iOS
+                        if (navigator.share && navigator.canShare) {
+                            const file = new File([blob], `granular-recording-${Date.now()}.wav`, { type: 'audio/wav' });
+                            if (navigator.canShare({ files: [file] })) {
+                                try {
+                                    await navigator.share({
+                                        files: [file],
+                                        title: 'Granular Recording',
+                                    });
+                                    // Successfully shared
+                                    document.getElementById('outputRecText').textContent = 'Shared!';
+                                    setTimeout(() => {
+                                        document.getElementById('outputRecText').textContent = 'Ready';
+                                    }, 3000);
+                                    resetRecordingUI();
+                                    return;
+                                } catch (err) {
+                                    if (err.name !== 'AbortError') {
+                                        console.error('Share failed:', err);
+                                    }
+                                    // Fall through to regular download if share fails
+                                }
+                            }
+                        }
+                        
+                        // Fallback to regular download for desktop or if share fails
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = `granular-recording-${Date.now()}.wav`;
+                        document.body.appendChild(a);
+                        a.click();
+                        
+                        // Cleanup
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }, 100);
+                        
+                        document.getElementById('outputRecText').textContent = 'Recording saved';
+                        setTimeout(() => {
+                            document.getElementById('outputRecText').textContent = 'Ready';
+                        }, 3000);
+                        
+                    } catch (err) {
+                        console.error('Failed to process recording:', err);
+                        alert('Failed to process recording: ' + err.message);
+                        document.getElementById('outputRecText').textContent = 'Error';
+                        setTimeout(() => {
+                            document.getElementById('outputRecText').textContent = 'Ready';
+                        }, 3000);
+                    }
+                    
+                    resetRecordingUI();
+                };
                 
-                // Connect: masterGain -> scriptProcessor -> silentGain -> destination
-                // The silentGain MUST be connected to destination for ScriptProcessor to fire events
-                // masterGain is already connected to destination, so we don't hear double audio
-                console.log('Connecting masterGain to outputScriptProcessor...');
-                masterGain.connect(outputScriptProcessor);
-                outputScriptProcessor.connect(outputSilentGain);
-                outputSilentGain.connect(audioContext.destination);
-                console.log('Recording audio chain established');
+                outputMediaRecorder.start();
+                console.log('MediaRecorder started');
 
                 // Update UI
                 document.getElementById('startOutputRecBtn').disabled = true;
@@ -4529,117 +4576,27 @@
             }
         });
 
+        // Helper function to reset recording UI
+        function resetRecordingUI() {
+            document.getElementById('startOutputRecBtn').disabled = false;
+            document.getElementById('startOutputRecBtn').classList.remove('recording');
+            document.getElementById('stopOutputRecBtn').disabled = true;
+            document.getElementById('outputRecStatus').classList.remove('active');
+            document.getElementById('outputRecDot').classList.remove('active');
+        }
+
         // Stop recording output
         document.getElementById('stopOutputRecBtn')?.addEventListener('click', () => {
-            if (!isOutputRecording) return;
+            if (!isOutputRecording || !outputMediaRecorder) return;
             
             isOutputRecording = false;
-            
-            // Disconnect and cleanup the script processor
-            if (outputScriptProcessor) {
-                try {
-                    masterGain.disconnect(outputScriptProcessor);
-                } catch (e) {
-                    // Already disconnected
-                }
-                outputScriptProcessor.disconnect();
-                outputScriptProcessor.onaudioprocess = null;
-                outputScriptProcessor = null;
-            }
-            
-            // Cleanup the silent gain node
-            if (outputSilentGain) {
-                try {
-                    outputSilentGain.disconnect();
-                } catch (e) {
-                    // Already disconnected
-                }
-                outputSilentGain = null;
-            }
             
             // Update UI
             document.getElementById('stopOutputRecBtn').disabled = true;
             document.getElementById('outputRecText').textContent = 'Processing...';
             
-            // Process the recorded audio in a timeout to avoid blocking UI
-            setTimeout(() => {
-                try {
-                    // Calculate total length
-                    let totalLength = 0;
-                    for (const buffer of outputRecordingBuffers) {
-                        totalLength += buffer.left.length;
-                    }
-                    
-                    if (totalLength === 0) {
-                        alert('No audio was recorded. Please try again.');
-                        document.getElementById('startOutputRecBtn').disabled = false;
-                        document.getElementById('startOutputRecBtn').classList.remove('recording');
-                        document.getElementById('outputRecStatus').classList.remove('active');
-                        document.getElementById('outputRecDot').classList.remove('active');
-                        document.getElementById('outputRecText').textContent = 'Ready';
-                        return;
-                    }
-                    
-                    // Create an AudioBuffer with the recorded data
-                    const recordedBuffer = audioContext.createBuffer(2, totalLength, audioContext.sampleRate);
-                    const leftChannel = recordedBuffer.getChannelData(0);
-                    const rightChannel = recordedBuffer.getChannelData(1);
-                    
-                    let offset = 0;
-                    for (const buffer of outputRecordingBuffers) {
-                        leftChannel.set(buffer.left, offset);
-                        rightChannel.set(buffer.right, offset);
-                        offset += buffer.left.length;
-                    }
-                    
-                    // Convert to 24-bit WAV at 48kHz
-                    const wav = audioBufferToWav24bit(recordedBuffer);
-                    const blob = new Blob([wav], { type: 'audio/wav' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // Create download link
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `granular-recording-${Date.now()}.wav`;
-                    
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    // Cleanup
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-                    
-                    // Reset UI
-                    document.getElementById('startOutputRecBtn').disabled = false;
-                    document.getElementById('startOutputRecBtn').classList.remove('recording');
-                    document.getElementById('outputRecStatus').classList.remove('active');
-                    document.getElementById('outputRecDot').classList.remove('active');
-                    document.getElementById('outputRecText').textContent = 'Recording saved';
-                    setTimeout(() => {
-                        document.getElementById('outputRecText').textContent = 'Ready';
-                    }, 3000);
-                    
-                    // Clear buffers
-                    outputRecordingBuffers = [];
-                    
-                } catch (err) {
-                    console.error('Failed to process recording:', err);
-                    alert('Failed to process recording: ' + err.message);
-                    
-                    // Reset UI on error
-                    document.getElementById('startOutputRecBtn').disabled = false;
-                    document.getElementById('startOutputRecBtn').classList.remove('recording');
-                    document.getElementById('outputRecStatus').classList.remove('active');
-                    document.getElementById('outputRecDot').classList.remove('active');
-                    document.getElementById('outputRecText').textContent = 'Error';
-                    setTimeout(() => {
-                        document.getElementById('outputRecText').textContent = 'Ready';
-                    }, 3000);
-                }
-            }, 100);
+            // Stop the MediaRecorder - this will trigger onstop event
+            outputMediaRecorder.stop();
         });
 
         // Arm recording output - waits for keyboard key press
