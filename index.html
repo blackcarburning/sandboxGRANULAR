@@ -4346,6 +4346,7 @@
         // --- OUTPUT RECORDING SYSTEM ---
         let outputMediaRecorder = null;
         let outputRecordedChunks = [];
+        let outputRecordingDestination = null;
         let isOutputRecording = false;
         let isOutputRecordingArmed = false;
 
@@ -4445,12 +4446,12 @@
                 isOutputRecording = true;
                 
                 // Create a MediaStreamDestination and connect masterGain to it
-                const recordingDestination = audioContext.createMediaStreamDestination();
-                masterGain.connect(recordingDestination);
+                outputRecordingDestination = audioContext.createMediaStreamDestination();
+                masterGain.connect(outputRecordingDestination);
                 
                 // Use MediaRecorder to record the stream
                 const mimeType = 'audio/webm';
-                outputMediaRecorder = new MediaRecorder(recordingDestination.stream, {
+                outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, {
                     mimeType: mimeType
                 });
                 
@@ -4561,6 +4562,19 @@
             document.getElementById('stopOutputRecBtn').disabled = true;
             document.getElementById('outputRecStatus').classList.remove('active');
             document.getElementById('outputRecDot').classList.remove('active');
+            
+            // Clean up recording resources
+            if (outputRecordingDestination && masterGain) {
+                try {
+                    masterGain.disconnect(outputRecordingDestination);
+                } catch (e) {
+                    // Already disconnected
+                }
+                outputRecordingDestination = null;
+            }
+            
+            outputMediaRecorder = null;
+            outputRecordedChunks = [];
         }
 
         // Stop recording output
