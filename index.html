@@ -2816,7 +2816,9 @@
                 
                 // Check if output recording is armed - if so, trigger recording and disarm
                 if (isOutputRecordingArmed) {
+                    console.log('Armed recording triggered by key press');
                     isOutputRecordingArmed = false;
+                    isOutputRecordingArmedStart = true; // Mark that recording was started via armed mode
                     const armBtn = document.getElementById('armOutputRecBtn');
                     if (armBtn) {
                         armBtn.classList.remove('armed');
@@ -2866,7 +2868,9 @@
                 }
                 
                 // Check if all keys released during armed recording - auto-stop recording
-                if (activeKeyCount === 0 && isOutputRecording) {
+                // Only auto-stop if recording was started via armed mode
+                if (activeKeyCount === 0 && isOutputRecording && isOutputRecordingArmedStart) {
+                    console.log('Auto-stopping armed recording - all keys released');
                     document.getElementById('stopOutputRecBtn')?.click();
                 }
             });
@@ -2881,7 +2885,9 @@
                     stopGrainStream(note);
                     
                     // Check if all keys released during armed recording - auto-stop recording
-                    if (activeKeyCount === 0 && isOutputRecording) {
+                    // Only auto-stop if recording was started via armed mode
+                    if (activeKeyCount === 0 && isOutputRecording && isOutputRecordingArmedStart) {
+                        console.log('Auto-stopping armed recording - all keys released (pointerleave)');
                         document.getElementById('stopOutputRecBtn')?.click();
                     }
                 }
@@ -4360,14 +4366,18 @@
         let outputRecordingMimeType = null;
         let isOutputRecording = false;
         let isOutputRecordingArmed = false;
+        let isOutputRecordingArmedStart = false; // Track if recording was started via armed mode
 
         // Helper function to save WAV file with proper cross-platform support
         async function saveWavFile(wavArrayBuffer) {
+            console.log('=== SAVEWAVFILE CALLED ===');
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
             const defaultFilename = `granular-recording-${Date.now()}.wav`;
+            console.log('Blob created. Size:', blob.size, 'bytes. Filename:', defaultFilename);
             
             // Try File System Access API first (Desktop Chrome/Edge)
             if ('showSaveFilePicker' in window) {
+                console.log('Using File System Access API (showSaveFilePicker)');
                 try {
                     const handle = await window.showSaveFilePicker({
                         suggestedName: defaultFilename,
@@ -4376,12 +4386,15 @@
                             accept: { 'audio/wav': ['.wav'] }
                         }]
                     });
+                    console.log('File handle obtained, writing file...');
                     const writable = await handle.createWritable();
                     await writable.write(blob);
                     await writable.close();
+                    console.log('File written successfully');
                     return; // Success
                 } catch (err) {
                     if (err.name === 'AbortError') {
+                        console.log('User cancelled save dialog');
                         return; // User cancelled, don't fall through
                     }
                     console.error('Save picker failed:', err);
@@ -4392,6 +4405,7 @@
             // iOS fallback - open blob URL in new window/tab
             // This forces iOS to show share sheet with all options
             if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+                console.log('Using iOS fallback - opening blob URL in new window');
                 const url = URL.createObjectURL(blob);
                 window.open(url, '_blank');
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -4399,6 +4413,7 @@
             }
             
             // Fallback for Safari/Firefox - use download link
+            console.log('Using fallback download link method');
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
@@ -4406,6 +4421,7 @@
             a.download = defaultFilename;
             document.body.appendChild(a);
             a.click();
+            console.log('Download link clicked');
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
@@ -4500,9 +4516,11 @@
 
             try {
                 // Verify masterGain is properly connected and exists
+                console.log('=== START RECORDING CLICKED ===');
                 console.log('Starting recording with masterGain:', masterGain);
                 console.log('MasterGain connected to destination:', masterGain.context === audioContext);
                 console.log('AudioContext state:', audioContext.state);
+                console.log('isOutputRecordingArmedStart:', isOutputRecordingArmedStart);
                 
                 outputRecordedChunks = [];
                 isOutputRecording = true;
@@ -4538,9 +4556,11 @@
                 };
                 
                 outputMediaRecorder.onstop = async () => {
-                    console.log('MediaRecorder stopped, processing', outputRecordedChunks.length, 'chunks');
+                    console.log('=== MEDIARECORDER ONSTOP TRIGGERED ===');
+                    console.log('Processing', outputRecordedChunks.length, 'chunks');
                     
                     if (outputRecordedChunks.length === 0) {
+                        console.error('No audio chunks recorded!');
                         alert('No audio was recorded. Please try again.');
                         resetRecordingUI(true);
                         return;
@@ -4553,20 +4573,27 @@
                         console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', blobMimeType);
                         
                         // Convert recorded audio to WAV
+                        console.log('Converting to ArrayBuffer...');
                         const arrayBuffer = await recordedBlob.arrayBuffer();
+                        console.log('Decoding audio data...');
                         let audioBuffer;
                         try {
                             audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                            console.log('Audio decoded successfully. Duration:', audioBuffer.duration, 'seconds');
                         } catch (decodeErr) {
                             console.error('Failed to decode audio data:', decodeErr);
                             alert('Failed to decode recorded audio. The recording format may not be supported. Please try again.');
                             resetRecordingUI(true);
                             return;
                         }
+                        console.log('Converting to WAV format...');
                         const wav = audioBufferToWav24bit(audioBuffer);
+                        console.log('WAV conversion complete. Size:', wav.byteLength, 'bytes');
                         
                         // Save the WAV file using the new cross-platform function
+                        console.log('Calling saveWavFile...');
                         await saveWavFile(wav);
+                        console.log('saveWavFile completed');
                         
                         document.getElementById('outputRecText').textContent = 'Recording saved';
                         setTimeout(() => {
@@ -4582,7 +4609,9 @@
                         }, 3000);
                     }
                     
+                    console.log('Resetting recording UI...');
                     resetRecordingUI(true);
+                    console.log('=== RECORDING STOP COMPLETE ===');
                 };
                 
                 outputMediaRecorder.start();
@@ -4604,6 +4633,7 @@
 
         // Helper function to reset recording UI
         function resetRecordingUI(skipMediaRecorderStop = false) {
+            console.log('resetRecordingUI called. skipMediaRecorderStop:', skipMediaRecorderStop);
             document.getElementById('startOutputRecBtn').disabled = false;
             document.getElementById('startOutputRecBtn').classList.remove('recording');
             document.getElementById('stopOutputRecBtn').disabled = true;
@@ -4612,9 +4642,11 @@
             
             // Clean up MediaRecorder
             if (outputMediaRecorder) {
+                console.log('Cleaning up MediaRecorder. State:', outputMediaRecorder.state);
                 // Stop recording if still active (but not if we're already in onstop handler)
                 if (!skipMediaRecorderStop && outputMediaRecorder.state === 'recording') {
                     try {
+                        console.log('Stopping MediaRecorder from resetRecordingUI');
                         outputMediaRecorder.stop();
                     } catch (e) {
                         console.error('Error stopping MediaRecorder:', e);
@@ -4626,27 +4658,35 @@
             // Clean up recording resources
             if (outputRecordingDestination && masterGain) {
                 try {
+                    console.log('Disconnecting masterGain from outputRecordingDestination');
                     masterGain.disconnect(outputRecordingDestination);
                 } catch (e) {
-                    // Already disconnected
+                    console.log('masterGain already disconnected');
                 }
                 outputRecordingDestination = null;
             }
             
             outputRecordedChunks = [];
             outputRecordingMimeType = null;
+            console.log('Recording UI reset complete');
         }
 
         // Stop recording output
         document.getElementById('stopOutputRecBtn')?.addEventListener('click', () => {
+            console.log('=== STOP RECORDING CLICKED ===');
+            console.log('isOutputRecording:', isOutputRecording);
+            console.log('outputMediaRecorder:', outputMediaRecorder);
+            
             if (!isOutputRecording || !outputMediaRecorder) return;
             
             isOutputRecording = false;
+            isOutputRecordingArmedStart = false; // Reset the armed start flag
             
             // Update UI
             document.getElementById('stopOutputRecBtn').disabled = true;
             document.getElementById('outputRecText').textContent = 'Processing...';
             
+            console.log('Stopping MediaRecorder...');
             // Stop the MediaRecorder - this will trigger onstop event
             outputMediaRecorder.stop();
         });
