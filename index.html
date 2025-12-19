@@ -815,10 +815,47 @@
         /* iPhone/Mobile Optimizations */
         /* Targets iPhone and similar devices in landscape mode (max-height: 430px covers iPhone 14 Pro Max and smaller) */
         @media screen and (max-height: 430px) and (orientation: landscape) {
-            /* 1. Make Sample Source area narrower on iPhone */
-            .recording-section {
+            /* Reorganize layout: Sample Source (left full height) | Controls + Keyboard (right stacked) */
+            /* Use nested grid approach */
+            .synth-container {
+                display: flex;
+                flex-direction: row;
+            }
+
+            /* Top section becomes left column with recording only */
+            .top-section {
                 flex: 0 0 180px;
+                flex-direction: column;
+                margin-bottom: 0;
+                margin-right: 5px;
+                gap: 0;
+            }
+
+            /* Recording section: full height on left */
+            .recording-section {
+                flex: 1;
                 padding: 5px;
+            }
+
+            /* Controls section: hide from top-section, will be moved */
+            .controls-section {
+                position: absolute;
+                top: 5px;
+                left: 185px;
+                right: 5px;
+                bottom: 135px;
+            }
+
+            /* Keyboard section: bottom right */
+            .keyboard-section {
+                flex: 1;
+                display: flex;
+                border-radius: 8px;
+                position: absolute;
+                left: 185px;
+                right: 5px;
+                bottom: 5px;
+                height: 130px;
             }
 
             .recording-section .section-title {
@@ -2866,14 +2903,6 @@
                     key.classList.remove('active');
                     stopGrainStream(note);
                 }
-                
-                // DISABLED: Auto-stop was causing recording to stop immediately
-                // Check if all keys released during armed recording - auto-stop recording
-                // Only auto-stop if recording was started via armed mode
-                // if (activeKeyCount === 0 && isOutputRecording && isOutputRecordingArmedStart) {
-                //     console.log('Auto-stopping armed recording - all keys released');
-                //     document.getElementById('stopOutputRecBtn')?.click();
-                // }
             });
 
             key.addEventListener('pointerleave', (e) => {
@@ -2884,14 +2913,6 @@
                     activeKeyCount = Math.max(0, activeKeyCount - 1);
                     key.classList.remove('active');
                     stopGrainStream(note);
-                    
-                    // DISABLED: Auto-stop was causing recording to stop immediately
-                    // Check if all keys released during armed recording - auto-stop recording
-                    // Only auto-stop if recording was started via armed mode
-                    // if (activeKeyCount === 0 && isOutputRecording && isOutputRecordingArmedStart) {
-                    //     console.log('Auto-stopping armed recording - all keys released (pointerleave)');
-                    //     document.getElementById('stopOutputRecBtn')?.click();
-                    // }
                 }
             });
         });
