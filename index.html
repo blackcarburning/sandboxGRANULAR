@@ -4505,40 +4505,14 @@
                         const wav = audioBufferToWav24bit(audioBuffer);
                         const blob = new Blob([wav], { type: 'audio/wav' });
                         
-                        // Generate filename once
-                        const filename = `granular-recording-${Date.now()}.wav`;
-                        
-                        // Try Web Share API if available (iOS and some Android browsers)
-                        if (navigator.share) {
-                            const file = new File([blob], filename, { type: 'audio/wav' });
-                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                try {
-                                    await navigator.share({
-                                        files: [file],
-                                        title: 'Granular Recording',
-                                    });
-                                    // Successfully shared
-                                    document.getElementById('outputRecText').textContent = 'Shared!';
-                                    setTimeout(() => {
-                                        document.getElementById('outputRecText').textContent = 'Ready';
-                                    }, 3000);
-                                    resetRecordingUI(true);
-                                    return;
-                                } catch (err) {
-                                    if (err.name !== 'AbortError') {
-                                        console.error('Share failed:', err);
-                                    }
-                                    // Fall through to regular download if share fails
-                                }
-                            }
-                        }
-                        
-                        // Fallback to regular download for desktop or if share fails
+                        // Use download link approach - on iOS Safari, this triggers the full share sheet
+                        // with Dropbox, Save to Files (with filename prompt), AirDrop, and all other destinations
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.style.display = 'none';
                         a.href = url;
-                        a.download = filename;
+                        a.download = `granular-recording-${Date.now()}.wav`;
+                        
                         document.body.appendChild(a);
                         a.click();
                         
