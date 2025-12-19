@@ -4458,6 +4458,11 @@
             }
 
             try {
+                // Verify masterGain is properly connected and exists
+                console.log('Starting recording with masterGain:', masterGain);
+                console.log('MasterGain connected to destination:', masterGain.context === audioContext);
+                console.log('AudioContext state:', audioContext.state);
+                
                 outputRecordingBuffers = [];
                 isOutputRecording = true;
                 
@@ -4465,14 +4470,30 @@
                 const bufferSize = 4096;
                 outputScriptProcessor = audioContext.createScriptProcessor(bufferSize, 2, 2);
                 
+                let processCount = 0;
                 outputScriptProcessor.onaudioprocess = (event) => {
                     if (!isOutputRecording) return;
                     
-                    console.log('onaudioprocess called - capturing audio data');
+                    processCount++;
+                    if (processCount <= 3) {
+                        console.log(`onaudioprocess called (${processCount}) - capturing audio data`);
+                    }
                     
                     // Capture the audio data
                     const left = new Float32Array(event.inputBuffer.getChannelData(0));
                     const right = new Float32Array(event.inputBuffer.getChannelData(1));
+                    
+                    // Check if audio data contains non-zero samples
+                    if (processCount <= 3) {
+                        let hasAudio = false;
+                        for (let i = 0; i < left.length; i++) {
+                            if (Math.abs(left[i]) > 0.001 || Math.abs(right[i]) > 0.001) {
+                                hasAudio = true;
+                                break;
+                            }
+                        }
+                        console.log(`Audio data contains non-zero samples: ${hasAudio}`);
+                    }
                     
                     outputRecordingBuffers.push({
                         left: left,
@@ -4488,8 +4509,10 @@
                 // Connect: masterGain -> scriptProcessor -> silentGain (not to destination)
                 // masterGain is already connected to destination, so we don't reconnect
                 // This ensures master volume control affects all audio including recorded output
+                console.log('Connecting masterGain to outputScriptProcessor...');
                 masterGain.connect(outputScriptProcessor);
                 outputScriptProcessor.connect(outputSilentGain);
+                console.log('Recording audio chain established');
 
                 // Update UI
                 document.getElementById('startOutputRecBtn').disabled = true;
