@@ -2125,12 +2125,13 @@
             
             // Create LFO3 oscillator for audio-rate modulation
             lfo3Oscillator = audioContext.createOscillator();
-            lfo3Oscillator.type = 'sine';
+            lfo3Oscillator.type = document.getElementById('lfo3Waveform').value;
             lfo3Oscillator.frequency.value = parseFloat(document.getElementById('lfo3Rate').value);
             
             // Create depth control (scales the LFO output)
             lfo3DepthGain = audioContext.createGain();
-            lfo3DepthGain.gain.value = 0; // Start with no modulation
+            const initialDepth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
+            lfo3DepthGain.gain.value = initialDepth; // Initialize to match slider value
             
             // Create inverter for right channel (-1 gain)
             lfo3Inverter = audioContext.createGain();
