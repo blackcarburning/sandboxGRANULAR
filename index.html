@@ -1521,7 +1521,7 @@
                         <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 3 (Stereo Control)</label>
                     </div>
                     <div class="control-group">
-                        <label><span>Rate (Hz)</span><span class="value" id="lfo3RateValue">1.0Hz</span></label>
+                        <label><span>Rate (Hz)</span><span class="value" id="lfo3RateValue">1.0 Hz</span></label>
                         <input type="range" id="lfo3Rate" min="0" max="300" value="1.0" step="0.1">
                     </div>
                     <div class="control-group">
@@ -2929,7 +2929,7 @@
                     // Update LFO3 rate display (Hz only)
                     const labelSpan = document.getElementById('lfo3RateValue');
                     if (labelSpan) {
-                        labelSpan.textContent = e.target.value + 'Hz';
+                        labelSpan.textContent = e.target.value + ' Hz';
                     }
                 } else if (e.target.id === 'lfo3Depth') {
                     // Update LFO3 depth display
@@ -4357,7 +4357,7 @@
                     const lfo3RateSlider = document.getElementById('lfo3Rate');
                     const lfo3RateValue = document.getElementById('lfo3RateValue');
                     if (lfo3RateSlider && lfo3RateValue) {
-                        lfo3RateValue.textContent = lfo3RateSlider.value + 'Hz';
+                        lfo3RateValue.textContent = lfo3RateSlider.value + ' Hz';
                     }
                 }, 100);
 
