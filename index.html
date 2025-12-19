@@ -4519,9 +4519,8 @@
             try {
                 // Verify masterGain is properly connected and exists
                 console.log('=== START RECORDING CLICKED ===');
-                console.log('Starting recording with masterGain:', masterGain);
                 console.log('masterGain:', masterGain);
-                console.log('masterGain connected:', masterGain?.numberOfOutputs);
+                console.log('masterGain connected (numberOfOutputs):', masterGain?.numberOfOutputs);
                 console.log('MasterGain connected to destination:', masterGain.context === audioContext);
                 console.log('AudioContext state:', audioContext.state);
                 console.log('isOutputRecordingArmedStart:', isOutputRecordingArmedStart);
