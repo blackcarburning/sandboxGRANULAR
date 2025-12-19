@@ -2864,6 +2864,11 @@
                     key.classList.remove('active');
                     stopGrainStream(note);
                 }
+                
+                // Check if all keys released during armed recording - auto-stop recording
+                if (activeKeyCount === 0 && isOutputRecording) {
+                    document.getElementById('stopOutputRecBtn')?.click();
+                }
             });
 
             key.addEventListener('pointerleave', (e) => {
@@ -2874,6 +2879,11 @@
                     activeKeyCount = Math.max(0, activeKeyCount - 1);
                     key.classList.remove('active');
                     stopGrainStream(note);
+                    
+                    // Check if all keys released during armed recording - auto-stop recording
+                    if (activeKeyCount === 0 && isOutputRecording) {
+                        document.getElementById('stopOutputRecBtn')?.click();
+                    }
                 }
             });
         });
@@ -4351,6 +4361,57 @@
         let isOutputRecording = false;
         let isOutputRecordingArmed = false;
 
+        // Helper function to save WAV file with proper cross-platform support
+        async function saveWavFile(wavArrayBuffer) {
+            const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
+            const defaultFilename = `granular-recording-${Date.now()}.wav`;
+            
+            // Try File System Access API first (Desktop Chrome/Edge)
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: defaultFilename,
+                        types: [{
+                            description: 'WAV Audio',
+                            accept: { 'audio/wav': ['.wav'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    return; // Success
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        return; // User cancelled, don't fall through
+                    }
+                    console.error('Save picker failed:', err);
+                    // Fall through to other methods
+                }
+            }
+            
+            // iOS fallback - open blob URL in new window/tab
+            // This forces iOS to show share sheet with all options
+            if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+                return;
+            }
+            
+            // Fallback for Safari/Firefox - use download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = defaultFilename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
         // Helper function to convert AudioBuffer to 24-bit WAV at 48kHz
         function audioBufferToWav24bit(buffer) {
             const targetSampleRate = 48000;
@@ -4503,24 +4564,9 @@
                             return;
                         }
                         const wav = audioBufferToWav24bit(audioBuffer);
-                        const blob = new Blob([wav], { type: 'audio/wav' });
                         
-                        // Use download link approach - on iOS Safari, this triggers the full share sheet
-                        // with Dropbox, Save to Files (with filename prompt), AirDrop, and all other destinations
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = url;
-                        a.download = `granular-recording-${Date.now()}.wav`;
-                        
-                        document.body.appendChild(a);
-                        a.click();
-                        
-                        // Cleanup
-                        setTimeout(() => {
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                        }, 100);
+                        // Save the WAV file using the new cross-platform function
+                        await saveWavFile(wav);
                         
                         document.getElementById('outputRecText').textContent = 'Recording saved';
                         setTimeout(() => {
