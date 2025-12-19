@@ -3318,10 +3318,18 @@
             
             // Create download link
             const a = document.createElement('a');
+            a.style.display = 'none';
             a.href = url;
             a.download = `granular-sample-${Date.now()}.wav`;
+            
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(url);
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
             
             statusDiv.textContent = 'Audio saved successfully';
         });
@@ -4477,11 +4485,11 @@
                 outputSilentGain = audioContext.createGain();
                 outputSilentGain.gain.value = 0;
                 
-                // Connect: masterGain -> scriptProcessor -> silentGain -> destination
-                // This allows the scriptProcessor to process audio without playing it twice
+                // Connect: masterGain -> scriptProcessor -> silentGain (not to destination)
+                // masterGain is already connected to destination, so we don't reconnect
+                // This ensures master volume control affects all audio including recorded output
                 masterGain.connect(outputScriptProcessor);
                 outputScriptProcessor.connect(outputSilentGain);
-                outputSilentGain.connect(audioContext.destination);
 
                 // Update UI
                 document.getElementById('startOutputRecBtn').disabled = true;
