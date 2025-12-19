@@ -4347,6 +4347,7 @@
         let outputMediaRecorder = null;
         let outputRecordedChunks = [];
         let outputRecordingDestination = null;
+        let outputRecordingMimeType = null;
         let isOutputRecording = false;
         let isOutputRecordingArmed = false;
 
@@ -4451,21 +4452,21 @@
                 
                 // Use MediaRecorder to record the stream
                 // Check for supported MIME types
-                let recordingMimeType = 'audio/webm';
-                if (!MediaRecorder.isTypeSupported(recordingMimeType)) {
+                outputRecordingMimeType = 'audio/webm';
+                if (!MediaRecorder.isTypeSupported(outputRecordingMimeType)) {
                     // Try alternative formats
                     const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/wav'];
-                    recordingMimeType = null;
+                    outputRecordingMimeType = null;
                     for (const alt of alternatives) {
                         if (MediaRecorder.isTypeSupported(alt)) {
-                            recordingMimeType = alt;
+                            outputRecordingMimeType = alt;
                             break;
                         }
                     }
                 }
-                console.log('Using MediaRecorder with MIME type:', recordingMimeType || 'default');
+                console.log('Using MediaRecorder with MIME type:', outputRecordingMimeType || 'default');
                 
-                const options = recordingMimeType ? { mimeType: recordingMimeType } : {};
+                const options = outputRecordingMimeType ? { mimeType: outputRecordingMimeType } : {};
                 outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, options);
                 
                 outputMediaRecorder.ondataavailable = (e) => {
@@ -4480,13 +4481,15 @@
                     
                     if (outputRecordedChunks.length === 0) {
                         alert('No audio was recorded. Please try again.');
-                        resetRecordingUI();
+                        resetRecordingUI(true);
                         return;
                     }
                     
                     try {
-                        const recordedBlob = new Blob(outputRecordedChunks, { type: recordingMimeType || 'audio/webm' });
-                        console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', recordingMimeType);
+                        // Use the MIME type that was actually set on MediaRecorder, or generic audio/* if unknown
+                        const blobMimeType = outputRecordingMimeType || 'audio/*';
+                        const recordedBlob = new Blob(outputRecordedChunks, { type: blobMimeType });
+                        console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', blobMimeType);
                         
                         // Convert recorded audio to WAV
                         const arrayBuffer = await recordedBlob.arrayBuffer();
@@ -4511,7 +4514,7 @@
                                     setTimeout(() => {
                                         document.getElementById('outputRecText').textContent = 'Ready';
                                     }, 3000);
-                                    resetRecordingUI();
+                                    resetRecordingUI(true);
                                     return;
                                 } catch (err) {
                                     if (err.name !== 'AbortError') {
@@ -4551,7 +4554,7 @@
                         }, 3000);
                     }
                     
-                    resetRecordingUI();
+                    resetRecordingUI(true);
                 };
                 
                 outputMediaRecorder.start();
@@ -4572,7 +4575,7 @@
         });
 
         // Helper function to reset recording UI
-        function resetRecordingUI() {
+        function resetRecordingUI(skipMediaRecorderStop = false) {
             document.getElementById('startOutputRecBtn').disabled = false;
             document.getElementById('startOutputRecBtn').classList.remove('recording');
             document.getElementById('stopOutputRecBtn').disabled = true;
@@ -4581,8 +4584,8 @@
             
             // Clean up MediaRecorder
             if (outputMediaRecorder) {
-                // Stop recording if still active
-                if (outputMediaRecorder.state === 'recording') {
+                // Stop recording if still active (but not if we're already in onstop handler)
+                if (!skipMediaRecorderStop && (outputMediaRecorder.state === 'recording' || outputMediaRecorder.state === 'paused')) {
                     outputMediaRecorder.stop();
                 }
                 outputMediaRecorder = null;
@@ -4599,6 +4602,7 @@
             }
             
             outputRecordedChunks = [];
+            outputRecordingMimeType = null;
         }
 
         // Stop recording output
