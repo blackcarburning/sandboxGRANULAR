@@ -515,7 +515,7 @@
             border-radius: 8px 8px 0 0;
             padding: 8px;
             display: flex;
-            justify-content: center;
+            justify-content: stretch;
             align-items: center;
             border-top: 2px solid var(--accent);
             overflow-x: auto;
@@ -527,8 +527,9 @@
             display: flex;
             position: relative;
             height: 100%;
-            flex: 1 1 auto;
+            flex: 1 1 100%;
             min-width: 0;
+            width: 100%;
         }
 
         .key {
@@ -547,8 +548,8 @@
         }
 
         .key.white {
-            width: 36px;
-            min-width: 20px;
+            width: 52px;
+            min-width: 30px;
             height: 100%;
             background: #fff;
             border: 1px solid #ccc;
@@ -558,8 +559,8 @@
         }
 
         .key.black {
-            width: 24px;
-            min-width: 14px;
+            width: 34px;
+            min-width: 20px;
             height: 60%;
             background: #000;
             color: #fff;
@@ -575,17 +576,17 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
-        /* Black key positions - adjusted for smaller keys */
-        .key.black[data-note="C#1"] { left: 26px; }
-        .key.black[data-note="D#1"] { left: 64px; }
-        .key.black[data-note="F#1"] { left: 140px; }
-        .key.black[data-note="G#1"] { left: 178px; }
-        .key.black[data-note="A#1"] { left: 216px; }
-        .key.black[data-note="C#2"] { left: 292px; }
-        .key.black[data-note="D#2"] { left: 330px; }
-        .key.black[data-note="F#2"] { left: 406px; }
-        .key.black[data-note="G#2"] { left: 444px; }
-        .key.black[data-note="A#2"] { left: 482px; }
+        /* Black key positions - adjusted for wider keys */
+        .key.black[data-note="C#1"] { left: 37px; }
+        .key.black[data-note="D#1"] { left: 91px; }
+        .key.black[data-note="F#1"] { left: 199px; }
+        .key.black[data-note="G#1"] { left: 253px; }
+        .key.black[data-note="A#1"] { left: 307px; }
+        .key.black[data-note="C#2"] { left: 415px; }
+        .key.black[data-note="D#2"] { left: 469px; }
+        .key.black[data-note="F#2"] { left: 577px; }
+        .key.black[data-note="G#2"] { left: 631px; }
+        .key.black[data-note="A#2"] { left: 685px; }
 
         /* Octave Controls */
         .octave-controls {
