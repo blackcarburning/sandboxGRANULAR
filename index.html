@@ -4454,9 +4454,10 @@
                 let mimeType = 'audio/webm';
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     // Try alternative formats
-                    const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', ''];
+                    const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
+                    mimeType = null;
                     for (const alt of alternatives) {
-                        if (MediaRecorder.isTypeSupported(alt) || alt === '') {
+                        if (MediaRecorder.isTypeSupported(alt)) {
                             mimeType = alt;
                             break;
                         }
@@ -4464,7 +4465,7 @@
                 }
                 console.log('Using MediaRecorder with MIME type:', mimeType || 'default');
                 
-                const options = mimeType ? { mimeType: mimeType } : {};
+                const options = mimeType ? { mimeType } : {};
                 outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, options);
                 
                 outputMediaRecorder.ondataavailable = (e) => {
@@ -4493,7 +4494,7 @@
                         const wav = audioBufferToWav24bit(audioBuffer);
                         const blob = new Blob([wav], { type: 'audio/wav' });
                         
-                        // Try Web Share API on iOS
+                        // Try Web Share API if available (iOS and some Android browsers)
                         if (navigator.share) {
                             const file = new File([blob], `granular-recording-${Date.now()}.wav`, { type: 'audio/wav' });
                             if (navigator.canShare && navigator.canShare({ files: [file] })) {
