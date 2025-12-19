@@ -4418,76 +4418,18 @@
         let isOutputRecordingArmedStart = false; // Track if recording was started via armed mode
 
         // Helper function to save WAV file with proper cross-platform support
-        async function saveWavFile(wavArrayBuffer) {
-            console.log('=== SAVEWAVFILE CALLED ===');
+        function saveWavFile(wavArrayBuffer) {
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `granular-${timestamp}.wav`;
-            console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
-            
-            // Desktop: Use File System Access API for Save As dialog
-            if ('showSaveFilePicker' in window) {
-                console.log('Using File System Access API (showSaveFilePicker)');
-                try {
-                    const handle = await window.showSaveFilePicker({
-                        suggestedName: filename,
-                        types: [{
-                            description: 'WAV Audio',
-                            accept: { 'audio/wav': ['.wav'] }
-                        }]
-                    });
-                    console.log('File handle obtained, writing file...');
-                    const writable = await handle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                    console.log('File saved via Save As dialog');
-                    return;
-                } catch (err) {
-                    if (err.name === 'AbortError') {
-                        console.log('User cancelled save');
-                        return;
-                    }
-                    console.error('showSaveFilePicker failed:', err);
-                    // Fall through
-                }
-            }
-            
-            // iOS/Mobile: Use Web Share API with file - this shows the share sheet!
-            if (navigator.share && navigator.canShare) {
-                const file = new File([blob], filename, { type: 'audio/wav' });
-                if (navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            files: [file],
-                            title: 'Granular Recording'
-                        });
-                        console.log('Share successful');
-                        return; // Success - share sheet was shown
-                    } catch (err) {
-                        if (err.name === 'AbortError') {
-                            console.log('User cancelled share');
-                            return; // User cancelled
-                        }
-                        console.error('Share failed:', err);
-                        // Fall through to download link
-                    }
-                }
-            }
-            
-            // Fallback: download link (for browsers that don't support share)
-            console.log('Using download link method');
             const url = URL.createObjectURL(blob);
+            
             const a = document.createElement('a');
             a.href = url;
-            a.download = filename;
+            a.download = `granular-${timestamp}.wav`;
             document.body.appendChild(a);
             a.click();
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 1000);
-            
-            console.log('Download triggered for:', filename);
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         // Helper function to convert AudioBuffer to 24-bit WAV at 48kHz
@@ -4657,7 +4599,7 @@
                         
                         // Save the WAV file using the new cross-platform function
                         console.log('Calling saveWavFile...');
-                        await saveWavFile(wav);
+                        saveWavFile(wav);
                         console.log('saveWavFile completed');
                         
                         document.getElementById('outputRecText').textContent = 'Recording saved';
