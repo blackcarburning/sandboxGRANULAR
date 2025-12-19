@@ -509,9 +509,7 @@
 
         /* Keyboard Section */
         .keyboard-section {
-            flex: 0 1 auto;
-            min-height: 80px;
-            max-height: 150px;
+            flex: 1;
             background: var(--panel-bg);
             border-radius: 8px 8px 0 0;
             padding: 8px;
@@ -858,16 +856,14 @@
 
             /* Keyboard section: bottom right */
             .keyboard-section {
-                flex: 0 1 auto;
+                flex: 1;
                 display: flex;
                 border-radius: 8px;
                 position: absolute;
                 left: 185px;
                 right: 5px;
                 bottom: 5px;
-                min-height: 80px;
-                max-height: 130px;
-                height: auto;
+                height: 125px;
             }
             
             /* Make keyboard keys smaller on iPhone to fit everything */
@@ -4457,33 +4453,40 @@
                         return;
                     }
                     console.error('showSaveFilePicker failed:', err);
-                    // Fall through to download link method
+                    // Fall through
                 }
             }
             
-            // iOS: Use blob URL approach that triggers share sheet
-            if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-                console.log('iOS detected - using location.href for share sheet');
-                const url = URL.createObjectURL(blob);
-                // On iOS, setting location.href to blob URL shows share sheet
-                window.location.href = url;
-                // Don't revoke URL immediately on iOS - give time for share sheet
-                setTimeout(() => URL.revokeObjectURL(url), 60000);
-                console.log('iOS share sheet triggered');
-                return;
+            // iOS/Mobile: Use Web Share API with file - this shows the share sheet!
+            if (navigator.share && navigator.canShare) {
+                const file = new File([blob], filename, { type: 'audio/wav' });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Granular Recording'
+                        });
+                        console.log('Share successful');
+                        return; // Success - share sheet was shown
+                    } catch (err) {
+                        if (err.name === 'AbortError') {
+                            console.log('User cancelled share');
+                            return; // User cancelled
+                        }
+                        console.error('Share failed:', err);
+                        // Fall through to download link
+                    }
+                }
             }
             
-            // Safari/Firefox/Other: Use download link
+            // Fallback: download link (for browsers that don't support share)
             console.log('Using download link method');
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
-            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            
-            // Clean up after a delay
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
