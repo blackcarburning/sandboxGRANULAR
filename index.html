@@ -3372,7 +3372,7 @@
         document.body.appendChild(presetFileInput);
 
         // Save Audio Button
-        document.getElementById('saveAudioBtn').addEventListener('click', async () => {
+        document.getElementById('saveAudioBtn').addEventListener('click', () => {
             if (!audioBuffer) {
                 alert('No audio buffer to save. Please load or record audio first.');
                 return;
@@ -3380,9 +3380,16 @@
             
             // Convert audioBuffer to WAV
             const wav = audioBufferToWav(audioBuffer);
+            const blob = new Blob([wav], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
             
-            // Use the same save method as output recording (supports iOS share sheet)
-            await saveWavFile(wav);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `granular-sample-${Date.now()}.wav`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
             
             statusDiv.textContent = 'Audio saved successfully';
         });
@@ -3429,7 +3436,9 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = `granular-preset-${Date.now()}.json`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
             statusDiv.textContent = 'Preset saved successfully';
