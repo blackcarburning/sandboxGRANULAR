@@ -4451,21 +4451,21 @@
                 
                 // Use MediaRecorder to record the stream
                 // Check for supported MIME types
-                let mimeType = 'audio/webm';
-                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                let recordingMimeType = 'audio/webm';
+                if (!MediaRecorder.isTypeSupported(recordingMimeType)) {
                     // Try alternative formats
-                    const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
-                    mimeType = null;
+                    const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/wav'];
+                    recordingMimeType = null;
                     for (const alt of alternatives) {
                         if (MediaRecorder.isTypeSupported(alt)) {
-                            mimeType = alt;
+                            recordingMimeType = alt;
                             break;
                         }
                     }
                 }
-                console.log('Using MediaRecorder with MIME type:', mimeType || 'default');
+                console.log('Using MediaRecorder with MIME type:', recordingMimeType || 'default');
                 
-                const options = mimeType ? { mimeType } : {};
+                const options = recordingMimeType ? { mimeType: recordingMimeType } : {};
                 outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, options);
                 
                 outputMediaRecorder.ondataavailable = (e) => {
@@ -4485,18 +4485,21 @@
                     }
                     
                     try {
-                        const webmBlob = new Blob(outputRecordedChunks, { type: 'audio/webm' });
-                        console.log('WebM blob size:', webmBlob.size, 'bytes');
+                        const recordedBlob = new Blob(outputRecordedChunks, { type: recordingMimeType || 'audio/webm' });
+                        console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', recordingMimeType);
                         
-                        // Convert webm to WAV
-                        const arrayBuffer = await webmBlob.arrayBuffer();
+                        // Convert recorded audio to WAV
+                        const arrayBuffer = await recordedBlob.arrayBuffer();
                         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                         const wav = audioBufferToWav24bit(audioBuffer);
                         const blob = new Blob([wav], { type: 'audio/wav' });
                         
+                        // Generate filename once
+                        const filename = `granular-recording-${Date.now()}.wav`;
+                        
                         // Try Web Share API if available (iOS and some Android browsers)
                         if (navigator.share) {
-                            const file = new File([blob], `granular-recording-${Date.now()}.wav`, { type: 'audio/wav' });
+                            const file = new File([blob], filename, { type: 'audio/wav' });
                             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                                 try {
                                     await navigator.share({
@@ -4524,7 +4527,7 @@
                         const a = document.createElement('a');
                         a.style.display = 'none';
                         a.href = url;
-                        a.download = `granular-recording-${Date.now()}.wav`;
+                        a.download = filename;
                         document.body.appendChild(a);
                         a.click();
                         
@@ -4576,6 +4579,15 @@
             document.getElementById('outputRecStatus').classList.remove('active');
             document.getElementById('outputRecDot').classList.remove('active');
             
+            // Clean up MediaRecorder
+            if (outputMediaRecorder) {
+                // Stop recording if still active
+                if (outputMediaRecorder.state === 'recording') {
+                    outputMediaRecorder.stop();
+                }
+                outputMediaRecorder = null;
+            }
+            
             // Clean up recording resources
             if (outputRecordingDestination && masterGain) {
                 try {
@@ -4586,7 +4598,6 @@
                 outputRecordingDestination = null;
             }
             
-            outputMediaRecorder = null;
             outputRecordedChunks = [];
         }
 
