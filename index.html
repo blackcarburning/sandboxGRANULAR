@@ -1199,8 +1199,6 @@
                                 <button class="inv-toggle" data-param="panSpread" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="panSpread" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="panSpread" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="panSpread" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="panSpread" data-lfo="3">INV</button>
                             </div>
                             <span class="value" id="panSpreadValue">50%</span>
                         </label>
@@ -1554,11 +1552,11 @@
                         <input type="range" id="lfo1ToLfo2Mod" min="0" max="100" value="0" step="1">
                     </div>
                     <div class="control-group">
-                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 3 (Stereo Control)</label>
+                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 3 (Stereo Tremolo)</label>
                     </div>
                     <div class="control-group">
                         <label><span>Rate (Hz)</span><span class="value" id="lfo3RateValue">1.0Hz</span></label>
-                        <input type="range" id="lfo3Rate" min="0" max="300" value="1.0" step="0.1">
+                        <input type="range" id="lfo3Rate" min="0" max="20000" value="1.0" step="0.1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfo3DepthValue">50%</span></label>
@@ -1754,6 +1752,13 @@
         let dryGainNode = null;
         let wetGainNode = null;
         let masterGain = null;
+        let masterGainLeft = null;  // Left channel gain for stereo tremolo
+        let masterGainRight = null; // Right channel gain for stereo tremolo
+        let splitterNode = null;    // Stereo splitter
+        let mergerNode = null;      // Stereo merger
+        let lfo3Oscillator = null;  // Audio-rate oscillator for LFO3
+        let lfo3DepthGain = null;   // Controls modulation depth
+        let lfo3Inverter = null;    // Inverts LFO3 for right channel
         let distortionNode = null;
         let phaserNodes = [];
         let phaserLFO = null;
@@ -2045,15 +2050,8 @@
                 totalOffset += invertedLFO2 * rangeSize * 0.5;
             }
             
-            // Apply LFO3 if enabled (only for panSpread/stereo)
-            if (lfo3Enabled[paramId]) {
-                const lfo3Value = getLFOValue3();
-                const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
-                totalOffset += invertedLFO3 * rangeSize * 0.5;
-            }
-            
             // If no LFOs are enabled, return base value
-            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId] && !lfo3Enabled[paramId]) {
+            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId]) {
                 return baseValue;
             }
             
@@ -2114,9 +2112,53 @@
         });
 
         async function setupEffects() {
-            // Master Volume
+            // Master Volume - Stereo split for LFO3 modulation
+            // Create stereo splitter and merger
+            splitterNode = audioContext.createChannelSplitter(2);
+            mergerNode = audioContext.createChannelMerger(2);
+            
+            // Create separate gain nodes for left and right channels
+            masterGainLeft = audioContext.createGain();
+            masterGainRight = audioContext.createGain();
+            masterGainLeft.gain.value = 1.0;
+            masterGainRight.gain.value = 1.0;
+            
+            // Create LFO3 oscillator for audio-rate modulation
+            lfo3Oscillator = audioContext.createOscillator();
+            lfo3Oscillator.type = 'sine';
+            lfo3Oscillator.frequency.value = parseFloat(document.getElementById('lfo3Rate').value);
+            
+            // Create depth control (scales the LFO output)
+            lfo3DepthGain = audioContext.createGain();
+            lfo3DepthGain.gain.value = 0; // Start with no modulation
+            
+            // Create inverter for right channel (-1 gain)
+            lfo3Inverter = audioContext.createGain();
+            lfo3Inverter.gain.value = -1;
+            
+            // Connect LFO3 to depth control
+            lfo3Oscillator.connect(lfo3DepthGain);
+            
+            // Connect depth control to left channel (in-phase)
+            lfo3DepthGain.connect(masterGainLeft.gain);
+            
+            // Connect depth control to inverter, then to right channel (out-of-phase)
+            lfo3DepthGain.connect(lfo3Inverter);
+            lfo3Inverter.connect(masterGainRight.gain);
+            
+            // Start the LFO3 oscillator
+            lfo3Oscillator.start();
+            
+            // Connect stereo chain: splitter -> L/R gains -> merger -> destination
+            splitterNode.connect(masterGainLeft, 0); // Left channel
+            splitterNode.connect(masterGainRight, 1); // Right channel
+            masterGainLeft.connect(mergerNode, 0, 0); // To left output
+            masterGainRight.connect(mergerNode, 0, 1); // To right output
+            mergerNode.connect(audioContext.destination);
+            
+            // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
-            masterGain.connect(audioContext.destination);
+            masterGain.connect(splitterNode);
 
             // Create 48dB filters (4 stages of 12dB each)
             lpfNodes = [];
@@ -2960,16 +3002,32 @@
                 } else if (e.target.id === 'lfo2Rate') {
                     updateLFO2RateDisplay();
                 } else if (e.target.id === 'lfo3Rate') {
-                    // Update LFO3 rate display (Hz only)
+                    // Update LFO3 rate display and oscillator frequency
+                    const rate = parseFloat(e.target.value);
                     const labelSpan = document.getElementById('lfo3RateValue');
                     if (labelSpan) {
-                        labelSpan.textContent = e.target.value + 'Hz';
+                        // Format display based on value range
+                        if (rate >= 1000) {
+                            labelSpan.textContent = (rate / 1000).toFixed(1) + 'kHz';
+                        } else {
+                            labelSpan.textContent = rate.toFixed(1) + 'Hz';
+                        }
+                    }
+                    // Update oscillator frequency if it exists
+                    if (lfo3Oscillator) {
+                        lfo3Oscillator.frequency.setValueAtTime(rate, audioContext.currentTime);
                     }
                 } else if (e.target.id === 'lfo3Depth') {
-                    // Update LFO3 depth display
+                    // Update LFO3 depth display and modulation amount
+                    const depth = parseFloat(e.target.value);
                     const labelSpan = document.getElementById('lfo3DepthValue');
                     if (labelSpan) {
-                        labelSpan.textContent = e.target.value + '%';
+                        labelSpan.textContent = depth + '%';
+                    }
+                    // Update depth gain if it exists
+                    // Depth controls the modulation amount: 0% = 0 gain, 100% = 1.0 gain
+                    if (lfo3DepthGain && audioContext) {
+                        lfo3DepthGain.gain.setValueAtTime(depth / 100, audioContext.currentTime);
                     }
                 } else if (e.target.id === 'delayBpm') {
                     // Update BPM display (no suffix, just the number)
@@ -3275,6 +3333,15 @@
         // --- Delay Division Selector ---
         document.getElementById('delayDivision').addEventListener('change', () => {
             updateEffects();
+        });
+
+        // --- LFO3 Waveform Selector ---
+        document.getElementById('lfo3Waveform').addEventListener('change', (e) => {
+            // Update oscillator waveform if it exists
+            if (lfo3Oscillator && audioContext) {
+                const waveform = e.target.value;
+                lfo3Oscillator.type = waveform;
+            }
         });
 
         // --- Lock BPM Slider ---
