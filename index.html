@@ -4450,10 +4450,22 @@
                 masterGain.connect(outputRecordingDestination);
                 
                 // Use MediaRecorder to record the stream
-                const mimeType = 'audio/webm';
-                outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, {
-                    mimeType: mimeType
-                });
+                // Check for supported MIME types
+                let mimeType = 'audio/webm';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    // Try alternative formats
+                    const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', ''];
+                    for (const alt of alternatives) {
+                        if (MediaRecorder.isTypeSupported(alt) || alt === '') {
+                            mimeType = alt;
+                            break;
+                        }
+                    }
+                }
+                console.log('Using MediaRecorder with MIME type:', mimeType || 'default');
+                
+                const options = mimeType ? { mimeType: mimeType } : {};
+                outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, options);
                 
                 outputMediaRecorder.ondataavailable = (e) => {
                     if (e.data.size > 0) {
@@ -4482,9 +4494,9 @@
                         const blob = new Blob([wav], { type: 'audio/wav' });
                         
                         // Try Web Share API on iOS
-                        if (navigator.share && navigator.canShare) {
+                        if (navigator.share) {
                             const file = new File([blob], `granular-recording-${Date.now()}.wav`, { type: 'audio/wav' });
-                            if (navigator.canShare({ files: [file] })) {
+                            if (navigator.canShare && navigator.canShare({ files: [file] })) {
                                 try {
                                     await navigator.share({
                                         files: [file],
