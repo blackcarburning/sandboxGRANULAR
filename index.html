@@ -425,24 +425,24 @@
 
         input[type="range"] {
             width: 100%;
-            height: 12px;
+            height: 16px;
             border-radius: 2px;
             background: transparent;
             outline: none;
             -webkit-appearance: none;
-            touch-action: pan-x;
+            touch-action: none;
             pointer-events: auto;
             position: relative;
             z-index: 10;
-            padding: 6px 0;
-            margin: 2px 0;
+            padding: 8px 0;
+            margin: 4px 0;
             cursor: pointer;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 6px var(--accent-glow);
@@ -462,14 +462,14 @@
         }
         
         input[type="range"]::-webkit-slider-runnable-track {
-            height: 12px;
+            height: 16px;
             background: #333;
-            border-radius: 6px;
+            border-radius: 8px;
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 22px;
-            height: 22px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 6px var(--accent-glow);
@@ -490,9 +490,9 @@
         }
 
         input[type="range"]::-moz-range-track {
-            height: 12px;
+            height: 16px;
             background: #333;
-            border-radius: 6px;
+            border-radius: 8px;
         }
 
         input[type="range"]:focus {
@@ -652,14 +652,14 @@
         /* Tab System */
         .tab-container {
             display: flex;
-            gap: 2px;
+            gap: 4px;
             margin-bottom: 4px;
             border-bottom: 1px solid rgba(0, 212, 255, 0.3);
         }
 
         .tab-button {
-            padding: 4px 8px;
-            font-size: 9px;
+            padding: 12px 10px;
+            font-size: 10px;
             background: rgba(0,0,0,0.3);
             border: none;
             border-radius: 4px 4px 0 0;
@@ -668,6 +668,10 @@
             text-transform: uppercase;
             transition: all 0.2s;
             flex: 1;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .tab-button.active {
@@ -810,6 +814,35 @@
 
         #fullscreenBtn.hidden {
             display: none;
+        }
+
+        /* Refresh button */
+        #refreshBtn {
+            padding: 10px 12px;
+            font-size: 18px;
+            background: rgba(0, 212, 255, 0.8);
+            color: #000;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        #refreshBtn:hover {
+            background: var(--accent);
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        #refreshBtn:active {
+            transform: scale(0.95);
         }
 
         /* iPhone/Mobile Optimizations */
@@ -1552,6 +1585,7 @@
                 <div class="key black" data-note="A#2"></div>
                 <div class="key white" data-note="B2">B</div>
             </div>
+            <button id="refreshBtn" title="Refresh Page">↻</button>
         </div>
     </div>
 
@@ -3960,6 +3994,11 @@
             }
         });
 
+        // --- Refresh Button Handler ---
+        document.getElementById('refreshBtn')?.addEventListener('click', () => {
+            location.reload();
+        });
+
         // --- Initialize BPM Lock Slider Appearance ---
         // Since default value is 1 (ON), set initial locked class
         const lockBpmSlider = document.getElementById('lockBpmSlider');
@@ -4284,6 +4323,43 @@
                         }
                     }
                 }
+
+                // Manually update all BPM-related displays after restoration
+                // This ensures the display values are shown correctly even though
+                // the 'input' events were dispatched during restoration
+                setTimeout(() => {
+                    // Update LFO rate displays
+                    updateLFORateDisplay();
+                    updateLFO2RateDisplay();
+                    
+                    // Update FX BPM display
+                    const delayBpmSlider = document.getElementById('delayBpm');
+                    const delayBpmValue = document.getElementById('delayBpmValue');
+                    if (delayBpmSlider && delayBpmValue) {
+                        delayBpmValue.textContent = delayBpmSlider.value;
+                    }
+                    
+                    // Update Phaser Rate display
+                    const phaserRateSlider = document.getElementById('phaserRate');
+                    const phaserRateValue = document.getElementById('phaserRateValue');
+                    if (phaserRateSlider && phaserRateValue) {
+                        phaserRateValue.textContent = phaserRateSlider.value + ' BPM';
+                    }
+                    
+                    // Update Tremolo Rate display
+                    const tremoloRateSlider = document.getElementById('tremoloRate');
+                    const tremoloRateValue = document.getElementById('tremoloRateValue');
+                    if (tremoloRateSlider && tremoloRateValue) {
+                        tremoloRateValue.textContent = tremoloRateSlider.value + ' BPM';
+                    }
+                    
+                    // Update LFO3 Rate display (Hz only)
+                    const lfo3RateSlider = document.getElementById('lfo3Rate');
+                    const lfo3RateValue = document.getElementById('lfo3RateValue');
+                    if (lfo3RateSlider && lfo3RateValue) {
+                        lfo3RateValue.textContent = lfo3RateSlider.value + 'Hz';
+                    }
+                }, 100);
 
                 return true;
             } catch (e) {
