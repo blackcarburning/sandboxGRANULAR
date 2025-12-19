@@ -509,7 +509,9 @@
 
         /* Keyboard Section */
         .keyboard-section {
-            flex: 0 0 130px;
+            flex: 0 1 auto;
+            min-height: 80px;
+            max-height: 150px;
             background: var(--panel-bg);
             border-radius: 8px 8px 0 0;
             padding: 8px;
@@ -526,6 +528,8 @@
             display: flex;
             position: relative;
             height: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .key {
@@ -540,10 +544,12 @@
             font-size: 8px;
             font-weight: bold;
             touch-action: manipulation; /* Prevent double-tap zoom */
+            flex-shrink: 1;
         }
 
         .key.white {
             width: 36px;
+            min-width: 20px;
             height: 100%;
             background: #fff;
             border: 1px solid #ccc;
@@ -554,6 +560,7 @@
 
         .key.black {
             width: 24px;
+            min-width: 14px;
             height: 60%;
             background: #000;
             color: #fff;
@@ -587,6 +594,7 @@
             flex-direction: column;
             gap: 5px;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .octave-btn {
@@ -618,6 +626,7 @@
             cursor: pointer;
             min-width: 50px;
             transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .hold-btn.active {
@@ -632,6 +641,7 @@
             gap: 5px;
             align-items: center;
             padding: 5px;
+            flex-shrink: 0;
         }
 
         .volume-bias-container label {
@@ -848,15 +858,40 @@
 
             /* Keyboard section: bottom right */
             .keyboard-section {
-                flex: 1;
+                flex: 0 1 auto;
                 display: flex;
                 border-radius: 8px;
                 position: absolute;
                 left: 185px;
                 right: 5px;
                 bottom: 5px;
-                height: 130px;
+                min-height: 80px;
+                max-height: 130px;
+                height: auto;
             }
+            
+            /* Make keyboard keys smaller on iPhone to fit everything */
+            .keyboard-section .key.white {
+                width: 28px;
+                min-width: 16px;
+            }
+            
+            .keyboard-section .key.black {
+                width: 18px;
+                min-width: 10px;
+            }
+            
+            /* Adjust black key positions for smaller keys */
+            .key.black[data-note="C#1"] { left: 20px; }
+            .key.black[data-note="D#1"] { left: 50px; }
+            .key.black[data-note="F#1"] { left: 110px; }
+            .key.black[data-note="G#1"] { left: 140px; }
+            .key.black[data-note="A#1"] { left: 170px; }
+            .key.black[data-note="C#2"] { left: 230px; }
+            .key.black[data-note="D#2"] { left: 260px; }
+            .key.black[data-note="F#2"] { left: 320px; }
+            .key.black[data-note="G#2"] { left: 350px; }
+            .key.black[data-note="A#2"] { left: 380px; }
 
             .recording-section .section-title {
                 font-size: 9px;
@@ -4395,15 +4430,16 @@
         async function saveWavFile(wavArrayBuffer) {
             console.log('=== SAVEWAVFILE CALLED ===');
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
-            const defaultFilename = `granular-recording-${Date.now()}.wav`;
-            console.log('Blob created. Size:', blob.size, 'bytes. Filename:', defaultFilename);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = `granular-${timestamp}.wav`;
+            console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
             
-            // Try File System Access API first (Desktop Chrome/Edge)
+            // Desktop: Use File System Access API for Save As dialog
             if ('showSaveFilePicker' in window) {
                 console.log('Using File System Access API (showSaveFilePicker)');
                 try {
                     const handle = await window.showSaveFilePicker({
-                        suggestedName: defaultFilename,
+                        suggestedName: filename,
                         types: [{
                             description: 'WAV Audio',
                             accept: { 'audio/wav': ['.wav'] }
@@ -4413,42 +4449,47 @@
                     const writable = await handle.createWritable();
                     await writable.write(blob);
                     await writable.close();
-                    console.log('File written successfully');
-                    return; // Success
+                    console.log('File saved via Save As dialog');
+                    return;
                 } catch (err) {
                     if (err.name === 'AbortError') {
-                        console.log('User cancelled save dialog');
-                        return; // User cancelled, don't fall through
+                        console.log('User cancelled save');
+                        return;
                     }
-                    console.error('Save picker failed:', err);
-                    // Fall through to other methods
+                    console.error('showSaveFilePicker failed:', err);
+                    // Fall through to download link method
                 }
             }
             
-            // iOS fallback - open blob URL in new window/tab
-            // This forces iOS to show share sheet with all options
+            // iOS: Use blob URL approach that triggers share sheet
             if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-                console.log('Using iOS fallback - opening blob URL in new window');
+                console.log('iOS detected - using location.href for share sheet');
                 const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
+                // On iOS, setting location.href to blob URL shows share sheet
+                window.location.href = url;
+                // Don't revoke URL immediately on iOS - give time for share sheet
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
+                console.log('iOS share sheet triggered');
                 return;
             }
             
-            // Fallback for Safari/Firefox - use download link
-            console.log('Using fallback download link method');
+            // Safari/Firefox/Other: Use download link
+            console.log('Using download link method');
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.style.display = 'none';
             a.href = url;
-            a.download = defaultFilename;
+            a.download = filename;
+            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
-            console.log('Download link clicked');
+            
+            // Clean up after a delay
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-            }, 100);
+            }, 1000);
+            
+            console.log('Download triggered for:', filename);
         }
 
         // Helper function to convert AudioBuffer to 24-bit WAV at 48kHz
