@@ -4506,12 +4506,13 @@
                 outputSilentGain = audioContext.createGain();
                 outputSilentGain.gain.value = 0;
                 
-                // Connect: masterGain -> scriptProcessor -> silentGain (not to destination)
-                // masterGain is already connected to destination, so we don't reconnect
-                // This ensures master volume control affects all audio including recorded output
+                // Connect: masterGain -> scriptProcessor -> silentGain -> destination
+                // The silentGain MUST be connected to destination for ScriptProcessor to fire events
+                // masterGain is already connected to destination, so we don't hear double audio
                 console.log('Connecting masterGain to outputScriptProcessor...');
                 masterGain.connect(outputScriptProcessor);
                 outputScriptProcessor.connect(outputSilentGain);
+                outputSilentGain.connect(audioContext.destination);
                 console.log('Recording audio chain established');
 
                 // Update UI
