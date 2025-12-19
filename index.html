@@ -1069,6 +1069,7 @@
                     <button class="tab-button" data-tab="noise">Noise</button>
                     <button class="tab-button" data-tab="fx">FX</button>
                     <button class="tab-button" data-tab="lfo">LFO</button>
+                    <button class="tab-button" data-tab="stereo">Stereo</button>
                     <button class="tab-button" data-tab="utility">Utility</button>
                 </div>
 
@@ -1190,19 +1191,6 @@
                             <span class="value" id="pitchVarValue">0%</span>
                         </label>
                         <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Stereo</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="panSpread" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="panSpread" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="panSpread" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="panSpread" data-lfo="2">INV</button>
-                            </div>
-                            <span class="value" id="panSpreadValue">50%</span>
-                        </label>
-                        <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
                     </div>
                 </div>
 
@@ -1466,6 +1454,61 @@
                     </div>
                 </div>
 
+                <!-- Stereo Tab -->
+                <div class="tab-content" id="stereo-tab">
+                    <div class="control-group">
+                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 3 (Stereo Tremolo)</label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span>Rate (Hz)</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lfo3Rate" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="lfo3Rate" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="lfo3Rate" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="lfo3Rate" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="lfo3RateValue">1.0Hz</span>
+                        </label>
+                        <input type="range" id="lfo3Rate" min="0" max="7000" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span>Depth</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lfo3Depth" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="lfo3Depth" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="lfo3Depth" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="lfo3Depth" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="lfo3DepthValue">50%</span>
+                        </label>
+                        <input type="range" id="lfo3Depth" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Waveform</span></label>
+                        <select id="lfo3Waveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Stereo</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="panSpread" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="panSpread" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="panSpread" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="panSpread" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="panSpreadValue">50%</span>
+                        </label>
+                        <input type="range" id="panSpread" min="0" max="100" value="50" step="1">
+                    </div>
+                </div>
+
                 <!-- Utility Tab -->
                 <div class="tab-content" id="utility-tab">
                     <div class="control-group">
@@ -1551,29 +1594,9 @@
                         <label><span>LFO1 → LFO2 Depth</span><span class="value" id="lfo1ToLfo2ModValue">0%</span></label>
                         <input type="range" id="lfo1ToLfo2Mod" min="0" max="100" value="0" step="1">
                     </div>
-                    <div class="control-group">
-                        <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 3 (Stereo Tremolo)</label>
-                    </div>
-                    <div class="control-group">
-                        <label><span>Rate (Hz)</span><span class="value" id="lfo3RateValue">1.0Hz</span></label>
-                        <input type="range" id="lfo3Rate" min="0" max="20000" value="1.0" step="0.1">
-                    </div>
-                    <div class="control-group">
-                        <label><span>Depth</span><span class="value" id="lfo3DepthValue">50%</span></label>
-                        <input type="range" id="lfo3Depth" min="0" max="100" value="50" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label><span>Waveform</span></label>
-                        <select id="lfo3Waveform">
-                            <option value="sine">Sine</option>
-                            <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
-                            <option value="square">Square</option>
-                        </select>
-                    </div>
                 </div>
-            </div>
-        </div>
+
+                <!-- Stereo Tab -->
 
         <div class="keyboard-section">
             <div class="octave-controls">
@@ -1835,7 +1858,9 @@
             tremoloRate: { min: 1, max: 240 },
             tremoloDepth: { min: 0, max: 100 },
             delayFeedback: { min: 0, max: 100 },
-            delayMix: { min: 0, max: 100 }
+            delayMix: { min: 0, max: 100 },
+            lfo3Rate: { min: 0, max: 7000 },
+            lfo3Depth: { min: 0, max: 100 }
         };
 
         // --- LFO Engine ---
@@ -2419,6 +2444,14 @@
                 // Update mix (equal-power crossfade)
                 delayWetGain.gain.value = Math.sin(mix * Math.PI / 2);
                 delayDryGain.gain.value = Math.cos(mix * Math.PI / 2);
+            }
+
+            // Update LFO3 (Stereo Tremolo) with LFO modulation
+            if (lfo3Oscillator && lfo3DepthGain && audioContext) {
+                const modulatedRate = getModulatedValue('lfo3Rate');
+                const modulatedDepth = getModulatedValue('lfo3Depth') / 100;
+                lfo3Oscillator.frequency.setValueAtTime(modulatedRate, audioContext.currentTime);
+                lfo3DepthGain.gain.setValueAtTime(modulatedDepth, audioContext.currentTime);
             }
         }
 
@@ -3014,22 +3047,17 @@
                             labelSpan.textContent = rate.toFixed(1) + 'Hz';
                         }
                     }
-                    // Update oscillator frequency if it exists
-                    if (lfo3Oscillator) {
-                        lfo3Oscillator.frequency.setValueAtTime(rate, audioContext.currentTime);
-                    }
+                    // Note: Actual oscillator frequency is updated in the grain generation loop
+                    // to account for LFO modulation
                 } else if (e.target.id === 'lfo3Depth') {
-                    // Update LFO3 depth display and modulation amount
+                    // Update LFO3 depth display
                     const depth = parseFloat(e.target.value);
                     const labelSpan = document.getElementById('lfo3DepthValue');
                     if (labelSpan) {
                         labelSpan.textContent = depth + '%';
                     }
-                    // Update depth gain if it exists
-                    // Depth controls the modulation amount: 0% = 0 gain, 100% = 1.0 gain
-                    if (lfo3DepthGain && audioContext) {
-                        lfo3DepthGain.gain.setValueAtTime(depth / 100, audioContext.currentTime);
-                    }
+                    // Note: Actual depth gain is updated in the grain generation loop
+                    // to account for LFO modulation
                 } else if (e.target.id === 'delayBpm') {
                     // Update BPM display (no suffix, just the number)
                     const labelSpan = document.getElementById('delayBpmValue');
@@ -4415,7 +4443,7 @@
 
                 // Restore active tab (with validation to prevent CSS injection)
                 if (state.activeTab) {
-                    const validTabs = ['grain', 'filter', 'noise', 'fx', 'lfo', 'utility'];
+                    const validTabs = ['grain', 'filter', 'noise', 'fx', 'lfo', 'stereo', 'utility'];
                     if (validTabs.includes(state.activeTab)) {
                         const tabBtn = document.querySelector(`.tab-button[data-tab="${state.activeTab}"]`);
                         if (tabBtn && !tabBtn.classList.contains('active')) {
