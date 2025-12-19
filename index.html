@@ -2163,9 +2163,6 @@
             // Generate noise buffers
             createNoiseBuffers();
 
-            // Setup output recording destination
-            setupOutputRecording();
-
             updateEffects();
         }
 
@@ -4349,27 +4346,8 @@
         // --- OUTPUT RECORDING SYSTEM ---
         let outputMediaRecorder = null;
         let outputRecordedChunks = [];
-        let outputDestination = null;
-        let outputScriptProcessor = null;
-        let outputSilentGain = null; // Global declaration for silent gain node
         let isOutputRecording = false;
-        let outputRecordingBuffers = [];
         let isOutputRecordingArmed = false;
-
-        // Setup output recording
-        function setupOutputRecording() {
-            if (!audioContext) return;
-
-            // Create a destination node for recording
-            outputDestination = audioContext.createMediaStreamDestination();
-            
-            // Connect the master output to the destination
-            // The masterGain is connected to audioContext.destination
-            // We need to also connect it to our recording destination
-            if (masterGain) {
-                masterGain.connect(outputDestination);
-            }
-        }
 
         // Helper function to convert AudioBuffer to 24-bit WAV at 48kHz
         function audioBufferToWav24bit(buffer) {
