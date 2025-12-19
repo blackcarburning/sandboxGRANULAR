@@ -4486,8 +4486,8 @@
                     }
                     
                     try {
-                        // Use the MIME type that was actually set on MediaRecorder, or generic audio/* if unknown
-                        const blobMimeType = outputRecordingMimeType || 'audio/*';
+                        // Use the MIME type that was actually set on MediaRecorder, or fallback to webm
+                        const blobMimeType = outputRecordingMimeType || 'audio/webm';
                         const recordedBlob = new Blob(outputRecordedChunks, { type: blobMimeType });
                         console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', blobMimeType);
                         
@@ -4593,7 +4593,7 @@
             // Clean up MediaRecorder
             if (outputMediaRecorder) {
                 // Stop recording if still active (but not if we're already in onstop handler)
-                if (!skipMediaRecorderStop && (outputMediaRecorder.state === 'recording' || outputMediaRecorder.state === 'paused')) {
+                if (!skipMediaRecorderStop && outputMediaRecorder.state === 'recording') {
                     try {
                         outputMediaRecorder.stop();
                     } catch (e) {
