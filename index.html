@@ -3515,15 +3515,17 @@
             }
             
             // Use Web Share API for iOS Files/share sheet
-            if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'audio/wav' })] })) {
-                try {
-                    const file = new File([blob], filename, { type: 'audio/wav' });
-                    await navigator.share({ files: [file] });
-                    statusDiv.textContent = 'Audio shared successfully';
-                    return;
-                } catch (err) {
-                    if (err.name === 'AbortError') return; // User cancelled
-                    console.error('Share failed:', err);
+            if (navigator.canShare) {
+                const file = new File([blob], filename, { type: 'audio/wav' });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file] });
+                        statusDiv.textContent = 'Audio shared successfully';
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return; // User cancelled
+                        console.error('Share failed:', err);
+                    }
                 }
             }
             
@@ -3603,15 +3605,17 @@
             }
             
             // Use Web Share API for iOS Files/share sheet
-            if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/json' })] })) {
-                try {
-                    const file = new File([blob], filename, { type: 'application/json' });
-                    await navigator.share({ files: [file] });
-                    statusDiv.textContent = 'Preset shared successfully';
-                    return;
-                } catch (err) {
-                    if (err.name === 'AbortError') return; // User cancelled
-                    console.error('Share failed:', err);
+            if (navigator.canShare) {
+                const file = new File([blob], filename, { type: 'application/json' });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file] });
+                        statusDiv.textContent = 'Preset shared successfully';
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return; // User cancelled
+                        console.error('Share failed:', err);
+                    }
                 }
             }
             
