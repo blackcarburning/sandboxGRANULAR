@@ -3507,6 +3507,7 @@
                         URL.revokeObjectURL(url);
                     },
                     error: (err) => {
+                        console.error('Dropbox save failed:', err);
                         statusDiv.textContent = 'Dropbox save failed';
                         URL.revokeObjectURL(url);
                     }
@@ -3597,6 +3598,7 @@
                         URL.revokeObjectURL(url);
                     },
                     error: (err) => {
+                        console.error('Dropbox save failed:', err);
                         statusDiv.textContent = 'Dropbox save failed';
                         URL.revokeObjectURL(url);
                     }
