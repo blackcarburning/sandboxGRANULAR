@@ -852,20 +852,21 @@
                 top: 5px;
                 left: 185px;
                 right: 5px;
-                bottom: 135px;
+                bottom: 125px;
             }
 
             /* Keyboard section: bottom right */
             .keyboard-section {
                 flex: none;
                 display: flex;
-                border-radius: 8px;
+                border-radius: 8px 8px 0 0;
                 position: absolute;
-                top: auto;
-                left: 185px;
-                right: 5px;
-                bottom: 5px;
+                top: auto !important;
+                left: 185px !important;
+                right: 0 !important;
+                bottom: 0 !important;
                 height: 125px;
+                z-index: 100;
             }
             
             /* Make keyboard keys smaller on iPhone to fit everything */
