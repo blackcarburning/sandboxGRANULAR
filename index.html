@@ -2238,22 +2238,18 @@
             masterGain = audioContext.createGain();
             masterGain.connect(splitterNode);
 
-            // Create 48dB filters (4 stages of 12dB each)
+            // Create up to 96dB filters (8 stages of 12dB each)
             lpfNodes = [];
             hpfNodes = [];
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 8; i++) {  // Changed from 4 to 8
                 lpfNodes.push(audioContext.createBiquadFilter());
                 lpfNodes[i].type = 'lowpass';
                 hpfNodes.push(audioContext.createBiquadFilter());
                 hpfNodes[i].type = 'highpass';
             }
 
-            // Chain filters together to create 48dB slope
-            // Each biquad filter provides 12dB/octave, cascading 4 stages gives 48dB/octave
-            for (let i = 0; i < 3; i++) {
-                lpfNodes[i].connect(lpfNodes[i + 1]);
-                hpfNodes[i].connect(hpfNodes[i + 1]);
-            }
+            // Initially configure for 12dB slope (1 stage) - connections will be set by configureLPFSlope/configureHPFSlope
+            // No initial connections here - will be configured below
 
             // Distortion using WaveShaper
             distortionNode = audioContext.createWaveShaper();
@@ -2332,8 +2328,9 @@
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> delayDry -> Master
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> delay -> delayWet -> Master
             // Grain -> HPF -> LPF -> Makeup Gain -> Distortion -> Phaser -> Tremolo -> reverb -> wetGain -> Master
-            hpfNodes[3].connect(lpfNodes[0]);
-            lpfNodes[3].connect(makeupGain);
+            // Note: Initial connections will be set by configureLPFSlope/configureHPFSlope below
+            // hpfNodes[last] connects to lpfNodes[0]
+            // lpfNodes[last] connects to makeupGain
             makeupGain.connect(distortionNode);
             distortionNode.connect(phaserNodes[0]);
             phaserNodes[3].connect(tremoloGain);
@@ -2352,7 +2349,79 @@
             // Generate noise buffers
             createNoiseBuffers();
 
+            // Set initial slopes to 12dB
+            configureLPFSlope(12);
+            configureHPFSlope(12);
+
             updateEffects();
+        }
+
+        // Function to configure filter chain based on selected slope
+        function configureLPFSlope(slopeDb) {
+            if (!lpfNodes || lpfNodes.length === 0) return null;
+            
+            // Calculate how many stages we need (each biquad gives 12dB/octave)
+            const stages = Math.ceil(slopeDb / 12);
+            const actualStages = Math.min(stages, 8); // Max 8 stages (96dB)
+            
+            // Disconnect all existing connections
+            lpfNodes.forEach(node => node.disconnect());
+            
+            // Reconnect only the required number of stages
+            for (let i = 0; i < actualStages - 1; i++) {
+                if (lpfNodes[i] && lpfNodes[i + 1]) {
+                    lpfNodes[i].connect(lpfNodes[i + 1]);
+                }
+            }
+            
+            console.log(`LPF configured for ${slopeDb}dB/octave using ${actualStages} stages`);
+            
+            // Reconnect the filter chain to the audio graph
+            // Get the current HPF output node based on hpfSlope
+            const hpfStages = Math.min(Math.ceil(hpfSlope / 12), 8);
+            const hpfOutputNode = hpfNodes[hpfStages - 1];
+            
+            // Reconnect: HPF output -> LPF input -> makeup gain
+            if (hpfOutputNode) {
+                hpfOutputNode.disconnect();
+                hpfOutputNode.connect(lpfNodes[0]);
+            }
+            lpfNodes[actualStages - 1].connect(makeupGain);
+            
+            // Return the first and last active node for reconnection
+            return {
+                input: lpfNodes[0],
+                output: lpfNodes[actualStages - 1]
+            };
+        }
+
+        function configureHPFSlope(slopeDb) {
+            if (!hpfNodes || hpfNodes.length === 0) return null;
+            
+            // Calculate how many stages we need
+            const stages = Math.ceil(slopeDb / 12);
+            const actualStages = Math.min(stages, 8); // Max 8 stages (96dB)
+            
+            // Disconnect all existing connections
+            hpfNodes.forEach(node => node.disconnect());
+            
+            // Reconnect only the required number of stages
+            for (let i = 0; i < actualStages - 1; i++) {
+                if (hpfNodes[i] && hpfNodes[i + 1]) {
+                    hpfNodes[i].connect(hpfNodes[i + 1]);
+                }
+            }
+            
+            console.log(`HPF configured for ${slopeDb}dB/octave using ${actualStages} stages`);
+            
+            // Reconnect the filter chain to the audio graph
+            // HPF output connects to LPF input
+            hpfNodes[actualStages - 1].connect(lpfNodes[0]);
+            
+            return {
+                input: hpfNodes[0],
+                output: hpfNodes[actualStages - 1]
+            };
         }
 
         function makeDistortionCurve(amount) {
@@ -3390,12 +3459,14 @@
                 // Add active class to clicked button
                 btn.classList.add('active');
                 
-                // Store the slope value
+                // Store the slope value AND reconfigure the filter chain
                 if (filter === 'lpf') {
                     lpfSlope = slope;
+                    configureLPFSlope(slope);  // ADD THIS LINE
                     console.log('LPF slope set to:', slope, 'db/octave');
                 } else if (filter === 'hpf') {
                     hpfSlope = slope;
+                    configureHPFSlope(slope);  // ADD THIS LINE
                     console.log('HPF slope set to:', slope, 'db/octave');
                 }
             });
