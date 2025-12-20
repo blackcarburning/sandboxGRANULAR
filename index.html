@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Granular">
     <title>Granular Synthesizer</title>
-    <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="YOUR_APP_KEY_HERE"></script>
+    <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="t3fqkzcnvmjuwfn"></script>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -3485,61 +3485,81 @@
                 return;
             }
             
-            // Prompt user for filename
-            const defaultName = 'granular-sample';
-            const userFilename = prompt('Enter filename for audio:', defaultName);
-            if (!userFilename) return; // User cancelled
-            
-            // Ensure .wav extension
-            const filename = userFilename.endsWith('.wav') ? userFilename : userFilename + '.wav';
-            
             // Convert audioBuffer to WAV
             const wav = audioBufferToWav(audioBuffer);
             const blob = new Blob([wav], { type: 'audio/wav' });
             
-            // Check if Dropbox mode is enabled
-            if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
-                // Use Dropbox Saver API
-                const url = URL.createObjectURL(blob);
-                Dropbox.save(url, filename, {
-                    success: () => {
-                        statusDiv.textContent = 'Audio saved to Dropbox';
-                        URL.revokeObjectURL(url);
-                    },
-                    error: (err) => {
-                        console.error('Dropbox save failed:', err);
-                        statusDiv.textContent = 'Dropbox save failed';
-                        URL.revokeObjectURL(url);
-                    }
-                });
-                return;
+            // Prompt user for filename (works on iOS)
+            const defaultName = 'granular-sample';
+            let userFilename = prompt('Enter filename for audio:', defaultName);
+            if (!userFilename) {
+                statusDiv.textContent = 'Save cancelled';
+                return; // User cancelled
             }
             
-            // Use Web Share API for iOS Files/share sheet
-            if (navigator.canShare) {
-                const file = new File([blob], filename, { type: 'audio/wav' });
-                if (navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({ files: [file] });
-                        statusDiv.textContent = 'Audio shared successfully';
-                        return;
-                    } catch (err) {
-                        if (err.name === 'AbortError') return; // User cancelled
-                        console.error('Share failed:', err);
-                    }
+            // Ensure .wav extension
+            const filename = userFilename.endsWith('.wav') ? userFilename : userFilename + '.wav';
+            
+            // Check if Dropbox mode is enabled and SDK is loaded
+            if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
+                try {
+                    const url = URL.createObjectURL(blob);
+                    Dropbox.save(url, filename, {
+                        success: function() {
+                            statusDiv.textContent = 'Audio saved to Dropbox';
+                            URL.revokeObjectURL(url);
+                        },
+                        error: function(errorMessage) {
+                            console.error('Dropbox save error:', errorMessage);
+                            statusDiv.textContent = 'Dropbox save failed';
+                            URL.revokeObjectURL(url);
+                        },
+                        cancel: function() {
+                            statusDiv.textContent = 'Dropbox save cancelled';
+                            URL.revokeObjectURL(url);
+                        }
+                    });
+                    return;
+                } catch (err) {
+                    console.error('Dropbox API error:', err);
+                    alert('Dropbox save failed. Using share sheet instead.');
+                    // Fall through to share API
                 }
             }
             
-            // Fallback for non-iOS: traditional download
+            // Use Web Share API for iOS (primary method for iOS)
+            if (navigator.share) {
+                try {
+                    const file = new File([blob], filename, { type: 'audio/wav' });
+                    await navigator.share({ 
+                        files: [file],
+                        title: 'Save Audio Sample'
+                    });
+                    statusDiv.textContent = 'Audio file shared';
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        statusDiv.textContent = 'Share cancelled';
+                        return;
+                    }
+                    console.error('Share API error:', err);
+                    // Fall through to download
+                }
+            }
+            
+            // Fallback: traditional download (for desktop browsers)
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
+            a.style.display = 'none';
             a.href = url;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            statusDiv.textContent = 'Audio saved successfully';
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            statusDiv.textContent = 'Audio download started';
         });
 
         // Load Audio Button
@@ -3576,61 +3596,81 @@
 
         // Save Preset Button
         document.getElementById('savePresetBtn').addEventListener('click', async () => {
-            // Prompt user for filename
-            const defaultName = 'granular-preset';
-            const userFilename = prompt('Enter filename for preset:', defaultName);
-            if (!userFilename) return; // User cancelled
-            
-            // Ensure .json extension
-            const filename = userFilename.endsWith('.json') ? userFilename : userFilename + '.json';
-            
             const preset = gatherPreset();
             const json = JSON.stringify(preset, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
             
-            // Check if Dropbox mode is enabled
-            if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
-                // Use Dropbox Saver API
-                const url = URL.createObjectURL(blob);
-                Dropbox.save(url, filename, {
-                    success: () => {
-                        statusDiv.textContent = 'Preset saved to Dropbox';
-                        URL.revokeObjectURL(url);
-                    },
-                    error: (err) => {
-                        console.error('Dropbox save failed:', err);
-                        statusDiv.textContent = 'Dropbox save failed';
-                        URL.revokeObjectURL(url);
-                    }
-                });
-                return;
+            // Prompt user for filename
+            const defaultName = 'granular-preset';
+            let userFilename = prompt('Enter filename for preset:', defaultName);
+            if (!userFilename) {
+                statusDiv.textContent = 'Save cancelled';
+                return; // User cancelled
             }
             
-            // Use Web Share API for iOS Files/share sheet
-            if (navigator.canShare) {
-                const file = new File([blob], filename, { type: 'application/json' });
-                if (navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({ files: [file] });
-                        statusDiv.textContent = 'Preset shared successfully';
-                        return;
-                    } catch (err) {
-                        if (err.name === 'AbortError') return; // User cancelled
-                        console.error('Share failed:', err);
-                    }
+            // Ensure .json extension
+            const filename = userFilename.endsWith('.json') ? userFilename : userFilename + '.json';
+            
+            // Check if Dropbox mode is enabled and SDK is loaded
+            if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
+                try {
+                    const url = URL.createObjectURL(blob);
+                    Dropbox.save(url, filename, {
+                        success: function() {
+                            statusDiv.textContent = 'Preset saved to Dropbox';
+                            URL.revokeObjectURL(url);
+                        },
+                        error: function(errorMessage) {
+                            console.error('Dropbox save error:', errorMessage);
+                            statusDiv.textContent = 'Dropbox save failed';
+                            URL.revokeObjectURL(url);
+                        },
+                        cancel: function() {
+                            statusDiv.textContent = 'Dropbox save cancelled';
+                            URL.revokeObjectURL(url);
+                        }
+                    });
+                    return;
+                } catch (err) {
+                    console.error('Dropbox API error:', err);
+                    alert('Dropbox save failed. Using share sheet instead.');
+                    // Fall through to share API
                 }
             }
             
-            // Fallback for non-iOS: traditional download
+            // Use Web Share API for iOS
+            if (navigator.share) {
+                try {
+                    const file = new File([blob], filename, { type: 'application/json' });
+                    await navigator.share({ 
+                        files: [file],
+                        title: 'Save Preset'
+                    });
+                    statusDiv.textContent = 'Preset file shared';
+                    return;
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        statusDiv.textContent = 'Share cancelled';
+                        return;
+                    }
+                    console.error('Share API error:', err);
+                    // Fall through to download
+                }
+            }
+            
+            // Fallback: traditional download
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
+            a.style.display = 'none';
             a.href = url;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            statusDiv.textContent = 'Preset saved successfully';
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            statusDiv.textContent = 'Preset download started';
         });
 
         // Load Preset Button
@@ -4227,19 +4267,26 @@
         }
 
         // --- Dropbox Toggle Management ---
+        // Initialize Dropbox toggle state from localStorage
         let dropboxEnabled = localStorage.getItem('dropboxEnabled') === 'true';
-        
-        // Initialize toggle state on load
-        const dropboxToggle = document.getElementById('dropboxToggle');
-        const dropboxValue = document.getElementById('dropboxValue');
-        dropboxToggle.value = dropboxEnabled ? 1 : 0;
-        dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
-        
-        // Handle toggle changes
-        dropboxToggle.addEventListener('input', () => {
-            dropboxEnabled = dropboxToggle.value === '1';
-            dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
-            localStorage.setItem('dropboxEnabled', dropboxEnabled);
+
+        // Wait for DOM to be ready, then initialize toggle
+        window.addEventListener('DOMContentLoaded', () => {
+            const dropboxToggle = document.getElementById('dropboxToggle');
+            const dropboxValue = document.getElementById('dropboxValue');
+            
+            if (dropboxToggle && dropboxValue) {
+                // Set initial state
+                dropboxToggle.value = dropboxEnabled ? '1' : '0';
+                dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
+                
+                // Handle toggle changes
+                dropboxToggle.addEventListener('input', () => {
+                    dropboxEnabled = dropboxToggle.value === '1';
+                    dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
+                    localStorage.setItem('dropboxEnabled', dropboxEnabled.toString());
+                });
+            }
         });
 
         // --- INDEXEDDB AUDIO BUFFER STORAGE ---
