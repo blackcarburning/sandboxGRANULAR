@@ -1843,6 +1843,9 @@
         let lfo3Enabled = {};
         let lfo3Inverted = {};
         
+        // Initialize Dropbox toggle state
+        let dropboxEnabled = localStorage.getItem('dropboxEnabled') === 'true';
+        
         // Parameter ranges for clamping
         const paramRanges = {
             sampleStart: { min: 0, max: 100 },
@@ -3503,22 +3506,27 @@
             // Check if Dropbox mode is enabled and SDK is loaded
             if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
                 try {
-                    const url = URL.createObjectURL(blob);
-                    Dropbox.save(url, filename, {
-                        success: function() {
-                            statusDiv.textContent = 'Audio saved to Dropbox';
-                            URL.revokeObjectURL(url);
-                        },
-                        error: function(errorMessage) {
-                            console.error('Dropbox save error:', errorMessage);
-                            statusDiv.textContent = 'Dropbox save failed';
-                            URL.revokeObjectURL(url);
-                        },
-                        cancel: function() {
-                            statusDiv.textContent = 'Dropbox save cancelled';
-                            URL.revokeObjectURL(url);
-                        }
-                    });
+                    // For Dropbox, we need a publicly accessible URL or use data URL
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const dataUrl = reader.result;
+                        Dropbox.save(dataUrl, filename, {
+                            success: function() {
+                                statusDiv.textContent = 'Audio saved to Dropbox';
+                            },
+                            error: function(errorMessage) {
+                                console.error('Dropbox save error:', errorMessage);
+                                statusDiv.textContent = 'Dropbox save failed';
+                            },
+                            cancel: function() {
+                                statusDiv.textContent = 'Dropbox save cancelled';
+                            },
+                            progress: function(progress) {
+                                console.log('Dropbox upload progress:', progress);
+                            }
+                        });
+                    };
+                    reader.readAsDataURL(blob);
                     return;
                 } catch (err) {
                     console.error('Dropbox API error:', err);
@@ -3535,7 +3543,7 @@
                         files: [file],
                         title: 'Save Audio Sample'
                     });
-                    statusDiv.textContent = 'Audio file shared';
+                    statusDiv.textContent = 'Share completed';
                     return;
                 } catch (err) {
                     if (err.name === 'AbortError') {
@@ -3559,7 +3567,7 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 100);
-            statusDiv.textContent = 'Audio download started';
+            statusDiv.textContent = 'Download started';
         });
 
         // Load Audio Button
@@ -3614,22 +3622,24 @@
             // Check if Dropbox mode is enabled and SDK is loaded
             if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
                 try {
-                    const url = URL.createObjectURL(blob);
-                    Dropbox.save(url, filename, {
-                        success: function() {
-                            statusDiv.textContent = 'Preset saved to Dropbox';
-                            URL.revokeObjectURL(url);
-                        },
-                        error: function(errorMessage) {
-                            console.error('Dropbox save error:', errorMessage);
-                            statusDiv.textContent = 'Dropbox save failed';
-                            URL.revokeObjectURL(url);
-                        },
-                        cancel: function() {
-                            statusDiv.textContent = 'Dropbox save cancelled';
-                            URL.revokeObjectURL(url);
-                        }
-                    });
+                    // Convert to data URL for Dropbox
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const dataUrl = reader.result;
+                        Dropbox.save(dataUrl, filename, {
+                            success: function() {
+                                statusDiv.textContent = 'Preset saved to Dropbox';
+                            },
+                            error: function(errorMessage) {
+                                console.error('Dropbox save error:', errorMessage);
+                                statusDiv.textContent = 'Dropbox save failed';
+                            },
+                            cancel: function() {
+                                statusDiv.textContent = 'Dropbox save cancelled';
+                            }
+                        });
+                    };
+                    reader.readAsDataURL(blob);
                     return;
                 } catch (err) {
                     console.error('Dropbox API error:', err);
@@ -3646,7 +3656,7 @@
                         files: [file],
                         title: 'Save Preset'
                     });
-                    statusDiv.textContent = 'Preset file shared';
+                    statusDiv.textContent = 'Share completed';
                     return;
                 } catch (err) {
                     if (err.name === 'AbortError') {
@@ -3670,7 +3680,7 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 100);
-            statusDiv.textContent = 'Preset download started';
+            statusDiv.textContent = 'Download started';
         });
 
         // Load Preset Button
@@ -4267,16 +4277,13 @@
         }
 
         // --- Dropbox Toggle Management ---
-        // Initialize Dropbox toggle state from localStorage
-        let dropboxEnabled = localStorage.getItem('dropboxEnabled') === 'true';
-
-        // Wait for DOM to be ready, then initialize toggle
-        window.addEventListener('DOMContentLoaded', () => {
+        // Initialize Dropbox toggle when DOM is ready
+        window.addEventListener('load', () => {
             const dropboxToggle = document.getElementById('dropboxToggle');
             const dropboxValue = document.getElementById('dropboxValue');
             
             if (dropboxToggle && dropboxValue) {
-                // Set initial state
+                // Set initial state from localStorage
                 dropboxToggle.value = dropboxEnabled ? '1' : '0';
                 dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
                 
@@ -4285,6 +4292,7 @@
                     dropboxEnabled = dropboxToggle.value === '1';
                     dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
                     localStorage.setItem('dropboxEnabled', dropboxEnabled.toString());
+                    console.log('Dropbox mode:', dropboxEnabled ? 'ENABLED' : 'DISABLED');
                 });
             }
         });
