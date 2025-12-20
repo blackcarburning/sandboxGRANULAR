@@ -2358,7 +2358,7 @@
 
         // Function to configure filter chain based on selected slope
         function configureLPFSlope(slopeDb) {
-            if (!lpfNodes || lpfNodes.length === 0) return;
+            if (!lpfNodes || lpfNodes.length === 0) return null;
             
             // Calculate how many stages we need (each biquad gives 12dB/octave)
             const stages = Math.ceil(slopeDb / 12);
@@ -2377,11 +2377,15 @@
             console.log(`LPF configured for ${slopeDb}dB/octave using ${actualStages} stages`);
             
             // Reconnect the filter chain to the audio graph
-            // HPF output connects to LPF input
-            hpfNodes[Math.min(Math.ceil(hpfSlope / 12), 8) - 1].disconnect();
-            hpfNodes[Math.min(Math.ceil(hpfSlope / 12), 8) - 1].connect(lpfNodes[0]);
+            // Get the current HPF output node based on hpfSlope
+            const hpfStages = Math.min(Math.ceil(hpfSlope / 12), 8);
+            const hpfOutputNode = hpfNodes[hpfStages - 1];
             
-            // LPF output connects to makeup gain
+            // Reconnect: HPF output -> LPF input -> makeup gain
+            if (hpfOutputNode) {
+                hpfOutputNode.disconnect();
+                hpfOutputNode.connect(lpfNodes[0]);
+            }
             lpfNodes[actualStages - 1].connect(makeupGain);
             
             // Return the first and last active node for reconnection
@@ -2392,7 +2396,7 @@
         }
 
         function configureHPFSlope(slopeDb) {
-            if (!hpfNodes || hpfNodes.length === 0) return;
+            if (!hpfNodes || hpfNodes.length === 0) return null;
             
             // Calculate how many stages we need
             const stages = Math.ceil(slopeDb / 12);
