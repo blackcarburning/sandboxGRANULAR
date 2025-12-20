@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Granular">
     <title>Granular Synthesizer</title>
+    <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="YOUR_APP_KEY_HERE"></script>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -1524,6 +1525,13 @@
                             <span class="value" id="lockBpmValue">ON</span>
                         </label>
                         <input type="range" id="lockBpmSlider" min="0" max="1" value="1" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Dropbox Mode</span>
+                            <span class="value" id="dropboxValue">OFF</span>
+                        </label>
+                        <input type="range" id="dropboxToggle" min="0" max="1" value="0" step="1">
                     </div>
                     <div class="control-group">
                         <button id="saveAudioBtn">Save Audio</button>
@@ -3471,25 +3479,66 @@
         document.body.appendChild(presetFileInput);
 
         // Save Audio Button
-        document.getElementById('saveAudioBtn').addEventListener('click', () => {
+        document.getElementById('saveAudioBtn').addEventListener('click', async () => {
             if (!audioBuffer) {
                 alert('No audio buffer to save. Please load or record audio first.');
                 return;
             }
             
+            // Prompt user for filename
+            const defaultName = 'granular-sample';
+            const userFilename = prompt('Enter filename for audio:', defaultName);
+            if (!userFilename) return; // User cancelled
+            
+            // Ensure .wav extension
+            const filename = userFilename.endsWith('.wav') ? userFilename : userFilename + '.wav';
+            
             // Convert audioBuffer to WAV
             const wav = audioBufferToWav(audioBuffer);
             const blob = new Blob([wav], { type: 'audio/wav' });
-            const url = URL.createObjectURL(blob);
             
+            // Check if Dropbox mode is enabled
+            if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
+                // Use Dropbox Saver API
+                const url = URL.createObjectURL(blob);
+                Dropbox.save(url, filename, {
+                    success: () => {
+                        statusDiv.textContent = 'Audio saved to Dropbox';
+                        URL.revokeObjectURL(url);
+                    },
+                    error: (err) => {
+                        console.error('Dropbox save failed:', err);
+                        statusDiv.textContent = 'Dropbox save failed';
+                        URL.revokeObjectURL(url);
+                    }
+                });
+                return;
+            }
+            
+            // Use Web Share API for iOS Files/share sheet
+            if (navigator.canShare) {
+                const file = new File([blob], filename, { type: 'audio/wav' });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file] });
+                        statusDiv.textContent = 'Audio shared successfully';
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return; // User cancelled
+                        console.error('Share failed:', err);
+                    }
+                }
+            }
+            
+            // Fallback for non-iOS: traditional download
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `granular-sample-${Date.now()}.wav`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
             statusDiv.textContent = 'Audio saved successfully';
         });
 
@@ -3526,20 +3575,61 @@
         });
 
         // Save Preset Button
-        document.getElementById('savePresetBtn').addEventListener('click', () => {
+        document.getElementById('savePresetBtn').addEventListener('click', async () => {
+            // Prompt user for filename
+            const defaultName = 'granular-preset';
+            const userFilename = prompt('Enter filename for preset:', defaultName);
+            if (!userFilename) return; // User cancelled
+            
+            // Ensure .json extension
+            const filename = userFilename.endsWith('.json') ? userFilename : userFilename + '.json';
+            
             const preset = gatherPreset();
             const json = JSON.stringify(preset, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
             
+            // Check if Dropbox mode is enabled
+            if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
+                // Use Dropbox Saver API
+                const url = URL.createObjectURL(blob);
+                Dropbox.save(url, filename, {
+                    success: () => {
+                        statusDiv.textContent = 'Preset saved to Dropbox';
+                        URL.revokeObjectURL(url);
+                    },
+                    error: (err) => {
+                        console.error('Dropbox save failed:', err);
+                        statusDiv.textContent = 'Dropbox save failed';
+                        URL.revokeObjectURL(url);
+                    }
+                });
+                return;
+            }
+            
+            // Use Web Share API for iOS Files/share sheet
+            if (navigator.canShare) {
+                const file = new File([blob], filename, { type: 'application/json' });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file] });
+                        statusDiv.textContent = 'Preset shared successfully';
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') return; // User cancelled
+                        console.error('Share failed:', err);
+                    }
+                }
+            }
+            
+            // Fallback for non-iOS: traditional download
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `granular-preset-${Date.now()}.json`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
             statusDiv.textContent = 'Preset saved successfully';
         });
 
@@ -4135,6 +4225,22 @@
         if (lockBpmSlider && parseInt(lockBpmSlider.value) === 1) {
             lockBpmSlider.classList.add('locked');
         }
+
+        // --- Dropbox Toggle Management ---
+        let dropboxEnabled = localStorage.getItem('dropboxEnabled') === 'true';
+        
+        // Initialize toggle state on load
+        const dropboxToggle = document.getElementById('dropboxToggle');
+        const dropboxValue = document.getElementById('dropboxValue');
+        dropboxToggle.value = dropboxEnabled ? 1 : 0;
+        dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
+        
+        // Handle toggle changes
+        dropboxToggle.addEventListener('input', () => {
+            dropboxEnabled = dropboxToggle.value === '1';
+            dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
+            localStorage.setItem('dropboxEnabled', dropboxEnabled);
+        });
 
         // --- INDEXEDDB AUDIO BUFFER STORAGE ---
         const AUDIO_DB_NAME = 'GranularSynthAudioDB';
