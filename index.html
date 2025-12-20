@@ -392,6 +392,31 @@
             margin-left: auto;
         }
 
+        .slope-group {
+            display: flex;
+            gap: 1px;
+            margin-right: 4px;
+        }
+
+        .slope-toggle {
+            padding: 1px 2px;
+            font-size: 6px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #444;
+            border-radius: 2px;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            min-width: 12px;
+        }
+
+        .slope-toggle.active {
+            background: #9370DB;
+            color: #fff;
+            border-color: #9370DB;
+        }
+
         .lfo-toggle, .inv-toggle, .mode-toggle {
             padding: 1px 3px;
             font-size: 7px;
@@ -1204,6 +1229,13 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">LPF Cutoff</span>
+                            <div class="slope-group">
+                                <button class="slope-toggle" data-filter="lpf" data-slope="6">6</button>
+                                <button class="slope-toggle" data-filter="lpf" data-slope="12">12</button>
+                                <button class="slope-toggle" data-filter="lpf" data-slope="24">24</button>
+                                <button class="slope-toggle" data-filter="lpf" data-slope="48">48</button>
+                                <button class="slope-toggle" data-filter="lpf" data-slope="96">96</button>
+                            </div>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1">INV</button>
@@ -1230,6 +1262,13 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">HPF Cutoff</span>
+                            <div class="slope-group">
+                                <button class="slope-toggle" data-filter="hpf" data-slope="6">6</button>
+                                <button class="slope-toggle" data-filter="hpf" data-slope="12">12</button>
+                                <button class="slope-toggle" data-filter="hpf" data-slope="24">24</button>
+                                <button class="slope-toggle" data-filter="hpf" data-slope="48">48</button>
+                                <button class="slope-toggle" data-filter="hpf" data-slope="96">96</button>
+                            </div>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1">INV</button>
@@ -3326,6 +3365,39 @@
                 }
                 
                 btn.classList.toggle('active');
+            });
+        });
+
+        // --- Filter Slope Selection (radio button behavior) ---
+        let lpfSlope = 12;  // Default 12db/octave
+        let hpfSlope = 12;  // Default 12db/octave
+
+        document.querySelectorAll('.slope-toggle').forEach(btn => {
+            // Set initial active state for 12db buttons
+            if (btn.dataset.slope === '12') {
+                btn.classList.add('active');
+            }
+            
+            btn.addEventListener('click', () => {
+                const filter = btn.dataset.filter;
+                const slope = parseInt(btn.dataset.slope);
+                
+                // Remove active class from all buttons for this filter
+                document.querySelectorAll(`.slope-toggle[data-filter="${filter}"]`).forEach(b => {
+                    b.classList.remove('active');
+                });
+                
+                // Add active class to clicked button
+                btn.classList.add('active');
+                
+                // Store the slope value
+                if (filter === 'lpf') {
+                    lpfSlope = slope;
+                    console.log('LPF slope set to:', slope, 'db/octave');
+                } else if (filter === 'hpf') {
+                    hpfSlope = slope;
+                    console.log('HPF slope set to:', slope, 'db/octave');
+                }
             });
         });
 
