@@ -4354,11 +4354,10 @@
             const oscLevel = Math.sqrt(oscMix) * 0.8;  // Scale down for headroom
             const granularLevel = Math.sqrt(1 - oscMix) * 0.8;
             
-            if (oscOutputGain && audioContext) {
-                oscOutputGain.gain.setValueAtTime(oscLevel, audioContext.currentTime);
-            }
-            if (granularOutputGain && audioContext) {
-                granularOutputGain.gain.setValueAtTime(granularLevel, audioContext.currentTime);
+            if (oscOutputGain && granularOutputGain && audioContext) {
+                const now = audioContext.currentTime;
+                oscOutputGain.gain.setValueAtTime(oscLevel, now);
+                granularOutputGain.gain.setValueAtTime(granularLevel, now);
             }
             
             document.getElementById('oscMixValue').textContent = `${e.target.value}%`;
