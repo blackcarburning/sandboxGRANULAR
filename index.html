@@ -3741,7 +3741,7 @@
             const cleanupCommonNodes = () => {
                 sourcesRemaining--;
                 if (sourcesRemaining === 0) {
-                    activeGrainNodes--;
+                    activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
                     try {
                         mixer.disconnect();
                         envelope.disconnect();
@@ -3858,7 +3858,7 @@
             if (sourcesRemaining === 0) {
                 const totalDuration = attack + sustainTime + release;
                 setTimeout(() => {
-                    activeGrainNodes--;
+                    activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
                     try {
                         mixer.disconnect();
                         envelope.disconnect();
