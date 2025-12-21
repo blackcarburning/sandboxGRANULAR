@@ -2338,7 +2338,7 @@
             if (delayDryGain) debug.gains.delayDryGain = delayDryGain.gain.value.toFixed(4);
             if (delayFeedbackGain) {
                 debug.gains.delayFeedback = delayFeedbackGain.gain.value.toFixed(4);
-                if (delayFeedbackGain.gain.value >= 1) debug.warnings.push('Delay feedback >= 1 (infinite loop)');
+                if (delayFeedbackGain.gain.value > 1) debug.warnings.push('Delay feedback > 1 (infinite loop)');
             }
             if (tremoloGain) debug.gains.tremoloGain = tremoloGain.gain.value.toFixed(4);
             if (typeof oscMix !== 'undefined') debug.gains.oscMix = oscMix.toFixed(4);
@@ -2497,7 +2497,7 @@
             
             if (debugEnabled) {
                 panel.classList.add('visible');
-                debugInterval = setInterval(updateDebugPanel, 100); // Update 10x per second
+                debugInterval = setInterval(updateDebugPanel, 200); // Update 5x per second
                 document.getElementById('toggleDebugBtn').textContent = 'Hide Debug';
                 document.getElementById('toggleDebugBtn').style.background = 'linear-gradient(135deg, #ff0844 0%, #cc0033 100%)';
             } else {
