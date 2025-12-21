@@ -1163,6 +1163,52 @@
             }
         }
 
+        /* Debug Panel Styles */
+        #debugPanel {
+            position: fixed;
+            bottom: 50px;
+            right: 10px;
+            width: 350px;
+            max-height: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 10px;
+            color: #0f0;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+        }
+
+        #debugPanel.visible {
+            display: block;
+        }
+
+        #debugPanel .debug-header {
+            color: var(--accent);
+            font-weight: bold;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        #debugPanel .debug-warning {
+            color: #ff0;
+        }
+
+        #debugPanel .debug-error {
+            color: #f00;
+        }
+
+        #debugPanel .debug-section {
+            margin: 8px 0;
+            padding: 5px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+
     </style>
 </head>
 <body>
@@ -1711,6 +1757,12 @@
                     <div class="control-group">
                         <button id="resetDefaultBtn">Reset to Default</button>
                     </div>
+                    <div class="control-group">
+                        <button id="debugBtn">Capture Debug Log</button>
+                    </div>
+                    <div class="control-group">
+                        <button id="toggleDebugBtn">Toggle Live Debug</button>
+                    </div>
                 </div>
 
                 <!-- LFO Tab -->
@@ -2108,6 +2160,11 @@
         </div>
     </div>
 
+    <div id="debugPanel">
+        <div class="debug-header">Audio Debug Log</div>
+        <div id="debugContent"></div>
+    </div>
+
     <script>
         // --- Throttle function for slider updates to prevent audio glitches ---
         /**
@@ -2241,6 +2298,218 @@
                 lastTouchEnd = now;
             }
         }, { passive: false });
+
+        // --- Debug Functions ---
+        // Debug state
+        let debugEnabled = false;
+        let debugInterval = null;
+        let debugLogs = [];
+
+        // Capture comprehensive audio debug information
+        function captureAudioDebug() {
+            if (!audioContext) return null;
+            
+            const debug = {
+                timestamp: new Date().toISOString(),
+                audioContext: {
+                    state: audioContext.state,
+                    sampleRate: audioContext.sampleRate,
+                    baseLatency: audioContext.baseLatency || 'N/A',
+                    outputLatency: audioContext.outputLatency || 'N/A',
+                    currentTime: audioContext.currentTime.toFixed(3)
+                },
+                gains: {},
+                activeNodes: {},
+                warnings: []
+            };
+            
+            // Capture gain levels at each stage
+            if (masterGain) {
+                debug.gains.masterGain = masterGain.gain.value.toFixed(4);
+                if (masterGain.gain.value > 1) debug.warnings.push('masterGain > 1 (clipping risk)');
+            }
+            if (dryGainNode) debug.gains.dryGain = dryGainNode.gain.value.toFixed(4);
+            if (wetGainNode) debug.gains.wetGain = wetGainNode.gain.value.toFixed(4);
+            if (makeupGain) {
+                debug.gains.makeupGain = makeupGain.gain.value.toFixed(4);
+                if (makeupGain.gain.value > 2) debug.warnings.push('makeupGain > 2 (high amplification)');
+            }
+            if (delayWetGain) debug.gains.delayWetGain = delayWetGain.gain.value.toFixed(4);
+            if (delayDryGain) debug.gains.delayDryGain = delayDryGain.gain.value.toFixed(4);
+            if (delayFeedbackGain) {
+                debug.gains.delayFeedback = delayFeedbackGain.gain.value.toFixed(4);
+                if (delayFeedbackGain.gain.value >= 1) debug.warnings.push('Delay feedback >= 1 (infinite loop)');
+            }
+            if (tremoloGain) debug.gains.tremoloGain = tremoloGain.gain.value.toFixed(4);
+            if (typeof oscMix !== 'undefined') debug.gains.oscMix = oscMix.toFixed(4);
+            if (oscOutputGain) debug.gains.oscOutputGain = oscOutputGain.gain.value.toFixed(4);
+            if (granularOutputGain) debug.gains.granularOutputGain = granularOutputGain.gain.value.toFixed(4);
+            
+            // Active nodes count
+            debug.activeNodes.activeGrains = activeGrains ? activeGrains.size : 0;
+            debug.activeNodes.activeOscVoices = activeOscVoices ? activeOscVoices.size : 0;
+            debug.activeNodes.heldNotes = heldNotes ? heldNotes.size : 0;
+            
+            // Filter states
+            if (lpfNodes && lpfNodes.length > 0) {
+                debug.filters = {
+                    lpfCutoff: lpfNodes[0].frequency.value.toFixed(1),
+                    lpfQ: lpfNodes[0].Q.value.toFixed(2)
+                };
+            }
+            if (hpfNodes && hpfNodes.length > 0) {
+                debug.filters = debug.filters || {};
+                debug.filters.hpfCutoff = hpfNodes[0].frequency.value.toFixed(1);
+            }
+            
+            // LFO states
+            debug.lfo = {
+                lfo1Rate: parseFloat(document.getElementById('lfoRate')?.value || 0).toFixed(2),
+                lfo2Rate: parseFloat(document.getElementById('lfo2Rate')?.value || 0).toFixed(2)
+            };
+            
+            // Sequencer state
+            debug.sequencer = {
+                playing: sequencerPlaying,
+                currentStep: sequencerCurrentStep,
+                bpm: sequencerBPM
+            };
+            
+            // Check for potential issues
+            const totalGain = (debug.gains.masterGain || 1) * (debug.gains.makeupGain || 1);
+            if (totalGain > 3) {
+                debug.warnings.push(`Total gain chain: ${totalGain.toFixed(2)} (potential clipping)`);
+            }
+            
+            if (debug.activeNodes.activeGrains > 50) {
+                debug.warnings.push(`High grain count: ${debug.activeNodes.activeGrains}`);
+            }
+            
+            return debug;
+        }
+
+        // Format debug info for display
+        function formatDebugInfo(debug) {
+            if (!debug) return 'AudioContext not initialized';
+            
+            let html = '';
+            
+            // Audio Context
+            html += '<div class="debug-section">';
+            html += '<strong>AudioContext:</strong><br>';
+            html += `State: ${debug.audioContext.state}<br>`;
+            html += `Sample Rate: ${debug.audioContext.sampleRate}<br>`;
+            html += `Base Latency: ${debug.audioContext.baseLatency}s<br>`;
+            html += `Output Latency: ${debug.audioContext.outputLatency}s<br>`;
+            html += `Current Time: ${debug.audioContext.currentTime}s<br>`;
+            html += '</div>';
+            
+            // Gains
+            html += '<div class="debug-section">';
+            html += '<strong>Gain Stages:</strong><br>';
+            for (const [name, value] of Object.entries(debug.gains)) {
+                const numVal = parseFloat(value);
+                const cls = numVal > 1 ? 'debug-warning' : '';
+                html += `<span class="${cls}">${name}: ${value}</span><br>`;
+            }
+            html += '</div>';
+            
+            // Active Nodes
+            html += '<div class="debug-section">';
+            html += '<strong>Active Nodes:</strong><br>';
+            for (const [name, count] of Object.entries(debug.activeNodes)) {
+                const cls = count > 30 ? 'debug-warning' : '';
+                html += `<span class="${cls}">${name}: ${count}</span><br>`;
+            }
+            html += '</div>';
+            
+            // Filters
+            if (debug.filters) {
+                html += '<div class="debug-section">';
+                html += '<strong>Filters:</strong><br>';
+                for (const [name, value] of Object.entries(debug.filters)) {
+                    html += `${name}: ${value}<br>`;
+                }
+                html += '</div>';
+            }
+            
+            // Sequencer
+            html += '<div class="debug-section">';
+            html += '<strong>Sequencer:</strong><br>';
+            html += `Playing: ${debug.sequencer.playing}<br>`;
+            html += `Step: ${debug.sequencer.currentStep}<br>`;
+            html += `BPM: ${debug.sequencer.bpm}<br>`;
+            html += '</div>';
+            
+            // Warnings
+            if (debug.warnings.length > 0) {
+                html += '<div class="debug-section">';
+                html += '<strong class="debug-error">⚠ Warnings:</strong><br>';
+                for (const warning of debug.warnings) {
+                    html += `<span class="debug-warning">• ${warning}</span><br>`;
+                }
+                html += '</div>';
+            }
+            
+            return html;
+        }
+
+        // Update debug panel
+        function updateDebugPanel() {
+            const debug = captureAudioDebug();
+            const content = document.getElementById('debugContent');
+            if (content) {
+                content.innerHTML = formatDebugInfo(debug);
+            }
+            debugLogs.push(debug);
+            // Keep only last 100 logs
+            if (debugLogs.length > 100) debugLogs.shift();
+        }
+
+        // Download debug logs as JSON
+        function downloadDebugLog() {
+            const debug = captureAudioDebug();
+            const logData = {
+                captureTime: new Date().toISOString(),
+                currentState: debug,
+                recentLogs: debugLogs.slice(-20),
+                userAgent: navigator.userAgent,
+                platform: navigator.platform
+            };
+            
+            const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audio-debug-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('Debug log downloaded. Current state:', debug);
+        }
+
+        // Toggle live debug panel
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            debugEnabled = !debugEnabled;
+            
+            if (debugEnabled) {
+                panel.classList.add('visible');
+                debugInterval = setInterval(updateDebugPanel, 100); // Update 10x per second
+                document.getElementById('toggleDebugBtn').textContent = 'Hide Debug';
+                document.getElementById('toggleDebugBtn').style.background = 'linear-gradient(135deg, #ff0844 0%, #cc0033 100%)';
+            } else {
+                panel.classList.remove('visible');
+                if (debugInterval) {
+                    clearInterval(debugInterval);
+                    debugInterval = null;
+                }
+                document.getElementById('toggleDebugBtn').textContent = 'Toggle Live Debug';
+                document.getElementById('toggleDebugBtn').style.background = '';
+            }
+        }
 
         // --- Globals ---
         let audioContext;
@@ -4999,6 +5268,10 @@
             
             statusDiv.textContent = 'All parameters reset to defaults';
         });
+
+        // Debug Button Event Listeners
+        document.getElementById('debugBtn').addEventListener('click', downloadDebugLog);
+        document.getElementById('toggleDebugBtn').addEventListener('click', toggleDebugPanel);
 
         // Helper function to gather all preset data
         function gatherPreset() {
