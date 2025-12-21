@@ -2112,12 +2112,11 @@
         // --- Throttle function for slider updates to prevent audio glitches ---
         /**
          * Throttle function for slider updates to prevent audio glitches.
-         * Uses requestAnimationFrame to batch updates and prevent excessive processing.
+         * Uses requestAnimationFrame to batch updates at ~60fps and prevent excessive processing.
          * @param {Function} callback - The function to throttle
-         * @param {number} limit - Minimum time between calls in ms (default: 16ms for ~60fps)
          * @returns {Function} Throttled function
          */
-        function throttleSlider(callback, limit = 16) {
+        function throttleSlider(callback) {
             let waiting = false;
             let lastValue = null;
             return function(e) {
@@ -2975,9 +2974,12 @@
             const reverbAmt = getModulatedValue('reverb') / 100;
             const volAmt = getModulatedValue('volume') / 100;
             
+            // Get current time once for all scheduled changes in this update
+            // This ensures all parameter changes are synchronized
+            const now = audioContext.currentTime;
+            
             // Improved dry/wet mix - maintain better unity gain
             // Use equal-power crossfade for smoother transitions
-            const now = audioContext.currentTime;
             dryGainNode.gain.setValueAtTime(Math.cos(reverbAmt * Math.PI / 2), now);
             wetGainNode.gain.setValueAtTime(Math.sin(reverbAmt * Math.PI / 2) * 0.5, now); // Scale wet down to avoid overwhelming
             masterGain.gain.setValueAtTime(volAmt, now);
