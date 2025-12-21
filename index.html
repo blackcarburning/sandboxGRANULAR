@@ -2253,6 +2253,8 @@
         let tremoloLFO = null;
         let tremoloLFOGain = null;
         let makeupGain = null; // Compensation for filter losses
+        let oscOutputGain = null; // Controls overall oscillator level
+        let granularOutputGain = null; // Controls overall granular level
         
         // BPM-synced delay nodes
         let delayNode = null;
@@ -2763,7 +2765,20 @@
 
             // Makeup gain to compensate for cascading filter losses
             makeupGain = audioContext.createGain();
-            makeupGain.gain.value = 2.0; // Compensate for filter and effect losses
+            makeupGain.gain.value = 1.5; // Compensate for filter and effect losses (reduced from 2.0 for headroom)
+
+            // Create separate gain nodes for oscillator and granular outputs
+            // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
+            const initialOscMix = 0.5;
+            oscOutputGain = audioContext.createGain();
+            oscOutputGain.gain.value = Math.sqrt(initialOscMix) * 0.8;
+            
+            granularOutputGain = audioContext.createGain();
+            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * 0.8;
+            
+            // Connect both to the filter chain input
+            oscOutputGain.connect(hpfNodes[0]);
+            granularOutputGain.connect(hpfNodes[0]);
 
             // BPM-synced delay setup
             delayNode = audioContext.createDelay(5.0);
@@ -3429,7 +3444,7 @@
             // Connect through filters
             mixer.connect(envelope);
             envelope.connect(panner);
-            panner.connect(hpfNodes[0]);
+            panner.connect(granularOutputGain);
 
             // Envelope - extend to include release time, scaled by volume multiplier
             const now = audioContext.currentTime;
@@ -3560,8 +3575,8 @@
             osc1Gain.connect(oscMixer);
             osc2Gain.connect(oscMixer);
             
-            // Connect to filter chain (through high-pass filter)
-            oscMixer.connect(hpfNodes[0]);
+            // Connect to oscillator output gain node (then to filter chain)
+            oscMixer.connect(oscOutputGain);
             
             // Start oscillators
             osc1.start(now);
@@ -4291,6 +4306,14 @@
         // OSC Mix
         document.getElementById('oscMix').addEventListener('input', (e) => {
             oscMix = parseFloat(e.target.value) / 100;
+            // Implement true crossfade with headroom to prevent clipping
+            // Use equal-power crossfade for smoother transition
+            const oscLevel = Math.sqrt(oscMix) * 0.8;  // Scale down for headroom
+            const granularLevel = Math.sqrt(1 - oscMix) * 0.8;
+            
+            if (oscOutputGain) oscOutputGain.gain.value = oscLevel;
+            if (granularOutputGain) granularOutputGain.gain.value = granularLevel;
+            
             document.getElementById('oscMixValue').textContent = `${e.target.value}%`;
         });
 
