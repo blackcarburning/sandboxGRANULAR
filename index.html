@@ -1067,6 +1067,82 @@
             #grain-tab input[type="range"]::-moz-range-track {
                 height: 10px;
             }
+
+            /* 3. Scale OSC tab for iPhone landscape */
+            #osc-tab.active {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 2px;
+                font-size: 7px;
+            }
+
+            #osc-tab .control-group {
+                padding: 1px 2px;
+                min-height: 0;
+            }
+
+            #osc-tab .control-group label {
+                font-size: 7px;
+                margin-bottom: 1px;
+            }
+
+            #osc-tab select {
+                font-size: 7px;
+                padding: 2px;
+            }
+
+            #osc-tab input[type="range"] {
+                height: 8px;
+                padding: 3px 0;
+                margin: 1px 0;
+            }
+
+            #osc-tab .slope-toggle {
+                padding: 1px 2px;
+                font-size: 6px;
+                min-width: 14px;
+            }
+
+            /* 4. Scale SEQ tab for iPhone landscape */
+            #seq-tab.active {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 2px;
+            }
+
+            #seq-tab .control-group {
+                padding: 1px;
+                min-height: 0;
+            }
+
+            #seq-tab .control-group label {
+                font-size: 6px;
+                margin-bottom: 1px;
+            }
+
+            #seq-tab select {
+                font-size: 6px;
+                padding: 1px;
+            }
+
+            #seq-tab input[type="range"] {
+                height: 6px;
+                padding: 2px 0;
+                margin: 1px 0;
+            }
+
+            #seq-tab button {
+                padding: 2px 4px;
+                font-size: 6px;
+            }
+
+            .seq-step {
+                gap: 1px;
+            }
+
+            /* 5. Scale tab buttons for iPhone landscape */
+            .tab-button {
+                padding: 2px 4px;
+                font-size: 7px;
+            }
         }
 
     </style>
