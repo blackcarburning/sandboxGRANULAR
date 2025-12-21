@@ -2109,6 +2109,29 @@
     </div>
 
     <script>
+        // --- Throttle function for slider updates to prevent audio glitches ---
+        /**
+         * Throttle function for slider updates to prevent audio glitches.
+         * Uses requestAnimationFrame to batch updates and prevent excessive processing.
+         * @param {Function} callback - The function to throttle
+         * @param {number} limit - Minimum time between calls in ms (default: 16ms for ~60fps)
+         * @returns {Function} Throttled function
+         */
+        function throttleSlider(callback, limit = 16) {
+            let waiting = false;
+            let lastValue = null;
+            return function(e) {
+                lastValue = e;
+                if (!waiting) {
+                    waiting = true;
+                    requestAnimationFrame(() => {
+                        callback(lastValue);
+                        waiting = false;
+                    });
+                }
+            };
+        }
+
         // --- Prevent Zoom and Browser UI Interference ---
         
         /**
@@ -2599,8 +2622,19 @@
 
         startBtn.addEventListener('click', async () => {
             try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    latencyHint: 'playback',  // Prioritizes stable audio over low latency
+                    sampleRate: 48000         // Consistent sample rate
+                });
+                
+                // Log audio system configuration for debugging
+                console.log('Audio baseLatency:', audioContext.baseLatency, 'seconds');
+                console.log('Audio sampleRate:', audioContext.sampleRate);
+                
                 if (audioContext.state === 'suspended') await audioContext.resume();
+                
+                // Wait for audio system to stabilize
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
                 lfoStartTime = audioContext.currentTime;
                 lfo2StartTime = audioContext.currentTime;
@@ -2943,9 +2977,10 @@
             
             // Improved dry/wet mix - maintain better unity gain
             // Use equal-power crossfade for smoother transitions
-            dryGainNode.gain.value = Math.cos(reverbAmt * Math.PI / 2);
-            wetGainNode.gain.value = Math.sin(reverbAmt * Math.PI / 2) * 0.5; // Scale wet down to avoid overwhelming
-            masterGain.gain.value = volAmt;
+            const now = audioContext.currentTime;
+            dryGainNode.gain.setValueAtTime(Math.cos(reverbAmt * Math.PI / 2), now);
+            wetGainNode.gain.setValueAtTime(Math.sin(reverbAmt * Math.PI / 2) * 0.5, now); // Scale wet down to avoid overwhelming
+            masterGain.gain.setValueAtTime(volAmt, now);
 
             // Update distortion
             if (distortionNode) {
@@ -3029,11 +3064,11 @@
                 delayNode.delayTime.value = delayTime;
                 
                 // Update feedback (0 to MAX_DELAY_FEEDBACK for stability)
-                delayFeedbackGain.gain.value = feedback * MAX_DELAY_FEEDBACK;
+                delayFeedbackGain.gain.setValueAtTime(feedback * MAX_DELAY_FEEDBACK, now);
                 
                 // Update mix (equal-power crossfade)
-                delayWetGain.gain.value = Math.sin(mix * Math.PI / 2);
-                delayDryGain.gain.value = Math.cos(mix * Math.PI / 2);
+                delayWetGain.gain.setValueAtTime(Math.sin(mix * Math.PI / 2), now);
+                delayDryGain.gain.setValueAtTime(Math.cos(mix * Math.PI / 2), now);
             }
 
             // Update LFO3 (Stereo Tremolo) with LFO modulation
@@ -3119,6 +3154,9 @@
             try {
                 // Ensure context is running
                 if (audioContext.state === 'suspended') await audioContext.resume();
+                
+                // Wait for audio system to stabilize
+                await new Promise(resolve => setTimeout(resolve, 100));
 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
@@ -3822,8 +3860,8 @@
         // --- Slider Listeners ---
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
-            // Input event for real-time updates while dragging
-            slider.addEventListener('input', (e) => {
+            // Create a throttled handler for each slider to prevent audio glitches
+            const throttledHandler = throttleSlider((e) => {
                 // Special handling for LFO rate
                 if (e.target.id === 'lfoRate') {
                     updateLFORateDisplay();
@@ -3883,6 +3921,9 @@
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
             });
+            
+            // Attach the throttled handler to the slider
+            slider.addEventListener('input', throttledHandler);
 
             // Prevent scrolling when touching/dragging sliders
             slider.addEventListener('touchstart', (e) => {
@@ -4304,18 +4345,22 @@
         });
 
         // OSC Mix
-        document.getElementById('oscMix').addEventListener('input', (e) => {
+        document.getElementById('oscMix').addEventListener('input', throttleSlider((e) => {
             oscMix = parseFloat(e.target.value) / 100;
             // Implement true crossfade with headroom to prevent clipping
             // Use equal-power crossfade for smoother transition
             const oscLevel = Math.sqrt(oscMix) * 0.8;  // Scale down for headroom
             const granularLevel = Math.sqrt(1 - oscMix) * 0.8;
             
-            if (oscOutputGain) oscOutputGain.gain.value = oscLevel;
-            if (granularOutputGain) granularOutputGain.gain.value = granularLevel;
+            if (oscOutputGain && audioContext) {
+                oscOutputGain.gain.setValueAtTime(oscLevel, audioContext.currentTime);
+            }
+            if (granularOutputGain && audioContext) {
+                granularOutputGain.gain.setValueAtTime(granularLevel, audioContext.currentTime);
+            }
             
             document.getElementById('oscMixValue').textContent = `${e.target.value}%`;
-        });
+        }));
 
         // --- SEQ Tab Controls ---
         document.getElementById('seqBpm').addEventListener('input', (e) => {
@@ -4695,8 +4740,19 @@
             await audioContext.close();
             
             // Create new context
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                latencyHint: 'playback',  // Prioritizes stable audio over low latency
+                sampleRate: 48000         // Consistent sample rate
+            });
+            
+            // Log audio system configuration for debugging
+            console.log('Audio baseLatency:', audioContext.baseLatency, 'seconds');
+            console.log('Audio sampleRate:', audioContext.sampleRate);
+            
             if (audioContext.state === 'suspended') await audioContext.resume();
+            
+            // Wait for audio system to stabilize
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             lfoStartTime = audioContext.currentTime;
             lfo2StartTime = audioContext.currentTime;
