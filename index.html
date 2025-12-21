@@ -2349,6 +2349,7 @@
             debug.activeNodes.activeGrains = activeGrains ? activeGrains.size : 0;
             debug.activeNodes.activeOscVoices = activeOscVoices ? activeOscVoices.size : 0;
             debug.activeNodes.heldNotes = heldNotes ? heldNotes.size : 0;
+            debug.activeNodes.activeGrainNodes = activeGrainNodes || 0;
             
             // Filter states
             if (lpfNodes && lpfNodes.length > 0) {
@@ -2383,6 +2384,10 @@
             
             if (debug.activeNodes.activeGrains > 50) {
                 debug.warnings.push(`High grain count: ${debug.activeNodes.activeGrains}`);
+            }
+            
+            if (activeGrainNodes > 50) {
+                debug.warnings.push(`High grain node count: ${activeGrainNodes}`);
             }
             
             return debug;
@@ -2518,6 +2523,8 @@
         let recordedChunks = [];
         let isRecording = false;
         let activeGrains = new Map();
+        let activeGrainNodes = 0;
+        const MAX_GRAIN_NODES = 100; // Prevent runaway node creation
         let octaveOffset = 0;
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
@@ -3664,6 +3671,13 @@
         // --- Granular Engine ---
         function playGrain(note) {
             if (!canPlayGrains()) return;
+            
+            // Prevent runaway node creation
+            if (activeGrainNodes >= MAX_GRAIN_NODES) {
+                console.warn('Max grain nodes reached, skipping grain');
+                return;
+            }
+            activeGrainNodes++;
 
             // Params with LFO modulation
             const grainSize = getModulatedValue('grainSize') / 1000; // seconds
@@ -3684,6 +3698,12 @@
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
             const mixer = audioContext.createGain();
+            
+            // Declare source nodes that will need cleanup
+            let source = null;
+            let sampleGain = null;
+            let noiseSource = null;
+            let noiseGain = null;
 
             // Calculate keyboard volume bias based on note pitch
             // Map note frequency to a 0-1 range (using log scale for better distribution)
@@ -3739,12 +3759,12 @@
                 // Clamp
                 playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
 
-                const source = audioContext.createBufferSource();
+                source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 source.playbackRate.value = rate;
                 source.loop = true; // Enable looping
 
-                const sampleGain = audioContext.createGain();
+                sampleGain = audioContext.createGain();
                 sampleGain.gain.value = 1 - noiseMix;
 
                 source.connect(sampleGain);
@@ -3755,17 +3775,28 @@
                 source.start(now, playPosition);
                 // Stop after envelope completes
                 source.stop(now + totalDuration);
+                
+                // Clean up nodes when source finishes
+                source.onended = () => {
+                    try {
+                        source.disconnect();
+                        sampleGain.disconnect();
+                    } catch(e) {
+                        // Node may already be disconnected
+                    }
+                    cleanupCommonNodes();
+                };
             }
 
             // Create noise source if selected
             const noiseType = document.getElementById('noiseType').value;
             if (noiseType !== 'none' && noiseMix > 0) {
-                const noiseSource = audioContext.createBufferSource();
+                noiseSource = audioContext.createBufferSource();
                 noiseSource.buffer = noiseType === 'white' ? whiteNoiseBuffer : pinkNoiseBuffer;
                 noiseSource.playbackRate.value = rate;
                 noiseSource.loop = true;
 
-                const noiseGain = audioContext.createGain();
+                noiseGain = audioContext.createGain();
                 noiseGain.gain.value = noiseMix;
 
                 noiseSource.connect(noiseGain);
@@ -3775,6 +3806,17 @@
                 const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
                 noiseSource.start(now);
                 noiseSource.stop(now + totalDuration);
+                
+                // Clean up noise nodes when source finishes
+                noiseSource.onended = () => {
+                    try {
+                        noiseSource.disconnect();
+                        noiseGain.disconnect();
+                    } catch(e) {
+                        // Node may already be disconnected
+                    }
+                    cleanupCommonNodes();
+                };
             }
 
             // Connect through filters
@@ -3789,6 +3831,37 @@
             envelope.gain.linearRampToValueAtTime(volumeMultiplier, now + attack);
             envelope.gain.setValueAtTime(volumeMultiplier, now + attack + sustainTime);
             envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
+            
+            // Track how many sources need to finish before cleaning up common nodes
+            let sourcesRemaining = (source ? 1 : 0) + (noiseSource ? 1 : 0);
+            
+            // Cleanup function for common nodes (mixer, envelope, panner)
+            const cleanupCommonNodes = () => {
+                sourcesRemaining--;
+                if (sourcesRemaining === 0) {
+                    activeGrainNodes--;
+                    try {
+                        mixer.disconnect();
+                        envelope.disconnect();
+                        panner.disconnect();
+                    } catch(e) {
+                        // Node may already be disconnected
+                    }
+                }
+            };
+            
+            // If no sources were created at all, clean up immediately after envelope
+            if (sourcesRemaining === 0) {
+                const totalDuration = attack + sustainTime + release;
+                setTimeout(() => {
+                    activeGrainNodes--;
+                    try {
+                        mixer.disconnect();
+                        envelope.disconnect();
+                        panner.disconnect();
+                    } catch(e) {}
+                }, totalDuration * 1000 + 10);
+            }
         }
 
         // --- Scheduler ---
@@ -3966,8 +4039,17 @@
             voice.osc1.stop(now + maxRelease);
             voice.osc2.stop(now + maxRelease);
             
-            // Clean up
+            // Clean up - disconnect nodes after they stop
             setTimeout(() => {
+                try {
+                    voice.osc1.disconnect();
+                    voice.osc2.disconnect();
+                    voice.osc1Gain.disconnect();
+                    voice.osc2Gain.disconnect();
+                    voice.oscMixer.disconnect();
+                } catch(e) {
+                    // Node may already be disconnected
+                }
                 activeOscVoices.delete(note);
             }, maxRelease * 1000 + 100);
         }
