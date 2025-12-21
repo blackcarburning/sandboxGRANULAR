@@ -747,6 +747,31 @@
             grid-auto-rows: minmax(auto, 1fr);
         }
 
+        #osc-tab.active {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+        }
+
+        #seq-tab.active {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 3px;
+        }
+
+        .seq-step {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .seq-pitch {
+            font-size: 8px;
+            padding: 2px;
+        }
+
+        #seqPlayBtn.playing {
+            background: linear-gradient(135deg, #ff0844 0%, #cc0033 100%) !important;
+        }
+
         #utility-tab button {
             width: 100%;
             padding: 10px;
@@ -1101,6 +1126,8 @@
                     <button class="tab-button" data-tab="lfo">LFO</button>
                     <button class="tab-button" data-tab="stereo">Stereo</button>
                     <button class="tab-button" data-tab="utility">Utility</button>
+                    <button class="tab-button" data-tab="osc">OSC</button>
+                    <button class="tab-button" data-tab="seq">SEQ</button>
                 </div>
 
                 <!-- Grain Tab -->
@@ -1647,6 +1674,715 @@
                     </div>
                 </div>
 
+                <!-- OSC Tab -->
+                <div class="tab-content" id="osc-tab">
+                    <!-- Oscillator 1 -->
+                    <div class="control-group">
+                        <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 1</label>
+                        <label>
+                            <span class="param-name">Waveform</span>
+                        </label>
+                        <select id="osc1Wave">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth" selected>Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Octave</span>
+                        </label>
+                        <div class="slope-group" style="gap: 2px;">
+                            <button class="slope-toggle" data-osc="1" data-octave="32">32'</button>
+                            <button class="slope-toggle" data-osc="1" data-octave="16">16'</button>
+                            <button class="slope-toggle active" data-osc="1" data-octave="8">8'</button>
+                            <button class="slope-toggle" data-osc="1" data-octave="4">4'</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Fine Tune</span>
+                            <span class="value" id="osc1DetuneValue">0c</span>
+                        </label>
+                        <input type="range" id="osc1Detune" min="-100" max="100" value="0" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Level</span>
+                            <span class="value" id="osc1LevelValue">50%</span>
+                        </label>
+                        <input type="range" id="osc1Level" min="0" max="100" value="50" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Attack</span>
+                            <span class="value" id="osc1AttackValue">10ms</span>
+                        </label>
+                        <input type="range" id="osc1Attack" min="0" max="2000" value="10" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Decay</span>
+                            <span class="value" id="osc1DecayValue">200ms</span>
+                        </label>
+                        <input type="range" id="osc1Decay" min="0" max="2000" value="200" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Sustain</span>
+                            <span class="value" id="osc1SustainValue">70%</span>
+                        </label>
+                        <input type="range" id="osc1Sustain" min="0" max="100" value="70" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Release</span>
+                            <span class="value" id="osc1ReleaseValue">300ms</span>
+                        </label>
+                        <input type="range" id="osc1Release" min="0" max="3000" value="300" step="1">
+                    </div>
+
+                    <!-- Oscillator 2 -->
+                    <div class="control-group">
+                        <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 2</label>
+                        <label>
+                            <span class="param-name">Waveform</span>
+                        </label>
+                        <select id="osc2Wave">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square" selected>Square</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Octave</span>
+                        </label>
+                        <div class="slope-group" style="gap: 2px;">
+                            <button class="slope-toggle" data-osc="2" data-octave="32">32'</button>
+                            <button class="slope-toggle active" data-osc="2" data-octave="16">16'</button>
+                            <button class="slope-toggle" data-osc="2" data-octave="8">8'</button>
+                            <button class="slope-toggle" data-osc="2" data-octave="4">4'</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Fine Tune</span>
+                            <span class="value" id="osc2DetuneValue">0c</span>
+                        </label>
+                        <input type="range" id="osc2Detune" min="-100" max="100" value="0" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Level</span>
+                            <span class="value" id="osc2LevelValue">50%</span>
+                        </label>
+                        <input type="range" id="osc2Level" min="0" max="100" value="50" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Attack</span>
+                            <span class="value" id="osc2AttackValue">10ms</span>
+                        </label>
+                        <input type="range" id="osc2Attack" min="0" max="2000" value="10" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Decay</span>
+                            <span class="value" id="osc2DecayValue">200ms</span>
+                        </label>
+                        <input type="range" id="osc2Decay" min="0" max="2000" value="200" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Sustain</span>
+                            <span class="value" id="osc2SustainValue">70%</span>
+                        </label>
+                        <input type="range" id="osc2Sustain" min="0" max="100" value="70" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Release</span>
+                            <span class="value" id="osc2ReleaseValue">300ms</span>
+                        </label>
+                        <input type="range" id="osc2Release" min="0" max="3000" value="300" step="1">
+                    </div>
+
+                    <!-- Mix Control -->
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label>
+                            <span class="param-name">OSC/Granular Mix</span>
+                            <span class="value" id="oscMixValue">0%</span>
+                        </label>
+                        <input type="range" id="oscMix" min="0" max="100" value="0" step="1">
+                    </div>
+                </div>
+
+                <!-- SEQ Tab -->
+                <div class="tab-content" id="seq-tab">
+                    <!-- Global Controls -->
+                    <div class="control-group" style="grid-column: span 2;">
+                        <label>
+                            <span class="param-name">BPM</span>
+                            <span class="value" id="seqBpmValue">120</span>
+                        </label>
+                        <input type="range" id="seqBpm" min="40" max="240" value="120" step="1">
+                    </div>
+                    
+                    <div class="control-group">
+                        <button id="seqPlayBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);">PLAY</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <button id="seqResetBtn" style="width: 100%;">RESET</button>
+                    </div>
+                    
+                    <!-- 16 Steps -->
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 1</label>
+                        <select id="seqStep1Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3" selected>A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep1Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="1">ON</button>
+                    </div>
+                    
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 2</label>
+                        <select id="seqStep2Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4" selected>C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep2Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="2">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 3</label>
+                        <select id="seqStep3Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3" selected>E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep3Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="3">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 4</label>
+                        <select id="seqStep4Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3" selected>F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep4Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="4">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 5</label>
+                        <select id="seqStep5Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3" selected>A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep5Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="5">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 6</label>
+                        <select id="seqStep6Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4" selected>C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep6Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="6">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 7</label>
+                        <select id="seqStep7Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3" selected>E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep7Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="7">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 8</label>
+                        <select id="seqStep8Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3" selected>F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep8Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="8">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 9</label>
+                        <select id="seqStep9Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3" selected>A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep9Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="9">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 10</label>
+                        <select id="seqStep10Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4" selected>C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep10Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="10">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 11</label>
+                        <select id="seqStep11Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3" selected>E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep11Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="11">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 12</label>
+                        <select id="seqStep12Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3" selected>F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep12Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="12">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 13</label>
+                        <select id="seqStep13Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3" selected>A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep13Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="13">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 14</label>
+                        <select id="seqStep14Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4" selected>C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep14Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="14">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 15</label>
+                        <select id="seqStep15Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3" selected>E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3">F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep15Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="15">ON</button>
+                    </div>
+
+                    <div class="control-group seq-step">
+                        <label style="font-size: 9px; color: var(--accent);">Step 16</label>
+                        <select id="seqStep16Pitch" class="seq-pitch">
+                            <option value="C3">C3</option>
+                            <option value="C#3">C#3</option>
+                            <option value="D3">D3</option>
+                            <option value="D#3">D#3</option>
+                            <option value="E3">E3</option>
+                            <option value="F3">F3</option>
+                            <option value="F#3" selected>F#3</option>
+                            <option value="G3">G3</option>
+                            <option value="G#3">G#3</option>
+                            <option value="A3">A3</option>
+                            <option value="A#3">A#3</option>
+                            <option value="B3">B3</option>
+                            <option value="C4">C4</option>
+                            <option value="C#4">C#4</option>
+                            <option value="D4">D4</option>
+                            <option value="D#4">D#4</option>
+                            <option value="E4">E4</option>
+                            <option value="F4">F4</option>
+                            <option value="F#4">F#4</option>
+                            <option value="G4">G4</option>
+                            <option value="G#4">G#4</option>
+                            <option value="A4">A4</option>
+                            <option value="A#4">A#4</option>
+                            <option value="B4">B4</option>
+                            <option value="C5">C5</option>
+                        </select>
+                        <input type="range" id="seqStep16Vol" min="0" max="100" value="80" step="1">
+                        <button class="slope-toggle active" data-step="16">ON</button>
+                    </div>
+                </div>
+
         <div class="keyboard-section">
             <div class="octave-controls">
                 <button class="octave-btn" id="octaveUpBtn">+</button>
@@ -1881,6 +2617,46 @@
         let lfo3StartTime = 0;
         let lfo3Enabled = {};
         let lfo3Inverted = {};
+        
+        // Oscillator state
+        let osc1Config = {
+            waveform: 'sawtooth',
+            octave: 8,
+            detune: 0,
+            level: 0.5,
+            attack: 10,
+            decay: 200,
+            sustain: 0.7,
+            release: 300
+        };
+        let osc2Config = {
+            waveform: 'square',
+            octave: 16,
+            detune: 0,
+            level: 0.5,
+            attack: 10,
+            decay: 200,
+            sustain: 0.7,
+            release: 300
+        };
+        let oscMix = 0; // 0 = all granular, 1 = all oscillators
+        let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
+        
+        // Sequencer state
+        let sequencerPlaying = false;
+        let sequencerCurrentStep = 0;
+        let sequencerInterval = null;
+        let sequencerBPM = 120;
+        let sequencerSteps = [];
+        
+        // Initialize sequencer steps
+        for (let i = 1; i <= 16; i++) {
+            sequencerSteps.push({
+                enabled: true,
+                pitch: 'A3',
+                volume: 80
+            });
+        }
         
         // Initialize Dropbox toggle state
         let dropboxEnabled = localStorage.getItem('dropboxEnabled') === 'true';
@@ -3045,6 +3821,205 @@
             activeGrains.clear();
         }
 
+        // --- Oscillator Functions ---
+        function getNoteFrequency(note) {
+            const noteMap = {
+                'C3': 130.81, 'C#3': 138.59, 'D3': 146.83, 'D#3': 155.56, 'E3': 164.81, 'F3': 174.61,
+                'F#3': 185.00, 'G3': 196.00, 'G#3': 207.65, 'A3': 220.00, 'A#3': 233.08, 'B3': 246.94,
+                'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'D#4': 311.13, 'E4': 329.63, 'F4': 349.23,
+                'F#4': 369.99, 'G4': 392.00, 'G#4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'B4': 493.88,
+                'C5': 523.25,
+                // Extend for keyboard notes
+                'C1': 32.70, 'C#1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'E1': 41.20, 'F1': 43.65,
+                'F#1': 46.25, 'G1': 49.00, 'G#1': 51.91, 'A1': 55.00, 'A#1': 58.27, 'B1': 61.74,
+                'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31,
+                'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47
+            };
+            return noteMap[note] || 440;
+        }
+
+        function getOscillatorFrequency(baseFreq, octave, detune) {
+            const octaveMultipliers = {
+                32: 0.25,
+                16: 0.5,
+                8: 1.0,
+                4: 2.0
+            };
+            const octaveFreq = baseFreq * octaveMultipliers[octave];
+            const detuneMultiplier = Math.pow(2, detune / 1200); // cents to frequency ratio
+            return octaveFreq * detuneMultiplier;
+        }
+
+        function playOscillatorNote(note) {
+            if (!audioContext) return;
+            if (activeOscVoices.has(note)) return;
+
+            const now = audioContext.currentTime;
+            const baseFreq = getNoteFrequency(note);
+            
+            // Create oscillator 1
+            const osc1 = audioContext.createOscillator();
+            osc1.type = osc1Config.waveform;
+            osc1.frequency.value = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune);
+            
+            const osc1Gain = audioContext.createGain();
+            osc1Gain.gain.value = 0;
+            
+            // Create oscillator 2
+            const osc2 = audioContext.createOscillator();
+            osc2.type = osc2Config.waveform;
+            osc2.frequency.value = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune);
+            
+            const osc2Gain = audioContext.createGain();
+            osc2Gain.gain.value = 0;
+            
+            // Mix oscillators
+            const oscMixer = audioContext.createGain();
+            oscMixer.gain.value = oscMix;
+            
+            osc1.connect(osc1Gain);
+            osc2.connect(osc2Gain);
+            osc1Gain.connect(oscMixer);
+            osc2Gain.connect(oscMixer);
+            
+            // Connect to filter chain (through high-pass filter)
+            oscMixer.connect(hpfNodes[0]);
+            
+            // Start oscillators
+            osc1.start(now);
+            osc2.start(now);
+            
+            // Apply ADSR envelope for osc1
+            const attack1 = osc1Config.attack / 1000;
+            const decay1 = osc1Config.decay / 1000;
+            const sustain1 = osc1Config.sustain * osc1Config.level;
+            
+            osc1Gain.gain.setValueAtTime(0, now);
+            osc1Gain.gain.linearRampToValueAtTime(osc1Config.level, now + attack1);
+            osc1Gain.gain.linearRampToValueAtTime(sustain1, now + attack1 + decay1);
+            
+            // Apply ADSR envelope for osc2
+            const attack2 = osc2Config.attack / 1000;
+            const decay2 = osc2Config.decay / 1000;
+            const sustain2 = osc2Config.sustain * osc2Config.level;
+            
+            osc2Gain.gain.setValueAtTime(0, now);
+            osc2Gain.gain.linearRampToValueAtTime(osc2Config.level, now + attack2);
+            osc2Gain.gain.linearRampToValueAtTime(sustain2, now + attack2 + decay2);
+            
+            // Store voice
+            activeOscVoices.set(note, {
+                osc1, osc2, osc1Gain, osc2Gain, oscMixer,
+                startTime: now
+            });
+        }
+
+        function stopOscillatorNote(note) {
+            if (!activeOscVoices.has(note)) return;
+            
+            const voice = activeOscVoices.get(note);
+            const now = audioContext.currentTime;
+            
+            // Apply release envelope for osc1
+            const release1 = osc1Config.release / 1000;
+            voice.osc1Gain.gain.cancelScheduledValues(now);
+            voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, now);
+            voice.osc1Gain.gain.linearRampToValueAtTime(0, now + release1);
+            
+            // Apply release envelope for osc2
+            const release2 = osc2Config.release / 1000;
+            voice.osc2Gain.gain.cancelScheduledValues(now);
+            voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, now);
+            voice.osc2Gain.gain.linearRampToValueAtTime(0, now + release2);
+            
+            // Stop oscillators after release
+            const maxRelease = Math.max(release1, release2);
+            voice.osc1.stop(now + maxRelease);
+            voice.osc2.stop(now + maxRelease);
+            
+            // Clean up
+            setTimeout(() => {
+                activeOscVoices.delete(note);
+            }, maxRelease * 1000 + 100);
+        }
+
+        function stopAllOscillators() {
+            activeOscVoices.forEach((voice, note) => {
+                stopOscillatorNote(note);
+            });
+        }
+
+        // --- Sequencer Functions ---
+        function startSequencer() {
+            if (sequencerPlaying) return;
+            sequencerPlaying = true;
+            sequencerCurrentStep = 0;
+            
+            const stepDuration = (60 / sequencerBPM) * 1000 / 4; // 16th notes
+            
+            sequencerInterval = setInterval(() => {
+                // Stop previous step
+                if (sequencerCurrentStep > 0) {
+                    const prevStep = sequencerSteps[sequencerCurrentStep - 1];
+                    if (prevStep.enabled) {
+                        stopOscillatorNote(prevStep.pitch);
+                    }
+                } else if (sequencerCurrentStep === 0) {
+                    const prevStep = sequencerSteps[15];
+                    if (prevStep.enabled) {
+                        stopOscillatorNote(prevStep.pitch);
+                    }
+                }
+                
+                // Play current step
+                const step = sequencerSteps[sequencerCurrentStep];
+                if (step.enabled) {
+                    playOscillatorNote(step.pitch);
+                }
+                
+                // Update visual indicator
+                document.querySelectorAll('.seq-step').forEach((el, idx) => {
+                    if (idx === sequencerCurrentStep) {
+                        el.style.backgroundColor = 'rgba(0, 212, 255, 0.3)';
+                    } else {
+                        el.style.backgroundColor = '';
+                    }
+                });
+                
+                // Advance to next step
+                sequencerCurrentStep = (sequencerCurrentStep + 1) % 16;
+            }, stepDuration);
+            
+            document.getElementById('seqPlayBtn').classList.add('playing');
+            document.getElementById('seqPlayBtn').textContent = 'STOP';
+        }
+
+        function stopSequencer() {
+            if (!sequencerPlaying) return;
+            sequencerPlaying = false;
+            
+            if (sequencerInterval) {
+                clearInterval(sequencerInterval);
+                sequencerInterval = null;
+            }
+            
+            // Stop all oscillators
+            stopAllOscillators();
+            
+            // Clear visual indicators
+            document.querySelectorAll('.seq-step').forEach(el => {
+                el.style.backgroundColor = '';
+            });
+            
+            document.getElementById('seqPlayBtn').classList.remove('playing');
+            document.getElementById('seqPlayBtn').textContent = 'PLAY';
+        }
+
+        function resetSequencer() {
+            stopSequencer();
+            sequencerCurrentStep = 0;
+        }
+
         // --- Input Handling (Pointer Events) ---
         const keys = document.querySelectorAll('.key');
         
@@ -3115,6 +4090,11 @@
                 key.classList.add('active');
                 key.setPointerCapture(e.pointerId); // Capture drag
                 startGrainStream(note);
+                
+                // Also trigger oscillators if mix is > 0
+                if (oscMix > 0) {
+                    playOscillatorNote(note);
+                }
             });
 
             key.addEventListener('pointerup', (e) => {
@@ -3131,6 +4111,9 @@
                 } else if (!holdEnabled) {
                     key.classList.remove('active');
                     stopGrainStream(note);
+                    if (oscMix > 0) {
+                        stopOscillatorNote(note);
+                    }
                 }
             });
 
@@ -3142,6 +4125,9 @@
                     activeKeyCount = Math.max(0, activeKeyCount - 1);
                     key.classList.remove('active');
                     stopGrainStream(note);
+                    if (oscMix > 0) {
+                        stopOscillatorNote(note);
+                    }
                 }
             });
         });
@@ -3541,6 +4527,151 @@
                 e.target.classList.remove('locked');
             }
         });
+
+        // --- OSC Tab Controls ---
+        // Oscillator 1
+        document.getElementById('osc1Wave').addEventListener('change', (e) => {
+            osc1Config.waveform = e.target.value;
+        });
+
+        document.querySelectorAll('[data-osc="1"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-osc="1"]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                osc1Config.octave = parseInt(btn.dataset.octave);
+            });
+        });
+
+        document.getElementById('osc1Detune').addEventListener('input', (e) => {
+            osc1Config.detune = parseFloat(e.target.value);
+            document.getElementById('osc1DetuneValue').textContent = `${e.target.value}c`;
+        });
+
+        document.getElementById('osc1Level').addEventListener('input', (e) => {
+            osc1Config.level = parseFloat(e.target.value) / 100;
+            document.getElementById('osc1LevelValue').textContent = `${e.target.value}%`;
+        });
+
+        document.getElementById('osc1Attack').addEventListener('input', (e) => {
+            osc1Config.attack = parseFloat(e.target.value);
+            document.getElementById('osc1AttackValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('osc1Decay').addEventListener('input', (e) => {
+            osc1Config.decay = parseFloat(e.target.value);
+            document.getElementById('osc1DecayValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('osc1Sustain').addEventListener('input', (e) => {
+            osc1Config.sustain = parseFloat(e.target.value) / 100;
+            document.getElementById('osc1SustainValue').textContent = `${e.target.value}%`;
+        });
+
+        document.getElementById('osc1Release').addEventListener('input', (e) => {
+            osc1Config.release = parseFloat(e.target.value);
+            document.getElementById('osc1ReleaseValue').textContent = `${e.target.value}ms`;
+        });
+
+        // Oscillator 2
+        document.getElementById('osc2Wave').addEventListener('change', (e) => {
+            osc2Config.waveform = e.target.value;
+        });
+
+        document.querySelectorAll('[data-osc="2"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-osc="2"]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                osc2Config.octave = parseInt(btn.dataset.octave);
+            });
+        });
+
+        document.getElementById('osc2Detune').addEventListener('input', (e) => {
+            osc2Config.detune = parseFloat(e.target.value);
+            document.getElementById('osc2DetuneValue').textContent = `${e.target.value}c`;
+        });
+
+        document.getElementById('osc2Level').addEventListener('input', (e) => {
+            osc2Config.level = parseFloat(e.target.value) / 100;
+            document.getElementById('osc2LevelValue').textContent = `${e.target.value}%`;
+        });
+
+        document.getElementById('osc2Attack').addEventListener('input', (e) => {
+            osc2Config.attack = parseFloat(e.target.value);
+            document.getElementById('osc2AttackValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('osc2Decay').addEventListener('input', (e) => {
+            osc2Config.decay = parseFloat(e.target.value);
+            document.getElementById('osc2DecayValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('osc2Sustain').addEventListener('input', (e) => {
+            osc2Config.sustain = parseFloat(e.target.value) / 100;
+            document.getElementById('osc2SustainValue').textContent = `${e.target.value}%`;
+        });
+
+        document.getElementById('osc2Release').addEventListener('input', (e) => {
+            osc2Config.release = parseFloat(e.target.value);
+            document.getElementById('osc2ReleaseValue').textContent = `${e.target.value}ms`;
+        });
+
+        // OSC Mix
+        document.getElementById('oscMix').addEventListener('input', (e) => {
+            oscMix = parseFloat(e.target.value) / 100;
+            document.getElementById('oscMixValue').textContent = `${e.target.value}%`;
+        });
+
+        // --- SEQ Tab Controls ---
+        document.getElementById('seqBpm').addEventListener('input', (e) => {
+            sequencerBPM = parseFloat(e.target.value);
+            document.getElementById('seqBpmValue').textContent = e.target.value;
+            
+            // Restart sequencer if playing to apply new BPM
+            if (sequencerPlaying) {
+                stopSequencer();
+                startSequencer();
+            }
+        });
+
+        document.getElementById('seqPlayBtn').addEventListener('click', () => {
+            if (sequencerPlaying) {
+                stopSequencer();
+            } else {
+                startSequencer();
+            }
+        });
+
+        document.getElementById('seqResetBtn').addEventListener('click', () => {
+            resetSequencer();
+        });
+
+        // Step controls
+        for (let i = 1; i <= 16; i++) {
+            // Pitch selector
+            document.getElementById(`seqStep${i}Pitch`).addEventListener('change', (e) => {
+                sequencerSteps[i - 1].pitch = e.target.value;
+            });
+
+            // Volume slider
+            document.getElementById(`seqStep${i}Vol`).addEventListener('input', (e) => {
+                sequencerSteps[i - 1].volume = parseFloat(e.target.value);
+            });
+
+            // Enable/disable button
+            const stepBtn = document.querySelector(`[data-step="${i}"]`);
+            if (stepBtn) {
+                stepBtn.addEventListener('click', () => {
+                    sequencerSteps[i - 1].enabled = !sequencerSteps[i - 1].enabled;
+                    if (sequencerSteps[i - 1].enabled) {
+                        stepBtn.classList.add('active');
+                        stepBtn.textContent = 'ON';
+                    } else {
+                        stepBtn.classList.remove('active');
+                        stepBtn.textContent = 'OFF';
+                    }
+                });
+            }
+        }
 
         // --- Tab System ---
         document.querySelectorAll('.tab-button').forEach(button => {
