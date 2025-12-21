@@ -1067,6 +1067,82 @@
             #grain-tab input[type="range"]::-moz-range-track {
                 height: 10px;
             }
+
+            /* 3. Scale OSC tab for iPhone landscape */
+            #osc-tab.active {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 2px;
+                font-size: 7px;
+            }
+
+            #osc-tab .control-group {
+                padding: 1px 2px;
+                min-height: 0;
+            }
+
+            #osc-tab .control-group label {
+                font-size: 7px;
+                margin-bottom: 1px;
+            }
+
+            #osc-tab select {
+                font-size: 7px;
+                padding: 2px;
+            }
+
+            #osc-tab input[type="range"] {
+                height: 8px;
+                padding: 3px 0;
+                margin: 1px 0;
+            }
+
+            #osc-tab .slope-toggle {
+                padding: 1px 2px;
+                font-size: 6px;
+                min-width: 14px;
+            }
+
+            /* 4. Scale SEQ tab for iPhone landscape */
+            #seq-tab.active {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 2px;
+            }
+
+            #seq-tab .control-group {
+                padding: 1px;
+                min-height: 0;
+            }
+
+            #seq-tab .control-group label {
+                font-size: 6px;
+                margin-bottom: 1px;
+            }
+
+            #seq-tab select {
+                font-size: 6px;
+                padding: 1px;
+            }
+
+            #seq-tab input[type="range"] {
+                height: 6px;
+                padding: 2px 0;
+                margin: 1px 0;
+            }
+
+            #seq-tab button {
+                padding: 2px 4px;
+                font-size: 6px;
+            }
+
+            .seq-step {
+                gap: 1px;
+            }
+
+            /* 5. Scale tab buttons for iPhone landscape */
+            .tab-button {
+                padding: 2px 4px;
+                font-size: 7px;
+            }
         }
 
     </style>
@@ -1828,9 +1904,9 @@
                     <div class="control-group" style="grid-column: span 2;">
                         <label>
                             <span class="param-name">OSC/Granular Mix</span>
-                            <span class="value" id="oscMixValue">0%</span>
+                            <span class="value" id="oscMixValue">50%</span>
                         </label>
-                        <input type="range" id="oscMix" min="0" max="100" value="0" step="1">
+                        <input type="range" id="oscMix" min="0" max="100" value="50" step="1">
                     </div>
                 </div>
 
@@ -2639,7 +2715,7 @@
             sustain: 0.7,
             release: 300
         };
-        let oscMix = 0; // 0 = all granular, 1 = all oscillators
+        let oscMix = 0.5; // 0 = oscillators silent, 1 = oscillators full volume
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         
         // Sequencer state
@@ -4091,10 +4167,8 @@
                 key.setPointerCapture(e.pointerId); // Capture drag
                 startGrainStream(note);
                 
-                // Also trigger oscillators if mix is > 0
-                if (oscMix > 0) {
-                    playOscillatorNote(note);
-                }
+                // Also trigger oscillators (mix controlled by oscMix slider)
+                playOscillatorNote(note);
             });
 
             key.addEventListener('pointerup', (e) => {
@@ -4111,9 +4185,7 @@
                 } else if (!holdEnabled) {
                     key.classList.remove('active');
                     stopGrainStream(note);
-                    if (oscMix > 0) {
-                        stopOscillatorNote(note);
-                    }
+                    stopOscillatorNote(note);
                 }
             });
 
@@ -4125,9 +4197,7 @@
                     activeKeyCount = Math.max(0, activeKeyCount - 1);
                     key.classList.remove('active');
                     stopGrainStream(note);
-                    if (oscMix > 0) {
-                        stopOscillatorNote(note);
-                    }
+                    stopOscillatorNote(note);
                 }
             });
         });
@@ -4488,6 +4558,7 @@
                 holdBtn.classList.remove('active');
                 heldNotes.forEach(note => {
                     stopGrainStream(note);
+                    stopOscillatorNote(note);
                     const key = document.querySelector(`.key[data-note="${note}"]`);
                     if (key) key.classList.remove('active');
                 });
