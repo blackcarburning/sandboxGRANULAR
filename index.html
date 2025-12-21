@@ -2554,6 +2554,10 @@
         let delayDryGain = null;
         let bpmLocked = true; // BPM lock state (ON by default)
         
+        // Modulation loop state
+        let modulationIntervalId = null;
+        const MODULATION_RATE_MS = 33; // ~30Hz modulation rate
+        
         // Delay constants
         const MAX_DELAY_FEEDBACK = 0.9; // Maximum feedback for stability (prevents runaway feedback)
 
@@ -3264,14 +3268,14 @@
                 const phaserRateBPM = getModulatedValue('phaserRate');
                 const phaserRateHz = phaserRateBPM / 60; // Convert BPM to Hz
                 const phaserDepth = getModulatedValue('phaserDepth') / 100;
-                phaserLFO.frequency.value = phaserRateHz;
+                phaserLFO.frequency.setValueAtTime(phaserRateHz, now);
                 // Control depth via LFO gain - modulates all-pass filter frequencies
-                phaserLFOGain.gain.value = phaserDepth * 1000; // 0-1000 Hz modulation range
+                phaserLFOGain.gain.setValueAtTime(phaserDepth * 1000, now); // 0-1000 Hz modulation range
                 // Update base frequency and Q for phaser nodes
                 const baseFreq = 1000;
                 phaserNodes.forEach((node, i) => {
-                    node.frequency.value = baseFreq * (i + 1);
-                    node.Q.value = 1 + (phaserDepth * 10);
+                    node.frequency.setValueAtTime(baseFreq * (i + 1), now);
+                    node.Q.setValueAtTime(1 + (phaserDepth * 10), now);
                 });
             }
 
@@ -3280,10 +3284,10 @@
                 const tremoloRateBPM = getModulatedValue('tremoloRate');
                 const tremoloRateHz = tremoloRateBPM / 60; // Convert BPM to Hz
                 const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
-                tremoloLFO.frequency.value = tremoloRateHz;
+                tremoloLFO.frequency.setValueAtTime(tremoloRateHz, now);
                 // Control tremolo depth via LFO gain - modulates output gain
                 // With depth=0, no modulation; with depth=1, full amplitude modulation
-                tremoloLFOGain.gain.value = tremoloDepth;
+                tremoloLFOGain.gain.setValueAtTime(tremoloDepth, now);
             }
 
             // Update filters
@@ -3291,8 +3295,8 @@
                 const lpfCutoff = getModulatedValue('lpfCutoff');
                 const lpfQ = getModulatedValue('lpfQ');
                 lpfNodes.forEach(node => {
-                    node.frequency.value = lpfCutoff;
-                    node.Q.value = lpfQ;
+                    node.frequency.setValueAtTime(lpfCutoff, now);
+                    node.Q.setValueAtTime(lpfQ, now);
                 });
             }
 
@@ -3300,8 +3304,8 @@
                 const hpfCutoff = getModulatedValue('hpfCutoff');
                 const hpfQ = getModulatedValue('hpfQ');
                 hpfNodes.forEach(node => {
-                    node.frequency.value = hpfCutoff;
-                    node.Q.value = hpfQ;
+                    node.frequency.setValueAtTime(hpfCutoff, now);
+                    node.Q.setValueAtTime(hpfQ, now);
                 });
             }
 
@@ -3332,7 +3336,7 @@
                 
                 // Clamp delay time to safe range (10ms to 5s)
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
-                delayNode.delayTime.value = delayTime;
+                delayNode.delayTime.setValueAtTime(delayTime, now);
                 
                 // Update feedback (0 to MAX_DELAY_FEEDBACK for stability)
                 delayFeedbackGain.gain.setValueAtTime(feedback * MAX_DELAY_FEEDBACK, now);
@@ -3353,12 +3357,35 @@
 
         // Real-time modulation loop for global parameters
         function startModulationLoop() {
-            function loop() {
-                updateEffects();
-                requestAnimationFrame(loop);
+            // Clear any existing interval
+            if (modulationIntervalId) {
+                clearInterval(modulationIntervalId);
             }
-            loop();
+            
+            modulationIntervalId = setInterval(() => {
+                if (audioContext && audioContext.state === 'running') {
+                    updateEffects();
+                }
+            }, MODULATION_RATE_MS);
         }
+
+        function stopModulationLoop() {
+            if (modulationIntervalId) {
+                clearInterval(modulationIntervalId);
+                modulationIntervalId = null;
+            }
+        }
+
+        // Handle tab visibility changes gracefully
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Tab is hidden - modulation continues via setInterval (not throttled like rAF)
+                console.log('Tab hidden - modulation continues at reduced priority');
+            } else {
+                // Tab is visible again
+                console.log('Tab visible - modulation running normally');
+            }
+        });
 
         // --- Recording ---
         const recordBtn = document.getElementById('recordBtn');
