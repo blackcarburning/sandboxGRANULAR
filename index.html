@@ -5030,6 +5030,9 @@
                 return;
             }
             
+            // Stop modulation loop before closing context
+            stopModulationLoop();
+            
             // Stop all active grains
             stopAllGrains();
             
