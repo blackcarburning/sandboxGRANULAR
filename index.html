@@ -1904,9 +1904,9 @@
                     <div class="control-group" style="grid-column: span 2;">
                         <label>
                             <span class="param-name">OSC/Granular Mix</span>
-                            <span class="value" id="oscMixValue">0%</span>
+                            <span class="value" id="oscMixValue">50%</span>
                         </label>
-                        <input type="range" id="oscMix" min="0" max="100" value="0" step="1">
+                        <input type="range" id="oscMix" min="0" max="100" value="50" step="1">
                     </div>
                 </div>
 
@@ -2715,7 +2715,7 @@
             sustain: 0.7,
             release: 300
         };
-        let oscMix = 0; // 0 = all granular, 1 = all oscillators
+        let oscMix = 0.5; // 0 = oscillators silent, 1 = oscillators full volume
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         
         // Sequencer state
@@ -4167,10 +4167,8 @@
                 key.setPointerCapture(e.pointerId); // Capture drag
                 startGrainStream(note);
                 
-                // Also trigger oscillators if mix is > 0
-                if (oscMix > 0) {
-                    playOscillatorNote(note);
-                }
+                // Also trigger oscillators (mix controlled by oscMix slider)
+                playOscillatorNote(note);
             });
 
             key.addEventListener('pointerup', (e) => {
@@ -4187,9 +4185,7 @@
                 } else if (!holdEnabled) {
                     key.classList.remove('active');
                     stopGrainStream(note);
-                    if (oscMix > 0) {
-                        stopOscillatorNote(note);
-                    }
+                    stopOscillatorNote(note);
                 }
             });
 
@@ -4201,9 +4197,7 @@
                     activeKeyCount = Math.max(0, activeKeyCount - 1);
                     key.classList.remove('active');
                     stopGrainStream(note);
-                    if (oscMix > 0) {
-                        stopOscillatorNote(note);
-                    }
+                    stopOscillatorNote(note);
                 }
             });
         });
@@ -4564,6 +4558,7 @@
                 holdBtn.classList.remove('active');
                 heldNotes.forEach(note => {
                     stopGrainStream(note);
+                    stopOscillatorNote(note);
                     const key = document.querySelector(`.key[data-note="${note}"]`);
                     if (key) key.classList.remove('active');
                 });
