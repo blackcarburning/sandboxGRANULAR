@@ -2341,7 +2341,7 @@
                 if (delayFeedbackGain.gain.value > 1) debug.warnings.push('Delay feedback > 1 (infinite loop)');
             }
             if (tremoloGain) debug.gains.tremoloGain = tremoloGain.gain.value.toFixed(4);
-            if (typeof oscMix !== 'undefined') debug.gains.oscMix = oscMix.toFixed(4);
+            if (typeof oscMix !== 'undefined') debug.gains.oscMix = oscMix.toFixed(4); // oscMix is a numeric variable, not an AudioNode
             if (oscOutputGain) debug.gains.oscOutputGain = oscOutputGain.gain.value.toFixed(4);
             if (granularOutputGain) debug.gains.granularOutputGain = granularOutputGain.gain.value.toFixed(4);
             
@@ -2376,7 +2376,7 @@
             };
             
             // Check for potential issues
-            const totalGain = (debug.gains.masterGain || 1) * (debug.gains.makeupGain || 1);
+            const totalGain = parseFloat(debug.gains.masterGain || 1) * parseFloat(debug.gains.makeupGain || 1);
             if (totalGain > 3) {
                 debug.warnings.push(`Total gain chain: ${totalGain.toFixed(2)} (potential clipping)`);
             }
