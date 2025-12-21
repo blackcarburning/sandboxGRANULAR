@@ -750,11 +750,21 @@
         #osc-tab.active {
             grid-template-columns: repeat(2, 1fr);
             gap: 4px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            max-height: 100%;
+            padding-bottom: 10px;
         }
 
         #seq-tab.active {
             grid-template-columns: repeat(4, 1fr);
             gap: 3px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            max-height: 100%;
+            padding-bottom: 10px;
         }
 
         .seq-step {
@@ -1073,6 +1083,10 @@
                 grid-template-columns: repeat(2, 1fr);
                 gap: 2px;
                 font-size: 7px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
+                max-height: 100%;
             }
 
             #osc-tab .control-group {
@@ -1106,6 +1120,10 @@
             #seq-tab.active {
                 grid-template-columns: repeat(4, 1fr);
                 gap: 2px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
+                max-height: 100%;
             }
 
             #seq-tab .control-group {
@@ -1931,529 +1949,113 @@
                     
                     <!-- 16 Steps -->
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 1</label>
-                        <select id="seqStep1Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3" selected>A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 1 <span id="seqStep1PitchValue">A3</span></label>
+                        <input type="range" id="seqStep1Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
                         <input type="range" id="seqStep1Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="1">ON</button>
                     </div>
                     
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 2</label>
-                        <select id="seqStep2Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4" selected>C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 2 <span id="seqStep2PitchValue">C4</span></label>
+                        <input type="range" id="seqStep2Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
                         <input type="range" id="seqStep2Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="2">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 3</label>
-                        <select id="seqStep3Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3" selected>E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 3 <span id="seqStep3PitchValue">E3</span></label>
+                        <input type="range" id="seqStep3Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
                         <input type="range" id="seqStep3Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="3">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 4</label>
-                        <select id="seqStep4Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3" selected>F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 4 <span id="seqStep4PitchValue">F#3</span></label>
+                        <input type="range" id="seqStep4Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
                         <input type="range" id="seqStep4Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="4">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 5</label>
-                        <select id="seqStep5Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3" selected>A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 5 <span id="seqStep5PitchValue">A3</span></label>
+                        <input type="range" id="seqStep5Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
                         <input type="range" id="seqStep5Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="5">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 6</label>
-                        <select id="seqStep6Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4" selected>C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 6 <span id="seqStep6PitchValue">C4</span></label>
+                        <input type="range" id="seqStep6Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
                         <input type="range" id="seqStep6Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="6">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 7</label>
-                        <select id="seqStep7Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3" selected>E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 7 <span id="seqStep7PitchValue">E3</span></label>
+                        <input type="range" id="seqStep7Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
                         <input type="range" id="seqStep7Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="7">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 8</label>
-                        <select id="seqStep8Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3" selected>F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 8 <span id="seqStep8PitchValue">F#3</span></label>
+                        <input type="range" id="seqStep8Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
                         <input type="range" id="seqStep8Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="8">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 9</label>
-                        <select id="seqStep9Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3" selected>A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 9 <span id="seqStep9PitchValue">A3</span></label>
+                        <input type="range" id="seqStep9Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
                         <input type="range" id="seqStep9Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="9">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 10</label>
-                        <select id="seqStep10Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4" selected>C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 10 <span id="seqStep10PitchValue">C4</span></label>
+                        <input type="range" id="seqStep10Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
                         <input type="range" id="seqStep10Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="10">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 11</label>
-                        <select id="seqStep11Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3" selected>E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 11 <span id="seqStep11PitchValue">E3</span></label>
+                        <input type="range" id="seqStep11Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
                         <input type="range" id="seqStep11Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="11">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 12</label>
-                        <select id="seqStep12Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3" selected>F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 12 <span id="seqStep12PitchValue">F#3</span></label>
+                        <input type="range" id="seqStep12Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
                         <input type="range" id="seqStep12Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="12">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 13</label>
-                        <select id="seqStep13Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3" selected>A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 13 <span id="seqStep13PitchValue">A3</span></label>
+                        <input type="range" id="seqStep13Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
                         <input type="range" id="seqStep13Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="13">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 14</label>
-                        <select id="seqStep14Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4" selected>C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 14 <span id="seqStep14PitchValue">C4</span></label>
+                        <input type="range" id="seqStep14Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
                         <input type="range" id="seqStep14Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="14">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 15</label>
-                        <select id="seqStep15Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3" selected>E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3">F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 15 <span id="seqStep15PitchValue">E3</span></label>
+                        <input type="range" id="seqStep15Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
                         <input type="range" id="seqStep15Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="15">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 16</label>
-                        <select id="seqStep16Pitch" class="seq-pitch">
-                            <option value="C3">C3</option>
-                            <option value="C#3">C#3</option>
-                            <option value="D3">D3</option>
-                            <option value="D#3">D#3</option>
-                            <option value="E3">E3</option>
-                            <option value="F3">F3</option>
-                            <option value="F#3" selected>F#3</option>
-                            <option value="G3">G3</option>
-                            <option value="G#3">G#3</option>
-                            <option value="A3">A3</option>
-                            <option value="A#3">A#3</option>
-                            <option value="B3">B3</option>
-                            <option value="C4">C4</option>
-                            <option value="C#4">C#4</option>
-                            <option value="D4">D4</option>
-                            <option value="D#4">D#4</option>
-                            <option value="E4">E4</option>
-                            <option value="F4">F4</option>
-                            <option value="F#4">F#4</option>
-                            <option value="G4">G4</option>
-                            <option value="G#4">G#4</option>
-                            <option value="A4">A4</option>
-                            <option value="A#4">A#4</option>
-                            <option value="B4">B4</option>
-                            <option value="C5">C5</option>
-                        </select>
+                        <label style="font-size: 9px; color: var(--accent);">Step 16 <span id="seqStep16PitchValue">F#3</span></label>
+                        <input type="range" id="seqStep16Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
                         <input type="range" id="seqStep16Vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="16">ON</button>
                     </div>
@@ -4716,11 +4318,17 @@
             resetSequencer();
         });
 
+        // Note names array for pitch slider conversion
+        const noteNames = ['C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', 'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4', 'C5'];
+
         // Step controls
         for (let i = 1; i <= 16; i++) {
-            // Pitch selector
-            document.getElementById(`seqStep${i}Pitch`).addEventListener('change', (e) => {
-                sequencerSteps[i - 1].pitch = e.target.value;
+            // Pitch slider
+            document.getElementById(`seqStep${i}Pitch`).addEventListener('input', (e) => {
+                const sliderValue = parseInt(e.target.value);
+                const noteName = noteNames[sliderValue];
+                sequencerSteps[i - 1].pitch = noteName;
+                document.getElementById(`seqStep${i}PitchValue`).textContent = noteName;
             });
 
             // Volume slider
