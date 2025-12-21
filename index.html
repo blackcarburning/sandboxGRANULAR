@@ -3733,6 +3733,24 @@
 
             // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
+            
+            // Track how many sources need to finish before cleaning up common nodes
+            let sourcesRemaining = 0;
+            
+            // Cleanup function for common nodes (mixer, envelope, panner)
+            const cleanupCommonNodes = () => {
+                sourcesRemaining--;
+                if (sourcesRemaining === 0) {
+                    activeGrainNodes--;
+                    try {
+                        mixer.disconnect();
+                        envelope.disconnect();
+                        panner.disconnect();
+                    } catch(e) {
+                        // Node may already be disconnected
+                    }
+                }
+            };
 
             // Create sample source if available and needed
             if (audioBuffer && noiseMix < 1.0) {
@@ -3769,6 +3787,8 @@
 
                 source.connect(sampleGain);
                 sampleGain.connect(mixer);
+                
+                sourcesRemaining++; // Track this source
 
                 const now = audioContext.currentTime;
                 const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
@@ -3801,6 +3821,8 @@
 
                 noiseSource.connect(noiseGain);
                 noiseGain.connect(mixer);
+                
+                sourcesRemaining++; // Track this source
 
                 const now = audioContext.currentTime;
                 const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
@@ -3831,24 +3853,6 @@
             envelope.gain.linearRampToValueAtTime(volumeMultiplier, now + attack);
             envelope.gain.setValueAtTime(volumeMultiplier, now + attack + sustainTime);
             envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
-            
-            // Track how many sources need to finish before cleaning up common nodes
-            let sourcesRemaining = (source ? 1 : 0) + (noiseSource ? 1 : 0);
-            
-            // Cleanup function for common nodes (mixer, envelope, panner)
-            const cleanupCommonNodes = () => {
-                sourcesRemaining--;
-                if (sourcesRemaining === 0) {
-                    activeGrainNodes--;
-                    try {
-                        mixer.disconnect();
-                        envelope.disconnect();
-                        panner.disconnect();
-                    } catch(e) {
-                        // Node may already be disconnected
-                    }
-                }
-            };
             
             // If no sources were created at all, clean up immediately after envelope
             if (sourcesRemaining === 0) {
