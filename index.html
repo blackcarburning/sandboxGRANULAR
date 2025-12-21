@@ -2768,11 +2768,13 @@
             makeupGain.gain.value = 1.5; // Compensate for filter and effect losses (reduced from 2.0 for headroom)
 
             // Create separate gain nodes for oscillator and granular outputs
+            // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
+            const initialOscMix = 0.5;
             oscOutputGain = audioContext.createGain();
-            oscOutputGain.gain.value = 0.5;
+            oscOutputGain.gain.value = Math.sqrt(initialOscMix) * 0.8;
             
             granularOutputGain = audioContext.createGain();
-            granularOutputGain.gain.value = 0.5;
+            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * 0.8;
             
             // Connect both to the filter chain input
             oscOutputGain.connect(hpfNodes[0]);
