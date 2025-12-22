@@ -533,6 +533,17 @@
             box-shadow: 0 0 16px var(--accent-glow), 0 0 4px rgba(255, 255, 255, 0.5);
         }
 
+        /* Number Input Styling */
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         /* Keyboard Section */
         .keyboard-section {
             flex: 1;
@@ -1390,6 +1401,18 @@
                         </label>
                         <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
                     </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Grain Tune</span>
+                            <span class="value" id="grainTuneValue">0st</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="grainTune" data-lfo="1">L1</button>
+                                <button class="lfo-toggle" data-param="grainTune" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="grainTune" data-lfo="1">INV</button>
+                            </div>
+                        </label>
+                        <input type="range" id="grainTune" min="-24" max="24" value="0" step="1">
+                    </div>
                 </div>
 
                 <!-- Filter Tab -->
@@ -2010,12 +2033,18 @@
                 <!-- SEQ Tab -->
                 <div class="tab-content" id="seq-tab">
                     <!-- Global Controls -->
-                    <div class="control-group" style="grid-column: span 2;">
+                    <div class="control-group">
                         <label>
                             <span class="param-name">BPM</span>
-                            <span class="value" id="seqBpmValue">120</span>
                         </label>
-                        <input type="range" id="seqBpm" min="40" max="240" value="120" step="1">
+                        <input type="number" id="seqBpm" min="20" max="300" value="120" step="1" style="width: 100%; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 4px; color: var(--accent); font-size: 12px; text-align: center;">
+                    </div>
+
+                    <div class="control-group">
+                        <label style="justify-content: flex-start; gap: 8px;">
+                            <input type="checkbox" id="seqGrainsEnabled" checked>
+                            <span class="param-name">Seq Grains</span>
+                        </label>
                     </div>
                     
                     <div class="control-group">
@@ -2554,6 +2583,7 @@
         let activeGrains = new Map();
         let activeGrainNodes = 0;
         const MAX_GRAIN_NODES = 100; // Prevent runaway node creation
+        let currentGrainNote = null; // Track currently playing grain for monophonic mode
         let octaveOffset = 0;
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
@@ -2662,6 +2692,7 @@
         let sequencerSteps = [];
         let sequencerNextStepTime = 0;
         let sequencerTimerId = null;
+        let seqGrainsEnabled = true; // Track if sequencer should trigger grains
         const SCHEDULE_AHEAD_TIME = 0.1; // Schedule 100ms ahead
         const SCHEDULER_INTERVAL = 25; // Check every 25ms
         
@@ -2688,6 +2719,7 @@
             attack: { min: 1, max: 5000 },
             release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
+            grainTune: { min: -24, max: 24 },
             panSpread: { min: 0, max: 100 },
             reverb: { min: 0, max: 100 },
             volume: { min: 0, max: 100 },
@@ -3737,7 +3769,14 @@
             const octaveMultiplier = Math.pow(2, octaveOffset);
             let rate = (noteFreq / baseFrequency) * octaveMultiplier;
             // Add Pitch Randomness
-            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1); 
+            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1);
+            
+            // Get grain tuning in semitones and convert to rate multiplier
+            const grainTuneSemitones = getModulatedValue('grainTune') || 0;
+            const tuningMultiplier = Math.pow(2, grainTuneSemitones / 12);
+            
+            // Apply tuning to rate
+            const finalRate = rate * tuningMultiplier;
 
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
@@ -3823,7 +3862,7 @@
 
                 source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
-                source.playbackRate.value = rate;
+                source.playbackRate.value = finalRate;
                 source.loop = true; // Enable looping
 
                 sampleGain = audioContext.createGain();
@@ -3857,7 +3896,7 @@
             if (noiseType !== 'none' && noiseMix > 0) {
                 noiseSource = audioContext.createBufferSource();
                 noiseSource.buffer = noiseType === 'white' ? whiteNoiseBuffer : pinkNoiseBuffer;
-                noiseSource.playbackRate.value = rate;
+                noiseSource.playbackRate.value = finalRate;
                 noiseSource.loop = true;
 
                 noiseGain = audioContext.createGain();
@@ -3915,7 +3954,16 @@
         // --- Scheduler ---
         function startGrainStream(note) {
             if (!canPlayGrains()) return;
-            if (activeGrains.has(note)) return; // Already playing
+            
+            // Monophonic mode: stop any currently playing grain before starting new one
+            if (currentGrainNote !== null && currentGrainNote !== note) {
+                stopGrainStream(currentGrainNote);
+            }
+            
+            // If this note is already playing, don't restart it
+            if (activeGrains.has(note)) return;
+            
+            currentGrainNote = note;
 
             const grainState = { timeoutId: null, startTime: audioContext.currentTime };
             
@@ -3948,6 +3996,11 @@
             if (activeGrains.has(note)) {
                 const grainInfo = activeGrains.get(note);
                 grainInfo.cancel();
+                
+                // Clear current note if this was it
+                if (currentGrainNote === note) {
+                    currentGrainNote = null;
+                }
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
@@ -4135,11 +4188,21 @@
                 const prevStep = sequencerSteps[prevStepIndex];
                 if (prevStep.enabled) {
                     stopOscillatorNote(prevStep.pitch, scheduledTime);
+                    
+                    // Stop previous grain if grain sequencing is enabled
+                    if (seqGrainsEnabled) {
+                        stopGrainStream(prevStep.pitch);
+                    }
                 }
                 
                 // Play current step at scheduled time
                 if (step.enabled) {
                     playOscillatorNote(step.pitch, scheduledTime);
+                    
+                    // Start grain for this step if grain sequencing is enabled
+                    if (seqGrainsEnabled) {
+                        startGrainStream(step.pitch);
+                    }
                 }
                 
                 // Update visual indicator (deferred to not block audio)
@@ -4174,6 +4237,11 @@
             }
             
             stopAllOscillators();
+            
+            // Also stop all grains when sequencer stops
+            if (seqGrainsEnabled) {
+                stopAllGrains();
+            }
             
             document.querySelectorAll('.seq-step').forEach(el => {
                 el.style.backgroundColor = '';
@@ -4332,6 +4400,13 @@
                     const labelSpan = document.getElementById('delayBpmValue');
                     if (labelSpan) {
                         labelSpan.textContent = e.target.value;
+                    }
+                } else if (e.target.id === 'grainTune') {
+                    // Update grain tune display with + for positive values
+                    const labelSpan = document.getElementById('grainTuneValue');
+                    if (labelSpan) {
+                        const value = parseInt(e.target.value);
+                        labelSpan.textContent = `${value > 0 ? '+' : ''}${value}st`;
                     }
                 } else {
                     // Update text label
@@ -4866,10 +4941,22 @@
 
         // --- SEQ Tab Controls ---
         document.getElementById('seqBpm').addEventListener('input', (e) => {
-            sequencerBPM = parseFloat(e.target.value);
-            document.getElementById('seqBpmValue').textContent = e.target.value; // Just the number, no %
-            
-            // No need to restart - Web Audio scheduling will pick up new BPM automatically
+            const value = parseInt(e.target.value);
+            if (value >= 20 && value <= 300) {
+                sequencerBPM = value;
+            }
+        });
+
+        // Also handle change event for when user types and presses enter
+        document.getElementById('seqBpm').addEventListener('change', (e) => {
+            let value = parseInt(e.target.value);
+            value = Math.max(20, Math.min(300, value)); // Clamp
+            e.target.value = value;
+            sequencerBPM = value;
+        });
+
+        document.getElementById('seqGrainsEnabled').addEventListener('change', (e) => {
+            seqGrainsEnabled = e.target.checked;
         });
 
         document.getElementById('seqPlayBtn').addEventListener('click', () => {
