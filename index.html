@@ -3756,40 +3756,79 @@
             }
             activeGrainNodes++;
 
-            // Params with LFO modulation
-            const grainSize = getModulatedValue('grainSize') / 1000; // seconds
-            const attack = getModulatedValue('attack') / 1000;
-            const release = getModulatedValue('release') / 1000;
-            const spray = getModulatedValue('spray') / 100;
-            const pitchVar = getModulatedValue('pitchVar') / 100;
-            const panSpread = getModulatedValue('panSpread') / 100;
-            const noiseMix = getModulatedValue('noiseMix') / 100;
-
-            // Pitch Calculation with octave offset
+            // Validate note frequency exists
             const noteFreq = noteFrequencies[note];
-            const octaveMultiplier = Math.pow(2, octaveOffset);
+            if (!noteFreq || !isFinite(noteFreq)) {
+                console.warn('Invalid note frequency for:', note);
+                activeGrainNodes = Math.max(0, activeGrainNodes - 1);
+                return; // Exit early - can't play without valid frequency
+            }
+
+            // Params with LFO modulation - with safety defaults
+            const grainSizeRaw = getModulatedValue('grainSize');
+            const grainSize = (typeof grainSizeRaw === 'number' && isFinite(grainSizeRaw) && grainSizeRaw > 0) 
+                ? grainSizeRaw / 1000 
+                : 0.1; // 100ms default
+            
+            const attackRaw = getModulatedValue('attack');
+            const attack = (typeof attackRaw === 'number' && isFinite(attackRaw) && attackRaw >= 0) 
+                ? attackRaw / 1000 
+                : 0.01; // 10ms default
+            
+            const releaseRaw = getModulatedValue('release');
+            const release = (typeof releaseRaw === 'number' && isFinite(releaseRaw) && releaseRaw >= 0) 
+                ? releaseRaw / 1000 
+                : 0.01; // 10ms default
+            
+            const sprayRaw = getModulatedValue('spray');
+            const spray = (typeof sprayRaw === 'number' && isFinite(sprayRaw)) 
+                ? sprayRaw / 100 
+                : 0;
+            
+            const pitchVarRaw = getModulatedValue('pitchVar');
+            const pitchVar = (typeof pitchVarRaw === 'number' && isFinite(pitchVarRaw)) 
+                ? pitchVarRaw / 100 
+                : 0;
+            
+            const panSpreadRaw = getModulatedValue('panSpread');
+            const panSpread = (typeof panSpreadRaw === 'number' && isFinite(panSpreadRaw)) 
+                ? panSpreadRaw / 100 
+                : 0;
+            
+            const noiseMixRaw = getModulatedValue('noiseMix');
+            const noiseMix = (typeof noiseMixRaw === 'number' && isFinite(noiseMixRaw)) 
+                ? noiseMixRaw / 100 
+                : 0;
+
+            // Pitch Calculation with octave offset - with validation
+            const octaveMultiplier = Math.pow(2, octaveOffset || 0);
             let rate = (noteFreq / baseFrequency) * octaveMultiplier;
+            
             // Add Pitch Randomness
             rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1);
             
-            // Get grain tuning - with safety check for undefined/NaN
+            // Get grain tuning - with safety check
             const grainTuneRaw = getModulatedValue('grainTune');
-            const grainTuneSemitones = (typeof grainTuneRaw === 'number' && isFinite(grainTuneRaw)) ? grainTuneRaw : 0;
+            const grainTuneSemitones = (typeof grainTuneRaw === 'number' && isFinite(grainTuneRaw)) 
+                ? grainTuneRaw 
+                : 0;
             const tuningMultiplier = Math.pow(2, grainTuneSemitones / 12);
             
-            // Apply tuning to rate
+            // Calculate final rate with tuning
             const finalRate = rate * tuningMultiplier;
-
-            const envelope = audioContext.createGain();
-            const panner = audioContext.createStereoPanner();
-            const mixer = audioContext.createGain();
             
-            // Declare source nodes that will need cleanup
-            let source = null;
-            let sampleGain = null;
-            let noiseSource = null;
-            let noiseGain = null;
+            // Validate final rate
+            if (!isFinite(finalRate) || finalRate <= 0) {
+                console.warn('Invalid final rate calculated:', finalRate, 'for note:', note);
+                activeGrainNodes = Math.max(0, activeGrainNodes - 1);
+                return; // Exit early
+            }
 
+            // Volume multiplier with validation
+            const volumeBiasValue = typeof keyboardVolumeBias === 'number' && isFinite(keyboardVolumeBias) 
+                ? keyboardVolumeBias 
+                : 0;
+            
             // Calculate keyboard volume bias based on note pitch
             // Map note frequency to a 0-1 range (using log scale for better distribution)
             const minFreq = 32.70; // C1
@@ -3801,20 +3840,36 @@
             //             at bias=+1, treble loud (low pitch = 0.3, high pitch = 1.0)
             //             at bias=0, equal volume (all = 1.0)
             let volumeMultiplier = 1.0;
-            if (keyboardVolumeBias !== 0) {
+            if (volumeBiasValue !== 0) {
                 // Linear interpolation based on pitch position and bias
                 // At center (bias=0): all notes = 1.0
                 // At extremes: range from 0.3 to 1.0
                 const range = 0.7; // Volume range (1.0 - 0.3)
                 const minVol = 0.3;
-                if (keyboardVolumeBias < 0) {
+                if (volumeBiasValue < 0) {
                     // Bass emphasis: low notes loud, high notes quiet
-                    volumeMultiplier = minVol + range * (1 - normalizedPitch * Math.abs(keyboardVolumeBias));
+                    volumeMultiplier = minVol + range * (1 - normalizedPitch * Math.abs(volumeBiasValue));
                 } else {
                     // Treble emphasis: high notes loud, low notes quiet
-                    volumeMultiplier = minVol + range * (normalizedPitch * keyboardVolumeBias + (1 - keyboardVolumeBias));
+                    volumeMultiplier = minVol + range * (normalizedPitch * volumeBiasValue + (1 - volumeBiasValue));
                 }
             }
+            
+            if (!isFinite(volumeMultiplier) || volumeMultiplier < 0) {
+                console.warn('Invalid volume multiplier:', volumeMultiplier);
+                activeGrainNodes = Math.max(0, activeGrainNodes - 1);
+                return; // Exit early
+            }
+
+            const envelope = audioContext.createGain();
+            const panner = audioContext.createStereoPanner();
+            const mixer = audioContext.createGain();
+            
+            // Declare source nodes that will need cleanup
+            let source = null;
+            let sampleGain = null;
+            let noiseSource = null;
+            let noiseGain = null;
 
             // Random Pan
             panner.pan.value = (Math.random() * 2 - 1) * panSpread;
@@ -3939,9 +3994,25 @@
             envelope.connect(panner);
             panner.connect(granularOutputGain);
 
-            // Envelope - extend to include release time, scaled by volume multiplier
+            // Envelope - with validated values
             const now = audioContext.currentTime;
             const sustainTime = Math.max(grainSize - attack, 0.001); // Ensure positive sustain duration
+
+            // Final validation before AudioParam assignments
+            if (!isFinite(volumeMultiplier) || !isFinite(attack) || !isFinite(sustainTime) || !isFinite(release)) {
+                console.warn('Invalid envelope values - skipping grain');
+                activeGrainNodes = Math.max(0, activeGrainNodes - 1);
+                // Cleanup nodes that were already created
+                try {
+                    mixer.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                } catch(e) {
+                    // Node may already be disconnected
+                }
+                return;
+            }
+
             envelope.gain.setValueAtTime(0, now);
             envelope.gain.linearRampToValueAtTime(volumeMultiplier, now + attack);
             envelope.gain.setValueAtTime(volumeMultiplier, now + attack + sustainTime);
