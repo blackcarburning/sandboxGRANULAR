@@ -677,8 +677,9 @@
 
         .volume-bias-container input[type="range"] {
             width: 70px;
-            writing-mode: vertical-rl;
-            -webkit-appearance: slider-vertical;
+            writing-mode: vertical-lr;
+            direction: rtl;
+            appearance: none;
             height: 70px;
             padding: 0 6px; /* Horizontal padding for vertical slider */
             touch-action: pan-y; /* Allow vertical panning for vertical slider */
@@ -2630,6 +2631,10 @@
         let sequencerInterval = null;
         let sequencerBPM = 120;
         let sequencerSteps = [];
+        let sequencerNextStepTime = 0;
+        let sequencerTimerId = null;
+        const SCHEDULE_AHEAD_TIME = 0.1; // Schedule 100ms ahead
+        const SCHEDULER_INTERVAL = 25; // Check every 25ms
         
         // Initialize sequencer steps
         for (let i = 1; i <= 16; i++) {
@@ -3253,167 +3258,89 @@
             if (!audioContext || audioContext.state !== 'running') return;
             if (!dryGainNode) return;
             
+            const now = audioContext.currentTime;
+            const rampTime = 0.05; // 50ms smooth ramp
+            
+            // Helper function for smooth parameter updates
+            function smoothRamp(audioParam, targetValue) {
+                audioParam.cancelScheduledValues(now);
+                audioParam.setValueAtTime(audioParam.value, now);
+                audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
+            }
+            
             const reverbAmt = getModulatedValue('reverb') / 100;
             const volAmt = getModulatedValue('volume') / 100;
             
-            // Get current time once for all scheduled changes in this update
-            // This ensures all parameter changes are synchronized
-            const now = audioContext.currentTime;
-            const rampTime = 0.05; // 50ms smooth ramp - eliminates clicks
+            // Dry/Wet gains
+            smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.4));
+            smoothRamp(wetGainNode.gain, reverbAmt);
             
-            // Improved dry/wet mix - maintain better unity gain
-            // Use smooth ramping to prevent clicks and pops
-            dryGainNode.gain.cancelScheduledValues(now);
-            dryGainNode.gain.setValueAtTime(dryGainNode.gain.value, now);
-            dryGainNode.gain.linearRampToValueAtTime(Math.cos(reverbAmt * Math.PI / 2), now + rampTime);
+            // Master gain
+            smoothRamp(masterGain.gain, volAmt);
             
-            wetGainNode.gain.cancelScheduledValues(now);
-            wetGainNode.gain.setValueAtTime(wetGainNode.gain.value, now);
-            wetGainNode.gain.linearRampToValueAtTime(Math.sin(reverbAmt * Math.PI / 2) * 0.5, now + rampTime);
-            
-            masterGain.gain.cancelScheduledValues(now);
-            masterGain.gain.setValueAtTime(masterGain.gain.value, now);
-            masterGain.gain.linearRampToValueAtTime(volAmt, now + rampTime);
-
-            // Update distortion
-            if (distortionNode) {
-                const distortionAmt = getModulatedValue('distortion') / 100;
-                distortionNode.curve = makeDistortionCurve(distortionAmt);
-            }
-
-            // Update phaser
-            if (phaserLFO && phaserLFOGain && phaserNodes.length > 0) {
-                const phaserRateBPM = getModulatedValue('phaserRate');
-                const phaserRateHz = phaserRateBPM / 60; // Convert BPM to Hz
-                const phaserDepth = getModulatedValue('phaserDepth') / 100;
-                
-                phaserLFO.frequency.cancelScheduledValues(now);
-                phaserLFO.frequency.setValueAtTime(phaserLFO.frequency.value, now);
-                phaserLFO.frequency.linearRampToValueAtTime(phaserRateHz, now + rampTime);
-                
-                // Control depth via LFO gain - modulates all-pass filter frequencies
-                phaserLFOGain.gain.cancelScheduledValues(now);
-                phaserLFOGain.gain.setValueAtTime(phaserLFOGain.gain.value, now);
-                phaserLFOGain.gain.linearRampToValueAtTime(phaserDepth * 1000, now + rampTime);
-                
-                // Update base frequency and Q for phaser nodes
-                const baseFreq = 1000;
-                phaserNodes.forEach((node, i) => {
-                    node.frequency.cancelScheduledValues(now);
-                    node.frequency.setValueAtTime(node.frequency.value, now);
-                    node.frequency.linearRampToValueAtTime(baseFreq * (i + 1), now + rampTime);
-                    
-                    node.Q.cancelScheduledValues(now);
-                    node.Q.setValueAtTime(node.Q.value, now);
-                    node.Q.linearRampToValueAtTime(1 + (phaserDepth * 10), now + rampTime);
-                });
-            }
-
-            // Update tremolo
-            if (tremoloLFO && tremoloLFOGain) {
-                const tremoloRateBPM = getModulatedValue('tremoloRate');
-                const tremoloRateHz = tremoloRateBPM / 60; // Convert BPM to Hz
-                const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
-                
-                tremoloLFO.frequency.cancelScheduledValues(now);
-                tremoloLFO.frequency.setValueAtTime(tremoloLFO.frequency.value, now);
-                tremoloLFO.frequency.linearRampToValueAtTime(tremoloRateHz, now + rampTime);
-                
-                // Control tremolo depth via LFO gain - modulates output gain
-                // With depth=0, no modulation; with depth=1, full amplitude modulation
-                tremoloLFOGain.gain.cancelScheduledValues(now);
-                tremoloLFOGain.gain.setValueAtTime(tremoloLFOGain.gain.value, now);
-                tremoloLFOGain.gain.linearRampToValueAtTime(tremoloDepth, now + rampTime);
-            }
-
-            // Update filters - these are especially prone to causing clicks
-            if (lpfNodes.length > 0) {
+            // Filters
+            if (lpfNodes && lpfNodes.length > 0) {
                 const lpfCutoff = getModulatedValue('lpfCutoff');
                 const lpfQ = getModulatedValue('lpfQ');
                 lpfNodes.forEach(node => {
-                    node.frequency.cancelScheduledValues(now);
-                    node.frequency.setValueAtTime(node.frequency.value, now);
-                    node.frequency.linearRampToValueAtTime(lpfCutoff, now + rampTime);
-                    
-                    node.Q.cancelScheduledValues(now);
-                    node.Q.setValueAtTime(node.Q.value, now);
-                    node.Q.linearRampToValueAtTime(lpfQ, now + rampTime);
+                    smoothRamp(node.frequency, lpfCutoff);
+                    smoothRamp(node.Q, lpfQ);
                 });
             }
 
-            if (hpfNodes.length > 0) {
+            if (hpfNodes && hpfNodes.length > 0) {
                 const hpfCutoff = getModulatedValue('hpfCutoff');
                 const hpfQ = getModulatedValue('hpfQ');
                 hpfNodes.forEach(node => {
-                    node.frequency.cancelScheduledValues(now);
-                    node.frequency.setValueAtTime(node.frequency.value, now);
-                    node.frequency.linearRampToValueAtTime(hpfCutoff, now + rampTime);
-                    
-                    node.Q.cancelScheduledValues(now);
-                    node.Q.setValueAtTime(node.Q.value, now);
-                    node.Q.linearRampToValueAtTime(hpfQ, now + rampTime);
+                    smoothRamp(node.frequency, hpfCutoff);
+                    smoothRamp(node.Q, hpfQ);
                 });
             }
-
-            // Update BPM-synced delay
+            
+            // Delay parameters
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
-                const bpm = parseFloat(document.getElementById('delayBpm').value);
-                const division = document.getElementById('delayDivision').value;
+                const bpm = parseFloat(document.getElementById('delayBpm')?.value) || 120;
+                const division = document.getElementById('delayDivision')?.value || '4';
                 const feedback = getModulatedValue('delayFeedback') / 100;
                 const mix = getModulatedValue('delayMix') / 100;
                 
-                // Calculate delay time from BPM and division
-                // Quarter note = 60000ms / BPM
-                let delayTime = (60000 / bpm) / 1000; // Convert to seconds
-                
-                // Apply division with proper dotted and triplet handling
+                let delayTime = 60 / bpm;
                 if (division.includes('d')) {
-                    // Dotted: multiply by 1.5 (add half the value)
                     const baseDivision = parseFloat(division.replace('d', ''));
                     delayTime = (delayTime / baseDivision) * 1.5;
                 } else if (division.includes('t')) {
-                    // Triplet: multiply by 2/3
                     const baseDivision = parseFloat(division.replace('t', ''));
                     delayTime = (delayTime / baseDivision) * (2/3);
                 } else {
-                    // Standard division
                     delayTime = delayTime / parseFloat(division);
                 }
-                
-                // Clamp delay time to safe range (10ms to 5s)
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
                 
-                delayNode.delayTime.cancelScheduledValues(now);
-                delayNode.delayTime.setValueAtTime(delayNode.delayTime.value, now);
-                delayNode.delayTime.linearRampToValueAtTime(delayTime, now + rampTime);
-                
-                // Update feedback (0 to MAX_DELAY_FEEDBACK for stability)
-                delayFeedbackGain.gain.cancelScheduledValues(now);
-                delayFeedbackGain.gain.setValueAtTime(delayFeedbackGain.gain.value, now);
-                delayFeedbackGain.gain.linearRampToValueAtTime(feedback * MAX_DELAY_FEEDBACK, now + rampTime);
-                
-                // Update mix (equal-power crossfade)
-                delayWetGain.gain.cancelScheduledValues(now);
-                delayWetGain.gain.setValueAtTime(delayWetGain.gain.value, now);
-                delayWetGain.gain.linearRampToValueAtTime(Math.sin(mix * Math.PI / 2), now + rampTime);
-                
-                delayDryGain.gain.cancelScheduledValues(now);
-                delayDryGain.gain.setValueAtTime(delayDryGain.gain.value, now);
-                delayDryGain.gain.linearRampToValueAtTime(Math.cos(mix * Math.PI / 2), now + rampTime);
+                const MAX_FEEDBACK = 0.95;
+                smoothRamp(delayNode.delayTime, delayTime);
+                smoothRamp(delayFeedbackGain.gain, feedback * MAX_FEEDBACK);
+                smoothRamp(delayWetGain.gain, Math.sin(mix * Math.PI / 2));
+                smoothRamp(delayDryGain.gain, Math.cos(mix * Math.PI / 2));
             }
-
-            // Update LFO3 (Stereo Tremolo) with LFO modulation
-            if (lfo3Oscillator && lfo3DepthGain) {
-                const modulatedRate = getModulatedValue('lfo3Rate');
-                const modulatedDepth = getModulatedValue('lfo3Depth') / 100;
-                
-                lfo3Oscillator.frequency.cancelScheduledValues(now);
-                lfo3Oscillator.frequency.setValueAtTime(lfo3Oscillator.frequency.value, now);
-                lfo3Oscillator.frequency.linearRampToValueAtTime(modulatedRate, now + rampTime);
-                
-                lfo3DepthGain.gain.cancelScheduledValues(now);
-                lfo3DepthGain.gain.setValueAtTime(lfo3DepthGain.gain.value, now);
-                lfo3DepthGain.gain.linearRampToValueAtTime(modulatedDepth, now + rampTime);
+            
+            // Phaser depth
+            if (phaserLFOGain) {
+                const phaserDepth = getModulatedValue('phaserDepth');
+                smoothRamp(phaserLFOGain.gain, phaserDepth);
+            }
+            
+            // Tremolo
+            if (tremoloLFOGain && tremoloGain) {
+                const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
+                smoothRamp(tremoloLFOGain.gain, tremoloDepth * 0.5);
+            }
+            
+            // Distortion
+            if (distortionNode) {
+                const distAmt = getModulatedValue('distortion') / 100;
+                if (distAmt > 0) {
+                    distortionNode.curve = makeDistortionCurve(distAmt);
+                }
             }
         }
 
@@ -4124,59 +4051,66 @@
             if (sequencerPlaying) return;
             sequencerPlaying = true;
             sequencerCurrentStep = 0;
+            sequencerNextStepTime = audioContext.currentTime;
             
-            const stepDuration = (60 / sequencerBPM) * 1000 / 4; // 16th notes
+            document.getElementById('seqPlayBtn').classList.add('playing');
+            document.getElementById('seqPlayBtn').textContent = 'STOP';
             
-            sequencerInterval = setInterval(() => {
-                // Stop previous step
-                if (sequencerCurrentStep > 0) {
-                    const prevStep = sequencerSteps[sequencerCurrentStep - 1];
-                    if (prevStep.enabled) {
-                        stopOscillatorNote(prevStep.pitch);
-                    }
-                } else if (sequencerCurrentStep === 0) {
-                    const prevStep = sequencerSteps[15];
-                    if (prevStep.enabled) {
-                        stopOscillatorNote(prevStep.pitch);
-                    }
+            scheduleSequencer();
+        }
+
+        function scheduleSequencer() {
+            const stepDuration = (60 / sequencerBPM) / 4; // 16th notes in seconds
+            
+            while (sequencerNextStepTime < audioContext.currentTime + SCHEDULE_AHEAD_TIME) {
+                // Schedule note at precise time
+                const step = sequencerSteps[sequencerCurrentStep];
+                
+                // Stop previous note
+                const prevStepIndex = (sequencerCurrentStep - 1 + 16) % 16;
+                const prevStep = sequencerSteps[prevStepIndex];
+                if (prevStep.enabled) {
+                    stopOscillatorNote(prevStep.pitch);
                 }
                 
                 // Play current step
-                const step = sequencerSteps[sequencerCurrentStep];
                 if (step.enabled) {
                     playOscillatorNote(step.pitch);
                 }
                 
-                // Update visual indicator
-                document.querySelectorAll('.seq-step').forEach((el, idx) => {
-                    if (idx === sequencerCurrentStep) {
-                        el.style.backgroundColor = 'rgba(0, 212, 255, 0.3)';
-                    } else {
-                        el.style.backgroundColor = '';
-                    }
-                });
+                // Update visual indicator (deferred to not block audio)
+                const currentStepForVisual = sequencerCurrentStep;
+                setTimeout(() => {
+                    document.querySelectorAll('.seq-step').forEach((el, idx) => {
+                        if (idx === currentStepForVisual) {
+                            el.style.backgroundColor = 'rgba(0, 212, 255, 0.3)';
+                        } else {
+                            el.style.backgroundColor = '';
+                        }
+                    });
+                }, 0);
                 
-                // Advance to next step
+                // Advance
+                sequencerNextStepTime += stepDuration;
                 sequencerCurrentStep = (sequencerCurrentStep + 1) % 16;
-            }, stepDuration);
+            }
             
-            document.getElementById('seqPlayBtn').classList.add('playing');
-            document.getElementById('seqPlayBtn').textContent = 'STOP';
+            if (sequencerPlaying) {
+                sequencerTimerId = setTimeout(scheduleSequencer, SCHEDULER_INTERVAL);
+            }
         }
 
         function stopSequencer() {
             if (!sequencerPlaying) return;
             sequencerPlaying = false;
             
-            if (sequencerInterval) {
-                clearInterval(sequencerInterval);
-                sequencerInterval = null;
+            if (sequencerTimerId) {
+                clearTimeout(sequencerTimerId);
+                sequencerTimerId = null;
             }
             
-            // Stop all oscillators
             stopAllOscillators();
             
-            // Clear visual indicators
             document.querySelectorAll('.seq-step').forEach(el => {
                 el.style.backgroundColor = '';
             });
@@ -4810,13 +4744,9 @@
         // --- SEQ Tab Controls ---
         document.getElementById('seqBpm').addEventListener('input', (e) => {
             sequencerBPM = parseFloat(e.target.value);
-            document.getElementById('seqBpmValue').textContent = e.target.value;
+            document.getElementById('seqBpmValue').textContent = e.target.value; // Just the number, no %
             
-            // Restart sequencer if playing to apply new BPM
-            if (sequencerPlaying) {
-                stopSequencer();
-                startSequencer();
-            }
+            // No need to restart - Web Audio scheduling will pick up new BPM automatically
         });
 
         document.getElementById('seqPlayBtn').addEventListener('click', () => {
