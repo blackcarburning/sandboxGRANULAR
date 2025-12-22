@@ -1500,7 +1500,7 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Pre-Filter Gain</span>
-                            <span class="value" id="preFilterGainValue">0dB</span>
+                            <span class="value" id="preFilterGainValue">+0.0dB</span>
                         </label>
                         <input type="range" id="preFilterGain" min="-12" max="12" value="0" step="0.5">
                     </div>
@@ -4829,20 +4829,21 @@
                 preFilterGainNode.gain.setValueAtTime(preFilterGainNode.gain.value, now);
                 preFilterGainNode.gain.linearRampToValueAtTime(linearValue, now + 0.05);
             }
-            document.getElementById('preFilterGainValue').textContent = `${dbValue > 0 ? '+' : ''}${dbValue}dB`;
+            document.getElementById('preFilterGainValue').textContent = `${dbValue > 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
         });
 
         // Post-Filter Makeup Gain
         document.getElementById('postFilterGain').addEventListener('input', (e) => {
             const dbValue = parseFloat(e.target.value);
             const linearValue = Math.pow(10, dbValue / 20);
-            if (makeupGain && audioContext && !document.getElementById('autoMakeupGain').checked) {
+            const isAutoMakeupDisabled = !document.getElementById('autoMakeupGain').checked;
+            if (makeupGain && audioContext && isAutoMakeupDisabled) {
                 const now = audioContext.currentTime;
                 makeupGain.gain.cancelScheduledValues(now);
                 makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
                 makeupGain.gain.linearRampToValueAtTime(linearValue, now + 0.05);
             }
-            document.getElementById('postFilterGainValue').textContent = `+${dbValue}dB`;
+            document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
         });
 
         // Auto Makeup Checkbox
