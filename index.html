@@ -1495,6 +1495,32 @@
                         </label>
                         <input type="range" id="filterEnvRelease" min="1" max="5000" value="100" step="1">
                     </div>
+                    
+                    <!-- Pre-Filter Gain -->
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Pre-Filter Gain</span>
+                            <span class="value" id="preFilterGainValue">0dB</span>
+                        </label>
+                        <input type="range" id="preFilterGain" min="-12" max="12" value="0" step="0.5">
+                    </div>
+
+                    <!-- Post-Filter Makeup Gain -->
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Makeup Gain</span>
+                            <span class="value" id="postFilterGainValue">0dB</span>
+                        </label>
+                        <input type="range" id="postFilterGain" min="0" max="24" value="3" step="0.5">
+                    </div>
+
+                    <!-- Auto Makeup Checkbox -->
+                    <div class="control-group">
+                        <label style="justify-content: flex-start; gap: 8px;">
+                            <input type="checkbox" id="autoMakeupGain" checked>
+                            <span class="param-name">Auto Makeup</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Noise Tab -->
@@ -2329,12 +2355,14 @@
                 debug.gains.masterGain = masterGain.gain.value.toFixed(4);
                 if (masterGain.gain.value > 1) debug.warnings.push('masterGain > 1 (clipping risk)');
             }
+            if (preFilterGainNode) debug.gains.preFilterGain = preFilterGainNode.gain.value.toFixed(4);
             if (dryGainNode) debug.gains.dryGain = dryGainNode.gain.value.toFixed(4);
             if (wetGainNode) debug.gains.wetGain = wetGainNode.gain.value.toFixed(4);
             if (makeupGain) {
                 debug.gains.makeupGain = makeupGain.gain.value.toFixed(4);
                 if (makeupGain.gain.value > 2) debug.warnings.push('makeupGain > 2 (high amplification)');
             }
+            debug.gains.autoMakeupEnabled = document.getElementById('autoMakeupGain')?.checked || false;
             if (delayWetGain) debug.gains.delayWetGain = delayWetGain.gain.value.toFixed(4);
             if (delayDryGain) debug.gains.delayDryGain = delayDryGain.gain.value.toFixed(4);
             if (delayFeedbackGain) {
@@ -2552,6 +2580,7 @@
         let tremoloLFO = null;
         let tremoloLFOGain = null;
         let makeupGain = null; // Compensation for filter losses
+        let preFilterGainNode = null; // Pre-filter gain control
         let oscOutputGain = null; // Controls overall oscillator level
         let granularOutputGain = null; // Controls overall granular level
         
@@ -3085,6 +3114,10 @@
             makeupGain = audioContext.createGain();
             makeupGain.gain.value = 1.5; // Compensate for filter and effect losses (reduced from 2.0 for headroom)
 
+            // Pre-filter gain node (before HPF)
+            preFilterGainNode = audioContext.createGain();
+            preFilterGainNode.gain.value = 1.0; // 0dB default
+
             // Create separate gain nodes for oscillator and granular outputs
             // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
             const initialOscMix = 0.5;
@@ -3094,9 +3127,10 @@
             granularOutputGain = audioContext.createGain();
             granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * 0.8;
             
-            // Connect both to the filter chain input
-            oscOutputGain.connect(hpfNodes[0]);
-            granularOutputGain.connect(hpfNodes[0]);
+            // Connect both to the pre-filter gain node, then to filter chain
+            oscOutputGain.connect(preFilterGainNode);
+            granularOutputGain.connect(preFilterGainNode);
+            preFilterGainNode.connect(hpfNodes[0]);
 
             // BPM-synced delay setup
             delayNode = audioContext.createDelay(5.0);
@@ -3209,6 +3243,24 @@
                 input: hpfNodes[0],
                 output: hpfNodes[actualStages - 1]
             };
+        }
+
+        function calculateAutoMakeupGain() {
+            // Get current filter slopes (use the global variables)
+            const currentLpfSlope = lpfSlope || 12;
+            const currentHpfSlope = hpfSlope || 12;
+            
+            // Calculate makeup gain based on total filter stages
+            // Each 12dB stage can attenuate up to ~6dB at cutoff
+            const lpfStages = Math.ceil(currentLpfSlope / 12);
+            const hpfStages = Math.ceil(currentHpfSlope / 12);
+            const totalStages = lpfStages + hpfStages;
+            
+            // Approximate makeup gain needed (in linear scale)
+            // Base: 1.0 for 2 stages, +0.5 for each additional stage
+            const makeupLinear = 1.0 + (Math.max(0, totalStages - 2) * 0.5);
+            
+            return Math.min(makeupLinear, 4.0); // Cap at 4.0x (+12dB)
         }
 
         function makeDistortionCurve(amount) {
@@ -3937,11 +3989,12 @@
             return octaveFreq * detuneMultiplier;
         }
 
-        function playOscillatorNote(note) {
+        function playOscillatorNote(note, scheduledTime = null) {
             if (!audioContext) return;
             if (activeOscVoices.has(note)) return;
 
-            const now = audioContext.currentTime;
+            // Use scheduled time if provided, otherwise use current time
+            const startTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             const baseFreq = getNoteFrequency(note);
             
             // Create oscillator 1
@@ -3972,57 +4025,57 @@
             // Connect to oscillator output gain node (then to filter chain)
             oscMixer.connect(oscOutputGain);
             
-            // Start oscillators
-            osc1.start(now);
-            osc2.start(now);
+            // Start oscillators at the precise scheduled time
+            osc1.start(startTime);
+            osc2.start(startTime);
             
             // Apply ADSR envelope for osc1
             const attack1 = osc1Config.attack / 1000;
             const decay1 = osc1Config.decay / 1000;
             const sustain1 = osc1Config.sustain * osc1Config.level;
             
-            osc1Gain.gain.setValueAtTime(0, now);
-            osc1Gain.gain.linearRampToValueAtTime(osc1Config.level, now + attack1);
-            osc1Gain.gain.linearRampToValueAtTime(sustain1, now + attack1 + decay1);
+            osc1Gain.gain.setValueAtTime(0, startTime);
+            osc1Gain.gain.linearRampToValueAtTime(osc1Config.level, startTime + attack1);
+            osc1Gain.gain.linearRampToValueAtTime(sustain1, startTime + attack1 + decay1);
             
             // Apply ADSR envelope for osc2
             const attack2 = osc2Config.attack / 1000;
             const decay2 = osc2Config.decay / 1000;
             const sustain2 = osc2Config.sustain * osc2Config.level;
             
-            osc2Gain.gain.setValueAtTime(0, now);
-            osc2Gain.gain.linearRampToValueAtTime(osc2Config.level, now + attack2);
-            osc2Gain.gain.linearRampToValueAtTime(sustain2, now + attack2 + decay2);
+            osc2Gain.gain.setValueAtTime(0, startTime);
+            osc2Gain.gain.linearRampToValueAtTime(osc2Config.level, startTime + attack2);
+            osc2Gain.gain.linearRampToValueAtTime(sustain2, startTime + attack2 + decay2);
             
             // Store voice
             activeOscVoices.set(note, {
                 osc1, osc2, osc1Gain, osc2Gain, oscMixer,
-                startTime: now
+                startTime: startTime
             });
         }
 
-        function stopOscillatorNote(note) {
+        function stopOscillatorNote(note, scheduledTime = null) {
             if (!activeOscVoices.has(note)) return;
             
             const voice = activeOscVoices.get(note);
-            const now = audioContext.currentTime;
+            const stopTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             
             // Apply release envelope for osc1
             const release1 = osc1Config.release / 1000;
-            voice.osc1Gain.gain.cancelScheduledValues(now);
-            voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, now);
-            voice.osc1Gain.gain.linearRampToValueAtTime(0, now + release1);
+            voice.osc1Gain.gain.cancelScheduledValues(stopTime);
+            voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, stopTime);
+            voice.osc1Gain.gain.linearRampToValueAtTime(0, stopTime + release1);
             
             // Apply release envelope for osc2
             const release2 = osc2Config.release / 1000;
-            voice.osc2Gain.gain.cancelScheduledValues(now);
-            voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, now);
-            voice.osc2Gain.gain.linearRampToValueAtTime(0, now + release2);
+            voice.osc2Gain.gain.cancelScheduledValues(stopTime);
+            voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, stopTime);
+            voice.osc2Gain.gain.linearRampToValueAtTime(0, stopTime + release2);
             
             // Stop oscillators after release
             const maxRelease = Math.max(release1, release2);
-            voice.osc1.stop(now + maxRelease);
-            voice.osc2.stop(now + maxRelease);
+            voice.osc1.stop(stopTime + maxRelease);
+            voice.osc2.stop(stopTime + maxRelease);
             
             // Clean up - disconnect nodes after they stop
             setTimeout(() => {
@@ -4064,17 +4117,18 @@
             while (sequencerNextStepTime < audioContext.currentTime + SCHEDULE_AHEAD_TIME) {
                 // Schedule note at precise time
                 const step = sequencerSteps[sequencerCurrentStep];
+                const scheduledTime = sequencerNextStepTime;
                 
-                // Stop previous note
+                // Stop previous note at scheduled time
                 const prevStepIndex = (sequencerCurrentStep - 1 + 16) % 16;
                 const prevStep = sequencerSteps[prevStepIndex];
                 if (prevStep.enabled) {
-                    stopOscillatorNote(prevStep.pitch);
+                    stopOscillatorNote(prevStep.pitch, scheduledTime);
                 }
                 
-                // Play current step
+                // Play current step at scheduled time
                 if (step.enabled) {
-                    playOscillatorNote(step.pitch);
+                    playOscillatorNote(step.pitch, scheduledTime);
                 }
                 
                 // Update visual indicator (deferred to not block audio)
@@ -4555,6 +4609,20 @@
                     configureHPFSlope(slope);  // ADD THIS LINE
                     console.log('HPF slope set to:', slope, 'db/octave');
                 }
+                
+                // After slope change, update auto makeup if enabled
+                if (document.getElementById('autoMakeupGain')?.checked) {
+                    const autoGain = calculateAutoMakeupGain();
+                    if (makeupGain && audioContext) {
+                        const now = audioContext.currentTime;
+                        makeupGain.gain.cancelScheduledValues(now);
+                        makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
+                        makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
+                    }
+                    const dbValue = 20 * Math.log10(autoGain);
+                    document.getElementById('postFilterGain').value = dbValue;
+                    document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
+                }
             });
         });
 
@@ -4739,6 +4807,50 @@
             
             document.getElementById('oscMixValue').textContent = `${e.target.value}%`;
         }));
+
+        // Pre-Filter Gain
+        document.getElementById('preFilterGain').addEventListener('input', (e) => {
+            const dbValue = parseFloat(e.target.value);
+            const linearValue = Math.pow(10, dbValue / 20); // Convert dB to linear
+            if (preFilterGainNode && audioContext) {
+                const now = audioContext.currentTime;
+                preFilterGainNode.gain.cancelScheduledValues(now);
+                preFilterGainNode.gain.setValueAtTime(preFilterGainNode.gain.value, now);
+                preFilterGainNode.gain.linearRampToValueAtTime(linearValue, now + 0.05);
+            }
+            document.getElementById('preFilterGainValue').textContent = `${dbValue > 0 ? '+' : ''}${dbValue}dB`;
+        });
+
+        // Post-Filter Makeup Gain
+        document.getElementById('postFilterGain').addEventListener('input', (e) => {
+            const dbValue = parseFloat(e.target.value);
+            const linearValue = Math.pow(10, dbValue / 20);
+            if (makeupGain && audioContext && !document.getElementById('autoMakeupGain').checked) {
+                const now = audioContext.currentTime;
+                makeupGain.gain.cancelScheduledValues(now);
+                makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
+                makeupGain.gain.linearRampToValueAtTime(linearValue, now + 0.05);
+            }
+            document.getElementById('postFilterGainValue').textContent = `+${dbValue}dB`;
+        });
+
+        // Auto Makeup Checkbox
+        document.getElementById('autoMakeupGain').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // Apply auto makeup gain
+                const autoGain = calculateAutoMakeupGain();
+                if (makeupGain && audioContext) {
+                    const now = audioContext.currentTime;
+                    makeupGain.gain.cancelScheduledValues(now);
+                    makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
+                    makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
+                }
+                // Update slider to reflect auto value
+                const dbValue = 20 * Math.log10(autoGain);
+                document.getElementById('postFilterGain').value = dbValue;
+                document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
+            }
+        });
 
         // --- SEQ Tab Controls ---
         document.getElementById('seqBpm').addEventListener('input', (e) => {
