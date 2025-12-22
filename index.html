@@ -3250,19 +3250,30 @@
         }
 
         function updateEffects() {
+            if (!audioContext || audioContext.state !== 'running') return;
             if (!dryGainNode) return;
+            
             const reverbAmt = getModulatedValue('reverb') / 100;
             const volAmt = getModulatedValue('volume') / 100;
             
             // Get current time once for all scheduled changes in this update
             // This ensures all parameter changes are synchronized
             const now = audioContext.currentTime;
+            const rampTime = 0.05; // 50ms smooth ramp - eliminates clicks
             
             // Improved dry/wet mix - maintain better unity gain
-            // Use equal-power crossfade for smoother transitions
-            dryGainNode.gain.setValueAtTime(Math.cos(reverbAmt * Math.PI / 2), now);
-            wetGainNode.gain.setValueAtTime(Math.sin(reverbAmt * Math.PI / 2) * 0.5, now); // Scale wet down to avoid overwhelming
-            masterGain.gain.setValueAtTime(volAmt, now);
+            // Use smooth ramping to prevent clicks and pops
+            dryGainNode.gain.cancelScheduledValues(now);
+            dryGainNode.gain.setValueAtTime(dryGainNode.gain.value, now);
+            dryGainNode.gain.linearRampToValueAtTime(Math.cos(reverbAmt * Math.PI / 2), now + rampTime);
+            
+            wetGainNode.gain.cancelScheduledValues(now);
+            wetGainNode.gain.setValueAtTime(wetGainNode.gain.value, now);
+            wetGainNode.gain.linearRampToValueAtTime(Math.sin(reverbAmt * Math.PI / 2) * 0.5, now + rampTime);
+            
+            masterGain.gain.cancelScheduledValues(now);
+            masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+            masterGain.gain.linearRampToValueAtTime(volAmt, now + rampTime);
 
             // Update distortion
             if (distortionNode) {
@@ -3275,14 +3286,26 @@
                 const phaserRateBPM = getModulatedValue('phaserRate');
                 const phaserRateHz = phaserRateBPM / 60; // Convert BPM to Hz
                 const phaserDepth = getModulatedValue('phaserDepth') / 100;
-                phaserLFO.frequency.setValueAtTime(phaserRateHz, now);
+                
+                phaserLFO.frequency.cancelScheduledValues(now);
+                phaserLFO.frequency.setValueAtTime(phaserLFO.frequency.value, now);
+                phaserLFO.frequency.linearRampToValueAtTime(phaserRateHz, now + rampTime);
+                
                 // Control depth via LFO gain - modulates all-pass filter frequencies
-                phaserLFOGain.gain.setValueAtTime(phaserDepth * 1000, now); // 0-1000 Hz modulation range
+                phaserLFOGain.gain.cancelScheduledValues(now);
+                phaserLFOGain.gain.setValueAtTime(phaserLFOGain.gain.value, now);
+                phaserLFOGain.gain.linearRampToValueAtTime(phaserDepth * 1000, now + rampTime);
+                
                 // Update base frequency and Q for phaser nodes
                 const baseFreq = 1000;
                 phaserNodes.forEach((node, i) => {
-                    node.frequency.setValueAtTime(baseFreq * (i + 1), now);
-                    node.Q.setValueAtTime(1 + (phaserDepth * 10), now);
+                    node.frequency.cancelScheduledValues(now);
+                    node.frequency.setValueAtTime(node.frequency.value, now);
+                    node.frequency.linearRampToValueAtTime(baseFreq * (i + 1), now + rampTime);
+                    
+                    node.Q.cancelScheduledValues(now);
+                    node.Q.setValueAtTime(node.Q.value, now);
+                    node.Q.linearRampToValueAtTime(1 + (phaserDepth * 10), now + rampTime);
                 });
             }
 
@@ -3291,19 +3314,30 @@
                 const tremoloRateBPM = getModulatedValue('tremoloRate');
                 const tremoloRateHz = tremoloRateBPM / 60; // Convert BPM to Hz
                 const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
-                tremoloLFO.frequency.setValueAtTime(tremoloRateHz, now);
+                
+                tremoloLFO.frequency.cancelScheduledValues(now);
+                tremoloLFO.frequency.setValueAtTime(tremoloLFO.frequency.value, now);
+                tremoloLFO.frequency.linearRampToValueAtTime(tremoloRateHz, now + rampTime);
+                
                 // Control tremolo depth via LFO gain - modulates output gain
                 // With depth=0, no modulation; with depth=1, full amplitude modulation
-                tremoloLFOGain.gain.setValueAtTime(tremoloDepth, now);
+                tremoloLFOGain.gain.cancelScheduledValues(now);
+                tremoloLFOGain.gain.setValueAtTime(tremoloLFOGain.gain.value, now);
+                tremoloLFOGain.gain.linearRampToValueAtTime(tremoloDepth, now + rampTime);
             }
 
-            // Update filters
+            // Update filters - these are especially prone to causing clicks
             if (lpfNodes.length > 0) {
                 const lpfCutoff = getModulatedValue('lpfCutoff');
                 const lpfQ = getModulatedValue('lpfQ');
                 lpfNodes.forEach(node => {
-                    node.frequency.setValueAtTime(lpfCutoff, now);
-                    node.Q.setValueAtTime(lpfQ, now);
+                    node.frequency.cancelScheduledValues(now);
+                    node.frequency.setValueAtTime(node.frequency.value, now);
+                    node.frequency.linearRampToValueAtTime(lpfCutoff, now + rampTime);
+                    
+                    node.Q.cancelScheduledValues(now);
+                    node.Q.setValueAtTime(node.Q.value, now);
+                    node.Q.linearRampToValueAtTime(lpfQ, now + rampTime);
                 });
             }
 
@@ -3311,8 +3345,13 @@
                 const hpfCutoff = getModulatedValue('hpfCutoff');
                 const hpfQ = getModulatedValue('hpfQ');
                 hpfNodes.forEach(node => {
-                    node.frequency.setValueAtTime(hpfCutoff, now);
-                    node.Q.setValueAtTime(hpfQ, now);
+                    node.frequency.cancelScheduledValues(now);
+                    node.frequency.setValueAtTime(node.frequency.value, now);
+                    node.frequency.linearRampToValueAtTime(hpfCutoff, now + rampTime);
+                    
+                    node.Q.cancelScheduledValues(now);
+                    node.Q.setValueAtTime(node.Q.value, now);
+                    node.Q.linearRampToValueAtTime(hpfQ, now + rampTime);
                 });
             }
 
@@ -3343,22 +3382,38 @@
                 
                 // Clamp delay time to safe range (10ms to 5s)
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
-                delayNode.delayTime.setValueAtTime(delayTime, now);
+                
+                delayNode.delayTime.cancelScheduledValues(now);
+                delayNode.delayTime.setValueAtTime(delayNode.delayTime.value, now);
+                delayNode.delayTime.linearRampToValueAtTime(delayTime, now + rampTime);
                 
                 // Update feedback (0 to MAX_DELAY_FEEDBACK for stability)
-                delayFeedbackGain.gain.setValueAtTime(feedback * MAX_DELAY_FEEDBACK, now);
+                delayFeedbackGain.gain.cancelScheduledValues(now);
+                delayFeedbackGain.gain.setValueAtTime(delayFeedbackGain.gain.value, now);
+                delayFeedbackGain.gain.linearRampToValueAtTime(feedback * MAX_DELAY_FEEDBACK, now + rampTime);
                 
                 // Update mix (equal-power crossfade)
-                delayWetGain.gain.setValueAtTime(Math.sin(mix * Math.PI / 2), now);
-                delayDryGain.gain.setValueAtTime(Math.cos(mix * Math.PI / 2), now);
+                delayWetGain.gain.cancelScheduledValues(now);
+                delayWetGain.gain.setValueAtTime(delayWetGain.gain.value, now);
+                delayWetGain.gain.linearRampToValueAtTime(Math.sin(mix * Math.PI / 2), now + rampTime);
+                
+                delayDryGain.gain.cancelScheduledValues(now);
+                delayDryGain.gain.setValueAtTime(delayDryGain.gain.value, now);
+                delayDryGain.gain.linearRampToValueAtTime(Math.cos(mix * Math.PI / 2), now + rampTime);
             }
 
             // Update LFO3 (Stereo Tremolo) with LFO modulation
-            if (lfo3Oscillator && lfo3DepthGain && audioContext) {
+            if (lfo3Oscillator && lfo3DepthGain) {
                 const modulatedRate = getModulatedValue('lfo3Rate');
                 const modulatedDepth = getModulatedValue('lfo3Depth') / 100;
-                lfo3Oscillator.frequency.setValueAtTime(modulatedRate, audioContext.currentTime);
-                lfo3DepthGain.gain.setValueAtTime(modulatedDepth, audioContext.currentTime);
+                
+                lfo3Oscillator.frequency.cancelScheduledValues(now);
+                lfo3Oscillator.frequency.setValueAtTime(lfo3Oscillator.frequency.value, now);
+                lfo3Oscillator.frequency.linearRampToValueAtTime(modulatedRate, now + rampTime);
+                
+                lfo3DepthGain.gain.cancelScheduledValues(now);
+                lfo3DepthGain.gain.setValueAtTime(lfo3DepthGain.gain.value, now);
+                lfo3DepthGain.gain.linearRampToValueAtTime(modulatedDepth, now + rampTime);
             }
         }
 
