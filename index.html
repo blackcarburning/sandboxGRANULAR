@@ -3772,8 +3772,9 @@
             // Add Pitch Randomness
             rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1);
             
-            // Get grain tuning in semitones and convert to rate multiplier
-            const grainTuneSemitones = getModulatedValue('grainTune') || 0;
+            // Get grain tuning - with safety check for undefined/NaN
+            const grainTuneRaw = getModulatedValue('grainTune');
+            const grainTuneSemitones = (typeof grainTuneRaw === 'number' && isFinite(grainTuneRaw)) ? grainTuneRaw : 0;
             const tuningMultiplier = Math.pow(2, grainTuneSemitones / 12);
             
             // Apply tuning to rate
@@ -3863,7 +3864,15 @@
 
                 source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
-                source.playbackRate.value = finalRate;
+                
+                // Safety check before setting playbackRate
+                if (isFinite(finalRate) && finalRate > 0) {
+                    source.playbackRate.value = finalRate;
+                } else {
+                    source.playbackRate.value = 1; // Fallback to normal speed
+                    console.warn('Invalid playback rate calculated, using default:', finalRate);
+                }
+                
                 source.loop = true; // Enable looping
 
                 sampleGain = audioContext.createGain();
@@ -3969,7 +3978,11 @@
             const grainState = { timeoutId: null, startTime: audioContext.currentTime };
             
             function schedule() {
-                playGrain(note);
+                try {
+                    playGrain(note);
+                } catch (e) {
+                    console.error('Error playing grain:', e);
+                }
                 
                 // Get current modulated density for next iteration
                 const density = getModulatedValue('density');
@@ -4203,7 +4216,11 @@
                     
                     // Start grain for this step if grain sequencing is enabled
                     if (seqGrainsEnabled) {
-                        startGrainStream(step.pitch);
+                        try {
+                            startGrainStream(step.pitch);
+                        } catch (e) {
+                            console.error('Error starting grain stream:', e);
+                        }
                     }
                 }
                 
