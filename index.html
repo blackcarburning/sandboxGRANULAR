@@ -3316,9 +3316,8 @@
                 }
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
                 
-                const MAX_FEEDBACK = 0.95;
                 smoothRamp(delayNode.delayTime, delayTime);
-                smoothRamp(delayFeedbackGain.gain, feedback * MAX_FEEDBACK);
+                smoothRamp(delayFeedbackGain.gain, feedback * MAX_DELAY_FEEDBACK);
                 smoothRamp(delayWetGain.gain, Math.sin(mix * Math.PI / 2));
                 smoothRamp(delayDryGain.gain, Math.cos(mix * Math.PI / 2));
             }
