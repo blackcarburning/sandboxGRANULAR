@@ -4000,7 +4000,7 @@
 
             // Final validation before AudioParam assignments
             if (!isFinite(volumeMultiplier) || !isFinite(attack) || !isFinite(sustainTime) || !isFinite(release)) {
-                console.warn('Invalid envelope values - skipping grain');
+                console.warn('Invalid envelope values - volumeMultiplier:', volumeMultiplier, 'attack:', attack, 'sustainTime:', sustainTime, 'release:', release);
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
                 // Cleanup nodes that were already created
                 try {
