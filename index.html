@@ -2697,7 +2697,7 @@
         let sequencerNextStepTime = 0;
         let sequencerTimerId = null;
         let seqGrainsEnabled = true; // Track if sequencer should trigger grains
-        const SCHEDULE_AHEAD_TIME = 0.1; // Schedule 100ms ahead
+        const SCHEDULE_AHEAD_TIME = 0.05; // Schedule 50ms ahead (was 100ms)
         const SCHEDULER_INTERVAL = 25; // Check every 25ms
         
         // Initialize sequencer steps
@@ -2955,8 +2955,15 @@
                 totalOffset += invertedLFO2 * rangeSize * 0.5;
             }
             
+            // Apply LFO3 if enabled (for panSpread/stereo modulation)
+            if (lfo3Enabled[paramId]) {
+                const lfo3Value = getLFOValue3();
+                const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
+                totalOffset += invertedLFO3 * rangeSize * 0.5;
+            }
+            
             // If no LFOs are enabled, return base value
-            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId]) {
+            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId] && !lfo3Enabled[paramId]) {
                 return baseValue;
             }
             
@@ -4036,7 +4043,7 @@
         }
 
         // --- Scheduler ---
-        function startGrainStream(note) {
+        function startGrainStream(note, scheduledStartTime = null) {
             if (!canPlayGrains()) return;
             
             // Monophonic mode: stop any currently playing grain before starting new one
@@ -4044,12 +4051,17 @@
                 stopGrainStream(currentGrainNote);
             }
             
-            // If this note is already playing, don't restart it
-            if (activeGrains.has(note)) return;
+            // If this note is already playing, stop it first to restart
+            if (activeGrains.has(note)) {
+                stopGrainStream(note);
+            }
             
             currentGrainNote = note;
 
-            const grainState = { timeoutId: null, startTime: audioContext.currentTime };
+            const grainState = { 
+                timeoutId: null, 
+                startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime 
+            };
             
             function schedule() {
                 try {
@@ -4144,7 +4156,11 @@
 
         function playOscillatorNote(note, scheduledTime = null) {
             if (!audioContext) return;
-            if (activeOscVoices.has(note)) return;
+            
+            // Force stop any existing voice for this note to ensure envelope restarts
+            if (activeOscVoices.has(note)) {
+                stopOscillatorNote(note, scheduledTime);
+            }
 
             // Use scheduled time if provided, otherwise use current time
             const startTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
@@ -4272,13 +4288,14 @@
                 const step = sequencerSteps[sequencerCurrentStep];
                 const scheduledTime = sequencerNextStepTime;
                 
-                // Stop previous note at scheduled time
+                // Stop previous step with quick release
                 const prevStepIndex = (sequencerCurrentStep - 1 + 16) % 16;
                 const prevStep = sequencerSteps[prevStepIndex];
-                if (prevStep.enabled) {
-                    stopOscillatorNote(prevStep.pitch, scheduledTime);
+                if (prevStep && prevStep.enabled) {
+                    // Schedule the stop slightly before the new note to allow for release
+                    const releaseTime = 0.02; // 20ms quick release
+                    stopOscillatorNote(prevStep.pitch, Math.max(0, scheduledTime - releaseTime));
                     
-                    // Stop previous grain if grain sequencing is enabled
                     if (seqGrainsEnabled) {
                         stopGrainStream(prevStep.pitch);
                     }
@@ -4291,7 +4308,8 @@
                     // Start grain for this step if grain sequencing is enabled
                     if (seqGrainsEnabled) {
                         try {
-                            startGrainStream(step.pitch);
+                            // Pass the exact scheduled time to keep grains in sync with oscillators
+                            startGrainStream(step.pitch, scheduledTime);
                         } catch (e) {
                             console.error('Error starting grain stream:', e);
                         }
