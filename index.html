@@ -1407,8 +1407,9 @@
                             <span class="value" id="grainTuneValue">0st</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="grainTune" data-lfo="1">L1</button>
-                                <button class="lfo-toggle" data-param="grainTune" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="grainTune" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="grainTune" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="grainTune" data-lfo="2">INV</button>
                             </div>
                         </label>
                         <input type="range" id="grainTune" min="-24" max="24" value="0" step="1">
@@ -4022,6 +4023,7 @@
         function stopAllGrains() {
             activeGrains.forEach(grain => grain.cancel());
             activeGrains.clear();
+            currentGrainNote = null; // Reset current grain note
         }
 
         // --- Oscillator Functions ---
