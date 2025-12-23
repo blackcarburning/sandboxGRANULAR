@@ -3054,7 +3054,7 @@
             // Create depth control (scales the LFO output)
             lfo3DepthGain = audioContext.createGain();
             const initialDepth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
-            lfo3DepthGain.gain.value = initialDepth; // Initialize to match slider value
+            lfo3DepthGain.gain.value = initialDepth * 0.5; // Scale for stereo effect
             
             // Create inverter for right channel (-1 gain)
             lfo3Inverter = audioContext.createGain();
@@ -4495,17 +4495,21 @@
                             labelSpan.textContent = rate.toFixed(1) + 'Hz';
                         }
                     }
-                    // Note: Actual oscillator frequency is updated in the grain generation loop
-                    // to account for LFO modulation
+                    // Update oscillator frequency in real-time
+                    if (lfo3Oscillator) {
+                        lfo3Oscillator.frequency.value = rate;
+                    }
                 } else if (e.target.id === 'lfo3Depth') {
-                    // Update LFO3 depth display
+                    // Update LFO3 depth display and depth gain
                     const depth = parseFloat(e.target.value);
                     const labelSpan = document.getElementById('lfo3DepthValue');
                     if (labelSpan) {
                         labelSpan.textContent = depth + '%';
                     }
-                    // Note: Actual depth gain is updated in the grain generation loop
-                    // to account for LFO modulation
+                    // Update depth gain in real-time
+                    if (lfo3DepthGain) {
+                        lfo3DepthGain.gain.value = (depth / 100) * 0.5;
+                    }
                 } else if (e.target.id === 'delayBpm') {
                     // Update BPM display (no suffix, just the number)
                     const labelSpan = document.getElementById('delayBpmValue');
