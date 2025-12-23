@@ -3898,11 +3898,13 @@
             
             // Track how many sources need to finish before cleaning up common nodes
             let sourcesRemaining = 0;
+            let cleanupCompleted = false; // Track if cleanup already happened
             
             // Cleanup function for common nodes (mixer, envelope, panner)
             const cleanupCommonNodes = () => {
                 sourcesRemaining--;
-                if (sourcesRemaining === 0) {
+                if (sourcesRemaining === 0 && !cleanupCompleted) {
+                    cleanupCompleted = true;
                     activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
                     try {
                         mixer.disconnect();
@@ -4045,19 +4047,23 @@
             // If no sources were created at all, clean up immediately after envelope
             if (sourcesRemaining === 0) {
                 setTimeout(() => {
-                    activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
-                    try {
-                        mixer.disconnect();
-                        envelope.disconnect();
-                        panner.disconnect();
-                    } catch(e) {}
+                    if (!cleanupCompleted) {
+                        cleanupCompleted = true;
+                        activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
+                        try {
+                            mixer.disconnect();
+                            envelope.disconnect();
+                            panner.disconnect();
+                        } catch(e) {}
+                    }
                 }, totalDuration * 1000 + 10);
             } else {
                 // Fallback timeout in case onended doesn't fire (safety net)
                 // This ensures cleanup happens even if the onended callback fails
                 setTimeout(() => {
-                    if (sourcesRemaining > 0) {
+                    if (!cleanupCompleted && sourcesRemaining > 0) {
                         // onended didn't fire for all sources, force cleanup
+                        cleanupCompleted = true;
                         activeGrainNodes = Math.max(0, activeGrainNodes - 1);
                         sourcesRemaining = 0;
                         try {
