@@ -4454,6 +4454,7 @@
                 if (heldNotes.has(note)) {
                     heldNotes.delete(note);
                     stopGrainStream(note);
+                    stopOscillatorNote(note);
                     key.classList.remove('active');
                     return;
                 }
