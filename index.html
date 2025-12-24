@@ -4325,7 +4325,8 @@
                 const scheduledTime = sequencerNextStepTime;
                 
                 // Stop ALL active oscillator voices for clean monophonic behavior
-                activeOscVoices.forEach((voice, activeNote) => {
+                // Convert to array first to avoid modifying Map during iteration
+                Array.from(activeOscVoices.keys()).forEach((activeNote) => {
                     stopOscillatorNote(activeNote, Math.max(0, scheduledTime - 0.02));
                 });
                 
