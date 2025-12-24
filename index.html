@@ -2528,6 +2528,12 @@
             debugLogs.push(debug);
             // Keep only last 100 logs
             if (debugLogs.length > 100) debugLogs.shift();
+            
+            // Safety check - if no grains are active but counter is high, reset it
+            if (activeGrains.size === 0 && activeGrainNodes > 10) {
+                console.warn('Resetting orphaned grain node counter from', activeGrainNodes, 'to 0');
+                activeGrainNodes = 0;
+            }
         }
 
         // Download debug logs as JSON
@@ -2583,7 +2589,7 @@
         let isRecording = false;
         let activeGrains = new Map();
         let activeGrainNodes = 0;
-        const MAX_GRAIN_NODES = 100; // Prevent runaway node creation
+        const MAX_GRAIN_NODES = 150; // Prevent runaway node creation (increased from 100)
         let currentGrainNote = null; // Track currently playing grain for monophonic mode
         let octaveOffset = 0;
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
@@ -3759,10 +3765,16 @@
         function playGrain(note) {
             if (!canPlayGrains()) return;
             
-            // Prevent runaway node creation
+            // Prevent runaway node creation with smart recovery
             if (activeGrainNodes >= MAX_GRAIN_NODES) {
-                console.warn('Max grain nodes reached, skipping grain');
-                return;
+                // Try to recover by checking if grains are actually active
+                if (activeGrains.size === 0) {
+                    console.log('Resetting orphaned grain node counter on max reached');
+                    activeGrainNodes = 0; // Reset if no streams active
+                } else {
+                    console.warn('Max grain nodes reached, skipping grain');
+                    return;
+                }
             }
             activeGrainNodes++;
 
@@ -3886,11 +3898,13 @@
             
             // Track how many sources need to finish before cleaning up common nodes
             let sourcesRemaining = 0;
+            let cleanupCompleted = false; // Track if cleanup already happened
             
             // Cleanup function for common nodes (mixer, envelope, panner)
             const cleanupCommonNodes = () => {
                 sourcesRemaining--;
-                if (sourcesRemaining === 0) {
+                if (sourcesRemaining === 0 && !cleanupCompleted) {
+                    cleanupCompleted = true;
                     activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
                     try {
                         mixer.disconnect();
@@ -4028,17 +4042,36 @@
             envelope.gain.setValueAtTime(volumeMultiplier, now + attack + sustainTime);
             envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
             
+            const totalDuration = attack + sustainTime + release;
+            
             // If no sources were created at all, clean up immediately after envelope
             if (sourcesRemaining === 0) {
-                const totalDuration = attack + sustainTime + release;
                 setTimeout(() => {
-                    activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
-                    try {
-                        mixer.disconnect();
-                        envelope.disconnect();
-                        panner.disconnect();
-                    } catch(e) {}
+                    if (!cleanupCompleted) {
+                        cleanupCompleted = true;
+                        activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
+                        try {
+                            mixer.disconnect();
+                            envelope.disconnect();
+                            panner.disconnect();
+                        } catch(e) {}
+                    }
                 }, totalDuration * 1000 + 10);
+            } else {
+                // Fallback timeout in case onended doesn't fire (safety net)
+                // This ensures cleanup happens even if the onended callback fails
+                setTimeout(() => {
+                    if (!cleanupCompleted && sourcesRemaining > 0) {
+                        // onended didn't fire for all sources, force cleanup
+                        cleanupCompleted = true;
+                        activeGrainNodes = Math.max(0, activeGrainNodes - 1);
+                        try {
+                            mixer.disconnect();
+                            envelope.disconnect();
+                            panner.disconnect();
+                        } catch(e) {}
+                    }
+                }, totalDuration * 1000 + 500);
             }
         }
 
