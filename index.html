@@ -4260,6 +4260,10 @@
             if (!activeOscVoices.has(note)) return;
             
             const voice = activeOscVoices.get(note);
+            
+            // DELETE IMMEDIATELY so new notes don't overwrite before cleanup
+            activeOscVoices.delete(note);
+            
             const stopTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             
             // Apply release envelope for osc1
@@ -4279,7 +4283,7 @@
             voice.osc1.stop(stopTime + maxRelease);
             voice.osc2.stop(stopTime + maxRelease);
             
-            // Clean up - disconnect nodes after they stop
+            // Clean up - disconnect nodes after they stop (voice reference is still valid)
             setTimeout(() => {
                 try {
                     voice.osc1.disconnect();
@@ -4290,7 +4294,6 @@
                 } catch(e) {
                     // Node may already be disconnected
                 }
-                activeOscVoices.delete(note);
             }, maxRelease * 1000 + 100);
         }
 
@@ -4321,17 +4324,14 @@
                 const step = sequencerSteps[sequencerCurrentStep];
                 const scheduledTime = sequencerNextStepTime;
                 
-                // Stop previous step with quick release
-                const prevStepIndex = (sequencerCurrentStep - 1 + 16) % 16;
-                const prevStep = sequencerSteps[prevStepIndex];
-                if (prevStep && prevStep.enabled) {
-                    // Schedule the stop slightly before the new note to allow for release
-                    const releaseTime = 0.02; // 20ms quick release
-                    stopOscillatorNote(prevStep.pitch, Math.max(0, scheduledTime - releaseTime));
-                    
-                    if (seqGrainsEnabled) {
-                        stopGrainStream(prevStep.pitch);
-                    }
+                // Stop ALL active oscillator voices for clean monophonic behavior
+                activeOscVoices.forEach((voice, activeNote) => {
+                    stopOscillatorNote(activeNote, Math.max(0, scheduledTime - 0.02));
+                });
+                
+                // Stop ALL active grains for monophonic grain behavior
+                if (seqGrainsEnabled && currentGrainNote !== null) {
+                    stopGrainStream(currentGrainNote);
                 }
                 
                 // Play current step at scheduled time
