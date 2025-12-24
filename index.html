@@ -782,12 +782,65 @@
         .seq-step {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 1px !important;
+            padding: 2px !important;
         }
 
+        .seq-step label {
+            font-size: 8px !important;
+            margin-bottom: 0 !important;
+        }
+
+        /* Smaller sequencer pitch sliders */
         .seq-pitch {
-            font-size: 8px;
-            padding: 2px;
+            height: 6px !important;
+            padding: 2px 0 !important;
+            margin: 1px 0 !important;
+        }
+
+        .seq-pitch::-webkit-slider-thumb {
+            width: 14px !important;
+            height: 14px !important;
+        }
+
+        .seq-pitch::-moz-range-thumb {
+            width: 14px !important;
+            height: 14px !important;
+        }
+
+        .seq-pitch::-webkit-slider-runnable-track {
+            height: 6px !important;
+        }
+
+        .seq-pitch::-moz-range-track {
+            height: 6px !important;
+        }
+
+        /* Smaller sequencer volume sliders */
+        .seq-vol {
+            height: 4px !important;
+            padding: 2px 0 !important;
+            margin: 1px 0 !important;
+        }
+
+        .seq-vol::-webkit-slider-thumb {
+            width: 12px !important;
+            height: 12px !important;
+            background: #ff6b6b !important; /* Different color for volume */
+        }
+
+        .seq-vol::-moz-range-thumb {
+            width: 12px !important;
+            height: 12px !important;
+            background: #ff6b6b !important;
+        }
+
+        .seq-vol::-webkit-slider-runnable-track {
+            height: 4px !important;
+        }
+
+        .seq-vol::-moz-range-track {
+            height: 4px !important;
         }
 
         #seqPlayBtn.playing {
@@ -2058,114 +2111,114 @@
                     
                     <!-- 16 Steps -->
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 1 <span id="seqStep1PitchValue">A3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 1 <span id="seqStep1PitchValue">A3</span> <span id="seqStep1VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep1Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
-                        <input type="range" id="seqStep1Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep1Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="1">ON</button>
                     </div>
                     
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 2 <span id="seqStep2PitchValue">C4</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 2 <span id="seqStep2PitchValue">C4</span> <span id="seqStep2VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep2Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
-                        <input type="range" id="seqStep2Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep2Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="2">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 3 <span id="seqStep3PitchValue">E3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 3 <span id="seqStep3PitchValue">E3</span> <span id="seqStep3VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep3Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
-                        <input type="range" id="seqStep3Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep3Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="3">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 4 <span id="seqStep4PitchValue">F#3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 4 <span id="seqStep4PitchValue">F#3</span> <span id="seqStep4VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep4Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
-                        <input type="range" id="seqStep4Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep4Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="4">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 5 <span id="seqStep5PitchValue">A3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 5 <span id="seqStep5PitchValue">A3</span> <span id="seqStep5VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep5Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
-                        <input type="range" id="seqStep5Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep5Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="5">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 6 <span id="seqStep6PitchValue">C4</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 6 <span id="seqStep6PitchValue">C4</span> <span id="seqStep6VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep6Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
-                        <input type="range" id="seqStep6Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep6Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="6">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 7 <span id="seqStep7PitchValue">E3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 7 <span id="seqStep7PitchValue">E3</span> <span id="seqStep7VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep7Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
-                        <input type="range" id="seqStep7Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep7Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="7">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 8 <span id="seqStep8PitchValue">F#3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 8 <span id="seqStep8PitchValue">F#3</span> <span id="seqStep8VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep8Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
-                        <input type="range" id="seqStep8Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep8Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="8">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 9 <span id="seqStep9PitchValue">A3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 9 <span id="seqStep9PitchValue">A3</span> <span id="seqStep9VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep9Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
-                        <input type="range" id="seqStep9Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep9Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="9">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 10 <span id="seqStep10PitchValue">C4</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 10 <span id="seqStep10PitchValue">C4</span> <span id="seqStep10VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep10Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
-                        <input type="range" id="seqStep10Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep10Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="10">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 11 <span id="seqStep11PitchValue">E3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 11 <span id="seqStep11PitchValue">E3</span> <span id="seqStep11VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep11Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
-                        <input type="range" id="seqStep11Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep11Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="11">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 12 <span id="seqStep12PitchValue">F#3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 12 <span id="seqStep12PitchValue">F#3</span> <span id="seqStep12VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep12Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
-                        <input type="range" id="seqStep12Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep12Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="12">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 13 <span id="seqStep13PitchValue">A3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 13 <span id="seqStep13PitchValue">A3</span> <span id="seqStep13VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep13Pitch" class="seq-pitch" min="0" max="24" value="9" step="1">
-                        <input type="range" id="seqStep13Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep13Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="13">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 14 <span id="seqStep14PitchValue">C4</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 14 <span id="seqStep14PitchValue">C4</span> <span id="seqStep14VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep14Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
-                        <input type="range" id="seqStep14Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep14Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="14">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 15 <span id="seqStep15PitchValue">E3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 15 <span id="seqStep15PitchValue">E3</span> <span id="seqStep15VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep15Pitch" class="seq-pitch" min="0" max="24" value="4" step="1">
-                        <input type="range" id="seqStep15Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep15Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="15">ON</button>
                     </div>
 
                     <div class="control-group seq-step">
-                        <label style="font-size: 9px; color: var(--accent);">Step 16 <span id="seqStep16PitchValue">F#3</span></label>
+                        <label style="font-size: 9px; color: var(--accent);">Step 16 <span id="seqStep16PitchValue">F#3</span> <span id="seqStep16VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep16Pitch" class="seq-pitch" min="0" max="24" value="6" step="1">
-                        <input type="range" id="seqStep16Vol" min="0" max="100" value="80" step="1">
+                        <input type="range" id="seqStep16Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="16">ON</button>
                     </div>
                 </div>
@@ -5199,6 +5252,7 @@
             // Volume slider
             document.getElementById(`seqStep${i}Vol`).addEventListener('input', (e) => {
                 sequencerSteps[i - 1].volume = parseFloat(e.target.value);
+                document.getElementById(`seqStep${i}VolValue`).textContent = `${e.target.value}%`;
             });
 
             // Enable/disable button
@@ -6518,7 +6572,7 @@
             console.log('=== SAVEWAVFILE CALLED ===');
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `granular-${timestamp}.wav`;
+            const filename = `granular-${sequencerBPM}bpm-${timestamp}.wav`;
             console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
             
             // Desktop: Use File System Access API for Save As dialog
