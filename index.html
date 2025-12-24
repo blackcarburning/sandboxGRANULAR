@@ -4236,16 +4236,36 @@
             const decay1 = osc1Config.decay / 1000;
             const sustain1 = osc1Config.sustain * osc1Config.level;
             
-            osc1Gain.gain.setValueAtTime(0, startTime);
+            // Set initial value at current time to anchor the automation
+            const now = audioContext.currentTime;
+            osc1Gain.gain.setValueAtTime(0, now);
+            
+            // If startTime is in the future, hold at 0 until then
+            if (startTime > now) {
+                osc1Gain.gain.setValueAtTime(0, startTime);
+            }
+            
+            // Then ramp up
             osc1Gain.gain.linearRampToValueAtTime(osc1Config.level, startTime + attack1);
             osc1Gain.gain.linearRampToValueAtTime(sustain1, startTime + attack1 + decay1);
+            
+            // Debug: Log envelope timing
+            console.log(`[OSC Debug] Note: ${note}, Now: ${now.toFixed(3)}, StartTime: ${startTime.toFixed(3)}, Attack: ${attack1.toFixed(3)}s, Decay: ${decay1.toFixed(3)}s`);
             
             // Apply ADSR envelope for osc2
             const attack2 = osc2Config.attack / 1000;
             const decay2 = osc2Config.decay / 1000;
             const sustain2 = osc2Config.sustain * osc2Config.level;
             
-            osc2Gain.gain.setValueAtTime(0, startTime);
+            // Set initial value at current time to anchor the automation
+            osc2Gain.gain.setValueAtTime(0, now);
+            
+            // If startTime is in the future, hold at 0 until then
+            if (startTime > now) {
+                osc2Gain.gain.setValueAtTime(0, startTime);
+            }
+            
+            // Then ramp up
             osc2Gain.gain.linearRampToValueAtTime(osc2Config.level, startTime + attack2);
             osc2Gain.gain.linearRampToValueAtTime(sustain2, startTime + attack2 + decay2);
             
@@ -4265,23 +4285,50 @@
             activeOscVoices.delete(note);
             
             const stopTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
+            const now = audioContext.currentTime;
+            const actualStopTime = Math.max(now, stopTime);
             
             // Apply release envelope for osc1
             const release1 = osc1Config.release / 1000;
-            voice.osc1Gain.gain.cancelScheduledValues(stopTime);
-            voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, stopTime);
-            voice.osc1Gain.gain.linearRampToValueAtTime(0, stopTime + release1);
+            
+            // Cancel from now, not from stopTime
+            voice.osc1Gain.gain.cancelScheduledValues(now);
+            
+            // Set current value at current time
+            voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, now);
+            
+            // If stop is scheduled for the future, hold current value until then
+            if (actualStopTime > now) {
+                voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, actualStopTime);
+            }
+            
+            // Ramp to zero
+            voice.osc1Gain.gain.linearRampToValueAtTime(0, actualStopTime + release1);
+            
+            // Debug: Log release timing
+            console.log(`[OSC Debug] Stop Note: ${note}, Now: ${now.toFixed(3)}, StopTime: ${stopTime.toFixed(3)}, Release: ${release1.toFixed(3)}s, CurrentGain: ${voice.osc1Gain.gain.value.toFixed(3)}`);
             
             // Apply release envelope for osc2
             const release2 = osc2Config.release / 1000;
-            voice.osc2Gain.gain.cancelScheduledValues(stopTime);
-            voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, stopTime);
-            voice.osc2Gain.gain.linearRampToValueAtTime(0, stopTime + release2);
+            
+            // Cancel from now, not from stopTime
+            voice.osc2Gain.gain.cancelScheduledValues(now);
+            
+            // Set current value at current time
+            voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, now);
+            
+            // If stop is scheduled for the future, hold current value until then
+            if (actualStopTime > now) {
+                voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, actualStopTime);
+            }
+            
+            // Ramp to zero
+            voice.osc2Gain.gain.linearRampToValueAtTime(0, actualStopTime + release2);
             
             // Stop oscillators after release
             const maxRelease = Math.max(release1, release2);
-            voice.osc1.stop(stopTime + maxRelease);
-            voice.osc2.stop(stopTime + maxRelease);
+            voice.osc1.stop(actualStopTime + maxRelease);
+            voice.osc2.stop(actualStopTime + maxRelease);
             
             // Clean up - disconnect nodes after they stop (voice reference is still valid)
             setTimeout(() => {
@@ -4306,6 +4353,21 @@
         // --- Sequencer Functions ---
         function startSequencer() {
             if (sequencerPlaying) return;
+            
+            // Check if output recording is armed - if so, trigger recording and disarm
+            if (isOutputRecordingArmed) {
+                console.log('Armed recording triggered by sequencer start');
+                isOutputRecordingArmed = false;
+                isOutputRecordingArmedStart = true;
+                const armBtn = document.getElementById('armOutputRecBtn');
+                if (armBtn) {
+                    armBtn.classList.remove('armed');
+                    armBtn.textContent = 'Arm';
+                }
+                // Trigger the start recording button
+                document.getElementById('startOutputRecBtn')?.click();
+            }
+            
             sequencerPlaying = true;
             sequencerCurrentStep = 0;
             sequencerNextStepTime = audioContext.currentTime;
