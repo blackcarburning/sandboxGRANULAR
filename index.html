@@ -8314,12 +8314,15 @@
             const min = Number.parseFloat(slider.min);
             const max = Number.parseFloat(slider.max);
             const step = Number.parseFloat(slider.step);
+            const stepBase = Number.isFinite(min) ? min : 0;
             let nextValue = Number(value);
             if (!Number.isFinite(nextValue)) nextValue = Number(slider.value);
             if (Number.isFinite(min)) nextValue = Math.max(min, nextValue);
             if (Number.isFinite(max)) nextValue = Math.min(max, nextValue);
             if (Number.isFinite(step) && step > 0) {
-                nextValue = Math.round(nextValue / step) * step;
+                nextValue = stepBase + (Math.round((nextValue - stepBase) / step) * step);
+                if (Number.isFinite(min)) nextValue = Math.max(min, nextValue);
+                if (Number.isFinite(max)) nextValue = Math.min(max, nextValue);
             }
             return nextValue;
         }
@@ -8489,9 +8492,16 @@
             const intervals = Array.isArray(scaleIntervals) && scaleIntervals.length > 0
                 ? scaleIntervals
                 : [0, 2, 3, 5, 7, 8, 10, 12];
-            return intervals.reduce((best, current) => {
-                return Math.abs(current - offset) < Math.abs(best - offset) ? current : best;
-            }, intervals[0]);
+            const target = Number(offset) || 0;
+            const candidates = [];
+            for (let octave = -2; octave <= 2; octave++) {
+                intervals.forEach((interval) => {
+                    candidates.push(interval + (octave * 12));
+                });
+            }
+            return candidates.reduce((best, current) => {
+                return Math.abs(current - target) < Math.abs(best - target) ? current : best;
+            }, candidates[0] ?? 0);
         }
 
         function buildLoopBlueprint(profile = null) {
@@ -9416,9 +9426,8 @@
         document.getElementById('randomizeBtn').addEventListener('click', async () => {
             showSettlePopup();
             const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
-            const generationProfile = createMusicalGenerationProfile();
+            const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile() });
             const loopBlueprint = buildLoopBlueprint(generationProfile);
-            randomizeInternalParameters({ profile: generationProfile });
             randomizeLfoRoutingMatrix({ profile: generationProfile });
 
             // Randomize key type/division selectors while leaving waveform controls manual.

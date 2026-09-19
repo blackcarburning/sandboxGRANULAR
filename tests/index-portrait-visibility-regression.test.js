@@ -512,7 +512,7 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /filterEnvAmount: \{ min: 8, max: 64 \}/);
     assert.match(indexHtml, /noiseMix: \{ min: 0, max: 24 \}/);
     assert.match(indexHtml, /function randomizeInternalParameters\(options = \{\}\)/);
-    assert.match(indexHtml, /randomizeInternalParameters\(\{ profile: generationProfile \}\);/);
+    assert.match(indexHtml, /const generationProfile = randomizeInternalParameters\(\{ profile: createMusicalGenerationProfile\(\) \}\);/);
     assert.match(indexHtml, /function randomizeLfoRoutingMatrix\(options = \{\}\)/);
     assert.match(indexHtml, /const targetLimit = Math\.max\(5, Math\.min\(12, profile\?\.lfoRouteLimit \|\| 8\)\)/);
     assert.match(indexHtml, /randomizeLfoRoutingMatrix\(\{ profile: generationProfile \}\);/);
