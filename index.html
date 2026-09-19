@@ -3719,18 +3719,12 @@
             try {
                 syncGlobalBpmControls(bpm);
 
-                ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'delayBpm'].forEach((id) => {
+                ['lfoRate', 'lfo2Rate', 'lfo3Rate'].forEach((id) => {
                     const slider = document.getElementById(id);
                     if (!slider) return;
                     slider.value = String(bpm);
                     slider.dispatchEvent(new Event('input', { bubbles: true }));
                 });
-
-                const sequencerInput = document.getElementById('seqBpm');
-                if (sequencerInput) {
-                    sequencerInput.value = String(bpm);
-                    sequencerInput.dispatchEvent(new Event('input', { bubbles: true }));
-                }
             } finally {
                 syncingGlobalBpm = false;
             }
