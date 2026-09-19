@@ -8518,6 +8518,22 @@
             };
         }
 
+        function buildGeneratedSourceDrumBlueprint(profile = null) {
+            const chosenProfile = profile || createMusicalGenerationProfile();
+            const generator = typeof mygrainUtils.generateDrumLoopBlueprint === 'function'
+                ? mygrainUtils.generateDrumLoopBlueprint
+                : null;
+            if (!generator) return null;
+            return generator({
+                seed: `${chosenProfile.generationSeed || Date.now()}-${generatedSourceLowNoiseMode ? 'low-noise' : 'full-range'}`,
+                stepCount: 16,
+                archetype: chosenProfile.id,
+                densityBias: chosenProfile.densityBias,
+                energy: chosenProfile.energy,
+                lowNoiseOnly: generatedSourceLowNoiseMode
+            });
+        }
+
         function applyExperimentalLoopPatch(options = {}) {
             const profile = options.profile || createMusicalGenerationProfile();
             const pick = (values) => values[Math.floor(Math.random() * values.length)];
@@ -8625,7 +8641,7 @@
             } else if (shouldRestartDryLoop) {
                 stopGeneratedDryLoop();
             }
-            await generateRandomSourceSample({ profile: options.profile, blueprint: options.blueprint });
+            await generateRandomSourceSample({ profile: options.profile, blueprint: options.blueprint, sourceBlueprint: options.sourceBlueprint });
             if (options.refreshSequencerPattern) {
                 generateInterestingLoop({ profile: options.profile, blueprint: options.blueprint });
             }
@@ -8892,18 +8908,16 @@
             const frameCount = Math.floor(audioContext.sampleRate * duration);
             const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
             const lowNoiseOnly = generatedSourceLowNoiseMode;
-            const rootFrequency = (lowNoiseOnly ? [29, 31, 34, 36] : [34, 38, 42, 46, 50])[Math.floor(Math.random() * (lowNoiseOnly ? 4 : 5))];
             const profile = options.profile || createMusicalGenerationProfile();
-            const drumBlueprint = typeof mygrainUtils.generateDrumLoopBlueprint === 'function'
-                ? mygrainUtils.generateDrumLoopBlueprint({
-                    seed: `${profile.generationSeed || Date.now()}-${lowNoiseOnly ? 'low-noise' : 'full-range'}`,
-                    stepCount: loopSteps,
-                    archetype: profile.id,
-                    densityBias: profile.densityBias,
-                    energy: profile.energy,
-                    lowNoiseOnly
-                })
-                : null;
+            const renderSeed = `${profile.generationSeed || Date.now()}-${lowNoiseOnly ? 'low-noise' : 'full-range'}-render`;
+            const renderRandom = typeof mygrainUtils.createSeededRandom === 'function'
+                ? mygrainUtils.createSeededRandom(renderSeed)
+                : Math.random;
+            const rootChoices = lowNoiseOnly ? [29, 31, 34, 36] : [34, 38, 42, 46, 50];
+            const rootFrequency = rootChoices[Math.floor(renderRandom() * rootChoices.length)];
+            const drumBlueprint = options.sourceBlueprint
+                || (options.blueprint?.events ? options.blueprint : null)
+                || buildGeneratedSourceDrumBlueprint(profile);
             const events = [];
             const TWO_PI = Math.PI * 2;
 
@@ -8933,7 +8947,7 @@
                     attack: Math.max(Number(recipe.attackSeconds) || 0.001, lowNoiseOnly ? 0.001 : 0.0005),
                     decay: Math.max(Number(recipe.decaySeconds) || 0.05, lowNoiseOnly && recipe.category !== 'kick' ? 0.026 : 0.014),
                     amp: Math.max(0.08, Math.min(1.1, (Number(recipe.level) || 0.4) * (Number(hit.velocity) || 0.7) * (hit.accent ? 1.12 : 1))),
-                    pan: Math.max(-1, Math.min(1, (Math.random() * 2 - 1) * (Number(recipe.panWidth) || 0))),
+                    pan: Math.max(-1, Math.min(1, ((renderRandom() * 2) - 1) * (Number(recipe.panWidth) || 0))),
                     toneFreq: Math.max(28, Number(recipe.toneFreq) || 220),
                     overtone: Number(recipe.overtone) || 1.5,
                     metallic: Number(recipe.metallic) || 0.2,
@@ -8943,7 +8957,7 @@
                     pitchDrop: Math.max(0, Number(recipe.pitchDrop) || 0),
                     dropRate: Math.max(4, Number(recipe.dropRate) || 18),
                     drive: Math.max(1, Number(recipe.drive) || 1.2),
-                    phaseOffset: Math.random() * TWO_PI
+                    phaseOffset: renderRandom() * TWO_PI
                 });
             }
 
@@ -9408,6 +9422,7 @@
             const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile() });
             const loopBlueprint = buildLoopBlueprint(generationProfile);
+            const sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
             randomizeLfoRoutingMatrix({ profile: generationProfile });
 
             // Randomize key type/division selectors while leaving waveform controls manual.
@@ -9457,7 +9472,8 @@
                 await generateSourceWithPlaybackRestart({
                     refreshSequencerPattern: true,
                     profile: generationProfile,
-                    blueprint: loopBlueprint
+                    blueprint: loopBlueprint,
+                    sourceBlueprint
                 });
                 setPerformanceGenerateButtonState('generated');
                 statusDiv.textContent = 'Patch randomized and new loop generated; source loop points and mix balances kept.';

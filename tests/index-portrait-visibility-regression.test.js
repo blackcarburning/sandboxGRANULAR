@@ -130,8 +130,10 @@ test('generate source has a low-frequency noise-only mode without clicky transie
     assert.match(indexHtml, /let generatedSourceLowNoiseMode = false/);
     assert.match(indexHtml, /function setGeneratedSourceLowNoiseMode\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /const lowNoiseOnly = generatedSourceLowNoiseMode/);
-    assert.match(indexHtml, /generateDrumLoopBlueprint\(\{[\s\S]*lowNoiseOnly/);
-    assert.match(indexHtml, /const rootFrequency = \(lowNoiseOnly \? \[29, 31, 34, 36\] : \[34, 38, 42, 46, 50\]\)/);
+    assert.match(indexHtml, /function buildGeneratedSourceDrumBlueprint\(profile = null\)/);
+    assert.match(indexHtml, /buildGeneratedSourceDrumBlueprint\(generationProfile\)/);
+    assert.match(indexHtml, /const rootChoices = lowNoiseOnly \? \[29, 31, 34, 36\] : \[34, 38, 42, 46, 50\]/);
+    assert.match(indexHtml, /const rootFrequency = rootChoices\[Math\.floor\(renderRandom\(\) \* rootChoices\.length\)\]/);
     assert.match(indexHtml, /durationSeconds = Math\.max\([\s\S]*lowNoiseOnly \? 0\.045 : 0\.03/);
     assert.match(indexHtml, /noiseTone: Math\.max\(0, lowNoiseOnly \? \(Number\(recipe\.noiseTone\) \|\| 0\.2\) \* 0\.78 : Number\(recipe\.noiseTone\) \|\| 0\.2\)/);
     assert.match(indexHtml, /event\.category === 'kick'/);
@@ -364,7 +366,7 @@ test('generating a new performance loop restarts active playback', () => {
     assert.match(indexHtml, /const shouldRestartSequencer = sequencerPlaying/);
     assert.match(indexHtml, /const shouldRestartDryLoop = Boolean\(generatedDrySource\)/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*stopSequencer\(\);/);
-    assert.match(indexHtml, /await generateRandomSourceSample\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);/);
+    assert.match(indexHtml, /await generateRandomSourceSample\(\{ profile: options\.profile, blueprint: options\.blueprint, sourceBlueprint: options\.sourceBlueprint \}\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*startSequencer\(\);/);
     assert.match(indexHtml, /else if \(shouldRestartDryLoop\) \{\s*startGeneratedDryLoop\(\);/);
 });
