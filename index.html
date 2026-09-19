@@ -8915,8 +8915,15 @@
                 : Math.random;
             const rootChoices = lowNoiseOnly ? [29, 31, 34, 36] : [34, 38, 42, 46, 50];
             const rootFrequency = rootChoices[Math.floor(renderRandom() * rootChoices.length)];
+            const optionBlueprint = options.blueprint;
+            const optionDrumBlueprint = optionBlueprint
+                && Number.isFinite(Number(optionBlueprint.paletteSize))
+                && Array.isArray(optionBlueprint.events)
+                && optionBlueprint.events.every((event) => event && event.recipe)
+                ? optionBlueprint
+                : null;
             const drumBlueprint = options.sourceBlueprint
-                || (options.blueprint?.events ? options.blueprint : null)
+                || optionDrumBlueprint
                 || buildGeneratedSourceDrumBlueprint(profile);
             const events = [];
             const TWO_PI = Math.PI * 2;
