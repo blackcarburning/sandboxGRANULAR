@@ -98,12 +98,44 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceExportBtn"/);
     assert.match(indexHtml, /id="performanceFxMuteBtn"/);
     assert.match(indexHtml, /id="performanceDryFilterBtn"/);
+    assert.match(indexHtml, /id="performanceNoiseOffBtn"/);
+    assert.match(indexHtml, /id="performanceLowNoiseSourceBtn"/);
     assert.match(indexHtml, /function setFxMuted\(muted, options = \{\}\)/);
     assert.match(indexHtml, /function setGeneratedDryThroughFilters\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
     assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
+});
+
+test('mobile controls can remove the noise oscillator and its modulation', () => {
+    assert.match(indexHtml, /id="performanceNoiseOffBtn">Noise Off<\/button>/);
+    assert.match(indexHtml, /function isNoiseOscillatorActive\(\)/);
+    assert.match(indexHtml, /function clearModulationForParam\(param\)/);
+    assert.match(indexHtml, /function removeNoiseOscillator\(options = \{\}\)/);
+    assert.match(indexHtml, /setSelectValue\('noiseType', 'none'\)/);
+    assert.match(indexHtml, /setSliderValue\('noiseMix', 0\)/);
+    assert.match(indexHtml, /clearModulationForParam\('noiseMix'\)/);
+    assert.match(indexHtml, /performanceNoiseOffBtn\.classList\.toggle\('noise-active', noiseActive\)/);
+    assert.match(indexHtml, /performanceNoiseOffBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*removeNoiseOscillator\(\);/);
+    assert.match(indexHtml, /document\.getElementById\('noiseType'\)\?\.addEventListener\('change', syncPerformanceControlState\)/);
+});
+
+test('generate source has a low-frequency noise-only mode without clicky transient events', () => {
+    assert.match(indexHtml, /id="performanceLowNoiseSourceBtn">Low Noise Source<\/button>/);
+    assert.match(indexHtml, /let generatedSourceLowNoiseMode = false/);
+    assert.match(indexHtml, /function setGeneratedSourceLowNoiseMode\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /const lowNoiseOnly = generatedSourceLowNoiseMode/);
+    assert.match(indexHtml, /addExperimentalEvent\(lowNoiseOnly \? 'lowNoiseHit' : 'subPulse'/);
+    assert.match(indexHtml, /addExperimentalEvent\(lowNoiseOnly \? 'noiseBody' : \(Math\.random\(\) < 0\.5 \? 'fmKnock' : 'vowelBlip'\)/);
+    assert.match(indexHtml, /addExperimentalEvent\('softNoisePush'/);
+    assert.match(indexHtml, /event\.type === 'lowNoiseHit'/);
+    assert.match(indexHtml, /event\.type === 'noiseBody'/);
+    assert.match(indexHtml, /event\.type === 'softNoisePush'/);
+    assert.match(indexHtml, /attack: Math\.max\(options\.attack \?\? 0\.015, lowNoiseOnly \? 0\.018 : 0\.012\)/);
+    assert.doesNotMatch(indexHtml, /gridZap/);
+    assert.doesNotMatch(indexHtml, /dustTick/);
+    assert.match(indexHtml, /performanceLowNoiseSourceBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*setGeneratedSourceLowNoiseMode\(!generatedSourceLowNoiseMode\);/);
 });
 
 test('gain staging trims are outside randomize and wired into the audio path', () => {
@@ -359,7 +391,7 @@ test('oscillators can be disabled for granular-only playback', () => {
 test('generated source and sequencer are experimental on a strict sixteenth grid', () => {
     assert.match(indexHtml, /experimentalTonePalette/);
     assert.match(indexHtml, /const anchorSteps = \[0, 4, 8, 12/);
-    assert.match(indexHtml, /addExperimentalEvent\('gridZap', step \* stepDuration/);
+    assert.match(indexHtml, /addExperimentalEvent\('softNoisePush', step \* stepDuration/);
     assert.doesNotMatch(indexHtml, /triplet/i);
     assert.doesNotMatch(indexHtml, /ratchet/i);
     assert.doesNotMatch(indexHtml, /subHits/);
@@ -390,4 +422,17 @@ test('all internal lfos can be forced to square, toggled off, and cleared by ran
     assert.match(indexHtml, /Object\.entries\(previousWaveforms\)\.forEach\(\(\[id, value\]\) => \{/);
     assert.match(indexHtml, /clearAllLfoSquareForce\(\);[\s\S]*\/\/ Randomize oscillator octave buttons/);
     assert.match(indexHtml, /performanceLfoSquareBtn\.classList\.toggle\('active', allLfosSquareForced\)/);
+});
+
+test('randomize snaps internal lfo rates to musical BPM ratios', () => {
+    assert.match(indexHtml, /const INTERNAL_LFO_RATE_IDS = \['lfoRate', 'lfo2Rate', 'lfo3Rate', 'phaserRate', 'tremoloRate'\]/);
+    assert.match(indexHtml, /const INTERNAL_LFO_BPM_MULTIPLIERS = \[0\.25, 0\.5, 1, 2, 4\]/);
+    assert.match(indexHtml, /function clampInternalLfoBpmValue\(value, fallback = 120\)/);
+    assert.match(indexHtml, /function setInternalLfoRateBpm\(id, bpm\)/);
+    assert.match(indexHtml, /function randomizeInternalLfoTempoRatios\(options = \{\}\)/);
+    assert.match(indexHtml, /const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS\[Math\.floor\(Math\.random\(\) \* INTERNAL_LFO_BPM_MULTIPLIERS\.length\)\]/);
+    assert.match(indexHtml, /setInternalLfoRateBpm\(id, baseBpm \* multiplier\)/);
+    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeInternalLfoTempoRatios\(\);/);
+    assert.match(indexHtml, /phaserLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('phaserRate'\)\?\.value \|\| 30\) \/ 60/);
+    assert.match(indexHtml, /tremoloLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('tremoloRate'\)\?\.value \|\| 120\) \/ 60/);
 });

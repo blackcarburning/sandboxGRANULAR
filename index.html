@@ -2002,11 +2002,13 @@
         }
 
         .simplified-ui #performanceHoldBtn.active,
+        .simplified-ui #performanceLowNoiseSourceBtn.active,
         .simplified-ui #performanceLfoSquareBtn.active,
         .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceOscToggleBtn.osc-off,
         .simplified-ui #performanceFxMuteBtn.fx-muted,
         .simplified-ui #performanceDryFilterBtn.dry-filtered,
+        .simplified-ui #performanceNoiseOffBtn.noise-active,
         .simplified-ui #performanceRecordBtn.recording,
         .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
@@ -2494,6 +2496,7 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
+                <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
                 <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
                 <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
@@ -2514,6 +2517,7 @@
                     <div class="section-title">Source</div>
                     <div class="source-seed-buttons">
                         <button id="generateSourceBtn" class="primary">Generate Source</button>
+                        <button id="performanceLowNoiseSourceBtn">Low Noise Source</button>
                         <button id="recordBtn">Record Mic</button>
                         <button id="loadDemoBtn">Load Demo</button>
                         <button id="performanceLoadAudioBtn">Load Audio</button>
@@ -2970,7 +2974,7 @@
                             </div>
                             <span class="value" id="phaserRateValue">30 BPM</span>
                         </label>
-                        <input type="range" id="phaserRate" min="1" max="240" value="30" step="1">
+                        <input type="range" id="phaserRate" min="10" max="1200" value="30" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2996,7 +3000,7 @@
                             </div>
                             <span class="value" id="tremoloRateValue">120 BPM</span>
                         </label>
-                        <input type="range" id="tremoloRate" min="1" max="240" value="120" step="1">
+                        <input type="range" id="tremoloRate" min="10" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -3042,7 +3046,7 @@
                             </div>
                             <span class="value" id="lfo3RateValue">120 BPM</span>
                         </label>
-                        <input type="range" id="lfo3Rate" min="40" max="300" value="120" step="1">
+                        <input type="range" id="lfo3Rate" min="10" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -3143,7 +3147,7 @@
                     </div>
                     <div class="control-group">
                         <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">BPM</button><span class="value" id="lfoRateValue">120 BPM</span></label>
-                        <input type="range" id="lfoRate" min="40" max="300" value="120" step="1">
+                        <input type="range" id="lfoRate" min="10" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
@@ -3170,7 +3174,7 @@
                     </div>
                     <div class="control-group">
                         <label><span>Rate</span><button class="mode-toggle" id="lfo2ModeToggle">BPM</button><span class="value" id="lfo2RateValue">120 BPM</span></label>
-                        <input type="range" id="lfo2Rate" min="40" max="300" value="120" step="1">
+                        <input type="range" id="lfo2Rate" min="10" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfo2DepthValue">50%</span></label>
@@ -4017,6 +4021,7 @@
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSourceSwing = 0; // 0 = straight generated source timing
+        let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
         let generatedDryTrimDb = -6;
         let granularTrimDb = -3;
@@ -4037,6 +4042,10 @@
         let lpfEnabled = true;
         let hpfEnabled = true;
         const INTERNAL_LFO_WAVEFORM_IDS = ['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'];
+        const INTERNAL_LFO_RATE_IDS = ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'phaserRate', 'tremoloRate'];
+        const INTERNAL_LFO_BPM_MULTIPLIERS = [0.25, 0.5, 1, 2, 4];
+        const INTERNAL_LFO_BPM_MIN = 10;
+        const INTERNAL_LFO_BPM_MAX = 1200;
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
             'globalBpmSlider',
@@ -4127,13 +4136,15 @@
             hpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
             noiseMix: { min: 0, max: 100 },
             distortion: { min: 0, max: 100 },
-            phaserRate: { min: 1, max: 240 },
+            phaserRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             phaserDepth: { min: 0, max: 100 },
-            tremoloRate: { min: 1, max: 240 },
+            tremoloRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             tremoloDepth: { min: 0, max: 100 },
             delayFeedback: { min: 0, max: 100 },
             delayMix: { min: 0, max: 100 },
-            lfo3Rate: { min: 40, max: 300 },
+            lfoRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
+            lfo2Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
+            lfo3Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo3Depth: { min: 0, max: 100 }
         };
 
@@ -4293,12 +4304,20 @@
             return Math.max(GLOBAL_BPM_MIN, Math.min(GLOBAL_BPM_MAX, Math.round(numeric)));
         }
 
+        function clampInternalLfoBpmValue(value, fallback = 120) {
+            const numeric = Number.parseFloat(value);
+            if (!Number.isFinite(numeric)) {
+                return fallback;
+            }
+            return Math.max(INTERNAL_LFO_BPM_MIN, Math.min(INTERNAL_LFO_BPM_MAX, Math.round(numeric)));
+        }
+
         function convertStoredLfoRateToBpm(value, mode = 'bpm', fallback = 120) {
             const numeric = Number.parseFloat(value);
             if (!Number.isFinite(numeric)) {
                 return fallback;
             }
-            return clampBpmValue(mode === 'hz' ? numeric * 60 : numeric, fallback);
+            return clampInternalLfoBpmValue(mode === 'hz' ? numeric * 60 : numeric, fallback);
         }
 
         function normalizeStoredLfoSliderValues(sliders = {}, options = {}) {
@@ -4374,10 +4393,10 @@
             ].forEach(({ sliderId, toggleId, valueId }) => {
                 const slider = document.getElementById(sliderId);
                 if (!slider) return;
-                slider.min = String(GLOBAL_BPM_MIN);
-                slider.max = String(GLOBAL_BPM_MAX);
+                slider.min = String(INTERNAL_LFO_BPM_MIN);
+                slider.max = String(INTERNAL_LFO_BPM_MAX);
                 slider.step = '1';
-                slider.value = String(clampBpmValue(slider.value));
+                slider.value = String(clampInternalLfoBpmValue(slider.value));
 
                 const toggle = document.getElementById(toggleId);
                 if (toggle) {
@@ -4395,10 +4414,10 @@
 
             const lfo3Rate = document.getElementById('lfo3Rate');
             if (lfo3Rate) {
-                lfo3Rate.min = String(GLOBAL_BPM_MIN);
-                lfo3Rate.max = String(GLOBAL_BPM_MAX);
+                lfo3Rate.min = String(INTERNAL_LFO_BPM_MIN);
+                lfo3Rate.max = String(INTERNAL_LFO_BPM_MAX);
                 lfo3Rate.step = '1';
-                lfo3Rate.value = String(clampBpmValue(lfo3Rate.value));
+                lfo3Rate.value = String(clampInternalLfoBpmValue(lfo3Rate.value));
             }
         }
 
@@ -4811,7 +4830,7 @@
 
             // Phaser LFO
             phaserLFO = audioContext.createOscillator();
-            phaserLFO.frequency.value = 0.5;
+            phaserLFO.frequency.value = clampInternalLfoBpmValue(document.getElementById('phaserRate')?.value || 30) / 60;
             phaserLFOGain = audioContext.createGain();
             phaserLFOGain.gain.value = 0;
             phaserLFO.connect(phaserLFOGain);
@@ -4823,7 +4842,7 @@
             tremoloGain = audioContext.createGain();
             tremoloGain.gain.value = 1;
             tremoloLFO = audioContext.createOscillator();
-            tremoloLFO.frequency.value = 5;
+            tremoloLFO.frequency.value = clampInternalLfoBpmValue(document.getElementById('tremoloRate')?.value || 120) / 60;
             tremoloLFOGain = audioContext.createGain();
             tremoloLFOGain.gain.value = 0;
             tremoloLFO.connect(tremoloLFOGain);
@@ -5111,12 +5130,18 @@
             
             // Phaser depth
             if (phaserLFOGain) {
+                if (phaserLFO) {
+                    smoothRamp(phaserLFO.frequency, clampInternalLfoBpmValue(document.getElementById('phaserRate')?.value || 30) / 60);
+                }
                 const phaserDepth = getModulatedValue('phaserDepth');
                 smoothRamp(phaserLFOGain.gain, phaserDepth);
             }
             
             // Tremolo
             if (tremoloLFOGain && tremoloGain) {
+                if (tremoloLFO) {
+                    smoothRamp(tremoloLFO.frequency, clampInternalLfoBpmValue(document.getElementById('tremoloRate')?.value || 120) / 60);
+                }
                 const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
                 smoothRamp(tremoloLFOGain.gain, tremoloDepth * 0.5);
             }
@@ -7015,14 +7040,11 @@
                 // Special handling for LFO rate
                 if (e.target.id === 'lfoRate') {
                     updateLFORateDisplay();
-                    if (!syncingGlobalBpm) syncGlobalBpmControls(e.target.value);
                 } else if (e.target.id === 'lfo2Rate') {
                     updateLFO2RateDisplay();
-                    if (!syncingGlobalBpm) syncGlobalBpmControls(e.target.value);
                 } else if (e.target.id === 'lfo3Rate') {
-                    const rate = clampBpmValue(e.target.value);
+                    const rate = clampInternalLfoBpmValue(e.target.value);
                     updateLFO3RateDisplay();
-                    if (!syncingGlobalBpm) syncGlobalBpmControls(rate);
                     // Update oscillator frequency in real-time
                     if (lfo3Oscillator) {
                         lfo3Oscillator.frequency.value = rate / 60;
@@ -7043,6 +7065,26 @@
                     const labelSpan = document.getElementById('delayBpmValue');
                     if (labelSpan) {
                         labelSpan.textContent = e.target.value;
+                    }
+                } else if (e.target.id === 'phaserRate') {
+                    const rate = clampInternalLfoBpmValue(e.target.value);
+                    e.target.value = String(rate);
+                    const labelSpan = document.getElementById('phaserRateValue');
+                    if (labelSpan) {
+                        labelSpan.textContent = `${rate} BPM`;
+                    }
+                    if (phaserLFO) {
+                        phaserLFO.frequency.setTargetAtTime(rate / 60, audioContext?.currentTime || 0, 0.01);
+                    }
+                } else if (e.target.id === 'tremoloRate') {
+                    const rate = clampInternalLfoBpmValue(e.target.value);
+                    e.target.value = String(rate);
+                    const labelSpan = document.getElementById('tremoloRateValue');
+                    if (labelSpan) {
+                        labelSpan.textContent = `${rate} BPM`;
+                    }
+                    if (tremoloLFO) {
+                        tremoloLFO.frequency.setTargetAtTime(rate / 60, audioContext?.currentTime || 0, 0.01);
                     }
                 } else if (e.target.id === 'grainTune') {
                     // Update grain tune display with + for positive values
@@ -7201,20 +7243,20 @@
         function updateLFORateDisplay() {
             const rateSlider = document.getElementById('lfoRate');
             const rateValue = document.getElementById('lfoRateValue');
-            rateValue.textContent = `${clampBpmValue(rateSlider.value)} BPM`;
+            rateValue.textContent = `${clampInternalLfoBpmValue(rateSlider.value)} BPM`;
         }
 
         function updateLFO2RateDisplay() {
             const rateSlider = document.getElementById('lfo2Rate');
             const rateValue = document.getElementById('lfo2RateValue');
-            rateValue.textContent = `${clampBpmValue(rateSlider.value)} BPM`;
+            rateValue.textContent = `${clampInternalLfoBpmValue(rateSlider.value)} BPM`;
         }
 
         function updateLFO3RateDisplay() {
             const rateSlider = document.getElementById('lfo3Rate');
             const rateValue = document.getElementById('lfo3RateValue');
             if (!rateSlider || !rateValue) return;
-            rateValue.textContent = `${clampBpmValue(rateSlider.value)} BPM`;
+            rateValue.textContent = `${clampInternalLfoBpmValue(rateSlider.value)} BPM`;
         }
 
         // --- LFO Mode Toggle ---
@@ -7576,6 +7618,38 @@
             setStatus(oscillatorsEnabled ? 'Oscillators enabled.' : 'Oscillators off. Granular sources only.');
         }
 
+        function isNoiseOscillatorActive() {
+            const noiseType = document.getElementById('noiseType')?.value || 'none';
+            const noiseMix = Number(document.getElementById('noiseMix')?.value) || 0;
+            return noiseType !== 'none' || noiseMix > 0 || Boolean(lfoEnabled.noiseMix || lfo2Enabled.noiseMix || lfo3Enabled.noiseMix);
+        }
+
+        function clearModulationForParam(param) {
+            lfoEnabled[param] = false;
+            lfo2Enabled[param] = false;
+            lfo3Enabled[param] = false;
+            lfoInverted[param] = false;
+            lfo2Inverted[param] = false;
+            lfo3Inverted[param] = false;
+            document.querySelectorAll(`.lfo-toggle[data-param="${param}"], .inv-toggle[data-param="${param}"]`).forEach((button) => {
+                button.classList.remove('active');
+                button.setAttribute('aria-pressed', 'false');
+            });
+        }
+
+        function removeNoiseOscillator(options = {}) {
+            const hadNoise = isNoiseOscillatorActive();
+            setSelectValue('noiseType', 'none');
+            setSliderValue('noiseMix', 0);
+            clearModulationForParam('noiseMix');
+            document.getElementById('noiseMixValue').textContent = '0%';
+            syncPerformanceControlState();
+            saveState();
+            if (!options.silent) {
+                setStatus(hadNoise ? 'Noise oscillator removed.' : 'Noise oscillator already off.');
+            }
+        }
+
         function setFxMuted(muted, options = {}) {
             fxMuted = Boolean(muted);
             updateEffects();
@@ -7800,6 +7874,40 @@
                     slider.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             });
+        }
+
+        function setInternalLfoRateBpm(id, bpm) {
+            const slider = document.getElementById(id);
+            if (!slider) return null;
+            const value = clampInternalLfoBpmValue(bpm);
+            slider.min = String(INTERNAL_LFO_BPM_MIN);
+            slider.max = String(INTERNAL_LFO_BPM_MAX);
+            slider.value = String(value);
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+            return value;
+        }
+
+        function randomizeInternalLfoTempoRatios(options = {}) {
+            const baseBpm = clampBpmValue(
+                options.baseBpm ??
+                document.getElementById('globalBpmSlider')?.value ??
+                sequencerBPM ??
+                120
+            );
+            const applied = {};
+            syncingGlobalBpm = true;
+            try {
+                INTERNAL_LFO_RATE_IDS.forEach((id) => {
+                    const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS[Math.floor(Math.random() * INTERNAL_LFO_BPM_MULTIPLIERS.length)];
+                    const bpm = setInternalLfoRateBpm(id, baseBpm * multiplier);
+                    if (bpm != null) {
+                        applied[id] = { multiplier, bpm };
+                    }
+                });
+            } finally {
+                syncingGlobalBpm = false;
+            }
+            return applied;
         }
 
         function applyExperimentalLoopPatch() {
@@ -8176,6 +8284,19 @@
             await applyLoadedAudioBuffer(buffer, 'Built-in demo', 'generated');
         }
 
+        function setGeneratedSourceLowNoiseMode(enabled, options = {}) {
+            generatedSourceLowNoiseMode = Boolean(enabled);
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(generatedSourceLowNoiseMode
+                    ? 'Generate Source set to low-frequency noise hits.'
+                    : 'Generate Source set to experimental tonal/noise hits.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         async function generateRandomSourceSample() {
             if (!audioContext) {
                 setStatus('Start MYGRAIN before generating a random source.', 'error');
@@ -8191,13 +8312,19 @@
             const duration = stepDuration * loopSteps;
             const frameCount = Math.floor(audioContext.sampleRate * duration);
             const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
-            const rootFrequency = [34, 37, 41, 46, 49, 55][Math.floor(Math.random() * 6)];
-            const experimentalTonePalette = [
-                { name: 'folded sub glass', ratios: [1, 1.5, 2.01, 2.98, 5.01], fold: 1.45 },
-                { name: 'rubber FM ritual', ratios: [1, 1.25, 1.98, 3.03, 4.5], fold: 1.9 },
-                { name: 'metallic trip dust', ratios: [1, 1.414, 2.21, 3.77, 6.2], fold: 1.2 },
-                { name: 'broken tape low-end', ratios: [0.5, 1, 1.01, 1.98, 4.04], fold: 1.65 }
-            ];
+            const lowNoiseOnly = generatedSourceLowNoiseMode;
+            const rootFrequency = (lowNoiseOnly ? [27, 30, 32, 34, 37] : [34, 37, 41, 46, 49, 55])[Math.floor(Math.random() * (lowNoiseOnly ? 5 : 6))];
+            const experimentalTonePalette = lowNoiseOnly
+                ? [
+                    { name: 'low noise body', ratios: [0.5, 0.75, 1], fold: 0.95 },
+                    { name: 'sub air noise knocks', ratios: [0.5, 1, 1.25], fold: 1.05 },
+                    { name: 'filtered floor noise pulses', ratios: [0.4, 0.67, 1], fold: 0.9 }
+                ]
+                : [
+                    { name: 'rounded sub glass', ratios: [1, 1.5, 2.01, 2.98], fold: 1.18 },
+                    { name: 'rubber low FM', ratios: [1, 1.25, 1.98, 3.03], fold: 1.28 },
+                    { name: 'broken tape low-end', ratios: [0.5, 1, 1.01, 1.98], fold: 1.22 }
+                ];
             const palette = experimentalTonePalette[Math.floor(Math.random() * experimentalTonePalette.length)];
             const events = [];
             const TWO_PI = Math.PI * 2;
@@ -8206,19 +8333,21 @@
 
             function burstEnvelope(delta, attack, decay) {
                 if (delta < 0) return 0;
-                if (delta < attack) return delta / Math.max(attack, 0.0001);
+                if (delta < attack) {
+                    return Math.sin((delta / Math.max(attack, 0.0001)) * Math.PI * 0.5);
+                }
                 return Math.exp(-(delta - attack) / Math.max(decay, 0.0001));
             }
 
             function addExperimentalEvent(type, time, options = {}) {
-                const durationSeconds = options.duration ?? 0.22;
+                const durationSeconds = Math.max(options.duration ?? 0.22, lowNoiseOnly ? 0.16 : 0.11);
                 if (time > duration || time + durationSeconds < 0) return;
                 events.push({
                     type,
                     time: Math.max(0, time),
                     duration: durationSeconds,
-                    attack: options.attack ?? 0.0015,
-                    decay: options.decay ?? 0.07,
+                    attack: Math.max(options.attack ?? 0.015, lowNoiseOnly ? 0.018 : 0.012),
+                    decay: Math.max(options.decay ?? 0.1, lowNoiseOnly ? 0.13 : 0.09),
                     freq: options.freq ?? rootFrequency,
                     amp: options.amp ?? 0.5,
                     pan: Math.max(-1, Math.min(1, options.pan ?? 0)),
@@ -8249,13 +8378,14 @@
             anchorSteps.forEach((step, index) => {
                 const time = step * stepDuration;
                 const freq = rootFrequency * (index % 3 === 1 ? 1.5 : 1);
-                addExperimentalEvent('subPulse', time, {
+                addExperimentalEvent(lowNoiseOnly ? 'lowNoiseHit' : 'subPulse', time, {
                     freq,
-                    amp: index === 0 || step === 16 ? 1.0 : 0.68,
-                    duration: 0.46,
-                    decay: 0.13,
-                    drop: 92 + Math.random() * 50,
-                    dropRate: 28 + Math.random() * 12,
+                    amp: lowNoiseOnly ? (0.74 + Math.random() * 0.18) : (index === 0 || step === 16 ? 0.86 : 0.58),
+                    duration: lowNoiseOnly ? 0.5 : 0.42,
+                    attack: lowNoiseOnly ? 0.018 : 0.01,
+                    decay: lowNoiseOnly ? 0.19 : 0.13,
+                    drop: lowNoiseOnly ? 38 + Math.random() * 20 : 70 + Math.random() * 34,
+                    dropRate: lowNoiseOnly ? 11 + Math.random() * 7 : 18 + Math.random() * 9,
                     pan: randomPan(0.18)
                 });
                 if (Math.random() < 0.45) {
@@ -8272,40 +8402,29 @@
             [2, 3, 5, 7, 10, 11, 13, 15].forEach((step) => {
                 if (Math.random() < 0.28) return;
                 const ratio = palette.ratios[Math.floor(Math.random() * palette.ratios.length)];
-                addExperimentalEvent(Math.random() < 0.5 ? 'fmKnock' : 'vowelBlip', step * stepDuration, {
-                    freq: rootFrequency * ratio * noteRatio([0, 2, 3, 5, 7, 10][Math.floor(Math.random() * 6)]),
-                    amp: 0.26 + Math.random() * 0.36,
-                    duration: 0.16 + Math.random() * 0.18,
-                    decay: 0.045 + Math.random() * 0.06,
+                addExperimentalEvent(lowNoiseOnly ? 'noiseBody' : (Math.random() < 0.5 ? 'fmKnock' : 'vowelBlip'), step * stepDuration, {
+                    freq: rootFrequency * ratio * noteRatio(lowNoiseOnly ? [-12, -7, -5, 0][Math.floor(Math.random() * 4)] : [0, 2, 3, 5, 7][Math.floor(Math.random() * 5)]),
+                    amp: lowNoiseOnly ? 0.28 + Math.random() * 0.22 : 0.18 + Math.random() * 0.24,
+                    duration: lowNoiseOnly ? 0.22 + Math.random() * 0.18 : 0.18 + Math.random() * 0.16,
+                    attack: lowNoiseOnly ? 0.014 : 0.009,
+                    decay: lowNoiseOnly ? 0.14 + Math.random() * 0.08 : 0.08 + Math.random() * 0.07,
                     modFreq: rootFrequency * (3 + Math.random() * 8),
-                    modIndex: 2.4 + Math.random() * 5,
+                    modIndex: lowNoiseOnly ? 0.25 : 1.6 + Math.random() * 2.3,
                     pan: randomPan()
                 });
             });
 
             [1, 6, 9, 14].forEach((step) => {
-                if (Math.random() < 0.3) return;
-                addExperimentalEvent('gridZap', step * stepDuration, {
-                    freq: rootFrequency * noteRatio(12 + Math.floor(Math.random() * 16)),
-                    amp: 0.22 + Math.random() * 0.16,
-                    duration: stepDuration * 0.92,
-                    decay: 0.018,
-                    drop: -60 - Math.random() * 80,
-                    dropRate: 18,
-                    pan: randomPan(0.9)
-                });
-            });
-
-            for (let step = 0; step < loopSteps; step++) {
-                if (Math.random() > 0.36) continue;
-                addExperimentalEvent('dustTick', step * stepDuration, {
-                    freq: rootFrequency * noteRatio(12 + Math.floor(Math.random() * 19)),
-                    amp: 0.08 + Math.random() * 0.16,
-                    duration: 0.045 + Math.random() * 0.07,
-                    decay: 0.012 + Math.random() * 0.03,
+                if (Math.random() < 0.36) return;
+                addExperimentalEvent('softNoisePush', step * stepDuration, {
+                    freq: rootFrequency * (lowNoiseOnly ? 0.5 : 0.75),
+                    amp: lowNoiseOnly ? 0.2 + Math.random() * 0.15 : 0.12 + Math.random() * 0.12,
+                    duration: stepDuration * 1.15,
+                    attack: 0.018,
+                    decay: 0.12,
                     pan: randomPan()
                 });
-            }
+            });
 
             events.sort((a, b) => a.time - b.time);
 
@@ -8322,10 +8441,13 @@
                     voice = Math.sin(TWO_PI * pitchDrop * delta);
                     voice += 0.32 * Math.sin(TWO_PI * pitchDrop * 0.5 * delta + 0.6);
                     voice = Math.tanh(voice * event.fold) * basicEnv;
+                } else if (event.type === 'lowNoiseHit') {
+                    const roundedNoise = lowNoise * (0.82 + (1 - progress) * 0.18);
+                    voice = Math.tanh(roundedNoise * event.fold) * basicEnv;
                 } else if (event.type === 'fmKnock') {
                     const mod = Math.sin(TWO_PI * event.modFreq * delta) * event.modIndex * basicEnv;
                     voice = Math.sin(TWO_PI * event.freq * delta + mod);
-                    voice += 0.16 * highNoise * Math.exp(-delta * 90);
+                    voice += 0.08 * lowNoise * Math.exp(-delta * 18);
                     voice = Math.tanh(voice * event.fold) * basicEnv;
                 } else if (event.type === 'metalShard') {
                     event.ratios.forEach((ratio, index) => {
@@ -8337,16 +8459,16 @@
                     const formantB = Math.sin(TWO_PI * event.freq * 2.72 * delta + Math.sin(delta * 19));
                     const formantC = Math.sin(TWO_PI * event.freq * 4.4 * delta) * 0.32;
                     voice = Math.tanh((formantA + formantB * 0.55 + formantC) * 1.4) * basicEnv;
-                } else if (event.type === 'gridZap') {
-                    const sweep = event.freq + event.drop * (1 - Math.exp(-delta * event.dropRate));
-                    voice = Math.sin(TWO_PI * sweep * delta);
-                    voice += 0.22 * Math.sin(TWO_PI * sweep * 2.01 * delta);
-                    voice = Math.tanh(voice * 2.1) * basicEnv;
+                } else if (event.type === 'noiseBody') {
+                    const broadBody = lowNoise * (0.72 + progress * 0.18);
+                    voice = Math.tanh(broadBody * event.fold) * basicEnv;
+                } else if (event.type === 'softNoisePush') {
+                    const swell = Math.sin(progress * Math.PI);
+                    voice = lowNoise * 0.78 * swell * basicEnv;
                 } else if (event.type === 'reverseSwell') {
                     voice = ((lowNoise * 0.34) + Math.sin(TWO_PI * event.freq * delta) * 0.58) * reverseEnv;
                 } else {
-                    const steppedNoise = Math.round(highNoise * 6) / 6;
-                    voice = (steppedNoise * 0.76 + Math.sin(TWO_PI * event.freq * delta) * 0.24) * basicEnv;
+                    voice = (lowNoise * 0.52 + Math.sin(TWO_PI * event.freq * delta) * 0.18) * basicEnv;
                 }
 
                 return voice * event.amp * pan;
@@ -8790,6 +8912,7 @@
             });
 
             restoreRandomizeProtectedSliders(protectedRandomizeSliders);
+            randomizeInternalLfoTempoRatios();
 
             if (!audioContext) {
                 statusDiv.textContent = 'Patch randomized; start MYGRAIN to generate the source loop.';
@@ -8874,6 +8997,7 @@
             setFilterPoles('hpf', 2);
             setFxMuted(false, { silent: true });
             setGeneratedDryThroughFilters(false, { silent: true });
+            setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
             
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
@@ -8976,6 +9100,7 @@
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
                 generatedDryThroughFilters: generatedDryThroughFilters,
+                generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                 filterPoles: {
                     lpf: slopeToFilterPoles(lpfSlope),
                     hpf: slopeToFilterPoles(hpfSlope)
@@ -9074,6 +9199,9 @@
             if (safePreset.filterEnabled) {
                 setFilterEnabled('lpf', safePreset.filterEnabled.lpf !== false);
                 setFilterEnabled('hpf', safePreset.filterEnabled.hpf !== false);
+            }
+            if (safePreset.generatedSourceLowNoiseMode !== undefined) {
+                setGeneratedSourceLowNoiseMode(safePreset.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
             }
             
             // Apply LFO enabled states
@@ -9453,6 +9581,7 @@
                     bpmLocked: bpmLocked,
                     fxMuted: fxMuted,
                     generatedDryThroughFilters: generatedDryThroughFilters,
+                    generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     lpfSlope: lpfSlope,
                     hpfSlope: hpfSlope,
                     lpfEnabled: lpfEnabled,
@@ -9580,6 +9709,9 @@
                     }
                     if (state.modes.generatedDryThroughFilters !== undefined) {
                         setGeneratedDryThroughFilters(state.modes.generatedDryThroughFilters, { silent: true });
+                    }
+                    if (state.modes.generatedSourceLowNoiseMode !== undefined) {
+                        setGeneratedSourceLowNoiseMode(state.modes.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
                     }
                 }
 
@@ -10354,6 +10486,8 @@
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
+        const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
+        const performanceLowNoiseSourceBtn = document.getElementById('performanceLowNoiseSourceBtn');
         const performanceLfoSquareBtn = document.getElementById('performanceLfoSquareBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
@@ -10548,6 +10682,19 @@
                 performanceOscToggleBtn.setAttribute('aria-pressed', String(!oscillatorsEnabled));
             }
 
+            if (performanceNoiseOffBtn) {
+                const noiseActive = isNoiseOscillatorActive();
+                performanceNoiseOffBtn.classList.toggle('noise-active', noiseActive);
+                performanceNoiseOffBtn.setAttribute('aria-pressed', String(noiseActive));
+                performanceNoiseOffBtn.title = noiseActive ? 'Remove white or pink noise from the granular source' : 'Noise source is already off';
+            }
+
+            if (performanceLowNoiseSourceBtn) {
+                performanceLowNoiseSourceBtn.classList.toggle('active', generatedSourceLowNoiseMode);
+                performanceLowNoiseSourceBtn.setAttribute('aria-pressed', String(generatedSourceLowNoiseMode));
+                performanceLowNoiseSourceBtn.textContent = generatedSourceLowNoiseMode ? 'Low Noise On' : 'Low Noise Source';
+            }
+
             if (performanceFxMuteBtn) {
                 performanceFxMuteBtn.classList.toggle('fx-muted', fxMuted);
                 performanceFxMuteBtn.textContent = fxMuted ? 'FX Muted' : 'FX On';
@@ -10636,6 +10783,14 @@
 
         performanceOscToggleBtn?.addEventListener('click', () => {
             setOscillatorsEnabled(!oscillatorsEnabled);
+        });
+
+        performanceNoiseOffBtn?.addEventListener('click', () => {
+            removeNoiseOscillator();
+        });
+
+        performanceLowNoiseSourceBtn?.addEventListener('click', () => {
+            setGeneratedSourceLowNoiseMode(!generatedSourceLowNoiseMode);
         });
 
         performanceFxMuteBtn?.addEventListener('click', () => {
@@ -10736,6 +10891,9 @@
             setSliderValue('lfoPulseWidth', event.target.value);
             syncPerformanceSoundControls();
         });
+
+        document.getElementById('noiseType')?.addEventListener('change', syncPerformanceControlState);
+        document.getElementById('noiseMix')?.addEventListener('input', syncPerformanceControlState);
 
         performanceExportBars?.addEventListener('input', (event) => {
             const bars = Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 4)));
