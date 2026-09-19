@@ -3746,7 +3746,9 @@
                 const toggle = document.getElementById(toggleId);
                 if (toggle) {
                     toggle.textContent = 'BPM';
-                    toggle.setAttribute('aria-hidden', 'true');
+                    toggle.disabled = true;
+                    toggle.setAttribute('aria-label', 'BPM only');
+                    toggle.setAttribute('title', 'LFO rate is BPM-only');
                 }
 
                 const valueLabel = document.getElementById(valueId);
@@ -7144,7 +7146,7 @@
             }
             
             enforceBpmOnlyLfoMode();
-            syncGlobalBpmControls(
+            applyGlobalBpm(
                 normalizedSliders?.globalBpmSlider ||
                 normalizedSliders?.lfoRate ||
                 normalizedSliders?.delayBpm ||
@@ -7625,12 +7627,11 @@
                     }
                 }
 
-                syncGlobalBpmControls(
+                applyGlobalBpm(
                     normalizedStateSliders?.globalBpmSlider ||
                     normalizedStateSliders?.lfoRate ||
                     normalizedStateSliders?.delayBpm ||
                     normalizedStateSliders?.lfo3Rate ||
-                    state.selects?.seqBpm ||
                     120
                 );
 
