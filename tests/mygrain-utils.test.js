@@ -2,8 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+    buildDrumSoundPalette,
     buildKeyboardGeometry,
     createSeededRandom,
+    generateDrumLoopBlueprint,
     generateRhythmicStepBlueprint,
     pickWeighted,
     recordingExtensionForMimeType,
@@ -144,4 +146,48 @@ test('generateRhythmicStepBlueprint preserves requested odd step counts', () => 
     assert.equal(blueprint.accents.length, 15);
     assert.equal(blueprint.velocities.length, 15);
     assert.equal(blueprint.pitchOffsets.length, 15);
+});
+
+test('buildDrumSoundPalette exposes broad procedural drum coverage', () => {
+    const palette = buildDrumSoundPalette();
+    const categories = new Set(palette.map((recipe) => recipe.category));
+
+    assert.ok(palette.length >= 200);
+    [
+        'kick',
+        'snare',
+        'clap',
+        'closedHat',
+        'openHat',
+        'cymbal',
+        'tom',
+        'rim',
+        'click',
+        'shaker',
+        'perc',
+        'miscPerc'
+    ].forEach((category) => assert.ok(categories.has(category)));
+    assert.equal(new Set(palette.map((recipe) => recipe.id)).size, palette.length);
+});
+
+test('generateDrumLoopBlueprint is seeded, quantized, and keeps drum roles present', () => {
+    const blueprintA = generateDrumLoopBlueprint({ seed: 'drum-grid-1', stepCount: 16, archetype: 'rolling' });
+    const blueprintB = generateDrumLoopBlueprint({ seed: 'drum-grid-1', stepCount: 16, archetype: 'rolling' });
+    const blueprintC = generateDrumLoopBlueprint({ seed: 'drum-grid-2', stepCount: 16, archetype: 'rolling' });
+
+    assert.deepEqual(blueprintA, blueprintB);
+    assert.notDeepEqual(blueprintA, blueprintC);
+    assert.ok(blueprintA.paletteSize >= 200);
+    assert.equal(blueprintA.stepCount, 16);
+    assert.ok(blueprintA.events.length > 0);
+    assert.ok(blueprintA.events.some((event) => event.role === 'kick'));
+    assert.ok(blueprintA.events.some((event) => event.role === 'snare'));
+    assert.ok(blueprintA.events.some((event) => event.role === 'hat'));
+
+    blueprintA.events.forEach((event) => {
+        assert.ok(Number.isInteger(event.step));
+        assert.ok(event.step >= 0 && event.step < 16);
+        assert.ok(event.velocity >= 0.24 && event.velocity <= 1);
+        assert.ok(event.recipe && typeof event.recipe.id === 'string');
+    });
 });
