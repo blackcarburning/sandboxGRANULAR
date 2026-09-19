@@ -132,9 +132,10 @@ test('generate source has a low-frequency noise-only mode without clicky transie
     assert.match(indexHtml, /event\.type === 'lowNoiseHit'/);
     assert.match(indexHtml, /event\.type === 'noiseBody'/);
     assert.match(indexHtml, /event\.type === 'softNoisePush'/);
-    assert.match(indexHtml, /attack: Math\.max\(options\.attack \?\? 0\.015, lowNoiseOnly \? 0\.018 : 0\.012\)/);
+    assert.match(indexHtml, /attack: Math\.max\(options\.attack \?\? 0\.018, lowNoiseOnly \? 0\.022 : 0\.014\)/);
     assert.doesNotMatch(indexHtml, /gridZap/);
     assert.doesNotMatch(indexHtml, /dustTick/);
+    assert.doesNotMatch(indexHtml, /metalShard/);
     assert.match(indexHtml, /performanceLowNoiseSourceBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*setGeneratedSourceLowNoiseMode\(!generatedSourceLowNoiseMode\);/);
 });
 
@@ -347,6 +348,15 @@ test('generated source uses strict straight grid timing', () => {
     assert.match(indexHtml, /performanceGeneratedSwing: 0/);
 });
 
+test('sequencer and grain schedulers use tighter audio lookahead', () => {
+    assert.match(indexHtml, /const GRAIN_SCHEDULER_LOOKAHEAD = 0\.12/);
+    assert.match(indexHtml, /const GRAIN_SCHEDULER_INTERVAL = 10/);
+    assert.match(indexHtml, /const SCHEDULE_AHEAD_TIME = 0\.12/);
+    assert.match(indexHtml, /const SCHEDULER_INTERVAL = 10/);
+    assert.match(indexHtml, /sequencerNextStepTime = audioContext\.currentTime \+ 0\.04/);
+    assert.match(indexHtml, /startGeneratedDryLoop\(sequencerNextStepTime\)/);
+});
+
 test('generating a new performance loop restarts active playback', () => {
     assert.match(indexHtml, /async function generateSourceWithPlaybackRestart\(options = \{\}\)/);
     assert.match(indexHtml, /const shouldRestartSequencer = sequencerPlaying/);
@@ -432,7 +442,30 @@ test('randomize snaps internal lfo rates to musical BPM ratios', () => {
     assert.match(indexHtml, /function randomizeInternalLfoTempoRatios\(options = \{\}\)/);
     assert.match(indexHtml, /const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS\[Math\.floor\(Math\.random\(\) \* INTERNAL_LFO_BPM_MULTIPLIERS\.length\)\]/);
     assert.match(indexHtml, /setInternalLfoRateBpm\(id, baseBpm \* multiplier\)/);
-    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeInternalLfoTempoRatios\(\);/);
+    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeLfoDepths\(\);\s*clearRandomizedGranularLfoSweeps\(\);\s*randomizeInternalLfoTempoRatios\(\);/);
     assert.match(indexHtml, /phaserLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('phaserRate'\)\?\.value \|\| 30\) \/ 60/);
     assert.match(indexHtml, /tremoloLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('tremoloRate'\)\?\.value \|\| 120\) \/ 60/);
+});
+
+test('randomize tames lfo depth and clears granular tempo sweeps', () => {
+    assert.match(indexHtml, /const RANDOMIZE_LFO_DEPTH_RANGES = \{/);
+    assert.match(indexHtml, /lfoDepth: \{ min: 6, max: 32 \}/);
+    assert.match(indexHtml, /lfo2Depth: \{ min: 4, max: 28 \}/);
+    assert.match(indexHtml, /lfo3Depth: \{ min: 0, max: 22 \}/);
+    assert.match(indexHtml, /phaserDepth: \{ min: 0, max: 18 \}/);
+    assert.match(indexHtml, /tremoloDepth: \{ min: 0, max: 16 \}/);
+    assert.match(indexHtml, /const GRANULAR_LFO_MODULATION_SCALES = \{/);
+    assert.match(indexHtml, /grainSize: 0\.08/);
+    assert.match(indexHtml, /attack: 0\.05/);
+    assert.match(indexHtml, /function getLfoModulationScale\(paramId\)/);
+    assert.match(indexHtml, /totalOffset \+= invertedLFO \* rangeSize \* getLfoModulationScale\(paramId\)/);
+    assert.match(indexHtml, /const RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS = new Set\(\[/);
+    assert.match(indexHtml, /'grainSize'/);
+    assert.match(indexHtml, /'density'/);
+    assert.match(indexHtml, /'position'/);
+    assert.match(indexHtml, /'attack'/);
+    assert.match(indexHtml, /'release'/);
+    assert.match(indexHtml, /function randomizeLfoDepths\(\)/);
+    assert.match(indexHtml, /function clearRandomizedGranularLfoSweeps\(\)/);
+    assert.match(indexHtml, /RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS\.forEach\(\(param\) => clearModulationForParam\(param\)\)/);
 });

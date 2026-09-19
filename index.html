@@ -3895,8 +3895,8 @@
         const MAX_GRAIN_NODES = 150; // Prevent runaway node creation (increased from 100)
         const MAX_SAMPLE_BYTES = 24 * 1024 * 1024;
         const MAX_SAMPLE_DURATION_SECONDS = 180;
-        const GRAIN_SCHEDULER_LOOKAHEAD = 0.06;
-        const GRAIN_SCHEDULER_INTERVAL = 20;
+        const GRAIN_SCHEDULER_LOOKAHEAD = 0.12;
+        const GRAIN_SCHEDULER_INTERVAL = 10;
         const mygrainUtils = window.MYGRAIN_UTILS || {};
         let currentGrainNote = null; // Last keyboard grain note, retained for legacy UI state
         let octaveOffset = 0;
@@ -4046,6 +4046,35 @@
         const INTERNAL_LFO_BPM_MULTIPLIERS = [0.25, 0.5, 1, 2, 4];
         const INTERNAL_LFO_BPM_MIN = 10;
         const INTERNAL_LFO_BPM_MAX = 1200;
+        const RANDOMIZE_LFO_DEPTH_RANGES = {
+            lfoDepth: { min: 6, max: 32 },
+            lfo2Depth: { min: 4, max: 28 },
+            lfo3Depth: { min: 0, max: 22 },
+            phaserDepth: { min: 0, max: 18 },
+            tremoloDepth: { min: 0, max: 16 },
+            lfo1ToLfo2Mod: { min: 0, max: 14 },
+            lfo2ToLfo1Mod: { min: 0, max: 14 }
+        };
+        const GRANULAR_LFO_MODULATION_SCALES = {
+            grainSize: 0.08,
+            density: 0.08,
+            position: 0.1,
+            spray: 0.1,
+            attack: 0.05,
+            release: 0.06,
+            pitchVar: 0.08,
+            grainTune: 0.08
+        };
+        const RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS = new Set([
+            'grainSize',
+            'density',
+            'position',
+            'spray',
+            'attack',
+            'release',
+            'pitchVar',
+            'grainTune'
+        ]);
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
             'globalBpmSlider',
@@ -4100,8 +4129,8 @@
         let sequencerNextStepTime = 0;
         let sequencerTimerId = null;
         let seqGrainsEnabled = true; // Track if sequencer should trigger grains
-        const SCHEDULE_AHEAD_TIME = 0.05; // Schedule 50ms ahead (was 100ms)
-        const SCHEDULER_INTERVAL = 25; // Check every 25ms
+        const SCHEDULE_AHEAD_TIME = 0.12;
+        const SCHEDULER_INTERVAL = 10;
         
         // Initialize sequencer steps
         for (let i = 1; i <= 16; i++) {
@@ -4572,6 +4601,10 @@
             return value * depth;
         }
 
+        function getLfoModulationScale(paramId) {
+            return GRANULAR_LFO_MODULATION_SCALES[paramId] ?? 0.18;
+        }
+
         function getModulatedValue(paramId) {
             const slider = document.getElementById(paramId);
             if (!slider) return 0;
@@ -4587,21 +4620,21 @@
             if (lfoEnabled[paramId]) {
                 const lfoValue = getLFOValue();
                 const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
-                totalOffset += invertedLFO * rangeSize * 0.5;
+                totalOffset += invertedLFO * rangeSize * getLfoModulationScale(paramId);
             }
             
             // Apply LFO2 if enabled
             if (lfo2Enabled[paramId]) {
                 const lfo2Value = getLFOValue2();
                 const invertedLFO2 = lfo2Inverted[paramId] ? -lfo2Value : lfo2Value;
-                totalOffset += invertedLFO2 * rangeSize * 0.5;
+                totalOffset += invertedLFO2 * rangeSize * getLfoModulationScale(paramId);
             }
             
             // Apply LFO3 if enabled (for panSpread/stereo modulation)
             if (lfo3Enabled[paramId]) {
                 const lfo3Value = getLFOValue3();
                 const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
-                totalOffset += invertedLFO3 * rangeSize * 0.5;
+                totalOffset += invertedLFO3 * rangeSize * getLfoModulationScale(paramId);
             }
             
             // If no LFOs are enabled, return base value
@@ -6780,7 +6813,7 @@
             
             sequencerPlaying = true;
             sequencerCurrentStep = 0;
-            sequencerNextStepTime = audioContext.currentTime;
+            sequencerNextStepTime = audioContext.currentTime + 0.04;
             startGeneratedDryLoop(sequencerNextStepTime);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
@@ -7910,49 +7943,66 @@
             return applied;
         }
 
+        function randomIntegerInRange(min, max) {
+            return Math.round(min + Math.random() * (max - min));
+        }
+
+        function randomizeLfoDepths() {
+            Object.entries(RANDOMIZE_LFO_DEPTH_RANGES).forEach(([id, range]) => {
+                setSliderValue(id, randomIntegerInRange(range.min, range.max));
+            });
+        }
+
+        function clearRandomizedGranularLfoSweeps() {
+            RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS.forEach((param) => clearModulationForParam(param));
+        }
+
         function applyExperimentalLoopPatch() {
-            setSelectValue('osc1Wave', Math.random() < 0.5 ? 'triangle' : 'sine');
-            setSelectValue('osc2Wave', Math.random() < 0.55 ? 'sawtooth' : 'triangle');
-            setSelectValue('noiseType', 'pink');
-            setSelectValue('delayDivision', Math.random() < 0.5 ? '2' : '4');
+            const pick = (values) => values[Math.floor(Math.random() * values.length)];
+            const rand = (min, max) => randomIntegerInRange(min, max);
+
+            setSelectValue('osc1Wave', pick(['triangle', 'sine', 'square']));
+            setSelectValue('osc2Wave', pick(['sawtooth', 'triangle', 'square']));
+            setSelectValue('noiseType', Math.random() < 0.42 ? 'none' : 'pink');
+            setSelectValue('delayDivision', pick(['1', '2', '4']));
 
             setOscillatorOctave(1, 16);
             setOscillatorOctave(2, 8);
 
             const defaults = {
-                osc1Attack: 1,
-                osc1Decay: 70,
-                osc1Sustain: 10,
-                osc1Release: 48,
-                osc2Attack: 1,
-                osc2Decay: 46,
-                osc2Sustain: 4,
-                osc2Release: 36,
+                osc1Attack: rand(1, 3),
+                osc1Decay: rand(38, 96),
+                osc1Sustain: rand(4, 18),
+                osc1Release: rand(24, 64),
+                osc2Attack: rand(1, 3),
+                osc2Decay: rand(24, 82),
+                osc2Sustain: rand(0, 12),
+                osc2Release: rand(20, 58),
                 performanceGeneratedSwing: 0,
                 sampleStart: 0,
                 sampleEnd: 100,
-                grainSize: 42,
-                density: 28,
-                position: 8,
-                spray: 36,
-                attack: 2,
-                release: 58,
-                pitchVar: 13,
-                grainTune: Math.random() < 0.5 ? -12 : -7,
-                panSpread: 48,
-                lpfCutoff: 1900,
-                lpfQ: 0.45,
+                grainSize: rand(24, 68),
+                density: rand(18, 38),
+                position: rand(0, 38),
+                spray: rand(10, 55),
+                attack: rand(1, 4),
+                release: rand(20, 68),
+                pitchVar: rand(5, 24),
+                grainTune: pick([-12, -7, -5, 0]),
+                panSpread: rand(36, 78),
+                lpfCutoff: rand(900, 3600),
+                lpfQ: Number((0.28 + Math.random() * 0.5).toFixed(2)),
                 hpfCutoff: 18,
                 hpfQ: 0.35,
-                filterEnvAmount: 26,
-                filterEnvAttack: 1,
-                filterEnvDecay: 72,
-                filterEnvSustain: 8,
-                filterEnvRelease: 54,
-                distortion: 10,
-                phaserDepth: 12,
-                tremoloDepth: 10,
-                delayFeedback: 18,
+                filterEnvAmount: rand(14, 42),
+                filterEnvAttack: rand(1, 4),
+                filterEnvDecay: rand(34, 104),
+                filterEnvSustain: rand(0, 16),
+                filterEnvRelease: rand(28, 82),
+                distortion: rand(4, 18),
+                phaserDepth: rand(0, 14),
+                tremoloDepth: rand(0, 12),
+                delayFeedback: rand(8, 24),
             };
 
             Object.entries(defaults).forEach(([id, value]) => setSliderValue(id, value));
@@ -8346,8 +8396,8 @@
                     type,
                     time: Math.max(0, time),
                     duration: durationSeconds,
-                    attack: Math.max(options.attack ?? 0.015, lowNoiseOnly ? 0.018 : 0.012),
-                    decay: Math.max(options.decay ?? 0.1, lowNoiseOnly ? 0.13 : 0.09),
+                    attack: Math.max(options.attack ?? 0.018, lowNoiseOnly ? 0.022 : 0.014),
+                    decay: Math.max(options.decay ?? 0.1, lowNoiseOnly ? 0.15 : 0.08),
                     freq: options.freq ?? rootFrequency,
                     amp: options.amp ?? 0.5,
                     pan: Math.max(-1, Math.min(1, options.pan ?? 0)),
@@ -8381,9 +8431,9 @@
                 addExperimentalEvent(lowNoiseOnly ? 'lowNoiseHit' : 'subPulse', time, {
                     freq,
                     amp: lowNoiseOnly ? (0.74 + Math.random() * 0.18) : (index === 0 || step === 16 ? 0.86 : 0.58),
-                    duration: lowNoiseOnly ? 0.5 : 0.42,
-                    attack: lowNoiseOnly ? 0.018 : 0.01,
-                    decay: lowNoiseOnly ? 0.19 : 0.13,
+                    duration: lowNoiseOnly ? 0.48 : 0.32,
+                    attack: lowNoiseOnly ? 0.022 : 0.014,
+                    decay: lowNoiseOnly ? 0.18 : 0.09,
                     drop: lowNoiseOnly ? 38 + Math.random() * 20 : 70 + Math.random() * 34,
                     dropRate: lowNoiseOnly ? 11 + Math.random() * 7 : 18 + Math.random() * 9,
                     pan: randomPan(0.18)
@@ -8405,9 +8455,9 @@
                 addExperimentalEvent(lowNoiseOnly ? 'noiseBody' : (Math.random() < 0.5 ? 'fmKnock' : 'vowelBlip'), step * stepDuration, {
                     freq: rootFrequency * ratio * noteRatio(lowNoiseOnly ? [-12, -7, -5, 0][Math.floor(Math.random() * 4)] : [0, 2, 3, 5, 7][Math.floor(Math.random() * 5)]),
                     amp: lowNoiseOnly ? 0.28 + Math.random() * 0.22 : 0.18 + Math.random() * 0.24,
-                    duration: lowNoiseOnly ? 0.22 + Math.random() * 0.18 : 0.18 + Math.random() * 0.16,
-                    attack: lowNoiseOnly ? 0.014 : 0.009,
-                    decay: lowNoiseOnly ? 0.14 + Math.random() * 0.08 : 0.08 + Math.random() * 0.07,
+                    duration: lowNoiseOnly ? 0.22 + Math.random() * 0.18 : 0.14 + Math.random() * 0.12,
+                    attack: lowNoiseOnly ? 0.022 : 0.014,
+                    decay: lowNoiseOnly ? 0.14 + Math.random() * 0.08 : 0.06 + Math.random() * 0.05,
                     modFreq: rootFrequency * (3 + Math.random() * 8),
                     modIndex: lowNoiseOnly ? 0.25 : 1.6 + Math.random() * 2.3,
                     pan: randomPan()
@@ -8449,11 +8499,6 @@
                     voice = Math.sin(TWO_PI * event.freq * delta + mod);
                     voice += 0.08 * lowNoise * Math.exp(-delta * 18);
                     voice = Math.tanh(voice * event.fold) * basicEnv;
-                } else if (event.type === 'metalShard') {
-                    event.ratios.forEach((ratio, index) => {
-                        voice += Math.sin(TWO_PI * event.freq * ratio * delta + index * 0.71) / (index + 1);
-                    });
-                    voice = Math.tanh(voice * 1.7) * basicEnv;
                 } else if (event.type === 'vowelBlip') {
                     const formantA = Math.sin(TWO_PI * event.freq * 1.01 * delta);
                     const formantB = Math.sin(TWO_PI * event.freq * 2.72 * delta + Math.sin(delta * 19));
@@ -8912,6 +8957,8 @@
             });
 
             restoreRandomizeProtectedSliders(protectedRandomizeSliders);
+            randomizeLfoDepths();
+            clearRandomizedGranularLfoSweeps();
             randomizeInternalLfoTempoRatios();
 
             if (!audioContext) {
