@@ -2578,15 +2578,6 @@
                             <input type="range" id="generatedLoopEnd" min="0" max="100" value="100" step="1">
                             <div class="source-loop-lfo-controls">
                                 <div class="source-loop-lfo-row">
-                                    <span>Start</span>
-                                    <div class="button-group">
-                                        <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="1">L1</button>
-                                        <button class="inv-toggle" data-param="generatedLoopStart" data-lfo="1">INV</button>
-                                        <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="2">L2</button>
-                                        <button class="inv-toggle" data-param="generatedLoopStart" data-lfo="2">INV</button>
-                                    </div>
-                                </div>
-                                <div class="source-loop-lfo-row">
                                     <span>End</span>
                                     <div class="button-group">
                                         <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="1">L1</button>
@@ -2612,15 +2603,6 @@
                             <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
                             <div class="source-loop-lfo-controls">
-                                <div class="source-loop-lfo-row">
-                                    <span>Start</span>
-                                    <div class="button-group">
-                                        <button class="lfo-toggle" data-param="micLoopStart" data-lfo="1">L1</button>
-                                        <button class="inv-toggle" data-param="micLoopStart" data-lfo="1">INV</button>
-                                        <button class="lfo-toggle" data-param="micLoopStart" data-lfo="2">L2</button>
-                                        <button class="inv-toggle" data-param="micLoopStart" data-lfo="2">INV</button>
-                                    </div>
-                                </div>
                                 <div class="source-loop-lfo-row">
                                     <span>End</span>
                                     <div class="button-group">
@@ -2679,12 +2661,6 @@
                     <div class="control-group highlight">
                         <label>
                             <span class="param-name">Sample Start</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="sampleStart" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="sampleStart" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="sampleStart" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="sampleStart" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="sampleStartValue">0%</span>
                         </label>
                         <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
@@ -4069,6 +4045,7 @@
         let lfo3StartTime = 0;
         let lfo3Enabled = {};
         let lfo3Inverted = {};
+        const DISABLED_LOOP_START_LFO_PARAMS = new Set(['sampleStart', 'generatedLoopStart', 'micLoopStart']);
         
         // Oscillator state
         let osc1Config = {
@@ -4134,11 +4111,8 @@
             lfo2ToLfo1Mod: { min: 0, max: 14 }
         };
         const GRANULAR_LFO_MODULATION_SCALES = {
-            sampleStart: 0.12,
             sampleEnd: 0.12,
-            generatedLoopStart: 0.12,
             generatedLoopEnd: 0.12,
-            micLoopStart: 0.12,
             micLoopEnd: 0.12,
             grainSize: 0.14,
             density: 0.08,
@@ -4156,20 +4130,14 @@
             'hpfQ',
             'phaserRate',
             'tremoloRate',
-            'sampleStart',
             'sampleEnd',
-            'generatedLoopStart',
             'generatedLoopEnd',
-            'micLoopStart',
             'micLoopEnd',
             'grainSize'
         ]);
         const RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS = new Set([
-            'sampleStart',
             'sampleEnd',
-            'generatedLoopStart',
             'generatedLoopEnd',
-            'micLoopStart',
             'micLoopEnd',
             'grainSize',
             'density',
@@ -4912,6 +4880,9 @@
             if (!slider) return 0;
             
             const baseValue = parseFloat(slider.value);
+            if (DISABLED_LOOP_START_LFO_PARAMS.has(paramId)) {
+                return baseValue;
+            }
             
             // Calculate total modulation from both LFOs
             let totalOffset = 0;
@@ -4946,6 +4917,17 @@
             
             const modulated = baseValue + totalOffset;
             return Math.max(range.min, Math.min(range.max, modulated));
+        }
+
+        function clearDisabledLoopStartLfoRoutes() {
+            DISABLED_LOOP_START_LFO_PARAMS.forEach((param) => {
+                delete lfoEnabled[param];
+                delete lfoInverted[param];
+                delete lfo2Enabled[param];
+                delete lfo2Inverted[param];
+                delete lfo3Enabled[param];
+                delete lfo3Inverted[param];
+            });
         }
 
         function clampFilterQ(value) {
@@ -8536,6 +8518,22 @@
             };
         }
 
+        function buildGeneratedSourceDrumBlueprint(profile = null) {
+            const chosenProfile = profile || createMusicalGenerationProfile();
+            const generator = typeof mygrainUtils.generateDrumLoopBlueprint === 'function'
+                ? mygrainUtils.generateDrumLoopBlueprint
+                : null;
+            if (!generator) return null;
+            return generator({
+                seed: `${chosenProfile.generationSeed || Date.now()}-${generatedSourceLowNoiseMode ? 'low-noise' : 'full-range'}`,
+                stepCount: 16,
+                archetype: chosenProfile.id,
+                densityBias: chosenProfile.densityBias,
+                energy: chosenProfile.energy,
+                lowNoiseOnly: generatedSourceLowNoiseMode
+            });
+        }
+
         function applyExperimentalLoopPatch(options = {}) {
             const profile = options.profile || createMusicalGenerationProfile();
             const pick = (values) => values[Math.floor(Math.random() * values.length)];
@@ -8643,7 +8641,7 @@
             } else if (shouldRestartDryLoop) {
                 stopGeneratedDryLoop();
             }
-            await generateRandomSourceSample();
+            await generateRandomSourceSample({ profile: options.profile, blueprint: options.blueprint, sourceBlueprint: options.sourceBlueprint });
             if (options.refreshSequencerPattern) {
                 generateInterestingLoop({ profile: options.profile, blueprint: options.blueprint });
             }
@@ -8894,7 +8892,7 @@
             }
         }
 
-        async function generateRandomSourceSample() {
+        async function generateRandomSourceSample(options = {}) {
             if (!audioContext) {
                 setStatus('Start MYGRAIN before generating a random source.', 'error');
                 return;
@@ -8910,23 +8908,29 @@
             const frameCount = Math.floor(audioContext.sampleRate * duration);
             const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
             const lowNoiseOnly = generatedSourceLowNoiseMode;
-            const rootFrequency = (lowNoiseOnly ? [27, 30, 32, 34, 37] : [34, 37, 41, 46, 49, 55])[Math.floor(Math.random() * (lowNoiseOnly ? 5 : 6))];
-            const experimentalTonePalette = lowNoiseOnly
-                ? [
-                    { name: 'low noise body', ratios: [0.5, 0.75, 1], fold: 0.95 },
-                    { name: 'sub air noise knocks', ratios: [0.5, 1, 1.25], fold: 1.05 },
-                    { name: 'filtered floor noise pulses', ratios: [0.4, 0.67, 1], fold: 0.9 }
-                ]
-                : [
-                    { name: 'drum grid glass', ratios: [1, 1.5, 2.01, 2.98], fold: 1.22 },
-                    { name: 'rubber FM drum loop', ratios: [1, 1.25, 1.98, 3.03], fold: 1.32 },
-                    { name: 'broken tape percussion', ratios: [0.5, 1, 1.01, 1.98], fold: 1.26 }
-                ];
-            const palette = experimentalTonePalette[Math.floor(Math.random() * experimentalTonePalette.length)];
+            const profile = options.profile || createMusicalGenerationProfile();
+            const renderSeed = `${profile.generationSeed || Date.now()}-${lowNoiseOnly ? 'low-noise' : 'full-range'}-render`;
+            const renderRandom = typeof mygrainUtils.createSeededRandom === 'function'
+                ? mygrainUtils.createSeededRandom(renderSeed)
+                : Math.random;
+            const rootChoices = lowNoiseOnly ? [29, 31, 34, 36] : [34, 38, 42, 46, 50];
+            const rootFrequency = rootChoices[Math.floor(renderRandom() * rootChoices.length)];
+            const optionBlueprint = options.blueprint;
+            const optionDrumBlueprint = optionBlueprint
+                && Number.isFinite(Number(optionBlueprint.paletteSize))
+                && Array.isArray(optionBlueprint.events)
+                && optionBlueprint.events.every((event) => event && event.recipe)
+                ? optionBlueprint
+                : null;
+            const drumBlueprint = options.sourceBlueprint
+                || optionDrumBlueprint
+                || buildGeneratedSourceDrumBlueprint(profile);
             const events = [];
             const TWO_PI = Math.PI * 2;
+            const sourceRecipeCount = drumBlueprint?.paletteSize || 3;
+            const sourceGrooveLabel = drumBlueprint?.grooveLabel || 'fallback drum grid';
 
-            setStatus(`Generating ${palette.name} source…`);
+            setStatus(`Generating ${sourceGrooveLabel} source from ${sourceRecipeCount} drum recipes…`);
 
             function burstEnvelope(delta, attack, decay) {
                 if (delta < 0) return 0;
@@ -8936,134 +8940,120 @@
                 return Math.exp(-(delta - attack) / Math.max(decay, 0.0001));
             }
 
-            function addExperimentalEvent(type, time, options = {}) {
-                const durationSeconds = Math.max(options.duration ?? 0.22, lowNoiseOnly ? 0.16 : 0.11);
-                if (time > duration || time + durationSeconds < 0) return;
+            function addGridEvent(hit) {
+                const recipe = hit?.recipe;
+                if (!recipe || !Number.isInteger(hit.step)) return;
+                const time = hit.step * stepDuration;
+                const durationSeconds = Math.max(
+                    Math.min(duration, stepDuration * Math.max(0.16, Number(recipe.durationSteps) || 0.5)),
+                    lowNoiseOnly ? 0.045 : 0.03
+                );
                 events.push({
-                    type,
-                    time: Math.max(0, time),
+                    type: recipe.family,
+                    category: recipe.category,
+                    time,
                     duration: durationSeconds,
-                    attack: Math.max(options.attack ?? 0.018, lowNoiseOnly ? 0.022 : 0.014),
-                    decay: Math.max(options.decay ?? 0.1, lowNoiseOnly ? 0.15 : 0.08),
-                    freq: options.freq ?? rootFrequency,
-                    amp: options.amp ?? 0.5,
-                    pan: Math.max(-1, Math.min(1, options.pan ?? 0)),
-                    drop: options.drop ?? 0,
-                    dropRate: options.dropRate ?? 24,
-                    modFreq: options.modFreq ?? (rootFrequency * 2.7),
-                    modIndex: options.modIndex ?? 1.5,
-                    fold: options.fold ?? palette.fold,
-                    ratios: options.ratios ?? palette.ratios,
-                    color: options.color ?? 1
+                    attack: Math.max(Number(recipe.attackSeconds ?? 0.001), lowNoiseOnly ? 0.001 : 0.0005),
+                    decay: Math.max(Number(recipe.decaySeconds ?? 0.05), lowNoiseOnly && recipe.category !== 'kick' ? 0.026 : 0.014),
+                    amp: Math.max(0.08, Math.min(1.1, Number(recipe.level ?? 0.4) * Number(hit.velocity ?? 0.7) * (hit.accent ? 1.12 : 1))),
+                    pan: Math.max(-1, Math.min(1, ((renderRandom() * 2) - 1) * Number(recipe.panWidth ?? 0))),
+                    toneFreq: Math.max(28, Number(recipe.toneFreq ?? 220)),
+                    overtone: Number(recipe.overtone ?? 1.5),
+                    metallic: Number(recipe.metallic ?? 0.2),
+                    noiseTone: Math.max(0, lowNoiseOnly ? Number(recipe.noiseTone ?? 0.2) * 0.78 : Number(recipe.noiseTone ?? 0.2)),
+                    click: Math.max(0, Number(recipe.click ?? 0.1)),
+                    cluster: Math.max(2, Math.round(Number(recipe.cluster ?? 3))),
+                    pitchDrop: Math.max(0, Number(recipe.pitchDrop ?? 0)),
+                    dropRate: Math.max(4, Number(recipe.dropRate ?? 18)),
+                    drive: Math.max(1, Number(recipe.drive ?? 1.2)),
+                    phaseOffset: renderRandom() * TWO_PI
                 });
             }
 
-            function randomPan(width = 0.8) {
-                return (Math.random() * 2 - 1) * width;
+            if (drumBlueprint?.events?.length) {
+                // Every synthesized hit starts on an integer 1/16-note step so the loop stays locked to transport BPM.
+                drumBlueprint.events.forEach((hit) => addGridEvent(hit));
+            } else {
+                [0, 4, 8, 12].forEach((step, index) => {
+                    addGridEvent({
+                        step,
+                        velocity: index === 0 ? 0.98 : 0.8,
+                        accent: true,
+                        recipe: {
+                            family: 'kickPunch',
+                            category: 'kick',
+                            level: 0.92,
+                            panWidth: 0.12,
+                            toneFreq: index === 2 ? 48 : 42,
+                            overtone: 0.72,
+                            metallic: 0.08,
+                            noiseTone: 0.04,
+                            click: 0.18,
+                            cluster: 3,
+                            attackSeconds: 0.001,
+                            decaySeconds: 0.24,
+                            durationSteps: 1,
+                            pitchDrop: 72,
+                            dropRate: 18,
+                            drive: 1.5
+                        }
+                    });
+                });
+                [4, 12].forEach((step) => {
+                    addGridEvent({
+                        step,
+                        velocity: 0.82,
+                        accent: true,
+                        recipe: {
+                            family: 'snareCrack',
+                            category: 'snare',
+                            level: 0.62,
+                            panWidth: 0.18,
+                            toneFreq: 210,
+                            overtone: 2.4,
+                            metallic: 0.2,
+                            noiseTone: 0.72,
+                            click: 0.22,
+                            cluster: 3,
+                            attackSeconds: 0.001,
+                            decaySeconds: 0.12,
+                            durationSteps: 0.6,
+                            pitchDrop: 0,
+                            dropRate: 18,
+                            drive: 1.48
+                        }
+                    });
+                });
+                [1, 3, 5, 7, 9, 11, 13, 15].forEach((step) => {
+                    addGridEvent({
+                        step,
+                        velocity: 0.42,
+                        accent: true,
+                        recipe: {
+                            family: 'hatTick',
+                            category: 'closedHat',
+                            level: 0.28,
+                            panWidth: 0.62,
+                            toneFreq: 5200,
+                            overtone: 1.6,
+                            metallic: 0.82,
+                            noiseTone: 0.62,
+                            click: 0.08,
+                            cluster: 3,
+                            attackSeconds: 0.0006,
+                            decaySeconds: 0.03,
+                            durationSteps: 0.26,
+                            pitchDrop: 0,
+                            dropRate: 18,
+                            drive: 1.28
+                        }
+                    });
+                });
             }
 
             function panGain(pan, channel) {
                 const angle = (pan + 1) * Math.PI * 0.25;
                 return channel === 0 ? Math.cos(angle) : Math.sin(angle);
-            }
-
-            function noteRatio(step) {
-                return Math.pow(2, step / 12);
-            }
-
-            const anchorSteps = [0, 4, 8, 12, Math.random() < 0.6 ? 6 : 14];
-            anchorSteps.forEach((step, index) => {
-                const time = step * stepDuration;
-                const freq = rootFrequency * (index % 3 === 1 ? 1.5 : 1);
-                addExperimentalEvent(lowNoiseOnly ? 'lowNoiseHit' : 'subPulse', time, {
-                    freq,
-                    amp: lowNoiseOnly ? (0.74 + Math.random() * 0.18) : (index === 0 || step === 16 ? 0.86 : 0.58),
-                    duration: lowNoiseOnly ? 0.48 : 0.32,
-                    attack: lowNoiseOnly ? 0.022 : 0.014,
-                    decay: lowNoiseOnly ? 0.18 : 0.09,
-                    drop: lowNoiseOnly ? 38 + Math.random() * 20 : 70 + Math.random() * 34,
-                    dropRate: lowNoiseOnly ? 11 + Math.random() * 7 : 18 + Math.random() * 9,
-                    pan: randomPan(0.18)
-                });
-                if (Math.random() < 0.45) {
-                    addExperimentalEvent('reverseSwell', time - (stepDuration * 1.5), {
-                        freq: freq * 1.01,
-                        amp: 0.18,
-                        duration: stepDuration * 1.5,
-                        decay: 0.2,
-                        pan: randomPan(0.5)
-                    });
-                }
-            });
-
-            [2, 3, 5, 7, 10, 11, 13, 15].forEach((step) => {
-                if (Math.random() < 0.28) return;
-                const ratio = palette.ratios[Math.floor(Math.random() * palette.ratios.length)];
-                addExperimentalEvent(lowNoiseOnly ? 'noiseBody' : (Math.random() < 0.5 ? 'fmKnock' : 'vowelBlip'), step * stepDuration, {
-                    freq: rootFrequency * ratio * noteRatio(lowNoiseOnly ? [-12, -7, -5, 0][Math.floor(Math.random() * 4)] : [0, 2, 3, 5, 7][Math.floor(Math.random() * 5)]),
-                    amp: lowNoiseOnly ? 0.28 + Math.random() * 0.22 : 0.18 + Math.random() * 0.24,
-                    duration: lowNoiseOnly ? 0.22 + Math.random() * 0.18 : 0.14 + Math.random() * 0.12,
-                    attack: lowNoiseOnly ? 0.022 : 0.014,
-                    decay: lowNoiseOnly ? 0.14 + Math.random() * 0.08 : 0.06 + Math.random() * 0.05,
-                    modFreq: rootFrequency * (3 + Math.random() * 8),
-                    modIndex: lowNoiseOnly ? 0.25 : 1.6 + Math.random() * 2.3,
-                    pan: randomPan()
-                });
-            });
-
-            [1, 6, 9, 14].forEach((step) => {
-                if (Math.random() < 0.36) return;
-                addExperimentalEvent('softNoisePush', step * stepDuration, {
-                    freq: rootFrequency * (lowNoiseOnly ? 0.5 : 0.75),
-                    amp: lowNoiseOnly ? 0.2 + Math.random() * 0.15 : 0.12 + Math.random() * 0.12,
-                    duration: stepDuration * 1.15,
-                    attack: 0.018,
-                    decay: 0.12,
-                    pan: randomPan()
-                });
-            });
-
-            if (!lowNoiseOnly) {
-                [4, 12].forEach((step) => {
-                    addExperimentalEvent('snareNoise', step * stepDuration, {
-                        freq: rootFrequency * (6 + Math.random() * 2),
-                        amp: 0.34 + Math.random() * 0.18,
-                        duration: stepDuration * 0.72,
-                        attack: 0.004,
-                        decay: 0.045 + Math.random() * 0.025,
-                        pan: randomPan(0.34),
-                        color: 1.35
-                    });
-                });
-
-                for (let step = 0; step < loopSteps; step++) {
-                    const isOffbeat = step % 2 === 1;
-                    const isBackbeat = step === 4 || step === 12;
-                    if (Math.random() < (isOffbeat ? 0.86 : 0.36)) {
-                        addExperimentalEvent('hatNoise', step * stepDuration, {
-                            freq: rootFrequency * (18 + Math.random() * 18),
-                            amp: isBackbeat ? 0.1 : (0.12 + Math.random() * 0.12),
-                            duration: stepDuration * (isOffbeat ? 0.36 : 0.22),
-                            attack: 0.003,
-                            decay: 0.018 + Math.random() * 0.018,
-                            pan: randomPan(0.72),
-                            color: 1.7
-                        });
-                    }
-                }
-
-                [3, 7, 10, 15].forEach((step) => {
-                    if (Math.random() < 0.34) return;
-                    addExperimentalEvent('rimSnap', step * stepDuration, {
-                        freq: rootFrequency * (10 + Math.random() * 10),
-                        amp: 0.14 + Math.random() * 0.12,
-                        duration: stepDuration * 0.28,
-                        attack: 0.003,
-                        decay: 0.026,
-                        pan: randomPan(0.8),
-                        color: 1.55
-                    });
-                });
             }
 
             events.sort((a, b) => a.time - b.time);
@@ -9072,49 +9062,49 @@
                 if (delta < 0 || delta > event.duration) return 0;
                 const basicEnv = burstEnvelope(delta, event.attack, event.decay);
                 const progress = Math.max(0, Math.min(1, delta / Math.max(event.duration, 0.001)));
-                const reverseEnv = Math.sin(progress * Math.PI) * Math.pow(progress, 1.8);
                 const pan = panGain(event.pan, channel);
+                const pitch = event.toneFreq + event.pitchDrop * Math.exp(-delta * event.dropRate);
+                const primary = Math.sin(TWO_PI * pitch * delta + event.phaseOffset);
+                const overtone = Math.sin(TWO_PI * pitch * event.overtone * delta + event.phaseOffset * 0.5);
+                const transient = highNoise * event.click * Math.exp(-delta * 90);
                 let voice = 0;
 
-                if (event.type === 'subPulse') {
-                    const pitchDrop = event.freq + event.drop * Math.exp(-delta * event.dropRate);
-                    voice = Math.sin(TWO_PI * pitchDrop * delta);
-                    voice += 0.32 * Math.sin(TWO_PI * pitchDrop * 0.5 * delta + 0.6);
-                    voice = Math.tanh(voice * event.fold) * basicEnv;
-                } else if (event.type === 'lowNoiseHit') {
-                    const roundedNoise = lowNoise * (0.82 + (1 - progress) * 0.18);
-                    voice = Math.tanh(roundedNoise * event.fold) * basicEnv;
-                } else if (event.type === 'fmKnock') {
-                    const mod = Math.sin(TWO_PI * event.modFreq * delta) * event.modIndex * basicEnv;
-                    voice = Math.sin(TWO_PI * event.freq * delta + mod);
-                    voice += 0.08 * lowNoise * Math.exp(-delta * 18);
-                    voice = Math.tanh(voice * event.fold) * basicEnv;
-                } else if (event.type === 'vowelBlip') {
-                    const formantA = Math.sin(TWO_PI * event.freq * 1.01 * delta);
-                    const formantB = Math.sin(TWO_PI * event.freq * 2.72 * delta + Math.sin(delta * 19));
-                    const formantC = Math.sin(TWO_PI * event.freq * 4.4 * delta) * 0.32;
-                    voice = Math.tanh((formantA + formantB * 0.55 + formantC) * 1.4) * basicEnv;
-                } else if (event.type === 'noiseBody') {
-                    const broadBody = lowNoise * (0.72 + progress * 0.18);
-                    voice = Math.tanh(broadBody * event.fold) * basicEnv;
-                } else if (event.type === 'softNoisePush') {
-                    const swell = Math.sin(progress * Math.PI);
-                    voice = lowNoise * 0.78 * swell * basicEnv;
-                } else if (event.type === 'snareNoise') {
-                    const tone = Math.sin(TWO_PI * event.freq * delta) * Math.exp(-delta * 30);
-                    const snap = highNoise * (1 - progress) * event.color;
-                    const body = lowNoise * 0.36 * Math.exp(-delta * 12);
-                    voice = Math.tanh((snap + body + tone * 0.22) * event.fold) * basicEnv;
-                } else if (event.type === 'hatNoise') {
-                    const metallic = Math.sin(TWO_PI * event.freq * delta) * Math.sin(TWO_PI * event.freq * 1.47 * delta);
-                    voice = Math.tanh((highNoise * event.color + metallic * 0.24) * 1.8) * basicEnv;
-                } else if (event.type === 'rimSnap') {
-                    const clickTone = Math.sin(TWO_PI * event.freq * delta) * Math.exp(-delta * 48);
-                    voice = Math.tanh((highNoise * event.color * 0.82 + clickTone * 0.45) * event.fold) * basicEnv;
-                } else if (event.type === 'reverseSwell') {
-                    voice = ((lowNoise * 0.34) + Math.sin(TWO_PI * event.freq * delta) * 0.58) * reverseEnv;
+                if (event.category === 'kick') {
+                    const sub = Math.sin(TWO_PI * pitch * 0.5 * delta + 0.45);
+                    const body = primary + (sub * 0.46) + (overtone * 0.28);
+                    const dust = lowNoise * event.noiseTone * Math.exp(-delta * 16);
+                    voice = Math.tanh((body + dust + transient) * event.drive) * basicEnv;
+                } else if (event.category === 'snare') {
+                    const snap = highNoise * (event.noiseTone + 0.14) * Math.exp(-delta * 22);
+                    const body = (primary * 0.34) + (overtone * 0.18) + (lowNoise * 0.2 * Math.exp(-delta * 10));
+                    voice = Math.tanh((snap + body + transient) * event.drive) * basicEnv;
+                } else if (event.category === 'clap') {
+                    let clapEnv = 0;
+                    for (let index = 0; index < event.cluster; index++) {
+                        const spread = index * 0.009;
+                        if (delta >= spread) {
+                            clapEnv += Math.exp(-(delta - spread) / Math.max(event.decay * 0.7, 0.01)) * (1 - index * 0.14);
+                        }
+                    }
+                    voice = Math.tanh((highNoise * (event.noiseTone + 0.2) + primary * 0.08 + transient) * event.drive) * Math.min(1.1, clapEnv);
+                } else if (event.category === 'closedHat' || event.category === 'openHat' || event.category === 'cymbal') {
+                    const metallicA = Math.sin(TWO_PI * pitch * delta + event.phaseOffset);
+                    const metallicB = Math.sin(TWO_PI * pitch * (event.overtone + 0.37) * delta + 0.4);
+                    const metallicC = Math.sin(TWO_PI * pitch * (event.overtone + 1.19) * delta + 1.1);
+                    const wash = highNoise * (event.noiseTone + (event.category === 'cymbal' ? 0.08 : 0));
+                    voice = Math.tanh((wash + ((metallicA * metallicB) + metallicC * 0.42) * event.metallic + transient * 0.6) * event.drive) * basicEnv;
+                } else if (event.category === 'tom') {
+                    const body = primary + (overtone * 0.3) + (transient * 0.5);
+                    voice = Math.tanh((body + lowNoise * event.noiseTone * Math.exp(-delta * 14)) * event.drive) * basicEnv;
+                } else if (event.category === 'rim' || event.category === 'click') {
+                    const tone = Math.sin(TWO_PI * event.toneFreq * delta * (event.category === 'click' ? 1 : event.overtone) + event.phaseOffset) * Math.exp(-delta * 44);
+                    voice = Math.tanh((transient * 1.3 + tone * 0.52 + lowNoise * event.noiseTone * 0.18) * event.drive) * basicEnv;
+                } else if (event.category === 'shaker') {
+                    const chatter = Math.max(0, Math.sin(progress * Math.PI * event.cluster));
+                    voice = Math.tanh((highNoise * (event.noiseTone + 0.18) * chatter + transient * 0.8) * event.drive) * basicEnv;
                 } else {
-                    voice = (lowNoise * 0.52 + Math.sin(TWO_PI * event.freq * delta) * 0.18) * basicEnv;
+                    const fm = Math.sin(TWO_PI * event.toneFreq * delta + (Math.sin(TWO_PI * event.toneFreq * event.overtone * delta) * event.metallic));
+                    voice = Math.tanh((fm * 0.46 + highNoise * event.noiseTone + lowNoise * 0.14 + transient) * event.drive) * basicEnv;
                 }
 
                 return voice * event.amp * pan;
@@ -9161,7 +9151,10 @@
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, `${bpm} BPM ${palette.name} source`, 'generated');
+            const sourceLabel = drumBlueprint
+                ? `${bpm} BPM ${drumBlueprint.grooveLabel} drum source`
+                : `${bpm} BPM drum source`;
+            await applyLoadedAudioBuffer(buffer, sourceLabel, 'generated');
         }
 
         generateSourceBtn?.addEventListener('click', async () => {
@@ -9438,6 +9431,7 @@
             const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile() });
             const loopBlueprint = buildLoopBlueprint(generationProfile);
+            const sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
             randomizeLfoRoutingMatrix({ profile: generationProfile });
 
             // Randomize key type/division selectors while leaving waveform controls manual.
@@ -9487,7 +9481,8 @@
                 await generateSourceWithPlaybackRestart({
                     refreshSequencerPattern: true,
                     profile: generationProfile,
-                    blueprint: loopBlueprint
+                    blueprint: loopBlueprint,
+                    sourceBlueprint
                 });
                 setPerformanceGenerateButtonState('generated');
                 statusDiv.textContent = 'Patch randomized and new loop generated; source loop points and mix balances kept.';
@@ -9717,6 +9712,7 @@
                 toggleParams: presetToggleParams
             }) : { preset, warnings: [] };
             const safePreset = validated.preset;
+            clearDisabledLoopStartLfoRoutes();
             const normalizedSliders = normalizeStoredLfoSliderValues(safePreset.sliders, {
                 bpmOnlyLfos: safePreset.bpmOnlyLfos === true,
                 lfoMode: safePreset.lfo?.mode,
@@ -9774,6 +9770,7 @@
             if (safePreset.generatedSourceLowNoiseMode !== undefined) {
                 setGeneratedSourceLowNoiseMode(safePreset.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
             }
+            clearDisabledLoopStartLfoRoutes();
             const importedGlobalModulationAmount = safePreset.globalModulationAmount ?? preset.globalModulationAmount;
             if (importedGlobalModulationAmount !== undefined) {
                 setGlobalModulationAmount(Number(importedGlobalModulationAmount) * 100, { save: false });
