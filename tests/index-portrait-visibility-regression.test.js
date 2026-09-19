@@ -42,6 +42,15 @@ test('mobile performance controls expose loop generation and playback', () => {
     assert.match(indexHtml, /await generateRandomSourceSample\(\);\s*generateInterestingLoop\(\);/);
 });
 
+test('generate and randomize actions show a two second settle popup', () => {
+    assert.match(indexHtml, /id="settlePopup"[\s\S]*>let it settle<\/div>/);
+    assert.match(indexHtml, /function showSettlePopup\(\)/);
+    assert.match(indexHtml, /settlePopup\.classList\.add\('visible'\)/);
+    assert.match(indexHtml, /settlePopupTimer = setTimeout\(\(\) => \{[\s\S]*\}, 2000\);/);
+    assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', \(\) => \{\s*showSettlePopup\(\);/);
+    assert.match(indexHtml, /performanceGenerateLoopBtn\?\.addEventListener\('click', async \(\) => \{[\s\S]*showSettlePopup\(\);[\s\S]*setPerformanceGenerateButtonState\('generating'\)/);
+});
+
 test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceSourceMix"/);
     assert.match(indexHtml, />Granular\/Osc</);

@@ -2053,6 +2053,30 @@
             color: rgba(240, 248, 255, 0.88);
         }
 
+        .settle-popup {
+            position: fixed;
+            top: max(18px, env(safe-area-inset-top));
+            left: 50%;
+            z-index: 10001;
+            padding: 12px 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(126, 246, 255, 0.45);
+            background: rgba(5, 8, 15, 0.94);
+            color: #fff;
+            font-weight: 900;
+            letter-spacing: 0;
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36), 0 0 22px rgba(126, 246, 255, 0.24);
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -8px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .settle-popup.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
         .simplified-ui .keyboard-section {
             --keyboard-key-height: clamp(148px, 28svh, 232px);
             display: grid !important;
@@ -2228,6 +2252,8 @@
     </style>
 </head>
 <body class="simplified-ui">
+
+    <div id="settlePopup" class="settle-popup" role="status" aria-live="polite" aria-hidden="true">let it settle</div>
 
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
@@ -3983,11 +4009,30 @@
 
         const statusDiv = document.getElementById('status');
         const audioStatusDiv = document.getElementById('audioStatus');
+        const settlePopup = document.getElementById('settlePopup');
+        let settlePopupTimer = null;
 
         function setStatus(message, state = 'info') {
             if (!statusDiv) return;
             statusDiv.textContent = message;
             statusDiv.dataset.state = state;
+        }
+
+        function showSettlePopup() {
+            if (!settlePopup) return;
+            if (settlePopupTimer) {
+                clearTimeout(settlePopupTimer);
+            }
+
+            settlePopup.textContent = 'let it settle';
+            settlePopup.classList.add('visible');
+            settlePopup.setAttribute('aria-hidden', 'false');
+
+            settlePopupTimer = setTimeout(() => {
+                settlePopup.classList.remove('visible');
+                settlePopup.setAttribute('aria-hidden', 'true');
+                settlePopupTimer = null;
+            }, 2000);
         }
 
         function setAudioStatus(message, state = 'info') {
@@ -7891,6 +7936,7 @@
 
         // Randomize Button
         document.getElementById('randomizeBtn').addEventListener('click', () => {
+            showSettlePopup();
             // Get all sliders
             const allSliders = document.querySelectorAll('input[type="range"]');
             
@@ -9676,6 +9722,7 @@
 
         performanceGenerateLoopBtn?.addEventListener('click', async () => {
             if (performanceGenerateLoopBtn.classList.contains('generating')) return;
+            showSettlePopup();
             setPerformanceGenerateButtonState('generating');
             try {
                 await generatePerformanceLoop();
