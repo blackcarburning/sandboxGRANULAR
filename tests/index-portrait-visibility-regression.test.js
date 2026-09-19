@@ -67,6 +67,7 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceOctaveUpBtn"/);
     assert.match(indexHtml, /id="performanceOctaveDownBtn"/);
     assert.match(indexHtml, /id="performanceLfoWaveform"/);
+    assert.match(indexHtml, /id="performanceLfoSquareBtn"/);
     assert.match(indexHtml, /id="performancePulseWidth"/);
     assert.match(indexHtml, /id="performanceExportBars"/);
     assert.match(indexHtml, /id="performanceExportBtn"/);
@@ -82,6 +83,10 @@ test('mobile keyboard presents one octave with widened touch targets', () => {
     assert.doesNotMatch(indexHtml, /data-note="C1"/);
     assert.match(indexHtml, /data-note="C2"/);
     assert.match(indexHtml, /One octave, transposed by the octave buttons/);
+    assert.doesNotMatch(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls,\s*\n\s*\.simplified-ui \.keyboard-section \.volume-bias-container/);
+    assert.match(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls/);
+    assert.match(indexHtml, /performance-sound-card performance-octave-card/);
+    assert.match(indexHtml, /\.simplified-ui \.performance-octave-card\s*\{\s*display: none;/);
 });
 
 test('source UI has separate generated and mic waveform loop controls', () => {
@@ -154,4 +159,13 @@ test('lfo waveforms include pulse width and stepped shapes', () => {
     assert.match(indexHtml, /<option value="pulse">Pulse<\/option>/);
     assert.match(indexHtml, /<option value="stepped">Stepped<\/option>/);
     assert.match(indexHtml, /function evaluateLfoWaveform\(waveform, phase, pulseWidth = 0\.5\)/);
+});
+
+test('all internal lfos can be forced to square until randomize clears it', () => {
+    assert.match(indexHtml, /let allLfosSquareForced = false/);
+    assert.match(indexHtml, /function setAllInternalLfoWaveforms\(waveform, options = \{\}\)/);
+    assert.match(indexHtml, /\['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'\]/);
+    assert.match(indexHtml, /setAllInternalLfoWaveforms\('square', \{ forcedSquare: true \}\)/);
+    assert.match(indexHtml, /clearAllLfoSquareForce\(\);[\s\S]*\/\/ Randomize oscillator octave buttons/);
+    assert.match(indexHtml, /performanceLfoSquareBtn\.classList\.toggle\('active', allLfosSquareForced\)/);
 });

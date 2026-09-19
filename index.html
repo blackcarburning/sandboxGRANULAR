@@ -1737,7 +1737,6 @@
         .simplified-ui #fullscreenBtn,
         .simplified-ui #debugPanel,
         .simplified-ui .controls-section,
-        .simplified-ui .keyboard-section .octave-controls,
         .simplified-ui .keyboard-section .volume-bias-container,
         .simplified-ui .keyboard-section #holdBtn,
         .simplified-ui .keyboard-section #panicBtn,
@@ -1884,6 +1883,10 @@
             white-space: nowrap;
         }
 
+        .simplified-ui .performance-octave-card {
+            display: none;
+        }
+
         .simplified-ui .performance-pole-row,
         .simplified-ui .performance-toggle-row,
         .simplified-ui .performance-octave-row {
@@ -2000,6 +2003,7 @@
         }
 
         .simplified-ui #performanceHoldBtn.active,
+        .simplified-ui #performanceLfoSquareBtn.active,
         .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceOscToggleBtn.osc-off,
         .simplified-ui #performanceRecordBtn.recording,
@@ -2051,7 +2055,9 @@
 
         .simplified-ui .keyboard-section {
             --keyboard-key-height: clamp(148px, 28svh, 232px);
-            display: flex !important;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr) auto;
             position: sticky !important;
             left: auto !important;
             right: auto !important;
@@ -2063,22 +2069,72 @@
             flex: none;
             order: 2;
             padding: 14px;
-            gap: 0;
+            gap: 10px;
             align-items: stretch;
             border-radius: 22px;
             z-index: 20;
-            overflow-x: auto;
+            overflow: visible;
             overscroll-behavior-x: contain;
             -webkit-overflow-scrolling: touch;
             touch-action: pan-x;
         }
 
         .simplified-ui .keyboard {
+            order: 1;
+            grid-column: 1;
+            grid-row: 1;
+            justify-self: stretch;
+            width: 100% !important;
             min-width: 100%;
             height: var(--keyboard-key-height);
             min-height: var(--keyboard-key-height);
             align-self: stretch;
             padding-top: 0;
+        }
+
+        .simplified-ui .keyboard-section .octave-controls {
+            order: 2;
+            grid-column: 1;
+            grid-row: 2;
+            display: grid;
+            grid-template-columns: 44px minmax(88px, 1fr) 44px;
+            gap: 8px;
+            align-items: center;
+            justify-self: center;
+            width: min(260px, 100%);
+        }
+
+        .simplified-ui .keyboard-section #octaveDownBtn {
+            order: 1;
+        }
+
+        .simplified-ui .keyboard-section .octave-display {
+            order: 2;
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(5, 8, 15, 0.72);
+            border: 1px solid rgba(126, 246, 255, 0.18);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .simplified-ui .keyboard-section #octaveUpBtn {
+            order: 3;
+        }
+
+        .simplified-ui .keyboard-section .octave-btn {
+            min-height: 38px;
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 900;
         }
 
         @media (max-width: 960px) {
@@ -2123,7 +2179,7 @@
 
             .simplified-ui .keyboard-section {
                 --keyboard-key-height: 164px;
-                min-height: 184px;
+                min-height: 232px;
                 padding: 8px;
             }
         }
@@ -2156,7 +2212,7 @@
 
             .simplified-ui .keyboard-section {
                 --keyboard-key-height: 98px;
-                min-height: 118px;
+                min-height: 148px;
                 height: auto;
                 border-radius: 8px 8px 0 0;
             }
@@ -2274,7 +2330,7 @@
                         <button class="performance-pole-toggle" data-performance-filter="hpf" data-poles="4">4P</button>
                     </div>
                 </div>
-                <div class="performance-sound-card">
+                <div class="performance-sound-card performance-octave-card">
                     <label>
                         <span>Octave</span>
                         <span class="value" id="performanceOctaveValue">0</span>
@@ -2318,6 +2374,7 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
+                <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
@@ -3822,6 +3879,7 @@
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
+        let allLfosSquareForced = false;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         const MIX_HEADROOM = 0.9;
         const MAX_SAFE_FILTER_Q = 2.5;
@@ -7046,6 +7104,19 @@
             select.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
+        function setAllInternalLfoWaveforms(waveform, options = {}) {
+            ['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'].forEach((id) => {
+                setSelectValue(id, waveform);
+            });
+            allLfosSquareForced = Boolean(options.forcedSquare && waveform === 'square');
+            syncPerformanceControlState();
+        }
+
+        function clearAllLfoSquareForce() {
+            allLfosSquareForced = false;
+            syncPerformanceControlState();
+        }
+
         function setOscillatorOctave(oscNumber, octave) {
             const button = document.querySelector(`.slope-toggle[data-osc="${oscNumber}"][data-octave="${octave}"]`);
             if (button && !button.classList.contains('active')) {
@@ -7858,6 +7929,7 @@
                 select.selectedIndex = randomIndex;
                 select.dispatchEvent(new Event('change'));
             });
+            clearAllLfoSquareForce();
 
             // Randomize oscillator octave buttons
             ['1', '2'].forEach(osc => {
@@ -7949,6 +8021,7 @@
             document.getElementById('lfoWaveform').value = 'sine';
             document.getElementById('lfo2Waveform').value = 'sine';
             document.getElementById('lfo3Waveform').value = 'sine';
+            clearAllLfoSquareForce();
             document.getElementById('noiseType').value = 'none';
             document.getElementById('delayDivision').value = '1';
             
@@ -9382,6 +9455,7 @@
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
+        const performanceLfoSquareBtn = document.getElementById('performanceLfoSquareBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
@@ -9517,6 +9591,11 @@
                 performanceOscToggleBtn.setAttribute('aria-pressed', String(!oscillatorsEnabled));
             }
 
+            if (performanceLfoSquareBtn) {
+                performanceLfoSquareBtn.classList.toggle('active', allLfosSquareForced);
+                performanceLfoSquareBtn.setAttribute('aria-pressed', String(allLfosSquareForced));
+            }
+
             const octaveLabel = document.getElementById('performanceOctaveValue');
             if (octaveLabel) {
                 octaveLabel.textContent = `${octaveOffset > 0 ? '+' : ''}${octaveOffset}`;
@@ -9567,6 +9646,11 @@
             setOscillatorsEnabled(!oscillatorsEnabled);
         });
 
+        performanceLfoSquareBtn?.addEventListener('click', () => {
+            setAllInternalLfoWaveforms('square', { forcedSquare: true });
+            setStatus('All internal LFO waveforms set to square.');
+        });
+
         performanceLpfCutoff?.addEventListener('input', (event) => {
             setSliderValue('lpfCutoff', event.target.value);
             syncPerformanceSoundControls();
@@ -9614,6 +9698,9 @@
 
         performanceLfoWaveform?.addEventListener('change', (event) => {
             setSelectValue('lfoWaveform', event.target.value);
+            if (event.target.value !== 'square') {
+                clearAllLfoSquareForce();
+            }
             syncPerformanceSoundControls();
         });
 
