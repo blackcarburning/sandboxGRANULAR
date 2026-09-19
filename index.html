@@ -4037,7 +4037,7 @@
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
                 
-                setStatus('Engine ready. Generate a source, load a sample, use Load Demo, or record the mic.');
+                setStatus('Engine ready. Generate a source, use Load Audio, use Load Demo, or record the mic.');
                 setAudioStatus(`Audio running · ${audioContext.sampleRate} Hz`);
                 updateKeyboardGeometry();
                 
@@ -7151,6 +7151,7 @@
             enforceBpmOnlyLfoMode();
             const restoredGlobalBpm = safePreset.globalBpm ??
                 normalizedSliders?.globalBpmSlider ??
+                normalizedSliders?.delayBpm ??
                 normalizedSliders?.lfoRate ??
                 normalizedSliders?.lfo2Rate ??
                 normalizedSliders?.lfo3Rate ??
@@ -7639,6 +7640,7 @@
 
                 const restoredGlobalBpm = state.globalBpm ??
                     normalizedStateSliders?.globalBpmSlider ??
+                    normalizedStateSliders?.delayBpm ??
                     normalizedStateSliders?.lfoRate ??
                     normalizedStateSliders?.lfo2Rate ??
                     normalizedStateSliders?.lfo3Rate ??
