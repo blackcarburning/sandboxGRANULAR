@@ -130,13 +130,12 @@ test('generate source has a low-frequency noise-only mode without clicky transie
     assert.match(indexHtml, /let generatedSourceLowNoiseMode = false/);
     assert.match(indexHtml, /function setGeneratedSourceLowNoiseMode\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /const lowNoiseOnly = generatedSourceLowNoiseMode/);
-    assert.match(indexHtml, /addExperimentalEvent\(lowNoiseOnly \? 'lowNoiseHit' : 'subPulse'/);
-    assert.match(indexHtml, /addExperimentalEvent\(lowNoiseOnly \? 'noiseBody' : \(Math\.random\(\) < 0\.5 \? 'fmKnock' : 'vowelBlip'\)/);
-    assert.match(indexHtml, /addExperimentalEvent\('softNoisePush'/);
-    assert.match(indexHtml, /event\.type === 'lowNoiseHit'/);
-    assert.match(indexHtml, /event\.type === 'noiseBody'/);
-    assert.match(indexHtml, /event\.type === 'softNoisePush'/);
-    assert.match(indexHtml, /attack: Math\.max\(options\.attack \?\? 0\.018, lowNoiseOnly \? 0\.022 : 0\.014\)/);
+    assert.match(indexHtml, /generateDrumLoopBlueprint\(\{[\s\S]*lowNoiseOnly/);
+    assert.match(indexHtml, /const rootFrequency = \(lowNoiseOnly \? \[29, 31, 34, 36\] : \[34, 38, 42, 46, 50\]\)/);
+    assert.match(indexHtml, /durationSeconds = Math\.max\([\s\S]*lowNoiseOnly \? 0\.045 : 0\.03/);
+    assert.match(indexHtml, /noiseTone: Math\.max\(0, lowNoiseOnly \? \(Number\(recipe\.noiseTone\) \|\| 0\.2\) \* 0\.78 : Number\(recipe\.noiseTone\) \|\| 0\.2\)/);
+    assert.match(indexHtml, /event\.category === 'kick'/);
+    assert.match(indexHtml, /event\.category === 'shaker'/);
     assert.doesNotMatch(indexHtml, /gridZap/);
     assert.doesNotMatch(indexHtml, /dustTick/);
     assert.doesNotMatch(indexHtml, /metalShard/);
@@ -365,7 +364,7 @@ test('generating a new performance loop restarts active playback', () => {
     assert.match(indexHtml, /const shouldRestartSequencer = sequencerPlaying/);
     assert.match(indexHtml, /const shouldRestartDryLoop = Boolean\(generatedDrySource\)/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*stopSequencer\(\);/);
-    assert.match(indexHtml, /await generateRandomSourceSample\(\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);/);
+    assert.match(indexHtml, /await generateRandomSourceSample\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*startSequencer\(\);/);
     assert.match(indexHtml, /else if \(shouldRestartDryLoop\) \{\s*startGeneratedDryLoop\(\);/);
 });
@@ -379,7 +378,7 @@ test('generate source restarts active loop playback after replacing the source',
 
 test('randomize patch automatically generates a new performance loop', () => {
     assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{/);
-    assert.match(indexHtml, /setPerformanceGenerateButtonState\('generating'\);[\s\S]*await generatePerformanceLoop\(\);[\s\S]*setPerformanceGenerateButtonState\('generated'\);/);
+    assert.match(indexHtml, /setPerformanceGenerateButtonState\('generating'\);[\s\S]*await generateSourceWithPlaybackRestart\(\{[\s\S]*refreshSequencerPattern: true,[\s\S]*profile: generationProfile,[\s\S]*blueprint: loopBlueprint[\s\S]*\}\);[\s\S]*setPerformanceGenerateButtonState\('generated'\);/);
     assert.match(indexHtml, /Patch randomized and new loop generated; source loop points and mix balances kept\./);
     assert.match(indexHtml, /Patch randomized; start MYGRAIN to generate the source loop\./);
 });
@@ -402,9 +401,9 @@ test('oscillators can be disabled for granular-only playback', () => {
 });
 
 test('generated source and sequencer are experimental on a strict sixteenth grid', () => {
-    assert.match(indexHtml, /experimentalTonePalette/);
-    assert.match(indexHtml, /const anchorSteps = \[0, 4, 8, 12/);
-    assert.match(indexHtml, /addExperimentalEvent\('softNoisePush', step \* stepDuration/);
+    assert.match(indexHtml, /generateDrumLoopBlueprint/);
+    assert.match(indexHtml, /const loopSteps = 16/);
+    assert.match(indexHtml, /drumBlueprint\.events\.forEach\(\(hit\) => addGridEvent\(hit\)\)/);
     assert.doesNotMatch(indexHtml, /triplet/i);
     assert.doesNotMatch(indexHtml, /ratchet/i);
     assert.doesNotMatch(indexHtml, /subHits/);
@@ -473,9 +472,8 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /phaserDepth: \{ min: 0, max: 18 \}/);
     assert.match(indexHtml, /tremoloDepth: \{ min: 0, max: 16 \}/);
     assert.match(indexHtml, /const GRANULAR_LFO_MODULATION_SCALES = \{/);
-    assert.match(indexHtml, /generatedLoopStart: 0\.12/);
+    assert.match(indexHtml, /const DISABLED_LOOP_START_LFO_PARAMS = new Set\(\['sampleStart', 'generatedLoopStart', 'micLoopStart'\]\)/);
     assert.match(indexHtml, /generatedLoopEnd: 0\.12/);
-    assert.match(indexHtml, /micLoopStart: 0\.12/);
     assert.match(indexHtml, /micLoopEnd: 0\.12/);
     assert.match(indexHtml, /grainSize: 0\.14/);
     assert.match(indexHtml, /attack: 0\.05/);
@@ -488,11 +486,8 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /function getLfoModulationScale\(paramId\)/);
     assert.match(indexHtml, /return baseScale \* getGlobalModulationAmountValue\(\) \* grainScale/);
     assert.match(indexHtml, /const RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS = new Set\(\[/);
-    assert.match(indexHtml, /'sampleStart'/);
     assert.match(indexHtml, /'sampleEnd'/);
-    assert.match(indexHtml, /'generatedLoopStart'/);
     assert.match(indexHtml, /'generatedLoopEnd'/);
-    assert.match(indexHtml, /'micLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
     assert.match(indexHtml, /'grainSize'/);
     assert.match(indexHtml, /'density'/);
@@ -504,7 +499,6 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /'lpfQ'/);
     assert.match(indexHtml, /'hpfCutoff'/);
     assert.match(indexHtml, /'hpfQ'/);
-    assert.match(indexHtml, /'generatedLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
     assert.match(indexHtml, /function randomizeLfoDepths\(options = \{\}\)/);
     assert.match(indexHtml, /const INTERNAL_RANDOMIZE_SLIDER_RANGES = \{/);
@@ -525,20 +519,21 @@ test('grain scheduling and generated loops are BPM-grid rhythmic and bright agai
     assert.match(indexHtml, /function quantizePitchOffsetToScale\(offset, scaleIntervals\)/);
     assert.match(indexHtml, /const LOOP_SCALE_FAMILIES = \[/);
     assert.match(indexHtml, /const volume = enabled[\s\S]*Math\.max\(32, Math\.min\(98/);
-    assert.match(indexHtml, /'snareNoise'/);
-    assert.match(indexHtml, /'hatNoise'/);
-    assert.match(indexHtml, /'rimSnap'/);
-    assert.match(indexHtml, /voice = Math\.tanh\(\(highNoise \* event\.color \+ metallic \* 0\.24\) \* 1\.8\) \* basicEnv/);
+    assert.match(indexHtml, /generateDrumLoopBlueprint/);
+    assert.match(indexHtml, /event\.category === 'snare'/);
+    assert.match(indexHtml, /event\.category === 'closedHat' \|\| event\.category === 'openHat' \|\| event\.category === 'cymbal'/);
+    assert.match(indexHtml, /voice = Math\.tanh\(\(wash \+ \(\(metallicA \* metallicB\) \+ metallicC \* 0\.42\) \* event\.metallic \+ transient \* 0\.6\) \* event\.drive\) \* basicEnv/);
 });
 
-test('granular loop endpoints are lfo routable and used by grain playback', () => {
-    assert.match(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
+test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {
+    assert.doesNotMatch(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="generatedLoopEnd" data-lfo="2"/);
-    assert.match(indexHtml, /data-param="micLoopStart" data-lfo="1"/);
+    assert.doesNotMatch(indexHtml, /data-param="micLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="micLoopEnd" data-lfo="2"/);
     assert.match(indexHtml, /generatedLoopStart: \{ min: 0, max: 100 \}/);
     assert.match(indexHtml, /micLoopEnd: \{ min: 0, max: 100 \}/);
     assert.match(indexHtml, /function getLoopRange\(startId, endId, options = \{\}\)/);
+    assert.match(indexHtml, /if \(DISABLED_LOOP_START_LFO_PARAMS\.has\(paramId\)\) \{\s*return baseValue;\s*\}/);
     assert.match(indexHtml, /const rawStart = options\.modulated \? getModulatedValue\(startId\) : Number\(startSlider\?\.value \?\? 0\)/);
     assert.match(indexHtml, /getLoopRange\(sourceInfo\.startId, sourceInfo\.endId, \{ modulated: true \}\)/);
 });
