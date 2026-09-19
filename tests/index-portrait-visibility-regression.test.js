@@ -58,6 +58,10 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Gen Loop Mix</);
     assert.match(indexHtml, /id="performanceGeneratedDryMix"/);
     assert.match(indexHtml, />Gen Dry</);
+    assert.match(indexHtml, /id="performanceGeneratedDryTrim" min="-24" max="6" value="-6"/);
+    assert.match(indexHtml, />Dry Trim</);
+    assert.match(indexHtml, /id="performanceGranularTrim" min="-24" max="6" value="-3"/);
+    assert.match(indexHtml, />Grain Trim</);
     assert.match(indexHtml, /id="performanceGeneratedSwing"/);
     assert.match(indexHtml, />Gen Swing</);
     assert.match(indexHtml, /id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1"/);
@@ -74,6 +78,14 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceHpfPolesValue"/);
     assert.match(indexHtml, /data-performance-filter="lpf" data-poles="2"/);
     assert.match(indexHtml, /data-performance-filter="lpf" data-poles="4"/);
+    assert.match(indexHtml, /id="performanceInputTrim" min="-24" max="6" value="0"/);
+    assert.match(indexHtml, />Filter In</);
+    assert.match(indexHtml, /id="performancePostFilterTrim" min="-24" max="12" value="0"/);
+    assert.match(indexHtml, />Filter Out</);
+    assert.match(indexHtml, /id="performanceMasterTrim" min="-24" max="0" value="-3"/);
+    assert.match(indexHtml, />Master Trim</);
+    assert.match(indexHtml, /id="performanceClickGuard" min="1" max="30" value="8"/);
+    assert.match(indexHtml, />Click Guard</);
     assert.match(indexHtml, /function setFilterEnabled\(filter, enabled\)/);
     assert.match(indexHtml, /function rebuildFilterChain\(\)/);
     assert.match(indexHtml, /function setFilterPoles\(filter, poles\)/);
@@ -94,6 +106,36 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
 });
 
+test('gain staging trims are outside randomize and wired into the audio path', () => {
+    assert.match(indexHtml, /let generatedDryTrimDb = -6/);
+    assert.match(indexHtml, /let granularTrimDb = -3/);
+    assert.match(indexHtml, /let masterTrimDb = -3/);
+    assert.match(indexHtml, /let clickGuardMs = 8/);
+    assert.match(indexHtml, /function dbToLinear\(dbValue\)/);
+    assert.match(indexHtml, /function getGeneratedDryOutputGain\(mix = getGeneratedDryMixValue\(\)\)/);
+    assert.match(indexHtml, /mix\) \* MIX_HEADROOM \* dbToLinear\(getGeneratedDryTrimDb\(\)\)/);
+    assert.match(indexHtml, /granularLevel = Math\.sqrt\(oscillatorsEnabled \? \(1 - oscMix\) : 1\) \* MIX_HEADROOM \* dbToLinear\(getGranularTrimDb\(\)\)/);
+    assert.match(indexHtml, /volAmt = \(getModulatedValue\('volume'\) \/ 100\) \* dbToLinear\(getMasterTrimDb\(\)\)/);
+    assert.match(indexHtml, /'performanceGeneratedDryTrim'/);
+    assert.match(indexHtml, /'performanceGranularTrim'/);
+    assert.match(indexHtml, /'performanceInputTrim'/);
+    assert.match(indexHtml, /'performancePostFilterTrim'/);
+    assert.match(indexHtml, /'performanceMasterTrim'/);
+    assert.match(indexHtml, /'performanceClickGuard'/);
+});
+
+test('click guard applies minimum fades to grains, oscillators, dry loop, and auditions', () => {
+    assert.match(indexHtml, /function getClickGuardSeconds\(\)/);
+    assert.match(indexHtml, /function getFadeSecondsForDuration\(durationSeconds\)/);
+    assert.match(indexHtml, /const minimumFadeSeconds = getFadeSecondsForDuration\(grainSize\)/);
+    assert.match(indexHtml, /Math\.max\(attackRaw \/ 1000, minimumFadeSeconds\)/);
+    assert.match(indexHtml, /Math\.max\(releaseRaw \/ 1000, minimumFadeSeconds\)/);
+    assert.match(indexHtml, /const voiceClickGuard = getClickGuardSeconds\(\)/);
+    assert.match(indexHtml, /const fadeSeconds = getFadeSecondsForDuration\(boundedLoopEnd - offset\)/);
+    assert.match(indexHtml, /gain\.gain\.linearRampToValueAtTime\(outputGain, safeStartTime \+ fadeSeconds\)/);
+    assert.match(indexHtml, /const fadeSeconds = getFadeSecondsForDuration\(duration\)/);
+});
+
 test('mobile keyboard presents one octave with widened touch targets', () => {
     const keyMatches = indexHtml.match(/class="key /g) || [];
     const whiteKeyMatches = indexHtml.match(/class="key white"/g) || [];
@@ -111,6 +153,8 @@ test('mobile keyboard presents one octave with widened touch targets', () => {
     assert.match(indexHtml, /grid-column: 2;[\s\S]*grid-row: 2;[\s\S]*display: flex !important;/);
     assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.performance-controls \{[\s\S]*order: 2;/);
     assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.keyboard-section \{[\s\S]*order: 1;/);
+    assert.match(indexHtml, /@media screen and \(max-height: 430px\) and \(orientation: landscape\) \{[\s\S]*\.simplified-ui \.keyboard-section \{[\s\S]*order: 1;/);
+    assert.match(indexHtml, /@media screen and \(max-height: 430px\) and \(orientation: landscape\) \{[\s\S]*\.simplified-ui \.performance-controls \{[\s\S]*order: 2;/);
 });
 
 test('keyboard keys release cleanly so they can be pressed repeatedly', () => {
@@ -162,7 +206,13 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
         'performanceSourceMix',
         'performanceGeneratedSourceMix',
         'performanceGeneratedDryMix',
+        'performanceGeneratedDryTrim',
+        'performanceGranularTrim',
         'performanceGeneratedTranspose',
+        'performanceInputTrim',
+        'performancePostFilterTrim',
+        'performanceMasterTrim',
+        'performanceClickGuard',
         'osc1Level',
         'osc2Level',
         'noiseMix',
@@ -180,12 +230,18 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
     assert.doesNotMatch(experimentalPatch, /oscMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedSourceMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryMix:/);
+    assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryTrim:/);
+    assert.doesNotMatch(experimentalPatch, /performanceGranularTrim:/);
     assert.doesNotMatch(experimentalPatch, /noiseMix:/);
     assert.doesNotMatch(experimentalPatch, /reverb:/);
     assert.doesNotMatch(experimentalPatch, /delayMix:/);
     assert.doesNotMatch(experimentalPatch, /volume:/);
     assert.doesNotMatch(experimentalPatch, /preFilterGain:/);
     assert.doesNotMatch(experimentalPatch, /postFilterGain:/);
+    assert.doesNotMatch(experimentalPatch, /performanceInputTrim:/);
+    assert.doesNotMatch(experimentalPatch, /performancePostFilterTrim:/);
+    assert.doesNotMatch(experimentalPatch, /performanceMasterTrim:/);
+    assert.doesNotMatch(experimentalPatch, /performanceClickGuard:/);
 });
 
 test('granular engine routes generated and mic buffers as separate sources', () => {
@@ -197,7 +253,7 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /function getGranularSourceGainMap\(sources, availableGain = 1\)/);
     assert.match(indexHtml, /let generatedDryMix = 0/);
     assert.match(indexHtml, /function startGeneratedDryLoop\(startTime = null\)/);
-    assert.match(indexHtml, /function stopGeneratedDryLoop\(\)/);
+    assert.match(indexHtml, /function stopGeneratedDryLoop\(options = \{\}\)/);
     assert.match(indexHtml, /let generatedDryThroughFilters = false/);
     assert.match(indexHtml, /gain\.connect\(generatedDryThroughFilters && preFilterGainNode \? preFilterGainNode : masterGain\)/);
     assert.match(indexHtml, /performanceDryFilterBtn\.classList\.toggle\('dry-filtered', generatedDryThroughFilters\)/);
@@ -235,6 +291,15 @@ test('generated source uses strict straight grid timing', () => {
     assert.doesNotMatch(indexHtml, /Math\.random\(\) \* stepDuration \* 0\.18/);
     assert.doesNotMatch(indexHtml, /stepDuration \/ repeats/);
     assert.match(indexHtml, /performanceGeneratedSwing: 0/);
+});
+
+test('generating a new performance loop restarts active playback', () => {
+    assert.match(indexHtml, /const shouldRestartSequencer = sequencerPlaying/);
+    assert.match(indexHtml, /const shouldRestartDryLoop = Boolean\(generatedDrySource\)/);
+    assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*stopSequencer\(\);/);
+    assert.match(indexHtml, /await generateRandomSourceSample\(\);\s*generateInterestingLoop\(\);/);
+    assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*startSequencer\(\);/);
+    assert.match(indexHtml, /else if \(shouldRestartDryLoop\) \{\s*startGeneratedDryLoop\(\);/);
 });
 
 test('daw export renders from time zero with generated dry stem', () => {

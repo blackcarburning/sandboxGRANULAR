@@ -2267,7 +2267,16 @@
                 --keyboard-key-height: 98px;
                 min-height: 148px;
                 height: auto;
+                order: 1;
                 border-radius: 8px 8px 0 0;
+            }
+
+            .simplified-ui .performance-controls {
+                order: 2;
+            }
+
+            .simplified-ui .top-section {
+                order: 3;
             }
         }
 
@@ -2336,6 +2345,20 @@
                     <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceGeneratedDryTrim">
+                        <span>Dry Trim</span>
+                        <span class="value" id="performanceGeneratedDryTrimValue">-6.0dB</span>
+                    </label>
+                    <input type="range" id="performanceGeneratedDryTrim" min="-24" max="6" value="-6" step="0.5">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceGranularTrim">
+                        <span>Grain Trim</span>
+                        <span class="value" id="performanceGranularTrimValue">-3.0dB</span>
+                    </label>
+                    <input type="range" id="performanceGranularTrim" min="-24" max="6" value="-3" step="0.5">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceGeneratedSwing">
                         <span>Gen Swing</span>
                         <span class="value" id="performanceGeneratedSwingValue">0%</span>
@@ -2398,6 +2421,34 @@
                         <button class="performance-pole-toggle active" data-performance-filter="hpf" data-poles="2">2P</button>
                         <button class="performance-pole-toggle" data-performance-filter="hpf" data-poles="4">4P</button>
                     </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceInputTrim">
+                        <span>Filter In</span>
+                        <span class="value" id="performanceInputTrimValue">+0.0dB</span>
+                    </label>
+                    <input type="range" id="performanceInputTrim" min="-24" max="6" value="0" step="0.5">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performancePostFilterTrim">
+                        <span>Filter Out</span>
+                        <span class="value" id="performancePostFilterTrimValue">+0.0dB</span>
+                    </label>
+                    <input type="range" id="performancePostFilterTrim" min="-24" max="12" value="0" step="0.5">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceMasterTrim">
+                        <span>Master Trim</span>
+                        <span class="value" id="performanceMasterTrimValue">-3.0dB</span>
+                    </label>
+                    <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceClickGuard">
+                        <span>Click Guard</span>
+                        <span class="value" id="performanceClickGuardValue">8ms</span>
+                    </label>
+                    <input type="range" id="performanceClickGuard" min="1" max="30" value="8" step="1">
                 </div>
                 <div class="performance-sound-card performance-octave-card">
                     <label>
@@ -2785,7 +2836,7 @@
                             <span class="param-name">Pre-Filter Gain</span>
                             <span class="value" id="preFilterGainValue">+0.0dB</span>
                         </label>
-                        <input type="range" id="preFilterGain" min="-12" max="12" value="0" step="0.5">
+                        <input type="range" id="preFilterGain" min="-24" max="6" value="0" step="0.5">
                     </div>
 
                     <!-- Post-Filter Makeup Gain -->
@@ -2794,7 +2845,7 @@
                             <span class="param-name">Makeup Gain</span>
                             <span class="value" id="postFilterGainValue">+0.0dB</span>
                         </label>
-                        <input type="range" id="postFilterGain" min="0" max="24" value="0" step="0.5">
+                        <input type="range" id="postFilterGain" min="-24" max="12" value="0" step="0.5">
                     </div>
 
                     <!-- Auto Makeup Checkbox -->
@@ -3967,6 +4018,10 @@
         let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedLoopTransposeOctaves = 0;
+        let generatedDryTrimDb = -6;
+        let granularTrimDb = -3;
+        let masterTrimDb = -3;
+        let clickGuardMs = 8;
         let generatedDryThroughFilters = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
@@ -3989,7 +4044,13 @@
             'performanceSourceMix',
             'performanceGeneratedSourceMix',
             'performanceGeneratedDryMix',
+            'performanceGeneratedDryTrim',
+            'performanceGranularTrim',
             'performanceGeneratedTranspose',
+            'performanceInputTrim',
+            'performancePostFilterTrim',
+            'performanceMasterTrim',
+            'performanceClickGuard',
             'osc1Level',
             'osc2Level',
             'noiseMix',
@@ -4007,6 +4068,10 @@
             'oscMix',
             'generatedSourceMix',
             'generatedDryMix',
+            'generatedDryTrimDb',
+            'granularTrimDb',
+            'masterTrimDb',
+            'clickGuardMs',
             'osc1Level',
             'osc2Level',
             'noiseMix',
@@ -4557,6 +4622,29 @@
             }
         }
 
+        function dbToLinear(dbValue) {
+            const numeric = Number(dbValue);
+            return Math.pow(10, (Number.isFinite(numeric) ? numeric : 0) / 20);
+        }
+
+        function formatDb(dbValue) {
+            const numeric = Number(dbValue);
+            const safeValue = Number.isFinite(numeric) ? numeric : 0;
+            return `${safeValue > 0 ? '+' : ''}${safeValue.toFixed(1)}dB`;
+        }
+
+        function smoothGainParam(audioParam, targetValue, rampTime = 0.05) {
+            if (!audioParam) return;
+            if (!audioContext || audioContext.state !== 'running') {
+                audioParam.value = targetValue;
+                return;
+            }
+            const now = audioContext.currentTime;
+            audioParam.cancelScheduledValues(now);
+            audioParam.setValueAtTime(audioParam.value, now);
+            audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
+        }
+
         // --- Initialization ---
         const startBtn = document.getElementById('start-btn');
         const startOverlay = document.getElementById('start-overlay');
@@ -4687,6 +4775,7 @@
             
             // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
+            masterGain.gain.value = dbToLinear(getMasterTrimDb());
             masterGain.connect(splitterNode);
 
             // Create a restrained 24dB maximum filter stack. Higher slopes plus high Q were too easy to push into harsh resonance.
@@ -4771,7 +4860,7 @@
             oscOutputGain.gain.value = oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM : 0;
             
             granularOutputGain = audioContext.createGain();
-            granularOutputGain.gain.value = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM;
+            granularOutputGain.gain.value = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM * dbToLinear(getGranularTrimDb());
             
             // Connect both to the pre-filter gain node, then to the optional filter chain
             oscOutputGain.connect(preFilterGainNode);
@@ -4967,14 +5056,14 @@
             }
             
             const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
-            const volAmt = getModulatedValue('volume') / 100;
+            const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
             
             // Dry/Wet gains
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.4));
             smoothRamp(wetGainNode.gain, reverbAmt);
             
             // Master gain
-            smoothRamp(masterGain.gain, volAmt);
+            smoothRamp(masterGain.gain, Math.min(1, volAmt));
             
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
@@ -5161,6 +5250,43 @@
             return generatedDryMix;
         }
 
+        function getDbControlValue(id, fallback, min, max) {
+            const slider = document.getElementById(id);
+            const rawValue = Number(slider?.value ?? fallback);
+            return Math.max(min, Math.min(max, Number.isFinite(rawValue) ? rawValue : fallback));
+        }
+
+        function getGeneratedDryTrimDb() {
+            generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', generatedDryTrimDb, -24, 6);
+            return generatedDryTrimDb;
+        }
+
+        function getGranularTrimDb() {
+            granularTrimDb = getDbControlValue('performanceGranularTrim', granularTrimDb, -24, 6);
+            return granularTrimDb;
+        }
+
+        function getMasterTrimDb() {
+            masterTrimDb = getDbControlValue('performanceMasterTrim', masterTrimDb, -24, 0);
+            return masterTrimDb;
+        }
+
+        function getClickGuardSeconds() {
+            const slider = document.getElementById('performanceClickGuard');
+            const rawValue = Number(slider?.value ?? clickGuardMs);
+            clickGuardMs = Math.max(1, Math.min(30, Number.isFinite(rawValue) ? rawValue : 8));
+            return clickGuardMs / 1000;
+        }
+
+        function getFadeSecondsForDuration(durationSeconds) {
+            const duration = Math.max(0.001, Number(durationSeconds) || 0.001);
+            return Math.max(0.001, Math.min(getClickGuardSeconds(), duration * 0.45));
+        }
+
+        function getGeneratedDryOutputGain(mix = getGeneratedDryMixValue()) {
+            return Math.min(0.95, Math.max(0, mix) * MIX_HEADROOM * dbToLinear(getGeneratedDryTrimDb()));
+        }
+
         function getGeneratedSourceSwingValue() {
             const slider = document.getElementById('performanceGeneratedSwing');
             const rawValue = Number(slider?.value ?? (generatedSourceSwing * 100));
@@ -5320,25 +5446,42 @@
             }
         }
 
-        function stopGeneratedDryLoop() {
+        function stopGeneratedDryLoop(options = {}) {
             if (generatedDrySource) {
-                try {
-                    generatedDrySource.stop();
-                } catch (e) {
-                    console.debug('Generated dry loop already stopped:', e);
+                const source = generatedDrySource;
+                const gain = generatedDryGainNode;
+                const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration(generatedLoopBuffer?.duration || 0.02);
+                if (gain && audioContext && fadeSeconds > 0) {
+                    const now = audioContext.currentTime;
+                    gain.gain.cancelScheduledValues(now);
+                    gain.gain.setValueAtTime(gain.gain.value, now);
+                    gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+                    try {
+                        source.stop(now + fadeSeconds + 0.005);
+                    } catch (e) {
+                        console.debug('Generated dry loop already stopped:', e);
+                    }
+                    setTimeout(() => {
+                        try {
+                            source.disconnect();
+                            gain.disconnect();
+                        } catch (e) {}
+                    }, (fadeSeconds * 1000) + 40);
+                } else {
+                    try {
+                        source.stop();
+                    } catch (e) {
+                        console.debug('Generated dry loop already stopped:', e);
+                    }
+                    try {
+                        source.disconnect();
+                        gain?.disconnect();
+                    } catch (e) {}
                 }
-                try {
-                    generatedDrySource.disconnect();
-                } catch (e) {}
                 generatedDrySource = null;
             }
 
-            if (generatedDryGainNode) {
-                try {
-                    generatedDryGainNode.disconnect();
-                } catch (e) {}
-                generatedDryGainNode = null;
-            }
+            generatedDryGainNode = null;
         }
 
         function startGeneratedDryLoop(startTime = null) {
@@ -5357,14 +5500,18 @@
             const loopRange = getLoopRange('generatedLoopStart', 'generatedLoopEnd');
             const offset = generatedLoopBuffer.duration * loopRange.startPct;
             const loopEnd = Math.max(offset + 0.01, generatedLoopBuffer.duration * loopRange.endPct);
+            const boundedLoopEnd = Math.min(generatedLoopBuffer.duration, loopEnd);
             const now = audioContext.currentTime;
             const safeStartTime = Math.max(now, startTime ?? now);
+            const fadeSeconds = getFadeSecondsForDuration(boundedLoopEnd - offset);
+            const outputGain = getGeneratedDryOutputGain(mix);
 
             source.buffer = generatedLoopBuffer;
             source.loop = true;
             source.loopStart = offset;
-            source.loopEnd = Math.min(generatedLoopBuffer.duration, loopEnd);
-            gain.gain.setValueAtTime(Math.min(0.9, mix * MIX_HEADROOM), safeStartTime);
+            source.loopEnd = boundedLoopEnd;
+            gain.gain.setValueAtTime(0, safeStartTime);
+            gain.gain.linearRampToValueAtTime(outputGain, safeStartTime + fadeSeconds);
             source.connect(gain);
             gain.connect(generatedDryThroughFilters && preFilterGainNode ? preFilterGainNode : masterGain);
             source.start(safeStartTime, offset);
@@ -5408,7 +5555,7 @@
                 const now = audioContext.currentTime;
                 generatedDryGainNode.gain.cancelScheduledValues(now);
                 generatedDryGainNode.gain.setValueAtTime(generatedDryGainNode.gain.value, now);
-                generatedDryGainNode.gain.linearRampToValueAtTime(Math.min(0.9, mix * MIX_HEADROOM), now + 0.03);
+                generatedDryGainNode.gain.linearRampToValueAtTime(getGeneratedDryOutputGain(mix), now + 0.03);
             }
 
             if (sequencerPlaying && generatedLoopBuffer) {
@@ -5693,9 +5840,14 @@
                 const { startPct, endPct } = getLoopRange(ids.start, ids.end);
                 const offset = sourceInfo.buffer.duration * startPct;
                 const duration = Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct));
+                const fadeSeconds = getFadeSecondsForDuration(duration);
+                const level = sourceGainMap.get(sourceInfo) ?? 0;
 
                 source.buffer = sourceInfo.buffer;
-                gain.gain.value = sourceGainMap.get(sourceInfo) ?? 0;
+                gain.gain.setValueAtTime(0, audioContext.currentTime);
+                gain.gain.linearRampToValueAtTime(level, audioContext.currentTime + fadeSeconds);
+                gain.gain.setValueAtTime(level, audioContext.currentTime + Math.max(fadeSeconds, duration - fadeSeconds));
+                gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
                 source.connect(gain);
                 gain.connect(masterGain);
                 source.start(0, offset, duration);
@@ -5932,15 +6084,16 @@
             const grainSize = (typeof grainSizeRaw === 'number' && isFinite(grainSizeRaw) && grainSizeRaw > 0) 
                 ? grainSizeRaw / 1000 
                 : 0.1; // 100ms default
+            const minimumFadeSeconds = getFadeSecondsForDuration(grainSize);
             
             const attackRaw = getModulatedValue('attack');
             const attack = (typeof attackRaw === 'number' && isFinite(attackRaw) && attackRaw >= 0) 
-                ? attackRaw / 1000 
+                ? Math.max(attackRaw / 1000, minimumFadeSeconds)
                 : 0.01; // 10ms default
             
             const releaseRaw = getModulatedValue('release');
             const release = (typeof releaseRaw === 'number' && isFinite(releaseRaw) && releaseRaw >= 0) 
-                ? releaseRaw / 1000 
+                ? Math.max(releaseRaw / 1000, minimumFadeSeconds)
                 : 0.01; // 10ms default
             
             const sprayRaw = getModulatedValue('spray');
@@ -6376,7 +6529,8 @@
             osc2.start(startTime);
             
             // Apply ADSR envelope for osc1
-            const attack1 = osc1Config.attack / 1000;
+            const voiceClickGuard = getClickGuardSeconds();
+            const attack1 = Math.max(osc1Config.attack / 1000, voiceClickGuard);
             const decay1 = osc1Config.decay / 1000;
             const osc1Peak = osc1Config.level * noteVelocity;
             const sustain1 = osc1Config.sustain * osc1Peak;
@@ -6398,7 +6552,7 @@
             console.log(`[OSC Debug] Note: ${note}, Now: ${now.toFixed(3)}, StartTime: ${startTime.toFixed(3)}, Attack: ${attack1.toFixed(3)}s, Decay: ${decay1.toFixed(3)}s`);
             
             // Apply ADSR envelope for osc2
-            const attack2 = osc2Config.attack / 1000;
+            const attack2 = Math.max(osc2Config.attack / 1000, voiceClickGuard);
             const decay2 = osc2Config.decay / 1000;
             const osc2Peak = osc2Config.level * noteVelocity;
             const sustain2 = osc2Config.sustain * osc2Peak;
@@ -6435,7 +6589,7 @@
             const actualStopTime = Math.max(now, stopTime);
             
             // Apply release envelope for osc1
-            const release1 = osc1Config.release / 1000;
+            const release1 = Math.max(osc1Config.release / 1000, getClickGuardSeconds());
             
             // Cancel from now, not from stopTime
             voice.osc1Gain.gain.cancelScheduledValues(now);
@@ -6455,7 +6609,7 @@
             console.log(`[OSC Debug] Stop Note: ${note}, Now: ${now.toFixed(3)}, StopTime: ${stopTime.toFixed(3)}, Release: ${release1.toFixed(3)}s, CurrentGain: ${voice.osc1Gain.gain.value.toFixed(3)}`);
             
             // Apply release envelope for osc2
-            const release2 = osc2Config.release / 1000;
+            const release2 = Math.max(osc2Config.release / 1000, getClickGuardSeconds());
             
             // Cancel from now, not from stopTime
             voice.osc2Gain.gain.cancelScheduledValues(now);
@@ -6841,6 +6995,20 @@
                         let suffix = '';
                         if (e.target.id === 'performanceGeneratedTranspose') {
                             labelSpan.textContent = formatGeneratedLoopTranspose(e.target.value);
+                            return;
+                        } else if ([
+                            'performanceGeneratedDryTrim',
+                            'performanceGranularTrim',
+                            'performanceInputTrim',
+                            'performancePostFilterTrim',
+                            'performanceMasterTrim',
+                            'preFilterGain',
+                            'postFilterGain'
+                        ].includes(e.target.id)) {
+                            labelSpan.textContent = formatDb(e.target.value);
+                            return;
+                        } else if (e.target.id === 'performanceClickGuard') {
+                            labelSpan.textContent = `${Math.round(Number(e.target.value) || 0)}ms`;
                             return;
                         } else if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
@@ -7316,7 +7484,7 @@
 
         function updateSourceMixGains() {
             const oscLevel = oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM : 0;
-            const granularLevel = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM;
+            const granularLevel = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM * dbToLinear(getGranularTrimDb());
 
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
                 const now = audioContext.currentTime;
@@ -7370,31 +7538,37 @@
             syncPerformanceSoundControls();
         }));
 
+        function setPreFilterGainDb(dbValue, options = {}) {
+            const safeDb = Math.max(-24, Math.min(6, Number(dbValue) || 0));
+            const slider = document.getElementById('preFilterGain');
+            if (slider && slider.value !== String(safeDb)) slider.value = String(safeDb);
+            smoothGainParam(preFilterGainNode?.gain, dbToLinear(safeDb), 0.05);
+            const label = document.getElementById('preFilterGainValue');
+            if (label) label.textContent = formatDb(safeDb);
+            if (!options.skipSync) syncPerformanceSoundControls();
+        }
+
+        function setPostFilterGainDb(dbValue, options = {}) {
+            const safeDb = Math.max(-24, Math.min(12, Number(dbValue) || 0));
+            const slider = document.getElementById('postFilterGain');
+            if (slider && slider.value !== String(safeDb)) slider.value = String(safeDb);
+            const isAutoMakeupDisabled = !document.getElementById('autoMakeupGain').checked;
+            if (isAutoMakeupDisabled) {
+                smoothGainParam(makeupGain?.gain, dbToLinear(safeDb), 0.05);
+            }
+            const label = document.getElementById('postFilterGainValue');
+            if (label) label.textContent = formatDb(safeDb);
+            if (!options.skipSync) syncPerformanceSoundControls();
+        }
+
         // Pre-Filter Gain
         document.getElementById('preFilterGain').addEventListener('input', (e) => {
-            const dbValue = parseFloat(e.target.value);
-            const linearValue = Math.pow(10, dbValue / 20); // Convert dB to linear
-            if (preFilterGainNode && audioContext) {
-                const now = audioContext.currentTime;
-                preFilterGainNode.gain.cancelScheduledValues(now);
-                preFilterGainNode.gain.setValueAtTime(preFilterGainNode.gain.value, now);
-                preFilterGainNode.gain.linearRampToValueAtTime(linearValue, now + 0.05);
-            }
-            document.getElementById('preFilterGainValue').textContent = `${dbValue > 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
+            setPreFilterGainDb(e.target.value);
         });
 
         // Post-Filter Makeup Gain
         document.getElementById('postFilterGain').addEventListener('input', (e) => {
-            const dbValue = parseFloat(e.target.value);
-            const linearValue = Math.pow(10, dbValue / 20);
-            const isAutoMakeupDisabled = !document.getElementById('autoMakeupGain').checked;
-            if (makeupGain && audioContext && isAutoMakeupDisabled) {
-                const now = audioContext.currentTime;
-                makeupGain.gain.cancelScheduledValues(now);
-                makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
-                makeupGain.gain.linearRampToValueAtTime(linearValue, now + 0.05);
-            }
-            document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
+            setPostFilterGainDb(e.target.value);
         });
 
         // Auto Makeup Checkbox
@@ -7694,11 +7868,21 @@
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating a loop.');
             }
+            const shouldRestartSequencer = sequencerPlaying;
+            const shouldRestartDryLoop = Boolean(generatedDrySource);
+            if (shouldRestartSequencer) {
+                stopSequencer();
+            } else if (shouldRestartDryLoop) {
+                stopGeneratedDryLoop();
+            }
             await generateRandomSourceSample();
             generateInterestingLoop();
-            if (sequencerPlaying) {
+            if (shouldRestartSequencer) {
+                startSequencer();
+            } else if (shouldRestartDryLoop) {
                 startGeneratedDryLoop();
             }
+            syncPerformanceControlState();
         }
 
         // Step controls
@@ -9525,7 +9709,7 @@
             const totalSteps = Math.ceil(durationSeconds / stepDuration);
             const sourceGainMap = getGranularSourceGainMap(sourceInfos, 1);
             const grainSizeSeconds = Math.max(0.025, Math.min(0.22, Number(document.getElementById('grainSize')?.value || 100) / 1000));
-            const dryGrainLevel = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * 0.82;
+            const dryGrainLevel = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * 0.82 * dbToLinear(getGranularTrimDb());
 
             for (let stepIndex = 0; stepIndex < totalSteps; stepIndex++) {
                 const step = sequencerSteps[stepIndex % sequencerSteps.length];
@@ -9569,6 +9753,7 @@
 
         function createOfflineFilterDestination(ctx, finalDestination) {
             const input = ctx.createGain();
+            input.gain.value = dbToLinear(getDbControlValue('preFilterGain', 0, -24, 6));
             let node = input;
 
             function appendFilter(type, cutoff, q, stages) {
@@ -9589,7 +9774,12 @@
                 appendFilter('lowpass', Number(document.getElementById('lpfCutoff')?.value || DEFAULT_PERFORMANCE_CUTOFF), clampFilterQ(document.getElementById('lpfQ')?.value || DEFAULT_PERFORMANCE_RESONANCE), Math.ceil(lpfSlope / 12));
             }
 
-            node.connect(finalDestination);
+            const outputTrim = ctx.createGain();
+            outputTrim.gain.value = document.getElementById('autoMakeupGain')?.checked
+                ? calculateAutoMakeupGain()
+                : dbToLinear(getDbControlValue('postFilterGain', 0, -24, 12));
+            node.connect(outputTrim);
+            outputTrim.connect(finalDestination);
             return input;
         }
 
@@ -9605,11 +9795,11 @@
             const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
             const offline = new OfflineCtx(2, frameCount, sampleRate);
             const master = offline.createGain();
-            master.gain.value = Math.max(0.01, Math.min(1, Number(document.getElementById('volume')?.value || 100) / 100));
+            master.gain.value = Math.max(0.01, Math.min(1, (Number(document.getElementById('volume')?.value || 100) / 100) * dbToLinear(getMasterTrimDb())));
             master.connect(offline.destination);
 
             const generatedDryLevel = includeDryGenerated && generatedLoopBuffer
-                ? Math.min(0.9, getGeneratedDryMixValue() * MIX_HEADROOM)
+                ? getGeneratedDryOutputGain()
                 : 0;
 
             if (!dryOnly) {
@@ -10075,12 +10265,18 @@
         const performanceSourceMix = document.getElementById('performanceSourceMix');
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
+        const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
+        const performanceGranularTrim = document.getElementById('performanceGranularTrim');
         const performanceGeneratedSwing = document.getElementById('performanceGeneratedSwing');
         const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
         const performanceHpfResonance = document.getElementById('performanceHpfResonance');
+        const performanceInputTrim = document.getElementById('performanceInputTrim');
+        const performancePostFilterTrim = document.getElementById('performancePostFilterTrim');
+        const performanceMasterTrim = document.getElementById('performanceMasterTrim');
+        const performanceClickGuard = document.getElementById('performanceClickGuard');
         const performanceOctaveDownBtn = document.getElementById('performanceOctaveDownBtn');
         const performanceOctaveUpBtn = document.getElementById('performanceOctaveUpBtn');
         const performanceLfoWaveform = document.getElementById('performanceLfoWaveform');
@@ -10120,6 +10316,18 @@
                 document.getElementById('performanceGeneratedDryMixValue').textContent = `${value}%`;
             }
 
+            if (performanceGeneratedDryTrim) {
+                const value = getGeneratedDryTrimDb();
+                performanceGeneratedDryTrim.value = String(value);
+                document.getElementById('performanceGeneratedDryTrimValue').textContent = formatDb(value);
+            }
+
+            if (performanceGranularTrim) {
+                const value = getGranularTrimDb();
+                performanceGranularTrim.value = String(value);
+                document.getElementById('performanceGranularTrimValue').textContent = formatDb(value);
+            }
+
             if (performanceGeneratedSwing) {
                 const value = Math.round(getGeneratedSourceSwingValue() * 100);
                 performanceGeneratedSwing.value = String(value);
@@ -10154,6 +10362,30 @@
                 const value = clampFilterQ(hpfResonanceSlider.value);
                 performanceHpfResonance.value = String(value);
                 document.getElementById('performanceHpfResonanceValue').textContent = value.toFixed(1);
+            }
+
+            if (performanceInputTrim) {
+                const value = getDbControlValue('preFilterGain', 0, -24, 6);
+                performanceInputTrim.value = String(value);
+                document.getElementById('performanceInputTrimValue').textContent = formatDb(value);
+            }
+
+            if (performancePostFilterTrim) {
+                const value = getDbControlValue('postFilterGain', 0, -24, 12);
+                performancePostFilterTrim.value = String(value);
+                document.getElementById('performancePostFilterTrimValue').textContent = formatDb(value);
+            }
+
+            if (performanceMasterTrim) {
+                const value = getMasterTrimDb();
+                performanceMasterTrim.value = String(value);
+                document.getElementById('performanceMasterTrimValue').textContent = formatDb(value);
+            }
+
+            if (performanceClickGuard) {
+                const value = Math.round(getClickGuardSeconds() * 1000);
+                performanceClickGuard.value = String(value);
+                document.getElementById('performanceClickGuardValue').textContent = `${value}ms`;
             }
 
             if (performanceLfoWaveform && lfoWaveform) {
@@ -10284,6 +10516,18 @@
             updateGeneratedDryLoopMix();
         });
 
+        performanceGeneratedDryTrim?.addEventListener('input', (event) => {
+            generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', -6, -24, 6);
+            document.getElementById('performanceGeneratedDryTrimValue').textContent = formatDb(generatedDryTrimDb);
+            updateGeneratedDryLoopMix();
+        });
+
+        performanceGranularTrim?.addEventListener('input', (event) => {
+            granularTrimDb = getDbControlValue('performanceGranularTrim', -3, -24, 6);
+            document.getElementById('performanceGranularTrimValue').textContent = formatDb(granularTrimDb);
+            updateSourceMixGains();
+        });
+
         performanceGeneratedSwing?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(60, Number(event.target.value) || 0));
             generatedSourceSwing = value / 100;
@@ -10336,6 +10580,29 @@
             const value = clampFilterQ(event.target.value);
             setSliderValue('hpfQ', value);
             syncPerformanceSoundControls();
+        });
+
+        performanceInputTrim?.addEventListener('input', (event) => {
+            setPreFilterGainDb(event.target.value, { skipSync: true });
+            document.getElementById('performanceInputTrimValue').textContent = formatDb(event.target.value);
+        });
+
+        performancePostFilterTrim?.addEventListener('input', (event) => {
+            const autoMakeup = document.getElementById('autoMakeupGain');
+            if (autoMakeup) autoMakeup.checked = false;
+            setPostFilterGainDb(event.target.value, { skipSync: true });
+            document.getElementById('performancePostFilterTrimValue').textContent = formatDb(event.target.value);
+        });
+
+        performanceMasterTrim?.addEventListener('input', (event) => {
+            masterTrimDb = getDbControlValue('performanceMasterTrim', -3, -24, 0);
+            document.getElementById('performanceMasterTrimValue').textContent = formatDb(masterTrimDb);
+            updateEffects();
+        });
+
+        performanceClickGuard?.addEventListener('input', (event) => {
+            clickGuardMs = Math.max(1, Math.min(30, Number(event.target.value) || 8));
+            document.getElementById('performanceClickGuardValue').textContent = `${Math.round(clickGuardMs)}ms`;
         });
 
         document.querySelectorAll('.performance-pole-toggle').forEach((button) => {
