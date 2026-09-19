@@ -7864,9 +7864,9 @@
             saveState();
         }
 
-        async function generatePerformanceLoop() {
+        async function generateSourceWithPlaybackRestart(options = {}) {
             if (!audioContext) {
-                throw new Error('Start MYGRAIN before generating a loop.');
+                throw new Error('Start MYGRAIN before generating a source.');
             }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartDryLoop = Boolean(generatedDrySource);
@@ -7876,13 +7876,32 @@
                 stopGeneratedDryLoop();
             }
             await generateRandomSourceSample();
-            generateInterestingLoop();
+            if (options.refreshSequencerPattern) {
+                generateInterestingLoop();
+            }
             if (shouldRestartSequencer) {
                 startSequencer();
             } else if (shouldRestartDryLoop) {
                 startGeneratedDryLoop();
             }
             syncPerformanceControlState();
+            return { restartedSequencer: shouldRestartSequencer, restartedDryLoop: shouldRestartDryLoop };
+        }
+
+        async function generatePerformanceLoop() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before generating a loop.');
+            }
+            await generateSourceWithPlaybackRestart({ refreshSequencerPattern: true });
+        }
+
+        async function generateStandaloneSource() {
+            const restartState = await generateSourceWithPlaybackRestart({ refreshSequencerPattern: false });
+            if (restartState.restartedSequencer) {
+                setStatus('Generated source and restarted loop playback.');
+            } else if (restartState.restartedDryLoop) {
+                setStatus('Generated source and restarted dry loop playback.');
+            }
         }
 
         // Step controls
@@ -8316,7 +8335,7 @@
 
         generateSourceBtn?.addEventListener('click', async () => {
             try {
-                await generateRandomSourceSample();
+                await generateStandaloneSource();
             } catch (error) {
                 console.error(error);
                 setStatus(`Random source failed: ${error.message}`, 'error');

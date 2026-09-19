@@ -39,7 +39,7 @@ test('mobile performance controls expose loop generation and playback', () => {
     assert.match(indexHtml, /#performanceGenerateLoopBtn\.generating/);
     assert.match(indexHtml, /id="performanceSeqPlayBtn"/);
     assert.match(indexHtml, /function generateInterestingLoop\(\)/);
-    assert.match(indexHtml, /await generateRandomSourceSample\(\);\s*generateInterestingLoop\(\);/);
+    assert.match(indexHtml, /await generateSourceWithPlaybackRestart\(\{ refreshSequencerPattern: true \}\);/);
 });
 
 test('generate and randomize actions show a two second settle popup', () => {
@@ -294,12 +294,20 @@ test('generated source uses strict straight grid timing', () => {
 });
 
 test('generating a new performance loop restarts active playback', () => {
+    assert.match(indexHtml, /async function generateSourceWithPlaybackRestart\(options = \{\}\)/);
     assert.match(indexHtml, /const shouldRestartSequencer = sequencerPlaying/);
     assert.match(indexHtml, /const shouldRestartDryLoop = Boolean\(generatedDrySource\)/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*stopSequencer\(\);/);
-    assert.match(indexHtml, /await generateRandomSourceSample\(\);\s*generateInterestingLoop\(\);/);
+    assert.match(indexHtml, /await generateRandomSourceSample\(\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\);/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*startSequencer\(\);/);
     assert.match(indexHtml, /else if \(shouldRestartDryLoop\) \{\s*startGeneratedDryLoop\(\);/);
+});
+
+test('generate source restarts active loop playback after replacing the source', () => {
+    assert.match(indexHtml, /async function generateStandaloneSource\(\)/);
+    assert.match(indexHtml, /generateSourceBtn\?\.addEventListener\('click', async \(\) => \{[\s\S]*await generateStandaloneSource\(\);/);
+    assert.match(indexHtml, /generateSourceWithPlaybackRestart\(\{ refreshSequencerPattern: false \}\)/);
+    assert.match(indexHtml, /setStatus\('Generated source and restarted loop playback\.'\)/);
 });
 
 test('randomize patch automatically generates a new performance loop', () => {
