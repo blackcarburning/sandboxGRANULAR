@@ -3,13 +3,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Granular">
-    <title>Granular Synthesizer</title>
-    <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="t3fqkzcnvmjuwfn"></script>
+    <meta name="apple-mobile-web-app-title" content="MYGRAIN">
+    <title>MYGRAIN</title>
+    <script defer type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="t3fqkzcnvmjuwfn"></script>
+    <script src="mygrain-utils.js"></script>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -1274,22 +1275,447 @@
             border-radius: 4px;
         }
 
+        /* --- MYGRAIN responsive refresh --- */
+        :root {
+            --bg-color: #0d1320;
+            --panel-bg: rgba(17, 24, 39, 0.9);
+            --panel-border: rgba(110, 231, 255, 0.16);
+            --accent: #6ee7ff;
+            --accent-glow: rgba(110, 231, 255, 0.32);
+            --record-color: #ff6b6b;
+            --text-muted: #a7b4c8;
+        }
+
+        html, body {
+            min-height: 100%;
+            height: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+            position: relative;
+            user-select: auto;
+            -webkit-user-select: auto;
+            -webkit-touch-callout: default;
+            touch-action: auto;
+            overscroll-behavior-y: contain;
+            background:
+                radial-gradient(circle at top, rgba(110, 231, 255, 0.12), transparent 36%),
+                linear-gradient(180deg, #08101c 0%, #0f172a 100%);
+        }
+
+        body {
+            padding:
+                max(12px, env(safe-area-inset-top))
+                max(12px, env(safe-area-inset-right))
+                max(12px, env(safe-area-inset-bottom))
+                max(12px, env(safe-area-inset-left));
+        }
+
+        #orientation-overlay {
+            display: none !important;
+        }
+
+        .overlay {
+            backdrop-filter: blur(16px);
+            background: rgba(4, 10, 18, 0.92);
+        }
+
+        .overlay h1 {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+        }
+
+        .overlay p {
+            font-size: 1rem;
+        }
+
+        #start-btn {
+            min-height: 52px;
+        }
+
+        .synth-container {
+            position: relative;
+            top: auto;
+            left: auto;
+            height: auto;
+            min-height: calc(100svh - max(24px, env(safe-area-inset-bottom)));
+            width: min(1400px, 100%);
+            margin: 0 auto;
+            padding: 0;
+            gap: 12px;
+            touch-action: auto;
+        }
+
+        .top-section {
+            display: grid;
+            grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+            gap: 12px;
+            overflow: visible;
+            margin-bottom: 0;
+            touch-action: auto;
+        }
+
+        .recording-section,
+        .controls-section,
+        .keyboard-section,
+        .lfo-section,
+        .output-recording-section {
+            border: 1px solid var(--panel-border);
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(17, 24, 39, 0.88) 100%);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+            backdrop-filter: blur(18px);
+        }
+
+        .recording-section,
+        .controls-section {
+            padding: 16px;
+        }
+
+        .recording-section,
+        .controls-section,
+        .tab-content.active {
+            touch-action: pan-y pinch-zoom;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .recording-section {
+            flex: none;
+            gap: 12px;
+        }
+
+        .controls-section {
+            position: relative;
+            inset: auto;
+            overflow: visible !important;
+        }
+
+        .app-branding {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .app-kicker {
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .app-title {
+            font-size: clamp(1.6rem, 3vw, 2.25rem);
+            line-height: 1.05;
+            margin-bottom: 6px;
+        }
+
+        .app-subtitle {
+            color: var(--text-muted);
+            font-size: 0.96rem;
+            line-height: 1.45;
+        }
+
+        .status-stack {
+            display: grid;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .status {
+            min-height: 20px;
+            height: auto;
+            font-size: 0.9rem;
+            color: #d6e2f0;
+            text-align: left;
+        }
+
+        .status[data-state="error"],
+        .secondary-status[data-state="error"] {
+            color: #ffadad;
+        }
+
+        .secondary-status {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+        }
+
+        .help-panel {
+            margin-top: 8px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            color: var(--text-muted);
+        }
+
+        .help-panel summary {
+            cursor: pointer;
+            color: #edf7ff;
+            font-weight: 700;
+            list-style: none;
+        }
+
+        .help-panel summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .help-panel ul {
+            margin: 10px 0 0 18px;
+            display: grid;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+
+        .section-title {
+            font-size: 0.84rem;
+            letter-spacing: 0.12em;
+            margin-bottom: 8px;
+        }
+
+        .recording-buttons,
+        .output-recording-section .recording-buttons {
+            gap: 8px;
+        }
+
+        button {
+            min-height: 42px;
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            letter-spacing: 0.06em;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .recording-buttons button,
+        .output-recording-section button,
+        #utility-tab button,
+        .octave-btn,
+        .hold-btn {
+            min-height: 44px;
+        }
+
+        .control-group {
+            padding: 10px;
+            border-radius: 12px;
+            gap: 6px;
+        }
+
+        .control-group label {
+            font-size: 0.78rem;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .control-group label .value {
+            min-width: 3.2em;
+            text-align: right;
+        }
+
+        .lfo-toggle, .inv-toggle, .mode-toggle, .slope-toggle {
+            min-height: 28px;
+            font-size: 0.68rem;
+        }
+
+        input[type="range"] {
+            height: 18px;
+            padding: 8px 0;
+            margin: 4px 0;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track,
+        input[type="range"]::-moz-range-track {
+            height: 8px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb,
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+        }
+
+        .tab-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+            gap: 6px;
+            margin-bottom: 12px;
+            border-bottom: none;
+        }
+
+        .tab-button {
+            min-height: 42px;
+            padding: 10px 8px;
+            font-size: 0.76rem;
+            border-radius: 12px;
+        }
+
+        .tab-button:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        summary:focus-visible,
+        .key:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .tab-content.active,
+        #grain-tab.active,
+        #filter-tab.active,
+        #fx-tab.active,
+        #osc-tab.active,
+        #seq-tab.active,
+        #utility-tab.active {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            grid-auto-rows: minmax(min-content, max-content);
+            gap: 10px;
+            max-height: min(56svh, 720px);
+            padding-right: 4px;
+        }
+
+        #utility-tab.active {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+
+        #waveformCanvas {
+            height: 84px;
+        }
+
+        .keyboard-section {
+            position: sticky;
+            left: auto;
+            right: auto;
+            top: auto;
+            bottom: 0;
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            min-height: 190px;
+            padding: 14px;
+            border-radius: 20px;
+            overflow: hidden;
+            touch-action: pan-x pinch-zoom;
+        }
+
+        .octave-controls,
+        .volume-bias-container {
+            justify-content: center;
+        }
+
+        .keyboard {
+            height: 100%;
+            padding-top: 6px;
+            overflow: visible;
+        }
+
+        .key {
+            font-size: clamp(0.72rem, 1.3vw, 0.9rem);
+            padding-bottom: 12px;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .key.white {
+            width: var(--white-key-width, 50px);
+            min-width: var(--white-key-width, 50px);
+            margin: 0;
+            border: 1px solid #cfd9e6;
+        }
+
+        .key.black {
+            width: var(--black-key-width, 30px);
+            min-width: var(--black-key-width, 30px);
+            height: 62%;
+            margin-left: 0;
+        }
+
+        .panic-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #d62839 100%);
+            color: #fff;
+        }
+
+        #loadDemoBtn {
+            min-width: 116px;
+            background: linear-gradient(135deg, #6ee7ff 0%, #38bdf8 100%);
+            color: #001018;
+        }
+
+        @media (max-width: 960px) {
+            .top-section {
+                grid-template-columns: 1fr;
+            }
+
+            .keyboard-section {
+                min-height: 180px;
+            }
+
+            .tab-content.active,
+            #grain-tab.active,
+            #filter-tab.active,
+            #fx-tab.active,
+            #osc-tab.active,
+            #seq-tab.active,
+            #utility-tab.active {
+                max-height: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding:
+                    max(8px, env(safe-area-inset-top))
+                    max(8px, env(safe-area-inset-right))
+                    max(8px, env(safe-area-inset-bottom))
+                    max(8px, env(safe-area-inset-left));
+            }
+
+            .recording-section,
+            .controls-section,
+            .keyboard-section {
+                padding: 12px;
+            }
+
+            .app-branding {
+                flex-direction: column;
+            }
+
+            .recording-buttons {
+                flex-wrap: wrap;
+            }
+
+            .recording-buttons button,
+            .output-recording-section button {
+                flex: 1 1 120px;
+            }
+
+            .keyboard-section {
+                display: grid;
+                grid-template-columns: auto auto 1fr;
+                align-items: start;
+                min-height: 210px;
+            }
+
+            .hold-btn,
+            .panic-btn {
+                width: 100%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Orientation Overlay -->
-    <div id="orientation-overlay" class="overlay">
-        <h1>Please Rotate Your Device</h1>
-        <p>This synthesizer requires landscape mode for the best experience.</p>
-        <div style="font-size: 40px; margin-top: 20px;">↻</div>
-    </div>
-
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
-        <h1>Granular Synth</h1>
-        <p>Touch 'Start' to enable audio and microphone access.</p>
-        <button id="start-btn">START ENGINE</button>
+        <h1>MYGRAIN</h1>
+        <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
+        <button id="start-btn">START MYGRAIN</button>
     </div>
 
     <!-- Fullscreen Button -->
@@ -1298,6 +1724,14 @@
     <div class="synth-container">
         <div class="top-section">
             <div class="recording-section">
+                <div class="app-branding">
+                    <div>
+                        <div class="app-kicker">MYGRAIN</div>
+                        <h1 class="app-title">Granular instrument</h1>
+                        <p class="app-subtitle">Load or record a sample, play the keyboard, and shape it with grains, filters, modulation and sequencing.</p>
+                    </div>
+                    <button id="loadDemoBtn">Load Demo</button>
+                </div>
                 <div class="section-title">Sample Source</div>
                 <div class="recording-buttons">
                     <button id="recordBtn">Record Mic</button>
@@ -1306,7 +1740,18 @@
                 </div>
                 <canvas id="waveformCanvas"></canvas>
                 <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
-                <div id="status" class="status">Waiting for audio...</div>
+                <div class="status-stack">
+                    <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
+                    <div id="audioStatus" class="status secondary-status" role="status" aria-live="polite">Audio idle</div>
+                </div>
+                <details class="help-panel">
+                    <summary>Quick help</summary>
+                    <ul>
+                        <li>Primary controls stay visible on phones; swipe the control area vertically for more tabs and parameters.</li>
+                        <li>Use <strong>Hold</strong> for drones, <strong>Panic</strong> to stop everything, and <strong>Reset Patch</strong> to return to defaults.</li>
+                        <li>Preset files store settings only. Reload your own sample after importing a preset.</li>
+                    </ul>
+                </details>
 
                 <div class="output-recording-section">
                     <div class="section-title">Record Output</div>
@@ -1827,6 +2272,9 @@
                 <!-- Utility Tab -->
                 <div class="tab-content" id="utility-tab">
                     <div class="control-group">
+                        <button id="panicUtilityBtn">All Notes Off</button>
+                    </div>
+                    <div class="control-group">
                         <button id="randomizeBtn">Randomize</button>
                     </div>
                     <div class="control-group">
@@ -1859,7 +2307,7 @@
                         <button id="resetEngineBtn">Reset Engine</button>
                     </div>
                     <div class="control-group">
-                        <button id="resetDefaultBtn">Reset to Default</button>
+                        <button id="resetDefaultBtn">Reset Patch</button>
                     </div>
                     <div class="control-group">
                         <button id="debugBtn">Capture Debug Log</button>
@@ -2238,6 +2686,7 @@
                 </div>
             </div>
             <button class="hold-btn" id="holdBtn">Hold</button>
+            <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
             <div class="keyboard" id="keyboardContainer">
                 <!-- Keys generated by JS or static HTML -->
                 <!-- Octave 1 -->
@@ -2298,7 +2747,7 @@
             };
         }
 
-        // --- Prevent Zoom and Browser UI Interference ---
+        // --- Touch Behaviour ---
         
         /**
          * Helper function to determine if an element is interactive and should allow touch events.
@@ -2318,22 +2767,9 @@
         // Constants for touch handling
         const DOUBLE_TAP_TIMEOUT = 300; // milliseconds
         
-        // Prevent gesturestart and gesturechange events (pinch zoom on iOS)
-        document.addEventListener('gesturestart', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-
-        document.addEventListener('gesturechange', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-
-        document.addEventListener('gestureend', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-
-        // Consolidated touch handling
         const touchStartPositions = new Map();
         let lastTouchEnd = 0;
+        const directManipulationSelector = '.key, .keyboard, #waveformCanvas, input[type="range"]';
         
         // Unified touchstart handler
         document.addEventListener('touchstart', (e) => {
@@ -2344,47 +2780,29 @@
                 touchStartPositions.set(touch.identifier, touch.clientY);
             }
             
-            // Block touch on empty areas
-            // Allow interactive elements to work normally
-            if (isInteractiveElement(target)) {
+            const directManipulationTarget = target.closest ? target.closest(directManipulationSelector) : null;
+            if (isInteractiveElement(target) && !directManipulationTarget) {
                 return;
             }
-            
-            // Prevent default on container backgrounds and empty areas
-            if (target === document.body || 
-                target.classList.contains('synth-container') ||
-                target.classList.contains('top-section') ||
-                target.classList.contains('recording-section') ||
-                target.classList.contains('controls-section') ||
-                target.classList.contains('keyboard-section') ||
-                target.classList.contains('tab-content') ||
-                target.classList.contains('control-group')) {
+
+            if (directManipulationTarget && target.closest('.keyboard-section')) {
                 e.preventDefault();
             }
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
             const target = e.target;
-            
-            // Allow touch events on interactive elements
-            if (isInteractiveElement(target)) {
+
+            if (!target.closest || !target.closest('.keyboard-section')) {
                 return;
             }
 
-            // Prevent scrolling on document level
             if (e.touches.length > 0) {
                 const touch = e.touches[0];
                 const startY = touchStartPositions.get(touch.identifier) || touch.clientY;
                 const currentY = touch.clientY;
-                const scrollingUp = currentY < startY;
-                const scrollingDown = currentY > startY;
-                
-                // Prevent pull-down (address bar) when at top
-                if (scrollingDown && window.scrollY === 0) {
-                    e.preventDefault();
-                }
-                // Prevent pull-up when at bottom
-                if (scrollingUp && (window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
+
+                if (Math.abs(currentY - startY) < 14) {
                     e.preventDefault();
                 }
             }
@@ -2399,8 +2817,7 @@
                 touchStartPositions.delete(touch.identifier);
             }
             
-            // Prevent double-tap zoom on non-interactive elements
-            if (!isInteractiveElement(target)) {
+            if (target.closest && target.closest('.keyboard-section')) {
                 const now = Date.now();
                 if (now - lastTouchEnd <= DOUBLE_TAP_TIMEOUT) {
                     e.preventDefault();
@@ -2638,17 +3055,27 @@
         let audioContext;
         let audioBuffer = null;
         let mediaRecorder = null;
+        let micStream = null;
         let recordedChunks = [];
         let isRecording = false;
         let activeGrains = new Map();
         let activeGrainNodes = 0;
         const MAX_GRAIN_NODES = 150; // Prevent runaway node creation (increased from 100)
+        const MAX_SAMPLE_BYTES = 24 * 1024 * 1024;
+        const MAX_SAMPLE_DURATION_SECONDS = 180;
+        const GRAIN_SCHEDULER_LOOKAHEAD = 0.06;
+        const GRAIN_SCHEDULER_INTERVAL = 20;
+        const mygrainUtils = window.MYGRAIN_UTILS || {};
         let currentGrainNote = null; // Track currently playing grain for monophonic mode
         let octaveOffset = 0;
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
         let heldNotes = new Set();
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
+        let engineInitialized = false;
+        let engineStarting = false;
+        let grainSchedulerTimerId = null;
+        let sampleLoadToken = 0;
         
         // Effects nodes
         let reverbNode = null;
@@ -2801,6 +3228,131 @@
             lfo3Rate: { min: 0, max: 7000 },
             lfo3Depth: { min: 0, max: 100 }
         };
+
+        const presetToggleParams = [
+            'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
+            'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ', 'noiseMix', 'reverb',
+            'volume', 'distortion', 'phaserRate', 'phaserDepth', 'tremoloRate', 'tremoloDepth',
+            'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
+            'lfo3Rate', 'lfo3Depth', 'panSpread'
+        ];
+
+        const statusDiv = document.getElementById('status');
+        const audioStatusDiv = document.getElementById('audioStatus');
+
+        function setStatus(message, state = 'info') {
+            if (!statusDiv) return;
+            statusDiv.textContent = message;
+            statusDiv.dataset.state = state;
+        }
+
+        function setAudioStatus(message, state = 'info') {
+            if (!audioStatusDiv) return;
+            audioStatusDiv.textContent = message;
+            audioStatusDiv.dataset.state = state;
+        }
+
+        function buildPresetSliderSchema() {
+            const schema = {};
+            document.querySelectorAll('input[type="range"]').forEach((slider) => {
+                if (!slider.id) return;
+                schema[slider.id] = {
+                    min: Number(slider.min || 0),
+                    max: Number(slider.max || 100),
+                    defaultValue: Number(slider.defaultValue || slider.value || 0)
+                };
+            });
+            return schema;
+        }
+
+        function bindAudioContextLifecycle(ctx) {
+            if (!ctx) return;
+            ctx.onstatechange = () => {
+                if (ctx !== audioContext) return;
+                if (ctx.state === 'running') {
+                    setAudioStatus(`Audio running · ${ctx.sampleRate} Hz`, 'info');
+                } else if (ctx.state === 'suspended') {
+                    setAudioStatus('Audio suspended. Tap Start MYGRAIN or Reset Engine to resume.', 'error');
+                } else if (ctx.state === 'interrupted') {
+                    setAudioStatus('Audio interrupted by the device. Return to MYGRAIN and resume playback.', 'error');
+                } else {
+                    setAudioStatus(`Audio ${ctx.state}`);
+                }
+            };
+            ctx.onstatechange();
+        }
+
+        async function createAudioContextInstance() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)({
+                latencyHint: 'playback'
+            });
+            audioContext = ctx;
+            bindAudioContextLifecycle(ctx);
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+            console.log('Audio baseLatency:', ctx.baseLatency, 'seconds');
+            console.log('Audio sampleRate:', ctx.sampleRate);
+            return ctx;
+        }
+
+        function stopGrainScheduler() {
+            if (grainSchedulerTimerId) {
+                clearTimeout(grainSchedulerTimerId);
+                grainSchedulerTimerId = null;
+            }
+        }
+
+        function chooseRecordingMimeType() {
+            if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+                return null;
+            }
+
+            const supported = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/ogg;codecs=opus',
+                'audio/mp4'
+            ];
+
+            return supported.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || null;
+        }
+
+        function updateKeyboardGeometry() {
+            const keyboard = document.getElementById('keyboardContainer');
+            if (!keyboard) return;
+
+            const notes = Array.from(keyboard.querySelectorAll('.key')).map((key) => key.dataset.note);
+            const whiteKeyCount = notes.filter((note) => !note.includes('#')).length || 1;
+            const reservedWidth = window.innerWidth < 640 ? 120 : 160;
+            const availableWidth = Math.max(whiteKeyCount * 26, keyboard.clientWidth || (window.innerWidth - reservedWidth));
+            const whiteWidth = Math.max(26, Math.min(68, availableWidth / whiteKeyCount));
+            const blackWidth = Math.max(16, Math.min(whiteWidth * 0.64, 42));
+
+            keyboard.style.setProperty('--white-key-width', `${whiteWidth}px`);
+            keyboard.style.setProperty('--black-key-width', `${blackWidth}px`);
+
+            if (typeof mygrainUtils.buildKeyboardGeometry !== 'function') {
+                return;
+            }
+
+            const layout = mygrainUtils.buildKeyboardGeometry(notes, whiteWidth, blackWidth);
+            layout.forEach(({ note, left, width, isBlack }) => {
+                const key = keyboard.querySelector(`.key[data-note="${note}"]`);
+                if (!key) return;
+                if (isBlack) {
+                    key.style.left = `${left}px`;
+                    key.style.width = `${width}px`;
+                    key.style.minWidth = `${width}px`;
+                } else {
+                    key.style.left = '';
+                    key.style.width = `${width}px`;
+                    key.style.minWidth = `${width}px`;
+                }
+            });
+
+            keyboard.style.minWidth = `${whiteWidth * whiteKeyCount}px`;
+        }
 
         // --- LFO Engine ---
         // Raw LFO1 value without cross-modulation (to avoid circular dependency)
@@ -3033,41 +3585,45 @@
         // --- Initialization ---
         const startBtn = document.getElementById('start-btn');
         const startOverlay = document.getElementById('start-overlay');
-        const statusDiv = document.getElementById('status');
 
         startBtn.addEventListener('click', async () => {
+            if (engineStarting) {
+                return;
+            }
+
+            if (audioContext && audioContext.state !== 'closed') {
+                try {
+                    await audioContext.resume();
+                } catch (error) {
+                    console.error('Failed to resume audio context:', error);
+                }
+            }
+
+            if (engineInitialized) {
+                startOverlay.style.opacity = '0';
+                setTimeout(() => startOverlay.style.display = 'none', 300);
+                setStatus('MYGRAIN ready.');
+                return;
+            }
+
+            engineStarting = true;
+            setStatus('Starting MYGRAIN…');
             try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                    latencyHint: 'playback',  // Prioritizes stable audio over low latency
-                    sampleRate: 48000         // Consistent sample rate
-                });
-                
-                // Log audio system configuration for debugging
-                console.log('Audio baseLatency:', audioContext.baseLatency, 'seconds');
-                console.log('Audio sampleRate:', audioContext.sampleRate);
-                
-                if (audioContext.state === 'suspended') await audioContext.resume();
-                
-                // Wait for audio system to stabilize
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
+                await createAudioContextInstance();
                 lfoStartTime = audioContext.currentTime;
                 lfo2StartTime = audioContext.currentTime;
                 lfo3StartTime = audioContext.currentTime;
-                
                 await setupEffects();
                 startModulationLoop();
-                
-                // Run reset engine routine to ensure proper gain staging
-                // The full reset routine fixes the volume issue by reinitializing
-                // the audio context and chain with proper connections and gain values
-                await resetEngineRoutine();
+                engineInitialized = true;
                 
                 // Hide overlay
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
                 
-                statusDiv.textContent = "Engine Ready. Record something!";
+                setStatus('Engine ready. Load a sample, use Load Demo, or record the mic.');
+                setAudioStatus(`Audio running · ${audioContext.sampleRate} Hz`);
+                updateKeyboardGeometry();
                 
                 // Restore state from localStorage and setup state saving
                 setTimeout(async () => {
@@ -3082,14 +3638,17 @@
                     if (restoredBuffer) {
                         audioBuffer = restoredBuffer;
                         drawWaveform();
-                        statusDiv.textContent = `Audio restored (${audioBuffer.duration.toFixed(2)}s)`;
+                        setStatus(`Audio restored (${audioBuffer.duration.toFixed(2)}s).`);
                         normalizeBtn.disabled = false;
                         document.getElementById('auditionBtn').disabled = false;
                     }
                 }, 500);
             } catch (e) {
                 console.error(e);
+                setStatus(`Audio init failed: ${e.message}`, 'error');
                 alert("Audio init failed: " + e.message);
+            } finally {
+                engineStarting = false;
             }
         });
 
@@ -3532,12 +4091,18 @@
         // Handle tab visibility changes gracefully
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                // Tab is hidden - modulation continues via setInterval (not throttled like rAF)
-                console.log('Tab hidden - modulation continues at reduced priority');
+                panicAllNotes({ preserveStatus: true });
+                setAudioStatus('Audio paused while the page is hidden.');
             } else {
-                // Tab is visible again
-                console.log('Tab visible - modulation running normally');
+                updateKeyboardGeometry();
+                if (audioContext) {
+                    setAudioStatus(`Audio ${audioContext.state}`);
+                }
             }
+        });
+
+        window.addEventListener('blur', () => {
+            panicAllNotes({ preserveStatus: true });
         });
 
         // --- Recording ---
@@ -3558,11 +4123,12 @@
         });
 
         clearBtn.addEventListener('click', () => {
+            panicAllNotes({ preserveStatus: true });
             audioBuffer = null;
             recordedChunks = [];
             const ctx = waveformCanvas.getContext('2d');
             ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
-            statusDiv.textContent = "Buffer cleared";
+            setStatus('Buffer cleared.');
             normalizeBtn.disabled = true;
             document.getElementById('auditionBtn').disabled = true;
             stopAllGrains();
@@ -3598,10 +4164,27 @@
                 auditionSource = null;
             };
             
-            statusDiv.textContent = 'Playing raw sample...';
+            setStatus('Playing raw sample...');
         });
 
+        function stopMicCapture() {
+            if (micStream) {
+                micStream.getTracks().forEach((track) => track.stop());
+                micStream = null;
+            }
+        }
+
         async function startRecording() {
+            if (!window.isSecureContext) {
+                setStatus('Microphone recording requires HTTPS or localhost.', 'error');
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+                setStatus('This browser does not support microphone recording.', 'error');
+                return;
+            }
+
             try {
                 // Ensure context is running
                 if (audioContext.state === 'suspended') await audioContext.resume();
@@ -3609,15 +4192,15 @@
                 // Wait for audio system to stabilize
                 await new Promise(resolve => setTimeout(resolve, 100));
 
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                micStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { 
                         echoCancellation: false, 
                         noiseSuppression: false, 
                         autoGainControl: false 
                     } 
                 });
-                
-                mediaRecorder = new MediaRecorder(stream);
+                const mimeType = chooseRecordingMimeType();
+                mediaRecorder = mimeType ? new MediaRecorder(micStream, { mimeType }) : new MediaRecorder(micStream);
                 recordedChunks = [];
 
                 mediaRecorder.ondataavailable = e => {
@@ -3625,27 +4208,35 @@
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const arrayBuffer = await blob.arrayBuffer();
-                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    drawWaveform();
-                    statusDiv.textContent = `Buffer: ${audioBuffer.duration.toFixed(2)}s`;
-                    normalizeBtn.disabled = false; // Enable normalize button
-                    document.getElementById('auditionBtn').disabled = false; // Enable audition button
-                    stream.getTracks().forEach(track => track.stop());
-                    
-                    // Save audio buffer to IndexedDB
-                    await saveAudioBufferToDB(audioBuffer);
+                    const previousBuffer = audioBuffer;
+                    try {
+                        const blob = new Blob(recordedChunks, { type: mimeType || mediaRecorder.mimeType || 'audio/webm' });
+                        const arrayBuffer = await blob.arrayBuffer();
+                        await loadAudioFromArrayBuffer(arrayBuffer, 'Microphone take');
+                    } catch (err) {
+                        console.error(err);
+                        audioBuffer = previousBuffer;
+                        setStatus(`Mic decode failed: ${err.message}`, 'error');
+                    } finally {
+                        stopMicCapture();
+                    }
+                };
+
+                mediaRecorder.onerror = (event) => {
+                    console.error('MediaRecorder error:', event.error);
+                    setStatus(`Mic recorder error: ${event.error?.message || 'unknown error'}`, 'error');
+                    stopMicCapture();
                 };
 
                 mediaRecorder.start();
                 isRecording = true;
                 recordBtn.textContent = "STOP";
                 recordBtn.classList.add('recording');
-                statusDiv.textContent = "Recording...";
+                setStatus('Recording microphone…');
             } catch (err) {
                 console.error(err);
-                statusDiv.textContent = "Mic Error: " + err.message;
+                stopMicCapture();
+                setStatus("Mic Error: " + err.message, 'error');
             }
         }
 
@@ -3655,6 +4246,7 @@
                 isRecording = false;
                 recordBtn.textContent = "Record Mic";
                 recordBtn.classList.remove('recording');
+                setStatus('Processing microphone take…');
             }
         }
 
@@ -3815,7 +4407,7 @@
         }
 
         // --- Granular Engine ---
-        function playGrain(note) {
+        function playGrain(note, scheduledTime = null) {
             if (!canPlayGrains()) return;
             
             // Prevent runaway node creation with smart recovery
@@ -3970,29 +4562,27 @@
             };
 
             // Create sample source if available and needed
+            const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
+
             if (audioBuffer && noiseMix < 1.0) {
                 // Start/End Logic with LFO modulation
                 let startPct = getModulatedValue('sampleStart') / 100;
                 let endPct = getModulatedValue('sampleEnd') / 100;
-                
-                // Swap if user crosses sliders
-                if (startPct > endPct) [startPct, endPct] = [endPct, startPct];
-
-                const bufferDuration = audioBuffer.duration;
-                const validStart = bufferDuration * startPct;
-                const validEnd = bufferDuration * endPct;
-                const validDuration = validEnd - validStart;
-
-                // Playhead Position (within the valid window) with LFO modulation
                 const posSlider = getModulatedValue('position') / 100;
-                let playPosition = validStart + (posSlider * validDuration);
-
-                // Add Spray
-                const randomSpray = (Math.random() * 2 - 1) * spray * validDuration * 0.5;
-                playPosition += randomSpray;
-
-                // Clamp
-                playPosition = Math.max(validStart, Math.min(validEnd - grainSize, playPosition));
+                const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
+                    ? mygrainUtils.resolveSampleWindow({
+                        bufferDuration: audioBuffer.duration,
+                        startPct,
+                        endPct,
+                        positionPct: posSlider,
+                        grainSizeSeconds: grainSize,
+                        sprayAmount: spray,
+                        randomValue: Math.random() * 2 - 1
+                    })
+                    : {
+                        playPosition: Math.max(0, audioBuffer.duration * Math.min(startPct, endPct)),
+                        grainSizeSeconds: grainSize
+                    };
 
                 source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
@@ -4012,12 +4602,11 @@
 
                 source.connect(sampleGain);
                 sampleGain.connect(mixer);
-                
+                sourcesRemaining++; // Track this source
                 sourcesRemaining++; // Track this source
 
-                const now = audioContext.currentTime;
-                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
-                source.start(now, playPosition);
+                const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
+                source.start(now, sampleWindow.playPosition);
                 // Stop after envelope completes
                 source.stop(now + totalDuration);
                 
@@ -4049,7 +4638,6 @@
                 
                 sourcesRemaining++; // Track this source
 
-                const now = audioContext.currentTime;
                 const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
                 noiseSource.start(now);
                 noiseSource.stop(now + totalDuration);
@@ -4072,7 +4660,6 @@
             panner.connect(granularOutputGain);
 
             // Envelope - with validated values
-            const now = audioContext.currentTime;
             const sustainTime = Math.max(grainSize - attack, 0.001); // Ensure positive sustain duration
 
             // Final validation before AudioParam assignments
@@ -4145,37 +4732,27 @@
             currentGrainNote = note;
 
             const grainState = { 
-                timeoutId: null, 
-                startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime 
+                startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
+                nextTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime
             };
-            
-            function schedule() {
-                try {
-                    playGrain(note);
-                } catch (e) {
-                    console.error('Error playing grain:', e);
-                }
-                
-                // Get current modulated density for next iteration
-                const density = getModulatedValue('density');
-                const intervalTime = 1000 / density;
-                
-                grainState.timeoutId = setTimeout(schedule, intervalTime);
-            }
 
             // Store cancellation function before first call
             activeGrains.set(note, { 
-                cancel: () => clearTimeout(grainState.timeoutId),
-                startTime: grainState.startTime
+                cancel: () => {},
+                startTime: grainState.startTime,
+                get nextTime() {
+                    return grainState.nextTime;
+                },
+                set nextTime(value) {
+                    grainState.nextTime = value;
+                }
             });
             
             // Apply filter envelope when note starts
             // Use a long duration (60 seconds) to allow envelope to sustain until note is released
             const FILTER_ENVELOPE_MAX_DURATION = 60;
             applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
-            
-            // Play one immediately and start recursion
-            schedule();
+            scheduleActiveGrains();
         }
 
         function stopGrainStream(note) {
@@ -4202,6 +4779,9 @@
                 }
                 
                 activeGrains.delete(note);
+                if (activeGrains.size === 0) {
+                    stopGrainScheduler();
+                }
             }
         }
 
@@ -4209,6 +4789,34 @@
             activeGrains.forEach(grain => grain.cancel());
             activeGrains.clear();
             currentGrainNote = null; // Reset current grain note
+            stopGrainScheduler();
+        }
+
+        function scheduleActiveGrains() {
+            if (!audioContext || activeGrains.size === 0) {
+                stopGrainScheduler();
+                return;
+            }
+
+            stopGrainScheduler();
+            const scheduleUntil = audioContext.currentTime + GRAIN_SCHEDULER_LOOKAHEAD;
+
+            activeGrains.forEach((grainInfo, note) => {
+                const density = Math.max(1, Number(getModulatedValue('density')) || 1);
+                const intervalSeconds = Math.max(0.01, 1 / density);
+
+                while (grainInfo.nextTime < scheduleUntil) {
+                    try {
+                        playGrain(note, grainInfo.nextTime);
+                    } catch (e) {
+                        console.error('Error playing grain:', e);
+                        break;
+                    }
+                    grainInfo.nextTime += intervalSeconds;
+                }
+            });
+
+            grainSchedulerTimerId = setTimeout(scheduleActiveGrains, GRAIN_SCHEDULER_INTERVAL);
         }
 
         // --- Oscillator Functions ---
@@ -4403,6 +5011,26 @@
             });
         }
 
+        function panicAllNotes(options = {}) {
+            stopSequencer();
+            stopAllGrains();
+            stopAllOscillators();
+            heldNotes.clear();
+            activeKeyCount = 0;
+            currentGrainNote = null;
+            document.querySelectorAll('.key.active').forEach((key) => key.classList.remove('active'));
+
+            if (delayFeedbackGain) {
+                const now = audioContext ? audioContext.currentTime : 0;
+                delayFeedbackGain.gain.cancelScheduledValues(now);
+                delayFeedbackGain.gain.setValueAtTime(0, now);
+            }
+
+            if (!options.preserveStatus) {
+                setStatus('All notes off.');
+            }
+        }
+
         // --- Sequencer Functions ---
         function startSequencer() {
             if (sequencerPlaying) return;
@@ -4518,11 +5146,36 @@
 
         // --- Input Handling (Pointer Events) ---
         const keys = document.querySelectorAll('.key');
+        keys.forEach((key) => {
+            key.tabIndex = 0;
+            key.setAttribute('role', 'button');
+            key.setAttribute('aria-label', `Play ${key.dataset.note}`);
+        });
         
         // Track last touch time per key to prevent double-tap zoom
         const keyLastTouchTime = new Map();
         
         keys.forEach(key => {
+            const releaseKey = (pointerId = null) => {
+                const note = key.dataset.note;
+                if (pointerId !== null && key.hasPointerCapture(pointerId)) {
+                    key.releasePointerCapture(pointerId);
+                }
+
+                activeKeyCount = Math.max(0, activeKeyCount - 1);
+
+                if (holdEnabled && !heldNotes.has(note)) {
+                    heldNotes.add(note);
+                    return;
+                }
+
+                if (!holdEnabled) {
+                    key.classList.remove('active');
+                    stopGrainStream(note);
+                    stopOscillatorNote(note);
+                }
+            };
+
             // Add specific touch event handlers to prevent double-tap zoom
             key.addEventListener('touchstart', (e) => {
                 const now = Date.now();
@@ -4593,32 +5246,42 @@
             });
 
             key.addEventListener('pointerup', (e) => {
-                const note = key.dataset.note;
-                key.releasePointerCapture(e.pointerId);
-                
-                // Decrement the active key counter
-                activeKeyCount = Math.max(0, activeKeyCount - 1);
-                
-                // If Hold is enabled, add to held notes instead of stopping
-                if (holdEnabled && !heldNotes.has(note)) {
-                    heldNotes.add(note);
-                    // Keep the key visually active
-                } else if (!holdEnabled) {
-                    key.classList.remove('active');
-                    stopGrainStream(note);
-                    stopOscillatorNote(note);
-                }
+                releaseKey(e.pointerId);
             });
 
             key.addEventListener('pointerleave', (e) => {
                 const note = key.dataset.note;
                 // Only stop if not in hold mode and key is being played
                 if (key.classList.contains('active') && !holdEnabled && !heldNotes.has(note)) {
-                    // Decrement the active key counter
-                    activeKeyCount = Math.max(0, activeKeyCount - 1);
-                    key.classList.remove('active');
-                    stopGrainStream(note);
-                    stopOscillatorNote(note);
+                    releaseKey(e.pointerId);
+                }
+            });
+
+            key.addEventListener('pointercancel', (e) => {
+                releaseKey(e.pointerId);
+            });
+
+            key.addEventListener('lostpointercapture', (e) => {
+                if (key.classList.contains('active')) {
+                    releaseKey(e.pointerId);
+                }
+            });
+
+            key.addEventListener('keydown', (e) => {
+                if ((e.key !== 'Enter' && e.key !== ' ') || e.repeat) return;
+                e.preventDefault();
+                if (key.classList.contains('active')) return;
+                key.classList.add('active');
+                activeKeyCount++;
+                startGrainStream(key.dataset.note);
+                playOscillatorNote(key.dataset.note);
+            });
+
+            key.addEventListener('keyup', (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                if (key.classList.contains('active')) {
+                    releaseKey();
                 }
             });
         });
@@ -4984,11 +5647,13 @@
         }
 
         document.getElementById('octaveUpBtn').addEventListener('click', () => {
+            panicAllNotes({ preserveStatus: true });
             octaveOffset = Math.min(octaveOffset + 1, 3);
             updateOctaveDisplay();
         });
 
         document.getElementById('octaveDownBtn').addEventListener('click', () => {
+            panicAllNotes({ preserveStatus: true });
             octaveOffset = Math.max(octaveOffset - 1, -3);
             updateOctaveDisplay();
         });
@@ -5020,6 +5685,9 @@
                 holdBtn.classList.add('active');
             }
         });
+
+        document.getElementById('panicBtn').addEventListener('click', () => panicAllNotes());
+        document.getElementById('panicUtilityBtn').addEventListener('click', () => panicAllNotes());
 
         // --- Delay Division Selector ---
         document.getElementById('delayDivision').addEventListener('change', () => {
@@ -5272,57 +5940,67 @@
         }
 
         // --- Tab System ---
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', () => {
-                const targetTab = button.dataset.tab;
-                
-                // Update button states
-                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Update content visibility
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                document.getElementById(targetTab + '-tab').classList.add('active');
+        const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+        const tabPanels = Array.from(document.querySelectorAll('.tab-content'));
+        const tabContainer = document.querySelector('.tab-container');
+        if (tabContainer) {
+            tabContainer.setAttribute('role', 'tablist');
+            tabContainer.setAttribute('aria-label', 'MYGRAIN control sections');
+        }
+
+        function activateTab(button, focusButton = false) {
+            const targetTab = button.dataset.tab;
+            tabButtons.forEach((btn) => {
+                const isActive = btn === button;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('role', 'tab');
+                btn.setAttribute('aria-selected', String(isActive));
+                btn.tabIndex = isActive ? 0 : -1;
+                btn.setAttribute('aria-controls', `${btn.dataset.tab}-tab`);
+            });
+
+            tabPanels.forEach((panel) => {
+                const isActive = panel.id === `${targetTab}-tab`;
+                panel.classList.toggle('active', isActive);
+                panel.setAttribute('role', 'tabpanel');
+                panel.setAttribute('aria-labelledby', `tab-${panel.id.replace('-tab', '')}`);
+                panel.hidden = !isActive;
+            });
+
+            button.id = `tab-${targetTab}`;
+            if (focusButton) {
+                button.focus();
+            }
+        }
+
+        tabButtons.forEach((button, index) => {
+            button.id = `tab-${button.dataset.tab}`;
+            button.addEventListener('click', () => activateTab(button));
+            button.addEventListener('keydown', (event) => {
+                const movePrev = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+                const moveNext = event.key === 'ArrowRight' || event.key === 'ArrowDown';
+                if (!movePrev && !moveNext && event.key !== 'Home' && event.key !== 'End') {
+                    return;
+                }
+                event.preventDefault();
+                let targetIndex = index;
+                if (movePrev) targetIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+                if (moveNext) targetIndex = (index + 1) % tabButtons.length;
+                if (event.key === 'Home') targetIndex = 0;
+                if (event.key === 'End') targetIndex = tabButtons.length - 1;
+                activateTab(tabButtons[targetIndex], true);
             });
         });
 
+        const activeTabButton = document.querySelector('.tab-button.active') || tabButtons[0];
+        if (activeTabButton) {
+            activateTab(activeTabButton);
+        }
+
         // Helper function to prevent scrolling while allowing interactive elements to work
         function preventScrollingOnContainer(container) {
-            // Prevent touchstart on the container itself (not on interactive elements)
-            container.addEventListener('touchstart', (e) => {
-                const target = e.target;
-                // Allow touch events on interactive elements
-                if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || 
-                    target.tagName === 'SELECT' || target.classList.contains('value')) {
-                    return; // Let the element handle the event
-                }
-                // Only prevent if touching the container background directly
-                if (target === container || target.classList.contains('control-group') || 
-                    target.classList.contains('tab-content') || target.tagName === 'LABEL') {
-                    e.preventDefault();
-                }
-            }, { passive: false });
-
-            // Prevent touchmove on the container to stop scrolling
-            container.addEventListener('touchmove', (e) => {
-                const target = e.target;
-                // Allow sliders to work - they need pan-x touch action
-                if (target.tagName === 'INPUT' && target.type === 'range') {
-                    return; // Let the slider handle the event
-                }
-                // Allow buttons, selects, and editable fields
-                if (target.tagName === 'BUTTON' || target.tagName === 'SELECT' || 
-                    (target.tagName === 'INPUT' && target.type !== 'range')) {
-                    return;
-                }
-                // Prevent scrolling for everything else
-                e.preventDefault();
-            }, { passive: false });
-            
-            // Prevent wheel scrolling on desktop
-            container.addEventListener('wheel', (e) => {
-                e.preventDefault();
-            }, { passive: false });
+            if (!container) return;
+            container.style.touchAction = 'pan-y pinch-zoom';
         }
 
         // Prevent scrolling/moving in tab content areas
@@ -5334,8 +6012,21 @@
             preventScrollingOnContainer(controlsSection);
         }
 
+        document.getElementById('loadDemoBtn').addEventListener('click', async () => {
+            try {
+                await loadBuiltInDemoSample();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Demo load failed: ${error.message}`, 'error');
+            }
+        });
+
         // Window Resize
-        window.addEventListener('resize', drawWaveform);
+        window.addEventListener('resize', () => {
+            drawWaveform();
+            updateKeyboardGeometry();
+        });
+        updateKeyboardGeometry();
 
         // --- Utility Functions ---
         
@@ -5353,6 +6044,75 @@
         presetFileInput.style.display = 'none';
         document.body.appendChild(presetFileInput);
 
+        async function applyLoadedAudioBuffer(buffer, sourceLabel) {
+            if (!buffer) {
+                throw new Error('Decoded audio buffer is empty.');
+            }
+
+            if (!Number.isFinite(buffer.duration) || buffer.duration <= 0.02) {
+                throw new Error('Audio is too short to use as a sample.');
+            }
+
+            if (buffer.duration > MAX_SAMPLE_DURATION_SECONDS) {
+                throw new Error(`Samples longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds are not supported on mobile.`);
+            }
+
+            audioBuffer = buffer;
+            drawWaveform();
+            setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
+            normalizeBtn.disabled = false;
+            document.getElementById('auditionBtn').disabled = false;
+            await saveAudioBufferToDB(audioBuffer);
+        }
+
+        async function loadAudioFromArrayBuffer(arrayBuffer, sourceLabel) {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading audio.');
+            }
+
+            const loadToken = ++sampleLoadToken;
+            const previousBuffer = audioBuffer;
+            setStatus(`Loading ${sourceLabel}…`);
+            const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+
+            if (loadToken !== sampleLoadToken) {
+                return previousBuffer;
+            }
+
+            try {
+                await applyLoadedAudioBuffer(decodedBuffer, sourceLabel);
+            } catch (error) {
+                audioBuffer = previousBuffer;
+                throw error;
+            }
+
+            return decodedBuffer;
+        }
+
+        async function loadBuiltInDemoSample() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading the demo sample.');
+            }
+
+            const duration = 1.75;
+            const frameCount = Math.floor(audioContext.sampleRate * duration);
+            const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
+
+            for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                const channelData = buffer.getChannelData(channel);
+                for (let i = 0; i < frameCount; i++) {
+                    const time = i / audioContext.sampleRate;
+                    const envelope = Math.sin(Math.PI * Math.min(1, time / duration));
+                    const carrier = Math.sin(2 * Math.PI * 164.81 * time);
+                    const overtone = 0.45 * Math.sin(2 * Math.PI * 329.63 * time + channel * 0.3);
+                    const shimmer = 0.15 * Math.sin(2 * Math.PI * 493.88 * time);
+                    channelData[i] = (carrier + overtone + shimmer) * envelope * 0.5;
+                }
+            }
+
+            await applyLoadedAudioBuffer(buffer, 'Built-in demo');
+        }
+
         // Save Audio Button
         document.getElementById('saveAudioBtn').addEventListener('click', async () => {
             if (!audioBuffer) {
@@ -5365,7 +6125,7 @@
             const blob = new Blob([wav], { type: 'audio/wav' });
             
             // Prompt user for filename (works on iOS)
-            const defaultName = 'granular-sample';
+            const defaultName = 'mygrain-sample';
             let userFilename = prompt('Enter filename for audio:', defaultName);
             if (!userFilename) {
                 statusDiv.textContent = 'Save cancelled';
@@ -5445,7 +6205,7 @@
         // Load Audio Button
         document.getElementById('loadAudioBtn').addEventListener('click', () => {
             if (!audioContext) {
-                alert('Please start the engine first.');
+                alert('Please start MYGRAIN first.');
                 return;
             }
             audioFileInput.click();
@@ -5456,17 +6216,14 @@
             if (!file) return;
             
             try {
+                if (file.size > MAX_SAMPLE_BYTES) {
+                    throw new Error(`Audio files larger than ${(MAX_SAMPLE_BYTES / (1024 * 1024)).toFixed(0)}MB are not supported on mobile.`);
+                }
                 const arrayBuffer = await file.arrayBuffer();
-                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                drawWaveform();
-                statusDiv.textContent = `Loaded: ${file.name} (${audioBuffer.duration.toFixed(2)}s)`;
-                normalizeBtn.disabled = false;
-                document.getElementById('auditionBtn').disabled = false;
-                
-                // Save audio buffer to IndexedDB
-                await saveAudioBufferToDB(audioBuffer);
+                await loadAudioFromArrayBuffer(arrayBuffer, file.name);
             } catch (err) {
                 console.error(err);
+                setStatus(`Failed to load ${file.name}: ${err.message}`, 'error');
                 alert('Failed to load audio file: ' + err.message);
             }
             
@@ -5481,7 +6238,7 @@
             const blob = new Blob([json], { type: 'application/json' });
             
             // Prompt user for filename
-            const defaultName = 'granular-preset';
+            const defaultName = 'mygrain-preset';
             let userFilename = prompt('Enter filename for preset:', defaultName);
             if (!userFilename) {
                 statusDiv.textContent = 'Save cancelled';
@@ -5586,27 +6343,12 @@
             
             // Stop modulation loop before closing context
             stopModulationLoop();
-            
-            // Stop all active grains
-            stopAllGrains();
+            panicAllNotes({ preserveStatus: true });
+            stopMicCapture();
             
             // Close existing context
             await audioContext.close();
-            
-            // Create new context
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                latencyHint: 'playback',  // Prioritizes stable audio over low latency
-                sampleRate: 48000         // Consistent sample rate
-            });
-            
-            // Log audio system configuration for debugging
-            console.log('Audio baseLatency:', audioContext.baseLatency, 'seconds');
-            console.log('Audio sampleRate:', audioContext.sampleRate);
-            
-            if (audioContext.state === 'suspended') await audioContext.resume();
-            
-            // Wait for audio system to stabilize
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await createAudioContextInstance();
             
             lfoStartTime = audioContext.currentTime;
             lfo2StartTime = audioContext.currentTime;
@@ -5615,6 +6357,8 @@
             // Reinitialize effects
             await setupEffects();
             startModulationLoop();
+            engineInitialized = true;
+            updateKeyboardGeometry();
         }
 
         // Reset Engine Button
@@ -5625,8 +6369,7 @@
             }
             
             await resetEngineRoutine();
-            
-            statusDiv.textContent = 'Engine reset successfully';
+            setStatus('Engine reset successfully.');
         });
 
         // Randomize Button
@@ -5713,6 +6456,7 @@
 
         // Reset to Default Button
         document.getElementById('resetDefaultBtn').addEventListener('click', () => {
+            panicAllNotes({ preserveStatus: true });
             // Define default values based on HTML initial values
             const defaults = {
                 sampleStart: 0,
@@ -5860,7 +6604,7 @@
         // Helper function to gather all preset data
         function gatherPreset() {
             const preset = {
-                version: '2.1',
+                version: '3.0',
                 timestamp: new Date().toISOString(),
                 sliders: {},
                 lfo: {
@@ -5877,7 +6621,8 @@
                     enabled: {},
                     inverted: {}
                 },
-                octave: octaveOffset
+                octave: octaveOffset,
+                requiresSampleReload: Boolean(audioBuffer)
             };
             
             // Gather all slider values
@@ -5908,49 +6653,52 @@
 
         // Helper function to apply preset
         function applyPreset(preset) {
-            if (!preset || typeof preset !== 'object' || Array.isArray(preset)) {
-                throw new Error('Invalid preset format');
-            }
+            const presetValidator = typeof mygrainUtils.validatePreset === 'function' ? mygrainUtils.validatePreset : null;
+            const validated = presetValidator ? presetValidator(preset, {
+                sliderSchema: buildPresetSliderSchema(),
+                toggleParams: presetToggleParams
+            }) : { preset, warnings: [] };
+            const safePreset = validated.preset;
             
             // Apply slider values
-            if (preset.sliders) {
-                Object.keys(preset.sliders).forEach(id => {
+            if (safePreset.sliders) {
+                Object.keys(safePreset.sliders).forEach(id => {
                     const slider = document.getElementById(id);
                     if (slider) {
-                        slider.value = preset.sliders[id];
+                        slider.value = safePreset.sliders[id];
                         slider.dispatchEvent(new Event('input'));
                     }
                 });
             }
             
             // Apply dropdown values
-            if (preset.lfoWaveform) {
-                document.getElementById('lfoWaveform').value = preset.lfoWaveform;
+            if (safePreset.lfoWaveform) {
+                document.getElementById('lfoWaveform').value = safePreset.lfoWaveform;
             }
-            if (preset.lfo2Waveform) {
-                document.getElementById('lfo2Waveform').value = preset.lfo2Waveform;
+            if (safePreset.lfo2Waveform) {
+                document.getElementById('lfo2Waveform').value = safePreset.lfo2Waveform;
             }
-            if (preset.lfo3Waveform) {
-                document.getElementById('lfo3Waveform').value = preset.lfo3Waveform;
+            if (safePreset.lfo3Waveform) {
+                document.getElementById('lfo3Waveform').value = safePreset.lfo3Waveform;
             }
-            if (preset.noiseType) {
-                document.getElementById('noiseType').value = preset.noiseType;
+            if (safePreset.noiseType) {
+                document.getElementById('noiseType').value = safePreset.noiseType;
             }
             
             // Apply LFO mode
-            if (preset.lfo && preset.lfo.mode && preset.lfo.mode !== lfoMode) {
+            if (safePreset.lfo && safePreset.lfo.mode && safePreset.lfo.mode !== lfoMode) {
                 document.getElementById('lfoModeToggle').click();
             }
             
             // Apply LFO2 mode
-            if (preset.lfo2 && preset.lfo2.mode && preset.lfo2.mode !== lfo2Mode) {
+            if (safePreset.lfo2 && safePreset.lfo2.mode && safePreset.lfo2.mode !== lfo2Mode) {
                 document.getElementById('lfo2ModeToggle').click();
             }
             
             // Apply LFO enabled states
-            if (preset.lfo && preset.lfo.enabled) {
-                Object.keys(preset.lfo.enabled).forEach(param => {
-                    const shouldBeEnabled = preset.lfo.enabled[param];
+            if (safePreset.lfo && safePreset.lfo.enabled) {
+                Object.keys(safePreset.lfo.enabled).forEach(param => {
+                    const shouldBeEnabled = safePreset.lfo.enabled[param];
                     const isEnabled = lfoEnabled[param];
                     
                     if (shouldBeEnabled !== isEnabled) {
@@ -5961,9 +6709,9 @@
             }
             
             // Apply LFO inverted states
-            if (preset.lfo && preset.lfo.inverted) {
-                Object.keys(preset.lfo.inverted).forEach(param => {
-                    const shouldBeInverted = preset.lfo.inverted[param];
+            if (safePreset.lfo && safePreset.lfo.inverted) {
+                Object.keys(safePreset.lfo.inverted).forEach(param => {
+                    const shouldBeInverted = safePreset.lfo.inverted[param];
                     const isInverted = lfoInverted[param];
                     
                     if (shouldBeInverted !== isInverted) {
@@ -5974,9 +6722,9 @@
             }
             
             // Apply LFO2 enabled states
-            if (preset.lfo2 && preset.lfo2.enabled) {
-                Object.keys(preset.lfo2.enabled).forEach(param => {
-                    const shouldBeEnabled = preset.lfo2.enabled[param];
+            if (safePreset.lfo2 && safePreset.lfo2.enabled) {
+                Object.keys(safePreset.lfo2.enabled).forEach(param => {
+                    const shouldBeEnabled = safePreset.lfo2.enabled[param];
                     const isEnabled = lfo2Enabled[param];
                     
                     if (shouldBeEnabled !== isEnabled) {
@@ -5987,9 +6735,9 @@
             }
             
             // Apply LFO2 inverted states
-            if (preset.lfo2 && preset.lfo2.inverted) {
-                Object.keys(preset.lfo2.inverted).forEach(param => {
-                    const shouldBeInverted = preset.lfo2.inverted[param];
+            if (safePreset.lfo2 && safePreset.lfo2.inverted) {
+                Object.keys(safePreset.lfo2.inverted).forEach(param => {
+                    const shouldBeInverted = safePreset.lfo2.inverted[param];
                     const isInverted = lfo2Inverted[param];
                     
                     if (shouldBeInverted !== isInverted) {
@@ -6000,9 +6748,9 @@
             }
             
             // Apply LFO3 enabled states
-            if (preset.lfo3 && preset.lfo3.enabled) {
-                Object.keys(preset.lfo3.enabled).forEach(param => {
-                    const shouldBeEnabled = preset.lfo3.enabled[param];
+            if (safePreset.lfo3 && safePreset.lfo3.enabled) {
+                Object.keys(safePreset.lfo3.enabled).forEach(param => {
+                    const shouldBeEnabled = safePreset.lfo3.enabled[param];
                     const isEnabled = lfo3Enabled[param];
                     
                     if (shouldBeEnabled !== isEnabled) {
@@ -6013,9 +6761,9 @@
             }
             
             // Apply LFO3 inverted states
-            if (preset.lfo3 && preset.lfo3.inverted) {
-                Object.keys(preset.lfo3.inverted).forEach(param => {
-                    const shouldBeInverted = preset.lfo3.inverted[param];
+            if (safePreset.lfo3 && safePreset.lfo3.inverted) {
+                Object.keys(safePreset.lfo3.inverted).forEach(param => {
+                    const shouldBeInverted = safePreset.lfo3.inverted[param];
                     const isInverted = lfo3Inverted[param];
                     
                     if (shouldBeInverted !== isInverted) {
@@ -6026,9 +6774,15 @@
             }
             
             // Apply octave offset
-            if (preset.octave !== undefined) {
-                octaveOffset = preset.octave;
+            if (safePreset.octave !== undefined) {
+                octaveOffset = safePreset.octave;
                 updateOctaveDisplay();
+            }
+
+            if (validated.warnings.length > 0) {
+                setStatus(`Preset loaded with safeguards: ${validated.warnings.join(', ')}.`);
+            } else if (safePreset.requiresSampleReload && !audioBuffer) {
+                setStatus('Preset loaded. Reload your sample to hear the saved patch.');
             }
         }
 
@@ -6572,7 +7326,7 @@
             console.log('=== SAVEWAVFILE CALLED ===');
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `granular-${sequencerBPM}bpm-${timestamp}.wav`;
+            const filename = `mygrain-${sequencerBPM}bpm-${timestamp}.wav`;
             console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
             
             // Desktop: Use File System Access API for Save As dialog
@@ -6609,7 +7363,7 @@
                     try {
                         await navigator.share({
                             files: [file],
-                            title: 'Granular Recording'
+                            title: 'MYGRAIN Recording'
                         });
                         console.log('Share successful');
                         return; // Success - share sheet was shown
@@ -6640,43 +7394,19 @@
             console.log('Download triggered for:', filename);
         }
 
-        // Helper function to convert AudioBuffer to 24-bit WAV at 48kHz
+        // Helper function to convert AudioBuffer to 24-bit WAV while preserving source sample rate
         function audioBufferToWav24bit(buffer) {
-            const targetSampleRate = 48000;
             const numChannels = buffer.numberOfChannels;
             const bitDepth = 24;
-            
-            // Resample if needed
-            let resampledBuffer = buffer;
-            if (buffer.sampleRate !== targetSampleRate) {
-                const ratio = targetSampleRate / buffer.sampleRate;
-                const newLength = Math.floor(buffer.length * ratio);
-                resampledBuffer = audioContext.createBuffer(numChannels, newLength, targetSampleRate);
-                
-                for (let ch = 0; ch < numChannels; ch++) {
-                    const inputData = buffer.getChannelData(ch);
-                    const outputData = resampledBuffer.getChannelData(ch);
-                    
-                    for (let i = 0; i < newLength; i++) {
-                        const srcIndex = i / ratio;
-                        const index0 = Math.floor(srcIndex);
-                        const index1 = Math.min(index0 + 1, inputData.length - 1);
-                        const frac = srcIndex - index0;
-                        
-                        // Linear interpolation
-                        outputData[i] = inputData[index0] * (1 - frac) + inputData[index1] * frac;
-                    }
-                }
-            }
-            
-            const sampleRate = targetSampleRate;
+
+            const sampleRate = buffer.sampleRate;
             const format = 1; // PCM
             const bytesPerSample = bitDepth / 8;
             const blockAlign = numChannels * bytesPerSample;
             
             const data = [];
             for (let i = 0; i < numChannels; i++) {
-                data.push(resampledBuffer.getChannelData(i));
+                data.push(buffer.getChannelData(i));
             }
             
             const interleaved = interleaveChannels(data);
@@ -6725,6 +7455,10 @@
                 alert('Audio engine not initialized. Please start the engine first.');
                 return;
             }
+            if (typeof MediaRecorder === 'undefined') {
+                setStatus('Output recording is not supported in this browser.', 'error');
+                return;
+            }
 
             try {
                 // Verify masterGain is properly connected and exists
@@ -6744,18 +7478,7 @@
                 
                 // Use MediaRecorder to record the stream
                 // Check for supported MIME types
-                outputRecordingMimeType = 'audio/webm';
-                if (!MediaRecorder.isTypeSupported(outputRecordingMimeType)) {
-                    // Try alternative formats
-                    const alternatives = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/wav'];
-                    outputRecordingMimeType = null;
-                    for (const alt of alternatives) {
-                        if (MediaRecorder.isTypeSupported(alt)) {
-                            outputRecordingMimeType = alt;
-                            break;
-                        }
-                    }
-                }
+                outputRecordingMimeType = chooseRecordingMimeType();
                 console.log('Using MediaRecorder with MIME type:', outputRecordingMimeType || 'default');
                 
                 const options = outputRecordingMimeType ? { mimeType: outputRecordingMimeType } : {};
@@ -6883,6 +7606,7 @@
             
             outputRecordedChunks = [];
             outputRecordingMimeType = null;
+            isOutputRecording = false;
             console.log('Recording UI reset complete');
         }
 
