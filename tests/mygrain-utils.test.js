@@ -191,3 +191,11 @@ test('generateDrumLoopBlueprint is seeded, quantized, and keeps drum roles prese
         assert.ok(event.recipe && typeof event.recipe.id === 'string');
     });
 });
+
+test('generateDrumLoopBlueprint keeps source grooves on a 16-step bar even if another count is requested', () => {
+    const blueprint = generateDrumLoopBlueprint({ seed: 'drum-grid-short', stepCount: 12, archetype: 'straight' });
+
+    assert.equal(blueprint.stepCount, 16);
+    assert.ok(blueprint.events.some((event) => event.step === 12));
+    assert.ok(blueprint.events.every((event) => event.step >= 0 && event.step < 16));
+});

@@ -616,7 +616,8 @@
     const DRUM_SOUND_PALETTE = buildDrumSoundPalette();
 
     function generateDrumLoopBlueprint(options = {}) {
-        const stepCount = Math.max(8, Math.min(32, Math.round(clampNumber(options.stepCount, { min: 8, max: 32, fallback: 16 }))));
+        // The groove templates are authored as one 16-step bar, so keep source-drum blueprints pinned to that grid.
+        const stepCount = 16;
         const random = typeof options.random === 'function'
             ? options.random
             : createSeededRandom(options.seed ?? `mygrain-drum-${stepCount}`);
