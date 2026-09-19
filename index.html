@@ -75,14 +75,6 @@
             box-shadow: 0 0 20px var(--accent-glow);
         }
 
-        /* Logic to show/hide orientation warning */
-        #orientation-overlay { display: none; }
-        
-        @media screen and (orientation: portrait) {
-            #orientation-overlay { display: flex; }
-            .synth-container { display: none !important; }
-        }
-
         /* Main App Container */
         .synth-container {
             display: flex;
@@ -1308,10 +1300,6 @@
                 max(12px, env(safe-area-inset-right))
                 max(12px, env(safe-area-inset-bottom))
                 max(12px, env(safe-area-inset-left));
-        }
-
-        #orientation-overlay {
-            display: none !important;
         }
 
         .overlay {
