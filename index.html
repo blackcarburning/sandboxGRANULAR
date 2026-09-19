@@ -1980,6 +1980,25 @@
             box-shadow: 0 12px 26px rgba(0, 198, 255, 0.26);
         }
 
+        .simplified-ui #performanceGenerateLoopBtn:active,
+        .simplified-ui #performanceGenerateLoopBtn.generating,
+        .simplified-ui #performanceGenerateLoopBtn.generated {
+            color: #00131a;
+            background: linear-gradient(135deg, #fff27a 0%, #7effb2 52%, #7ef6ff 100%);
+            border-color: rgba(255, 242, 122, 0.7);
+            box-shadow: 0 0 0 2px rgba(255, 242, 122, 0.28), 0 0 24px rgba(126, 246, 255, 0.42);
+            transform: translateY(1px);
+        }
+
+        .simplified-ui #performanceGenerateLoopBtn.generating {
+            animation: generate-pulse 0.8s ease-in-out infinite alternate;
+        }
+
+        @keyframes generate-pulse {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.22); }
+        }
+
         .simplified-ui #performanceHoldBtn.active,
         .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceOscToggleBtn.osc-off,
@@ -2125,7 +2144,7 @@
             .simplified-ui .performance-sound-controls,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
-                grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
                 gap: 8px;
             }
 
@@ -2186,24 +2205,45 @@
             <div class="performance-sound-controls" aria-label="Sound controls">
                 <div class="performance-sound-card">
                     <label for="performanceSourceMix">
-                        <span>Source Mix</span>
+                        <span>Granular/Osc</span>
                         <span class="value" id="performanceSourceMixValue">50/50</span>
                     </label>
                     <input type="range" id="performanceSourceMix" min="0" max="100" value="35" step="1">
                 </div>
                 <div class="performance-sound-card">
-                    <label for="performanceCutoff">
-                        <span>Cutoff</span>
-                        <span class="value" id="performanceCutoffValue">2800Hz</span>
+                    <label for="performanceGeneratedSourceMix">
+                        <span>Gen Loop Mix</span>
+                        <span class="value" id="performanceGeneratedSourceMixValue">100%</span>
                     </label>
-                    <input type="range" id="performanceCutoff" min="160" max="9000" value="2800" step="1">
+                    <input type="range" id="performanceGeneratedSourceMix" min="0" max="100" value="100" step="1">
                 </div>
                 <div class="performance-sound-card">
-                    <label for="performanceResonance">
-                        <span>Res</span>
-                        <span class="value" id="performanceResonanceValue">0.6</span>
+                    <label for="performanceLpfCutoff">
+                        <span>LP Cutoff</span>
+                        <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
                     </label>
-                    <input type="range" id="performanceResonance" min="0.1" max="2.5" value="0.6" step="0.1">
+                    <input type="range" id="performanceLpfCutoff" min="80" max="12000" value="2800" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceLpfResonance">
+                        <span>LP Res</span>
+                        <span class="value" id="performanceLpfResonanceValue">0.6</span>
+                    </label>
+                    <input type="range" id="performanceLpfResonance" min="0.1" max="2.5" value="0.6" step="0.1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceHpfCutoff">
+                        <span>HP Cutoff</span>
+                        <span class="value" id="performanceHpfCutoffValue">20Hz</span>
+                    </label>
+                    <input type="range" id="performanceHpfCutoff" min="20" max="5000" value="20" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceHpfResonance">
+                        <span>HP Res</span>
+                        <span class="value" id="performanceHpfResonanceValue">0.4</span>
+                    </label>
+                    <input type="range" id="performanceHpfResonance" min="0.1" max="2.5" value="0.4" step="0.1">
                 </div>
                 <div class="performance-sound-card">
                     <label>
@@ -3776,6 +3816,7 @@
             release: 300
         };
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
+        let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let oscillatorsEnabled = true;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         const MIX_HEADROOM = 0.9;
@@ -4896,6 +4937,41 @@
             return sources;
         }
 
+        function getGeneratedSourceMixValue() {
+            const slider = document.getElementById('performanceGeneratedSourceMix');
+            const rawValue = Number(slider?.value ?? (generatedSourceMix * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
+            generatedSourceMix = clamped / 100;
+            return generatedSourceMix;
+        }
+
+        function getGranularSourceGainMap(sources, availableGain = 1) {
+            const gains = new Map();
+            if (!Array.isArray(sources) || sources.length === 0) return gains;
+
+            const generatedSources = sources.filter((source) => source.kind === 'generated');
+            const otherSources = sources.filter((source) => source.kind !== 'generated');
+            const generatedMix = getGeneratedSourceMixValue();
+
+            if (generatedSources.length > 0 && otherSources.length > 0) {
+                const generatedGain = availableGain * generatedMix / generatedSources.length;
+                const otherGain = availableGain * (1 - generatedMix) / otherSources.length;
+                generatedSources.forEach((source) => gains.set(source, generatedGain));
+                otherSources.forEach((source) => gains.set(source, otherGain));
+                return gains;
+            }
+
+            if (generatedSources.length > 0) {
+                const generatedGain = availableGain * generatedMix / generatedSources.length;
+                generatedSources.forEach((source) => gains.set(source, generatedGain));
+                return gains;
+            }
+
+            const perSourceGain = availableGain / sources.length;
+            sources.forEach((source) => gains.set(source, perSourceGain));
+            return gains;
+        }
+
         function getLoopRange(startId, endId) {
             const startSlider = document.getElementById(startId);
             const endSlider = document.getElementById(endId);
@@ -5081,7 +5157,7 @@
             auditionSources = [];
 
             const sources = getAvailableGranularSources();
-            const perSourceGain = 1 / Math.max(1, sources.length);
+            const sourceGainMap = getGranularSourceGainMap(sources, 1);
             sources.forEach((sourceInfo) => {
                 const source = audioContext.createBufferSource();
                 const gain = audioContext.createGain();
@@ -5095,7 +5171,7 @@
                 const duration = Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct));
 
                 source.buffer = sourceInfo.buffer;
-                gain.gain.value = perSourceGain;
+                gain.gain.value = sourceGainMap.get(sourceInfo) ?? 0;
                 source.connect(gain);
                 gain.connect(masterGain);
                 source.start(0, offset, duration);
@@ -5463,7 +5539,7 @@
 
             const granularSources = getAvailableGranularSources();
             if (granularSources.length > 0 && noiseMix < 1.0) {
-                const perSourceGain = (1 - noiseMix) / granularSources.length;
+                const sourceGainMap = getGranularSourceGainMap(granularSources, 1 - noiseMix);
                 const posSlider = getModulatedValue('position') / 100;
 
                 granularSources.forEach((sourceInfo) => {
@@ -5492,7 +5568,7 @@
                     source.loop = true;
                     source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
                     source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
-                    sampleGain.gain.value = perSourceGain;
+                    sampleGain.gain.value = sourceGainMap.get(sourceInfo) ?? 0;
 
                     source.connect(sampleGain);
                     sampleGain.connect(mixer);
@@ -6256,7 +6332,8 @@
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
-                if (e.target.id === 'oscMix' || e.target.id === 'lpfCutoff' || e.target.id === 'lpfQ') {
+                if (e.target.id === 'oscMix' || e.target.id === 'lpfCutoff' || e.target.id === 'lpfQ' ||
+                    e.target.id === 'hpfCutoff' || e.target.id === 'hpfQ') {
                     syncPerformanceSoundControls();
                 }
             });
@@ -6900,6 +6977,7 @@
                 osc2Sustain: 8,
                 osc2Release: 55,
                 oscMix: 12,
+                performanceGeneratedSourceMix: 100,
                 sampleStart: 0,
                 sampleEnd: 100,
                 grainSize: 72,
@@ -7744,7 +7822,8 @@
                 lfo3Rate: 120,
                 lfo3Depth: 50,
                 lfo3PulseWidth: 50,
-                oscMix: 35
+                oscMix: 35,
+                performanceGeneratedSourceMix: 100
             };
             
             // Reset all sliders to default values
@@ -8968,17 +9047,23 @@
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
         const performanceSourceMix = document.getElementById('performanceSourceMix');
-        const performanceCutoff = document.getElementById('performanceCutoff');
-        const performanceResonance = document.getElementById('performanceResonance');
+        const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
+        const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
+        const performanceLpfResonance = document.getElementById('performanceLpfResonance');
+        const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
+        const performanceHpfResonance = document.getElementById('performanceHpfResonance');
         const performanceOctaveDownBtn = document.getElementById('performanceOctaveDownBtn');
         const performanceOctaveUpBtn = document.getElementById('performanceOctaveUpBtn');
         const performanceLfoWaveform = document.getElementById('performanceLfoWaveform');
         const performancePulseWidth = document.getElementById('performancePulseWidth');
+        let performanceGenerateStateTimer = null;
 
         function syncPerformanceSoundControls() {
             const sourceMixSlider = document.getElementById('oscMix');
-            const cutoffSlider = document.getElementById('lpfCutoff');
-            const resonanceSlider = document.getElementById('lpfQ');
+            const lpfCutoffSlider = document.getElementById('lpfCutoff');
+            const lpfResonanceSlider = document.getElementById('lpfQ');
+            const hpfCutoffSlider = document.getElementById('hpfCutoff');
+            const hpfResonanceSlider = document.getElementById('hpfQ');
             const lfoWaveform = document.getElementById('lfoWaveform');
             const lfoPulseWidth = document.getElementById('lfoPulseWidth');
 
@@ -8987,19 +9072,37 @@
                 const wave = Math.max(0, Math.min(100, value));
                 const sample = 100 - wave;
                 performanceSourceMix.value = String(wave);
-                document.getElementById('performanceSourceMixValue').textContent = `${sample}/${wave}`;
+                document.getElementById('performanceSourceMixValue').textContent = `${sample}%/${wave}%`;
             }
 
-            if (performanceCutoff && cutoffSlider) {
-                const value = Math.round(Number(cutoffSlider.value) || DEFAULT_PERFORMANCE_CUTOFF);
-                performanceCutoff.value = String(value);
-                document.getElementById('performanceCutoffValue').textContent = `${value}Hz`;
+            if (performanceGeneratedSourceMix) {
+                const value = Math.round(getGeneratedSourceMixValue() * 100);
+                performanceGeneratedSourceMix.value = String(value);
+                document.getElementById('performanceGeneratedSourceMixValue').textContent = `${value}%`;
             }
 
-            if (performanceResonance && resonanceSlider) {
-                const value = clampFilterQ(resonanceSlider.value);
-                performanceResonance.value = String(value);
-                document.getElementById('performanceResonanceValue').textContent = value.toFixed(1);
+            if (performanceLpfCutoff && lpfCutoffSlider) {
+                const value = Math.round(Number(lpfCutoffSlider.value) || DEFAULT_PERFORMANCE_CUTOFF);
+                performanceLpfCutoff.value = String(value);
+                document.getElementById('performanceLpfCutoffValue').textContent = `${value}Hz`;
+            }
+
+            if (performanceLpfResonance && lpfResonanceSlider) {
+                const value = clampFilterQ(lpfResonanceSlider.value);
+                performanceLpfResonance.value = String(value);
+                document.getElementById('performanceLpfResonanceValue').textContent = value.toFixed(1);
+            }
+
+            if (performanceHpfCutoff && hpfCutoffSlider) {
+                const value = Math.round(Number(hpfCutoffSlider.value) || 20);
+                performanceHpfCutoff.value = String(value);
+                document.getElementById('performanceHpfCutoffValue').textContent = `${value}Hz`;
+            }
+
+            if (performanceHpfResonance && hpfResonanceSlider) {
+                const value = clampFilterQ(hpfResonanceSlider.value);
+                performanceHpfResonance.value = String(value);
+                document.getElementById('performanceHpfResonanceValue').textContent = value.toFixed(1);
             }
 
             if (performanceLfoWaveform && lfoWaveform) {
@@ -9013,6 +9116,30 @@
             }
 
             syncFilterPoleControls();
+        }
+
+        function setPerformanceGenerateButtonState(state) {
+            if (!performanceGenerateLoopBtn) return;
+            if (performanceGenerateStateTimer) {
+                clearTimeout(performanceGenerateStateTimer);
+                performanceGenerateStateTimer = null;
+            }
+
+            performanceGenerateLoopBtn.classList.toggle('generating', state === 'generating');
+            performanceGenerateLoopBtn.classList.toggle('generated', state === 'generated');
+            performanceGenerateLoopBtn.disabled = state === 'generating';
+            performanceGenerateLoopBtn.setAttribute('aria-busy', String(state === 'generating'));
+            performanceGenerateLoopBtn.textContent = state === 'generating'
+                ? 'Generating...'
+                : state === 'generated'
+                    ? 'Generated'
+                    : 'Generate Loop';
+
+            if (state === 'generated') {
+                performanceGenerateStateTimer = setTimeout(() => {
+                    setPerformanceGenerateButtonState('idle');
+                }, 900);
+            }
         }
 
         function syncPerformanceControlState() {
@@ -9058,11 +9185,15 @@
         });
 
         performanceGenerateLoopBtn?.addEventListener('click', async () => {
+            if (performanceGenerateLoopBtn.classList.contains('generating')) return;
+            setPerformanceGenerateButtonState('generating');
             try {
                 await generatePerformanceLoop();
+                setPerformanceGenerateButtonState('generated');
             } catch (error) {
                 console.error(error);
                 setStatus(`Loop generation failed: ${error.message}`, 'error');
+                setPerformanceGenerateButtonState('idle');
             }
         });
 
@@ -9071,18 +9202,35 @@
             syncPerformanceSoundControls();
         });
 
+        performanceGeneratedSourceMix?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            generatedSourceMix = value / 100;
+            document.getElementById('performanceGeneratedSourceMixValue').textContent = `${Math.round(value)}%`;
+        });
+
         performanceOscToggleBtn?.addEventListener('click', () => {
             setOscillatorsEnabled(!oscillatorsEnabled);
         });
 
-        performanceCutoff?.addEventListener('input', (event) => {
+        performanceLpfCutoff?.addEventListener('input', (event) => {
             setSliderValue('lpfCutoff', event.target.value);
             syncPerformanceSoundControls();
         });
 
-        performanceResonance?.addEventListener('input', (event) => {
+        performanceLpfResonance?.addEventListener('input', (event) => {
             const value = clampFilterQ(event.target.value);
             setSliderValue('lpfQ', value);
+            syncPerformanceSoundControls();
+        });
+
+        performanceHpfCutoff?.addEventListener('input', (event) => {
+            setSliderValue('hpfCutoff', event.target.value);
+            syncPerformanceSoundControls();
+        });
+
+        performanceHpfResonance?.addEventListener('input', (event) => {
+            const value = clampFilterQ(event.target.value);
+            setSliderValue('hpfQ', value);
             syncPerformanceSoundControls();
         });
 
