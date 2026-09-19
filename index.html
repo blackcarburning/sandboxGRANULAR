@@ -7151,7 +7151,6 @@
             enforceBpmOnlyLfoMode();
             const restoredGlobalBpm = safePreset.globalBpm ??
                 normalizedSliders?.globalBpmSlider ??
-                normalizedSliders?.delayBpm ??
                 normalizedSliders?.lfoRate ??
                 normalizedSliders?.lfo2Rate ??
                 normalizedSliders?.lfo3Rate ??
@@ -7640,7 +7639,6 @@
 
                 const restoredGlobalBpm = state.globalBpm ??
                     normalizedStateSliders?.globalBpmSlider ??
-                    normalizedStateSliders?.delayBpm ??
                     normalizedStateSliders?.lfoRate ??
                     normalizedStateSliders?.lfo2Rate ??
                     normalizedStateSliders?.lfo3Rate ??
