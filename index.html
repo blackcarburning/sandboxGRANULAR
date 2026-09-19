@@ -1688,20 +1688,22 @@
             }
         }
 
-        /* Simplified performance layout: keyboard + four controls only */
+        /* Simplified performance layout: keyboard-forward with visible source seeding */
         .simplified-ui #fullscreenBtn,
         .simplified-ui #debugPanel,
-        .simplified-ui .recording-section,
         .simplified-ui .controls-section,
         .simplified-ui .keyboard-section .octave-controls,
         .simplified-ui .keyboard-section .volume-bias-container,
         .simplified-ui .keyboard-section #holdBtn,
-        .simplified-ui .keyboard-section #panicBtn {
+        .simplified-ui .keyboard-section #panicBtn,
+        .simplified-ui .output-recording-section,
+        .simplified-ui .help-panel,
+        .simplified-ui .mode-toggle {
             display: none !important;
         }
 
         .simplified-ui .top-section {
-            display: none !important;
+            display: block !important;
         }
 
         .performance-controls {
@@ -1712,31 +1714,170 @@
             position: fixed;
             width: 100%;
             min-height: 100svh;
-            padding: 12px;
-            gap: 10px;
+            padding: 14px;
+            gap: 14px;
+            background:
+                radial-gradient(circle at top, rgba(0, 212, 255, 0.16), transparent 42%),
+                linear-gradient(180deg, rgba(20, 24, 40, 0.96) 0%, rgba(8, 11, 19, 0.98) 100%);
+        }
+
+        .simplified-ui .performance-controls,
+        .simplified-ui .recording-section,
+        .simplified-ui .keyboard-section {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.26);
+            backdrop-filter: blur(12px);
         }
 
         .simplified-ui .performance-controls {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 8px;
+            gap: 14px;
+            padding: 16px;
+            border-radius: 20px;
         }
 
-        .simplified-ui .performance-btn {
-            min-height: 44px;
+        .simplified-ui .performance-toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 14px;
+            align-items: center;
+        }
+
+        .simplified-ui .performance-copy {
+            display: grid;
+            gap: 6px;
+        }
+
+        .simplified-ui .performance-chip {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(0, 212, 255, 0.12);
+            border: 1px solid rgba(0, 212, 255, 0.24);
+            color: var(--accent);
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-title {
+            margin: 0;
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            color: #fff;
+        }
+
+        .simplified-ui .performance-subtitle {
+            margin: 0;
+            color: rgba(230, 240, 255, 0.74);
+            line-height: 1.45;
+        }
+
+        .simplified-ui .performance-bpm-card,
+        .simplified-ui .recording-section {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 18px;
+        }
+
+        .simplified-ui .performance-bpm-card label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
             font-weight: 700;
         }
 
-        .simplified-ui #performanceHoldBtn.active,
-        .simplified-ui #performanceRecordBtn.recording {
-            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
-            color: #000;
-            box-shadow: 0 0 10px var(--accent-glow);
+        .simplified-ui .bpm-input-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 88px;
+            gap: 10px;
+            align-items: center;
         }
 
-        .simplified-ui #performanceRecordBtn.recording {
+        .simplified-ui #globalBpmNumber {
+            width: 100%;
+            min-height: 46px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(5, 8, 15, 0.68);
+            color: #fff;
+            font: inherit;
+            text-align: center;
+        }
+
+        .simplified-ui .performance-actions,
+        .simplified-ui .source-seed-buttons,
+        .simplified-ui .source-secondary-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .simplified-ui .performance-btn,
+        .simplified-ui .source-seed-buttons button,
+        .simplified-ui .source-secondary-buttons button {
+            min-height: 46px;
+            font-weight: 700;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+        }
+
+        .simplified-ui .performance-btn.primary,
+        .simplified-ui .source-seed-buttons button.primary {
+            color: #00131a;
+            background: linear-gradient(135deg, #7ef6ff 0%, #00c6ff 48%, #7effb2 100%);
+            border-color: rgba(126, 246, 255, 0.5);
+            box-shadow: 0 12px 26px rgba(0, 198, 255, 0.26);
+        }
+
+        .simplified-ui #performanceHoldBtn.active,
+        .simplified-ui #performanceRecordBtn.recording,
+        .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
             color: #fff;
+            box-shadow: 0 0 10px rgba(255, 82, 99, 0.45);
+        }
+
+        .simplified-ui .recording-section {
+            gap: 14px;
+            padding: 18px;
+        }
+
+        .simplified-ui .app-branding,
+        .simplified-ui .source-seed-group,
+        .simplified-ui .source-secondary-buttons,
+        .simplified-ui .status-stack {
+            display: grid;
+            gap: 10px;
+        }
+
+        .simplified-ui #auditionBtn {
+            grid-column: 1 / -1;
+            margin-top: 0 !important;
+        }
+
+        .simplified-ui #waveformCanvas {
+            min-height: 156px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(7, 13, 25, 0.92) 0%, rgba(12, 22, 34, 0.94) 100%);
+            box-shadow: inset 0 0 0 1px rgba(126, 246, 255, 0.04);
+        }
+
+        .simplified-ui .status {
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.08);
+            color: rgba(240, 248, 255, 0.88);
         }
 
         .simplified-ui .keyboard-section {
@@ -1747,11 +1888,12 @@
             top: auto !important;
             bottom: auto !important;
             width: 100%;
-            min-height: 220px;
+            min-height: 240px;
             height: auto;
             flex: 1;
-            padding: 10px;
+            padding: 14px;
             gap: 0;
+            border-radius: 22px;
         }
 
         .simplified-ui .keyboard {
@@ -1760,7 +1902,13 @@
         }
 
         @media (max-width: 960px) {
-            .simplified-ui .performance-controls {
+            .simplified-ui .performance-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .simplified-ui .performance-actions,
+            .simplified-ui .source-seed-buttons,
+            .simplified-ui .source-secondary-buttons {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
@@ -1772,8 +1920,7 @@
             }
 
             .simplified-ui .performance-controls {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 6px;
+                gap: 10px;
             }
 
             .simplified-ui .performance-btn {
@@ -1782,8 +1929,12 @@
                 padding: 8px 10px;
             }
 
+            .simplified-ui .bpm-input-row {
+                grid-template-columns: 1fr;
+            }
+
             .simplified-ui .keyboard-section {
-                min-height: 190px;
+                min-height: 196px;
                 padding: 8px;
             }
         }
@@ -1795,8 +1946,16 @@
                 gap: 6px;
             }
 
-            .simplified-ui .performance-controls {
+            .simplified-ui .performance-controls,
+            .simplified-ui .recording-section {
+                padding: 12px;
+            }
+
+            .simplified-ui .performance-actions,
+            .simplified-ui .source-seed-buttons,
+            .simplified-ui .source-secondary-buttons {
                 grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 8px;
             }
 
             .simplified-ui .performance-btn {
@@ -1835,29 +1994,52 @@
 
     <div class="synth-container">
         <div class="performance-controls" aria-label="Performance controls">
-            <button class="performance-btn" id="performanceHoldBtn">Hold</button>
-            <button class="performance-btn" id="performanceRandomizeBtn">Randomise</button>
-            <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
-            <button class="performance-btn" id="performanceSaveBtn">Save</button>
+            <div class="performance-toolbar">
+                <div class="performance-copy">
+                    <div class="performance-chip">Play · Source · BPM</div>
+                    <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
+                    <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
+                </div>
+                <div class="performance-bpm-card">
+                    <label for="globalBpmNumber">
+                        <span>Set BPM</span>
+                        <span class="value" id="globalBpmValue">120 BPM</span>
+                    </label>
+                    <div class="bpm-input-row">
+                        <input type="range" id="globalBpmSlider" min="40" max="300" value="120" step="1">
+                        <input type="number" id="globalBpmNumber" min="40" max="300" value="120" step="1" inputmode="numeric">
+                    </div>
+                </div>
+            </div>
+            <div class="performance-actions">
+                <button class="performance-btn" id="performanceHoldBtn">Hold</button>
+                <button class="performance-btn" id="performanceRandomizeBtn">Randomise</button>
+                <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
+                <button class="performance-btn" id="performanceSaveBtn">Save</button>
+            </div>
         </div>
         <div class="top-section">
             <div class="recording-section">
                 <div class="app-branding">
-                    <div>
-                        <div class="app-kicker">MYGRAIN</div>
-                        <h1 class="app-title">Granular instrument</h1>
-                        <p class="app-subtitle">Load or record a sample, play the keyboard, and shape it with grains, filters, modulation and sequencing.</p>
-                    </div>
-                    <button id="loadDemoBtn">Load Demo</button>
+                    <div class="app-kicker">MYGRAIN</div>
+                    <h1 class="app-title">Granular instrument</h1>
+                    <p class="app-subtitle">Generate, capture, or load a source waveform, then steer the granular engine from the keyboard.</p>
                 </div>
-                <div class="section-title">Sample Source</div>
-                <div class="recording-buttons">
-                    <button id="recordBtn">Record Mic</button>
+                <div class="source-seed-group">
+                    <div class="section-title">Source</div>
+                    <div class="source-seed-buttons">
+                        <button id="generateSourceBtn" class="primary">Generate Source</button>
+                        <button id="recordBtn">Record Mic</button>
+                        <button id="loadDemoBtn">Load Demo</button>
+                        <button id="performanceLoadAudioBtn">Load Audio</button>
+                    </div>
+                </div>
+                <div class="source-secondary-buttons">
+                    <button id="auditionBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
                     <button id="normalizeBtn" disabled>Normalize</button>
                     <button id="clearBtn">Clear</button>
                 </div>
                 <canvas id="waveformCanvas"></canvas>
-                <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
                     <div id="audioStatus" class="status secondary-status" role="status" aria-live="polite">Audio idle</div>
@@ -2210,7 +2392,7 @@
                             <span class="param-name">BPM</span>
                             <span class="value" id="delayBpmValue">120</span>
                         </label>
-                        <input type="range" id="delayBpm" min="40" max="200" value="120" step="1">
+                        <input type="range" id="delayBpm" min="40" max="300" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2339,16 +2521,16 @@
                     </div>
                     <div class="control-group">
                         <label>
-                            <span>Rate (Hz)</span>
+                            <span>Rate (BPM)</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="lfo3Rate" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="lfo3Rate" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="lfo3Rate" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="lfo3Rate" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="lfo3RateValue">1.0Hz</span>
+                            <span class="value" id="lfo3RateValue">120 BPM</span>
                         </label>
-                        <input type="range" id="lfo3Rate" min="0" max="7000" value="1.0" step="0.1">
+                        <input type="range" id="lfo3Rate" min="40" max="300" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2441,8 +2623,8 @@
                         <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px;">LFO 1</label>
                     </div>
                     <div class="control-group">
-                        <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">Hz</button><span class="value" id="lfoRateValue">1.0Hz</span></label>
-                        <input type="range" id="lfoRate" min="1" max="1000" value="1.0" step="0.1">
+                        <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">BPM</button><span class="value" id="lfoRateValue">120 BPM</span></label>
+                        <input type="range" id="lfoRate" min="40" max="300" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
@@ -2461,8 +2643,8 @@
                         <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 2</label>
                     </div>
                     <div class="control-group">
-                        <label><span>Rate</span><button class="mode-toggle" id="lfo2ModeToggle">Hz</button><span class="value" id="lfo2RateValue">1.0Hz</span></label>
-                        <input type="range" id="lfo2Rate" min="1" max="1000" value="1.0" step="0.1">
+                        <label><span>Rate</span><button class="mode-toggle" id="lfo2ModeToggle">BPM</button><span class="value" id="lfo2RateValue">120 BPM</span></label>
+                        <input type="range" id="lfo2Rate" min="40" max="300" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfo2DepthValue">50%</span></label>
@@ -3255,15 +3437,15 @@
         let lfoStartTime = 0;
         let lfoEnabled = {};
         let lfoInverted = {};
-        let lfoMode = 'hz'; // 'hz' or 'bpm'
+        let lfoMode = 'bpm';
         
         // LFO2 State
         let lfo2StartTime = 0;
         let lfo2Enabled = {};
         let lfo2Inverted = {};
-        let lfo2Mode = 'hz'; // 'hz' or 'bpm'
+        let lfo2Mode = 'bpm';
         
-        // LFO3 State (Hz only, for stereo control)
+        // LFO3 State (BPM-synced stereo tremolo)
         let lfo3StartTime = 0;
         let lfo3Enabled = {};
         let lfo3Inverted = {};
@@ -3343,7 +3525,7 @@
             tremoloDepth: { min: 0, max: 100 },
             delayFeedback: { min: 0, max: 100 },
             delayMix: { min: 0, max: 100 },
-            lfo3Rate: { min: 0, max: 7000 },
+            lfo3Rate: { min: 40, max: 300 },
             lfo3Depth: { min: 0, max: 100 }
         };
 
@@ -3470,6 +3652,116 @@
             });
 
             keyboard.style.minWidth = `${whiteWidth * whiteKeyCount}px`;
+        }
+
+        const GLOBAL_BPM_MIN = 40;
+        const GLOBAL_BPM_MAX = 300;
+        let syncingGlobalBpm = false;
+
+        function clampBpmValue(value, fallback = 120) {
+            const numeric = Number.parseFloat(value);
+            if (!Number.isFinite(numeric)) {
+                return fallback;
+            }
+            return Math.max(GLOBAL_BPM_MIN, Math.min(GLOBAL_BPM_MAX, Math.round(numeric)));
+        }
+
+        function convertStoredLfoRateToBpm(value, mode = 'bpm', fallback = 120) {
+            const numeric = Number.parseFloat(value);
+            if (!Number.isFinite(numeric)) {
+                return fallback;
+            }
+            return clampBpmValue(mode === 'hz' ? numeric * 60 : numeric, fallback);
+        }
+
+        function normalizeStoredLfoSliderValues(sliders = {}, options = {}) {
+            const normalized = { ...sliders };
+            const isBpmOnlyPreset = options.bpmOnlyLfos === true;
+
+            if (normalized.lfoRate !== undefined) {
+                normalized.lfoRate = String(convertStoredLfoRateToBpm(normalized.lfoRate, isBpmOnlyPreset ? 'bpm' : (options.lfoMode || 'hz')));
+            }
+            if (normalized.lfo2Rate !== undefined) {
+                normalized.lfo2Rate = String(convertStoredLfoRateToBpm(normalized.lfo2Rate, isBpmOnlyPreset ? 'bpm' : (options.lfo2Mode || 'hz')));
+            }
+            if (normalized.lfo3Rate !== undefined) {
+                normalized.lfo3Rate = String(convertStoredLfoRateToBpm(normalized.lfo3Rate, isBpmOnlyPreset ? 'bpm' : 'hz'));
+            }
+
+            return normalized;
+        }
+
+        function syncGlobalBpmControls(value) {
+            const bpm = clampBpmValue(value);
+            const slider = document.getElementById('globalBpmSlider');
+            const numberInput = document.getElementById('globalBpmNumber');
+            const label = document.getElementById('globalBpmValue');
+
+            if (slider) slider.value = String(bpm);
+            if (numberInput) numberInput.value = String(bpm);
+            if (label) label.textContent = `${bpm} BPM`;
+        }
+
+        function applyGlobalBpm(value) {
+            const bpm = clampBpmValue(value);
+            if (syncingGlobalBpm) {
+                return bpm;
+            }
+
+            syncingGlobalBpm = true;
+            syncGlobalBpmControls(bpm);
+
+            ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'delayBpm'].forEach((id) => {
+                const slider = document.getElementById(id);
+                if (!slider) return;
+                slider.value = String(bpm);
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            const sequencerInput = document.getElementById('seqBpm');
+            if (sequencerInput) {
+                sequencerInput.value = String(bpm);
+                sequencerInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            syncingGlobalBpm = false;
+            return bpm;
+        }
+
+        function enforceBpmOnlyLfoMode() {
+            lfoMode = 'bpm';
+            lfo2Mode = 'bpm';
+
+            [
+                { sliderId: 'lfoRate', toggleId: 'lfoModeToggle', valueId: 'lfoRateValue' },
+                { sliderId: 'lfo2Rate', toggleId: 'lfo2ModeToggle', valueId: 'lfo2RateValue' }
+            ].forEach(({ sliderId, toggleId, valueId }) => {
+                const slider = document.getElementById(sliderId);
+                if (!slider) return;
+                slider.min = String(GLOBAL_BPM_MIN);
+                slider.max = String(GLOBAL_BPM_MAX);
+                slider.step = '1';
+                slider.value = String(clampBpmValue(slider.value));
+
+                const toggle = document.getElementById(toggleId);
+                if (toggle) {
+                    toggle.textContent = 'BPM';
+                    toggle.setAttribute('aria-hidden', 'true');
+                }
+
+                const valueLabel = document.getElementById(valueId);
+                if (valueLabel) {
+                    valueLabel.textContent = `${clampBpmValue(slider.value)} BPM`;
+                }
+            });
+
+            const lfo3Rate = document.getElementById('lfo3Rate');
+            if (lfo3Rate) {
+                lfo3Rate.min = String(GLOBAL_BPM_MIN);
+                lfo3Rate.max = String(GLOBAL_BPM_MAX);
+                lfo3Rate.step = '1';
+                lfo3Rate.value = String(clampBpmValue(lfo3Rate.value));
+            }
         }
 
         // --- LFO Engine ---
@@ -3632,7 +3924,7 @@
         function getLFOValue3() {
             if (!audioContext) return 0;
             
-            const rate = parseFloat(document.getElementById('lfo3Rate').value);
+            const rate = parseFloat(document.getElementById('lfo3Rate').value) / 60;
             const waveform = document.getElementById('lfo3Waveform').value;
             const depth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
             
@@ -3739,7 +4031,7 @@
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
                 
-                setStatus('Engine ready. Load a sample, use Load Demo, or record the mic.');
+                setStatus('Engine ready. Generate a source, load a sample, use Load Demo, or record the mic.');
                 setAudioStatus(`Audio running · ${audioContext.sampleRate} Hz`);
                 updateKeyboardGeometry();
                 
@@ -3785,7 +4077,7 @@
             // Create LFO3 oscillator for audio-rate modulation
             lfo3Oscillator = audioContext.createOscillator();
             lfo3Oscillator.type = document.getElementById('lfo3Waveform').value;
-            lfo3Oscillator.frequency.value = parseFloat(document.getElementById('lfo3Rate').value);
+            lfo3Oscillator.frequency.value = parseFloat(document.getElementById('lfo3Rate').value) / 60;
             
             // Create depth control (scales the LFO output)
             lfo3DepthGain = audioContext.createGain();
@@ -3899,7 +4191,7 @@
 
             // Create separate gain nodes for oscillator and granular outputs
             // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
-            const initialOscMix = 0.5;
+            const initialOscMix = oscMix;
             oscOutputGain = audioContext.createGain();
             oscOutputGain.gain.value = Math.sqrt(initialOscMix) * 0.8;
             
@@ -4228,11 +4520,38 @@
         const normalizeBtn = document.getElementById('normalizeBtn');
         const clearBtn = document.getElementById('clearBtn');
         const waveformCanvas = document.getElementById('waveformCanvas');
+        const generateSourceBtn = document.getElementById('generateSourceBtn');
+        const performanceLoadAudioBtn = document.getElementById('performanceLoadAudioBtn');
 
         recordBtn.addEventListener('click', () => {
-            if (!audioContext) return alert("Click Start First");
+            if (!audioContext) {
+                setStatus('Start MYGRAIN before recording the mic.', 'error');
+                return;
+            }
             if (isRecording) stopRecording();
             else startRecording();
+        });
+
+        performanceLoadAudioBtn?.addEventListener('click', () => {
+            document.getElementById('loadAudioBtn')?.click();
+        });
+
+        document.getElementById('globalBpmSlider')?.addEventListener('input', (e) => {
+            applyGlobalBpm(e.target.value);
+        });
+
+        document.getElementById('globalBpmNumber')?.addEventListener('input', (e) => {
+            if (e.target.value === '') return;
+            const previewValue = Number.parseFloat(e.target.value);
+            if (!Number.isFinite(previewValue)) return;
+            const label = document.getElementById('globalBpmValue');
+            if (label) {
+                label.textContent = `${clampBpmValue(previewValue)} BPM`;
+            }
+        });
+
+        document.getElementById('globalBpmNumber')?.addEventListener('change', (e) => {
+            applyGlobalBpm(e.target.value);
         });
 
         normalizeBtn.addEventListener('click', () => {
@@ -4996,7 +5315,7 @@
             
             // Mix oscillators
             const oscMixer = audioContext.createGain();
-            oscMixer.gain.value = oscMix;
+            oscMixer.gain.value = 1;
             
             osc1.connect(osc1Gain);
             osc2.connect(osc2Gain);
@@ -5412,23 +5731,17 @@
                 // Special handling for LFO rate
                 if (e.target.id === 'lfoRate') {
                     updateLFORateDisplay();
+                    if (!syncingGlobalBpm) syncGlobalBpmControls(e.target.value);
                 } else if (e.target.id === 'lfo2Rate') {
                     updateLFO2RateDisplay();
+                    if (!syncingGlobalBpm) syncGlobalBpmControls(e.target.value);
                 } else if (e.target.id === 'lfo3Rate') {
-                    // Update LFO3 rate display and oscillator frequency
-                    const rate = parseFloat(e.target.value);
-                    const labelSpan = document.getElementById('lfo3RateValue');
-                    if (labelSpan) {
-                        // Format display based on value range
-                        if (rate >= 1000) {
-                            labelSpan.textContent = (rate / 1000).toFixed(1) + 'kHz';
-                        } else {
-                            labelSpan.textContent = rate.toFixed(1) + 'Hz';
-                        }
-                    }
+                    const rate = clampBpmValue(e.target.value);
+                    updateLFO3RateDisplay();
+                    if (!syncingGlobalBpm) syncGlobalBpmControls(rate);
                     // Update oscillator frequency in real-time
                     if (lfo3Oscillator) {
-                        lfo3Oscillator.frequency.value = rate;
+                        lfo3Oscillator.frequency.value = rate / 60;
                     }
                 } else if (e.target.id === 'lfo3Depth') {
                     // Update LFO3 depth display and depth gain
@@ -5447,6 +5760,7 @@
                     if (labelSpan) {
                         labelSpan.textContent = e.target.value;
                     }
+                    if (!syncingGlobalBpm) syncGlobalBpmControls(e.target.value);
                 } else if (e.target.id === 'grainTune') {
                     // Update grain tune display with + for positive values
                     const labelSpan = document.getElementById('grainTuneValue');
@@ -5583,96 +5897,39 @@
         function updateLFORateDisplay() {
             const rateSlider = document.getElementById('lfoRate');
             const rateValue = document.getElementById('lfoRateValue');
-            const value = parseFloat(rateSlider.value);
-            
-            if (lfoMode === 'hz') {
-                if (value >= 1000) {
-                    rateValue.textContent = (value / 1000).toFixed(1) + 'kHz';
-                } else {
-                    rateValue.textContent = value.toFixed(1) + 'Hz';
-                }
-            } else {
-                rateValue.textContent = Math.round(value) + 'BPM';
-            }
+            rateValue.textContent = `${clampBpmValue(rateSlider.value)} BPM`;
         }
 
         function updateLFO2RateDisplay() {
             const rateSlider = document.getElementById('lfo2Rate');
             const rateValue = document.getElementById('lfo2RateValue');
-            const value = parseFloat(rateSlider.value);
-            
-            if (lfo2Mode === 'hz') {
-                if (value >= 1000) {
-                    rateValue.textContent = (value / 1000).toFixed(1) + 'kHz';
-                } else {
-                    rateValue.textContent = value.toFixed(1) + 'Hz';
-                }
-            } else {
-                rateValue.textContent = Math.round(value) + 'BPM';
-            }
+            rateValue.textContent = `${clampBpmValue(rateSlider.value)} BPM`;
+        }
+
+        function updateLFO3RateDisplay() {
+            const rateSlider = document.getElementById('lfo3Rate');
+            const rateValue = document.getElementById('lfo3RateValue');
+            if (!rateSlider || !rateValue) return;
+            rateValue.textContent = `${clampBpmValue(rateSlider.value)} BPM`;
         }
 
         // --- LFO Mode Toggle ---
         document.getElementById('lfoModeToggle').addEventListener('click', () => {
-            const rateSlider = document.getElementById('lfoRate');
-            const modeToggle = document.getElementById('lfoModeToggle');
-            const currentValue = parseFloat(rateSlider.value);
-            
-            if (lfoMode === 'hz') {
-                // Switch to BPM
-                lfoMode = 'bpm';
-                modeToggle.textContent = 'BPM';
-                // Convert current Hz value to BPM (Hz * 60)
-                const bpmValue = currentValue * 60;
-                rateSlider.min = '1';
-                rateSlider.max = '250';
-                rateSlider.step = '1';
-                rateSlider.value = bpmValue;
-            } else {
-                // Switch to Hz
-                lfoMode = 'hz';
-                modeToggle.textContent = 'Hz';
-                // Convert current BPM value to Hz (BPM / 60)
-                const hzValue = currentValue / 60;
-                rateSlider.min = '1';
-                rateSlider.max = '1000';
-                rateSlider.step = '0.1';
-                rateSlider.value = hzValue;
-            }
-            
+            enforceBpmOnlyLfoMode();
             updateLFORateDisplay();
         });
 
         // --- LFO2 Mode Toggle ---
         document.getElementById('lfo2ModeToggle').addEventListener('click', () => {
-            const rateSlider = document.getElementById('lfo2Rate');
-            const modeToggle = document.getElementById('lfo2ModeToggle');
-            const currentValue = parseFloat(rateSlider.value);
-            
-            if (lfo2Mode === 'hz') {
-                // Switch to BPM
-                lfo2Mode = 'bpm';
-                modeToggle.textContent = 'BPM';
-                // Convert current Hz value to BPM (Hz * 60)
-                const bpmValue = currentValue * 60;
-                rateSlider.min = '1';
-                rateSlider.max = '250';
-                rateSlider.step = '1';
-                rateSlider.value = bpmValue;
-            } else {
-                // Switch to Hz
-                lfo2Mode = 'hz';
-                modeToggle.textContent = 'Hz';
-                // Convert current BPM value to Hz (BPM / 60)
-                const hzValue = currentValue / 60;
-                rateSlider.min = '1';
-                rateSlider.max = '1000';
-                rateSlider.step = '0.1';
-                rateSlider.value = hzValue;
-            }
-            
+            enforceBpmOnlyLfoMode();
             updateLFO2RateDisplay();
         });
+
+        enforceBpmOnlyLfoMode();
+        updateLFORateDisplay();
+        updateLFO2RateDisplay();
+        updateLFO3RateDisplay();
+        syncGlobalBpmControls(document.getElementById('delayBpm')?.value || 120);
 
         // --- LFO Toggle Listeners ---
         document.querySelectorAll('.lfo-toggle').forEach(btn => {
@@ -5995,6 +6252,9 @@
             const value = parseInt(e.target.value);
             if (value >= 20 && value <= 300) {
                 sequencerBPM = value;
+                if (!syncingGlobalBpm) {
+                    syncGlobalBpmControls(value);
+                }
             }
         });
 
@@ -6004,6 +6264,9 @@
             value = Math.max(20, Math.min(300, value)); // Clamp
             e.target.value = value;
             sequencerBPM = value;
+            if (!syncingGlobalBpm) {
+                syncGlobalBpmControls(value);
+            }
         });
 
         document.getElementById('seqGrainsEnabled').addEventListener('change', (e) => {
@@ -6230,6 +6493,63 @@
 
             await applyLoadedAudioBuffer(buffer, 'Built-in demo');
         }
+
+        async function generateRandomSourceSample() {
+            if (!audioContext) {
+                setStatus('Start MYGRAIN before generating a random source.', 'error');
+                return;
+            }
+
+            const duration = 1.5 + Math.random();
+            const frameCount = Math.floor(audioContext.sampleRate * duration);
+            const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
+            const baseFrequency = 73.42 + Math.random() * 220;
+            const shimmerRate = 0.08 + Math.random() * 0.35;
+            const noiseBlend = 0.04 + Math.random() * 0.18;
+            const partials = Array.from({ length: 4 + Math.floor(Math.random() * 4) }, (_, index) => ({
+                ratio: index + 1 + Math.random() * 0.18,
+                gain: (0.65 - index * 0.08) * (0.7 + Math.random() * 0.35),
+                phase: Math.random() * Math.PI * 2
+            }));
+
+            setStatus('Generating random source…');
+
+            for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                const channelData = buffer.getChannelData(channel);
+                let filteredNoise = 0;
+                const channelDetune = 1 + ((channel === 0 ? -1 : 1) * (0.002 + Math.random() * 0.006));
+
+                for (let i = 0; i < frameCount; i++) {
+                    const time = i / audioContext.sampleRate;
+                    const progress = i / Math.max(1, frameCount - 1);
+                    const envelope = Math.pow(Math.sin(Math.PI * progress), 1.35);
+                    const motion = 1 + 0.03 * Math.sin(2 * Math.PI * shimmerRate * time);
+                    let sample = 0;
+
+                    partials.forEach((partial, index) => {
+                        const harmonicFrequency = baseFrequency * partial.ratio * motion * channelDetune;
+                        const overtoneMotion = 1 + Math.sin(2 * Math.PI * (0.11 + index * 0.03) * time + partial.phase) * 0.004;
+                        sample += partial.gain * Math.sin(2 * Math.PI * harmonicFrequency * overtoneMotion * time + partial.phase);
+                    });
+
+                    filteredNoise = filteredNoise * 0.985 + (Math.random() * 2 - 1) * 0.12;
+                    const transient = Math.sin(2 * Math.PI * (baseFrequency * 0.5) * time + channel * 0.6) * (1 - progress) * 0.12;
+                    const mixed = (sample * 0.18) + (filteredNoise * noiseBlend * (0.8 - progress * 0.35)) + transient;
+                    channelData[i] = Math.max(-1, Math.min(1, mixed * envelope));
+                }
+            }
+
+            await applyLoadedAudioBuffer(buffer, 'Random source');
+        }
+
+        generateSourceBtn?.addEventListener('click', async () => {
+            try {
+                await generateRandomSourceSample();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Random source failed: ${error.message}`, 'error');
+            }
+        });
 
         // Save Audio Button
         document.getElementById('saveAudioBtn').addEventListener('click', async () => {
@@ -6497,13 +6817,13 @@
             
             allSliders.forEach(slider => {
                 // Skip the BPM lock toggle itself
-                if (slider.id === 'lockBpmSlider') {
+                if (slider.id === 'lockBpmSlider' || slider.id === 'globalBpmSlider') {
                     return;
                 }
                 
                 // Skip BPM-related sliders if locked
                 if (bpmLocked) {
-                    if (slider.id === 'delayBpm' || slider.id === 'lfoRate' || slider.id === 'lfo2Rate') {
+                    if (slider.id === 'delayBpm' || slider.id === 'lfoRate' || slider.id === 'lfo2Rate' || slider.id === 'lfo3Rate') {
                         return;
                     }
                 }
@@ -6644,11 +6964,11 @@
                 delayBpm: 120,
                 delayFeedback: 30,
                 delayMix: 0,
-                lfoRate: 1.0,
+                lfoRate: 120,
                 lfoDepth: 50,
-                lfo2Rate: 1.0,
+                lfo2Rate: 120,
                 lfo2Depth: 50,
-                lfo3Rate: 1.0,
+                lfo3Rate: 120,
                 lfo3Depth: 50
             };
             
@@ -6668,31 +6988,8 @@
             document.getElementById('noiseType').value = 'none';
             document.getElementById('delayDivision').value = '1';
             
-            // Reset LFO mode to Hz if it's in BPM
-            if (lfoMode === 'bpm') {
-                const rateSlider = document.getElementById('lfoRate');
-                const modeToggle = document.getElementById('lfoModeToggle');
-                lfoMode = 'hz';
-                modeToggle.textContent = 'Hz';
-                rateSlider.min = '1';
-                rateSlider.max = '1000';
-                rateSlider.step = '0.1';
-                rateSlider.value = 1.0;
-                updateLFORateDisplay();
-            }
-            
-            // Reset LFO2 mode to Hz if it's in BPM
-            if (lfo2Mode === 'bpm') {
-                const rateSlider = document.getElementById('lfo2Rate');
-                const modeToggle = document.getElementById('lfo2ModeToggle');
-                lfo2Mode = 'hz';
-                modeToggle.textContent = 'Hz';
-                rateSlider.min = '1';
-                rateSlider.max = '1000';
-                rateSlider.step = '0.1';
-                rateSlider.value = 1.0;
-                updateLFO2RateDisplay();
-            }
+            enforceBpmOnlyLfoMode();
+            applyGlobalBpm(defaults.delayBpm);
             
             // Turn off all LFO toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
@@ -6759,7 +7056,8 @@
         // Helper function to gather all preset data
         function gatherPreset() {
             const preset = {
-                version: '3.0',
+                version: '3.1',
+                bpmOnlyLfos: true,
                 timestamp: new Date().toISOString(),
                 sliders: {},
                 lfo: {
@@ -6814,13 +7112,18 @@
                 toggleParams: presetToggleParams
             }) : { preset, warnings: [] };
             const safePreset = validated.preset;
+            const normalizedSliders = normalizeStoredLfoSliderValues(safePreset.sliders, {
+                bpmOnlyLfos: safePreset.bpmOnlyLfos === true,
+                lfoMode: safePreset.lfo?.mode,
+                lfo2Mode: safePreset.lfo2?.mode
+            });
             
             // Apply slider values
-            if (safePreset.sliders) {
-                Object.keys(safePreset.sliders).forEach(id => {
+            if (normalizedSliders) {
+                Object.keys(normalizedSliders).forEach(id => {
                     const slider = document.getElementById(id);
                     if (slider) {
-                        slider.value = safePreset.sliders[id];
+                        slider.value = normalizedSliders[id];
                         slider.dispatchEvent(new Event('input'));
                     }
                 });
@@ -6840,15 +7143,14 @@
                 document.getElementById('noiseType').value = safePreset.noiseType;
             }
             
-            // Apply LFO mode
-            if (safePreset.lfo && safePreset.lfo.mode && safePreset.lfo.mode !== lfoMode) {
-                document.getElementById('lfoModeToggle').click();
-            }
-            
-            // Apply LFO2 mode
-            if (safePreset.lfo2 && safePreset.lfo2.mode && safePreset.lfo2.mode !== lfo2Mode) {
-                document.getElementById('lfo2ModeToggle').click();
-            }
+            enforceBpmOnlyLfoMode();
+            syncGlobalBpmControls(
+                normalizedSliders?.globalBpmSlider ||
+                normalizedSliders?.lfoRate ||
+                normalizedSliders?.delayBpm ||
+                normalizedSliders?.lfo3Rate ||
+                120
+            );
             
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
@@ -7202,7 +7504,8 @@
         // Function to save current state to localStorage
         function saveState() {
             const state = {
-                version: '1.1',
+                version: '1.2',
+                bpmOnlyLfos: true,
                 timestamp: Date.now(),
                 sliders: {},
                 toggles: {
@@ -7282,12 +7585,18 @@
 
                 const state = JSON.parse(savedState);
 
+                const normalizedStateSliders = normalizeStoredLfoSliderValues(state.sliders, {
+                    bpmOnlyLfos: state.bpmOnlyLfos === true,
+                    lfoMode: state.modes?.lfoMode,
+                    lfo2Mode: state.modes?.lfo2Mode
+                });
+
                 // Restore slider values
-                if (state.sliders) {
-                    Object.keys(state.sliders).forEach(id => {
+                if (normalizedStateSliders) {
+                    Object.keys(normalizedStateSliders).forEach(id => {
                         const slider = document.getElementById(id);
                         if (slider) {
-                            slider.value = state.sliders[id];
+                            slider.value = normalizedStateSliders[id];
                             slider.dispatchEvent(new Event('input'));
                         }
                     });
@@ -7303,14 +7612,10 @@
                     });
                 }
 
-                // Restore LFO modes
+                enforceBpmOnlyLfoMode();
+
+                // Restore other modes
                 if (state.modes) {
-                    if (state.modes.lfoMode !== undefined && state.modes.lfoMode !== lfoMode) {
-                        document.getElementById('lfoModeToggle').click();
-                    }
-                    if (state.modes.lfo2Mode !== undefined && state.modes.lfo2Mode !== lfo2Mode) {
-                        document.getElementById('lfo2ModeToggle').click();
-                    }
                     if (state.modes.bpmLocked !== undefined) {
                         const lockSlider = document.getElementById('lockBpmSlider');
                         if (lockSlider) {
@@ -7319,6 +7624,15 @@
                         }
                     }
                 }
+
+                syncGlobalBpmControls(
+                    normalizedStateSliders?.globalBpmSlider ||
+                    normalizedStateSliders?.lfoRate ||
+                    normalizedStateSliders?.delayBpm ||
+                    normalizedStateSliders?.lfo3Rate ||
+                    state.selects?.seqBpm ||
+                    120
+                );
 
                 // Restore LFO toggle states
                 if (state.toggles && state.toggles.lfo) {
