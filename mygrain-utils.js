@@ -212,9 +212,167 @@
         return '.webm';
     }
 
+    function hashSeed(seedValue) {
+        const text = String(seedValue ?? 'mygrain');
+        let hash = 2166136261 >>> 0;
+        for (let index = 0; index < text.length; index += 1) {
+            hash ^= text.charCodeAt(index);
+            hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+    }
+
+    function createSeededRandom(seedValue) {
+        let state = hashSeed(seedValue);
+        return function seededRandom() {
+            state += 0x6D2B79F5;
+            let t = state;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function pickWeighted(values, randomFn) {
+        const choices = Array.isArray(values) ? values : [];
+        if (choices.length === 0) return null;
+        const random = typeof randomFn === 'function' ? randomFn : Math.random;
+        const totalWeight = choices.reduce((sum, item) => sum + Math.max(0, Number(item && item.weight) || 0), 0);
+        if (totalWeight <= 0) {
+            return choices[0].value;
+        }
+
+        let threshold = random() * totalWeight;
+        for (let index = 0; index < choices.length; index += 1) {
+            const item = choices[index];
+            threshold -= Math.max(0, Number(item && item.weight) || 0);
+            if (threshold <= 0) {
+                return item.value;
+            }
+        }
+        return choices[choices.length - 1].value;
+    }
+
+    function generateRhythmicStepBlueprint(options = {}) {
+        const stepCount = Math.max(8, Math.min(64, Math.round(clampNumber(options.stepCount, { min: 8, max: 64, fallback: 16 }))));
+        const random = typeof options.random === 'function'
+            ? options.random
+            : createSeededRandom(options.seed ?? `mygrain-${stepCount}`);
+
+        const archetypes = {
+            straight: { motif: [1, 0, 1, 0, 1, 0, 1, 0], mutationRate: 0.16, restChance: 0.18, velocity: [62, 88], fillChance: 0.12 },
+            pulsed: { motif: [1, 0, 1, 1, 1, 0, 1, 0], mutationRate: 0.24, restChance: 0.14, velocity: [58, 86], fillChance: 0.2 },
+            syncopated: { motif: [1, 0, 0, 1, 1, 0, 1, 1], mutationRate: 0.3, restChance: 0.22, velocity: [52, 84], fillChance: 0.28 },
+            sparse: { motif: [1, 0, 0, 0, 1, 0, 1, 0], mutationRate: 0.14, restChance: 0.34, velocity: [56, 90], fillChance: 0.08 },
+            rolling: { motif: [1, 1, 0, 1, 1, 0, 1, 0], mutationRate: 0.26, restChance: 0.16, velocity: [54, 82], fillChance: 0.2 },
+            glitchFill: { motif: [1, 0, 1, 1, 0, 1, 1, 0], mutationRate: 0.34, restChance: 0.2, velocity: [48, 78], fillChance: 0.52 }
+        };
+
+        const selectedArchetype = options.archetype && archetypes[options.archetype]
+            ? options.archetype
+            : pickWeighted([
+                { value: 'straight', weight: 1.1 },
+                { value: 'pulsed', weight: 1.1 },
+                { value: 'syncopated', weight: 1 },
+                { value: 'sparse', weight: 0.85 },
+                { value: 'rolling', weight: 1.1 },
+                { value: 'glitchFill', weight: 0.7 }
+            ], random);
+        const archetype = archetypes[selectedArchetype] || archetypes.straight;
+
+        const halfLength = Math.floor(stepCount / 2);
+        const halfPattern = new Array(halfLength).fill(false).map((_, index) => Boolean(archetype.motif[index % archetype.motif.length]));
+        const basePattern = halfPattern.concat(halfPattern).slice(0, stepCount);
+        const enabled = [...basePattern];
+        const accents = new Array(stepCount).fill(false);
+        const velocities = new Array(stepCount).fill(0);
+        const pitchOffsets = new Array(stepCount).fill(0);
+        const motif = [0, 2, 3, 5, 7, 8, 10, 12];
+
+        const anchorSteps = new Set([0, 4, 8, 12].filter((index) => index < stepCount));
+        anchorSteps.forEach((index) => {
+            enabled[index] = true;
+        });
+
+        for (let index = 0; index < stepCount; index += 1) {
+            if (index < halfLength) continue;
+            if (random() < archetype.mutationRate) {
+                const wasEnabled = enabled[index];
+                enabled[index] = !enabled[index];
+                if (anchorSteps.has(index) && !enabled[index]) {
+                    enabled[index] = true;
+                } else if (wasEnabled && random() < archetype.restChance) {
+                    enabled[index] = false;
+                }
+            }
+        }
+
+        for (let index = 0; index < stepCount; index += 1) {
+            if (!enabled[index]) continue;
+            if (!anchorSteps.has(index) && random() < archetype.restChance) {
+                enabled[index] = false;
+            }
+        }
+
+        let activeCount = enabled.filter(Boolean).length;
+        const minimumActive = Math.max(4, Math.round(stepCount * 0.32));
+        if (activeCount < minimumActive) {
+            for (let index = 0; index < stepCount && activeCount < minimumActive; index += 1) {
+                if (!enabled[index]) {
+                    enabled[index] = true;
+                    activeCount += 1;
+                }
+            }
+        }
+
+        let fillApplied = false;
+        if (random() < archetype.fillChance && stepCount >= 16) {
+            fillApplied = true;
+            for (let index = Math.max(0, stepCount - 4); index < stepCount; index += 1) {
+                enabled[index] = random() < 0.8;
+            }
+        }
+
+        for (let index = 0; index < stepCount; index += 1) {
+            const isAnchor = anchorSteps.has(index);
+            const isSyncAccent = index % 4 === 3;
+            const accent = Boolean(enabled[index] && (isAnchor || (isSyncAccent && random() < 0.58)));
+            accents[index] = accent;
+
+            if (!enabled[index]) {
+                velocities[index] = 0;
+                pitchOffsets[index] = 0;
+                continue;
+            }
+
+            const [velocityMin, velocityMax] = archetype.velocity;
+            const baseVelocity = velocityMin + random() * (velocityMax - velocityMin);
+            const dynamicContour = (index % 8 === 0 ? 8 : (index % 2 === 0 ? 2 : -4));
+            const accentLift = accent ? 12 : 0;
+            velocities[index] = Math.round(clampNumber(baseVelocity + dynamicContour + accentLift, { min: 32, max: 96, fallback: 64 }));
+
+            const motifDegree = motif[index % motif.length];
+            const octaveOffset = random() < 0.28 ? 12 : 0;
+            const passing = random() < 0.24 ? (random() < 0.5 ? 1 : -1) : 0;
+            pitchOffsets[index] = Math.round(clampNumber(motifDegree + octaveOffset + passing, { min: -12, max: 24, fallback: 0 }));
+        }
+
+        return {
+            archetype: selectedArchetype,
+            enabled,
+            accents,
+            velocities,
+            pitchOffsets,
+            fillApplied
+        };
+    }
+
     const exported = {
         buildKeyboardGeometry,
         clampNumber,
+        createSeededRandom,
+        generateRhythmicStepBlueprint,
+        pickWeighted,
         recordingExtensionForMimeType,
         resolveLoopedPlayPosition,
         resolveSampleWindow,

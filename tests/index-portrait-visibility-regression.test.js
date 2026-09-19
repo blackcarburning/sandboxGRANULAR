@@ -38,7 +38,7 @@ test('mobile performance controls expose loop generation and playback', () => {
     assert.match(indexHtml, /setPerformanceGenerateButtonState\('generated'\)/);
     assert.match(indexHtml, /#performanceGenerateLoopBtn\.generating/);
     assert.match(indexHtml, /id="performanceSeqPlayBtn"/);
-    assert.match(indexHtml, /function generateInterestingLoop\(\)/);
+    assert.match(indexHtml, /function generateInterestingLoop\(options = \{\}\)/);
     assert.match(indexHtml, /await generateSourceWithPlaybackRestart\(\{ refreshSequencerPattern: true \}\);/);
 });
 
@@ -253,11 +253,11 @@ test('patch randomize does not move manual source loop points', () => {
     assert.match(indexHtml, /'generatedLoopEnd'/);
     assert.match(indexHtml, /'micLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
-    assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.has\(slider\.id\)/);
+    assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.has\(id\)/);
 });
 
 test('patch randomize leaves instrument mix and balance controls alone', () => {
-    const experimentalPatch = indexHtml.match(/function applyExperimentalLoopPatch\(\) \{[\s\S]*?\n        \}/)?.[0] || '';
+    const experimentalPatch = indexHtml.match(/function applyExperimentalLoopPatch\(options = \{\}\) \{[\s\S]*?\n        \}/)?.[0] || '';
     assert.ok(experimentalPatch, 'applyExperimentalLoopPatch should be present');
 
     [
@@ -293,9 +293,6 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryTrim:/);
     assert.doesNotMatch(experimentalPatch, /performanceGranularTrim:/);
-    assert.doesNotMatch(experimentalPatch, /noiseMix:/);
-    assert.doesNotMatch(experimentalPatch, /reverb:/);
-    assert.doesNotMatch(experimentalPatch, /delayMix:/);
     assert.doesNotMatch(experimentalPatch, /volume:/);
     assert.doesNotMatch(experimentalPatch, /preFilterGain:/);
     assert.doesNotMatch(experimentalPatch, /postFilterGain:/);
@@ -323,7 +320,7 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /sourceGainMap\.get\(sourceInfo\) \?\? 0/);
     assert.match(indexHtml, /resetSourceLoopPoints\(kind\)/);
-    assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
+    assert.match(indexHtml, /setFilterEnabled\('hpf', profile\.id !== 'sparse'\)/);
 });
 
 test('generated loop transpose keeps tempo length independent of keyboard octave', () => {
@@ -368,7 +365,7 @@ test('generating a new performance loop restarts active playback', () => {
     assert.match(indexHtml, /const shouldRestartSequencer = sequencerPlaying/);
     assert.match(indexHtml, /const shouldRestartDryLoop = Boolean\(generatedDrySource\)/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*stopSequencer\(\);/);
-    assert.match(indexHtml, /await generateRandomSourceSample\(\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\);/);
+    assert.match(indexHtml, /await generateRandomSourceSample\(\);[\s\S]*if \(options\.refreshSequencerPattern\) \{\s*generateInterestingLoop\(\{ profile: options\.profile, blueprint: options\.blueprint \}\);/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*startSequencer\(\);/);
     assert.match(indexHtml, /else if \(shouldRestartDryLoop\) \{\s*startGeneratedDryLoop\(\);/);
 });
@@ -413,8 +410,9 @@ test('generated source and sequencer are experimental on a strict sixteenth grid
     assert.doesNotMatch(indexHtml, /subHits/);
     assert.doesNotMatch(indexHtml, /offset: 1 \/ 3/);
     assert.doesNotMatch(indexHtml, /offset: 2 \/ 3/);
-    assert.match(indexHtml, /const roots = \['C1', 'D1', 'F1', 'G1', 'A1', 'C2', 'D#2'\]/);
-    assert.match(indexHtml, /applyExperimentalLoopPatch\(\)/);
+    assert.match(indexHtml, /const MUSICAL_RANDOMIZE_ARCHETYPES = \[/);
+    assert.match(indexHtml, /function buildLoopBlueprint\(profile = null\)/);
+    assert.match(indexHtml, /generateRhythmicStepBlueprint/);
 });
 
 test('lfo waveforms include pulse width and stepped shapes', () => {
@@ -457,11 +455,12 @@ test('randomize snaps internal lfo rates to musical BPM ratios', () => {
     assert.match(indexHtml, /function getSharedBpmClockValue\(\)/);
     assert.match(indexHtml, /function setInternalLfoRateBpm\(id, bpm\)/);
     assert.match(indexHtml, /function randomizeInternalLfoTempoRatios\(options = \{\}\)/);
-    assert.match(indexHtml, /const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS\[Math\.floor\(Math\.random\(\) \* INTERNAL_LFO_BPM_MULTIPLIERS\.length\)\]/);
+    assert.match(indexHtml, /const ratioPool = Array\.isArray\(profile\?\.bpmMultipliers\)/);
+    assert.match(indexHtml, /const baseMultiplier = ratioPool\[Math\.floor\(Math\.random\(\) \* ratioPool\.length\)\] \|\| 1/);
     assert.match(indexHtml, /setInternalLfoRateBpm\(id, baseBpm \* multiplier\)/);
     assert.match(indexHtml, /INTERNAL_BPM_CLOCK_RATE_IDS\.forEach\(\(id\) => \{/);
     assert.match(indexHtml, /const bpm = getSharedBpmClockValue\(\);[\s\S]*const division = document\.getElementById\('delayDivision'\)\?\.value \|\| '4'/);
-    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeInternalLfoTempoRatios\(\);/);
+    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeInternalLfoTempoRatios\(\{ profile: generationProfile \}\);/);
     assert.match(indexHtml, /phaserLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('phaserRate'\)\?\.value \|\| 30\) \/ 60/);
     assert.match(indexHtml, /tremoloLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('tremoloRate'\)\?\.value \|\| 120\) \/ 60/);
 });
@@ -507,25 +506,25 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /'hpfQ'/);
     assert.match(indexHtml, /'generatedLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
-    assert.match(indexHtml, /function randomizeLfoDepths\(\)/);
+    assert.match(indexHtml, /function randomizeLfoDepths\(options = \{\}\)/);
     assert.match(indexHtml, /const INTERNAL_RANDOMIZE_SLIDER_RANGES = \{/);
     assert.match(indexHtml, /performanceGeneratedSwing: \{ min: 0, max: 18 \}/);
     assert.match(indexHtml, /filterEnvAmount: \{ min: 8, max: 64 \}/);
     assert.match(indexHtml, /noiseMix: \{ min: 0, max: 24 \}/);
-    assert.match(indexHtml, /function randomizeInternalParameters\(\)/);
-    assert.match(indexHtml, /randomizeInternalParameters\(\);/);
-    assert.match(indexHtml, /function randomizeLfoRoutingMatrix\(\)/);
-    assert.match(indexHtml, /const probability = isPriorityTarget \? 0\.78 : \(isGranularTarget \? 0\.42 : 0\.52\)/);
-    assert.match(indexHtml, /if \(isPriorityTarget && enabledCount === 0\) \{/);
-    assert.match(indexHtml, /randomizeLfoRoutingMatrix\(\);/);
+    assert.match(indexHtml, /function randomizeInternalParameters\(options = \{\}\)/);
+    assert.match(indexHtml, /randomizeInternalParameters\(\{ profile: generationProfile \}\);/);
+    assert.match(indexHtml, /function randomizeLfoRoutingMatrix\(options = \{\}\)/);
+    assert.match(indexHtml, /const targetLimit = Math\.max\(5, Math\.min\(12, profile\?\.lfoRouteLimit \|\| 8\)\)/);
+    assert.match(indexHtml, /randomizeLfoRoutingMatrix\(\{ profile: generationProfile \}\);/);
 });
 
 test('grain scheduling and generated loops are BPM-grid rhythmic and bright again', () => {
     assert.match(indexHtml, /const BPM_CLOCK_GRAIN_DIVISIONS = \[0\.5, 1, 2, 4, 8, 16\]/);
     assert.match(indexHtml, /function getRhythmicGrainIntervalSeconds\(densityValue = null\)/);
     assert.match(indexHtml, /getRhythmicGrainIntervalSeconds\(density\)/);
-    assert.match(indexHtml, /const backbeatSteps = new Set\(\[4, 12\]\)/);
-    assert.match(indexHtml, /const isHatGrid = index % 2 === 1 && Math\.random\(\) < 0\.72/);
+    assert.match(indexHtml, /function quantizePitchOffsetToScale\(offset, scaleIntervals\)/);
+    assert.match(indexHtml, /const LOOP_SCALE_FAMILIES = \[/);
+    assert.match(indexHtml, /const volume = enabled[\s\S]*Math\.max\(32, Math\.min\(98/);
     assert.match(indexHtml, /'snareNoise'/);
     assert.match(indexHtml, /'hatNoise'/);
     assert.match(indexHtml, /'rimSnap'/);

@@ -4283,6 +4283,80 @@
             lfo1ToLfo2Mod: { min: 0, max: 18 },
             lfo2ToLfo1Mod: { min: 0, max: 18 }
         };
+        const MUSICAL_RANDOMIZE_ARCHETYPES = [
+            {
+                id: 'straight',
+                label: 'straight pulse',
+                weight: 1.15,
+                bpmMultipliers: [0.5, 1, 1, 2, 4],
+                densityRange: [10, 22],
+                grainSizeRange: [62, 140],
+                swingRange: [0, 8],
+                lfoRouteLimit: 8,
+                modulationTargets: ['grainSize', 'density', 'position', 'lpfCutoff', 'panSpread']
+            },
+            {
+                id: 'pulsed',
+                label: 'pulsed groove',
+                weight: 1.1,
+                bpmMultipliers: [0.5, 1, 1, 2, 4],
+                densityRange: [12, 26],
+                grainSizeRange: [48, 110],
+                swingRange: [2, 14],
+                lfoRouteLimit: 9,
+                modulationTargets: ['density', 'position', 'spray', 'lpfCutoff', 'delayFeedback']
+            },
+            {
+                id: 'syncopated',
+                label: 'syncopated steps',
+                weight: 1,
+                bpmMultipliers: [0.5, 1, 1, 2, 4, 8],
+                densityRange: [14, 30],
+                grainSizeRange: [36, 92],
+                swingRange: [8, 24],
+                lfoRouteLimit: 10,
+                modulationTargets: ['density', 'position', 'spray', 'panSpread', 'tremoloDepth']
+            },
+            {
+                id: 'sparse',
+                label: 'sparse anchors',
+                weight: 0.85,
+                bpmMultipliers: [0.25, 0.5, 1, 2],
+                densityRange: [6, 16],
+                grainSizeRange: [84, 180],
+                swingRange: [0, 10],
+                lfoRouteLimit: 7,
+                modulationTargets: ['grainSize', 'position', 'lpfCutoff', 'reverb', 'delayFeedback']
+            },
+            {
+                id: 'rolling',
+                label: 'rolling motion',
+                weight: 1.05,
+                bpmMultipliers: [0.5, 1, 2, 2, 4],
+                densityRange: [16, 32],
+                grainSizeRange: [28, 80],
+                swingRange: [4, 16],
+                lfoRouteLimit: 10,
+                modulationTargets: ['density', 'position', 'attack', 'release', 'phaserDepth']
+            },
+            {
+                id: 'glitchFill',
+                label: 'glitch fill',
+                weight: 0.75,
+                bpmMultipliers: [1, 2, 4, 4, 8],
+                densityRange: [20, 36],
+                grainSizeRange: [18, 64],
+                swingRange: [0, 12],
+                lfoRouteLimit: 11,
+                modulationTargets: ['density', 'position', 'spray', 'grainTune', 'delayFeedback']
+            }
+        ];
+        const LOOP_SCALE_FAMILIES = [
+            { name: 'minor-grid', intervals: [0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 22] },
+            { name: 'fifths', intervals: [0, 2, 5, 7, 10, 12, 14, 17, 19, 22, 24] },
+            { name: 'dorian', intervals: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17, 19, 21] },
+            { name: 'chromatic-edge', intervals: [0, 1, 3, 5, 6, 8, 10, 12, 13, 15, 17, 18, 20] }
+        ];
         
         // Sequencer state
         let sequencerPlaying = false;
@@ -8171,11 +8245,18 @@
 
         function randomizeInternalLfoTempoRatios(options = {}) {
             const baseBpm = clampBpmValue(options.baseBpm ?? getSharedBpmClockValue());
+            const profile = options.profile || null;
+            const ratioPool = Array.isArray(profile?.bpmMultipliers) && profile.bpmMultipliers.length > 0
+                ? profile.bpmMultipliers
+                : INTERNAL_LFO_BPM_MULTIPLIERS;
             const applied = {};
             syncingGlobalBpm = true;
             try {
-                INTERNAL_LFO_RATE_IDS.forEach((id) => {
-                    const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS[Math.floor(Math.random() * INTERNAL_LFO_BPM_MULTIPLIERS.length)];
+                INTERNAL_LFO_RATE_IDS.forEach((id, index) => {
+                    const rhythmFirst = index === 0 || index === 1;
+                    const baseMultiplier = ratioPool[Math.floor(Math.random() * ratioPool.length)] || 1;
+                    const microOffset = rhythmFirst ? 1 : (Math.random() < 0.4 ? 1 : (Math.random() < 0.5 ? 0.5 : 2));
+                    const multiplier = baseMultiplier * microOffset;
                     const bpm = setInternalLfoRateBpm(id, baseBpm * multiplier);
                     if (bpm != null) {
                         applied[id] = { multiplier, bpm };
@@ -8205,9 +8286,12 @@
             return Math.round(min + Math.random() * (max - min));
         }
 
-        function randomizeLfoDepths() {
+        function randomizeLfoDepths(options = {}) {
+            const energy = Math.max(0.35, Math.min(1, Number(options.energy ?? 0.7) || 0.7));
             Object.entries(RANDOMIZE_LFO_DEPTH_RANGES).forEach(([id, range]) => {
-                setSliderValue(id, randomIntegerInRange(range.min, range.max));
+                const span = range.max - range.min;
+                const max = Math.round(range.min + span * (0.45 + (energy * 0.55)));
+                setSliderValue(id, randomIntegerInRange(range.min, max));
             });
         }
 
@@ -8224,14 +8308,107 @@
             return Math.round(raw);
         }
 
-        function randomizeInternalParameters() {
+        function clampToSliderBounds(id, value) {
+            const slider = document.getElementById(id);
+            if (!slider) return value;
+            const min = Number.parseFloat(slider.min);
+            const max = Number.parseFloat(slider.max);
+            const step = Number.parseFloat(slider.step);
+            let nextValue = Number(value);
+            if (!Number.isFinite(nextValue)) nextValue = Number(slider.value);
+            if (Number.isFinite(min)) nextValue = Math.max(min, nextValue);
+            if (Number.isFinite(max)) nextValue = Math.min(max, nextValue);
+            if (Number.isFinite(step) && step > 0) {
+                nextValue = Math.round(nextValue / step) * step;
+            }
+            return nextValue;
+        }
+
+        function chooseWeightedRandom(items) {
+            const list = Array.isArray(items) ? items : [];
+            if (list.length === 0) return null;
+            const total = list.reduce((sum, item) => sum + Math.max(0, Number(item?.weight) || 0), 0);
+            if (!Number.isFinite(total) || total <= 0) return list[0];
+            let point = Math.random() * total;
+            for (let index = 0; index < list.length; index++) {
+                point -= Math.max(0, Number(list[index]?.weight) || 0);
+                if (point <= 0) return list[index];
+            }
+            return list[list.length - 1];
+        }
+
+        function createMusicalGenerationProfile() {
+            const selected = chooseWeightedRandom(MUSICAL_RANDOMIZE_ARCHETYPES) || MUSICAL_RANDOMIZE_ARCHETYPES[0];
+            const densityBias = Math.random();
+            const energy = Math.max(0.4, Math.min(1, 0.35 + (densityBias * 0.55) + (Math.random() * 0.2)));
+            return {
+                ...selected,
+                densityBias,
+                energy,
+                scale: LOOP_SCALE_FAMILIES[Math.floor(Math.random() * LOOP_SCALE_FAMILIES.length)],
+                root: ['C1', 'D1', 'E1', 'F1', 'G1', 'A1', 'C2', 'D#2'][Math.floor(Math.random() * 8)]
+            };
+        }
+
+        function randomizeInternalParameters(options = {}) {
+            const profile = options.profile || createMusicalGenerationProfile();
+            const [densityMin, densityMax] = profile.densityRange || [10, 28];
+            const [grainSizeMin, grainSizeMax] = profile.grainSizeRange || [32, 110];
+            const [swingMin, swingMax] = profile.swingRange || [0, 16];
+            const density = randomIntegerInRange(densityMin, densityMax);
+            const grainSize = randomIntegerInRange(grainSizeMin, grainSizeMax);
+            const wetness = Math.max(0.08, Math.min(0.36, (density - 6) / 100));
+
+            const profileValues = {
+                performanceGeneratedSwing: randomIntegerInRange(swingMin, swingMax),
+                grainSize,
+                density,
+                position: randomIntegerInRange(0, Math.min(78, 26 + Math.round(density * 1.4))),
+                spray: randomIntegerInRange(Math.max(0, Math.round(density * 0.2)), Math.min(68, Math.round(10 + density * 1.8))),
+                attack: randomIntegerInRange(1, Math.max(2, Math.round(12 - (density / 4)))),
+                release: randomIntegerInRange(Math.max(16, Math.round(grainSize * 0.5)), Math.max(22, Math.round(grainSize * 1.4))),
+                pitchVar: randomIntegerInRange(4, Math.min(34, 8 + Math.round(profile.energy * 24))),
+                grainTune: [-12, -7, -5, 0, 0, 5, 7, 12][Math.floor(Math.random() * 8)],
+                panSpread: randomIntegerInRange(24, Math.min(92, 48 + Math.round(density * 1.1))),
+                lpfCutoff: randomIntegerInRange(850, Math.max(1600, 2600 + Math.round(profile.energy * 4200))),
+                lpfQ: Number((0.25 + Math.random() * (0.55 + (profile.energy * 0.6))).toFixed(2)),
+                hpfCutoff: randomIntegerInRange(18, Math.round(100 + (profile.energy * 320))),
+                hpfQ: Number((0.2 + Math.random() * 0.8).toFixed(2)),
+                filterEnvAmount: randomIntegerInRange(12, Math.round(24 + profile.energy * 46)),
+                filterEnvAttack: randomIntegerInRange(1, 8),
+                filterEnvDecay: randomIntegerInRange(32, Math.round(90 + profile.energy * 120)),
+                filterEnvSustain: randomIntegerInRange(0, Math.round(12 + profile.energy * 28)),
+                filterEnvRelease: randomIntegerInRange(20, Math.round(70 + profile.energy * 110)),
+                noiseMix: randomIntegerInRange(0, 16),
+                distortion: randomIntegerInRange(0, Math.round(8 + profile.energy * 20)),
+                phaserDepth: randomIntegerInRange(0, Math.round(10 + profile.energy * 22)),
+                tremoloDepth: randomIntegerInRange(0, Math.round(12 + profile.energy * 20)),
+                delayFeedback: randomIntegerInRange(8, Math.round(18 + profile.energy * 14)),
+                delayMix: randomIntegerInRange(0, Math.round(8 + wetness * 62)),
+                reverb: randomIntegerInRange(0, Math.round(10 + wetness * 72)),
+                osc1Attack: randomIntegerInRange(1, 5),
+                osc1Decay: randomIntegerInRange(26, 92),
+                osc1Sustain: randomIntegerInRange(0, 22),
+                osc1Release: randomIntegerInRange(16, 72),
+                osc1Detune: randomIntegerInRange(-6, 6),
+                osc2Attack: randomIntegerInRange(1, 5),
+                osc2Decay: randomIntegerInRange(22, 86),
+                osc2Sustain: randomIntegerInRange(0, 20),
+                osc2Release: randomIntegerInRange(14, 66),
+                osc2Detune: randomIntegerInRange(-10, 10)
+            };
+
             Object.entries(INTERNAL_RANDOMIZE_SLIDER_RANGES).forEach(([id, range]) => {
                 if (RANDOMIZE_SKIP_SLIDERS.has(id)) return;
-                setSliderValue(id, randomValueForInternalRange(range));
+                const nextValue = Object.prototype.hasOwnProperty.call(profileValues, id)
+                    ? profileValues[id]
+                    : randomValueForInternalRange(range);
+                setSliderValue(id, clampToSliderBounds(id, nextValue));
             });
-            randomizeLfoDepths();
+            randomizeLfoDepths({ energy: profile.energy });
             syncPerformanceControlState();
             updateEffects();
+            return profile;
         }
 
         function setLfoRouteState(param, lfoNum, enabled) {
@@ -8262,38 +8439,96 @@
             )];
         }
 
-        function randomizeLfoRoutingMatrix() {
+        function randomizeLfoRoutingMatrix(options = {}) {
+            const profile = options.profile || null;
             const targets = getRandomizableLfoTargetParams();
             targets.forEach((param) => {
-                const isPriorityTarget = PRIORITY_RANDOM_LFO_TARGET_PARAMS.has(param);
-                const isGranularTarget = RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.has(param);
-                const probability = isPriorityTarget ? 0.78 : (isGranularTarget ? 0.42 : 0.52);
-                let enabledCount = 0;
-
-                ['1', '2'].forEach((lfoNum) => {
-                    const enabled = Math.random() < probability;
-                    setLfoRouteState(param, lfoNum, enabled);
-                    setLfoInvertState(param, lfoNum, enabled && Math.random() < 0.48);
-                    if (enabled) enabledCount += 1;
-                });
-
-                if (isPriorityTarget && enabledCount === 0) {
-                    const lfoNum = Math.random() < 0.5 ? '1' : '2';
-                    setLfoRouteState(param, lfoNum, true);
-                    setLfoInvertState(param, lfoNum, Math.random() < 0.48);
-                }
+                setLfoRouteState(param, '1', false);
+                setLfoRouteState(param, '2', false);
+                setLfoInvertState(param, '1', false);
+                setLfoInvertState(param, '2', false);
             });
+
+            const targetLimit = Math.max(5, Math.min(12, profile?.lfoRouteLimit || 8));
+            const candidateTargets = (profile?.modulationTargets || targets).filter((param) => targets.includes(param));
+            const orderedTargets = [...candidateTargets, ...targets.filter((param) => !candidateTargets.includes(param))];
+            let activeRoutes = 0;
+
+            orderedTargets.forEach((param) => {
+                if (activeRoutes >= targetLimit) return;
+                const isPriorityTarget = PRIORITY_RANDOM_LFO_TARGET_PARAMS.has(param);
+                const preferred = Boolean(profile?.modulationTargets?.includes(param));
+                const probability = preferred ? 0.78 : (isPriorityTarget ? 0.58 : 0.34);
+                if (Math.random() >= probability) return;
+                const lfoNum = Math.random() < 0.5 ? '1' : '2';
+                setLfoRouteState(param, lfoNum, true);
+                setLfoInvertState(param, lfoNum, Math.random() < 0.38);
+                if (Math.random() < (preferred ? 0.24 : 0.12) && activeRoutes + 1 < targetLimit) {
+                    const secondLfo = lfoNum === '1' ? '2' : '1';
+                    setLfoRouteState(param, secondLfo, true);
+                    setLfoInvertState(param, secondLfo, Math.random() < 0.28);
+                    activeRoutes += 1;
+                }
+                activeRoutes += 1;
+            });
+
+            if (activeRoutes < 4) {
+                ['grainSize', 'density', 'position', 'lpfCutoff'].forEach((param) => {
+                    if (!targets.includes(param)) return;
+                    if (activeRoutes >= targetLimit) return;
+                    const hasRoute = Boolean(lfoEnabled[param] || lfo2Enabled[param]);
+                    if (hasRoute) return;
+                    const lfoNum = activeRoutes % 2 === 0 ? '1' : '2';
+                    setLfoRouteState(param, lfoNum, true);
+                    activeRoutes += 1;
+                });
+            }
         }
 
-        function applyExperimentalLoopPatch() {
+        function quantizePitchOffsetToScale(offset, scaleIntervals) {
+            const intervals = Array.isArray(scaleIntervals) && scaleIntervals.length > 0
+                ? scaleIntervals
+                : [0, 2, 3, 5, 7, 8, 10, 12];
+            return intervals.reduce((best, current) => {
+                return Math.abs(current - offset) < Math.abs(best - offset) ? current : best;
+            }, intervals[0]);
+        }
+
+        function buildLoopBlueprint(profile = null) {
+            const chosenProfile = profile || createMusicalGenerationProfile();
+            const generator = typeof mygrainUtils.generateRhythmicStepBlueprint === 'function'
+                ? mygrainUtils.generateRhythmicStepBlueprint
+                : null;
+            const fallbackPattern = {
+                archetype: chosenProfile.id,
+                enabled: new Array(16).fill(true).map((_, index) => index % 2 === 0 || index % 4 === 3),
+                accents: new Array(16).fill(false).map((_, index) => index % 4 === 0 || index % 8 === 7),
+                velocities: new Array(16).fill(0).map((_, index) => (index % 2 === 0 ? 72 : 58)),
+                pitchOffsets: new Array(16).fill(0).map((_, index) => [0, 2, 3, 5, 7, 8, 10, 12][index % 8]),
+                fillApplied: false
+            };
+            const pattern = generator
+                ? generator({ stepCount: 16, archetype: chosenProfile.id, seed: `${Date.now()}-${Math.random()}` })
+                : fallbackPattern;
+            return {
+                profile: chosenProfile,
+                pattern
+            };
+        }
+
+        function applyExperimentalLoopPatch(options = {}) {
+            const profile = options.profile || createMusicalGenerationProfile();
             const pick = (values) => values[Math.floor(Math.random() * values.length)];
             const rand = (min, max) => randomIntegerInRange(min, max);
+            const density = rand(...(profile.densityRange || [12, 26]));
+            const grainSize = rand(...(profile.grainSizeRange || [36, 96]));
+            const wetAmount = Math.max(0.08, Math.min(0.32, density / 110));
 
             setSelectValue('noiseType', Math.random() < 0.42 ? 'none' : 'pink');
             setSelectValue('delayDivision', pick(['1', '2', '4']));
 
-            setOscillatorOctave(1, 16);
-            setOscillatorOctave(2, 8);
+            setOscillatorOctave(1, pick([8, 16]));
+            setOscillatorOctave(2, pick([8, 16]));
 
             const defaults = {
                 osc1Attack: rand(1, 3),
@@ -8304,105 +8539,61 @@
                 osc2Decay: rand(24, 82),
                 osc2Sustain: rand(0, 12),
                 osc2Release: rand(20, 58),
-                performanceGeneratedSwing: 0,
+                performanceGeneratedSwing: rand(...(profile.swingRange || [0, 16])),
                 sampleStart: 0,
                 sampleEnd: 100,
-                grainSize: rand(24, 68),
-                density: rand(18, 38),
-                position: rand(0, 38),
-                spray: rand(10, 55),
-                attack: rand(1, 4),
-                release: rand(20, 68),
-                pitchVar: rand(5, 24),
-                grainTune: pick([-12, -7, -5, 0]),
-                panSpread: rand(36, 78),
-                lpfCutoff: rand(900, 3600),
-                lpfQ: Number((0.28 + Math.random() * 0.5).toFixed(2)),
-                hpfCutoff: 18,
-                hpfQ: 0.35,
+                grainSize,
+                density,
+                position: rand(0, Math.min(80, 24 + density)),
+                spray: rand(Math.round(density * 0.25), Math.min(68, 8 + Math.round(density * 1.6))),
+                attack: rand(1, Math.max(3, Math.round(12 - density / 3))),
+                release: rand(Math.max(18, Math.round(grainSize * 0.5)), Math.max(36, Math.round(grainSize * 1.2))),
+                pitchVar: rand(4, 24),
+                grainTune: pick([-12, -7, -5, 0, 5, 7, 12]),
+                panSpread: rand(30, Math.min(88, 46 + density)),
+                lpfCutoff: rand(900, Math.max(2200, 2400 + Math.round(profile.energy * 3800))),
+                lpfQ: Number((0.24 + Math.random() * 0.75).toFixed(2)),
+                hpfCutoff: rand(18, Math.round(120 + profile.energy * 280)),
+                hpfQ: Number((0.2 + Math.random() * 0.7).toFixed(2)),
                 filterEnvAmount: rand(14, 42),
                 filterEnvAttack: rand(1, 4),
                 filterEnvDecay: rand(34, 104),
                 filterEnvSustain: rand(0, 16),
                 filterEnvRelease: rand(28, 82),
-                distortion: rand(4, 18),
-                phaserDepth: rand(0, 14),
-                tremoloDepth: rand(0, 12),
-                delayFeedback: rand(8, 24),
+                distortion: rand(0, Math.round(8 + profile.energy * 18)),
+                phaserDepth: rand(0, Math.round(8 + profile.energy * 16)),
+                tremoloDepth: rand(0, Math.round(8 + profile.energy * 14)),
+                delayFeedback: rand(8, Math.round(16 + wetAmount * 50)),
+                delayMix: rand(0, Math.round(6 + wetAmount * 70)),
+                reverb: rand(0, Math.round(10 + wetAmount * 90))
             };
 
-            Object.entries(defaults).forEach(([id, value]) => setSliderValue(id, value));
+            Object.entries(defaults).forEach(([id, value]) => setSliderValue(id, clampToSliderBounds(id, value)));
             setFilterEnabled('lpf', true);
-            setFilterEnabled('hpf', false);
+            setFilterEnabled('hpf', profile.id !== 'sparse');
             syncPerformanceControlState();
+            return profile;
         }
 
         function applyPercussiveLoopPatch() {
             applyExperimentalLoopPatch();
         }
 
-        function generateInterestingLoop() {
-            applyExperimentalLoopPatch();
-
-            const roots = ['C1', 'D1', 'F1', 'G1', 'A1', 'C2', 'D#2'];
-            const scales = [
-                { name: 'sub grid ritual', intervals: [0, 2, 3, 6, 7, 10, 12, 13, 17, 19, 22] },
-                { name: 'folded fifths', intervals: [0, 1, 5, 7, 11, 12, 17, 18, 23, 24] },
-                { name: 'industrial minor', intervals: [0, 3, 4, 6, 7, 10, 12, 15, 18, 21] },
-                { name: 'chromatic debris', intervals: [0, 1, 2, 5, 6, 8, 10, 12, 13, 16, 18] }
-            ];
-            const rhythmicMasks = [
-                [1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1],
-                [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0],
-                [1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
-                [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0]
-            ];
-
-            const root = roots[Math.floor(Math.random() * roots.length)];
-            const rootIndex = noteNames.indexOf(root);
-            const scale = scales[Math.floor(Math.random() * scales.length)];
-            const mask = rhythmicMasks[Math.floor(Math.random() * rhythmicMasks.length)];
-            const motif = [0, 1, 2, 3, 5, 7, 8].sort(() => Math.random() - 0.5);
-            const anchorSteps = new Set([0, 8, Math.random() < 0.65 ? 6 : 7, Math.random() < 0.65 ? 12 : 14]);
-            const backbeatSteps = new Set([4, 12]);
-            const textureSteps = new Set([2, 5, 6, 10, 13, 15].filter(() => Math.random() > 0.12));
-            const accentSteps = new Set([3, 7, 9, 11, 14].filter(() => Math.random() > 0.24));
+        function generateInterestingLoop(options = {}) {
+            const profile = options.profile || createMusicalGenerationProfile();
+            const blueprint = options.blueprint || buildLoopBlueprint(profile);
+            const scale = blueprint.profile.scale || LOOP_SCALE_FAMILIES[0];
+            const rootIndex = Math.max(0, noteNames.indexOf(blueprint.profile.root || 'C1'));
 
             for (let index = 0; index < 16; index++) {
-                const isAnchor = anchorSteps.has(index);
-                const isBackbeat = backbeatSteps.has(index);
-                const isTexture = textureSteps.has(index);
-                const isAccent = accentSteps.has(index);
-                const isHatGrid = index % 2 === 1 && Math.random() < 0.72;
-                const enabled = Boolean(isAnchor || isBackbeat || isTexture || isAccent || isHatGrid || mask[index]);
-                let noteIndex = rootIndex;
-                let volume = 0;
-
-                if (isAnchor) {
-                    const bassMove = Math.random() < 0.35 ? 7 : (Math.random() < 0.22 ? -5 : 0);
-                    noteIndex = rootIndex + bassMove;
-                    volume = Math.round(82 + Math.random() * 14);
-                } else if (isBackbeat) {
-                    noteIndex = rootIndex + scale.intervals[4 + Math.floor(Math.random() * 3)] + 12;
-                    volume = Math.round(68 + Math.random() * 18);
-                } else if (isAccent) {
-                    noteIndex = rootIndex + scale.intervals[3 + Math.floor(Math.random() * 4)] + 12;
-                    volume = Math.round(54 + Math.random() * 26);
-                } else if (isHatGrid) {
-                    noteIndex = rootIndex + scale.intervals[6 + Math.floor(Math.random() * 3)] + 12;
-                    volume = Math.round(34 + Math.random() * 22);
-                } else if (isTexture) {
-                    noteIndex = rootIndex + scale.intervals[5 + Math.floor(Math.random() * 4)];
-                    volume = Math.round(46 + Math.random() * 22);
-                } else if (enabled) {
-                    const motifDegree = motif[index % motif.length];
-                    const highLift = Math.random() < 0.42 ? 12 : 0;
-                    const passingTone = Math.random() < 0.34 ? (Math.random() < 0.5 ? 1 : -1) : 0;
-                    noteIndex = rootIndex + scale.intervals[motifDegree] + highLift + passingTone;
-                    volume = Math.round(40 + Math.random() * 34);
-                }
-
-                noteIndex = Math.max(0, Math.min(noteNames.length - 1, noteIndex));
+                const enabled = Boolean(blueprint.pattern.enabled[index]);
+                const accentLift = blueprint.pattern.accents[index] ? 8 : 0;
+                const baseOffset = Number(blueprint.pattern.pitchOffsets[index]) || 0;
+                const quantized = quantizePitchOffsetToScale(baseOffset, scale.intervals);
+                const noteIndex = Math.max(0, Math.min(noteNames.length - 1, rootIndex + quantized));
+                const volume = enabled
+                    ? Math.max(32, Math.min(98, Math.round((Number(blueprint.pattern.velocities[index]) || 60) + accentLift)))
+                    : 0;
 
                 sequencerSteps[index] = {
                     enabled,
@@ -8416,8 +8607,9 @@
             seqGrainsEnabled = true;
             const grainsCheckbox = document.getElementById('seqGrainsEnabled');
             if (grainsCheckbox) grainsCheckbox.checked = true;
-            setStatus(`Generated ${scale.name} experimental loop at ${bpm} BPM.`);
+            setStatus(`Generated ${blueprint.profile.label} / ${scale.name} loop at ${bpm} BPM.`);
             saveState();
+            return blueprint;
         }
 
         async function generateSourceWithPlaybackRestart(options = {}) {
@@ -8433,7 +8625,7 @@
             }
             await generateRandomSourceSample();
             if (options.refreshSequencerPattern) {
-                generateInterestingLoop();
+                generateInterestingLoop({ profile: options.profile, blueprint: options.blueprint });
             }
             if (shouldRestartSequencer) {
                 startSequencer();
@@ -9224,44 +9416,10 @@
         document.getElementById('randomizeBtn').addEventListener('click', async () => {
             showSettlePopup();
             const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
-            // Get all sliders
-            const allSliders = document.querySelectorAll('input[type="range"]');
-            
-            allSliders.forEach(slider => {
-                // Keep source region and global timing anchors under manual control.
-                if (RANDOMIZE_SKIP_SLIDERS.has(slider.id)) {
-                    return;
-                }
-                
-                // Skip BPM-related sliders if locked
-                if (bpmLocked) {
-                    if (slider.id === 'delayBpm' || slider.id === 'lfoRate' || slider.id === 'lfo2Rate' || slider.id === 'lfo3Rate') {
-                        return;
-                    }
-                }
-                
-                const min = parseFloat(slider.min);
-                const max = parseFloat(slider.max);
-                const step = parseFloat(slider.step);
-                
-                // Generate random value
-                const range = max - min;
-                let randomValue = min + (Math.random() * range);
-                
-                // Round to step if step is positive
-                if (step > 0) {
-                    randomValue = Math.round(randomValue / step) * step;
-                }
-                
-                slider.value = randomValue;
-                
-                // Trigger input event to update display and effects
-                slider.dispatchEvent(new Event('input'));
-            });
-            
-            randomizeLfoRoutingMatrix();
-
-            randomizeInternalParameters();
+            const generationProfile = createMusicalGenerationProfile();
+            const loopBlueprint = buildLoopBlueprint(generationProfile);
+            randomizeInternalParameters({ profile: generationProfile });
+            randomizeLfoRoutingMatrix({ profile: generationProfile });
 
             // Randomize key type/division selectors while leaving waveform controls manual.
             [
@@ -9297,16 +9455,21 @@
             });
 
             restoreRandomizeProtectedSliders(protectedRandomizeSliders);
-            randomizeInternalLfoTempoRatios();
+            randomizeInternalLfoTempoRatios({ profile: generationProfile });
 
             if (!audioContext) {
+                generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
                 statusDiv.textContent = 'Patch randomized; start MYGRAIN to generate the source loop.';
                 return;
             }
 
             setPerformanceGenerateButtonState('generating');
             try {
-                await generatePerformanceLoop();
+                await generateSourceWithPlaybackRestart({
+                    refreshSequencerPattern: true,
+                    profile: generationProfile,
+                    blueprint: loopBlueprint
+                });
                 setPerformanceGenerateButtonState('generated');
                 statusDiv.textContent = 'Patch randomized and new loop generated; source loop points and mix balances kept.';
             } catch (error) {
