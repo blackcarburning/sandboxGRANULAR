@@ -2007,6 +2007,7 @@
         .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceOscToggleBtn.osc-off,
         .simplified-ui #performanceFxMuteBtn.fx-muted,
+        .simplified-ui #performanceDryFilterBtn.dry-filtered,
         .simplified-ui #performanceRecordBtn.recording,
         .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
@@ -2418,6 +2419,7 @@
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
+                <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
@@ -3940,6 +3942,7 @@
         let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedLoopTransposeOctaves = 0;
+        let generatedDryThroughFilters = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -5338,7 +5341,7 @@
             source.loopEnd = Math.min(generatedLoopBuffer.duration, loopEnd);
             gain.gain.setValueAtTime(Math.min(0.9, mix * MIX_HEADROOM), safeStartTime);
             source.connect(gain);
-            gain.connect(masterGain);
+            gain.connect(generatedDryThroughFilters && preFilterGainNode ? preFilterGainNode : masterGain);
             source.start(safeStartTime, offset);
             source.onended = () => {
                 if (source !== generatedDrySource) return;
@@ -5352,6 +5355,26 @@
 
             generatedDrySource = source;
             generatedDryGainNode = gain;
+        }
+
+        function setGeneratedDryThroughFilters(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (generatedDryThroughFilters === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+
+            const wasDryLooping = Boolean(generatedDrySource);
+            generatedDryThroughFilters = nextValue;
+            if (wasDryLooping) {
+                startGeneratedDryLoop();
+            }
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(generatedDryThroughFilters
+                    ? 'Generated dry loop routed through filters.'
+                    : 'Generated dry loop routed direct to mix.');
+            }
         }
 
         function updateGeneratedDryLoopMix() {
@@ -8529,6 +8552,7 @@
             setFilterPoles('lpf', 2);
             setFilterPoles('hpf', 2);
             setFxMuted(false, { silent: true });
+            setGeneratedDryThroughFilters(false, { silent: true });
             
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
@@ -8630,6 +8654,7 @@
                 octave: octaveOffset,
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
+                generatedDryThroughFilters: generatedDryThroughFilters,
                 filterPoles: {
                     lpf: slopeToFilterPoles(lpfSlope),
                     hpf: slopeToFilterPoles(hpfSlope)
@@ -9106,6 +9131,7 @@
                     holdEnabled: holdEnabled,
                     bpmLocked: bpmLocked,
                     fxMuted: fxMuted,
+                    generatedDryThroughFilters: generatedDryThroughFilters,
                     lpfSlope: lpfSlope,
                     hpfSlope: hpfSlope,
                     lpfEnabled: lpfEnabled,
@@ -9231,6 +9257,9 @@
                     if (state.modes.fxMuted !== undefined) {
                         setFxMuted(state.modes.fxMuted, { silent: true });
                     }
+                    if (state.modes.generatedDryThroughFilters !== undefined) {
+                        setGeneratedDryThroughFilters(state.modes.generatedDryThroughFilters, { silent: true });
+                    }
                 }
 
                 const usesSharedBpmState = state.bpmOnlyLfos === true || state.globalBpm != null || normalizedStateSliders?.globalBpmSlider != null;
@@ -9327,6 +9356,10 @@
 
                 if (state.fxMuted !== undefined) {
                     setFxMuted(state.fxMuted, { silent: true });
+                }
+
+                if (state.generatedDryThroughFilters !== undefined) {
+                    setGeneratedDryThroughFilters(state.generatedDryThroughFilters, { silent: true });
                 }
 
                 // Restore volume bias
@@ -9537,11 +9570,21 @@
             const generatedDryLevel = includeDryGenerated && generatedLoopBuffer
                 ? Math.min(0.9, getGeneratedDryMixValue() * MIX_HEADROOM)
                 : 0;
-            scheduleOfflineLoopSource(offline, master, generatedLoopBuffer, 'generatedLoopStart', 'generatedLoopEnd', generatedDryLevel, durationSeconds);
 
             if (!dryOnly) {
                 const filterInput = createOfflineFilterDestination(offline, master);
+                scheduleOfflineLoopSource(
+                    offline,
+                    generatedDryThroughFilters ? filterInput : master,
+                    generatedLoopBuffer,
+                    'generatedLoopStart',
+                    'generatedLoopEnd',
+                    generatedDryLevel,
+                    durationSeconds
+                );
                 getSequencerExportSources(offline, filterInput, getAvailableGranularSources(), durationSeconds);
+            } else {
+                scheduleOfflineLoopSource(offline, master, generatedLoopBuffer, 'generatedLoopStart', 'generatedLoopEnd', generatedDryLevel, durationSeconds);
             }
 
             return offline.startRendering();
@@ -10004,6 +10047,7 @@
         const performanceExportBars = document.getElementById('performanceExportBars');
         const performanceExportBtn = document.getElementById('performanceExportBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
+        const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         let performanceGenerateStateTimer = null;
 
         function syncPerformanceSoundControls() {
@@ -10141,6 +10185,12 @@
                 performanceFxMuteBtn.setAttribute('aria-pressed', String(fxMuted));
             }
 
+            if (performanceDryFilterBtn) {
+                performanceDryFilterBtn.classList.toggle('dry-filtered', generatedDryThroughFilters);
+                performanceDryFilterBtn.textContent = generatedDryThroughFilters ? 'Dry Filter On' : 'Dry Filter Off';
+                performanceDryFilterBtn.setAttribute('aria-pressed', String(generatedDryThroughFilters));
+            }
+
             if (performanceLfoSquareBtn) {
                 performanceLfoSquareBtn.classList.toggle('active', allLfosSquareForced);
                 performanceLfoSquareBtn.setAttribute('aria-pressed', String(allLfosSquareForced));
@@ -10209,6 +10259,10 @@
 
         performanceFxMuteBtn?.addEventListener('click', () => {
             setFxMuted(!fxMuted);
+        });
+
+        performanceDryFilterBtn?.addEventListener('click', () => {
+            setGeneratedDryThroughFilters(!generatedDryThroughFilters);
         });
 
         performanceLfoSquareBtn?.addEventListener('click', () => {

@@ -85,7 +85,9 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceExportBars"/);
     assert.match(indexHtml, /id="performanceExportBtn"/);
     assert.match(indexHtml, /id="performanceFxMuteBtn"/);
+    assert.match(indexHtml, /id="performanceDryFilterBtn"/);
     assert.match(indexHtml, /function setFxMuted\(muted, options = \{\}\)/);
+    assert.match(indexHtml, /function setGeneratedDryThroughFilters\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
     assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
@@ -183,6 +185,10 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /let generatedDryMix = 0/);
     assert.match(indexHtml, /function startGeneratedDryLoop\(startTime = null\)/);
     assert.match(indexHtml, /function stopGeneratedDryLoop\(\)/);
+    assert.match(indexHtml, /let generatedDryThroughFilters = false/);
+    assert.match(indexHtml, /gain\.connect\(generatedDryThroughFilters && preFilterGainNode \? preFilterGainNode : masterGain\)/);
+    assert.match(indexHtml, /performanceDryFilterBtn\.classList\.toggle\('dry-filtered', generatedDryThroughFilters\)/);
+    assert.match(indexHtml, /setGeneratedDryThroughFilters\(!generatedDryThroughFilters\)/);
     assert.match(indexHtml, /generatedLoopBuffer/);
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /sourceGainMap\.get\(sourceInfo\) \?\? 0/);
@@ -222,6 +228,7 @@ test('daw export renders from time zero with generated dry stem', () => {
     assert.match(indexHtml, /function exportDawReadyBars\(\)/);
     assert.match(indexHtml, /renderDawReadyBuffer\(\{ bars, includeDryGenerated: true, dryOnly: false \}\)/);
     assert.match(indexHtml, /renderDawReadyBuffer\(\{ bars, includeDryGenerated: true, dryOnly: true \}\)/);
+    assert.match(indexHtml, /generatedDryThroughFilters \? filterInput : master/);
     assert.match(indexHtml, /mygrain-mix-\$\{bpm\}bpm-\$\{bars\}bars/);
     assert.match(indexHtml, /mygrain-generated-dry-\$\{bpm\}bpm-\$\{bars\}bars/);
     assert.match(indexHtml, /setStatus\(`Exporting \$\{bars\} bar/);
