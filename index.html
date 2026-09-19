@@ -8920,8 +8920,10 @@
                 || buildGeneratedSourceDrumBlueprint(profile);
             const events = [];
             const TWO_PI = Math.PI * 2;
+            const sourceRecipeCount = drumBlueprint?.paletteSize || 3;
+            const sourceGrooveLabel = drumBlueprint?.grooveLabel || 'fallback drum grid';
 
-            setStatus(`Generating ${drumBlueprint?.grooveLabel || 'drum grid'} source from ${drumBlueprint?.paletteSize || 0} drum recipes…`);
+            setStatus(`Generating ${sourceGrooveLabel} source from ${sourceRecipeCount} drum recipes…`);
 
             function burstEnvelope(delta, attack, decay) {
                 if (delta < 0) return 0;
