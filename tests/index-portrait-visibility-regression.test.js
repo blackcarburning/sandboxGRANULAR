@@ -60,6 +60,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Gen Dry</);
     assert.match(indexHtml, /id="performanceGeneratedSwing"/);
     assert.match(indexHtml, />Gen Swing</);
+    assert.match(indexHtml, /id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1"/);
+    assert.match(indexHtml, />Loop Transpose</);
     assert.match(indexHtml, /id="performanceLpfCutoff"/);
     assert.match(indexHtml, /id="performanceLpfResonance"/);
     assert.match(indexHtml, /id="performanceHpfCutoff"/);
@@ -82,6 +84,10 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performancePulseWidth"/);
     assert.match(indexHtml, /id="performanceExportBars"/);
     assert.match(indexHtml, /id="performanceExportBtn"/);
+    assert.match(indexHtml, /id="performanceFxMuteBtn"/);
+    assert.match(indexHtml, /function setFxMuted\(muted, options = \{\}\)/);
+    assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
+    assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
 });
@@ -98,6 +104,8 @@ test('mobile keyboard presents one octave with widened touch targets', () => {
     assert.match(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls/);
     assert.match(indexHtml, /performance-sound-card performance-octave-card/);
     assert.match(indexHtml, /\.simplified-ui \.performance-octave-card\s*\{\s*display: none;/);
+    assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.performance-controls \{[\s\S]*order: 2;/);
+    assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.keyboard-section \{[\s\S]*order: 1;/);
 });
 
 test('keyboard octave transposes labels, granular, and oscillator pitch', () => {
@@ -130,8 +138,44 @@ test('patch randomize does not move manual source loop points', () => {
     assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.has\(slider\.id\)/);
 });
 
+test('patch randomize leaves instrument mix and balance controls alone', () => {
+    const experimentalPatch = indexHtml.match(/function applyExperimentalLoopPatch\(\) \{[\s\S]*?\n        \}/)?.[0] || '';
+    assert.ok(experimentalPatch, 'applyExperimentalLoopPatch should be present');
+
+    [
+        'oscMix',
+        'performanceSourceMix',
+        'performanceGeneratedSourceMix',
+        'performanceGeneratedDryMix',
+        'performanceGeneratedTranspose',
+        'osc1Level',
+        'osc2Level',
+        'noiseMix',
+        'reverb',
+        'delayMix',
+        'volume',
+        'preFilterGain',
+        'postFilterGain'
+    ].forEach((id) => {
+        assert.match(indexHtml, new RegExp(`'${id}'`));
+    });
+    assert.match(indexHtml, /const RANDOMIZE_SKIP_PARAMS = new Set/);
+    assert.match(indexHtml, /RANDOMIZE_SKIP_PARAMS\.has\(param\)/);
+    assert.match(indexHtml, /Patch randomized; source loop points and mix balances kept\./);
+    assert.doesNotMatch(experimentalPatch, /oscMix:/);
+    assert.doesNotMatch(experimentalPatch, /performanceGeneratedSourceMix:/);
+    assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryMix:/);
+    assert.doesNotMatch(experimentalPatch, /noiseMix:/);
+    assert.doesNotMatch(experimentalPatch, /reverb:/);
+    assert.doesNotMatch(experimentalPatch, /delayMix:/);
+    assert.doesNotMatch(experimentalPatch, /volume:/);
+    assert.doesNotMatch(experimentalPatch, /preFilterGain:/);
+    assert.doesNotMatch(experimentalPatch, /postFilterGain:/);
+});
+
 test('granular engine routes generated and mic buffers as separate sources', () => {
     assert.match(indexHtml, /let generatedLoopBuffer = null/);
+    assert.match(indexHtml, /let generatedLoopBaseBuffer = null/);
     assert.match(indexHtml, /let micAudioBuffer = null/);
     assert.match(indexHtml, /function getAvailableGranularSources\(\)/);
     assert.match(indexHtml, /let generatedSourceMix = 1/);
@@ -143,10 +187,22 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /sourceGainMap\.get\(sourceInfo\) \?\? 0/);
     assert.match(indexHtml, /resetSourceLoopPoints\(kind\)/);
-    assert.match(indexHtml, /oscMix: 8/);
-    assert.match(indexHtml, /performanceGeneratedSourceMix: 100/);
-    assert.match(indexHtml, /performanceGeneratedDryMix: 78/);
     assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
+});
+
+test('generated loop transpose keeps tempo length independent of keyboard octave', () => {
+    assert.match(indexHtml, /let generatedLoopTransposeOctaves = 0/);
+    assert.match(indexHtml, /function clampGeneratedLoopTransposeOctaves\(value\)/);
+    assert.match(indexHtml, /return Math\.max\(-3, Math\.min\(3, Math\.round\(numeric\)\)\)/);
+    assert.match(indexHtml, /function pitchShiftBufferKeepDuration\(sourceBuffer, octaves\)/);
+    assert.match(indexHtml, /sourceBuffer\.length/);
+    assert.match(indexHtml, /audioContext\.createBuffer\(\s*sourceBuffer\.numberOfChannels,\s*sourceBuffer\.length,\s*sourceBuffer\.sampleRate\s*\)/);
+    assert.match(indexHtml, /function renderGeneratedLoopBufferWithTranspose\(sourceBuffer = generatedLoopBaseBuffer\)/);
+    assert.match(indexHtml, /generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose\(generatedLoopBaseBuffer\)/);
+    assert.match(indexHtml, /performanceGeneratedTranspose\?\.addEventListener\('input', async \(event\) => \{/);
+    assert.match(indexHtml, /formatGeneratedLoopTranspose\(e\.target\.value\)/);
+    assert.match(indexHtml, /generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves\(\)/);
+    assert.match(indexHtml, /octave: octaveOffset/);
 });
 
 test('generated source uses strict straight grid timing', () => {

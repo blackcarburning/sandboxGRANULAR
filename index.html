@@ -2006,6 +2006,7 @@
         .simplified-ui #performanceLfoSquareBtn.active,
         .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceOscToggleBtn.osc-off,
+        .simplified-ui #performanceFxMuteBtn.fx-muted,
         .simplified-ui #performanceRecordBtn.recording,
         .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
@@ -2189,6 +2190,7 @@
 
             .simplified-ui .performance-controls {
                 gap: 10px;
+                order: 2;
             }
 
             .simplified-ui .performance-btn {
@@ -2205,6 +2207,7 @@
                 --keyboard-key-height: 164px;
                 min-height: 232px;
                 padding: 8px;
+                order: 1;
             }
         }
 
@@ -2314,6 +2317,13 @@
                     <input type="range" id="performanceGeneratedSwing" min="0" max="60" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceGeneratedTranspose">
+                        <span>Loop Transpose</span>
+                        <span class="value" id="performanceGeneratedTransposeValue">0 oct</span>
+                    </label>
+                    <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceLpfCutoff">
                         <span>LP Cutoff</span>
                         <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
@@ -2407,6 +2417,7 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
+                <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
@@ -3787,6 +3798,7 @@
         let audioContext;
         let audioBuffer = null;
         let generatedLoopBuffer = null;
+        let generatedLoopBaseBuffer = null;
         let micAudioBuffer = null;
         let sourceMutationSerial = 0;
         let lastSourceWriteAt = 0;
@@ -3927,9 +3939,11 @@
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSourceSwing = 0; // 0 = straight generated source timing
+        let generatedLoopTransposeOctaves = 0;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
+        let fxMuted = false;
         let allLfosSquareForced = false;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         const MIX_HEADROOM = 0.9;
@@ -3941,10 +3955,36 @@
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
             'globalBpmSlider',
+            'oscMix',
+            'performanceSourceMix',
+            'performanceGeneratedSourceMix',
+            'performanceGeneratedDryMix',
+            'performanceGeneratedTranspose',
+            'osc1Level',
+            'osc2Level',
+            'noiseMix',
+            'reverb',
+            'delayMix',
+            'volume',
+            'preFilterGain',
+            'postFilterGain',
             'generatedLoopStart',
             'generatedLoopEnd',
             'micLoopStart',
             'micLoopEnd'
+        ]);
+        const RANDOMIZE_SKIP_PARAMS = new Set([
+            'oscMix',
+            'generatedSourceMix',
+            'generatedDryMix',
+            'osc1Level',
+            'osc2Level',
+            'noiseMix',
+            'reverb',
+            'delayMix',
+            'volume',
+            'preFilterGain',
+            'postFilterGain'
         ]);
         
         // Sequencer state
@@ -4548,6 +4588,7 @@
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
                     if (shouldRestoreGenerated) {
                         generatedLoopBuffer = restoredGeneratedBuffer;
+                        generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
                     }
                     if (shouldRestoreMic) {
                         micAudioBuffer = restoredMicBuffer;
@@ -4895,7 +4936,7 @@
                 audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
             }
             
-            const reverbAmt = getModulatedValue('reverb') / 100;
+            const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = getModulatedValue('volume') / 100;
             
             // Dry/Wet gains
@@ -4928,8 +4969,8 @@
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
                 const bpm = parseFloat(document.getElementById('delayBpm')?.value) || 120;
                 const division = document.getElementById('delayDivision')?.value || '4';
-                const feedback = getModulatedValue('delayFeedback') / 100;
-                const mix = getModulatedValue('delayMix') / 100;
+                const feedback = fxMuted ? 0 : getModulatedValue('delayFeedback') / 100;
+                const mix = fxMuted ? 0 : getModulatedValue('delayMix') / 100;
                 
                 let delayTime = 60 / bpm;
                 if (division.includes('d')) {
@@ -5096,6 +5137,157 @@
             const clamped = Math.max(0, Math.min(60, Number.isFinite(rawValue) ? rawValue : 0));
             generatedSourceSwing = clamped / 100;
             return generatedSourceSwing;
+        }
+
+        function clampGeneratedLoopTransposeOctaves(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 0;
+            return Math.max(-3, Math.min(3, Math.round(numeric)));
+        }
+
+        function formatGeneratedLoopTranspose(octaves) {
+            const clamped = clampGeneratedLoopTransposeOctaves(octaves);
+            return `${clamped > 0 ? '+' : ''}${clamped} oct`;
+        }
+
+        function updateGeneratedLoopTransposeLabel() {
+            const value = clampGeneratedLoopTransposeOctaves(generatedLoopTransposeOctaves);
+            const label = document.getElementById('performanceGeneratedTransposeValue');
+            if (label) label.textContent = formatGeneratedLoopTranspose(value);
+            const slider = document.getElementById('performanceGeneratedTranspose');
+            if (slider && Number(slider.value) !== value) {
+                slider.value = String(value);
+            }
+        }
+
+        function getGeneratedLoopTransposeOctaves() {
+            const slider = document.getElementById('performanceGeneratedTranspose');
+            generatedLoopTransposeOctaves = clampGeneratedLoopTransposeOctaves(slider?.value ?? generatedLoopTransposeOctaves);
+            updateGeneratedLoopTransposeLabel();
+            return generatedLoopTransposeOctaves;
+        }
+
+        function cloneAudioBufferForCurrentContext(sourceBuffer) {
+            if (!audioContext || !sourceBuffer) return sourceBuffer;
+            const cloned = audioContext.createBuffer(
+                sourceBuffer.numberOfChannels,
+                sourceBuffer.length,
+                sourceBuffer.sampleRate
+            );
+            for (let channel = 0; channel < sourceBuffer.numberOfChannels; channel++) {
+                cloned.copyToChannel(sourceBuffer.getChannelData(channel), channel);
+            }
+            return cloned;
+        }
+
+        function getBufferPeak(buffer) {
+            let peak = 0;
+            if (!buffer) return peak;
+            for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                const data = buffer.getChannelData(channel);
+                for (let i = 0; i < data.length; i++) {
+                    peak = Math.max(peak, Math.abs(data[i]));
+                }
+            }
+            return peak;
+        }
+
+        function pitchShiftBufferKeepDuration(sourceBuffer, octaves) {
+            if (!audioContext || !sourceBuffer) return sourceBuffer;
+            const octaveShift = clampGeneratedLoopTransposeOctaves(octaves);
+            const outputBuffer = audioContext.createBuffer(
+                sourceBuffer.numberOfChannels,
+                sourceBuffer.length,
+                sourceBuffer.sampleRate
+            );
+
+            if (octaveShift === 0 || sourceBuffer.length < 4) {
+                for (let channel = 0; channel < sourceBuffer.numberOfChannels; channel++) {
+                    outputBuffer.copyToChannel(sourceBuffer.getChannelData(channel), channel);
+                }
+                return outputBuffer;
+            }
+
+            const pitchRatio = Math.pow(2, octaveShift);
+            const length = sourceBuffer.length;
+            const grainFrames = Math.max(96, Math.min(length, Math.round(sourceBuffer.sampleRate * 0.085)));
+            const hopFrames = Math.max(24, Math.round(grainFrames / 4));
+            const sourcePeak = getBufferPeak(sourceBuffer);
+            let outputPeak = 0;
+
+            for (let channel = 0; channel < sourceBuffer.numberOfChannels; channel++) {
+                const input = sourceBuffer.getChannelData(channel);
+                const output = outputBuffer.getChannelData(channel);
+                const weights = new Float32Array(length);
+
+                for (let outStart = 0; outStart < length; outStart += hopFrames) {
+                    for (let frame = 0; frame < grainFrames; frame++) {
+                        const outIndex = outStart + frame;
+                        if (outIndex >= length) break;
+
+                        const phase = grainFrames <= 1 ? 0 : frame / (grainFrames - 1);
+                        const windowValue = 0.5 - (0.5 * Math.cos(2 * Math.PI * phase));
+                        let sourcePos = (outStart + (frame * pitchRatio)) % length;
+                        if (sourcePos < 0) sourcePos += length;
+                        const sourceIndex = Math.floor(sourcePos);
+                        const nextIndex = (sourceIndex + 1) % length;
+                        const frac = sourcePos - sourceIndex;
+                        const sample = input[sourceIndex] + ((input[nextIndex] - input[sourceIndex]) * frac);
+
+                        output[outIndex] += sample * windowValue;
+                        weights[outIndex] += windowValue;
+                    }
+                }
+
+                for (let i = 0; i < length; i++) {
+                    if (weights[i] > 0.000001) {
+                        output[i] /= weights[i];
+                    }
+                    outputPeak = Math.max(outputPeak, Math.abs(output[i]));
+                }
+            }
+
+            if (sourcePeak > 0.001 && outputPeak > sourcePeak) {
+                const scale = sourcePeak / outputPeak;
+                for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                    const output = outputBuffer.getChannelData(channel);
+                    for (let i = 0; i < output.length; i++) {
+                        output[i] *= scale;
+                    }
+                }
+            }
+
+            return outputBuffer;
+        }
+
+        function renderGeneratedLoopBufferWithTranspose(sourceBuffer = generatedLoopBaseBuffer) {
+            if (!sourceBuffer) return null;
+            return pitchShiftBufferKeepDuration(sourceBuffer, getGeneratedLoopTransposeOctaves());
+        }
+
+        async function applyGeneratedLoopTranspose(options = {}) {
+            generatedLoopTransposeOctaves = clampGeneratedLoopTransposeOctaves(
+                options.value ?? document.getElementById('performanceGeneratedTranspose')?.value ?? generatedLoopTransposeOctaves
+            );
+            updateGeneratedLoopTransposeLabel();
+
+            if (!generatedLoopBaseBuffer || !audioContext) return;
+
+            const wasDryLooping = Boolean(generatedDrySource);
+            stopGeneratedDryLoop();
+            generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
+            syncLegacyAudioBuffer();
+            drawWaveforms();
+            updateSourceAvailability();
+            await saveAudioBufferToDB(generatedLoopBuffer, GENERATED_AUDIO_BUFFER_KEY);
+
+            if (wasDryLooping || sequencerPlaying) {
+                startGeneratedDryLoop();
+            }
+
+            if (!options.silent) {
+                setStatus(`Generated loop transposed ${formatGeneratedLoopTranspose(generatedLoopTransposeOctaves)}; tempo unchanged.`);
+            }
         }
 
         function stopGeneratedDryLoop() {
@@ -5281,7 +5473,8 @@
                 activeSourceKind = 'mic';
             } else {
                 stopGeneratedDryLoop();
-                generatedLoopBuffer = buffer;
+                generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(buffer);
+                generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
                 lastGeneratedSourceWriteAt = Date.now();
                 activeSourceKind = 'generated';
             }
@@ -5413,6 +5606,7 @@
             stopGeneratedDryLoop();
             audioBuffer = null;
             generatedLoopBuffer = null;
+            generatedLoopBaseBuffer = null;
             micAudioBuffer = null;
             recordedChunks = [];
             drawWaveforms();
@@ -5595,6 +5789,7 @@
                     micAudioBuffer = result.buffer;
                     saveAudioBufferToDB(micAudioBuffer, MIC_AUDIO_BUFFER_KEY);
                 } else {
+                    generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(result.buffer);
                     generatedLoopBuffer = result.buffer;
                     saveAudioBufferToDB(generatedLoopBuffer, GENERATED_AUDIO_BUFFER_KEY);
                 }
@@ -6579,7 +6774,10 @@
                     const labelSpan = document.getElementById(e.target.id + 'Value');
                     if (labelSpan) {
                         let suffix = '';
-                        if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
+                        if (e.target.id === 'performanceGeneratedTranspose') {
+                            labelSpan.textContent = formatGeneratedLoopTranspose(e.target.value);
+                            return;
+                        } else if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
                         else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff') suffix = 'Hz';
                         else if (e.target.id === 'lpfQ' || e.target.id === 'hpfQ') suffix = '';
@@ -7081,6 +7279,23 @@
             setStatus(oscillatorsEnabled ? 'Oscillators enabled.' : 'Oscillators off. Granular sources only.');
         }
 
+        function setFxMuted(muted, options = {}) {
+            fxMuted = Boolean(muted);
+            updateEffects();
+            if (fxMuted && audioContext) {
+                const now = audioContext.currentTime;
+                [wetGainNode?.gain, delayWetGain?.gain, delayFeedbackGain?.gain].forEach((param) => {
+                    if (!param) return;
+                    param.cancelScheduledValues(now);
+                    param.setValueAtTime(0, now);
+                });
+            }
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(fxMuted ? 'Delay and reverb muted.' : 'Delay and reverb enabled.');
+            }
+        }
+
         // OSC Mix
         document.getElementById('oscMix').addEventListener('input', throttleSlider((e) => {
             oscMix = Math.max(0, Math.min(1, parseFloat(e.target.value) / 100));
@@ -7236,6 +7451,29 @@
             if (oscNumber === 2) osc2Config.octave = octave;
         }
 
+        function snapshotRandomizeProtectedSliders() {
+            const snapshot = {};
+            RANDOMIZE_SKIP_SLIDERS.forEach((id) => {
+                const slider = document.getElementById(id);
+                if (slider && slider.matches('input[type="range"]')) {
+                    snapshot[id] = slider.value;
+                }
+            });
+            return snapshot;
+        }
+
+        function restoreRandomizeProtectedSliders(snapshot) {
+            if (!snapshot) return;
+            Object.entries(snapshot).forEach(([id, value]) => {
+                const slider = document.getElementById(id);
+                if (!slider || !slider.matches('input[type="range"]')) return;
+                if (slider.value !== value) {
+                    slider.value = value;
+                    slider.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
+
         function applyExperimentalLoopPatch() {
             setSelectValue('osc1Wave', Math.random() < 0.5 ? 'triangle' : 'sine');
             setSelectValue('osc2Wave', Math.random() < 0.55 ? 'sawtooth' : 'triangle');
@@ -7246,19 +7484,14 @@
             setOscillatorOctave(2, 8);
 
             const defaults = {
-                osc1Level: 42,
                 osc1Attack: 1,
                 osc1Decay: 70,
                 osc1Sustain: 10,
                 osc1Release: 48,
-                osc2Level: 18,
                 osc2Attack: 1,
                 osc2Decay: 46,
                 osc2Sustain: 4,
                 osc2Release: 36,
-                oscMix: 8,
-                performanceGeneratedSourceMix: 100,
-                performanceGeneratedDryMix: 78,
                 performanceGeneratedSwing: 0,
                 sampleStart: 0,
                 sampleEnd: 100,
@@ -7280,16 +7513,10 @@
                 filterEnvDecay: 72,
                 filterEnvSustain: 8,
                 filterEnvRelease: 54,
-                noiseMix: 18,
-                reverb: 14,
                 distortion: 10,
                 phaserDepth: 12,
                 tremoloDepth: 10,
                 delayFeedback: 18,
-                delayMix: 12,
-                volume: 90,
-                preFilterGain: -2,
-                postFilterGain: 0
             };
 
             Object.entries(defaults).forEach(([id, value]) => setSliderValue(id, value));
@@ -7546,6 +7773,7 @@
 
             const loadToken = ++sampleLoadToken;
             const previousGeneratedBuffer = generatedLoopBuffer;
+            const previousGeneratedBaseBuffer = generatedLoopBaseBuffer;
             const previousMicBuffer = micAudioBuffer;
             setStatus(`Loading ${sourceLabel}…`);
             const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
@@ -7558,6 +7786,7 @@
                 await applyLoadedAudioBuffer(decodedBuffer, sourceLabel, kind);
             } catch (error) {
                 generatedLoopBuffer = previousGeneratedBuffer;
+                generatedLoopBaseBuffer = previousGeneratedBaseBuffer;
                 micAudioBuffer = previousMicBuffer;
                 syncLegacyAudioBuffer();
                 throw error;
@@ -8081,6 +8310,7 @@
         // Randomize Button
         document.getElementById('randomizeBtn').addEventListener('click', () => {
             showSettlePopup();
+            const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
             // Get all sliders
             const allSliders = document.querySelectorAll('input[type="range"]');
             
@@ -8120,6 +8350,9 @@
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
                 const param = btn.dataset.param;
                 const lfoNum = btn.dataset.lfo;
+                if (RANDOMIZE_SKIP_PARAMS.has(param)) {
+                    return;
+                }
                 
                 // 40% chance of enabling LFO (within 30-50% target range)
                 const shouldEnable = Math.random() < 0.4;
@@ -8135,6 +8368,9 @@
             document.querySelectorAll('.inv-toggle').forEach(btn => {
                 const param = btn.dataset.param;
                 const lfoNum = btn.dataset.lfo;
+                if (RANDOMIZE_SKIP_PARAMS.has(param)) {
+                    return;
+                }
                 
                 // Only randomize INV if corresponding LFO is enabled for this parameter
                 const lfoIsEnabled = lfoNum === '1' ? lfoEnabled[param] : 
@@ -8195,8 +8431,10 @@
                     randomBtn.click();
                 }
             });
+
+            restoreRandomizeProtectedSliders(protectedRandomizeSliders);
             
-            statusDiv.textContent = 'Patch randomized; source loop points kept.';
+            statusDiv.textContent = 'Patch randomized; source loop points and mix balances kept.';
         });
 
         // Reset to Default Button
@@ -8246,7 +8484,8 @@
                 oscMix: 35,
                 performanceGeneratedSourceMix: 100,
                 performanceGeneratedDryMix: 0,
-                performanceGeneratedSwing: 0
+                performanceGeneratedSwing: 0,
+                performanceGeneratedTranspose: 0
             };
             
             // Reset all sliders to default values
@@ -8262,6 +8501,7 @@
             setFilterEnabled('hpf', true);
             setFilterPoles('lpf', 2);
             setFilterPoles('hpf', 2);
+            setFxMuted(false, { silent: true });
             
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
@@ -8361,6 +8601,8 @@
                     inverted: {}
                 },
                 octave: octaveOffset,
+                generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
+                fxMuted: fxMuted,
                 filterPoles: {
                     lpf: slopeToFilterPoles(lpfSlope),
                     hpf: slopeToFilterPoles(hpfSlope)
@@ -8836,12 +9078,14 @@
                     lfo3Mode: 'bpm',
                     holdEnabled: holdEnabled,
                     bpmLocked: bpmLocked,
+                    fxMuted: fxMuted,
                     lpfSlope: lpfSlope,
                     hpfSlope: hpfSlope,
                     lpfEnabled: lpfEnabled,
                     hpfEnabled: hpfEnabled
                 },
                 octave: octaveOffset,
+                generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 volumeBias: keyboardVolumeBias,
                 activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'grain'
             };
@@ -8957,6 +9201,9 @@
                     if (state.modes.hpfEnabled !== undefined) {
                         setFilterEnabled('hpf', state.modes.hpfEnabled);
                     }
+                    if (state.modes.fxMuted !== undefined) {
+                        setFxMuted(state.modes.fxMuted, { silent: true });
+                    }
                 }
 
                 const usesSharedBpmState = state.bpmOnlyLfos === true || state.globalBpm != null || normalizedStateSliders?.globalBpmSlider != null;
@@ -9044,6 +9291,15 @@
                 if (state.octave !== undefined) {
                     octaveOffset = state.octave;
                     updateOctaveDisplay();
+                }
+
+                if (state.generatedLoopTransposeOctaves !== undefined) {
+                    generatedLoopTransposeOctaves = clampGeneratedLoopTransposeOctaves(state.generatedLoopTransposeOctaves);
+                    updateGeneratedLoopTransposeLabel();
+                }
+
+                if (state.fxMuted !== undefined) {
+                    setFxMuted(state.fxMuted, { silent: true });
                 }
 
                 // Restore volume bias
@@ -9709,6 +9965,7 @@
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
         const performanceGeneratedSwing = document.getElementById('performanceGeneratedSwing');
+        const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
@@ -9719,6 +9976,7 @@
         const performancePulseWidth = document.getElementById('performancePulseWidth');
         const performanceExportBars = document.getElementById('performanceExportBars');
         const performanceExportBtn = document.getElementById('performanceExportBtn');
+        const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         let performanceGenerateStateTimer = null;
 
         function syncPerformanceSoundControls() {
@@ -9754,6 +10012,12 @@
                 const value = Math.round(getGeneratedSourceSwingValue() * 100);
                 performanceGeneratedSwing.value = String(value);
                 document.getElementById('performanceGeneratedSwingValue').textContent = `${value}%`;
+            }
+
+            if (performanceGeneratedTranspose) {
+                const value = getGeneratedLoopTransposeOctaves();
+                performanceGeneratedTranspose.value = String(value);
+                document.getElementById('performanceGeneratedTransposeValue').textContent = formatGeneratedLoopTranspose(value);
             }
 
             if (performanceLpfCutoff && lpfCutoffSlider) {
@@ -9844,6 +10108,12 @@
                 performanceOscToggleBtn.setAttribute('aria-pressed', String(!oscillatorsEnabled));
             }
 
+            if (performanceFxMuteBtn) {
+                performanceFxMuteBtn.classList.toggle('fx-muted', fxMuted);
+                performanceFxMuteBtn.textContent = fxMuted ? 'FX Muted' : 'FX On';
+                performanceFxMuteBtn.setAttribute('aria-pressed', String(fxMuted));
+            }
+
             if (performanceLfoSquareBtn) {
                 performanceLfoSquareBtn.classList.toggle('active', allLfosSquareForced);
                 performanceLfoSquareBtn.setAttribute('aria-pressed', String(allLfosSquareForced));
@@ -9902,8 +10172,16 @@
             document.getElementById('performanceGeneratedSwingValue').textContent = `${Math.round(value)}%`;
         });
 
+        performanceGeneratedTranspose?.addEventListener('input', async (event) => {
+            await applyGeneratedLoopTranspose({ value: event.target.value });
+        });
+
         performanceOscToggleBtn?.addEventListener('click', () => {
             setOscillatorsEnabled(!oscillatorsEnabled);
+        });
+
+        performanceFxMuteBtn?.addEventListener('click', () => {
+            setFxMuted(!fxMuted);
         });
 
         performanceLfoSquareBtn?.addEventListener('click', () => {
