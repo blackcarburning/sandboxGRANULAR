@@ -3479,6 +3479,7 @@
         };
         let oscMix = 0.5; // 0 = oscillators silent, 1 = oscillators full volume
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
+        const MIX_HEADROOM = 0.9;
         
         // Sequencer state
         let sequencerPlaying = false;
@@ -4204,10 +4205,10 @@
             // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
             const initialOscMix = oscMix;
             oscOutputGain = audioContext.createGain();
-            oscOutputGain.gain.value = Math.sqrt(initialOscMix);
+            oscOutputGain.gain.value = Math.sqrt(initialOscMix) * MIX_HEADROOM;
             
             granularOutputGain = audioContext.createGain();
-            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix);
+            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * MIX_HEADROOM;
             
             // Connect both to the pre-filter gain node, then to filter chain
             oscOutputGain.connect(preFilterGainNode);
@@ -6195,8 +6196,8 @@
             oscMix = parseFloat(e.target.value) / 100;
             // Implement true crossfade with headroom to prevent clipping
             // Use equal-power crossfade for smoother transition
-            const oscLevel = Math.sqrt(oscMix);
-            const granularLevel = Math.sqrt(1 - oscMix);
+            const oscLevel = Math.sqrt(oscMix) * MIX_HEADROOM;
+            const granularLevel = Math.sqrt(1 - oscMix) * MIX_HEADROOM;
             
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
                 const now = audioContext.currentTime;
@@ -7071,6 +7072,7 @@
                 version: '3.1',
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
+                sequencerBpm: document.getElementById('seqBpm')?.value ?? String(sequencerBPM),
                 timestamp: new Date().toISOString(),
                 sliders: {},
                 lfo: {
@@ -7157,17 +7159,15 @@
             }
             
             enforceBpmOnlyLfoMode();
-            const restoredGlobalBpm = safePreset.globalBpm ?? normalizedSliders?.globalBpmSlider;
-            if (restoredGlobalBpm != null) {
-                applyGlobalBpm(restoredGlobalBpm);
-            } else {
-                syncGlobalBpmControls(
-                    normalizedSliders?.lfoRate ??
-                    normalizedSliders?.delayBpm ??
-                    normalizedSliders?.lfo3Rate ??
-                    120
-                );
-            }
+            applyGlobalBpm(
+                safePreset.globalBpm ??
+                safePreset.sequencerBpm ??
+                normalizedSliders?.globalBpmSlider ??
+                normalizedSliders?.delayBpm ??
+                normalizedSliders?.lfoRate ??
+                normalizedSliders?.lfo3Rate ??
+                120
+            );
             
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
@@ -7524,6 +7524,7 @@
                 version: '1.2',
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
+                sequencerBpm: document.getElementById('seqBpm')?.value ?? String(sequencerBPM),
                 timestamp: Date.now(),
                 sliders: {},
                 toggles: {
@@ -7645,17 +7646,15 @@
                     }
                 }
 
-                const restoredGlobalBpm = state.globalBpm ?? normalizedStateSliders?.globalBpmSlider;
-                if (restoredGlobalBpm != null) {
-                    applyGlobalBpm(restoredGlobalBpm);
-                } else {
-                    syncGlobalBpmControls(
-                        normalizedStateSliders?.lfoRate ??
-                        normalizedStateSliders?.delayBpm ??
-                        normalizedStateSliders?.lfo3Rate ??
-                        120
-                    );
-                }
+                applyGlobalBpm(
+                    state.globalBpm ??
+                    state.sequencerBpm ??
+                    normalizedStateSliders?.globalBpmSlider ??
+                    normalizedStateSliders?.delayBpm ??
+                    normalizedStateSliders?.lfoRate ??
+                    normalizedStateSliders?.lfo3Rate ??
+                    120
+                );
 
                 // Restore LFO toggle states
                 if (state.toggles && state.toggles.lfo) {
