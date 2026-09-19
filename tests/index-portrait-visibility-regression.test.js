@@ -426,29 +426,42 @@ test('lfo waveforms include pulse width and stepped shapes', () => {
     assert.match(indexHtml, /function evaluateLfoWaveform\(waveform, phase, pulseWidth = 0\.5\)/);
 });
 
-test('all internal lfos can be forced to square, toggled off, and cleared by randomize', () => {
+test('all internal lfos can be forced to square and waveform controls stay manual through randomize', () => {
     assert.match(indexHtml, /let allLfosSquareForced = false/);
     assert.match(indexHtml, /let allLfosSquarePreviousWaveforms = null/);
     assert.match(indexHtml, /const INTERNAL_LFO_WAVEFORM_IDS = \['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'\]/);
+    assert.match(indexHtml, /const RANDOMIZE_SKIP_SELECTS = new Set\(\[/);
+    assert.match(indexHtml, /'lfoWaveform'/);
+    assert.match(indexHtml, /'lfo2Waveform'/);
+    assert.match(indexHtml, /'lfo3Waveform'/);
+    assert.match(indexHtml, /'osc1Wave'/);
+    assert.match(indexHtml, /'osc2Wave'/);
     assert.match(indexHtml, /function getInternalLfoWaveformSnapshot\(\)/);
     assert.match(indexHtml, /function setAllInternalLfoWaveforms\(waveform, options = \{\}\)/);
+    assert.match(indexHtml, /function setAllInternalLfoPulseWidths\(value, options = \{\}\)/);
     assert.match(indexHtml, /allLfosSquarePreviousWaveforms = getInternalLfoWaveformSnapshot\(\)/);
     assert.match(indexHtml, /setAllInternalLfoWaveforms\('square', \{ forcedSquare: true \}\)/);
     assert.match(indexHtml, /if \(allLfosSquareForced\) \{\s*clearAllLfoSquareForce\(\{ restoreWaveforms: true \}\);/);
     assert.match(indexHtml, /Object\.entries\(previousWaveforms\)\.forEach\(\(\[id, value\]\) => \{/);
-    assert.match(indexHtml, /clearAllLfoSquareForce\(\);[\s\S]*\/\/ Randomize oscillator octave buttons/);
+    assert.doesNotMatch(indexHtml, /clearAllLfoSquareForce\(\);[\s\S]*\/\/ Randomize oscillator octave buttons/);
+    assert.match(indexHtml, /setAllInternalLfoWaveforms\(event\.target\.value\)/);
+    assert.match(indexHtml, /setAllInternalLfoPulseWidths\(event\.target\.value\)/);
     assert.match(indexHtml, /performanceLfoSquareBtn\.classList\.toggle\('active', allLfosSquareForced\)/);
 });
 
 test('randomize snaps internal lfo rates to musical BPM ratios', () => {
     assert.match(indexHtml, /const INTERNAL_LFO_RATE_IDS = \['lfoRate', 'lfo2Rate', 'lfo3Rate', 'phaserRate', 'tremoloRate'\]/);
-    assert.match(indexHtml, /const INTERNAL_LFO_BPM_MULTIPLIERS = \[0\.25, 0\.5, 1, 2, 4\]/);
+    assert.match(indexHtml, /const INTERNAL_BPM_CLOCK_RATE_IDS = \['delayBpm', \.\.\.INTERNAL_LFO_RATE_IDS\]/);
+    assert.match(indexHtml, /const INTERNAL_LFO_BPM_MULTIPLIERS = \[0\.25, 0\.5, 1, 2, 4, 8\]/);
     assert.match(indexHtml, /function clampInternalLfoBpmValue\(value, fallback = 120\)/);
+    assert.match(indexHtml, /function getSharedBpmClockValue\(\)/);
     assert.match(indexHtml, /function setInternalLfoRateBpm\(id, bpm\)/);
     assert.match(indexHtml, /function randomizeInternalLfoTempoRatios\(options = \{\}\)/);
     assert.match(indexHtml, /const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS\[Math\.floor\(Math\.random\(\) \* INTERNAL_LFO_BPM_MULTIPLIERS\.length\)\]/);
     assert.match(indexHtml, /setInternalLfoRateBpm\(id, baseBpm \* multiplier\)/);
-    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeLfoDepths\(\);\s*randomizeInternalLfoTempoRatios\(\);/);
+    assert.match(indexHtml, /INTERNAL_BPM_CLOCK_RATE_IDS\.forEach\(\(id\) => \{/);
+    assert.match(indexHtml, /const bpm = getSharedBpmClockValue\(\);[\s\S]*const division = document\.getElementById\('delayDivision'\)\?\.value \|\| '4'/);
+    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeInternalLfoTempoRatios\(\);/);
     assert.match(indexHtml, /phaserLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('phaserRate'\)\?\.value \|\| 30\) \/ 60/);
     assert.match(indexHtml, /tremoloLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('tremoloRate'\)\?\.value \|\| 120\) \/ 60/);
 });
@@ -495,10 +508,28 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /'generatedLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
     assert.match(indexHtml, /function randomizeLfoDepths\(\)/);
+    assert.match(indexHtml, /const INTERNAL_RANDOMIZE_SLIDER_RANGES = \{/);
+    assert.match(indexHtml, /performanceGeneratedSwing: \{ min: 0, max: 18 \}/);
+    assert.match(indexHtml, /filterEnvAmount: \{ min: 8, max: 64 \}/);
+    assert.match(indexHtml, /noiseMix: \{ min: 0, max: 24 \}/);
+    assert.match(indexHtml, /function randomizeInternalParameters\(\)/);
+    assert.match(indexHtml, /randomizeInternalParameters\(\);/);
     assert.match(indexHtml, /function randomizeLfoRoutingMatrix\(\)/);
     assert.match(indexHtml, /const probability = isPriorityTarget \? 0\.78 : \(isGranularTarget \? 0\.42 : 0\.52\)/);
     assert.match(indexHtml, /if \(isPriorityTarget && enabledCount === 0\) \{/);
     assert.match(indexHtml, /randomizeLfoRoutingMatrix\(\);/);
+});
+
+test('grain scheduling and generated loops are BPM-grid rhythmic and bright again', () => {
+    assert.match(indexHtml, /const BPM_CLOCK_GRAIN_DIVISIONS = \[0\.5, 1, 2, 4, 8, 16\]/);
+    assert.match(indexHtml, /function getRhythmicGrainIntervalSeconds\(densityValue = null\)/);
+    assert.match(indexHtml, /getRhythmicGrainIntervalSeconds\(density\)/);
+    assert.match(indexHtml, /const backbeatSteps = new Set\(\[4, 12\]\)/);
+    assert.match(indexHtml, /const isHatGrid = index % 2 === 1 && Math\.random\(\) < 0\.72/);
+    assert.match(indexHtml, /'snareNoise'/);
+    assert.match(indexHtml, /'hatNoise'/);
+    assert.match(indexHtml, /'rimSnap'/);
+    assert.match(indexHtml, /voice = Math\.tanh\(\(highNoise \* event\.color \+ metallic \* 0\.24\) \* 1\.8\) \* basicEnv/);
 });
 
 test('granular loop endpoints are lfo routable and used by grain playback', () => {

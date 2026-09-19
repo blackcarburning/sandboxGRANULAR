@@ -4119,9 +4119,11 @@
         let hpfEnabled = true;
         const INTERNAL_LFO_WAVEFORM_IDS = ['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'];
         const INTERNAL_LFO_RATE_IDS = ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'phaserRate', 'tremoloRate'];
-        const INTERNAL_LFO_BPM_MULTIPLIERS = [0.25, 0.5, 1, 2, 4];
+        const INTERNAL_BPM_CLOCK_RATE_IDS = ['delayBpm', ...INTERNAL_LFO_RATE_IDS];
+        const INTERNAL_LFO_BPM_MULTIPLIERS = [0.25, 0.5, 1, 2, 4, 8];
         const INTERNAL_LFO_BPM_MIN = 10;
         const INTERNAL_LFO_BPM_MAX = 1200;
+        const BPM_CLOCK_GRAIN_DIVISIONS = [0.5, 1, 2, 4, 8, 16];
         const RANDOMIZE_LFO_DEPTH_RANGES = {
             lfoDepth: { min: 6, max: 32 },
             lfo2Depth: { min: 4, max: 28 },
@@ -4205,7 +4207,11 @@
             'generatedLoopStart',
             'generatedLoopEnd',
             'micLoopStart',
-            'micLoopEnd'
+            'micLoopEnd',
+            'lfoPulseWidth',
+            'lfo2PulseWidth',
+            'lfo3PulseWidth',
+            'performancePulseWidth'
         ]);
         const RANDOMIZE_SKIP_PARAMS = new Set([
             'oscMix',
@@ -4226,6 +4232,57 @@
             'preFilterGain',
             'postFilterGain'
         ]);
+        const RANDOMIZE_SKIP_SELECTS = new Set([
+            'lfoWaveform',
+            'lfo2Waveform',
+            'lfo3Waveform',
+            'performanceLfoWaveform',
+            'osc1Wave',
+            'osc2Wave'
+        ]);
+        const INTERNAL_RANDOMIZE_SLIDER_RANGES = {
+            performanceGeneratedSwing: { min: 0, max: 18 },
+            grainSize: { min: 18, max: 92 },
+            density: { min: 6, max: 36 },
+            position: { min: 0, max: 72 },
+            spray: { min: 0, max: 64 },
+            attack: { min: 1, max: 8 },
+            release: { min: 12, max: 92 },
+            pitchVar: { min: 0, max: 30 },
+            grainTune: { values: [-12, -7, -5, 0, 5, 7, 12] },
+            panSpread: { min: 22, max: 90 },
+            lpfCutoff: { min: 950, max: 7600 },
+            lpfQ: { min: 0.25, max: 1.6, decimals: 2 },
+            hpfCutoff: { min: 18, max: 460 },
+            hpfQ: { min: 0.2, max: 1.2, decimals: 2 },
+            filterEnvAmount: { min: 8, max: 64 },
+            filterEnvAttack: { min: 1, max: 10 },
+            filterEnvDecay: { min: 24, max: 180 },
+            filterEnvSustain: { min: 0, max: 36 },
+            filterEnvRelease: { min: 18, max: 140 },
+            noiseMix: { min: 0, max: 24 },
+            distortion: { min: 0, max: 28 },
+            phaserDepth: { min: 0, max: 28 },
+            tremoloDepth: { min: 0, max: 30 },
+            delayFeedback: { min: 4, max: 32 },
+            delayMix: { min: 0, max: 26 },
+            reverb: { min: 0, max: 28 },
+            osc1Attack: { min: 1, max: 5 },
+            osc1Decay: { min: 18, max: 95 },
+            osc1Sustain: { min: 0, max: 24 },
+            osc1Release: { min: 14, max: 70 },
+            osc1Detune: { min: -9, max: 9 },
+            osc2Attack: { min: 1, max: 5 },
+            osc2Decay: { min: 18, max: 95 },
+            osc2Sustain: { min: 0, max: 24 },
+            osc2Release: { min: 14, max: 70 },
+            osc2Detune: { min: -14, max: 14 },
+            lfoDepth: { min: 6, max: 32 },
+            lfo2Depth: { min: 4, max: 28 },
+            lfo3Depth: { min: 0, max: 24 },
+            lfo1ToLfo2Mod: { min: 0, max: 18 },
+            lfo2ToLfo1Mod: { min: 0, max: 18 }
+        };
         
         // Sequencer state
         let sequencerPlaying = false;
@@ -4509,7 +4566,7 @@
             try {
                 syncGlobalBpmControls(bpm);
 
-                ['lfoRate', 'lfo2Rate', 'lfo3Rate'].forEach((id) => {
+                INTERNAL_BPM_CLOCK_RATE_IDS.forEach((id) => {
                     const slider = document.getElementById(id);
                     if (!slider) return;
                     slider.value = String(bpm);
@@ -4522,6 +4579,14 @@
             }
 
             return bpm;
+        }
+
+        function getSharedBpmClockValue() {
+            return clampBpmValue(
+                document.getElementById('globalBpmSlider')?.value ??
+                sequencerBPM ??
+                120
+            );
         }
 
         function enforceBpmOnlyLfoMode() {
@@ -5301,7 +5366,7 @@
             
             // Delay parameters
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
-                const bpm = parseFloat(document.getElementById('delayBpm')?.value) || 120;
+                const bpm = getSharedBpmClockValue();
                 const division = document.getElementById('delayDivision')?.value || '4';
                 const feedback = fxMuted ? 0 : getModulatedValue('delayFeedback') / 100;
                 const mix = fxMuted ? 0 : getModulatedValue('delayMix') / 100;
@@ -6235,7 +6300,11 @@
         function canPlayGrains() {
             // Allow playback if we have either audio buffer or noise selected
             const noiseType = document.getElementById('noiseType').value;
-            return audioContext && (hasGranularSource() || noiseType !== 'none');
+            return audioContext && granularOutputGain && (hasGranularSource() || noiseType !== 'none');
+        }
+
+        function isAudioGraphReady() {
+            return Boolean(audioContext && masterGain && oscOutputGain && granularOutputGain);
         }
 
         // --- Filter Envelope ---
@@ -6719,7 +6788,7 @@
 
             activeGrains.forEach((grainInfo) => {
                 const density = Math.max(1, Number(getModulatedValue('density')) || 1);
-                const intervalSeconds = Math.max(0.01, 1 / density);
+                const intervalSeconds = Math.max(0.01, getRhythmicGrainIntervalSeconds(density));
 
                 while (grainInfo.nextTime < scheduleUntil) {
                     try {
@@ -6755,6 +6824,7 @@
         function playOscillatorNote(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!audioContext) return;
             if (!oscillatorsEnabled) return;
+            if (!oscOutputGain) return;
 
             const role = options.role || 'keyboard';
             const voiceId = options.voiceId || makePerformanceStreamId(role, note);
@@ -6959,6 +7029,10 @@
         // --- Sequencer Functions ---
         function startSequencer() {
             if (sequencerPlaying) return;
+            if (!isAudioGraphReady()) {
+                setStatus('Start MYGRAIN before playing a loop.', 'error');
+                return;
+            }
             
             // Check if output recording is armed - if so, trigger recording and disarm
             if (isOutputRecordingArmed) {
@@ -8024,6 +8098,18 @@
             syncPerformanceControlState();
         }
 
+        function setAllInternalLfoPulseWidths(value, options = {}) {
+            const numeric = Number(value);
+            const pulseWidth = Math.max(5, Math.min(95, Number.isFinite(numeric) ? Math.round(numeric) : 50));
+            ['lfoPulseWidth', 'lfo2PulseWidth', 'lfo3PulseWidth'].forEach((id) => {
+                setSliderValue(id, pulseWidth, { dispatch: options.dispatch !== false });
+            });
+            const performancePulseWidth = document.getElementById('performancePulseWidth');
+            if (performancePulseWidth) performancePulseWidth.value = String(pulseWidth);
+            const performanceLabel = document.getElementById('performancePulseWidthValue');
+            if (performanceLabel) performanceLabel.textContent = `${pulseWidth}%`;
+        }
+
         function clearAllLfoSquareForce(options = {}) {
             const restoreWaveforms = Boolean(options.restoreWaveforms && allLfosSquarePreviousWaveforms);
             const previousWaveforms = allLfosSquarePreviousWaveforms;
@@ -8084,12 +8170,7 @@
         }
 
         function randomizeInternalLfoTempoRatios(options = {}) {
-            const baseBpm = clampBpmValue(
-                options.baseBpm ??
-                document.getElementById('globalBpmSlider')?.value ??
-                sequencerBPM ??
-                120
-            );
+            const baseBpm = clampBpmValue(options.baseBpm ?? getSharedBpmClockValue());
             const applied = {};
             syncingGlobalBpm = true;
             try {
@@ -8106,6 +8187,20 @@
             return applied;
         }
 
+        function getRhythmicGrainIntervalSeconds(densityValue = null) {
+            const bpm = getSharedBpmClockValue();
+            const beatDuration = 60 / bpm;
+            const density = Math.max(1, Number(densityValue ?? getModulatedValue('density')) || 1);
+            const targetInterval = 1 / density;
+            return BPM_CLOCK_GRAIN_DIVISIONS
+                .map((division) => beatDuration / division)
+                .reduce((best, interval) => {
+                    const bestDelta = Math.abs(best - targetInterval);
+                    const delta = Math.abs(interval - targetInterval);
+                    return delta < bestDelta ? interval : best;
+                }, beatDuration);
+        }
+
         function randomIntegerInRange(min, max) {
             return Math.round(min + Math.random() * (max - min));
         }
@@ -8114,6 +8209,29 @@
             Object.entries(RANDOMIZE_LFO_DEPTH_RANGES).forEach(([id, range]) => {
                 setSliderValue(id, randomIntegerInRange(range.min, range.max));
             });
+        }
+
+        function randomValueForInternalRange(range) {
+            if (Array.isArray(range.values) && range.values.length > 0) {
+                return range.values[Math.floor(Math.random() * range.values.length)];
+            }
+            const min = Number(range.min ?? 0);
+            const max = Number(range.max ?? min);
+            const raw = min + Math.random() * (max - min);
+            if (Number.isFinite(range.decimals)) {
+                return Number(raw.toFixed(range.decimals));
+            }
+            return Math.round(raw);
+        }
+
+        function randomizeInternalParameters() {
+            Object.entries(INTERNAL_RANDOMIZE_SLIDER_RANGES).forEach(([id, range]) => {
+                if (RANDOMIZE_SKIP_SLIDERS.has(id)) return;
+                setSliderValue(id, randomValueForInternalRange(range));
+            });
+            randomizeLfoDepths();
+            syncPerformanceControlState();
+            updateEffects();
         }
 
         function setLfoRouteState(param, lfoNum, enabled) {
@@ -8171,8 +8289,6 @@
             const pick = (values) => values[Math.floor(Math.random() * values.length)];
             const rand = (min, max) => randomIntegerInRange(min, max);
 
-            setSelectValue('osc1Wave', pick(['triangle', 'sine', 'square']));
-            setSelectValue('osc2Wave', pick(['sawtooth', 'triangle', 'square']));
             setSelectValue('noiseType', Math.random() < 0.42 ? 'none' : 'pink');
             setSelectValue('delayDivision', pick(['1', '2', '4']));
 
@@ -8236,10 +8352,10 @@
                 { name: 'chromatic debris', intervals: [0, 1, 2, 5, 6, 8, 10, 12, 13, 16, 18] }
             ];
             const rhythmicMasks = [
-                [1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0],
-                [1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1],
-                [1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1],
-                [1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1]
+                [1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1],
+                [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0],
+                [1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0]
             ];
 
             const root = roots[Math.floor(Math.random() * roots.length)];
@@ -8247,15 +8363,18 @@
             const scale = scales[Math.floor(Math.random() * scales.length)];
             const mask = rhythmicMasks[Math.floor(Math.random() * rhythmicMasks.length)];
             const motif = [0, 1, 2, 3, 5, 7, 8].sort(() => Math.random() - 0.5);
-            const anchorSteps = new Set([0, 7, 8, Math.random() < 0.65 ? 11 : 14]);
-            const textureSteps = new Set([2, 5, 6, 10, 13, 15].filter(() => Math.random() > 0.18));
-            const accentSteps = new Set([3, 9, Math.random() < 0.5 ? 12 : 14]);
+            const anchorSteps = new Set([0, 8, Math.random() < 0.65 ? 6 : 7, Math.random() < 0.65 ? 12 : 14]);
+            const backbeatSteps = new Set([4, 12]);
+            const textureSteps = new Set([2, 5, 6, 10, 13, 15].filter(() => Math.random() > 0.12));
+            const accentSteps = new Set([3, 7, 9, 11, 14].filter(() => Math.random() > 0.24));
 
             for (let index = 0; index < 16; index++) {
                 const isAnchor = anchorSteps.has(index);
+                const isBackbeat = backbeatSteps.has(index);
                 const isTexture = textureSteps.has(index);
                 const isAccent = accentSteps.has(index);
-                const enabled = Boolean(isAnchor || isTexture || isAccent || mask[index]);
+                const isHatGrid = index % 2 === 1 && Math.random() < 0.72;
+                const enabled = Boolean(isAnchor || isBackbeat || isTexture || isAccent || isHatGrid || mask[index]);
                 let noteIndex = rootIndex;
                 let volume = 0;
 
@@ -8263,9 +8382,15 @@
                     const bassMove = Math.random() < 0.35 ? 7 : (Math.random() < 0.22 ? -5 : 0);
                     noteIndex = rootIndex + bassMove;
                     volume = Math.round(82 + Math.random() * 14);
+                } else if (isBackbeat) {
+                    noteIndex = rootIndex + scale.intervals[4 + Math.floor(Math.random() * 3)] + 12;
+                    volume = Math.round(68 + Math.random() * 18);
                 } else if (isAccent) {
                     noteIndex = rootIndex + scale.intervals[3 + Math.floor(Math.random() * 4)] + 12;
                     volume = Math.round(54 + Math.random() * 26);
+                } else if (isHatGrid) {
+                    noteIndex = rootIndex + scale.intervals[6 + Math.floor(Math.random() * 3)] + 12;
+                    volume = Math.round(34 + Math.random() * 22);
                 } else if (isTexture) {
                     noteIndex = rootIndex + scale.intervals[5 + Math.floor(Math.random() * 4)];
                     volume = Math.round(46 + Math.random() * 22);
@@ -8581,9 +8706,9 @@
                     { name: 'filtered floor noise pulses', ratios: [0.4, 0.67, 1], fold: 0.9 }
                 ]
                 : [
-                    { name: 'rounded sub glass', ratios: [1, 1.5, 2.01, 2.98], fold: 1.18 },
-                    { name: 'rubber low FM', ratios: [1, 1.25, 1.98, 3.03], fold: 1.28 },
-                    { name: 'broken tape low-end', ratios: [0.5, 1, 1.01, 1.98], fold: 1.22 }
+                    { name: 'drum grid glass', ratios: [1, 1.5, 2.01, 2.98], fold: 1.22 },
+                    { name: 'rubber FM drum loop', ratios: [1, 1.25, 1.98, 3.03], fold: 1.32 },
+                    { name: 'broken tape percussion', ratios: [0.5, 1, 1.01, 1.98], fold: 1.26 }
                 ];
             const palette = experimentalTonePalette[Math.floor(Math.random() * experimentalTonePalette.length)];
             const events = [];
@@ -8686,6 +8811,49 @@
                 });
             });
 
+            if (!lowNoiseOnly) {
+                [4, 12].forEach((step) => {
+                    addExperimentalEvent('snareNoise', step * stepDuration, {
+                        freq: rootFrequency * (6 + Math.random() * 2),
+                        amp: 0.34 + Math.random() * 0.18,
+                        duration: stepDuration * 0.72,
+                        attack: 0.004,
+                        decay: 0.045 + Math.random() * 0.025,
+                        pan: randomPan(0.34),
+                        color: 1.35
+                    });
+                });
+
+                for (let step = 0; step < loopSteps; step++) {
+                    const isOffbeat = step % 2 === 1;
+                    const isBackbeat = step === 4 || step === 12;
+                    if (Math.random() < (isOffbeat ? 0.86 : 0.36)) {
+                        addExperimentalEvent('hatNoise', step * stepDuration, {
+                            freq: rootFrequency * (18 + Math.random() * 18),
+                            amp: isBackbeat ? 0.1 : (0.12 + Math.random() * 0.12),
+                            duration: stepDuration * (isOffbeat ? 0.36 : 0.22),
+                            attack: 0.003,
+                            decay: 0.018 + Math.random() * 0.018,
+                            pan: randomPan(0.72),
+                            color: 1.7
+                        });
+                    }
+                }
+
+                [3, 7, 10, 15].forEach((step) => {
+                    if (Math.random() < 0.34) return;
+                    addExperimentalEvent('rimSnap', step * stepDuration, {
+                        freq: rootFrequency * (10 + Math.random() * 10),
+                        amp: 0.14 + Math.random() * 0.12,
+                        duration: stepDuration * 0.28,
+                        attack: 0.003,
+                        decay: 0.026,
+                        pan: randomPan(0.8),
+                        color: 1.55
+                    });
+                });
+            }
+
             events.sort((a, b) => a.time - b.time);
 
             function renderExperimentalHit(event, delta, highNoise, lowNoise, channel) {
@@ -8720,6 +8888,17 @@
                 } else if (event.type === 'softNoisePush') {
                     const swell = Math.sin(progress * Math.PI);
                     voice = lowNoise * 0.78 * swell * basicEnv;
+                } else if (event.type === 'snareNoise') {
+                    const tone = Math.sin(TWO_PI * event.freq * delta) * Math.exp(-delta * 30);
+                    const snap = highNoise * (1 - progress) * event.color;
+                    const body = lowNoise * 0.36 * Math.exp(-delta * 12);
+                    voice = Math.tanh((snap + body + tone * 0.22) * event.fold) * basicEnv;
+                } else if (event.type === 'hatNoise') {
+                    const metallic = Math.sin(TWO_PI * event.freq * delta) * Math.sin(TWO_PI * event.freq * 1.47 * delta);
+                    voice = Math.tanh((highNoise * event.color + metallic * 0.24) * 1.8) * basicEnv;
+                } else if (event.type === 'rimSnap') {
+                    const clickTone = Math.sin(TWO_PI * event.freq * delta) * Math.exp(-delta * 48);
+                    voice = Math.tanh((highNoise * event.color * 0.82 + clickTone * 0.45) * event.fold) * basicEnv;
                 } else if (event.type === 'reverseSwell') {
                     voice = ((lowNoise * 0.34) + Math.sin(TWO_PI * event.freq * delta) * 0.58) * reverseEnv;
                 } else {
@@ -9082,23 +9261,20 @@
             
             randomizeLfoRoutingMatrix();
 
-            // Randomize key waveform/type/division selectors
+            randomizeInternalParameters();
+
+            // Randomize key type/division selectors while leaving waveform controls manual.
             [
-                'lfoWaveform',
-                'lfo2Waveform',
-                'lfo3Waveform',
                 'noiseType',
-                'osc1Wave',
-                'osc2Wave',
                 'delayDivision'
             ].forEach(selectId => {
+                if (RANDOMIZE_SKIP_SELECTS.has(selectId)) return;
                 const select = document.getElementById(selectId);
                 if (!select || !select.options || select.options.length === 0) return;
                 const randomIndex = Math.floor(Math.random() * select.options.length);
                 select.selectedIndex = randomIndex;
                 select.dispatchEvent(new Event('change'));
             });
-            clearAllLfoSquareForce();
 
             // Randomize oscillator octave buttons
             ['1', '2'].forEach(osc => {
@@ -9121,7 +9297,6 @@
             });
 
             restoreRandomizeProtectedSliders(protectedRandomizeSliders);
-            randomizeLfoDepths();
             randomizeInternalLfoTempoRatios();
 
             if (!audioContext) {
@@ -11132,7 +11307,7 @@
         });
 
         performanceLfoWaveform?.addEventListener('change', (event) => {
-            setSelectValue('lfoWaveform', event.target.value);
+            setAllInternalLfoWaveforms(event.target.value);
             if (event.target.value !== 'square') {
                 clearAllLfoSquareForce();
             }
@@ -11140,7 +11315,7 @@
         });
 
         performancePulseWidth?.addEventListener('input', (event) => {
-            setSliderValue('lfoPulseWidth', event.target.value);
+            setAllInternalLfoPulseWidths(event.target.value);
             syncPerformanceSoundControls();
         });
 
