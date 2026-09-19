@@ -42,6 +42,11 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceSourceMix"/);
     assert.match(indexHtml, /id="performanceCutoff"/);
     assert.match(indexHtml, /id="performanceResonance"/);
+    assert.match(indexHtml, /id="performanceLpfPolesValue"/);
+    assert.match(indexHtml, /id="performanceHpfPolesValue"/);
+    assert.match(indexHtml, /data-performance-filter="lpf" data-poles="2"/);
+    assert.match(indexHtml, /data-performance-filter="lpf" data-poles="4"/);
+    assert.match(indexHtml, /function setFilterPoles\(filter, poles\)/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
 });
@@ -53,6 +58,17 @@ test('source UI has separate generated and mic waveform loop controls', () => {
     assert.match(indexHtml, /id="generatedLoopEnd"/);
     assert.match(indexHtml, /id="micLoopStart"/);
     assert.match(indexHtml, /id="micLoopEnd"/);
+    assert.match(indexHtml, /function handleSourceLoopChange\(kind\)/);
+    assert.match(indexHtml, /grainInfo\.nextTime = now/);
+});
+
+test('patch randomize does not move manual source loop points', () => {
+    assert.match(indexHtml, /const RANDOMIZE_SKIP_SLIDERS = new Set/);
+    assert.match(indexHtml, /'generatedLoopStart'/);
+    assert.match(indexHtml, /'generatedLoopEnd'/);
+    assert.match(indexHtml, /'micLoopStart'/);
+    assert.match(indexHtml, /'micLoopEnd'/);
+    assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.has\(slider\.id\)/);
 });
 
 test('granular engine routes generated and mic buffers as separate sources', () => {
