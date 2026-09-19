@@ -4207,7 +4207,7 @@
             oscOutputGain.gain.value = Math.sqrt(initialOscMix);
             
             granularOutputGain = audioContext.createGain();
-            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * 0.8;
+            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix);
             
             // Connect both to the pre-filter gain node, then to filter chain
             oscOutputGain.connect(preFilterGainNode);
@@ -5768,10 +5768,11 @@
                 } else if (e.target.id === 'delayBpm') {
                     // Update BPM display (no suffix, just the number)
                     const labelSpan = document.getElementById('delayBpmValue');
+                    const bpmValue = Number.parseFloat(e.target.value);
                     if (labelSpan) {
                         labelSpan.textContent = e.target.value;
                     }
-                    if (!syncingGlobalBpm) syncGlobalBpmControls(e.target.value);
+                    if (!syncingGlobalBpm && Number.isFinite(bpmValue)) syncGlobalBpmControls(bpmValue);
                 } else if (e.target.id === 'grainTune') {
                     // Update grain tune display with + for positive values
                     const labelSpan = document.getElementById('grainTuneValue');
