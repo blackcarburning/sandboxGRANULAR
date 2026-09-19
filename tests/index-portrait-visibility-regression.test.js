@@ -42,8 +42,33 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceSourceMix"/);
     assert.match(indexHtml, /id="performanceCutoff"/);
     assert.match(indexHtml, /id="performanceResonance"/);
-    assert.match(indexHtml, /id="oscMix" min="0" max="100" value="50"/);
+    assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
+});
+
+test('source UI has separate generated and mic waveform loop controls', () => {
+    assert.match(indexHtml, /id="generatedWaveformCanvas"/);
+    assert.match(indexHtml, /id="micWaveformCanvas"/);
+    assert.match(indexHtml, /id="generatedLoopStart"/);
+    assert.match(indexHtml, /id="generatedLoopEnd"/);
+    assert.match(indexHtml, /id="micLoopStart"/);
+    assert.match(indexHtml, /id="micLoopEnd"/);
+});
+
+test('granular engine routes generated and mic buffers as separate sources', () => {
+    assert.match(indexHtml, /let generatedLoopBuffer = null/);
+    assert.match(indexHtml, /let micAudioBuffer = null/);
+    assert.match(indexHtml, /function getAvailableGranularSources\(\)/);
+    assert.match(indexHtml, /generatedLoopBuffer/);
+    assert.match(indexHtml, /micAudioBuffer/);
+    assert.match(indexHtml, /const perSourceGain = \(1 - noiseMix\) \/ granularSources\.length/);
+});
+
+test('oscillators can be disabled for granular-only playback', () => {
+    assert.match(indexHtml, /id="performanceOscToggleBtn"/);
+    assert.match(indexHtml, /let oscillatorsEnabled = true/);
+    assert.match(indexHtml, /function setOscillatorsEnabled\(enabled\)/);
+    assert.match(indexHtml, /if \(!oscillatorsEnabled\) return/);
 });
 
 test('generated source and sequencer are bass percussion oriented', () => {

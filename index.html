@@ -300,12 +300,54 @@
             min-width: 0;
         }
 
-        #waveformCanvas {
+        .source-waveform-canvas {
             width: 100%;
             height: 70px;
             background: #0a0a15;
             border-radius: 6px;
             border: 1px solid #333;
+        }
+
+        .source-waveform-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .source-waveform-panel {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .source-waveform-header,
+        .source-loop-labels {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .source-waveform-header {
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .source-waveform-meta,
+        .source-loop-labels {
+            color: #aaa;
+            font-size: 8px;
+        }
+
+        .source-loop-controls {
+            display: grid;
+            gap: 4px;
         }
 
         .status {
@@ -1024,7 +1066,7 @@
                 font-size: 8px;
             }
 
-            #waveformCanvas {
+            .source-waveform-canvas {
                 height: 50px;
             }
 
@@ -1566,7 +1608,7 @@
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         }
 
-        #waveformCanvas {
+        .source-waveform-canvas {
             height: 84px;
         }
 
@@ -1888,6 +1930,7 @@
 
         .simplified-ui #performanceHoldBtn.active,
         .simplified-ui #performanceSeqPlayBtn.playing,
+        .simplified-ui #performanceOscToggleBtn.osc-off,
         .simplified-ui #performanceRecordBtn.recording,
         .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
@@ -1913,12 +1956,18 @@
             margin-top: 0 !important;
         }
 
-        .simplified-ui #waveformCanvas {
+        .simplified-ui .source-waveform-canvas {
             min-height: 156px;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: linear-gradient(180deg, rgba(7, 13, 25, 0.92) 0%, rgba(12, 22, 34, 0.94) 100%);
             box-shadow: inset 0 0 0 1px rgba(126, 246, 255, 0.04);
+        }
+
+        .simplified-ui .source-waveform-panel {
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(5, 8, 15, 0.4);
         }
 
         .simplified-ui .status {
@@ -2088,7 +2137,7 @@
                         <span>Source Mix</span>
                         <span class="value" id="performanceSourceMixValue">50/50</span>
                     </label>
-                    <input type="range" id="performanceSourceMix" min="0" max="100" value="50" step="1">
+                    <input type="range" id="performanceSourceMix" min="0" max="100" value="35" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceCutoff">
@@ -2109,6 +2158,7 @@
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
+                <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
@@ -2131,11 +2181,42 @@
                     </div>
                 </div>
                 <div class="source-secondary-buttons">
-                    <button id="auditionBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
+                    <button id="auditionBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sources</button>
                     <button id="normalizeBtn" disabled>Normalize</button>
                     <button id="clearBtn">Clear</button>
                 </div>
-                <canvas id="waveformCanvas"></canvas>
+                <div class="source-waveform-grid" aria-label="Granular source waveforms">
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Generated Loop</span>
+                            <span class="source-waveform-meta" id="generatedLoopMeta">Empty</span>
+                        </div>
+                        <canvas id="generatedWaveformCanvas" class="source-waveform-canvas" data-source="generated"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="generatedLoopStart">Start <span id="generatedLoopStartValue">0%</span></label>
+                                <label for="generatedLoopEnd">End <span id="generatedLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="generatedLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="generatedLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                    </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Mic Recording</span>
+                            <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="micWaveformCanvas" class="source-waveform-canvas" data-source="mic"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="micLoopStart">Start <span id="micLoopStartValue">0%</span></label>
+                                <label for="micLoopEnd">End <span id="micLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                    </div>
+                </div>
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
                     <div id="audioStatus" class="status secondary-status" role="status" aria-live="polite">Audio idle</div>
@@ -2918,9 +2999,9 @@
                     <div class="control-group" style="grid-column: span 2;">
                         <label>
                             <span class="param-name">Wave/Sample Mix</span>
-                            <span class="value" id="oscMixValue">50% wave</span>
+                            <span class="value" id="oscMixValue">35% wave</span>
                         </label>
-                        <input type="range" id="oscMix" min="0" max="100" value="50" step="1">
+                        <input type="range" id="oscMix" min="0" max="100" value="35" step="1">
                     </div>
                 </div>
 
@@ -3163,7 +3244,7 @@
         
         const touchStartPositions = new Map();
         let lastTouchEnd = 0;
-        const directManipulationSelector = '.key, .keyboard, #waveformCanvas, input[type="range"]';
+        const directManipulationSelector = '.key, .keyboard, .source-waveform-canvas, input[type="range"]';
         
         // Unified touchstart handler
         document.addEventListener('touchstart', (e) => {
@@ -3448,6 +3529,9 @@
         // --- Globals ---
         let audioContext;
         let audioBuffer = null;
+        let generatedLoopBuffer = null;
+        let micAudioBuffer = null;
+        let activeSourceKind = 'generated';
         let mediaRecorder = null;
         let micStream = null;
         let recordedChunks = [];
@@ -3565,7 +3649,8 @@
             sustain: 0.7,
             release: 300
         };
-        let oscMix = 0.5; // 0 = sample/granular only, 1 = waveform oscillators only
+        let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
+        let oscillatorsEnabled = true;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         const MIX_HEADROOM = 0.9;
         const MAX_SAFE_FILTER_Q = 2.5;
@@ -4167,14 +4252,20 @@
                     }
                     setupStateSaving();
                     
-                    // Restore audio buffer from IndexedDB
-                    const restoredBuffer = await loadAudioBufferFromDB();
-                    if (restoredBuffer) {
-                        audioBuffer = restoredBuffer;
-                        drawWaveform();
-                        setStatus(`Audio restored (${audioBuffer.duration.toFixed(2)}s).`);
-                        normalizeBtn.disabled = false;
-                        document.getElementById('auditionBtn').disabled = false;
+                    // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
+                    const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
+                    const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
+                    if (restoredGeneratedBuffer) {
+                        generatedLoopBuffer = restoredGeneratedBuffer;
+                    }
+                    if (restoredMicBuffer) {
+                        micAudioBuffer = restoredMicBuffer;
+                    }
+                    if (restoredGeneratedBuffer || restoredMicBuffer) {
+                        syncLegacyAudioBuffer();
+                        drawWaveforms();
+                        updateSourceAvailability();
+                        setStatus('Granular source audio restored.');
                     }
                 }, 500);
             } catch (e) {
@@ -4313,14 +4404,12 @@
             preFilterGainNode = audioContext.createGain();
             preFilterGainNode.gain.value = 1.0; // 0dB default
 
-            // Create separate gain nodes for oscillator and granular outputs
-            // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
-            const initialOscMix = oscMix;
+            // Create separate gain nodes for oscillator and granular outputs.
             oscOutputGain = audioContext.createGain();
-            oscOutputGain.gain.value = Math.sqrt(initialOscMix) * MIX_HEADROOM;
+            oscOutputGain.gain.value = oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM : 0;
             
             granularOutputGain = audioContext.createGain();
-            granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * MIX_HEADROOM;
+            granularOutputGain.gain.value = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM;
             
             // Connect both to the pre-filter gain node, then to filter chain
             oscOutputGain.connect(preFilterGainNode);
@@ -4641,7 +4730,8 @@
         const recordBtn = document.getElementById('recordBtn');
         const normalizeBtn = document.getElementById('normalizeBtn');
         const clearBtn = document.getElementById('clearBtn');
-        const waveformCanvas = document.getElementById('waveformCanvas');
+        const generatedWaveformCanvas = document.getElementById('generatedWaveformCanvas');
+        const micWaveformCanvas = document.getElementById('micWaveformCanvas');
         const generateSourceBtn = document.getElementById('generateSourceBtn');
         const performanceLoadAudioBtn = document.getElementById('performanceLoadAudioBtn');
 
@@ -4676,54 +4766,222 @@
             applyGlobalBpm(e.target.value);
         });
 
+        function getSourceBuffer(kind) {
+            if (kind === 'generated') return generatedLoopBuffer;
+            if (kind === 'mic') return micAudioBuffer;
+            return audioBuffer;
+        }
+
+        function syncLegacyAudioBuffer() {
+            audioBuffer = generatedLoopBuffer || micAudioBuffer || null;
+        }
+
+        function hasGranularSource() {
+            return Boolean(generatedLoopBuffer || micAudioBuffer || audioBuffer);
+        }
+
+        function getAvailableGranularSources() {
+            const sources = [];
+            if (generatedLoopBuffer) {
+                sources.push({ kind: 'generated', buffer: generatedLoopBuffer, startId: 'generatedLoopStart', endId: 'generatedLoopEnd' });
+            }
+            if (micAudioBuffer) {
+                sources.push({ kind: 'mic', buffer: micAudioBuffer, startId: 'micLoopStart', endId: 'micLoopEnd' });
+            }
+            if (sources.length === 0 && audioBuffer) {
+                sources.push({ kind: 'legacy', buffer: audioBuffer, startId: 'sampleStart', endId: 'sampleEnd' });
+            }
+            return sources;
+        }
+
+        function getLoopRange(startId, endId) {
+            const startSlider = document.getElementById(startId);
+            const endSlider = document.getElementById(endId);
+            const rawStart = Number(startSlider?.value ?? 0);
+            const rawEnd = Number(endSlider?.value ?? 100);
+            let startPct = Math.max(0, Math.min(100, Number.isFinite(rawStart) ? rawStart : 0)) / 100;
+            let endPct = Math.max(0, Math.min(100, Number.isFinite(rawEnd) ? rawEnd : 100)) / 100;
+            if (endPct < startPct) [startPct, endPct] = [endPct, startPct];
+            if (Math.abs(endPct - startPct) < 0.01) {
+                endPct = Math.min(1, startPct + 0.01);
+                if (endPct - startPct < 0.01) startPct = Math.max(0, endPct - 0.01);
+            }
+            return { startPct, endPct };
+        }
+
+        function updateSourceAvailability() {
+            syncLegacyAudioBuffer();
+            const hasSources = hasGranularSource();
+            normalizeBtn.disabled = !hasSources;
+            document.getElementById('auditionBtn').disabled = !hasSources;
+            const generatedMeta = document.getElementById('generatedLoopMeta');
+            const micMeta = document.getElementById('micWaveformMeta');
+            if (generatedMeta) {
+                generatedMeta.textContent = generatedLoopBuffer ? `${generatedLoopBuffer.duration.toFixed(2)}s` : 'Empty';
+            }
+            if (micMeta) {
+                micMeta.textContent = micAudioBuffer ? `${micAudioBuffer.duration.toFixed(2)}s` : 'Empty';
+            }
+        }
+
+        function setSourceBuffer(kind, buffer, sourceLabel) {
+            if (kind === 'mic') {
+                micAudioBuffer = buffer;
+                activeSourceKind = 'mic';
+            } else {
+                generatedLoopBuffer = buffer;
+                activeSourceKind = 'generated';
+            }
+            syncLegacyAudioBuffer();
+            drawWaveforms();
+            updateSourceAvailability();
+            setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
+        }
+
+        function updateLoopLabels(kind) {
+            const prefix = kind === 'mic' ? 'mic' : 'generated';
+            const start = document.getElementById(`${prefix}LoopStart`)?.value ?? 0;
+            const end = document.getElementById(`${prefix}LoopEnd`)?.value ?? 100;
+            const startLabel = document.getElementById(`${prefix}LoopStartValue`);
+            const endLabel = document.getElementById(`${prefix}LoopEndValue`);
+            if (startLabel) startLabel.textContent = `${Math.round(Number(start) || 0)}%`;
+            if (endLabel) endLabel.textContent = `${Math.round(Number(end) || 100)}%`;
+        }
+
+        function drawWaveforms() {
+            drawSourceWaveform('generated');
+            drawSourceWaveform('mic');
+        }
+
+        function drawSourceWaveform(kind) {
+            const canvas = kind === 'mic' ? micWaveformCanvas : generatedWaveformCanvas;
+            if (!canvas) return;
+            const buffer = getSourceBuffer(kind);
+            canvas.width = canvas.offsetWidth || 300;
+            canvas.height = canvas.offsetHeight || 84;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, width, height);
+
+            updateLoopLabels(kind);
+
+            if (!buffer) {
+                ctx.fillStyle = 'rgba(255,255,255,0.24)';
+                ctx.font = '11px system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(kind === 'mic' ? 'Record mic to fill this source' : 'Generate or load audio to fill this source', width / 2, height / 2);
+                return;
+            }
+
+            const data = buffer.getChannelData(0);
+            const step = Math.max(1, Math.ceil(data.length / width));
+            const amp = height / 2;
+            const color = kind === 'mic' ? '#7effb2' : '#00d4ff';
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            for (let i = 0; i < width; i++) {
+                let min = 1.0;
+                let max = -1.0;
+                for (let j = 0; j < step; j++) {
+                    const val = data[(i * step) + j] || 0;
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                ctx.moveTo(i, (1 + min) * amp);
+                ctx.lineTo(i, (1 + max) * amp);
+            }
+            ctx.stroke();
+
+            const ids = kind === 'mic'
+                ? { start: 'micLoopStart', end: 'micLoopEnd' }
+                : { start: 'generatedLoopStart', end: 'generatedLoopEnd' };
+            const { startPct, endPct } = getLoopRange(ids.start, ids.end);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.fillRect(0, 0, width * startPct, height);
+            ctx.fillRect(width * endPct, 0, width * (1 - endPct), height);
+            ctx.strokeStyle = '#ff6b6b';
+            [startPct, endPct].forEach((pct) => {
+                ctx.beginPath();
+                ctx.moveTo(width * pct, 0);
+                ctx.lineTo(width * pct, height);
+                ctx.stroke();
+            });
+        }
+
+        ['generatedLoopStart', 'generatedLoopEnd'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('input', () => drawSourceWaveform('generated'));
+        });
+
+        ['micLoopStart', 'micLoopEnd'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('input', () => drawSourceWaveform('mic'));
+        });
+
         normalizeBtn.addEventListener('click', () => {
-            if (!audioBuffer) return;
+            if (!hasGranularSource()) return;
             normalizeAudio();
         });
 
         clearBtn.addEventListener('click', () => {
             panicAllNotes({ preserveStatus: true });
             audioBuffer = null;
+            generatedLoopBuffer = null;
+            micAudioBuffer = null;
             recordedChunks = [];
-            const ctx = waveformCanvas.getContext('2d');
-            ctx.clearRect(0,0, waveformCanvas.width, waveformCanvas.height);
+            drawWaveforms();
             setStatus('Buffer cleared.');
-            normalizeBtn.disabled = true;
-            document.getElementById('auditionBtn').disabled = true;
+            updateSourceAvailability();
             stopAllGrains();
         });
 
         // --- Audition Button ---
-        let auditionSource = null;
+        let auditionSources = [];
         document.getElementById('auditionBtn').addEventListener('click', () => {
-            if (!audioBuffer || !audioContext) return;
+            if (!hasGranularSource() || !audioContext) return;
             
             // Stop any currently playing audition
-            if (auditionSource) {
+            auditionSources.forEach((source) => {
                 try {
-                    auditionSource.stop();
+                    source.stop();
                 } catch (e) {
                     console.debug('Audition source already stopped:', e);
                 }
-                auditionSource = null;
-            }
-            
-            // Create a simple buffer source that plays through master gain
-            auditionSource = audioContext.createBufferSource();
-            auditionSource.buffer = audioBuffer;
-            
-            // Connect through master gain to respect volume control, but bypass effects
-            auditionSource.connect(masterGain);
-            
-            // Start playback
-            auditionSource.start(0);
-            
-            // Clear reference when finished
-            auditionSource.onended = () => {
-                auditionSource = null;
-            };
-            
-            setStatus('Playing raw sample...');
+            });
+            auditionSources = [];
+
+            const sources = getAvailableGranularSources();
+            const perSourceGain = 1 / Math.max(1, sources.length);
+            sources.forEach((sourceInfo) => {
+                const source = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+                const ids = sourceInfo.kind === 'mic'
+                    ? { start: 'micLoopStart', end: 'micLoopEnd' }
+                    : sourceInfo.kind === 'generated'
+                        ? { start: 'generatedLoopStart', end: 'generatedLoopEnd' }
+                        : { start: 'sampleStart', end: 'sampleEnd' };
+                const { startPct, endPct } = getLoopRange(ids.start, ids.end);
+                const offset = sourceInfo.buffer.duration * startPct;
+                const duration = Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct));
+
+                source.buffer = sourceInfo.buffer;
+                gain.gain.value = perSourceGain;
+                source.connect(gain);
+                gain.connect(masterGain);
+                source.start(0, offset, duration);
+                source.onended = () => {
+                    try {
+                        source.disconnect();
+                        gain.disconnect();
+                    } catch (e) {}
+                    auditionSources = auditionSources.filter((item) => item !== source);
+                };
+                auditionSources.push(source);
+            });
+
+            setStatus('Auditioning the selected granular source regions.');
         });
 
         function stopMicCapture() {
@@ -4767,14 +5025,15 @@
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const previousBuffer = audioBuffer;
+                    const previousBuffer = micAudioBuffer;
                     try {
                         const blob = new Blob(recordedChunks, { type: mimeType || mediaRecorder.mimeType || 'audio/webm' });
                         const arrayBuffer = await blob.arrayBuffer();
-                        await loadAudioFromArrayBuffer(arrayBuffer, 'Microphone take');
+                        await loadAudioFromArrayBuffer(arrayBuffer, 'Microphone take', 'mic');
                     } catch (err) {
                         console.error(err);
-                        audioBuffer = previousBuffer;
+                        micAudioBuffer = previousBuffer;
+                        syncLegacyAudioBuffer();
                         setStatus(`Mic decode failed: ${err.message}`, 'error');
                     } finally {
                         stopMicCapture();
@@ -4810,122 +5069,71 @@
         }
 
         function normalizeAudio() {
-            if (!audioBuffer) return;
-            
-            // Find the peak amplitude across all channels
-            let peak = 0;
-            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-                const channelData = audioBuffer.getChannelData(channel);
-                for (let i = 0; i < channelData.length; i++) {
-                    const abs = Math.abs(channelData[i]);
-                    if (abs > peak) peak = abs;
+            const sources = getAvailableGranularSources();
+            if (sources.length === 0) return;
+
+            const normalizeBuffer = (buffer) => {
+                let peak = 0;
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const channelData = buffer.getChannelData(channel);
+                    for (let i = 0; i < channelData.length; i++) {
+                        const abs = Math.abs(channelData[i]);
+                        if (abs > peak) peak = abs;
+                    }
                 }
-            }
             
-            // Avoid division by zero and handle silent buffers
-            // Use epsilon for floating-point comparison
-            const epsilon = 0.0001;
-            if (peak === 0 || Math.abs(peak - 1.0) < epsilon) {
-                statusDiv.textContent = peak === 0 ? "Buffer is silent" : "Already normalized";
-                return;
-            }
-            
-            // Calculate scaling factor to make peak = 1.0
-            const scaleFactor = 1.0 / peak;
-            
-            // Create a new buffer with the normalized data
-            const normalizedBuffer = audioContext.createBuffer(
-                audioBuffer.numberOfChannels,
-                audioBuffer.length,
-                audioBuffer.sampleRate
-            );
-            
-            // Scale all samples
-            for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-                const sourceData = audioBuffer.getChannelData(channel);
-                const destData = normalizedBuffer.getChannelData(channel);
-                for (let i = 0; i < sourceData.length; i++) {
-                    destData[i] = sourceData[i] * scaleFactor;
+                const epsilon = 0.0001;
+                if (peak === 0 || Math.abs(peak - 1.0) < epsilon) {
+                    return { buffer, peak, changed: false };
                 }
-            }
-            
-            // Replace the audio buffer with normalized version
-            audioBuffer = normalizedBuffer;
-            
-            // Update the waveform display
-            drawWaveform();
-            
-            // Update status
-            statusDiv.textContent = `Normalized (peak: ${(peak * 100).toFixed(1)}% → 100%)`;
-            
-            // Save normalized audio buffer to IndexedDB
-            saveAudioBufferToDB(audioBuffer);
+
+                const scaleFactor = 1.0 / peak;
+                const normalizedBuffer = audioContext.createBuffer(
+                    buffer.numberOfChannels,
+                    buffer.length,
+                    buffer.sampleRate
+                );
+
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    const sourceData = buffer.getChannelData(channel);
+                    const destData = normalizedBuffer.getChannelData(channel);
+                    for (let i = 0; i < sourceData.length; i++) {
+                        destData[i] = sourceData[i] * scaleFactor;
+                    }
+                }
+                return { buffer: normalizedBuffer, peak, changed: true };
+            };
+
+            const results = sources.map((sourceInfo) => ({ ...sourceInfo, ...normalizeBuffer(sourceInfo.buffer) }));
+            results.forEach((result) => {
+                if (!result.changed) return;
+                if (result.kind === 'mic') {
+                    micAudioBuffer = result.buffer;
+                    saveAudioBufferToDB(micAudioBuffer, MIC_AUDIO_BUFFER_KEY);
+                } else {
+                    generatedLoopBuffer = result.buffer;
+                    saveAudioBufferToDB(generatedLoopBuffer, GENERATED_AUDIO_BUFFER_KEY);
+                }
+            });
+
+            syncLegacyAudioBuffer();
+            drawWaveforms();
+            const changed = results.filter((result) => result.changed);
+            statusDiv.textContent = changed.length > 0
+                ? `Normalized ${changed.length} source${changed.length === 1 ? '' : 's'}.`
+                : 'Sources already normalized or silent.';
         }
 
         // --- Waveform & Visualization ---
         function drawWaveform() {
-            if (!audioBuffer) return;
-            
-            // Handle resizing
-            waveformCanvas.width = waveformCanvas.offsetWidth;
-            waveformCanvas.height = waveformCanvas.offsetHeight;
-
-            const ctx = waveformCanvas.getContext('2d');
-            const width = waveformCanvas.width;
-            const height = waveformCanvas.height;
-            const data = audioBuffer.getChannelData(0);
-            const step = Math.ceil(data.length / width);
-            const amp = height / 2;
-
-            ctx.fillStyle = '#0a0a15';
-            ctx.fillRect(0, 0, width, height);
-
-            // Draw Wave
-            ctx.beginPath();
-            ctx.strokeStyle = '#00d4ff';
-            ctx.lineWidth = 1;
-
-            for (let i = 0; i < width; i++) {
-                let min = 1.0;
-                let max = -1.0;
-                for (let j = 0; j < step; j++) {
-                    const val = data[(i * step) + j];
-                    if (val < min) min = val;
-                    if (val > max) max = val;
-                }
-                ctx.moveTo(i, (1 + min) * amp);
-                ctx.lineTo(i, (1 + max) * amp);
-            }
-            ctx.stroke();
-
-            // Draw Start/End Markers
-            const startPct = document.getElementById('sampleStart').value / 100;
-            const endPct = document.getElementById('sampleEnd').value / 100;
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            // Inactive area before start
-            ctx.fillRect(0, 0, width * startPct, height);
-            // Inactive area after end
-            ctx.fillRect(width * endPct, 0, width * (1-endPct), height);
-
-            ctx.strokeStyle = '#ff0844';
-            ctx.beginPath();
-            ctx.moveTo(width * startPct, 0);
-            ctx.lineTo(width * startPct, height);
-            ctx.stroke();
-
-            ctx.strokeStyle = '#ff0844';
-            ctx.beginPath();
-            ctx.moveTo(width * endPct, 0);
-            ctx.lineTo(width * endPct, height);
-            ctx.stroke();
+            drawWaveforms();
         }
 
         // --- Helper Functions ---
         function canPlayGrains() {
             // Allow playback if we have either audio buffer or noise selected
             const noiseType = document.getElementById('noiseType').value;
-            return audioContext && (audioBuffer || noiseType !== 'none');
+            return audioContext && (hasGranularSource() || noiseType !== 'none');
         }
 
         // --- Filter Envelope ---
@@ -5096,8 +5304,6 @@
             const mixer = audioContext.createGain();
             
             // Declare source nodes that will need cleanup
-            let source = null;
-            let sampleGain = null;
             let noiseSource = null;
             let noiseGain = null;
 
@@ -5127,61 +5333,57 @@
             // Create sample source if available and needed
             const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
 
-            if (audioBuffer && noiseMix < 1.0) {
-                // Start/End Logic with LFO modulation
-                let startPct = getModulatedValue('sampleStart') / 100;
-                let endPct = getModulatedValue('sampleEnd') / 100;
+            const granularSources = getAvailableGranularSources();
+            if (granularSources.length > 0 && noiseMix < 1.0) {
+                const perSourceGain = (1 - noiseMix) / granularSources.length;
                 const posSlider = getModulatedValue('position') / 100;
-                const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
-                    ? mygrainUtils.resolveSampleWindow({
-                        bufferDuration: audioBuffer.duration,
-                        startPct,
-                        endPct,
-                        positionPct: posSlider,
-                        grainSizeSeconds: grainSize,
-                        sprayAmount: spray,
-                        randomValue: Math.random() * 2 - 1
-                    })
-                    : {
-                        playPosition: Math.max(0, audioBuffer.duration * Math.min(startPct, endPct)),
-                        grainSizeSeconds: grainSize
+
+                granularSources.forEach((sourceInfo) => {
+                    const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId);
+                    const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
+                        ? mygrainUtils.resolveSampleWindow({
+                            bufferDuration: sourceInfo.buffer.duration,
+                            startPct: loopRange.startPct,
+                            endPct: loopRange.endPct,
+                            positionPct: posSlider,
+                            grainSizeSeconds: grainSize,
+                            sprayAmount: spray,
+                            randomValue: Math.random() * 2 - 1
+                        })
+                        : {
+                            playPosition: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
+                            grainSizeSeconds: grainSize,
+                            startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
+                            endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
+                        };
+
+                    const source = audioContext.createBufferSource();
+                    const sampleGain = audioContext.createGain();
+                    source.buffer = sourceInfo.buffer;
+                    source.playbackRate.value = isFinite(finalRate) && finalRate > 0 ? finalRate : 1;
+                    source.loop = true;
+                    source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
+                    source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
+                    sampleGain.gain.value = perSourceGain;
+
+                    source.connect(sampleGain);
+                    sampleGain.connect(mixer);
+                    sourcesRemaining++;
+
+                    const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
+                    source.start(now, sampleWindow.playPosition);
+                    source.stop(now + totalDuration);
+
+                    source.onended = () => {
+                        try {
+                            source.disconnect();
+                            sampleGain.disconnect();
+                        } catch(e) {
+                            // Node may already be disconnected
+                        }
+                        cleanupCommonNodes();
                     };
-
-                source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                
-                // Safety check before setting playbackRate
-                if (isFinite(finalRate) && finalRate > 0) {
-                    source.playbackRate.value = finalRate;
-                } else {
-                    source.playbackRate.value = 1; // Fallback to normal speed
-                    console.warn('Invalid playback rate calculated, using default:', finalRate);
-                }
-                
-                source.loop = true; // Enable looping
-
-                sampleGain = audioContext.createGain();
-                sampleGain.gain.value = 1 - noiseMix;
-
-                source.connect(sampleGain);
-                sampleGain.connect(mixer);
-                sourcesRemaining++; // Track this source
-
-                const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
-                source.start(now, sampleWindow.playPosition);
-                // Stop after envelope completes
-                source.stop(now + totalDuration);
-                
-                // Clean up nodes when source finishes
-                source.onended = () => {
-                    try {
-                        source.disconnect();
-                        sampleGain.disconnect();
-                    } catch(e) {
-                        // Node may already be disconnected
-                    }
-                    cleanupCommonNodes();
-                };
+                });
             }
 
             // Create noise source if selected
@@ -5416,6 +5618,7 @@
 
         function playOscillatorNote(note, scheduledTime = null, velocity = 1) {
             if (!audioContext) return;
+            if (!oscillatorsEnabled) return;
             
             // Force stop any existing voice for this note to ensure envelope restarts
             if (activeOscVoices.has(note)) {
@@ -6316,17 +6519,13 @@
             document.getElementById('osc2ReleaseValue').textContent = `${e.target.value}ms`;
         });
 
-        // OSC Mix
-        document.getElementById('oscMix').addEventListener('input', throttleSlider((e) => {
-            oscMix = parseFloat(e.target.value) / 100;
-            // Implement true crossfade with headroom to prevent clipping
-            // Use equal-power crossfade for smoother transition
-            const oscLevel = Math.sqrt(oscMix) * MIX_HEADROOM;
-            const granularLevel = Math.sqrt(1 - oscMix) * MIX_HEADROOM;
-            
+        function updateSourceMixGains() {
+            const oscLevel = oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM : 0;
+            const granularLevel = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM;
+
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
                 const now = audioContext.currentTime;
-                const rampTime = 0.05; // 50ms smooth ramp
+                const rampTime = 0.05;
                 
                 oscOutputGain.gain.cancelScheduledValues(now);
                 oscOutputGain.gain.setValueAtTime(oscOutputGain.gain.value, now);
@@ -6335,8 +6534,26 @@
                 granularOutputGain.gain.cancelScheduledValues(now);
                 granularOutputGain.gain.setValueAtTime(granularOutputGain.gain.value, now);
                 granularOutputGain.gain.linearRampToValueAtTime(granularLevel, now + rampTime);
+            } else if (oscOutputGain && granularOutputGain) {
+                oscOutputGain.gain.value = oscLevel;
+                granularOutputGain.gain.value = granularLevel;
             }
-            
+        }
+
+        function setOscillatorsEnabled(enabled) {
+            oscillatorsEnabled = Boolean(enabled);
+            if (!oscillatorsEnabled) {
+                stopAllOscillators();
+            }
+            updateSourceMixGains();
+            syncPerformanceControlState();
+            setStatus(oscillatorsEnabled ? 'Oscillators enabled.' : 'Oscillators off. Granular sources only.');
+        }
+
+        // OSC Mix
+        document.getElementById('oscMix').addEventListener('input', throttleSlider((e) => {
+            oscMix = Math.max(0, Math.min(1, parseFloat(e.target.value) / 100));
+            updateSourceMixGains();
             document.getElementById('oscMixValue').textContent = `${Math.round(oscMix * 100)}% wave`;
             syncPerformanceSoundControls();
         }));
@@ -6495,7 +6712,7 @@
                 osc2Decay: 70,
                 osc2Sustain: 8,
                 osc2Release: 55,
-                oscMix: 52,
+                oscMix: 30,
                 sampleStart: 0,
                 sampleEnd: 100,
                 grainSize: 72,
@@ -6743,7 +6960,7 @@
         presetFileInput.style.display = 'none';
         document.body.appendChild(presetFileInput);
 
-        async function applyLoadedAudioBuffer(buffer, sourceLabel) {
+        async function applyLoadedAudioBuffer(buffer, sourceLabel, kind = 'generated') {
             if (!buffer) {
                 throw new Error('Decoded audio buffer is empty.');
             }
@@ -6756,32 +6973,31 @@
                 throw new Error(`Samples longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds are not supported on mobile.`);
             }
 
-            audioBuffer = buffer;
-            drawWaveform();
-            setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
-            normalizeBtn.disabled = false;
-            document.getElementById('auditionBtn').disabled = false;
-            await saveAudioBufferToDB(audioBuffer);
+            setSourceBuffer(kind, buffer, sourceLabel);
+            await saveAudioBufferToDB(buffer, kind === 'mic' ? MIC_AUDIO_BUFFER_KEY : GENERATED_AUDIO_BUFFER_KEY);
         }
 
-        async function loadAudioFromArrayBuffer(arrayBuffer, sourceLabel) {
+        async function loadAudioFromArrayBuffer(arrayBuffer, sourceLabel, kind = 'generated') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading audio.');
             }
 
             const loadToken = ++sampleLoadToken;
-            const previousBuffer = audioBuffer;
+            const previousGeneratedBuffer = generatedLoopBuffer;
+            const previousMicBuffer = micAudioBuffer;
             setStatus(`Loading ${sourceLabel}…`);
             const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
 
             if (loadToken !== sampleLoadToken) {
-                return previousBuffer;
+                return kind === 'mic' ? previousMicBuffer : previousGeneratedBuffer;
             }
 
             try {
-                await applyLoadedAudioBuffer(decodedBuffer, sourceLabel);
+                await applyLoadedAudioBuffer(decodedBuffer, sourceLabel, kind);
             } catch (error) {
-                audioBuffer = previousBuffer;
+                generatedLoopBuffer = previousGeneratedBuffer;
+                micAudioBuffer = previousMicBuffer;
+                syncLegacyAudioBuffer();
                 throw error;
             }
 
@@ -6809,7 +7025,7 @@
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, 'Built-in demo');
+            await applyLoadedAudioBuffer(buffer, 'Built-in demo', 'generated');
         }
 
         async function generateRandomSourceSample() {
@@ -6904,7 +7120,7 @@
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, `${bpm} BPM beat source`);
+            await applyLoadedAudioBuffer(buffer, `${bpm} BPM beat source`, 'generated');
         }
 
         generateSourceBtn?.addEventListener('click', async () => {
@@ -7023,7 +7239,7 @@
                     throw new Error(`Audio files larger than ${(MAX_SAMPLE_BYTES / (1024 * 1024)).toFixed(0)}MB are not supported on mobile.`);
                 }
                 const arrayBuffer = await file.arrayBuffer();
-                await loadAudioFromArrayBuffer(arrayBuffer, file.name);
+                await loadAudioFromArrayBuffer(arrayBuffer, file.name, 'generated');
             } catch (err) {
                 console.error(err);
                 setStatus(`Failed to load ${file.name}: ${err.message}`, 'error');
@@ -7335,7 +7551,7 @@
                 lfo2Depth: 50,
                 lfo3Rate: 120,
                 lfo3Depth: 50,
-                oscMix: 50
+                oscMix: 35
             };
             
             // Reset all sliders to default values
@@ -7778,6 +7994,8 @@
         const AUDIO_DB_VERSION = 1;
         const AUDIO_STORE_NAME = 'audioBuffers';
         const AUDIO_BUFFER_KEY = 'currentAudioBuffer';
+        const GENERATED_AUDIO_BUFFER_KEY = 'generatedLoopBuffer';
+        const MIC_AUDIO_BUFFER_KEY = 'micAudioBuffer';
 
         // Open IndexedDB
         function openAudioDB() {
@@ -7797,7 +8015,7 @@
         }
 
         // Save audio buffer to IndexedDB
-        async function saveAudioBufferToDB(buffer) {
+        async function saveAudioBufferToDB(buffer, key = AUDIO_BUFFER_KEY) {
             if (!buffer) return;
             
             try {
@@ -7819,7 +8037,7 @@
                 // Store in IndexedDB
                 const transaction = db.transaction([AUDIO_STORE_NAME], 'readwrite');
                 const store = transaction.objectStore(AUDIO_STORE_NAME);
-                store.put(audioData, AUDIO_BUFFER_KEY);
+                store.put(audioData, key);
                 
                 await new Promise((resolve, reject) => {
                     transaction.oncomplete = resolve;
@@ -7827,21 +8045,21 @@
                 });
                 
                 db.close();
-                console.log('Audio buffer saved to IndexedDB');
+                console.log('Audio buffer saved to IndexedDB:', key);
             } catch (err) {
                 console.error('Failed to save audio buffer to IndexedDB:', err);
             }
         }
 
         // Load audio buffer from IndexedDB
-        async function loadAudioBufferFromDB() {
+        async function loadAudioBufferFromDB(key = AUDIO_BUFFER_KEY) {
             try {
                 const db = await openAudioDB();
                 const transaction = db.transaction([AUDIO_STORE_NAME], 'readonly');
                 const store = transaction.objectStore(AUDIO_STORE_NAME);
                 
                 const audioData = await new Promise((resolve, reject) => {
-                    const request = store.get(AUDIO_BUFFER_KEY);
+                    const request = store.get(key);
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
                 });
@@ -7865,7 +8083,7 @@
                     channelData.set(sourceData);
                 }
                 
-                console.log('Audio buffer restored from IndexedDB');
+                console.log('Audio buffer restored from IndexedDB:', key);
                 return buffer;
             } catch (err) {
                 console.error('Failed to load audio buffer from IndexedDB:', err);
@@ -8514,6 +8732,7 @@
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
+        const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
@@ -8567,6 +8786,12 @@
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
                 performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Stop Loop' : 'Play Loop';
             }
+
+            if (performanceOscToggleBtn) {
+                performanceOscToggleBtn.classList.toggle('osc-off', !oscillatorsEnabled);
+                performanceOscToggleBtn.textContent = oscillatorsEnabled ? 'Osc On' : 'Osc Off';
+                performanceOscToggleBtn.setAttribute('aria-pressed', String(!oscillatorsEnabled));
+            }
         }
 
         performanceHoldBtn?.addEventListener('click', () => {
@@ -8590,6 +8815,10 @@
         performanceSourceMix?.addEventListener('input', (event) => {
             setSliderValue('oscMix', event.target.value);
             syncPerformanceSoundControls();
+        });
+
+        performanceOscToggleBtn?.addEventListener('click', () => {
+            setOscillatorsEnabled(!oscillatorsEnabled);
         });
 
         performanceCutoff?.addEventListener('input', (event) => {
