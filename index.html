@@ -434,7 +434,8 @@
             margin-right: 4px;
         }
 
-        .slope-toggle {
+        .slope-toggle,
+        .filter-power-toggle {
             padding: 1px 2px;
             font-size: 6px;
             background: rgba(0,0,0,0.4);
@@ -447,7 +448,8 @@
             min-width: 12px;
         }
 
-        .slope-toggle.active {
+        .slope-toggle.active,
+        .filter-power-toggle.active {
             background: #9370DB;
             color: #fff;
             border-color: #9370DB;
@@ -1543,7 +1545,7 @@
             text-align: right;
         }
 
-        .lfo-toggle, .inv-toggle, .mode-toggle, .slope-toggle {
+        .lfo-toggle, .inv-toggle, .mode-toggle, .slope-toggle, .filter-power-toggle {
             min-height: 28px;
             font-size: 0.68rem;
         }
@@ -1882,13 +1884,21 @@
             white-space: nowrap;
         }
 
-        .simplified-ui .performance-pole-row {
+        .simplified-ui .performance-pole-row,
+        .simplified-ui .performance-toggle-row,
+        .simplified-ui .performance-octave-row {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
         }
 
-        .simplified-ui .performance-pole-toggle {
+        .simplified-ui .performance-pole-row.three-up {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .simplified-ui .performance-pole-toggle,
+        .simplified-ui .performance-filter-toggle,
+        .simplified-ui .performance-octave-btn {
             min-height: 38px;
             padding: 8px;
             border-radius: 10px;
@@ -1903,6 +1913,25 @@
             color: #00131a;
             background: linear-gradient(135deg, #7ef6ff 0%, #7effb2 100%);
             border-color: rgba(126, 246, 255, 0.55);
+        }
+
+        .simplified-ui .performance-filter-toggle.active,
+        .simplified-ui .performance-octave-btn.active {
+            color: #00131a;
+            background: linear-gradient(135deg, #7effb2 0%, #00c6ff 100%);
+            border-color: rgba(126, 255, 178, 0.55);
+        }
+
+        .simplified-ui .performance-select {
+            min-height: 40px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(5, 8, 15, 0.72);
+            color: #fff;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
         }
 
         .simplified-ui .bpm-input-row {
@@ -2178,23 +2207,56 @@
                 </div>
                 <div class="performance-sound-card">
                     <label>
-                        <span>LP Poles</span>
+                        <span>LP Filter</span>
                         <span class="value" id="performanceLpfPolesValue">2P</span>
                     </label>
-                    <div class="performance-pole-row" role="group" aria-label="Low-pass filter poles">
+                    <div class="performance-pole-row three-up" role="group" aria-label="Low-pass filter controls">
+                        <button class="performance-filter-toggle active" data-performance-filter-power="lpf">On</button>
                         <button class="performance-pole-toggle active" data-performance-filter="lpf" data-poles="2">2P</button>
                         <button class="performance-pole-toggle" data-performance-filter="lpf" data-poles="4">4P</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
                     <label>
-                        <span>HP Poles</span>
+                        <span>HP Filter</span>
                         <span class="value" id="performanceHpfPolesValue">2P</span>
                     </label>
-                    <div class="performance-pole-row" role="group" aria-label="High-pass filter poles">
+                    <div class="performance-pole-row three-up" role="group" aria-label="High-pass filter controls">
+                        <button class="performance-filter-toggle active" data-performance-filter-power="hpf">On</button>
                         <button class="performance-pole-toggle active" data-performance-filter="hpf" data-poles="2">2P</button>
                         <button class="performance-pole-toggle" data-performance-filter="hpf" data-poles="4">4P</button>
                     </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>Octave</span>
+                        <span class="value" id="performanceOctaveValue">0</span>
+                    </label>
+                    <div class="performance-octave-row" role="group" aria-label="Keyboard octave">
+                        <button class="performance-octave-btn" id="performanceOctaveDownBtn">-</button>
+                        <button class="performance-octave-btn" id="performanceOctaveUpBtn">+</button>
+                    </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceLfoWaveform">
+                        <span>LFO Wave</span>
+                    </label>
+                    <select id="performanceLfoWaveform" class="performance-select">
+                        <option value="sine">Sine</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="sawtooth">Saw</option>
+                        <option value="ramp">Ramp</option>
+                        <option value="square">Square</option>
+                        <option value="pulse">Pulse</option>
+                        <option value="stepped">Stepped</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performancePulseWidth">
+                        <span>Pulse Width</span>
+                        <span class="value" id="performancePulseWidthValue">50%</span>
+                    </label>
+                    <input type="range" id="performancePulseWidth" min="5" max="95" value="50" step="1">
                 </div>
             </div>
             <div class="performance-actions">
@@ -2440,6 +2502,7 @@
                         <label>
                             <span class="param-name">LPF Cutoff</span>
                             <div class="slope-group">
+                                <button class="filter-power-toggle active" data-filter-power="lpf">ON</button>
                                 <button class="slope-toggle active" data-filter="lpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="lpf" data-slope="24" data-poles="4">4P</button>
                             </div>
@@ -2470,6 +2533,7 @@
                         <label>
                             <span class="param-name">HPF Cutoff</span>
                             <div class="slope-group">
+                                <button class="filter-power-toggle active" data-filter-power="hpf">ON</button>
                                 <button class="slope-toggle active" data-filter="hpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="hpf" data-slope="24" data-poles="4">4P</button>
                             </div>
@@ -2764,9 +2828,16 @@
                         <select id="lfo3Waveform">
                             <option value="sine">Sine</option>
                             <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
+                            <option value="sawtooth">Saw</option>
+                            <option value="ramp">Ramp</option>
                             <option value="square">Square</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="stepped">Stepped</option>
                         </select>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Pulse Width</span><span class="value" id="lfo3PulseWidthValue">50%</span></label>
+                        <input type="range" id="lfo3PulseWidth" min="5" max="95" value="50" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2849,9 +2920,16 @@
                         <select id="lfoWaveform">
                             <option value="sine">Sine</option>
                             <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
+                            <option value="sawtooth">Saw</option>
+                            <option value="ramp">Ramp</option>
                             <option value="square">Square</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="stepped">Stepped</option>
                         </select>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Pulse Width</span><span class="value" id="lfoPulseWidthValue">50%</span></label>
+                        <input type="range" id="lfoPulseWidth" min="5" max="95" value="50" step="1">
                     </div>
                     <div class="control-group">
                         <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">LFO 2</label>
@@ -2869,9 +2947,16 @@
                         <select id="lfo2Waveform">
                             <option value="sine">Sine</option>
                             <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
+                            <option value="sawtooth">Saw</option>
+                            <option value="ramp">Ramp</option>
                             <option value="square">Square</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="stepped">Stepped</option>
                         </select>
+                    </div>
+                    <div class="control-group">
+                        <label><span>Pulse Width</span><span class="value" id="lfo2PulseWidthValue">50%</span></label>
+                        <input type="range" id="lfo2PulseWidth" min="5" max="95" value="50" step="1">
                     </div>
                     <div class="control-group">
                         <label style="color: var(--accent); font-weight: bold; margin-bottom: 5px; margin-top: 10px;">Cross-Modulation</label>
@@ -3697,6 +3782,8 @@
         const MAX_SAFE_FILTER_Q = 2.5;
         const DEFAULT_PERFORMANCE_CUTOFF = 2800;
         const DEFAULT_PERFORMANCE_RESONANCE = 0.6;
+        let lpfEnabled = true;
+        let hpfEnabled = true;
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
             'globalBpmSlider',
@@ -4008,6 +4095,40 @@
         }
 
         // --- LFO Engine ---
+        function getLfoPulseWidth(lfoNumber) {
+            const id = lfoNumber === 2 ? 'lfo2PulseWidth' : lfoNumber === 3 ? 'lfo3PulseWidth' : 'lfoPulseWidth';
+            const value = Number(document.getElementById(id)?.value ?? 50);
+            return Math.max(0.05, Math.min(0.95, (Number.isFinite(value) ? value : 50) / 100));
+        }
+
+        function evaluateLfoWaveform(waveform, phase, pulseWidth = 0.5) {
+            switch (waveform) {
+                case 'sine':
+                    return Math.sin(phase * Math.PI * 2);
+                case 'triangle':
+                    return phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+                case 'sawtooth':
+                    return phase * 2 - 1;
+                case 'ramp':
+                    return 1 - phase * 2;
+                case 'square':
+                    return phase < 0.5 ? -1 : 1;
+                case 'pulse':
+                    return phase < pulseWidth ? 1 : -1;
+                case 'stepped': {
+                    const stepCount = 8;
+                    const steppedPhase = Math.floor(phase * stepCount) / (stepCount - 1);
+                    return steppedPhase * 2 - 1;
+                }
+                default:
+                    return 0;
+            }
+        }
+
+        function getNativeOscillatorWaveform(waveform) {
+            return ['sine', 'triangle', 'sawtooth', 'square'].includes(waveform) ? waveform : 'square';
+        }
+
         // Raw LFO1 value without cross-modulation (to avoid circular dependency)
         function getLFOValue1Raw() {
             if (!audioContext) return 0;
@@ -4024,21 +4145,7 @@
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
-            let value = 0;
-            switch (waveform) {
-                case 'sine':
-                    value = Math.sin(phase * Math.PI * 2);
-                    break;
-                case 'triangle':
-                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
-                    break;
-                case 'sawtooth':
-                    value = phase * 2 - 1;
-                    break;
-                case 'square':
-                    value = phase < 0.5 ? -1 : 1;
-                    break;
-            }
+            const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(1));
             
             return value * depth;
         }
@@ -4067,21 +4174,7 @@
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
-            let value = 0;
-            switch (waveform) {
-                case 'sine':
-                    value = Math.sin(phase * Math.PI * 2);
-                    break;
-                case 'triangle':
-                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
-                    break;
-                case 'sawtooth':
-                    value = phase * 2 - 1;
-                    break;
-                case 'square':
-                    value = phase < 0.5 ? -1 : 1;
-                    break;
-            }
+            const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(1));
             
             return value * depth;
         }
@@ -4102,21 +4195,7 @@
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
-            let value = 0;
-            switch (waveform) {
-                case 'sine':
-                    value = Math.sin(phase * Math.PI * 2);
-                    break;
-                case 'triangle':
-                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
-                    break;
-                case 'sawtooth':
-                    value = phase * 2 - 1;
-                    break;
-                case 'square':
-                    value = phase < 0.5 ? -1 : 1;
-                    break;
-            }
+            const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(2));
             
             return value * depth;
         }
@@ -4145,21 +4224,7 @@
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
-            let value = 0;
-            switch (waveform) {
-                case 'sine':
-                    value = Math.sin(phase * Math.PI * 2);
-                    break;
-                case 'triangle':
-                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
-                    break;
-                case 'sawtooth':
-                    value = phase * 2 - 1;
-                    break;
-                case 'square':
-                    value = phase < 0.5 ? -1 : 1;
-                    break;
-            }
+            const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(2));
             
             return value * depth;
         }
@@ -4175,21 +4240,7 @@
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
-            let value = 0;
-            switch (waveform) {
-                case 'sine':
-                    value = Math.sin(phase * Math.PI * 2);
-                    break;
-                case 'triangle':
-                    value = phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
-                    break;
-                case 'sawtooth':
-                    value = phase * 2 - 1;
-                    break;
-                case 'square':
-                    value = phase < 0.5 ? -1 : 1;
-                    break;
-            }
+            const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(3));
             
             return value * depth;
         }
@@ -4353,7 +4404,7 @@
             
             // Create LFO3 oscillator for audio-rate modulation
             lfo3Oscillator = audioContext.createOscillator();
-            lfo3Oscillator.type = document.getElementById('lfo3Waveform').value;
+            lfo3Oscillator.type = getNativeOscillatorWaveform(document.getElementById('lfo3Waveform').value);
             lfo3Oscillator.frequency.value = parseFloat(document.getElementById('lfo3Rate').value) / 60;
             
             // Create depth control (scales the LFO output)
@@ -4473,10 +4524,9 @@
             granularOutputGain = audioContext.createGain();
             granularOutputGain.gain.value = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM;
             
-            // Connect both to the pre-filter gain node, then to filter chain
+            // Connect both to the pre-filter gain node, then to the optional filter chain
             oscOutputGain.connect(preFilterGainNode);
             granularOutputGain.connect(preFilterGainNode);
-            preFilterGainNode.connect(hpfNodes[0]);
 
             // BPM-synced delay setup
             delayNode = audioContext.createDelay(5.0);
@@ -4534,71 +4584,61 @@
             updateEffects();
         }
 
+        function getActiveFilterStages(nodes, slopeDb, enabled) {
+            if (!enabled || !nodes || nodes.length === 0) return [];
+            const stages = Math.ceil((Number(slopeDb) || 12) / 12);
+            return nodes.slice(0, Math.max(1, Math.min(stages, nodes.length, 2)));
+        }
+
+        function rebuildFilterChain() {
+            if (!preFilterGainNode || !makeupGain) return;
+
+            try {
+                preFilterGainNode.disconnect();
+            } catch (e) {}
+            [...hpfNodes, ...lpfNodes].forEach((node) => {
+                try {
+                    node.disconnect();
+                } catch (e) {}
+            });
+
+            const chain = [
+                ...getActiveFilterStages(hpfNodes, hpfSlope, hpfEnabled),
+                ...getActiveFilterStages(lpfNodes, lpfSlope, lpfEnabled)
+            ];
+
+            if (chain.length === 0) {
+                preFilterGainNode.connect(makeupGain);
+                return;
+            }
+
+            preFilterGainNode.connect(chain[0]);
+            for (let i = 0; i < chain.length - 1; i++) {
+                chain[i].connect(chain[i + 1]);
+            }
+            chain[chain.length - 1].connect(makeupGain);
+        }
+
         // Function to configure filter chain based on selected slope
         function configureLPFSlope(slopeDb) {
-            if (!lpfNodes || lpfNodes.length === 0) return null;
-            
-            // Calculate how many stages we need (each biquad gives 12dB/octave)
-            const stages = Math.ceil(slopeDb / 12);
-            const actualStages = Math.max(1, Math.min(stages, lpfNodes.length, 2));
-            
-            // Disconnect all existing connections
-            lpfNodes.forEach(node => node.disconnect());
-            
-            // Reconnect only the required number of stages
-            for (let i = 0; i < actualStages - 1; i++) {
-                if (lpfNodes[i] && lpfNodes[i + 1]) {
-                    lpfNodes[i].connect(lpfNodes[i + 1]);
-                }
-            }
-            
-            console.log(`LPF configured for ${slopeDb}dB/octave using ${actualStages} stages`);
-            
-            // Reconnect the filter chain to the audio graph
-            // Get the current HPF output node based on hpfSlope
-            const hpfStages = Math.max(1, Math.min(Math.ceil(hpfSlope / 12), hpfNodes.length, 2));
-            const hpfOutputNode = hpfNodes[hpfStages - 1];
-            
-            // Reconnect: HPF output -> LPF input -> makeup gain
-            if (hpfOutputNode) {
-                hpfOutputNode.disconnect();
-                hpfOutputNode.connect(lpfNodes[0]);
-            }
-            lpfNodes[actualStages - 1].connect(makeupGain);
-            
-            // Return the first and last active node for reconnection
+            lpfSlope = Number(slopeDb) || 12;
+            const activeStages = getActiveFilterStages(lpfNodes, lpfSlope, lpfEnabled);
+            rebuildFilterChain();
+            console.log(`LPF configured for ${lpfEnabled ? lpfSlope : 'bypassed'}dB/octave`);
             return {
                 input: lpfNodes[0],
-                output: lpfNodes[actualStages - 1]
+                output: activeStages[activeStages.length - 1] || preFilterGainNode
             };
         }
 
         function configureHPFSlope(slopeDb) {
-            if (!hpfNodes || hpfNodes.length === 0) return null;
-            
-            // Calculate how many stages we need
-            const stages = Math.ceil(slopeDb / 12);
-            const actualStages = Math.max(1, Math.min(stages, hpfNodes.length, 2));
-            
-            // Disconnect all existing connections
-            hpfNodes.forEach(node => node.disconnect());
-            
-            // Reconnect only the required number of stages
-            for (let i = 0; i < actualStages - 1; i++) {
-                if (hpfNodes[i] && hpfNodes[i + 1]) {
-                    hpfNodes[i].connect(hpfNodes[i + 1]);
-                }
-            }
-            
-            console.log(`HPF configured for ${slopeDb}dB/octave using ${actualStages} stages`);
-            
-            // Reconnect the filter chain to the audio graph
-            // HPF output connects to LPF input
-            hpfNodes[actualStages - 1].connect(lpfNodes[0]);
-            
+            hpfSlope = Number(slopeDb) || 12;
+            const activeStages = getActiveFilterStages(hpfNodes, hpfSlope, hpfEnabled);
+            rebuildFilterChain();
+            console.log(`HPF configured for ${hpfEnabled ? hpfSlope : 'bypassed'}dB/octave`);
             return {
                 input: hpfNodes[0],
-                output: hpfNodes[actualStages - 1]
+                output: activeStages[activeStages.length - 1] || preFilterGainNode
             };
         }
 
@@ -4609,8 +4649,8 @@
             
             // Calculate makeup gain based on total filter stages
             // Each 12dB stage can attenuate up to ~6dB at cutoff
-            const lpfStages = Math.ceil(currentLpfSlope / 12);
-            const hpfStages = Math.ceil(currentHpfSlope / 12);
+            const lpfStages = lpfEnabled ? Math.ceil(currentLpfSlope / 12) : 0;
+            const hpfStages = hpfEnabled ? Math.ceil(currentHpfSlope / 12) : 0;
             const totalStages = lpfStages + hpfStages;
             
             // Approximate makeup gain needed (in linear scale)
@@ -4895,6 +4935,7 @@
                 activeSourceKind = 'generated';
             }
             syncLegacyAudioBuffer();
+            resetSourceLoopPoints(kind);
             drawWaveforms();
             updateSourceAvailability();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
@@ -4908,6 +4949,15 @@
             const endLabel = document.getElementById(`${prefix}LoopEndValue`);
             if (startLabel) startLabel.textContent = `${Math.round(Number(start) || 0)}%`;
             if (endLabel) endLabel.textContent = `${Math.round(Number(end) || 100)}%`;
+        }
+
+        function resetSourceLoopPoints(kind) {
+            const prefix = kind === 'mic' ? 'mic' : 'generated';
+            const start = document.getElementById(`${prefix}LoopStart`);
+            const end = document.getElementById(`${prefix}LoopEnd`);
+            if (start) start.value = '0';
+            if (end) end.value = '100';
+            updateLoopLabels(kind);
         }
 
         function drawWaveforms() {
@@ -5217,7 +5267,7 @@
         // --- Filter Envelope ---
         function applyFilterEnvelope(note, startTime, duration) {
             const filterEnvAmount = parseFloat(document.getElementById('filterEnvAmount').value) / 100;
-            if (filterEnvAmount <= 0 || lpfNodes.length === 0) return;
+            if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return;
 
             const attack = parseFloat(document.getElementById('filterEnvAttack').value) / 1000;
             const decay = parseFloat(document.getElementById('filterEnvDecay').value) / 1000;
@@ -5616,7 +5666,7 @@
                 const filterRelease = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
                 const baseCutoff = getModulatedValue('lpfCutoff');
                 
-                if (lpfNodes.length > 0) {
+                if (lpfEnabled && lpfNodes.length > 0) {
                     lpfNodes.forEach(node => {
                         node.frequency.cancelScheduledValues(now);
                         node.frequency.setValueAtTime(node.frequency.value, now);
@@ -6410,6 +6460,10 @@
                 lpf: slopeToFilterPoles(lpfSlope),
                 hpf: slopeToFilterPoles(hpfSlope)
             };
+            const enabledByFilter = {
+                lpf: lpfEnabled,
+                hpf: hpfEnabled
+            };
 
             Object.entries(polesByFilter).forEach(([filter, poles]) => {
                 document.querySelectorAll(`.slope-toggle[data-filter="${filter}"]`).forEach(btn => {
@@ -6418,12 +6472,20 @@
                 document.querySelectorAll(`.performance-pole-toggle[data-performance-filter="${filter}"]`).forEach(btn => {
                     btn.classList.toggle('active', Number(btn.dataset.poles) === poles);
                 });
+                document.querySelectorAll(`.filter-power-toggle[data-filter-power="${filter}"]`).forEach(btn => {
+                    btn.classList.toggle('active', enabledByFilter[filter]);
+                    btn.textContent = enabledByFilter[filter] ? 'ON' : 'OFF';
+                });
+                document.querySelectorAll(`.performance-filter-toggle[data-performance-filter-power="${filter}"]`).forEach(btn => {
+                    btn.classList.toggle('active', enabledByFilter[filter]);
+                    btn.textContent = enabledByFilter[filter] ? 'On' : 'Off';
+                });
             });
 
             const lpfLabel = document.getElementById('performanceLpfPolesValue');
             const hpfLabel = document.getElementById('performanceHpfPolesValue');
-            if (lpfLabel) lpfLabel.textContent = `${polesByFilter.lpf}P`;
-            if (hpfLabel) hpfLabel.textContent = `${polesByFilter.hpf}P`;
+            if (lpfLabel) lpfLabel.textContent = lpfEnabled ? `${polesByFilter.lpf}P` : 'Off';
+            if (hpfLabel) hpfLabel.textContent = hpfEnabled ? `${polesByFilter.hpf}P` : 'Off';
         }
 
         function setFilterPoles(filter, poles) {
@@ -6446,9 +6508,34 @@
             syncPerformanceSoundControls();
         }
 
+        function setFilterEnabled(filter, enabled) {
+            const isEnabled = Boolean(enabled);
+            if (filter === 'lpf') {
+                lpfEnabled = isEnabled;
+                configureLPFSlope(lpfSlope);
+            } else if (filter === 'hpf') {
+                hpfEnabled = isEnabled;
+                configureHPFSlope(hpfSlope);
+            } else {
+                return;
+            }
+
+            refreshAutoMakeupGain();
+            syncFilterPoleControls();
+            syncPerformanceSoundControls();
+            updateEffects();
+        }
+
         document.querySelectorAll('.slope-toggle[data-filter]').forEach(btn => {
             btn.addEventListener('click', () => {
                 setFilterPoles(btn.dataset.filter, btn.dataset.poles);
+            });
+        });
+
+        document.querySelectorAll('.filter-power-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filter = btn.dataset.filterPower;
+                setFilterEnabled(filter, filter === 'lpf' ? !lpfEnabled : !hpfEnabled);
             });
         });
 
@@ -6456,6 +6543,10 @@
         function updateOctaveDisplay() {
             const sign = octaveOffset > 0 ? '+' : '';
             document.getElementById('octaveDisplay').textContent = `Oct: ${sign}${octaveOffset}`;
+            const performanceOctaveValue = document.getElementById('performanceOctaveValue');
+            if (performanceOctaveValue) {
+                performanceOctaveValue.textContent = `${sign}${octaveOffset}`;
+            }
         }
 
         document.getElementById('octaveUpBtn').addEventListener('click', () => {
@@ -6511,7 +6602,7 @@
             // Update oscillator waveform if it exists
             if (lfo3Oscillator && audioContext) {
                 const waveform = e.target.value;
-                lfo3Oscillator.type = waveform;
+                lfo3Oscillator.type = getNativeOscillatorWaveform(waveform);
             }
         });
 
@@ -6808,7 +6899,7 @@
                 osc2Decay: 70,
                 osc2Sustain: 8,
                 osc2Release: 55,
-                oscMix: 30,
+                oscMix: 12,
                 sampleStart: 0,
                 sampleEnd: 100,
                 grainSize: 72,
@@ -6842,6 +6933,8 @@
             };
 
             Object.entries(defaults).forEach(([id, value]) => setSliderValue(id, value));
+            setFilterEnabled('lpf', true);
+            setFilterEnabled('hpf', false);
             syncPerformanceControlState();
         }
 
@@ -6913,9 +7006,10 @@
         }
 
         async function generatePerformanceLoop() {
-            if (audioContext && !audioBuffer) {
-                await generateRandomSourceSample();
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before generating a loop.');
             }
+            await generateRandomSourceSample();
             generateInterestingLoop();
         }
 
@@ -7643,10 +7737,13 @@
                 delayMix: 0,
                 lfoRate: 120,
                 lfoDepth: 50,
+                lfoPulseWidth: 50,
                 lfo2Rate: 120,
                 lfo2Depth: 50,
+                lfo2PulseWidth: 50,
                 lfo3Rate: 120,
                 lfo3Depth: 50,
+                lfo3PulseWidth: 50,
                 oscMix: 35
             };
             
@@ -7659,6 +7756,8 @@
                 }
             });
 
+            setFilterEnabled('lpf', true);
+            setFilterEnabled('hpf', true);
             setFilterPoles('lpf', 2);
             setFilterPoles('hpf', 2);
             
@@ -7763,6 +7862,10 @@
                     lpf: slopeToFilterPoles(lpfSlope),
                     hpf: slopeToFilterPoles(hpfSlope)
                 },
+                filterEnabled: {
+                    lpf: lpfEnabled,
+                    hpf: hpfEnabled
+                },
                 requiresSampleReload: Boolean(audioBuffer)
             };
             
@@ -7849,6 +7952,10 @@
             if (safePreset.filterPoles) {
                 setFilterPoles('lpf', safePreset.filterPoles.lpf);
                 setFilterPoles('hpf', safePreset.filterPoles.hpf);
+            }
+            if (safePreset.filterEnabled) {
+                setFilterEnabled('lpf', safePreset.filterEnabled.lpf !== false);
+                setFilterEnabled('hpf', safePreset.filterEnabled.hpf !== false);
             }
             
             // Apply LFO enabled states
@@ -8227,7 +8334,9 @@
                     holdEnabled: holdEnabled,
                     bpmLocked: bpmLocked,
                     lpfSlope: lpfSlope,
-                    hpfSlope: hpfSlope
+                    hpfSlope: hpfSlope,
+                    lpfEnabled: lpfEnabled,
+                    hpfEnabled: hpfEnabled
                 },
                 octave: octaveOffset,
                 volumeBias: keyboardVolumeBias,
@@ -8338,6 +8447,12 @@
                     }
                     if (state.modes.hpfSlope !== undefined) {
                         setFilterPoles('hpf', slopeToFilterPoles(state.modes.hpfSlope));
+                    }
+                    if (state.modes.lpfEnabled !== undefined) {
+                        setFilterEnabled('lpf', state.modes.lpfEnabled);
+                    }
+                    if (state.modes.hpfEnabled !== undefined) {
+                        setFilterEnabled('hpf', state.modes.hpfEnabled);
                     }
                 }
 
@@ -8855,11 +8970,17 @@
         const performanceSourceMix = document.getElementById('performanceSourceMix');
         const performanceCutoff = document.getElementById('performanceCutoff');
         const performanceResonance = document.getElementById('performanceResonance');
+        const performanceOctaveDownBtn = document.getElementById('performanceOctaveDownBtn');
+        const performanceOctaveUpBtn = document.getElementById('performanceOctaveUpBtn');
+        const performanceLfoWaveform = document.getElementById('performanceLfoWaveform');
+        const performancePulseWidth = document.getElementById('performancePulseWidth');
 
         function syncPerformanceSoundControls() {
             const sourceMixSlider = document.getElementById('oscMix');
             const cutoffSlider = document.getElementById('lpfCutoff');
             const resonanceSlider = document.getElementById('lpfQ');
+            const lfoWaveform = document.getElementById('lfoWaveform');
+            const lfoPulseWidth = document.getElementById('lfoPulseWidth');
 
             if (performanceSourceMix && sourceMixSlider) {
                 const value = Math.round(Number(sourceMixSlider.value) || 0);
@@ -8879,6 +9000,16 @@
                 const value = clampFilterQ(resonanceSlider.value);
                 performanceResonance.value = String(value);
                 document.getElementById('performanceResonanceValue').textContent = value.toFixed(1);
+            }
+
+            if (performanceLfoWaveform && lfoWaveform) {
+                performanceLfoWaveform.value = lfoWaveform.value;
+            }
+
+            if (performancePulseWidth && lfoPulseWidth) {
+                const value = Math.round(Number(lfoPulseWidth.value) || 50);
+                performancePulseWidth.value = String(value);
+                document.getElementById('performancePulseWidthValue').textContent = `${value}%`;
             }
 
             syncFilterPoleControls();
@@ -8909,6 +9040,11 @@
                 performanceOscToggleBtn.classList.toggle('osc-off', !oscillatorsEnabled);
                 performanceOscToggleBtn.textContent = oscillatorsEnabled ? 'Osc On' : 'Osc Off';
                 performanceOscToggleBtn.setAttribute('aria-pressed', String(!oscillatorsEnabled));
+            }
+
+            const octaveLabel = document.getElementById('performanceOctaveValue');
+            if (octaveLabel) {
+                octaveLabel.textContent = `${octaveOffset > 0 ? '+' : ''}${octaveOffset}`;
             }
         }
 
@@ -8954,6 +9090,33 @@
             button.addEventListener('click', () => {
                 setFilterPoles(button.dataset.performanceFilter, button.dataset.poles);
             });
+        });
+
+        document.querySelectorAll('.performance-filter-toggle').forEach((button) => {
+            button.addEventListener('click', () => {
+                const filter = button.dataset.performanceFilterPower;
+                setFilterEnabled(filter, filter === 'lpf' ? !lpfEnabled : !hpfEnabled);
+            });
+        });
+
+        performanceOctaveDownBtn?.addEventListener('click', () => {
+            document.getElementById('octaveDownBtn')?.click();
+            syncPerformanceControlState();
+        });
+
+        performanceOctaveUpBtn?.addEventListener('click', () => {
+            document.getElementById('octaveUpBtn')?.click();
+            syncPerformanceControlState();
+        });
+
+        performanceLfoWaveform?.addEventListener('change', (event) => {
+            setSelectValue('lfoWaveform', event.target.value);
+            syncPerformanceSoundControls();
+        });
+
+        performancePulseWidth?.addEventListener('input', (event) => {
+            setSliderValue('lfoPulseWidth', event.target.value);
+            syncPerformanceSoundControls();
         });
 
         performanceSeqPlayBtn?.addEventListener('click', () => {

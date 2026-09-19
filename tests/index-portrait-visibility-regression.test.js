@@ -36,17 +36,26 @@ test('mobile performance controls expose loop generation and playback', () => {
     assert.match(indexHtml, /id="performanceGenerateLoopBtn"/);
     assert.match(indexHtml, /id="performanceSeqPlayBtn"/);
     assert.match(indexHtml, /function generateInterestingLoop\(\)/);
+    assert.match(indexHtml, /await generateRandomSourceSample\(\);\s*generateInterestingLoop\(\);/);
 });
 
 test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceSourceMix"/);
     assert.match(indexHtml, /id="performanceCutoff"/);
     assert.match(indexHtml, /id="performanceResonance"/);
+    assert.match(indexHtml, /data-performance-filter-power="lpf"/);
+    assert.match(indexHtml, /data-performance-filter-power="hpf"/);
     assert.match(indexHtml, /id="performanceLpfPolesValue"/);
     assert.match(indexHtml, /id="performanceHpfPolesValue"/);
     assert.match(indexHtml, /data-performance-filter="lpf" data-poles="2"/);
     assert.match(indexHtml, /data-performance-filter="lpf" data-poles="4"/);
+    assert.match(indexHtml, /function setFilterEnabled\(filter, enabled\)/);
+    assert.match(indexHtml, /function rebuildFilterChain\(\)/);
     assert.match(indexHtml, /function setFilterPoles\(filter, poles\)/);
+    assert.match(indexHtml, /id="performanceOctaveUpBtn"/);
+    assert.match(indexHtml, /id="performanceOctaveDownBtn"/);
+    assert.match(indexHtml, /id="performanceLfoWaveform"/);
+    assert.match(indexHtml, /id="performancePulseWidth"/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
 });
@@ -78,6 +87,9 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /generatedLoopBuffer/);
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /const perSourceGain = \(1 - noiseMix\) \/ granularSources\.length/);
+    assert.match(indexHtml, /resetSourceLoopPoints\(kind\)/);
+    assert.match(indexHtml, /oscMix: 12/);
+    assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
 });
 
 test('oscillators can be disabled for granular-only playback', () => {
@@ -93,4 +105,13 @@ test('generated source and sequencer are bass percussion oriented', () => {
     assert.match(indexHtml, /snareSteps/);
     assert.match(indexHtml, /const roots = \['C2', 'D2', 'E2', 'F2', 'G2', 'A2'\]/);
     assert.match(indexHtml, /applyPercussiveLoopPatch\(\)/);
+});
+
+test('lfo waveforms include pulse width and stepped shapes', () => {
+    assert.match(indexHtml, /id="lfoPulseWidth"/);
+    assert.match(indexHtml, /id="lfo2PulseWidth"/);
+    assert.match(indexHtml, /id="lfo3PulseWidth"/);
+    assert.match(indexHtml, /<option value="pulse">Pulse<\/option>/);
+    assert.match(indexHtml, /<option value="stepped">Stepped<\/option>/);
+    assert.match(indexHtml, /function evaluateLfoWaveform\(waveform, phase, pulseWidth = 0\.5\)/);
 });
