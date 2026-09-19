@@ -3,6 +3,9 @@ const assert = require('node:assert/strict');
 
 const {
     buildKeyboardGeometry,
+    createSeededRandom,
+    generateRhythmicStepBlueprint,
+    pickWeighted,
     recordingExtensionForMimeType,
     resolveLoopedPlayPosition,
     resolveSampleWindow,
@@ -97,4 +100,48 @@ test('recordingExtensionForMimeType matches common recorder outputs', () => {
     assert.equal(recordingExtensionForMimeType('audio/ogg'), '.ogg');
     assert.equal(recordingExtensionForMimeType('audio/mp4'), '.m4a');
     assert.equal(recordingExtensionForMimeType('audio/wav'), '.wav');
+});
+
+test('pickWeighted chooses deterministic outcomes with a seeded random source', () => {
+    const random = createSeededRandom('weighted-seed');
+    const randomAgain = createSeededRandom('weighted-seed');
+    const values = [
+        { value: 'a', weight: 0.1 },
+        { value: 'b', weight: 0.2 },
+        { value: 'c', weight: 0.7 }
+    ];
+    const output = new Array(24).fill(null).map(() => pickWeighted(values, random));
+    const outputAgain = new Array(24).fill(null).map(() => pickWeighted(values, randomAgain));
+    assert.deepEqual(output, outputAgain);
+    assert.ok(output.includes('c'));
+    assert.ok(output.includes('b'));
+});
+
+test('generateRhythmicStepBlueprint is seeded, musical, and bounded', () => {
+    const blueprintA = generateRhythmicStepBlueprint({ seed: 'loop-seed-1', stepCount: 16 });
+    const blueprintB = generateRhythmicStepBlueprint({ seed: 'loop-seed-1', stepCount: 16 });
+    const blueprintC = generateRhythmicStepBlueprint({ seed: 'loop-seed-2', stepCount: 16 });
+
+    assert.deepEqual(blueprintA, blueprintB);
+    assert.notDeepEqual(blueprintA, blueprintC);
+    assert.equal(blueprintA.enabled.length, 16);
+    assert.equal(blueprintA.velocities.length, 16);
+    assert.ok(blueprintA.enabled.some(Boolean));
+    assert.ok(blueprintA.enabled.some((step) => !step));
+
+    blueprintA.velocities.forEach((value, index) => {
+        if (!blueprintA.enabled[index]) {
+            assert.equal(value, 0);
+            return;
+        }
+        assert.ok(value >= 32 && value <= 96);
+    });
+});
+
+test('generateRhythmicStepBlueprint preserves requested odd step counts', () => {
+    const blueprint = generateRhythmicStepBlueprint({ seed: 'odd-steps', stepCount: 15 });
+    assert.equal(blueprint.enabled.length, 15);
+    assert.equal(blueprint.accents.length, 15);
+    assert.equal(blueprint.velocities.length, 15);
+    assert.equal(blueprint.pitchOffsets.length, 15);
 });
