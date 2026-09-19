@@ -89,6 +89,16 @@ test('mobile keyboard presents one octave with widened touch targets', () => {
     assert.match(indexHtml, /\.simplified-ui \.performance-octave-card\s*\{\s*display: none;/);
 });
 
+test('keyboard octave transposes labels, granular, and oscillator pitch', () => {
+    assert.match(indexHtml, /function transposeNoteName\(note, octaveShift = 0\)/);
+    assert.match(indexHtml, /function getKeyboardNoteFrequency\(note\)/);
+    assert.match(indexHtml, /function updateKeyboardNoteLabels\(\)/);
+    assert.match(indexHtml, /key\.textContent = transposeNoteName\(key\.dataset\.note, octaveOffset \|\| 0\)/);
+    assert.match(indexHtml, /const noteFreq = getKeyboardNoteFrequency\(note\)/);
+    assert.match(indexHtml, /const baseFreq = getKeyboardNoteFrequency\(note\)/);
+    assert.match(indexHtml, /updateKeyboardNoteLabels\(\);[\s\S]*document\.getElementById\('octaveUpBtn'\)\.addEventListener/);
+});
+
 test('source UI has separate generated and mic waveform loop controls', () => {
     assert.match(indexHtml, /id="generatedWaveformCanvas"/);
     assert.match(indexHtml, /id="micWaveformCanvas"/);
