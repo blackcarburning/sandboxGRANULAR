@@ -3945,6 +3945,7 @@
         let oscillatorsEnabled = true;
         let fxMuted = false;
         let allLfosSquareForced = false;
+        let allLfosSquarePreviousWaveforms = null;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         const MIX_HEADROOM = 0.9;
         const MAX_SAFE_FILTER_Q = 2.5;
@@ -3952,6 +3953,7 @@
         const DEFAULT_PERFORMANCE_RESONANCE = 0.6;
         let lpfEnabled = true;
         let hpfEnabled = true;
+        const INTERNAL_LFO_WAVEFORM_IDS = ['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'];
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
             'globalBpmSlider',
@@ -7428,16 +7430,41 @@
             select.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
+        function getInternalLfoWaveformSnapshot() {
+            return Object.fromEntries(INTERNAL_LFO_WAVEFORM_IDS.map((id) => [
+                id,
+                document.getElementById(id)?.value || 'sine'
+            ]));
+        }
+
         function setAllInternalLfoWaveforms(waveform, options = {}) {
-            ['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'].forEach((id) => {
+            const forcingSquare = Boolean(options.forcedSquare && waveform === 'square');
+            if (forcingSquare && !allLfosSquareForced) {
+                allLfosSquarePreviousWaveforms = getInternalLfoWaveformSnapshot();
+            }
+
+            INTERNAL_LFO_WAVEFORM_IDS.forEach((id) => {
                 setSelectValue(id, waveform);
             });
-            allLfosSquareForced = Boolean(options.forcedSquare && waveform === 'square');
+            allLfosSquareForced = forcingSquare;
+            if (!allLfosSquareForced) {
+                allLfosSquarePreviousWaveforms = null;
+            }
             syncPerformanceControlState();
         }
 
-        function clearAllLfoSquareForce() {
+        function clearAllLfoSquareForce(options = {}) {
+            const restoreWaveforms = Boolean(options.restoreWaveforms && allLfosSquarePreviousWaveforms);
+            const previousWaveforms = allLfosSquarePreviousWaveforms;
             allLfosSquareForced = false;
+            allLfosSquarePreviousWaveforms = null;
+
+            if (restoreWaveforms) {
+                Object.entries(previousWaveforms).forEach(([id, value]) => {
+                    setSelectValue(id, value);
+                });
+            }
+
             syncPerformanceControlState();
         }
 
@@ -10185,8 +10212,13 @@
         });
 
         performanceLfoSquareBtn?.addEventListener('click', () => {
-            setAllInternalLfoWaveforms('square', { forcedSquare: true });
-            setStatus('All internal LFO waveforms set to square.');
+            if (allLfosSquareForced) {
+                clearAllLfoSquareForce({ restoreWaveforms: true });
+                setStatus('All internal LFO square override off.');
+            } else {
+                setAllInternalLfoWaveforms('square', { forcedSquare: true });
+                setStatus('All internal LFO waveforms set to square.');
+            }
         });
 
         performanceLpfCutoff?.addEventListener('input', (event) => {

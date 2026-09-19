@@ -256,11 +256,16 @@ test('lfo waveforms include pulse width and stepped shapes', () => {
     assert.match(indexHtml, /function evaluateLfoWaveform\(waveform, phase, pulseWidth = 0\.5\)/);
 });
 
-test('all internal lfos can be forced to square until randomize clears it', () => {
+test('all internal lfos can be forced to square, toggled off, and cleared by randomize', () => {
     assert.match(indexHtml, /let allLfosSquareForced = false/);
+    assert.match(indexHtml, /let allLfosSquarePreviousWaveforms = null/);
+    assert.match(indexHtml, /const INTERNAL_LFO_WAVEFORM_IDS = \['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'\]/);
+    assert.match(indexHtml, /function getInternalLfoWaveformSnapshot\(\)/);
     assert.match(indexHtml, /function setAllInternalLfoWaveforms\(waveform, options = \{\}\)/);
-    assert.match(indexHtml, /\['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'\]/);
+    assert.match(indexHtml, /allLfosSquarePreviousWaveforms = getInternalLfoWaveformSnapshot\(\)/);
     assert.match(indexHtml, /setAllInternalLfoWaveforms\('square', \{ forcedSquare: true \}\)/);
+    assert.match(indexHtml, /if \(allLfosSquareForced\) \{\s*clearAllLfoSquareForce\(\{ restoreWaveforms: true \}\);/);
+    assert.match(indexHtml, /Object\.entries\(previousWaveforms\)\.forEach\(\(\[id, value\]\) => \{/);
     assert.match(indexHtml, /clearAllLfoSquareForce\(\);[\s\S]*\/\/ Randomize oscillator octave buttons/);
     assert.match(indexHtml, /performanceLfoSquareBtn\.classList\.toggle\('active', allLfosSquareForced\)/);
 });
