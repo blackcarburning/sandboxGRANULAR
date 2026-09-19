@@ -8,6 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MYGRAIN">
+    <link rel="icon" href="data:,">
     <title>MYGRAIN</title>
     <script defer type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="t3fqkzcnvmjuwfn"></script>
     <script src="mygrain-utils.js"></script>
@@ -1805,6 +1806,40 @@
             font-weight: 700;
         }
 
+        .simplified-ui .performance-sound-controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .simplified-ui .performance-sound-card {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(5, 8, 15, 0.44);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .simplified-ui .performance-sound-card label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-sound-card .value {
+            color: var(--accent);
+            font-weight: 800;
+            text-transform: none;
+            white-space: nowrap;
+        }
+
         .simplified-ui .bpm-input-row {
             display: grid;
             grid-template-columns: minmax(0, 1fr) 88px;
@@ -1931,6 +1966,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .simplified-ui .performance-sound-controls {
+                grid-template-columns: 1fr;
+            }
+
             .simplified-ui .performance-actions,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
@@ -1982,6 +2021,7 @@
             }
 
             .simplified-ui .performance-actions,
+            .simplified-ui .performance-sound-controls,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
                 grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
@@ -2040,6 +2080,29 @@
                         <input type="range" id="globalBpmSlider" min="40" max="300" value="120" step="1">
                         <input type="number" id="globalBpmNumber" min="40" max="300" value="120" step="1" inputmode="numeric">
                     </div>
+                </div>
+            </div>
+            <div class="performance-sound-controls" aria-label="Sound controls">
+                <div class="performance-sound-card">
+                    <label for="performanceSourceMix">
+                        <span>Source Mix</span>
+                        <span class="value" id="performanceSourceMixValue">50/50</span>
+                    </label>
+                    <input type="range" id="performanceSourceMix" min="0" max="100" value="50" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceCutoff">
+                        <span>Cutoff</span>
+                        <span class="value" id="performanceCutoffValue">2800Hz</span>
+                    </label>
+                    <input type="range" id="performanceCutoff" min="160" max="9000" value="2800" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceResonance">
+                        <span>Res</span>
+                        <span class="value" id="performanceResonanceValue">0.6</span>
+                    </label>
+                    <input type="range" id="performanceResonance" min="0.1" max="2.5" value="0.6" step="0.1">
                 </div>
             </div>
             <div class="performance-actions">
@@ -2256,8 +2319,6 @@
                                 <button class="slope-toggle" data-filter="lpf" data-slope="6">6</button>
                                 <button class="slope-toggle" data-filter="lpf" data-slope="12">12</button>
                                 <button class="slope-toggle" data-filter="lpf" data-slope="24">24</button>
-                                <button class="slope-toggle" data-filter="lpf" data-slope="48">48</button>
-                                <button class="slope-toggle" data-filter="lpf" data-slope="96">96</button>
                             </div>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
@@ -2265,9 +2326,9 @@
                                 <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="lpfCutoffValue">20000Hz</span>
+                            <span class="value" id="lpfCutoffValue">2800Hz</span>
                         </label>
-                        <input type="range" id="lpfCutoff" min="20" max="20000" value="20000" step="1">
+                        <input type="range" id="lpfCutoff" min="80" max="12000" value="2800" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2278,9 +2339,9 @@
                                 <button class="lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="lpfQ" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="lpfQValue">0.7</span>
+                            <span class="value" id="lpfQValue">0.6</span>
                         </label>
-                        <input type="range" id="lpfQ" min="0.1" max="20" value="0.7" step="0.1">
+                        <input type="range" id="lpfQ" min="0.1" max="2.5" value="0.6" step="0.1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2289,8 +2350,6 @@
                                 <button class="slope-toggle" data-filter="hpf" data-slope="6">6</button>
                                 <button class="slope-toggle" data-filter="hpf" data-slope="12">12</button>
                                 <button class="slope-toggle" data-filter="hpf" data-slope="24">24</button>
-                                <button class="slope-toggle" data-filter="hpf" data-slope="48">48</button>
-                                <button class="slope-toggle" data-filter="hpf" data-slope="96">96</button>
                             </div>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
@@ -2311,9 +2370,9 @@
                                 <button class="lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="hpfQ" data-lfo="2">INV</button>
                             </div>
-                            <span class="value" id="hpfQValue">0.7</span>
+                            <span class="value" id="hpfQValue">0.4</span>
                         </label>
-                        <input type="range" id="hpfQ" min="0.1" max="20" value="0.7" step="0.1">
+                        <input type="range" id="hpfQ" min="0.1" max="2.5" value="0.4" step="0.1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -2858,8 +2917,8 @@
                     <!-- Mix Control -->
                     <div class="control-group" style="grid-column: span 2;">
                         <label>
-                            <span class="param-name">OSC/Granular Mix</span>
-                            <span class="value" id="oscMixValue">50%</span>
+                            <span class="param-name">Wave/Sample Mix</span>
+                            <span class="value" id="oscMixValue">50% wave</span>
                         </label>
                         <input type="range" id="oscMix" min="0" max="100" value="50" step="1">
                     </div>
@@ -3506,9 +3565,12 @@
             sustain: 0.7,
             release: 300
         };
-        let oscMix = 0.5; // 0 = oscillators silent, 1 = oscillators full volume
+        let oscMix = 0.5; // 0 = sample/granular only, 1 = waveform oscillators only
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         const MIX_HEADROOM = 0.9;
+        const MAX_SAFE_FILTER_Q = 2.5;
+        const DEFAULT_PERFORMANCE_CUTOFF = 2800;
+        const DEFAULT_PERFORMANCE_RESONANCE = 0.6;
         
         // Sequencer state
         let sequencerPlaying = false;
@@ -3549,10 +3611,10 @@
             panSpread: { min: 0, max: 100 },
             reverb: { min: 0, max: 100 },
             volume: { min: 0, max: 100 },
-            lpfCutoff: { min: 20, max: 20000 },
-            lpfQ: { min: 0.1, max: 20 },
+            lpfCutoff: { min: 80, max: 12000 },
+            lpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
             hpfCutoff: { min: 20, max: 5000 },
-            hpfQ: { min: 0.1, max: 20 },
+            hpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
             noiseMix: { min: 0, max: 100 },
             distortion: { min: 0, max: 100 },
             phaserRate: { min: 1, max: 240 },
@@ -4039,6 +4101,21 @@
             return Math.max(range.min, Math.min(range.max, modulated));
         }
 
+        function clampFilterQ(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return DEFAULT_PERFORMANCE_RESONANCE;
+            return Math.max(0.1, Math.min(MAX_SAFE_FILTER_Q, numeric));
+        }
+
+        function setSliderValue(id, value, options = {}) {
+            const slider = document.getElementById(id);
+            if (!slider) return;
+            slider.value = String(value);
+            if (options.dispatch !== false) {
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
         // --- Initialization ---
         const startBtn = document.getElementById('start-btn');
         const startOverlay = document.getElementById('start-overlay');
@@ -4159,10 +4236,10 @@
             masterGain = audioContext.createGain();
             masterGain.connect(splitterNode);
 
-            // Create up to 96dB filters (8 stages of 12dB each)
+            // Create a restrained 24dB maximum filter stack. Higher slopes plus high Q were too easy to push into harsh resonance.
             lpfNodes = [];
             hpfNodes = [];
-            for (let i = 0; i < 8; i++) {  // Changed from 4 to 8
+            for (let i = 0; i < 2; i++) {
                 lpfNodes.push(audioContext.createBiquadFilter());
                 lpfNodes[i].type = 'lowpass';
                 hpfNodes.push(audioContext.createBiquadFilter());
@@ -4230,7 +4307,7 @@
 
             // Makeup gain to compensate for cascading filter losses
             makeupGain = audioContext.createGain();
-            makeupGain.gain.value = 1.5; // Compensate for filter and effect losses (reduced from 2.0 for headroom)
+            makeupGain.gain.value = 1.0;
 
             // Pre-filter gain node (before HPF)
             preFilterGainNode = audioContext.createGain();
@@ -4300,7 +4377,7 @@
                 }
                 const dbValue = 20 * Math.log10(autoGain);
                 document.getElementById('postFilterGain').value = dbValue;
-                document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
+                document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
             }
 
             updateEffects();
@@ -4312,7 +4389,7 @@
             
             // Calculate how many stages we need (each biquad gives 12dB/octave)
             const stages = Math.ceil(slopeDb / 12);
-            const actualStages = Math.min(stages, 8); // Max 8 stages (96dB)
+            const actualStages = Math.max(1, Math.min(stages, lpfNodes.length, 2));
             
             // Disconnect all existing connections
             lpfNodes.forEach(node => node.disconnect());
@@ -4328,7 +4405,7 @@
             
             // Reconnect the filter chain to the audio graph
             // Get the current HPF output node based on hpfSlope
-            const hpfStages = Math.min(Math.ceil(hpfSlope / 12), 8);
+            const hpfStages = Math.max(1, Math.min(Math.ceil(hpfSlope / 12), hpfNodes.length, 2));
             const hpfOutputNode = hpfNodes[hpfStages - 1];
             
             // Reconnect: HPF output -> LPF input -> makeup gain
@@ -4350,7 +4427,7 @@
             
             // Calculate how many stages we need
             const stages = Math.ceil(slopeDb / 12);
-            const actualStages = Math.min(stages, 8); // Max 8 stages (96dB)
+            const actualStages = Math.max(1, Math.min(stages, hpfNodes.length, 2));
             
             // Disconnect all existing connections
             hpfNodes.forEach(node => node.disconnect());
@@ -4387,9 +4464,9 @@
             
             // Approximate makeup gain needed (in linear scale)
             // Base: 1.0 for 2 stages, +0.5 for each additional stage
-            const makeupLinear = 1.0 + (Math.max(0, totalStages - 2) * 0.5);
+            const makeupLinear = 1.0 + (Math.max(0, totalStages - 2) * 0.18);
             
-            return Math.min(makeupLinear, 4.0); // Cap at 4.0x (+12dB)
+            return Math.min(makeupLinear, 1.45);
         }
 
         function makeDistortionCurve(amount) {
@@ -4462,7 +4539,7 @@
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
                 const lpfCutoff = getModulatedValue('lpfCutoff');
-                const lpfQ = getModulatedValue('lpfQ');
+                const lpfQ = clampFilterQ(getModulatedValue('lpfQ'));
                 lpfNodes.forEach(node => {
                     smoothRamp(node.frequency, lpfCutoff);
                     smoothRamp(node.Q, lpfQ);
@@ -4471,7 +4548,7 @@
 
             if (hpfNodes && hpfNodes.length > 0) {
                 const hpfCutoff = getModulatedValue('hpfCutoff');
-                const hpfQ = getModulatedValue('hpfQ');
+                const hpfQ = clampFilterQ(getModulatedValue('hpfQ'));
                 hpfNodes.forEach(node => {
                     smoothRamp(node.frequency, hpfCutoff);
                     smoothRamp(node.Q, hpfQ);
@@ -4518,9 +4595,7 @@
             // Distortion
             if (distortionNode) {
                 const distAmt = getModulatedValue('distortion') / 100;
-                if (distAmt > 0) {
-                    distortionNode.curve = makeDistortionCurve(distAmt);
-                }
+                distortionNode.curve = makeDistortionCurve(distAmt);
             }
         }
 
@@ -4863,8 +4938,8 @@
             const sustain = parseFloat(document.getElementById('filterEnvSustain').value) / 100;
             const release = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
 
-            const baseCutoff = getModulatedValue('lpfCutoff');
-            const maxCutoff = 20000;
+            const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
+            const maxCutoff = 9000;
             const envelopedCutoff = baseCutoff + (filterEnvAmount * (maxCutoff - baseCutoff));
 
             const now = startTime;
@@ -5371,7 +5446,7 @@
             
             // Mix oscillators
             const oscMixer = audioContext.createGain();
-            oscMixer.gain.value = oscMix;
+            oscMixer.gain.value = 1.0;
             
             osc1.connect(osc1Gain);
             osc2.connect(osc2Gain);
@@ -5850,6 +5925,9 @@
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
+                if (e.target.id === 'oscMix' || e.target.id === 'lpfCutoff' || e.target.id === 'lpfQ') {
+                    syncPerformanceSoundControls();
+                }
             });
             
             // Attach the throttled handler to the slider
@@ -6259,7 +6337,8 @@
                 granularOutputGain.gain.linearRampToValueAtTime(granularLevel, now + rampTime);
             }
             
-            document.getElementById('oscMixValue').textContent = `${e.target.value}%`;
+            document.getElementById('oscMixValue').textContent = `${Math.round(oscMix * 100)}% wave`;
+            syncPerformanceSoundControls();
         }));
 
         // Pre-Filter Gain
@@ -6342,7 +6421,17 @@
         });
 
         // Note names array for pitch slider conversion
-        const noteNames = ['C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', 'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4', 'C5'];
+        const noteNames = [
+            'C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+            'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+            'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+            'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+            'C5'
+        ];
+
+        document.querySelectorAll('.seq-pitch').forEach((slider) => {
+            slider.max = String(noteNames.length - 1);
+        });
 
         function updateSequencerStepUI(stepNumber) {
             const step = sequencerSteps[stepNumber - 1];
@@ -6365,37 +6454,134 @@
             }
         }
 
+        for (let i = 1; i <= 16; i++) {
+            updateSequencerStepUI(i);
+        }
+
+        function setSelectValue(id, value) {
+            const select = document.getElementById(id);
+            if (!select) return;
+            select.value = value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function setOscillatorOctave(oscNumber, octave) {
+            const button = document.querySelector(`.slope-toggle[data-osc="${oscNumber}"][data-octave="${octave}"]`);
+            if (button && !button.classList.contains('active')) {
+                button.click();
+                return;
+            }
+            if (oscNumber === 1) osc1Config.octave = octave;
+            if (oscNumber === 2) osc2Config.octave = octave;
+        }
+
+        function applyPercussiveLoopPatch() {
+            setSelectValue('osc1Wave', 'triangle');
+            setSelectValue('osc2Wave', 'square');
+            setSelectValue('noiseType', 'pink');
+            setSelectValue('delayDivision', '4');
+
+            setOscillatorOctave(1, 8);
+            setOscillatorOctave(2, 16);
+
+            const defaults = {
+                osc1Level: 82,
+                osc1Attack: 1,
+                osc1Decay: 105,
+                osc1Sustain: 18,
+                osc1Release: 95,
+                osc2Level: 26,
+                osc2Attack: 1,
+                osc2Decay: 70,
+                osc2Sustain: 8,
+                osc2Release: 55,
+                oscMix: 52,
+                sampleStart: 0,
+                sampleEnd: 100,
+                grainSize: 72,
+                density: 18,
+                position: 0,
+                spray: 12,
+                attack: 2,
+                release: 82,
+                pitchVar: 4,
+                grainTune: -12,
+                panSpread: 22,
+                lpfCutoff: DEFAULT_PERFORMANCE_CUTOFF,
+                lpfQ: DEFAULT_PERFORMANCE_RESONANCE,
+                hpfCutoff: 24,
+                hpfQ: 0.4,
+                filterEnvAmount: 18,
+                filterEnvAttack: 1,
+                filterEnvDecay: 95,
+                filterEnvSustain: 8,
+                filterEnvRelease: 70,
+                noiseMix: 12,
+                reverb: 8,
+                distortion: 5,
+                phaserDepth: 0,
+                tremoloDepth: 0,
+                delayFeedback: 14,
+                delayMix: 7,
+                volume: 94,
+                preFilterGain: -1,
+                postFilterGain: 0
+            };
+
+            Object.entries(defaults).forEach(([id, value]) => setSliderValue(id, value));
+            syncPerformanceControlState();
+        }
+
         function generateInterestingLoop() {
-            const roots = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3'];
+            applyPercussiveLoopPatch();
+
+            const roots = ['C2', 'D2', 'E2', 'F2', 'G2', 'A2'];
             const scales = [
-                { name: 'minor', intervals: [0, 2, 3, 5, 7, 10, 12, 14, 15, 17] },
-                { name: 'dorian', intervals: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15] },
-                { name: 'pentatonic', intervals: [0, 3, 5, 7, 10, 12, 15, 17] },
-                { name: 'whole tone', intervals: [0, 2, 4, 6, 8, 10, 12, 14, 16] }
+                { name: 'sub minor', intervals: [0, 3, 5, 7, 10, 12, 15, 19, 22] },
+                { name: 'dorian percussion', intervals: [0, 2, 3, 5, 7, 9, 12, 14, 17, 21] },
+                { name: 'pentatonic drums', intervals: [0, 3, 5, 7, 10, 12, 15, 19, 22] },
+                { name: 'chromatic pressure', intervals: [0, 1, 3, 5, 6, 7, 10, 12, 13, 18] }
             ];
             const rhythmicMasks = [
-                [1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1],
-                [1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0],
-                [1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0],
-                [1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0]
+                [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1],
+                [1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0],
+                [1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0],
+                [1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1]
             ];
 
             const root = roots[Math.floor(Math.random() * roots.length)];
             const rootIndex = noteNames.indexOf(root);
             const scale = scales[Math.floor(Math.random() * scales.length)];
             const mask = rhythmicMasks[Math.floor(Math.random() * rhythmicMasks.length)];
-            const motif = [0, 2, 4, 1, 5, 3].sort(() => Math.random() - 0.5);
+            const motif = [0, 1, 2, 4, 5, 6].sort(() => Math.random() - 0.5);
+            const kickSteps = new Set([0, 8, Math.random() < 0.65 ? 10 : 14]);
+            const backbeatSteps = new Set([4, 12]);
+            const hatSteps = new Set([2, 6, 7, 11, 15]);
 
             for (let index = 0; index < 16; index++) {
-                const strongBeat = index % 4 === 0;
-                const enabled = Boolean(mask[index] || strongBeat);
-                const motifDegree = motif[index % motif.length];
-                const octaveLift = index > 10 && Math.random() < 0.35 ? 12 : 0;
-                const passingTone = !strongBeat && Math.random() < 0.25 ? 1 : 0;
-                const noteIndex = Math.max(0, Math.min(noteNames.length - 1, rootIndex + scale.intervals[motifDegree] + octaveLift + passingTone));
-                const volume = enabled
-                    ? Math.round(strongBeat ? 84 + Math.random() * 12 : 42 + Math.random() * 38)
-                    : 0;
+                const isKick = kickSteps.has(index);
+                const isBackbeat = backbeatSteps.has(index);
+                const isHat = hatSteps.has(index);
+                const enabled = Boolean(isKick || isBackbeat || isHat || mask[index]);
+                let noteIndex = rootIndex;
+                let volume = 0;
+
+                if (isKick) {
+                    const bassMove = Math.random() < 0.35 ? 7 : 0;
+                    noteIndex = rootIndex + bassMove;
+                    volume = Math.round(90 + Math.random() * 8);
+                } else if (isBackbeat) {
+                    noteIndex = rootIndex + scale.intervals[6 + Math.floor(Math.random() * 2)];
+                    volume = Math.round(72 + Math.random() * 16);
+                } else if (enabled) {
+                    const motifDegree = motif[index % motif.length];
+                    const highPercussionLift = isHat || Math.random() < 0.45 ? 12 : 0;
+                    const passingTone = Math.random() < 0.22 ? 1 : 0;
+                    noteIndex = rootIndex + scale.intervals[motifDegree] + highPercussionLift + passingTone;
+                    volume = Math.round(isHat ? 38 + Math.random() * 24 : 48 + Math.random() * 32);
+                }
+
+                noteIndex = Math.max(0, Math.min(noteNames.length - 1, noteIndex));
 
                 sequencerSteps[index] = {
                     enabled,
@@ -6411,6 +6597,13 @@
             if (grainsCheckbox) grainsCheckbox.checked = true;
             setStatus(`Generated ${scale.name} loop at ${bpm} BPM.`);
             saveState();
+        }
+
+        async function generatePerformanceLoop() {
+            if (audioContext && !audioBuffer) {
+                await generateRandomSourceSample();
+            }
+            generateInterestingLoop();
         }
 
         // Step controls
@@ -6625,47 +6818,93 @@
                 return;
             }
 
-            const duration = 1.5 + Math.random();
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const stepDuration = (60 / bpm) / 4;
+            const duration = stepDuration * 16;
             const frameCount = Math.floor(audioContext.sampleRate * duration);
             const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
-            const baseFrequency = 73.42 + Math.random() * 220;
-            const shimmerRate = 0.08 + Math.random() * 0.35;
-            const noiseBlend = 0.04 + Math.random() * 0.18;
-            const partials = Array.from({ length: 4 + Math.floor(Math.random() * 4) }, (_, index) => ({
-                ratio: index + 1 + Math.random() * 0.18,
-                gain: (0.65 - index * 0.08) * (0.7 + Math.random() * 0.35),
-                phase: Math.random() * Math.PI * 2
-            }));
+            const kickFrequency = 42 + Math.random() * 28;
+            const tomFrequency = 82 + Math.random() * 55;
+            const grooveSwing = Math.random() * stepDuration * 0.18;
+            const kickSteps = [0, 8, Math.random() < 0.6 ? 10 : 14];
+            const snareSteps = [4, 12];
+            const hatSteps = [2, 6, 7, 10, 11, 15].filter(() => Math.random() > 0.18);
+            const percSteps = [3, 5, 9, 13].filter(() => Math.random() > 0.35);
 
-            setStatus('Generating random source…');
+            setStatus('Generating beat source…');
+
+            function burstEnvelope(delta, attack, decay) {
+                if (delta < 0) return 0;
+                if (delta < attack) return delta / Math.max(attack, 0.0001);
+                return Math.exp(-(delta - attack) / Math.max(decay, 0.0001));
+            }
 
             for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
                 const channelData = buffer.getChannelData(channel);
-                let filteredNoise = 0;
-                const channelDetune = 1 + ((channel === 0 ? -1 : 1) * (0.002 + Math.random() * 0.006));
+                let lowNoise = 0;
+                let highNoise = 0;
+                let prevInput = 0;
+                let prevOutput = 0;
+                const stereoOffset = channel === 0 ? -0.004 : 0.004;
 
                 for (let i = 0; i < frameCount; i++) {
                     const time = i / audioContext.sampleRate;
-                    const progress = i / Math.max(1, frameCount - 1);
-                    const envelope = Math.pow(Math.sin(Math.PI * progress), 1.35);
-                    const motion = 1 + 0.03 * Math.sin(2 * Math.PI * shimmerRate * time);
+                    const rawNoise = Math.random() * 2 - 1;
+                    lowNoise = lowNoise * 0.94 + rawNoise * 0.06;
+                    highNoise = rawNoise - lowNoise;
                     let sample = 0;
 
-                    for (let index = 0; index < partials.length; index++) {
-                        const partial = partials[index];
-                        const harmonicFrequency = baseFrequency * partial.ratio * motion * channelDetune;
-                        const overtoneMotion = 1 + Math.sin(2 * Math.PI * (0.11 + index * 0.03) * time + partial.phase) * 0.004;
-                        sample += partial.gain * Math.sin(2 * Math.PI * harmonicFrequency * overtoneMotion * time + partial.phase);
+                    for (const step of kickSteps) {
+                        const hitTime = step * stepDuration + (step % 2 ? grooveSwing : 0);
+                        const delta = time - hitTime;
+                        if (delta >= 0 && delta < 0.38) {
+                            const env = burstEnvelope(delta, 0.002, 0.105);
+                            const pitchDrop = kickFrequency + 86 * Math.exp(-delta * 34);
+                            const body = Math.sin(2 * Math.PI * pitchDrop * delta);
+                            const click = Math.sin(2 * Math.PI * 1300 * delta) * Math.exp(-delta * 145);
+                            sample += (body * 1.05 + click * 0.22) * env;
+                        }
                     }
 
-                    filteredNoise = filteredNoise * 0.985 + (Math.random() * 2 - 1) * 0.12;
-                    const transient = Math.sin(2 * Math.PI * (baseFrequency * 0.5) * time + channel * 0.6) * (1 - progress) * 0.12;
-                    const mixed = (sample * 0.18) + (filteredNoise * noiseBlend * (0.8 - progress * 0.35)) + transient;
-                    channelData[i] = Math.max(-1, Math.min(1, mixed * envelope));
+                    for (const step of snareSteps) {
+                        const hitTime = step * stepDuration + stereoOffset;
+                        const delta = time - hitTime;
+                        if (delta >= 0 && delta < 0.2) {
+                            const env = burstEnvelope(delta, 0.001, 0.045);
+                            const tone = Math.sin(2 * Math.PI * (176 + channel * 11) * delta) * Math.exp(-delta * 30);
+                            sample += (highNoise * 0.72 + tone * 0.38) * env;
+                        }
+                    }
+
+                    for (const step of hatSteps) {
+                        const hitTime = step * stepDuration + (step % 2 ? grooveSwing : 0);
+                        const delta = time - hitTime;
+                        if (delta >= 0 && delta < 0.08) {
+                            const env = burstEnvelope(delta, 0.001, 0.018);
+                            sample += highNoise * env * 0.28;
+                        }
+                    }
+
+                    for (const step of percSteps) {
+                        const hitTime = step * stepDuration + grooveSwing * 0.5;
+                        const delta = time - hitTime;
+                        if (delta >= 0 && delta < 0.18) {
+                            const env = burstEnvelope(delta, 0.002, 0.06);
+                            const bend = tomFrequency + 28 * Math.exp(-delta * 18);
+                            sample += Math.sin(2 * Math.PI * bend * delta + channel * 0.4) * env * 0.46;
+                            sample += lowNoise * env * 0.12;
+                        }
+                    }
+
+                    const saturated = Math.tanh(sample * 1.4);
+                    const dcBlocked = saturated - prevInput + 0.995 * prevOutput;
+                    prevInput = saturated;
+                    prevOutput = dcBlocked;
+                    channelData[i] = Math.max(-1, Math.min(1, dcBlocked * 0.78));
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, 'Random source');
+            await applyLoadedAudioBuffer(buffer, `${bpm} BPM beat source`);
         }
 
         generateSourceBtn?.addEventListener('click', async () => {
@@ -7070,10 +7309,10 @@
                 release: 50,
                 pitchVar: 0,
                 panSpread: 50,
-                lpfCutoff: 20000,
-                lpfQ: 0.7,
+                lpfCutoff: DEFAULT_PERFORMANCE_CUTOFF,
+                lpfQ: DEFAULT_PERFORMANCE_RESONANCE,
                 hpfCutoff: 20,
-                hpfQ: 0.7,
+                hpfQ: 0.4,
                 filterEnvAmount: 0,
                 filterEnvAttack: 10,
                 filterEnvDecay: 200,
@@ -7095,7 +7334,8 @@
                 lfo2Rate: 120,
                 lfo2Depth: 50,
                 lfo3Rate: 120,
-                lfo3Depth: 50
+                lfo3Depth: 50,
+                oscMix: 50
             };
             
             // Reset all sliders to default values
@@ -8277,8 +8517,39 @@
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
+        const performanceSourceMix = document.getElementById('performanceSourceMix');
+        const performanceCutoff = document.getElementById('performanceCutoff');
+        const performanceResonance = document.getElementById('performanceResonance');
+
+        function syncPerformanceSoundControls() {
+            const sourceMixSlider = document.getElementById('oscMix');
+            const cutoffSlider = document.getElementById('lpfCutoff');
+            const resonanceSlider = document.getElementById('lpfQ');
+
+            if (performanceSourceMix && sourceMixSlider) {
+                const value = Math.round(Number(sourceMixSlider.value) || 0);
+                const wave = Math.max(0, Math.min(100, value));
+                const sample = 100 - wave;
+                performanceSourceMix.value = String(wave);
+                document.getElementById('performanceSourceMixValue').textContent = `${sample}/${wave}`;
+            }
+
+            if (performanceCutoff && cutoffSlider) {
+                const value = Math.round(Number(cutoffSlider.value) || DEFAULT_PERFORMANCE_CUTOFF);
+                performanceCutoff.value = String(value);
+                document.getElementById('performanceCutoffValue').textContent = `${value}Hz`;
+            }
+
+            if (performanceResonance && resonanceSlider) {
+                const value = clampFilterQ(resonanceSlider.value);
+                performanceResonance.value = String(value);
+                document.getElementById('performanceResonanceValue').textContent = value.toFixed(1);
+            }
+        }
 
         function syncPerformanceControlState() {
+            syncPerformanceSoundControls();
+
             if (performanceHoldBtn) {
                 performanceHoldBtn.classList.toggle('active', document.getElementById('holdBtn')?.classList.contains('active'));
             }
@@ -8307,8 +8578,29 @@
             document.getElementById('randomizeBtn')?.click();
         });
 
-        performanceGenerateLoopBtn?.addEventListener('click', () => {
-            generateInterestingLoop();
+        performanceGenerateLoopBtn?.addEventListener('click', async () => {
+            try {
+                await generatePerformanceLoop();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Loop generation failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceSourceMix?.addEventListener('input', (event) => {
+            setSliderValue('oscMix', event.target.value);
+            syncPerformanceSoundControls();
+        });
+
+        performanceCutoff?.addEventListener('input', (event) => {
+            setSliderValue('lpfCutoff', event.target.value);
+            syncPerformanceSoundControls();
+        });
+
+        performanceResonance?.addEventListener('input', (event) => {
+            const value = clampFilterQ(event.target.value);
+            setSliderValue('lpfQ', value);
+            syncPerformanceSoundControls();
         });
 
         performanceSeqPlayBtn?.addEventListener('click', () => {
