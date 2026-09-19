@@ -6266,7 +6266,7 @@
             if (value >= 20 && value <= 300) {
                 sequencerBPM = value;
                 if (!syncingGlobalBpm) {
-                    syncGlobalBpmControls(value);
+                    applyGlobalBpm(value);
                 }
             }
         });
@@ -6278,7 +6278,7 @@
             e.target.value = value;
             sequencerBPM = value;
             if (!syncingGlobalBpm) {
-                syncGlobalBpmControls(value);
+                applyGlobalBpm(value);
             }
         });
 
@@ -7159,7 +7159,6 @@
             }
             
             enforceBpmOnlyLfoMode();
-            const usesSharedBpmPreset = safePreset.bpmOnlyLfos === true || safePreset.globalBpm != null || normalizedSliders?.globalBpmSlider != null;
             const restoredGlobalBpm = safePreset.globalBpm ??
                 safePreset.sequencerBpm ??
                 normalizedSliders?.globalBpmSlider ??
@@ -7167,12 +7166,7 @@
                 normalizedSliders?.lfoRate ??
                 normalizedSliders?.lfo3Rate ??
                 120;
-
-            if (usesSharedBpmPreset) {
-                applyGlobalBpm(restoredGlobalBpm);
-            } else {
-                syncGlobalBpmControls(restoredGlobalBpm);
-            }
+            applyGlobalBpm(restoredGlobalBpm);
             
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
@@ -7651,7 +7645,6 @@
                     }
                 }
 
-                const usesSharedBpmState = state.bpmOnlyLfos === true || state.globalBpm != null || normalizedStateSliders?.globalBpmSlider != null;
                 const restoredGlobalBpm = state.globalBpm ??
                     state.sequencerBpm ??
                     normalizedStateSliders?.globalBpmSlider ??
@@ -7659,12 +7652,7 @@
                     normalizedStateSliders?.lfoRate ??
                     normalizedStateSliders?.lfo3Rate ??
                     120;
-
-                if (usesSharedBpmState) {
-                    applyGlobalBpm(restoredGlobalBpm);
-                } else {
-                    syncGlobalBpmControls(restoredGlobalBpm);
-                }
+                applyGlobalBpm(restoredGlobalBpm);
 
                 // Restore LFO toggle states
                 if (state.toggles && state.toggles.lfo) {
