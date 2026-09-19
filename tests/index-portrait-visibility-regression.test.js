@@ -135,7 +135,7 @@ test('generate source has a low-frequency noise-only mode without clicky transie
     assert.match(indexHtml, /const rootChoices = lowNoiseOnly \? \[29, 31, 34, 36\] : \[34, 38, 42, 46, 50\]/);
     assert.match(indexHtml, /const rootFrequency = rootChoices\[Math\.floor\(renderRandom\(\) \* rootChoices\.length\)\]/);
     assert.match(indexHtml, /durationSeconds = Math\.max\([\s\S]*lowNoiseOnly \? 0\.045 : 0\.03/);
-    assert.match(indexHtml, /noiseTone: Math\.max\(0, lowNoiseOnly \? \(Number\(recipe\.noiseTone\) \|\| 0\.2\) \* 0\.78 : Number\(recipe\.noiseTone\) \|\| 0\.2\)/);
+    assert.match(indexHtml, /noiseTone: Math\.max\(0, lowNoiseOnly \? Number\(recipe\.noiseTone \?\? 0\.2\) \* 0\.78 : Number\(recipe\.noiseTone \?\? 0\.2\)\)/);
     assert.match(indexHtml, /event\.category === 'kick'/);
     assert.match(indexHtml, /event\.category === 'shaker'/);
     assert.doesNotMatch(indexHtml, /gridZap/);
