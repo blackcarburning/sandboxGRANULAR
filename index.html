@@ -1738,7 +1738,6 @@
         .simplified-ui #debugPanel,
         .simplified-ui .controls-section,
         .simplified-ui .keyboard-section .volume-bias-container,
-        .simplified-ui .keyboard-section #holdBtn,
         .simplified-ui .keyboard-section #panicBtn,
         .simplified-ui .output-recording-section,
         .simplified-ui .help-panel,
@@ -2082,7 +2081,7 @@
         .simplified-ui .keyboard-section {
             --keyboard-key-height: clamp(148px, 28svh, 232px);
             display: grid !important;
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
             grid-template-rows: minmax(0, 1fr) auto;
             position: sticky !important;
             left: auto !important;
@@ -2107,7 +2106,7 @@
 
         .simplified-ui .keyboard {
             order: 1;
-            grid-column: 1;
+            grid-column: 1 / -1;
             grid-row: 1;
             justify-self: stretch;
             width: 100% !important;
@@ -2128,6 +2127,32 @@
             align-items: center;
             justify-self: center;
             width: min(260px, 100%);
+        }
+
+        .simplified-ui .keyboard-section #holdBtn {
+            order: 3;
+            grid-column: 2;
+            grid-row: 2;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            align-self: stretch;
+            min-height: 38px;
+            min-width: 88px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .simplified-ui .keyboard-section #holdBtn.active {
+            color: #00131a;
+            background: linear-gradient(135deg, #7effb2 0%, #00c6ff 100%);
+            border-color: rgba(126, 255, 178, 0.55);
+            box-shadow: 0 0 10px rgba(126, 255, 178, 0.35);
         }
 
         .simplified-ui .keyboard-section #octaveDownBtn {
@@ -6620,12 +6645,46 @@
         const keyLastTouchTime = new Map();
         
         keys.forEach(key => {
-            const releaseKey = (pointerId = null) => {
+            let isKeyPressed = false;
+
+            const pressKey = (pointerId = null) => {
+                if (isKeyPressed) return;
                 const note = key.dataset.note;
-                if (pointerId !== null && key.hasPointerCapture(pointerId)) {
-                    key.releasePointerCapture(pointerId);
+
+                if (activeKeyCount === 0 && audioContext) {
+                    lfoStartTime = audioContext.currentTime;
+                    lfo2StartTime = audioContext.currentTime;
+                    lfo3StartTime = audioContext.currentTime;
                 }
 
+                isKeyPressed = true;
+                activeKeyCount++;
+                key.classList.add('active');
+
+                if (pointerId !== null && key.setPointerCapture) {
+                    try {
+                        key.setPointerCapture(pointerId);
+                    } catch (e) {
+                        console.debug('Unable to capture key pointer:', e);
+                    }
+                }
+
+                startGrainStream(note);
+                playOscillatorNote(note);
+            };
+
+            const releaseKey = (pointerId = null) => {
+                if (!isKeyPressed) return;
+                const note = key.dataset.note;
+                if (pointerId !== null && key.hasPointerCapture(pointerId)) {
+                    try {
+                        key.releasePointerCapture(pointerId);
+                    } catch (e) {
+                        console.debug('Unable to release key pointer:', e);
+                    }
+                }
+
+                isKeyPressed = false;
                 activeKeyCount = Math.max(0, activeKeyCount - 1);
 
                 if (holdEnabled && !heldNotes.has(note)) {
@@ -6691,22 +6750,7 @@
                     return;
                 }
                 
-                // Reset LFOs only on the first key press (when counter goes from 0 to 1)
-                if (activeKeyCount === 0 && audioContext) {
-                    lfoStartTime = audioContext.currentTime;
-                    lfo2StartTime = audioContext.currentTime;
-                    lfo3StartTime = audioContext.currentTime;
-                }
-                
-                // Increment the active key counter
-                activeKeyCount++;
-                
-                key.classList.add('active');
-                key.setPointerCapture(e.pointerId); // Capture drag
-                startGrainStream(note);
-                
-                // Also trigger oscillators (mix controlled by oscMix slider)
-                playOscillatorNote(note);
+                pressKey(e.pointerId);
             });
 
             key.addEventListener('pointerup', (e) => {
@@ -6734,11 +6778,7 @@
             key.addEventListener('keydown', (e) => {
                 if ((e.key !== 'Enter' && e.key !== ' ') || e.repeat) return;
                 e.preventDefault();
-                if (key.classList.contains('active')) return;
-                key.classList.add('active');
-                activeKeyCount++;
-                startGrainStream(key.dataset.note);
-                playOscillatorNote(key.dataset.note);
+                pressKey();
             });
 
             key.addEventListener('keyup', (e) => {
@@ -7154,6 +7194,7 @@
                 holdEnabled = true;
                 holdBtn.classList.add('active');
             }
+            syncPerformanceControlState();
         });
 
         document.getElementById('panicBtn').addEventListener('click', () => panicAllNotes());

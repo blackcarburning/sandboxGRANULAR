@@ -106,8 +106,21 @@ test('mobile keyboard presents one octave with widened touch targets', () => {
     assert.match(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls/);
     assert.match(indexHtml, /performance-sound-card performance-octave-card/);
     assert.match(indexHtml, /\.simplified-ui \.performance-octave-card\s*\{\s*display: none;/);
+    assert.doesNotMatch(indexHtml, /\.simplified-ui \.keyboard-section #holdBtn,\s*\n\s*\.simplified-ui \.keyboard-section #panicBtn/);
+    assert.match(indexHtml, /\.simplified-ui \.keyboard-section #holdBtn\s*\{/);
+    assert.match(indexHtml, /grid-column: 2;[\s\S]*grid-row: 2;[\s\S]*display: flex !important;/);
     assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.performance-controls \{[\s\S]*order: 2;/);
     assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.keyboard-section \{[\s\S]*order: 1;/);
+});
+
+test('keyboard keys release cleanly so they can be pressed repeatedly', () => {
+    assert.match(indexHtml, /let isKeyPressed = false/);
+    assert.match(indexHtml, /const pressKey = \(pointerId = null\) => \{\s*if \(isKeyPressed\) return;/);
+    assert.match(indexHtml, /const releaseKey = \(pointerId = null\) => \{\s*if \(!isKeyPressed\) return;/);
+    assert.match(indexHtml, /isKeyPressed = false;\s*activeKeyCount = Math\.max\(0, activeKeyCount - 1\);/);
+    assert.match(indexHtml, /key\.addEventListener\('pointerup', \(e\) => \{\s*releaseKey\(e\.pointerId\);/);
+    assert.match(indexHtml, /key\.addEventListener\('lostpointercapture', \(e\) => \{[\s\S]*releaseKey\(e\.pointerId\);/);
+    assert.match(indexHtml, /key\.addEventListener\('keydown', \(e\) => \{[\s\S]*pressKey\(\);/);
 });
 
 test('keyboard octave transposes labels, granular, and oscillator pitch', () => {
