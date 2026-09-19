@@ -3692,7 +3692,7 @@
                 normalized.lfo2Rate = String(convertStoredLfoRateToBpm(normalized.lfo2Rate, isBpmOnlyPreset ? 'bpm' : (options.lfo2Mode || 'hz')));
             }
             if (normalized.lfo3Rate !== undefined) {
-                normalized.lfo3Rate = String(convertStoredLfoRateToBpm(normalized.lfo3Rate, isBpmOnlyPreset ? 'bpm' : 'hz'));
+                normalized.lfo3Rate = String(convertStoredLfoRateToBpm(normalized.lfo3Rate, isBpmOnlyPreset ? 'bpm' : (options.lfo3Mode || 'hz')));
             }
 
             return normalized;
@@ -5767,7 +5767,7 @@
                     if (labelSpan) {
                         labelSpan.textContent = e.target.value;
                     }
-                    if (!syncingGlobalBpm && Number.isFinite(bpmValue)) syncGlobalBpmControls(bpmValue);
+                    if (!syncingGlobalBpm && Number.isFinite(bpmValue)) applyGlobalBpm(bpmValue);
                 } else if (e.target.id === 'grainTune') {
                     // Update grain tune display with + for positive values
                     const labelSpan = document.getElementById('grainTuneValue');
@@ -5922,12 +5922,14 @@
 
         // --- LFO Mode Toggle ---
         document.getElementById('lfoModeToggle').addEventListener('click', () => {
+            if (document.getElementById('lfoModeToggle')?.disabled) return;
             enforceBpmOnlyLfoMode();
             updateLFORateDisplay();
         });
 
         // --- LFO2 Mode Toggle ---
         document.getElementById('lfo2ModeToggle').addEventListener('click', () => {
+            if (document.getElementById('lfo2ModeToggle')?.disabled) return;
             enforceBpmOnlyLfoMode();
             updateLFO2RateDisplay();
         });
@@ -7080,6 +7082,7 @@
                     inverted: {}
                 },
                 lfo3: {
+                    mode: 'bpm',
                     enabled: {},
                     inverted: {}
                 },
@@ -7124,7 +7127,8 @@
             const normalizedSliders = normalizeStoredLfoSliderValues(safePreset.sliders, {
                 bpmOnlyLfos: safePreset.bpmOnlyLfos === true,
                 lfoMode: safePreset.lfo?.mode,
-                lfo2Mode: safePreset.lfo2?.mode
+                lfo2Mode: safePreset.lfo2?.mode,
+                lfo3Mode: safePreset.lfo3?.mode
             });
             
             // Apply slider values
@@ -7532,6 +7536,7 @@
                 modes: {
                     lfoMode: lfoMode,
                     lfo2Mode: lfo2Mode,
+                    lfo3Mode: 'bpm',
                     holdEnabled: holdEnabled,
                     bpmLocked: bpmLocked
                 },
@@ -7598,11 +7603,13 @@
                 const state = JSON.parse(savedState);
                 const savedLfoMode = state.modes?.lfoMode ?? state.toggles?.lfoMode;
                 const savedLfo2Mode = state.modes?.lfo2Mode ?? state.toggles?.lfo2Mode;
+                const savedLfo3Mode = state.modes?.lfo3Mode ?? state.toggles?.lfo3Mode;
 
                 const normalizedStateSliders = normalizeStoredLfoSliderValues(state.sliders, {
                     bpmOnlyLfos: state.bpmOnlyLfos === true,
                     lfoMode: savedLfoMode,
-                    lfo2Mode: savedLfo2Mode
+                    lfo2Mode: savedLfo2Mode,
+                    lfo3Mode: savedLfo3Mode
                 });
 
                 // Restore slider values
