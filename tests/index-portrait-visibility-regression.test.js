@@ -143,9 +143,9 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /sourceGainMap\.get\(sourceInfo\) \?\? 0/);
     assert.match(indexHtml, /resetSourceLoopPoints\(kind\)/);
-    assert.match(indexHtml, /oscMix: 12/);
+    assert.match(indexHtml, /oscMix: 8/);
     assert.match(indexHtml, /performanceGeneratedSourceMix: 100/);
-    assert.match(indexHtml, /performanceGeneratedDryMix: 70/);
+    assert.match(indexHtml, /performanceGeneratedDryMix: 78/);
     assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
 });
 
@@ -174,12 +174,16 @@ test('oscillators can be disabled for granular-only playback', () => {
     assert.match(indexHtml, /if \(!oscillatorsEnabled\) return/);
 });
 
-test('generated source and sequencer are bass percussion oriented', () => {
-    assert.match(indexHtml, /setStatus\('Generating beat source/);
-    assert.match(indexHtml, /kickSteps/);
-    assert.match(indexHtml, /snareSteps/);
-    assert.match(indexHtml, /const roots = \['C2', 'D2', 'E2', 'F2', 'G2', 'A2'\]/);
-    assert.match(indexHtml, /applyPercussiveLoopPatch\(\)/);
+test('generated source and sequencer are experimental and triplet aware', () => {
+    assert.match(indexHtml, /experimentalTonePalette/);
+    assert.match(indexHtml, /tripletBursts/);
+    assert.match(indexHtml, /ratchetBursts/);
+    assert.match(indexHtml, /subHits/);
+    assert.match(indexHtml, /offset: 1 \/ 3/);
+    assert.match(indexHtml, /offset: 2 \/ 3/);
+    assert.match(indexHtml, /playGrain\(subPitch, hitTime, subVelocity\)/);
+    assert.match(indexHtml, /const roots = \['C1', 'D1', 'F1', 'G1', 'A1', 'C2', 'D#2'\]/);
+    assert.match(indexHtml, /applyExperimentalLoopPatch\(\)/);
 });
 
 test('lfo waveforms include pulse width and stepped shapes', () => {
