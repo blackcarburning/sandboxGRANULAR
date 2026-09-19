@@ -4195,7 +4195,7 @@
             // Initialize with equal-power crossfade at 50% (oscMix = 0.5)
             const initialOscMix = oscMix;
             oscOutputGain = audioContext.createGain();
-            oscOutputGain.gain.value = Math.sqrt(initialOscMix) * 0.8;
+            oscOutputGain.gain.value = Math.sqrt(initialOscMix);
             
             granularOutputGain = audioContext.createGain();
             granularOutputGain.gain.value = Math.sqrt(1 - initialOscMix) * 0.8;
@@ -5317,7 +5317,7 @@
             
             // Mix oscillators
             const oscMixer = audioContext.createGain();
-            oscMixer.gain.value = 1;
+            oscMixer.gain.value = oscMix;
             
             osc1.connect(osc1Gain);
             osc2.connect(osc2Gain);
@@ -6185,8 +6185,8 @@
             oscMix = parseFloat(e.target.value) / 100;
             // Implement true crossfade with headroom to prevent clipping
             // Use equal-power crossfade for smoother transition
-            const oscLevel = Math.sqrt(oscMix) * 0.8;  // Scale down for headroom
-            const granularLevel = Math.sqrt(1 - oscMix) * 0.8;
+            const oscLevel = Math.sqrt(oscMix);
+            const granularLevel = Math.sqrt(1 - oscMix);
             
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
                 const now = audioContext.currentTime;
@@ -7147,10 +7147,10 @@
             
             enforceBpmOnlyLfoMode();
             applyGlobalBpm(
-                normalizedSliders?.globalBpmSlider ||
-                normalizedSliders?.lfoRate ||
-                normalizedSliders?.delayBpm ||
-                normalizedSliders?.lfo3Rate ||
+                normalizedSliders?.globalBpmSlider ??
+                normalizedSliders?.lfoRate ??
+                normalizedSliders?.delayBpm ??
+                normalizedSliders?.lfo3Rate ??
                 120
             );
             
@@ -7628,10 +7628,10 @@
                 }
 
                 applyGlobalBpm(
-                    normalizedStateSliders?.globalBpmSlider ||
-                    normalizedStateSliders?.lfoRate ||
-                    normalizedStateSliders?.delayBpm ||
-                    normalizedStateSliders?.lfo3Rate ||
+                    normalizedStateSliders?.globalBpmSlider ??
+                    normalizedStateSliders?.lfoRate ??
+                    normalizedStateSliders?.delayBpm ??
+                    normalizedStateSliders?.lfo3Rate ??
                     120
                 );
 
