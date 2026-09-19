@@ -1714,12 +1714,17 @@
             position: fixed;
             width: 100%;
             min-height: 100svh;
-            min-height: 100dvh;
             padding: 14px;
             gap: 14px;
             background:
                 radial-gradient(circle at top, rgba(0, 212, 255, 0.16), transparent 42%),
                 linear-gradient(180deg, rgba(20, 24, 40, 0.96) 0%, rgba(8, 11, 19, 0.98) 100%);
+        }
+
+        @supports (height: 100dvh) {
+            .simplified-ui .synth-container {
+                min-height: 100dvh;
+            }
         }
 
         .simplified-ui .performance-controls,
@@ -2023,7 +2028,7 @@
             <div class="recording-section">
                 <div class="app-branding">
                     <div class="app-kicker">MYGRAIN</div>
-                    <h1 class="app-title">Granular instrument</h1>
+                    <h2 class="app-title">Granular instrument</h2>
                     <p class="app-subtitle">Generate, capture, or load a source waveform, then steer the granular engine from the keyboard.</p>
                 </div>
                 <div class="source-seed-group">
@@ -7064,6 +7069,7 @@
             const preset = {
                 version: '3.1',
                 bpmOnlyLfos: true,
+                globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 timestamp: new Date().toISOString(),
                 sliders: {},
                 lfo: {
@@ -7150,13 +7156,17 @@
             }
             
             enforceBpmOnlyLfoMode();
-            applyGlobalBpm(
-                normalizedSliders?.globalBpmSlider ??
-                normalizedSliders?.lfoRate ??
-                normalizedSliders?.delayBpm ??
-                normalizedSliders?.lfo3Rate ??
-                120
-            );
+            const restoredGlobalBpm = safePreset.globalBpm ?? normalizedSliders?.globalBpmSlider;
+            if (restoredGlobalBpm != null) {
+                applyGlobalBpm(restoredGlobalBpm);
+            } else {
+                syncGlobalBpmControls(
+                    normalizedSliders?.lfoRate ??
+                    normalizedSliders?.delayBpm ??
+                    normalizedSliders?.lfo3Rate ??
+                    120
+                );
+            }
             
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
@@ -7512,6 +7522,7 @@
             const state = {
                 version: '1.2',
                 bpmOnlyLfos: true,
+                globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 timestamp: Date.now(),
                 sliders: {},
                 toggles: {
@@ -7633,13 +7644,17 @@
                     }
                 }
 
-                applyGlobalBpm(
-                    normalizedStateSliders?.globalBpmSlider ??
-                    normalizedStateSliders?.lfoRate ??
-                    normalizedStateSliders?.delayBpm ??
-                    normalizedStateSliders?.lfo3Rate ??
-                    120
-                );
+                const restoredGlobalBpm = state.globalBpm ?? normalizedStateSliders?.globalBpmSlider;
+                if (restoredGlobalBpm != null) {
+                    applyGlobalBpm(restoredGlobalBpm);
+                } else {
+                    syncGlobalBpmControls(
+                        normalizedStateSliders?.lfoRate ??
+                        normalizedStateSliders?.delayBpm ??
+                        normalizedStateSliders?.lfo3Rate ??
+                        120
+                    );
+                }
 
                 // Restore LFO toggle states
                 if (state.toggles && state.toggles.lfo) {
