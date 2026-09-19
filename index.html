@@ -2281,6 +2281,13 @@
                     <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceGeneratedSwing">
+                        <span>Gen Swing</span>
+                        <span class="value" id="performanceGeneratedSwingValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceGeneratedSwing" min="0" max="60" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceLpfCutoff">
                         <span>LP Cutoff</span>
                         <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
@@ -3890,6 +3897,7 @@
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
+        let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -5027,6 +5035,14 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             generatedDryMix = clamped / 100;
             return generatedDryMix;
+        }
+
+        function getGeneratedSourceSwingValue() {
+            const slider = document.getElementById('performanceGeneratedSwing');
+            const rawValue = Number(slider?.value ?? (generatedSourceSwing * 100));
+            const clamped = Math.max(0, Math.min(60, Number.isFinite(rawValue) ? rawValue : 0));
+            generatedSourceSwing = clamped / 100;
+            return generatedSourceSwing;
         }
 
         function stopGeneratedDryLoop() {
@@ -7186,6 +7202,7 @@
                 oscMix: 12,
                 performanceGeneratedSourceMix: 100,
                 performanceGeneratedDryMix: 70,
+                performanceGeneratedSwing: 0,
                 sampleStart: 0,
                 sampleEnd: 100,
                 grainSize: 72,
@@ -7522,7 +7539,7 @@
             const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
             const kickFrequency = 42 + Math.random() * 28;
             const tomFrequency = 82 + Math.random() * 55;
-            const grooveSwing = Math.random() * stepDuration * 0.18;
+            const grooveSwing = getGeneratedSourceSwingValue() * stepDuration * 0.5;
             const kickSteps = [0, 8, Math.random() < 0.6 ? 10 : 14];
             const snareSteps = [4, 12];
             const hatSteps = [2, 6, 7, 10, 11, 15].filter(() => Math.random() > 0.18);
@@ -8038,7 +8055,8 @@
                 lfo3PulseWidth: 50,
                 oscMix: 35,
                 performanceGeneratedSourceMix: 100,
-                performanceGeneratedDryMix: 0
+                performanceGeneratedDryMix: 0,
+                performanceGeneratedSwing: 0
             };
             
             // Reset all sliders to default values
@@ -9500,6 +9518,7 @@
         const performanceSourceMix = document.getElementById('performanceSourceMix');
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
+        const performanceGeneratedSwing = document.getElementById('performanceGeneratedSwing');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
@@ -9539,6 +9558,12 @@
                 const value = Math.round(getGeneratedDryMixValue() * 100);
                 performanceGeneratedDryMix.value = String(value);
                 document.getElementById('performanceGeneratedDryMixValue').textContent = `${value}%`;
+            }
+
+            if (performanceGeneratedSwing) {
+                const value = Math.round(getGeneratedSourceSwingValue() * 100);
+                performanceGeneratedSwing.value = String(value);
+                document.getElementById('performanceGeneratedSwingValue').textContent = `${value}%`;
             }
 
             if (performanceLpfCutoff && lpfCutoffSlider) {
@@ -9678,6 +9703,12 @@
             generatedDryMix = value / 100;
             document.getElementById('performanceGeneratedDryMixValue').textContent = `${Math.round(value)}%`;
             updateGeneratedDryLoopMix();
+        });
+
+        performanceGeneratedSwing?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(60, Number(event.target.value) || 0));
+            generatedSourceSwing = value / 100;
+            document.getElementById('performanceGeneratedSwingValue').textContent = `${Math.round(value)}%`;
         });
 
         performanceOscToggleBtn?.addEventListener('click', () => {

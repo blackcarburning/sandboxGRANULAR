@@ -49,6 +49,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Gen Loop Mix</);
     assert.match(indexHtml, /id="performanceGeneratedDryMix"/);
     assert.match(indexHtml, />Gen Dry</);
+    assert.match(indexHtml, /id="performanceGeneratedSwing"/);
+    assert.match(indexHtml, />Gen Swing</);
     assert.match(indexHtml, /id="performanceLpfCutoff"/);
     assert.match(indexHtml, /id="performanceLpfResonance"/);
     assert.match(indexHtml, /id="performanceHpfCutoff"/);
@@ -136,6 +138,15 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /performanceGeneratedSourceMix: 100/);
     assert.match(indexHtml, /performanceGeneratedDryMix: 70/);
     assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
+});
+
+test('generated source swing is controllable and defaults to straight timing', () => {
+    assert.match(indexHtml, /let generatedSourceSwing = 0/);
+    assert.match(indexHtml, /function getGeneratedSourceSwingValue\(\)/);
+    assert.match(indexHtml, /id="performanceGeneratedSwing" min="0" max="60" value="0"/);
+    assert.match(indexHtml, /const grooveSwing = getGeneratedSourceSwingValue\(\) \* stepDuration \* 0\.5/);
+    assert.doesNotMatch(indexHtml, /Math\.random\(\) \* stepDuration \* 0\.18/);
+    assert.match(indexHtml, /performanceGeneratedSwing: 0/);
 });
 
 test('daw export renders from time zero with generated dry stem', () => {
