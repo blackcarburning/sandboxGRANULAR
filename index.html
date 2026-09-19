@@ -350,6 +350,26 @@
             gap: 4px;
         }
 
+        .source-loop-lfo-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+
+        .source-loop-lfo-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            min-width: 0;
+            color: #aaa;
+            font-size: 8px;
+        }
+
+        .source-loop-lfo-row .button-group {
+            flex-shrink: 0;
+        }
+
         .status {
             font-size: 9px;
             color: #888;
@@ -2382,6 +2402,13 @@
                     <input type="range" id="performanceModAmount" min="0" max="100" value="55" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceGrainModAmount">
+                        <span>Grain Mod</span>
+                        <span class="value" id="performanceGrainModAmountValue">75%</span>
+                    </label>
+                    <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceLpfCutoff">
                         <span>LP Cutoff</span>
                         <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
@@ -2549,6 +2576,26 @@
                             </div>
                             <input type="range" id="generatedLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="generatedLoopEnd" min="0" max="100" value="100" step="1">
+                            <div class="source-loop-lfo-controls">
+                                <div class="source-loop-lfo-row">
+                                    <span>Start</span>
+                                    <div class="button-group">
+                                        <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="1">L1</button>
+                                        <button class="inv-toggle" data-param="generatedLoopStart" data-lfo="1">INV</button>
+                                        <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="2">L2</button>
+                                        <button class="inv-toggle" data-param="generatedLoopStart" data-lfo="2">INV</button>
+                                    </div>
+                                </div>
+                                <div class="source-loop-lfo-row">
+                                    <span>End</span>
+                                    <div class="button-group">
+                                        <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="1">L1</button>
+                                        <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="1">INV</button>
+                                        <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="2">L2</button>
+                                        <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="2">INV</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -2564,6 +2611,26 @@
                             </div>
                             <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
+                            <div class="source-loop-lfo-controls">
+                                <div class="source-loop-lfo-row">
+                                    <span>Start</span>
+                                    <div class="button-group">
+                                        <button class="lfo-toggle" data-param="micLoopStart" data-lfo="1">L1</button>
+                                        <button class="inv-toggle" data-param="micLoopStart" data-lfo="1">INV</button>
+                                        <button class="lfo-toggle" data-param="micLoopStart" data-lfo="2">L2</button>
+                                        <button class="inv-toggle" data-param="micLoopStart" data-lfo="2">INV</button>
+                                    </div>
+                                </div>
+                                <div class="source-loop-lfo-row">
+                                    <span>End</span>
+                                    <div class="button-group">
+                                        <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="1">L1</button>
+                                        <button class="inv-toggle" data-param="micLoopEnd" data-lfo="1">INV</button>
+                                        <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="2">L2</button>
+                                        <button class="inv-toggle" data-param="micLoopEnd" data-lfo="2">INV</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -4031,6 +4098,7 @@
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
         let globalModulationAmount = 0.55;
+        let granularModulationAmount = 0.75;
         let generatedDryTrimDb = -6;
         let granularTrimDb = -3;
         let masterTrimDb = -3;
@@ -4064,7 +4132,13 @@
             lfo2ToLfo1Mod: { min: 0, max: 14 }
         };
         const GRANULAR_LFO_MODULATION_SCALES = {
-            grainSize: 0.08,
+            sampleStart: 0.12,
+            sampleEnd: 0.12,
+            generatedLoopStart: 0.12,
+            generatedLoopEnd: 0.12,
+            micLoopStart: 0.12,
+            micLoopEnd: 0.12,
+            grainSize: 0.14,
             density: 0.08,
             position: 0.1,
             spray: 0.1,
@@ -4079,9 +4153,22 @@
             'hpfCutoff',
             'hpfQ',
             'phaserRate',
-            'tremoloRate'
+            'tremoloRate',
+            'sampleStart',
+            'sampleEnd',
+            'generatedLoopStart',
+            'generatedLoopEnd',
+            'micLoopStart',
+            'micLoopEnd',
+            'grainSize'
         ]);
         const RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS = new Set([
+            'sampleStart',
+            'sampleEnd',
+            'generatedLoopStart',
+            'generatedLoopEnd',
+            'micLoopStart',
+            'micLoopEnd',
             'grainSize',
             'density',
             'position',
@@ -4102,6 +4189,7 @@
             'performanceGranularTrim',
             'performanceGeneratedTranspose',
             'performanceModAmount',
+            'performanceGrainModAmount',
             'performanceInputTrim',
             'performancePostFilterTrim',
             'performanceMasterTrim',
@@ -4126,6 +4214,7 @@
             'generatedDryTrimDb',
             'granularTrimDb',
             'globalModulationAmount',
+            'granularModulationAmount',
             'masterTrimDb',
             'clickGuardMs',
             'osc1Level',
@@ -4166,6 +4255,10 @@
         const paramRanges = {
             sampleStart: { min: 0, max: 100 },
             sampleEnd: { min: 0, max: 100 },
+            generatedLoopStart: { min: 0, max: 100 },
+            generatedLoopEnd: { min: 0, max: 100 },
+            micLoopStart: { min: 0, max: 100 },
+            micLoopEnd: { min: 0, max: 100 },
             grainSize: { min: 10, max: 500 },
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
@@ -4197,6 +4290,7 @@
 
         const presetToggleParams = [
             'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
+            'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
             'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ', 'noiseMix', 'reverb',
             'volume', 'distortion', 'phaserRate', 'phaserDepth', 'tremoloRate', 'tremoloDepth',
             'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
@@ -4620,7 +4714,10 @@
         }
 
         function getLfoModulationScale(paramId) {
-            return (GRANULAR_LFO_MODULATION_SCALES[paramId] ?? 0.18) * getGlobalModulationAmountValue();
+            const granularScale = GRANULAR_LFO_MODULATION_SCALES[paramId];
+            const baseScale = granularScale ?? 0.18;
+            const grainScale = granularScale === undefined ? 1 : getGranularModulationAmountValue();
+            return baseScale * getGlobalModulationAmountValue() * grainScale;
         }
 
         function getGlobalModulationAmountValue() {
@@ -4641,6 +4738,30 @@
             const label = document.getElementById('performanceModAmountValue');
             if (label) {
                 label.textContent = `${Math.round(globalModulationAmount * 100)}%`;
+            }
+            if (options.save !== false) {
+                saveState();
+            }
+        }
+
+        function getGranularModulationAmountValue() {
+            const sliderValue = Number(document.getElementById('performanceGrainModAmount')?.value);
+            if (Number.isFinite(sliderValue)) {
+                granularModulationAmount = Math.max(0, Math.min(1, sliderValue / 100));
+            }
+            return granularModulationAmount;
+        }
+
+        function setGranularModulationAmount(value, options = {}) {
+            const numeric = Number(value);
+            granularModulationAmount = Math.max(0, Math.min(1, Number.isFinite(numeric) ? numeric / 100 : 0.75));
+            const slider = document.getElementById('performanceGrainModAmount');
+            if (slider) {
+                slider.value = String(Math.round(granularModulationAmount * 100));
+            }
+            const label = document.getElementById('performanceGrainModAmountValue');
+            if (label) {
+                label.textContent = `${Math.round(granularModulationAmount * 100)}%`;
             }
             if (options.save !== false) {
                 saveState();
@@ -5694,11 +5815,11 @@
             return gains;
         }
 
-        function getLoopRange(startId, endId) {
+        function getLoopRange(startId, endId, options = {}) {
             const startSlider = document.getElementById(startId);
             const endSlider = document.getElementById(endId);
-            const rawStart = Number(startSlider?.value ?? 0);
-            const rawEnd = Number(endSlider?.value ?? 100);
+            const rawStart = options.modulated ? getModulatedValue(startId) : Number(startSlider?.value ?? 0);
+            const rawEnd = options.modulated ? getModulatedValue(endId) : Number(endSlider?.value ?? 100);
             let startPct = Math.max(0, Math.min(100, Number.isFinite(rawStart) ? rawStart : 0)) / 100;
             let endPct = Math.max(0, Math.min(100, Number.isFinite(rawEnd) ? rawEnd : 100)) / 100;
             if (endPct < startPct) [startPct, endPct] = [endPct, startPct];
@@ -6343,7 +6464,7 @@
                 const posSlider = getModulatedValue('position') / 100;
 
                 granularSources.forEach((sourceInfo) => {
-                    const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId);
+                    const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
                     const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
                         ? mygrainUtils.resolveSampleWindow({
                             bufferDuration: sourceInfo.buffer.duration,
@@ -9069,7 +9190,8 @@
                 performanceGeneratedDryMix: 0,
                 performanceGeneratedSwing: 0,
                 performanceGeneratedTranspose: 0,
-                performanceModAmount: 55
+                performanceModAmount: 55,
+                performanceGrainModAmount: 75
             };
             
             // Reset all sliders to default values
@@ -9192,6 +9314,7 @@
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                 globalModulationAmount: getGlobalModulationAmountValue(),
+                granularModulationAmount: getGranularModulationAmountValue(),
                 filterPoles: {
                     lpf: slopeToFilterPoles(lpfSlope),
                     hpf: slopeToFilterPoles(hpfSlope)
@@ -9297,6 +9420,10 @@
             const importedGlobalModulationAmount = safePreset.globalModulationAmount ?? preset.globalModulationAmount;
             if (importedGlobalModulationAmount !== undefined) {
                 setGlobalModulationAmount(Number(importedGlobalModulationAmount) * 100, { save: false });
+            }
+            const importedGranularModulationAmount = safePreset.granularModulationAmount ?? preset.granularModulationAmount;
+            if (importedGranularModulationAmount !== undefined) {
+                setGranularModulationAmount(Number(importedGranularModulationAmount) * 100, { save: false });
             }
             
             // Apply LFO enabled states
@@ -9678,6 +9805,7 @@
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     globalModulationAmount: getGlobalModulationAmountValue(),
+                    granularModulationAmount: getGranularModulationAmountValue(),
                     lpfSlope: lpfSlope,
                     hpfSlope: hpfSlope,
                     lpfEnabled: lpfEnabled,
@@ -9811,6 +9939,9 @@
                     }
                     if (state.modes.globalModulationAmount !== undefined) {
                         setGlobalModulationAmount(Number(state.modes.globalModulationAmount) * 100, { save: false });
+                    }
+                    if (state.modes.granularModulationAmount !== undefined) {
+                        setGranularModulationAmount(Number(state.modes.granularModulationAmount) * 100, { save: false });
                     }
                 }
 
@@ -10599,6 +10730,7 @@
         const performanceGeneratedSwing = document.getElementById('performanceGeneratedSwing');
         const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
         const performanceModAmount = document.getElementById('performanceModAmount');
+        const performanceGrainModAmount = document.getElementById('performanceGrainModAmount');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
@@ -10674,6 +10806,12 @@
                 const value = Math.round(getGlobalModulationAmountValue() * 100);
                 performanceModAmount.value = String(value);
                 document.getElementById('performanceModAmountValue').textContent = `${value}%`;
+            }
+
+            if (performanceGrainModAmount) {
+                const value = Math.round(getGranularModulationAmountValue() * 100);
+                performanceGrainModAmount.value = String(value);
+                document.getElementById('performanceGrainModAmountValue').textContent = `${value}%`;
             }
 
             if (performanceLpfCutoff && lpfCutoffSlider) {
@@ -10889,6 +11027,10 @@
 
         performanceModAmount?.addEventListener('input', (event) => {
             setGlobalModulationAmount(event.target.value);
+        });
+
+        performanceGrainModAmount?.addEventListener('input', (event) => {
+            setGranularModulationAmount(event.target.value);
         });
 
         performanceOscToggleBtn?.addEventListener('click', () => {

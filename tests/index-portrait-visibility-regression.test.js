@@ -68,6 +68,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Loop Transpose</);
     assert.match(indexHtml, /id="performanceModAmount" min="0" max="100" value="55" step="1"/);
     assert.match(indexHtml, />Mod Amount</);
+    assert.match(indexHtml, /id="performanceGrainModAmount" min="0" max="100" value="75" step="1"/);
+    assert.match(indexHtml, />Grain Mod</);
     assert.match(indexHtml, /id="performanceLpfCutoff"/);
     assert.match(indexHtml, /id="performanceLpfResonance"/);
     assert.match(indexHtml, /id="performanceHpfCutoff"/);
@@ -267,6 +269,7 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
         'performanceGranularTrim',
         'performanceGeneratedTranspose',
         'performanceModAmount',
+        'performanceGrainModAmount',
         'performanceInputTrim',
         'performancePostFilterTrim',
         'performanceMasterTrim',
@@ -458,14 +461,27 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /phaserDepth: \{ min: 0, max: 18 \}/);
     assert.match(indexHtml, /tremoloDepth: \{ min: 0, max: 16 \}/);
     assert.match(indexHtml, /const GRANULAR_LFO_MODULATION_SCALES = \{/);
-    assert.match(indexHtml, /grainSize: 0\.08/);
+    assert.match(indexHtml, /generatedLoopStart: 0\.12/);
+    assert.match(indexHtml, /generatedLoopEnd: 0\.12/);
+    assert.match(indexHtml, /micLoopStart: 0\.12/);
+    assert.match(indexHtml, /micLoopEnd: 0\.12/);
+    assert.match(indexHtml, /grainSize: 0\.14/);
     assert.match(indexHtml, /attack: 0\.05/);
     assert.match(indexHtml, /let globalModulationAmount = 0\.55/);
+    assert.match(indexHtml, /let granularModulationAmount = 0\.75/);
     assert.match(indexHtml, /function getGlobalModulationAmountValue\(\)/);
     assert.match(indexHtml, /function setGlobalModulationAmount\(value, options = \{\}\)/);
+    assert.match(indexHtml, /function getGranularModulationAmountValue\(\)/);
+    assert.match(indexHtml, /function setGranularModulationAmount\(value, options = \{\}\)/);
     assert.match(indexHtml, /function getLfoModulationScale\(paramId\)/);
-    assert.match(indexHtml, /return \(GRANULAR_LFO_MODULATION_SCALES\[paramId\] \?\? 0\.18\) \* getGlobalModulationAmountValue\(\)/);
+    assert.match(indexHtml, /return baseScale \* getGlobalModulationAmountValue\(\) \* grainScale/);
     assert.match(indexHtml, /const RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS = new Set\(\[/);
+    assert.match(indexHtml, /'sampleStart'/);
+    assert.match(indexHtml, /'sampleEnd'/);
+    assert.match(indexHtml, /'generatedLoopStart'/);
+    assert.match(indexHtml, /'generatedLoopEnd'/);
+    assert.match(indexHtml, /'micLoopStart'/);
+    assert.match(indexHtml, /'micLoopEnd'/);
     assert.match(indexHtml, /'grainSize'/);
     assert.match(indexHtml, /'density'/);
     assert.match(indexHtml, /'position'/);
@@ -476,9 +492,23 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /'lpfQ'/);
     assert.match(indexHtml, /'hpfCutoff'/);
     assert.match(indexHtml, /'hpfQ'/);
+    assert.match(indexHtml, /'generatedLoopStart'/);
+    assert.match(indexHtml, /'micLoopEnd'/);
     assert.match(indexHtml, /function randomizeLfoDepths\(\)/);
     assert.match(indexHtml, /function randomizeLfoRoutingMatrix\(\)/);
     assert.match(indexHtml, /const probability = isPriorityTarget \? 0\.78 : \(isGranularTarget \? 0\.42 : 0\.52\)/);
     assert.match(indexHtml, /if \(isPriorityTarget && enabledCount === 0\) \{/);
     assert.match(indexHtml, /randomizeLfoRoutingMatrix\(\);/);
+});
+
+test('granular loop endpoints are lfo routable and used by grain playback', () => {
+    assert.match(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
+    assert.match(indexHtml, /data-param="generatedLoopEnd" data-lfo="2"/);
+    assert.match(indexHtml, /data-param="micLoopStart" data-lfo="1"/);
+    assert.match(indexHtml, /data-param="micLoopEnd" data-lfo="2"/);
+    assert.match(indexHtml, /generatedLoopStart: \{ min: 0, max: 100 \}/);
+    assert.match(indexHtml, /micLoopEnd: \{ min: 0, max: 100 \}/);
+    assert.match(indexHtml, /function getLoopRange\(startId, endId, options = \{\}\)/);
+    assert.match(indexHtml, /const rawStart = options\.modulated \? getModulatedValue\(startId\) : Number\(startSlider\?\.value \?\? 0\)/);
+    assert.match(indexHtml, /getLoopRange\(sourceInfo\.startId, sourceInfo\.endId, \{ modulated: true \}\)/);
 });
