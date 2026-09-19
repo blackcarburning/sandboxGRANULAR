@@ -3964,8 +3964,7 @@
             sequencerSteps.push({
                 enabled: true,
                 pitch: 'A3',
-                volume: 80,
-                subHits: []
+                volume: 80
             });
         }
         
@@ -6335,27 +6334,6 @@
                         }
                     }
 
-                    const subHits = Array.isArray(step.subHits) ? step.subHits : [];
-                    subHits.forEach((subHit) => {
-                        const offsetRatio = Math.max(0, Math.min(0.92, Number(subHit.offset) || 0));
-                        const hitTime = scheduledTime + (stepDuration * offsetRatio);
-                        const subPitch = subHit.pitch || step.pitch;
-                        const subVelocity = stepVelocity * Math.max(0.15, Math.min(1, Number(subHit.velocity) || 0.55));
-
-                        Array.from(activeOscVoices.keys()).forEach((activeNote) => {
-                            stopOscillatorNote(activeNote, Math.max(0, hitTime - 0.006));
-                        });
-
-                        playOscillatorNote(subPitch, hitTime, subVelocity);
-
-                        if (seqGrainsEnabled) {
-                            try {
-                                playGrain(subPitch, hitTime, subVelocity);
-                            } catch (e) {
-                                console.error('Error playing sequencer sub-hit grain:', e);
-                            }
-                        }
-                    });
                 }
                 
                 // Update visual indicator (deferred to not block audio)
@@ -7262,7 +7240,7 @@
             setSelectValue('osc1Wave', Math.random() < 0.5 ? 'triangle' : 'sine');
             setSelectValue('osc2Wave', Math.random() < 0.55 ? 'sawtooth' : 'triangle');
             setSelectValue('noiseType', 'pink');
-            setSelectValue('delayDivision', Math.random() < 0.5 ? '1t' : '2t');
+            setSelectValue('delayDivision', Math.random() < 0.5 ? '2' : '4');
 
             setOscillatorOctave(1, 16);
             setOscillatorOctave(2, 8);
@@ -7329,7 +7307,7 @@
 
             const roots = ['C1', 'D1', 'F1', 'G1', 'A1', 'C2', 'D#2'];
             const scales = [
-                { name: 'sub triplet ritual', intervals: [0, 2, 3, 6, 7, 10, 12, 13, 17, 19, 22] },
+                { name: 'sub grid ritual', intervals: [0, 2, 3, 6, 7, 10, 12, 13, 17, 19, 22] },
                 { name: 'folded fifths', intervals: [0, 1, 5, 7, 11, 12, 17, 18, 23, 24] },
                 { name: 'industrial minor', intervals: [0, 3, 4, 6, 7, 10, 12, 15, 18, 21] },
                 { name: 'chromatic debris', intervals: [0, 1, 2, 5, 6, 8, 10, 12, 13, 16, 18] }
@@ -7348,22 +7326,23 @@
             const motif = [0, 1, 2, 3, 5, 7, 8].sort(() => Math.random() - 0.5);
             const anchorSteps = new Set([0, 7, 8, Math.random() < 0.65 ? 11 : 14]);
             const textureSteps = new Set([2, 5, 6, 10, 13, 15].filter(() => Math.random() > 0.18));
-            const tripletAccentSteps = new Set([3, 9, Math.random() < 0.5 ? 12 : 14]);
-            const ratchetSteps = new Set([Math.random() < 0.5 ? 6 : 10, 15]);
-            const noteAt = (offset) => noteNames[Math.max(0, Math.min(noteNames.length - 1, rootIndex + offset))];
+            const accentSteps = new Set([3, 9, Math.random() < 0.5 ? 12 : 14]);
 
             for (let index = 0; index < 16; index++) {
                 const isAnchor = anchorSteps.has(index);
                 const isTexture = textureSteps.has(index);
-                const enabled = Boolean(isAnchor || isTexture || mask[index] || tripletAccentSteps.has(index));
+                const isAccent = accentSteps.has(index);
+                const enabled = Boolean(isAnchor || isTexture || isAccent || mask[index]);
                 let noteIndex = rootIndex;
                 let volume = 0;
-                const subHits = [];
 
                 if (isAnchor) {
                     const bassMove = Math.random() < 0.35 ? 7 : (Math.random() < 0.22 ? -5 : 0);
                     noteIndex = rootIndex + bassMove;
                     volume = Math.round(82 + Math.random() * 14);
+                } else if (isAccent) {
+                    noteIndex = rootIndex + scale.intervals[3 + Math.floor(Math.random() * 4)] + 12;
+                    volume = Math.round(54 + Math.random() * 26);
                 } else if (isTexture) {
                     noteIndex = rootIndex + scale.intervals[5 + Math.floor(Math.random() * 4)];
                     volume = Math.round(46 + Math.random() * 22);
@@ -7375,33 +7354,12 @@
                     volume = Math.round(40 + Math.random() * 34);
                 }
 
-                if (tripletAccentSteps.has(index)) {
-                    const upper = scale.intervals[3 + Math.floor(Math.random() * 4)] + 12;
-                    const lower = scale.intervals[1 + Math.floor(Math.random() * 3)];
-                    subHits.push(
-                        { offset: 1 / 3, pitch: noteAt(lower), velocity: 0.46 + Math.random() * 0.22 },
-                        { offset: 2 / 3, pitch: noteAt(upper), velocity: 0.36 + Math.random() * 0.26 }
-                    );
-                }
-
-                if (ratchetSteps.has(index)) {
-                    [0.25, 0.5, 0.75].forEach((offset, ratchetIndex) => {
-                        const ratchetNote = scale.intervals[(ratchetIndex + index) % scale.intervals.length] + (ratchetIndex === 2 ? 12 : 0);
-                        subHits.push({
-                            offset,
-                            pitch: noteAt(ratchetNote),
-                            velocity: 0.22 + (0.12 * ratchetIndex)
-                        });
-                    });
-                }
-
                 noteIndex = Math.max(0, Math.min(noteNames.length - 1, noteIndex));
 
                 sequencerSteps[index] = {
                     enabled,
                     pitch: noteNames[noteIndex],
-                    volume,
-                    subHits
+                    volume
                 };
                 updateSequencerStepUI(index + 1);
             }
@@ -7643,12 +7601,10 @@
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const stepDuration = (60 / bpm) / 4;
-            const beatDuration = 60 / bpm;
-            const loopSteps = 32;
+            const loopSteps = 16;
             const duration = stepDuration * loopSteps;
             const frameCount = Math.floor(audioContext.sampleRate * duration);
             const buffer = audioContext.createBuffer(2, frameCount, audioContext.sampleRate);
-            const grooveSwing = getGeneratedSourceSwingValue() * stepDuration * 0.5;
             const rootFrequency = [34, 37, 41, 46, 49, 55][Math.floor(Math.random() * 6)];
             const experimentalTonePalette = [
                 { name: 'folded sub glass', ratios: [1, 1.5, 2.01, 2.98, 5.01], fold: 1.45 },
@@ -7658,8 +7614,6 @@
             ];
             const palette = experimentalTonePalette[Math.floor(Math.random() * experimentalTonePalette.length)];
             const events = [];
-            const tripletBursts = [];
-            const ratchetBursts = [];
             const TWO_PI = Math.PI * 2;
 
             setStatus(`Generating ${palette.name} source…`);
@@ -7705,9 +7659,9 @@
                 return Math.pow(2, step / 12);
             }
 
-            const anchorSteps = [0, 7, 12, 16, 23, Math.random() < 0.6 ? 27 : 30];
+            const anchorSteps = [0, 4, 8, 12, Math.random() < 0.6 ? 6 : 14];
             anchorSteps.forEach((step, index) => {
-                const time = step * stepDuration + (step % 2 ? grooveSwing : 0);
+                const time = step * stepDuration;
                 const freq = rootFrequency * (index % 3 === 1 ? 1.5 : 1);
                 addExperimentalEvent('subPulse', time, {
                     freq,
@@ -7729,10 +7683,10 @@
                 }
             });
 
-            [3, 5, 10, 14, 19, 21, 26, 29].forEach((step) => {
+            [2, 3, 5, 7, 10, 11, 13, 15].forEach((step) => {
                 if (Math.random() < 0.28) return;
                 const ratio = palette.ratios[Math.floor(Math.random() * palette.ratios.length)];
-                addExperimentalEvent(Math.random() < 0.5 ? 'fmKnock' : 'vowelBlip', step * stepDuration + (step % 2 ? grooveSwing : 0), {
+                addExperimentalEvent(Math.random() < 0.5 ? 'fmKnock' : 'vowelBlip', step * stepDuration, {
                     freq: rootFrequency * ratio * noteRatio([0, 2, 3, 5, 7, 10][Math.floor(Math.random() * 6)]),
                     amp: 0.26 + Math.random() * 0.36,
                     duration: 0.16 + Math.random() * 0.18,
@@ -7743,45 +7697,22 @@
                 });
             });
 
-            for (let beat = 0; beat < 8; beat++) {
-                if (Math.random() < 0.38) continue;
-                const beatStart = beat * beatDuration;
-                tripletBursts.push(beat);
-                for (let trip = 0; trip < 3; trip++) {
-                    const tripTime = beatStart + (trip * beatDuration / 3);
-                    addExperimentalEvent(trip === 0 ? 'metalShard' : 'dustTick', tripTime, {
-                        freq: rootFrequency * palette.ratios[(beat + trip) % palette.ratios.length] * (trip === 2 ? 2 : 1),
-                        amp: 0.16 + (trip * 0.07) + Math.random() * 0.12,
-                        duration: 0.075 + Math.random() * 0.08,
-                        decay: 0.018 + Math.random() * 0.025,
-                        attack: 0.0008,
-                        pan: randomPan(0.95),
-                        color: 0.8 + Math.random() * 0.8
-                    });
-                }
-            }
-
-            [6, 11, 15, 22, 31].forEach((step) => {
+            [1, 6, 9, 14].forEach((step) => {
                 if (Math.random() < 0.3) return;
-                const repeats = Math.random() < 0.45 ? 4 : 3;
-                ratchetBursts.push({ step, repeats });
-                for (let repeat = 0; repeat < repeats; repeat++) {
-                    addExperimentalEvent('ratchetZap', (step * stepDuration) + (repeat * stepDuration / repeats), {
-                        freq: rootFrequency * noteRatio(12 + repeat * 3 + Math.floor(Math.random() * 4)),
-                        amp: 0.14 + repeat * 0.045,
-                        duration: stepDuration / repeats * 0.92,
-                        decay: 0.018,
-                        drop: -60 - repeat * 20,
-                        dropRate: 18,
-                        pan: randomPan(0.9)
-                    });
-                }
+                addExperimentalEvent('gridZap', step * stepDuration, {
+                    freq: rootFrequency * noteRatio(12 + Math.floor(Math.random() * 16)),
+                    amp: 0.22 + Math.random() * 0.16,
+                    duration: stepDuration * 0.92,
+                    decay: 0.018,
+                    drop: -60 - Math.random() * 80,
+                    dropRate: 18,
+                    pan: randomPan(0.9)
+                });
             });
 
             for (let step = 0; step < loopSteps; step++) {
                 if (Math.random() > 0.36) continue;
-                const offset = [0, 0.25, 1 / 3, 0.5, 2 / 3][Math.floor(Math.random() * 5)];
-                addExperimentalEvent('dustTick', (step + offset) * stepDuration, {
+                addExperimentalEvent('dustTick', step * stepDuration, {
                     freq: rootFrequency * noteRatio(12 + Math.floor(Math.random() * 19)),
                     amp: 0.08 + Math.random() * 0.16,
                     duration: 0.045 + Math.random() * 0.07,
@@ -7820,7 +7751,7 @@
                     const formantB = Math.sin(TWO_PI * event.freq * 2.72 * delta + Math.sin(delta * 19));
                     const formantC = Math.sin(TWO_PI * event.freq * 4.4 * delta) * 0.32;
                     voice = Math.tanh((formantA + formantB * 0.55 + formantC) * 1.4) * basicEnv;
-                } else if (event.type === 'ratchetZap') {
+                } else if (event.type === 'gridZap') {
                     const sweep = event.freq + event.drop * (1 - Math.exp(-delta * event.dropRate));
                     voice = Math.sin(TWO_PI * sweep * delta);
                     voice += 0.22 * Math.sin(TWO_PI * sweep * 2.01 * delta);

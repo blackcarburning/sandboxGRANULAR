@@ -149,12 +149,16 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
 });
 
-test('generated source swing is controllable and defaults to straight timing', () => {
+test('generated source uses strict straight grid timing', () => {
     assert.match(indexHtml, /let generatedSourceSwing = 0/);
     assert.match(indexHtml, /function getGeneratedSourceSwingValue\(\)/);
     assert.match(indexHtml, /id="performanceGeneratedSwing" min="0" max="60" value="0"/);
-    assert.match(indexHtml, /const grooveSwing = getGeneratedSourceSwingValue\(\) \* stepDuration \* 0\.5/);
+    assert.match(indexHtml, /const stepDuration = \(60 \/ bpm\) \/ 4/);
+    assert.match(indexHtml, /const loopSteps = 16/);
+    assert.match(indexHtml, /const duration = stepDuration \* loopSteps/);
+    assert.doesNotMatch(indexHtml, /grooveSwing/);
     assert.doesNotMatch(indexHtml, /Math\.random\(\) \* stepDuration \* 0\.18/);
+    assert.doesNotMatch(indexHtml, /stepDuration \/ repeats/);
     assert.match(indexHtml, /performanceGeneratedSwing: 0/);
 });
 
@@ -174,14 +178,15 @@ test('oscillators can be disabled for granular-only playback', () => {
     assert.match(indexHtml, /if \(!oscillatorsEnabled\) return/);
 });
 
-test('generated source and sequencer are experimental and triplet aware', () => {
+test('generated source and sequencer are experimental on a strict sixteenth grid', () => {
     assert.match(indexHtml, /experimentalTonePalette/);
-    assert.match(indexHtml, /tripletBursts/);
-    assert.match(indexHtml, /ratchetBursts/);
-    assert.match(indexHtml, /subHits/);
-    assert.match(indexHtml, /offset: 1 \/ 3/);
-    assert.match(indexHtml, /offset: 2 \/ 3/);
-    assert.match(indexHtml, /playGrain\(subPitch, hitTime, subVelocity\)/);
+    assert.match(indexHtml, /const anchorSteps = \[0, 4, 8, 12/);
+    assert.match(indexHtml, /addExperimentalEvent\('gridZap', step \* stepDuration/);
+    assert.doesNotMatch(indexHtml, /triplet/i);
+    assert.doesNotMatch(indexHtml, /ratchet/i);
+    assert.doesNotMatch(indexHtml, /subHits/);
+    assert.doesNotMatch(indexHtml, /offset: 1 \/ 3/);
+    assert.doesNotMatch(indexHtml, /offset: 2 \/ 3/);
     assert.match(indexHtml, /const roots = \['C1', 'D1', 'F1', 'G1', 'A1', 'C2', 'D#2'\]/);
     assert.match(indexHtml, /applyExperimentalLoopPatch\(\)/);
 });
