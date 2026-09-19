@@ -5936,7 +5936,7 @@
         updateLFORateDisplay();
         updateLFO2RateDisplay();
         updateLFO3RateDisplay();
-        applyGlobalBpm(document.getElementById('delayBpm')?.value || 120);
+        syncGlobalBpmControls(document.getElementById('lfoRate')?.value || 120);
 
         // --- LFO Toggle Listeners ---
         document.querySelectorAll('.lfo-toggle').forEach(btn => {
@@ -6527,11 +6527,12 @@
                     const motion = 1 + 0.03 * Math.sin(2 * Math.PI * shimmerRate * time);
                     let sample = 0;
 
-                    partials.forEach((partial, index) => {
+                    for (let index = 0; index < partials.length; index++) {
+                        const partial = partials[index];
                         const harmonicFrequency = baseFrequency * partial.ratio * motion * channelDetune;
                         const overtoneMotion = 1 + Math.sin(2 * Math.PI * (0.11 + index * 0.03) * time + partial.phase) * 0.004;
                         sample += partial.gain * Math.sin(2 * Math.PI * harmonicFrequency * overtoneMotion * time + partial.phase);
-                    });
+                    }
 
                     filteredNoise = filteredNoise * 0.985 + (Math.random() * 2 - 1) * 0.12;
                     const transient = Math.sin(2 * Math.PI * (baseFrequency * 0.5) * time + channel * 0.6) * (1 - progress) * 0.12;
@@ -7149,13 +7150,18 @@
             }
             
             enforceBpmOnlyLfoMode();
+            const usesSharedBpmPreset = safePreset.bpmOnlyLfos === true || safePreset.globalBpm != null || normalizedSliders?.globalBpmSlider != null;
             const restoredGlobalBpm = safePreset.globalBpm ??
                 normalizedSliders?.globalBpmSlider ??
                 normalizedSliders?.lfoRate ??
                 normalizedSliders?.lfo2Rate ??
                 normalizedSliders?.lfo3Rate ??
                 120;
-            applyGlobalBpm(restoredGlobalBpm);
+            if (usesSharedBpmPreset) {
+                applyGlobalBpm(restoredGlobalBpm);
+            } else {
+                syncGlobalBpmControls(restoredGlobalBpm);
+            }
             
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
@@ -7637,13 +7643,18 @@
                     }
                 }
 
+                const usesSharedBpmState = state.bpmOnlyLfos === true || state.globalBpm != null || normalizedStateSliders?.globalBpmSlider != null;
                 const restoredGlobalBpm = state.globalBpm ??
                     normalizedStateSliders?.globalBpmSlider ??
                     normalizedStateSliders?.lfoRate ??
                     normalizedStateSliders?.lfo2Rate ??
                     normalizedStateSliders?.lfo3Rate ??
                     120;
-                applyGlobalBpm(restoredGlobalBpm);
+                if (usesSharedBpmState) {
+                    applyGlobalBpm(restoredGlobalBpm);
+                } else {
+                    syncGlobalBpmControls(restoredGlobalBpm);
+                }
 
                 // Restore LFO toggle states
                 if (state.toggles && state.toggles.lfo) {
