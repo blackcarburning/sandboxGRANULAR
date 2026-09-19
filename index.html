@@ -1688,6 +1688,130 @@
             }
         }
 
+        /* Simplified performance layout: keyboard + four controls only */
+        .simplified-ui #fullscreenBtn,
+        .simplified-ui #debugPanel,
+        .simplified-ui .recording-section,
+        .simplified-ui .controls-section,
+        .simplified-ui .keyboard-section .octave-controls,
+        .simplified-ui .keyboard-section .volume-bias-container,
+        .simplified-ui .keyboard-section #holdBtn,
+        .simplified-ui .keyboard-section #panicBtn {
+            display: none !important;
+        }
+
+        .simplified-ui .top-section {
+            display: none !important;
+        }
+
+        .performance-controls {
+            display: none;
+        }
+
+        .simplified-ui .synth-container {
+            position: fixed;
+            width: 100%;
+            min-height: 100svh;
+            padding: 12px;
+            gap: 10px;
+        }
+
+        .simplified-ui .performance-controls {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .simplified-ui .performance-btn {
+            min-height: 44px;
+            font-weight: 700;
+        }
+
+        .simplified-ui #performanceHoldBtn.active,
+        .simplified-ui #performanceRecordBtn.recording {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .simplified-ui #performanceRecordBtn.recording {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: #fff;
+        }
+
+        .simplified-ui .keyboard-section {
+            display: flex !important;
+            position: relative !important;
+            left: auto !important;
+            right: auto !important;
+            top: auto !important;
+            bottom: auto !important;
+            width: 100%;
+            min-height: 220px;
+            height: auto;
+            flex: 1;
+            padding: 10px;
+            gap: 0;
+        }
+
+        .simplified-ui .keyboard {
+            min-width: 100%;
+            padding-top: 0;
+        }
+
+        @media (max-width: 960px) {
+            .simplified-ui .performance-controls {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .simplified-ui .synth-container {
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .simplified-ui .performance-controls {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 6px;
+            }
+
+            .simplified-ui .performance-btn {
+                min-height: 44px;
+                font-size: 11px;
+                padding: 8px 10px;
+            }
+
+            .simplified-ui .keyboard-section {
+                min-height: 190px;
+                padding: 8px;
+            }
+        }
+
+        @media screen and (max-height: 430px) and (orientation: landscape) {
+            .simplified-ui .synth-container {
+                flex-direction: column;
+                padding: 6px;
+                gap: 6px;
+            }
+
+            .simplified-ui .performance-controls {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+
+            .simplified-ui .performance-btn {
+                min-height: 38px;
+                font-size: 10px;
+                padding: 6px 8px;
+            }
+
+            .simplified-ui .keyboard-section {
+                min-height: 112px;
+                height: auto;
+                border-radius: 8px 8px 0 0;
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation: none !important;
@@ -1697,7 +1821,7 @@
         }
     </style>
 </head>
-<body>
+<body class="simplified-ui">
 
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
@@ -1710,6 +1834,12 @@
     <button id="fullscreenBtn" class="hidden">Go Fullscreen</button>
 
     <div class="synth-container">
+        <div class="performance-controls" aria-label="Performance controls">
+            <button class="performance-btn" id="performanceHoldBtn">Hold</button>
+            <button class="performance-btn" id="performanceRandomizeBtn">Randomise</button>
+            <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
+            <button class="performance-btn" id="performanceSaveBtn">Save</button>
+        </div>
         <div class="top-section">
             <div class="recording-section">
                 <div class="app-branding">
@@ -6438,6 +6568,43 @@
                     }
                 }
             });
+
+            // Randomize key waveform/type/division selectors
+            [
+                'lfoWaveform',
+                'lfo2Waveform',
+                'lfo3Waveform',
+                'noiseType',
+                'osc1Wave',
+                'osc2Wave',
+                'delayDivision'
+            ].forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (!select || !select.options || select.options.length === 0) return;
+                const randomIndex = Math.floor(Math.random() * select.options.length);
+                select.selectedIndex = randomIndex;
+                select.dispatchEvent(new Event('change'));
+            });
+
+            // Randomize oscillator octave buttons
+            ['1', '2'].forEach(osc => {
+                const octaveButtons = Array.from(document.querySelectorAll(`.slope-toggle[data-osc="${osc}"]`));
+                if (octaveButtons.length === 0) return;
+                const randomBtn = octaveButtons[Math.floor(Math.random() * octaveButtons.length)];
+                if (!randomBtn.classList.contains('active')) {
+                    randomBtn.click();
+                }
+            });
+
+            // Randomize filter slope buttons (LPF + HPF)
+            ['lpf', 'hpf'].forEach(filter => {
+                const slopeButtons = Array.from(document.querySelectorAll(`.slope-toggle[data-filter="${filter}"]`));
+                if (slopeButtons.length === 0) return;
+                const randomBtn = slopeButtons[Math.floor(Math.random() * slopeButtons.length)];
+                if (!randomBtn.classList.contains('active')) {
+                    randomBtn.click();
+                }
+            });
             
             statusDiv.textContent = 'All parameters randomized';
         });
@@ -7315,6 +7482,7 @@
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             const filename = `mygrain-${sequencerBPM}bpm-${timestamp}.wav`;
+            const fallbackFilename = `recordings/${filename}`;
             console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
             
             // Desktop: Use File System Access API for Save As dialog
@@ -7371,7 +7539,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = filename;
+            a.download = fallbackFilename;
             document.body.appendChild(a);
             a.click();
             setTimeout(() => {
@@ -7641,6 +7809,67 @@
                 document.getElementById('outputRecText').textContent = 'Press any key...';
             }
         });
+
+        // Simplified performance control bar proxies
+        const performanceHoldBtn = document.getElementById('performanceHoldBtn');
+        const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
+        const performanceRecordBtn = document.getElementById('performanceRecordBtn');
+        const performanceSaveBtn = document.getElementById('performanceSaveBtn');
+
+        function syncPerformanceControlState() {
+            if (performanceHoldBtn) {
+                performanceHoldBtn.classList.toggle('active', document.getElementById('holdBtn')?.classList.contains('active'));
+            }
+
+            if (performanceRecordBtn) {
+                const recText = document.getElementById('outputRecText')?.textContent || '';
+                const isProcessing = recText === 'Processing...';
+                const isRecordingNow = document.getElementById('startOutputRecBtn')?.classList.contains('recording');
+                performanceRecordBtn.disabled = isProcessing;
+                performanceRecordBtn.classList.toggle('recording', isRecordingNow);
+                performanceRecordBtn.textContent = isProcessing ? 'Processing...' : (isRecordingNow ? 'Stop Recording' : 'Record Output');
+            }
+        }
+
+        performanceHoldBtn?.addEventListener('click', () => {
+            document.getElementById('holdBtn')?.click();
+            syncPerformanceControlState();
+        });
+
+        performanceRandomizeBtn?.addEventListener('click', () => {
+            document.getElementById('randomizeBtn')?.click();
+        });
+
+        performanceSaveBtn?.addEventListener('click', () => {
+            document.getElementById('savePresetBtn')?.click();
+        });
+
+        performanceRecordBtn?.addEventListener('click', () => {
+            if (performanceRecordBtn.disabled) return;
+            const startBtn = document.getElementById('startOutputRecBtn');
+            const stopBtn = document.getElementById('stopOutputRecBtn');
+            if (!startBtn || !stopBtn) return;
+            if (startBtn.classList.contains('recording')) {
+                stopBtn.click();
+            } else {
+                startBtn.click();
+            }
+            syncPerformanceControlState();
+        });
+
+        ['holdBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            new MutationObserver(syncPerformanceControlState).observe(el, {
+                attributes: true,
+                attributeFilter: ['class', 'disabled'],
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+        });
+
+        syncPerformanceControlState();
 
     </script>
 </body>
