@@ -280,9 +280,11 @@
             ], random);
         const archetype = archetypes[selectedArchetype] || archetypes.straight;
 
-        const halfLength = Math.floor(stepCount / 2);
+        const halfLength = Math.ceil(stepCount / 2);
         const halfPattern = new Array(halfLength).fill(false).map((_, index) => Boolean(archetype.motif[index % archetype.motif.length]));
-        const basePattern = halfPattern.concat(halfPattern).slice(0, stepCount);
+        const basePattern = new Array(stepCount).fill(false).map((_, index) => {
+            return halfPattern[index % halfPattern.length];
+        });
         const enabled = [...basePattern];
         const accents = new Array(stepCount).fill(false);
         const velocities = new Array(stepCount).fill(0);

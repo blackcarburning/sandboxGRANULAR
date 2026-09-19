@@ -8252,8 +8252,14 @@
             const applied = {};
             syncingGlobalBpm = true;
             try {
-                INTERNAL_LFO_RATE_IDS.forEach((id, index) => {
-                    const rhythmFirst = index === 0 || index === 1;
+                const tempoRateIds = ['delayBpm', ...INTERNAL_LFO_RATE_IDS];
+                let lfoRateIndex = 0;
+                tempoRateIds.forEach((id) => {
+                    if (id === 'delayBpm') {
+                        return;
+                    }
+                    const rhythmFirst = lfoRateIndex <= 1;
+                    lfoRateIndex += 1;
                     const baseMultiplier = ratioPool[Math.floor(Math.random() * ratioPool.length)] || 1;
                     const microOffset = rhythmFirst ? 1 : (Math.random() < 0.4 ? 1 : (Math.random() < 0.5 ? 0.5 : 2));
                     const multiplier = baseMultiplier * microOffset;
@@ -8349,7 +8355,8 @@
                 densityBias,
                 energy,
                 scale: LOOP_SCALE_FAMILIES[Math.floor(Math.random() * LOOP_SCALE_FAMILIES.length)],
-                root: ['C1', 'D1', 'E1', 'F1', 'G1', 'A1', 'C2', 'D#2'][Math.floor(Math.random() * 8)]
+                root: ['C1', 'D1', 'E1', 'F1', 'G1', 'A1', 'C2', 'D#2'][Math.floor(Math.random() * 8)],
+                generationSeed: `${Date.now()}-${Math.floor(Math.random() * 1000000)}`
             };
         }
 
@@ -8466,13 +8473,13 @@
                 const lfoNum = Math.random() < 0.5 ? '1' : '2';
                 setLfoRouteState(param, lfoNum, true);
                 setLfoInvertState(param, lfoNum, Math.random() < 0.38);
-                if (Math.random() < (preferred ? 0.24 : 0.12) && activeRoutes + 1 < targetLimit) {
+                activeRoutes += 1;
+                if (Math.random() < (preferred ? 0.24 : 0.12) && activeRoutes < targetLimit) {
                     const secondLfo = lfoNum === '1' ? '2' : '1';
                     setLfoRouteState(param, secondLfo, true);
                     setLfoInvertState(param, secondLfo, Math.random() < 0.28);
                     activeRoutes += 1;
                 }
-                activeRoutes += 1;
             });
 
             if (activeRoutes < 4) {
@@ -8483,6 +8490,7 @@
                     if (hasRoute) return;
                     const lfoNum = activeRoutes % 2 === 0 ? '1' : '2';
                     setLfoRouteState(param, lfoNum, true);
+                    setLfoInvertState(param, lfoNum, Math.random() < 0.3);
                     activeRoutes += 1;
                 });
             }
@@ -8517,8 +8525,10 @@
                 pitchOffsets: new Array(16).fill(0).map((_, index) => [0, 2, 3, 5, 7, 8, 10, 12][index % 8]),
                 fillApplied: false
             };
+            const patternSeed = chosenProfile.generationSeed
+                || `${chosenProfile.id}-${chosenProfile.root}-${chosenProfile.scale?.name || 'minor-grid'}-${Math.round((chosenProfile.densityBias || 0.5) * 1000)}`;
             const pattern = generator
-                ? generator({ stepCount: 16, archetype: chosenProfile.id, seed: `${Date.now()}-${Math.random()}` })
+                ? generator({ stepCount: 16, archetype: chosenProfile.id, seed: patternSeed })
                 : fallbackPattern;
             return {
                 profile: chosenProfile,
@@ -8586,7 +8596,7 @@
         }
 
         function applyPercussiveLoopPatch() {
-            applyExperimentalLoopPatch();
+            return applyExperimentalLoopPatch();
         }
 
         function generateInterestingLoop(options = {}) {

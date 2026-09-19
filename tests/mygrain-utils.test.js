@@ -137,3 +137,11 @@ test('generateRhythmicStepBlueprint is seeded, musical, and bounded', () => {
         assert.ok(value >= 32 && value <= 96);
     });
 });
+
+test('generateRhythmicStepBlueprint preserves requested odd step counts', () => {
+    const blueprint = generateRhythmicStepBlueprint({ seed: 'odd-steps', stepCount: 15 });
+    assert.equal(blueprint.enabled.length, 15);
+    assert.equal(blueprint.accents.length, 15);
+    assert.equal(blueprint.velocities.length, 15);
+    assert.equal(blueprint.pitchOffsets.length, 15);
+});
