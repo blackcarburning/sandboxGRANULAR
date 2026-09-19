@@ -1714,6 +1714,7 @@
             position: fixed;
             width: 100%;
             min-height: 100svh;
+            min-height: 100dvh;
             padding: 14px;
             gap: 14px;
             background:
@@ -3709,22 +3710,25 @@
             }
 
             syncingGlobalBpm = true;
-            syncGlobalBpmControls(bpm);
+            try {
+                syncGlobalBpmControls(bpm);
 
-            ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'delayBpm'].forEach((id) => {
-                const slider = document.getElementById(id);
-                if (!slider) return;
-                slider.value = String(bpm);
-                slider.dispatchEvent(new Event('input', { bubbles: true }));
-            });
+                ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'delayBpm'].forEach((id) => {
+                    const slider = document.getElementById(id);
+                    if (!slider) return;
+                    slider.value = String(bpm);
+                    slider.dispatchEvent(new Event('input', { bubbles: true }));
+                });
 
-            const sequencerInput = document.getElementById('seqBpm');
-            if (sequencerInput) {
-                sequencerInput.value = String(bpm);
-                sequencerInput.dispatchEvent(new Event('input', { bubbles: true }));
+                const sequencerInput = document.getElementById('seqBpm');
+                if (sequencerInput) {
+                    sequencerInput.value = String(bpm);
+                    sequencerInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            } finally {
+                syncingGlobalBpm = false;
             }
 
-            syncingGlobalBpm = false;
             return bpm;
         }
 
@@ -7586,11 +7590,13 @@
                 if (!savedState) return false;
 
                 const state = JSON.parse(savedState);
+                const savedLfoMode = state.modes?.lfoMode ?? state.toggles?.lfoMode;
+                const savedLfo2Mode = state.modes?.lfo2Mode ?? state.toggles?.lfo2Mode;
 
                 const normalizedStateSliders = normalizeStoredLfoSliderValues(state.sliders, {
                     bpmOnlyLfos: state.bpmOnlyLfos === true,
-                    lfoMode: state.modes?.lfoMode,
-                    lfo2Mode: state.modes?.lfo2Mode
+                    lfoMode: savedLfoMode,
+                    lfo2Mode: savedLfo2Mode
                 });
 
                 // Restore slider values
