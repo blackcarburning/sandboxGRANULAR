@@ -2375,6 +2375,13 @@
                     <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceModAmount">
+                        <span>Mod Amount</span>
+                        <span class="value" id="performanceModAmountValue">55%</span>
+                    </label>
+                    <input type="range" id="performanceModAmount" min="0" max="100" value="55" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceLpfCutoff">
                         <span>LP Cutoff</span>
                         <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
@@ -4023,6 +4030,7 @@
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
+        let globalModulationAmount = 0.55;
         let generatedDryTrimDb = -6;
         let granularTrimDb = -3;
         let masterTrimDb = -3;
@@ -4065,7 +4073,15 @@
             pitchVar: 0.08,
             grainTune: 0.08
         };
-        const RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS = new Set([
+        const PRIORITY_RANDOM_LFO_TARGET_PARAMS = new Set([
+            'lpfCutoff',
+            'lpfQ',
+            'hpfCutoff',
+            'hpfQ',
+            'phaserRate',
+            'tremoloRate'
+        ]);
+        const RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS = new Set([
             'grainSize',
             'density',
             'position',
@@ -4085,6 +4101,7 @@
             'performanceGeneratedDryTrim',
             'performanceGranularTrim',
             'performanceGeneratedTranspose',
+            'performanceModAmount',
             'performanceInputTrim',
             'performancePostFilterTrim',
             'performanceMasterTrim',
@@ -4108,6 +4125,7 @@
             'generatedDryMix',
             'generatedDryTrimDb',
             'granularTrimDb',
+            'globalModulationAmount',
             'masterTrimDb',
             'clickGuardMs',
             'osc1Level',
@@ -4602,7 +4620,31 @@
         }
 
         function getLfoModulationScale(paramId) {
-            return GRANULAR_LFO_MODULATION_SCALES[paramId] ?? 0.18;
+            return (GRANULAR_LFO_MODULATION_SCALES[paramId] ?? 0.18) * getGlobalModulationAmountValue();
+        }
+
+        function getGlobalModulationAmountValue() {
+            const sliderValue = Number(document.getElementById('performanceModAmount')?.value);
+            if (Number.isFinite(sliderValue)) {
+                globalModulationAmount = Math.max(0, Math.min(1, sliderValue / 100));
+            }
+            return globalModulationAmount;
+        }
+
+        function setGlobalModulationAmount(value, options = {}) {
+            const numeric = Number(value);
+            globalModulationAmount = Math.max(0, Math.min(1, Number.isFinite(numeric) ? numeric / 100 : 0.55));
+            const slider = document.getElementById('performanceModAmount');
+            if (slider) {
+                slider.value = String(Math.round(globalModulationAmount * 100));
+            }
+            const label = document.getElementById('performanceModAmountValue');
+            if (label) {
+                label.textContent = `${Math.round(globalModulationAmount * 100)}%`;
+            }
+            if (options.save !== false) {
+                saveState();
+            }
         }
 
         function getModulatedValue(paramId) {
@@ -7953,8 +7995,55 @@
             });
         }
 
-        function clearRandomizedGranularLfoSweeps() {
-            RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS.forEach((param) => clearModulationForParam(param));
+        function setLfoRouteState(param, lfoNum, enabled) {
+            const map = lfoNum === '1' ? lfoEnabled : (lfoNum === '2' ? lfo2Enabled : lfo3Enabled);
+            map[param] = Boolean(enabled);
+            const button = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`);
+            if (button) {
+                button.classList.toggle('active', Boolean(enabled));
+                button.setAttribute('aria-pressed', String(Boolean(enabled)));
+            }
+        }
+
+        function setLfoInvertState(param, lfoNum, enabled) {
+            const map = lfoNum === '1' ? lfoInverted : (lfoNum === '2' ? lfo2Inverted : lfo3Inverted);
+            map[param] = Boolean(enabled);
+            const button = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`);
+            if (button) {
+                button.classList.toggle('active', Boolean(enabled));
+                button.setAttribute('aria-pressed', String(Boolean(enabled)));
+            }
+        }
+
+        function getRandomizableLfoTargetParams() {
+            return [...new Set(
+                Array.from(document.querySelectorAll('.lfo-toggle'))
+                    .map((button) => button.dataset.param)
+                    .filter((param) => param && !RANDOMIZE_SKIP_PARAMS.has(param))
+            )];
+        }
+
+        function randomizeLfoRoutingMatrix() {
+            const targets = getRandomizableLfoTargetParams();
+            targets.forEach((param) => {
+                const isPriorityTarget = PRIORITY_RANDOM_LFO_TARGET_PARAMS.has(param);
+                const isGranularTarget = RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.has(param);
+                const probability = isPriorityTarget ? 0.78 : (isGranularTarget ? 0.42 : 0.52);
+                let enabledCount = 0;
+
+                ['1', '2'].forEach((lfoNum) => {
+                    const enabled = Math.random() < probability;
+                    setLfoRouteState(param, lfoNum, enabled);
+                    setLfoInvertState(param, lfoNum, enabled && Math.random() < 0.48);
+                    if (enabled) enabledCount += 1;
+                });
+
+                if (isPriorityTarget && enabledCount === 0) {
+                    const lfoNum = Math.random() < 0.5 ? '1' : '2';
+                    setLfoRouteState(param, lfoNum, true);
+                    setLfoInvertState(param, lfoNum, Math.random() < 0.48);
+                }
+            });
         }
 
         function applyExperimentalLoopPatch() {
@@ -8870,53 +8959,7 @@
                 slider.dispatchEvent(new Event('input'));
             });
             
-            // Randomize LFO and INV toggles
-            document.querySelectorAll('.lfo-toggle').forEach(btn => {
-                const param = btn.dataset.param;
-                const lfoNum = btn.dataset.lfo;
-                if (RANDOMIZE_SKIP_PARAMS.has(param)) {
-                    return;
-                }
-                
-                // 40% chance of enabling LFO (within 30-50% target range)
-                const shouldEnable = Math.random() < 0.4;
-                const isCurrentlyEnabled = lfoNum === '1' ? lfoEnabled[param] : 
-                                          lfoNum === '2' ? lfo2Enabled[param] : lfo3Enabled[param];
-                
-                // Toggle if needed
-                if (shouldEnable !== isCurrentlyEnabled) {
-                    btn.click();
-                }
-            });
-            
-            document.querySelectorAll('.inv-toggle').forEach(btn => {
-                const param = btn.dataset.param;
-                const lfoNum = btn.dataset.lfo;
-                if (RANDOMIZE_SKIP_PARAMS.has(param)) {
-                    return;
-                }
-                
-                // Only randomize INV if corresponding LFO is enabled for this parameter
-                const lfoIsEnabled = lfoNum === '1' ? lfoEnabled[param] : 
-                                     lfoNum === '2' ? lfo2Enabled[param] : lfo3Enabled[param];
-                const isCurrentlyInverted = lfoNum === '1' ? lfoInverted[param] : 
-                                           lfoNum === '2' ? lfo2Inverted[param] : lfo3Inverted[param];
-                
-                if (lfoIsEnabled) {
-                    // 40% chance of enabling INV (within 30-50% target range)
-                    const shouldInvert = Math.random() < 0.4;
-                    
-                    // Toggle if needed
-                    if (shouldInvert !== isCurrentlyInverted) {
-                        btn.click();
-                    }
-                } else {
-                    // If LFO is not enabled, ensure INV is disabled
-                    if (isCurrentlyInverted) {
-                        btn.click();
-                    }
-                }
-            });
+            randomizeLfoRoutingMatrix();
 
             // Randomize key waveform/type/division selectors
             [
@@ -8958,7 +9001,6 @@
 
             restoreRandomizeProtectedSliders(protectedRandomizeSliders);
             randomizeLfoDepths();
-            clearRandomizedGranularLfoSweeps();
             randomizeInternalLfoTempoRatios();
 
             if (!audioContext) {
@@ -9026,7 +9068,8 @@
                 performanceGeneratedSourceMix: 100,
                 performanceGeneratedDryMix: 0,
                 performanceGeneratedSwing: 0,
-                performanceGeneratedTranspose: 0
+                performanceGeneratedTranspose: 0,
+                performanceModAmount: 55
             };
             
             // Reset all sliders to default values
@@ -9148,6 +9191,7 @@
                 fxMuted: fxMuted,
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                globalModulationAmount: getGlobalModulationAmountValue(),
                 filterPoles: {
                     lpf: slopeToFilterPoles(lpfSlope),
                     hpf: slopeToFilterPoles(hpfSlope)
@@ -9249,6 +9293,10 @@
             }
             if (safePreset.generatedSourceLowNoiseMode !== undefined) {
                 setGeneratedSourceLowNoiseMode(safePreset.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
+            }
+            const importedGlobalModulationAmount = safePreset.globalModulationAmount ?? preset.globalModulationAmount;
+            if (importedGlobalModulationAmount !== undefined) {
+                setGlobalModulationAmount(Number(importedGlobalModulationAmount) * 100, { save: false });
             }
             
             // Apply LFO enabled states
@@ -9629,6 +9677,7 @@
                     fxMuted: fxMuted,
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                    globalModulationAmount: getGlobalModulationAmountValue(),
                     lpfSlope: lpfSlope,
                     hpfSlope: hpfSlope,
                     lpfEnabled: lpfEnabled,
@@ -9759,6 +9808,9 @@
                     }
                     if (state.modes.generatedSourceLowNoiseMode !== undefined) {
                         setGeneratedSourceLowNoiseMode(state.modes.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.globalModulationAmount !== undefined) {
+                        setGlobalModulationAmount(Number(state.modes.globalModulationAmount) * 100, { save: false });
                     }
                 }
 
@@ -10546,6 +10598,7 @@
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
         const performanceGeneratedSwing = document.getElementById('performanceGeneratedSwing');
         const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
+        const performanceModAmount = document.getElementById('performanceModAmount');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
@@ -10615,6 +10668,12 @@
                 const value = getGeneratedLoopTransposeOctaves();
                 performanceGeneratedTranspose.value = String(value);
                 document.getElementById('performanceGeneratedTransposeValue').textContent = formatGeneratedLoopTranspose(value);
+            }
+
+            if (performanceModAmount) {
+                const value = Math.round(getGlobalModulationAmountValue() * 100);
+                performanceModAmount.value = String(value);
+                document.getElementById('performanceModAmountValue').textContent = `${value}%`;
             }
 
             if (performanceLpfCutoff && lpfCutoffSlider) {
@@ -10826,6 +10885,10 @@
 
         performanceGeneratedTranspose?.addEventListener('input', async (event) => {
             await applyGeneratedLoopTranspose({ value: event.target.value });
+        });
+
+        performanceModAmount?.addEventListener('input', (event) => {
+            setGlobalModulationAmount(event.target.value);
         });
 
         performanceOscToggleBtn?.addEventListener('click', () => {

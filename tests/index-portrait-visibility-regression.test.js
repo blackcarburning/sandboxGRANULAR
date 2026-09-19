@@ -66,6 +66,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Gen Swing</);
     assert.match(indexHtml, /id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1"/);
     assert.match(indexHtml, />Loop Transpose</);
+    assert.match(indexHtml, /id="performanceModAmount" min="0" max="100" value="55" step="1"/);
+    assert.match(indexHtml, />Mod Amount</);
     assert.match(indexHtml, /id="performanceLpfCutoff"/);
     assert.match(indexHtml, /id="performanceLpfResonance"/);
     assert.match(indexHtml, /id="performanceHpfCutoff"/);
@@ -264,6 +266,7 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
         'performanceGeneratedDryTrim',
         'performanceGranularTrim',
         'performanceGeneratedTranspose',
+        'performanceModAmount',
         'performanceInputTrim',
         'performancePostFilterTrim',
         'performanceMasterTrim',
@@ -442,12 +445,12 @@ test('randomize snaps internal lfo rates to musical BPM ratios', () => {
     assert.match(indexHtml, /function randomizeInternalLfoTempoRatios\(options = \{\}\)/);
     assert.match(indexHtml, /const multiplier = INTERNAL_LFO_BPM_MULTIPLIERS\[Math\.floor\(Math\.random\(\) \* INTERNAL_LFO_BPM_MULTIPLIERS\.length\)\]/);
     assert.match(indexHtml, /setInternalLfoRateBpm\(id, baseBpm \* multiplier\)/);
-    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeLfoDepths\(\);\s*clearRandomizedGranularLfoSweeps\(\);\s*randomizeInternalLfoTempoRatios\(\);/);
+    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeLfoDepths\(\);\s*randomizeInternalLfoTempoRatios\(\);/);
     assert.match(indexHtml, /phaserLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('phaserRate'\)\?\.value \|\| 30\) \/ 60/);
     assert.match(indexHtml, /tremoloLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('tremoloRate'\)\?\.value \|\| 120\) \/ 60/);
 });
 
-test('randomize tames lfo depth and clears granular tempo sweeps', () => {
+test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /const RANDOMIZE_LFO_DEPTH_RANGES = \{/);
     assert.match(indexHtml, /lfoDepth: \{ min: 6, max: 32 \}/);
     assert.match(indexHtml, /lfo2Depth: \{ min: 4, max: 28 \}/);
@@ -457,15 +460,25 @@ test('randomize tames lfo depth and clears granular tempo sweeps', () => {
     assert.match(indexHtml, /const GRANULAR_LFO_MODULATION_SCALES = \{/);
     assert.match(indexHtml, /grainSize: 0\.08/);
     assert.match(indexHtml, /attack: 0\.05/);
+    assert.match(indexHtml, /let globalModulationAmount = 0\.55/);
+    assert.match(indexHtml, /function getGlobalModulationAmountValue\(\)/);
+    assert.match(indexHtml, /function setGlobalModulationAmount\(value, options = \{\}\)/);
     assert.match(indexHtml, /function getLfoModulationScale\(paramId\)/);
-    assert.match(indexHtml, /totalOffset \+= invertedLFO \* rangeSize \* getLfoModulationScale\(paramId\)/);
-    assert.match(indexHtml, /const RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS = new Set\(\[/);
+    assert.match(indexHtml, /return \(GRANULAR_LFO_MODULATION_SCALES\[paramId\] \?\? 0\.18\) \* getGlobalModulationAmountValue\(\)/);
+    assert.match(indexHtml, /const RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS = new Set\(\[/);
     assert.match(indexHtml, /'grainSize'/);
     assert.match(indexHtml, /'density'/);
     assert.match(indexHtml, /'position'/);
     assert.match(indexHtml, /'attack'/);
     assert.match(indexHtml, /'release'/);
+    assert.match(indexHtml, /const PRIORITY_RANDOM_LFO_TARGET_PARAMS = new Set\(\[/);
+    assert.match(indexHtml, /'lpfCutoff'/);
+    assert.match(indexHtml, /'lpfQ'/);
+    assert.match(indexHtml, /'hpfCutoff'/);
+    assert.match(indexHtml, /'hpfQ'/);
     assert.match(indexHtml, /function randomizeLfoDepths\(\)/);
-    assert.match(indexHtml, /function clearRandomizedGranularLfoSweeps\(\)/);
-    assert.match(indexHtml, /RANDOMIZE_GRANULAR_LFO_CLEAR_PARAMS\.forEach\(\(param\) => clearModulationForParam\(param\)\)/);
+    assert.match(indexHtml, /function randomizeLfoRoutingMatrix\(\)/);
+    assert.match(indexHtml, /const probability = isPriorityTarget \? 0\.78 : \(isGranularTarget \? 0\.42 : 0\.52\)/);
+    assert.match(indexHtml, /if \(isPriorityTarget && enabledCount === 0\) \{/);
+    assert.match(indexHtml, /randomizeLfoRoutingMatrix\(\);/);
 });
