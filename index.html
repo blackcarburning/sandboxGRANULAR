@@ -8583,7 +8583,7 @@
         });
 
         // Randomize Button
-        document.getElementById('randomizeBtn').addEventListener('click', () => {
+        document.getElementById('randomizeBtn').addEventListener('click', async () => {
             showSettlePopup();
             const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
             // Get all sliders
@@ -8708,8 +8708,22 @@
             });
 
             restoreRandomizeProtectedSliders(protectedRandomizeSliders);
-            
-            statusDiv.textContent = 'Patch randomized; source loop points and mix balances kept.';
+
+            if (!audioContext) {
+                statusDiv.textContent = 'Patch randomized; start MYGRAIN to generate the source loop.';
+                return;
+            }
+
+            setPerformanceGenerateButtonState('generating');
+            try {
+                await generatePerformanceLoop();
+                setPerformanceGenerateButtonState('generated');
+                statusDiv.textContent = 'Patch randomized and new loop generated; source loop points and mix balances kept.';
+            } catch (error) {
+                console.error(error);
+                setPerformanceGenerateButtonState('idle');
+                statusDiv.textContent = `Patch randomized, but loop generation failed: ${error.message}`;
+            }
         });
 
         // Reset to Default Button

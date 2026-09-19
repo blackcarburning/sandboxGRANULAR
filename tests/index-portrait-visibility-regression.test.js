@@ -47,7 +47,7 @@ test('generate and randomize actions show a two second settle popup', () => {
     assert.match(indexHtml, /function showSettlePopup\(\)/);
     assert.match(indexHtml, /settlePopup\.classList\.add\('visible'\)/);
     assert.match(indexHtml, /settlePopupTimer = setTimeout\(\(\) => \{[\s\S]*\}, 2000\);/);
-    assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', \(\) => \{\s*showSettlePopup\(\);/);
+    assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{\s*showSettlePopup\(\);/);
     assert.match(indexHtml, /performanceGenerateLoopBtn\?\.addEventListener\('click', async \(\) => \{[\s\S]*showSettlePopup\(\);[\s\S]*setPerformanceGenerateButtonState\('generating'\)/);
 });
 
@@ -226,7 +226,7 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
     });
     assert.match(indexHtml, /const RANDOMIZE_SKIP_PARAMS = new Set/);
     assert.match(indexHtml, /RANDOMIZE_SKIP_PARAMS\.has\(param\)/);
-    assert.match(indexHtml, /Patch randomized; source loop points and mix balances kept\./);
+    assert.match(indexHtml, /Patch randomized and new loop generated; source loop points and mix balances kept\./);
     assert.doesNotMatch(experimentalPatch, /oscMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedSourceMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryMix:/);
@@ -300,6 +300,13 @@ test('generating a new performance loop restarts active playback', () => {
     assert.match(indexHtml, /await generateRandomSourceSample\(\);\s*generateInterestingLoop\(\);/);
     assert.match(indexHtml, /if \(shouldRestartSequencer\) \{\s*startSequencer\(\);/);
     assert.match(indexHtml, /else if \(shouldRestartDryLoop\) \{\s*startGeneratedDryLoop\(\);/);
+});
+
+test('randomize patch automatically generates a new performance loop', () => {
+    assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{/);
+    assert.match(indexHtml, /setPerformanceGenerateButtonState\('generating'\);[\s\S]*await generatePerformanceLoop\(\);[\s\S]*setPerformanceGenerateButtonState\('generated'\);/);
+    assert.match(indexHtml, /Patch randomized and new loop generated; source loop points and mix balances kept\./);
+    assert.match(indexHtml, /Patch randomized; start MYGRAIN to generate the source loop\./);
 });
 
 test('daw export renders from time zero with generated dry stem', () => {
