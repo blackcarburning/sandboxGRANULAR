@@ -177,6 +177,28 @@ test('keyboard octave transposes labels, granular, and oscillator pitch', () => 
     assert.match(indexHtml, /updateKeyboardNoteLabels\(\);[\s\S]*document\.getElementById\('octaveUpBtn'\)\.addEventListener/);
 });
 
+test('held keyboard grains loop continuously while sequencer grains play separately', () => {
+    assert.match(indexHtml, /function makePerformanceStreamId\(role, note\)/);
+    assert.match(indexHtml, /function resolveContinuousLoopPosition\(sampleWindow, positionPct, scheduledTime, streamStartTime, playbackRate\)/);
+    assert.match(indexHtml, /resolveLoopedPlayPosition/);
+    assert.match(indexHtml, /sprayAmount: options\.continuousLoop \? 0 : spray/);
+    assert.match(indexHtml, /const playPosition = options\.continuousLoop[\s\S]*resolveContinuousLoopPosition/);
+    assert.match(indexHtml, /activeGrains\.set\(streamId, \{[\s\S]*note,[\s\S]*role,[\s\S]*continuousLoop: options\.continuousLoop \?\? role === 'keyboard'/);
+    assert.match(indexHtml, /playGrain\(grainInfo\.note, grainInfo\.nextTime, grainInfo\.velocity, \{[\s\S]*streamStartTime: grainInfo\.startTime,[\s\S]*continuousLoop: grainInfo\.continuousLoop/);
+    assert.match(indexHtml, /stopAllGrains\(\{ role: 'sequencer' \}\)/);
+    assert.match(indexHtml, /startGrainStream\(step\.pitch, scheduledTime, stepVelocity, \{[\s\S]*role: 'sequencer',[\s\S]*continuousLoop: false/);
+    assert.doesNotMatch(indexHtml, /currentGrainNote !== null && currentGrainNote !== note/);
+});
+
+test('keyboard and sequencer oscillator voices are independent', () => {
+    assert.match(indexHtml, /const voiceId = options\.voiceId \|\| makePerformanceStreamId\(role, note\)/);
+    assert.match(indexHtml, /activeOscVoices\.set\(voiceId, \{[\s\S]*note,[\s\S]*role,/);
+    assert.match(indexHtml, /function stopOscillatorsByRole\(role, scheduledTime = null\)/);
+    assert.match(indexHtml, /stopOscillatorsByRole\('sequencer', Math\.max\(0, scheduledTime - 0\.02\)\)/);
+    assert.match(indexHtml, /playOscillatorNote\(step\.pitch, scheduledTime, stepVelocity, \{ role: 'sequencer' \}\)/);
+    assert.match(indexHtml, /stopOscillatorsByRole\('sequencer'\);/);
+});
+
 test('source UI has separate generated and mic waveform loop controls', () => {
     assert.match(indexHtml, /id="generatedWaveformCanvas"/);
     assert.match(indexHtml, /id="micWaveformCanvas"/);

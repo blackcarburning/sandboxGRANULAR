@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
     buildKeyboardGeometry,
     recordingExtensionForMimeType,
+    resolveLoopedPlayPosition,
     resolveSampleWindow,
     validatePreset
 } = require('../mygrain-utils.js');
@@ -51,6 +52,34 @@ test('resolveSampleWindow keeps play position and region in bounds', () => {
     assert.ok(region.endTime - region.startTime >= 0.39);
     assert.ok(region.playPosition >= region.startTime);
     assert.ok(region.playPosition <= region.endTime - region.grainSizeSeconds + 1e-9);
+});
+
+test('resolveLoopedPlayPosition wraps held keyboard playback through the selected loop', () => {
+    const firstLap = resolveLoopedPlayPosition({
+        startTime: 0.25,
+        endTime: 1.25,
+        positionPct: 0.25,
+        elapsedSeconds: 0.4,
+        playbackRate: 1
+    });
+    const wrappedLap = resolveLoopedPlayPosition({
+        startTime: 0.25,
+        endTime: 1.25,
+        positionPct: 0.25,
+        elapsedSeconds: 1.4,
+        playbackRate: 1
+    });
+    const pitchedWrap = resolveLoopedPlayPosition({
+        startTime: 0.25,
+        endTime: 1.25,
+        positionPct: 0,
+        elapsedSeconds: 0.75,
+        playbackRate: 2
+    });
+
+    assert.ok(Math.abs(firstLap - 0.9) < 1e-9);
+    assert.ok(Math.abs(wrappedLap - 0.9) < 1e-9);
+    assert.ok(Math.abs(pitchedWrap - 0.75) < 1e-9);
 });
 
 test('buildKeyboardGeometry creates contiguous white keys and inset black keys', () => {

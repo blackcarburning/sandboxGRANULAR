@@ -3894,7 +3894,7 @@
         const GRAIN_SCHEDULER_LOOKAHEAD = 0.06;
         const GRAIN_SCHEDULER_INTERVAL = 20;
         const mygrainUtils = window.MYGRAIN_UTILS || {};
-        let currentGrainNote = null; // Track currently playing grain for monophonic mode
+        let currentGrainNote = null; // Last keyboard grain note, retained for legacy UI state
         let octaveOffset = 0;
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
@@ -6055,7 +6055,30 @@
         }
 
         // --- Granular Engine ---
-        function playGrain(note, scheduledTime = null, velocity = 1) {
+        function makePerformanceStreamId(role, note) {
+            return `${role || 'keyboard'}:${note}`;
+        }
+
+        function resolveContinuousLoopPosition(sampleWindow, positionPct, scheduledTime, streamStartTime, playbackRate) {
+            const elapsedSeconds = Math.max(0, (scheduledTime ?? audioContext.currentTime) - (streamStartTime ?? scheduledTime ?? audioContext.currentTime));
+
+            if (typeof mygrainUtils.resolveLoopedPlayPosition === 'function') {
+                return mygrainUtils.resolveLoopedPlayPosition({
+                    startTime: sampleWindow.startTime,
+                    endTime: sampleWindow.endTime,
+                    positionPct,
+                    elapsedSeconds,
+                    playbackRate
+                });
+            }
+
+            const loopDuration = Math.max(0.001, sampleWindow.endTime - sampleWindow.startTime);
+            const baseOffset = loopDuration * Math.max(0, Math.min(1, positionPct));
+            const travelSeconds = elapsedSeconds * Math.max(0.001, Math.abs(playbackRate || 1));
+            return sampleWindow.startTime + (((baseOffset + travelSeconds) % loopDuration + loopDuration) % loopDuration);
+        }
+
+        function playGrain(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
             
             // Prevent runaway node creation with smart recovery
@@ -6228,7 +6251,7 @@
                             endPct: loopRange.endPct,
                             positionPct: posSlider,
                             grainSizeSeconds: grainSize,
-                            sprayAmount: spray,
+                            sprayAmount: options.continuousLoop ? 0 : spray,
                             randomValue: Math.random() * 2 - 1
                         })
                         : {
@@ -6240,6 +6263,9 @@
 
                     const source = audioContext.createBufferSource();
                     const sampleGain = audioContext.createGain();
+                    const playPosition = options.continuousLoop
+                        ? resolveContinuousLoopPosition(sampleWindow, posSlider, now, options.streamStartTime, finalRate)
+                        : sampleWindow.playPosition;
                     source.buffer = sourceInfo.buffer;
                     source.playbackRate.value = isFinite(finalRate) && finalRate > 0 ? finalRate : 1;
                     source.loop = true;
@@ -6252,7 +6278,7 @@
                     sourcesRemaining++;
 
                     const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
-                    source.start(now, sampleWindow.playPosition);
+                    source.start(now, playPosition);
                     source.stop(now + totalDuration);
 
                     source.onended = () => {
@@ -6361,20 +6387,20 @@
         }
 
         // --- Scheduler ---
-        function startGrainStream(note, scheduledStartTime = null, velocity = 1) {
+        function startGrainStream(note, scheduledStartTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
-            
-            // Monophonic mode: stop any currently playing grain before starting new one
-            if (currentGrainNote !== null && currentGrainNote !== note) {
-                stopGrainStream(currentGrainNote);
+
+            const role = options.role || 'keyboard';
+            const streamId = options.streamId || makePerformanceStreamId(role, note);
+
+            // If this stream is already playing, stop it first to restart.
+            if (activeGrains.has(streamId)) {
+                stopGrainStream(note, { role, streamId });
             }
-            
-            // If this note is already playing, stop it first to restart
-            if (activeGrains.has(note)) {
-                stopGrainStream(note);
+
+            if (role === 'keyboard') {
+                currentGrainNote = note;
             }
-            
-            currentGrainNote = note;
 
             const grainState = { 
                 startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
@@ -6383,7 +6409,10 @@
             };
 
             // Store cancellation function before first call
-            activeGrains.set(note, { 
+            activeGrains.set(streamId, {
+                note,
+                role,
+                continuousLoop: options.continuousLoop ?? role === 'keyboard',
                 cancel: () => {},
                 startTime: grainState.startTime,
                 get nextTime() {
@@ -6404,14 +6433,18 @@
             scheduleActiveGrains();
         }
 
-        function stopGrainStream(note) {
-            if (activeGrains.has(note)) {
-                const grainInfo = activeGrains.get(note);
+        function stopGrainStream(note, options = {}) {
+            const role = options.role || 'keyboard';
+            const streamId = options.streamId || makePerformanceStreamId(role, note);
+
+            if (activeGrains.has(streamId)) {
+                const grainInfo = activeGrains.get(streamId);
                 grainInfo.cancel();
                 
                 // Clear current note if this was it
-                if (currentGrainNote === note) {
-                    currentGrainNote = null;
+                if (grainInfo.role === 'keyboard' && currentGrainNote === note) {
+                    const nextKeyboardGrain = Array.from(activeGrains.values()).find((grain) => grain.role === 'keyboard' && grain.note !== note);
+                    currentGrainNote = nextKeyboardGrain ? nextKeyboardGrain.note : null;
                 }
                 
                 // Trigger filter envelope release
@@ -6427,18 +6460,31 @@
                     });
                 }
                 
-                activeGrains.delete(note);
+                activeGrains.delete(streamId);
                 if (activeGrains.size === 0) {
                     stopGrainScheduler();
                 }
             }
         }
 
-        function stopAllGrains() {
-            activeGrains.forEach(grain => grain.cancel());
-            activeGrains.clear();
-            currentGrainNote = null; // Reset current grain note
-            stopGrainScheduler();
+        function stopAllGrains(options = {}) {
+            const role = options.role || null;
+            const stoppedKeyboard = !role || role === 'keyboard';
+
+            Array.from(activeGrains.entries()).forEach(([streamId, grain]) => {
+                if (role && grain.role !== role) return;
+                grain.cancel();
+                activeGrains.delete(streamId);
+            });
+
+            if (stoppedKeyboard) {
+                const nextKeyboardGrain = Array.from(activeGrains.values()).find((grain) => grain.role === 'keyboard');
+                currentGrainNote = nextKeyboardGrain ? nextKeyboardGrain.note : null;
+            }
+
+            if (activeGrains.size === 0) {
+                stopGrainScheduler();
+            }
         }
 
         function scheduleActiveGrains() {
@@ -6450,13 +6496,17 @@
             stopGrainScheduler();
             const scheduleUntil = audioContext.currentTime + GRAIN_SCHEDULER_LOOKAHEAD;
 
-            activeGrains.forEach((grainInfo, note) => {
+            activeGrains.forEach((grainInfo) => {
                 const density = Math.max(1, Number(getModulatedValue('density')) || 1);
                 const intervalSeconds = Math.max(0.01, 1 / density);
 
                 while (grainInfo.nextTime < scheduleUntil) {
                     try {
-                        playGrain(note, grainInfo.nextTime, grainInfo.velocity);
+                        playGrain(grainInfo.note, grainInfo.nextTime, grainInfo.velocity, {
+                            role: grainInfo.role,
+                            streamStartTime: grainInfo.startTime,
+                            continuousLoop: grainInfo.continuousLoop
+                        });
                     } catch (e) {
                         console.error('Error playing grain:', e);
                         break;
@@ -6481,13 +6531,16 @@
             return octaveFreq * detuneMultiplier;
         }
 
-        function playOscillatorNote(note, scheduledTime = null, velocity = 1) {
+        function playOscillatorNote(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!audioContext) return;
             if (!oscillatorsEnabled) return;
+
+            const role = options.role || 'keyboard';
+            const voiceId = options.voiceId || makePerformanceStreamId(role, note);
             
             // Force stop any existing voice for this note to ensure envelope restarts
-            if (activeOscVoices.has(note)) {
-                stopOscillatorNote(note, scheduledTime);
+            if (activeOscVoices.has(voiceId)) {
+                stopOscillatorNote(note, scheduledTime, { role, voiceId });
             }
 
             // Use scheduled time if provided, otherwise use current time
@@ -6570,19 +6623,23 @@
             osc2Gain.gain.linearRampToValueAtTime(sustain2, startTime + attack2 + decay2);
             
             // Store voice
-            activeOscVoices.set(note, {
+            activeOscVoices.set(voiceId, {
+                note,
+                role,
                 osc1, osc2, osc1Gain, osc2Gain, oscMixer,
                 startTime: startTime
             });
         }
 
-        function stopOscillatorNote(note, scheduledTime = null) {
-            if (!activeOscVoices.has(note)) return;
+        function stopOscillatorNote(note, scheduledTime = null, options = {}) {
+            const role = options.role || 'keyboard';
+            const voiceId = options.voiceId || makePerformanceStreamId(role, note);
+            if (!activeOscVoices.has(voiceId)) return;
             
-            const voice = activeOscVoices.get(note);
+            const voice = activeOscVoices.get(voiceId);
             
             // DELETE IMMEDIATELY so new notes don't overwrite before cleanup
-            activeOscVoices.delete(note);
+            activeOscVoices.delete(voiceId);
             
             const stopTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             const now = audioContext.currentTime;
@@ -6606,7 +6663,7 @@
             voice.osc1Gain.gain.linearRampToValueAtTime(0, actualStopTime + release1);
             
             // Debug: Log release timing
-            console.log(`[OSC Debug] Stop Note: ${note}, Now: ${now.toFixed(3)}, StopTime: ${stopTime.toFixed(3)}, Release: ${release1.toFixed(3)}s, CurrentGain: ${voice.osc1Gain.gain.value.toFixed(3)}`);
+            console.log(`[OSC Debug] Stop Note: ${voice.note}, Now: ${now.toFixed(3)}, StopTime: ${stopTime.toFixed(3)}, Release: ${release1.toFixed(3)}s, CurrentGain: ${voice.osc1Gain.gain.value.toFixed(3)}`);
             
             // Apply release envelope for osc2
             const release2 = Math.max(osc2Config.release / 1000, getClickGuardSeconds());
@@ -6644,9 +6701,17 @@
             }, maxRelease * 1000 + 100);
         }
 
+        function stopOscillatorsByRole(role, scheduledTime = null) {
+            Array.from(activeOscVoices.entries()).forEach(([voiceId, voice]) => {
+                if (voice.role === role) {
+                    stopOscillatorNote(voice.note, scheduledTime, { role, voiceId });
+                }
+            });
+        }
+
         function stopAllOscillators() {
-            activeOscVoices.forEach((voice, note) => {
-                stopOscillatorNote(note);
+            Array.from(activeOscVoices.entries()).forEach(([voiceId, voice]) => {
+                stopOscillatorNote(voice.note, null, { role: voice.role, voiceId });
             });
         }
 
@@ -6707,27 +6772,25 @@
                 const step = sequencerSteps[sequencerCurrentStep];
                 const scheduledTime = sequencerNextStepTime;
                 
-                // Stop ALL active oscillator voices for clean monophonic behavior
-                // Convert to array first to avoid modifying Map during iteration
-                Array.from(activeOscVoices.keys()).forEach((activeNote) => {
-                    stopOscillatorNote(activeNote, Math.max(0, scheduledTime - 0.02));
-                });
-                
-                // Stop ALL active grains for monophonic grain behavior
-                if (seqGrainsEnabled && currentGrainNote !== null) {
-                    stopGrainStream(currentGrainNote);
+                // Keep the sequencer monophonic without stealing held keyboard notes.
+                stopOscillatorsByRole('sequencer', Math.max(0, scheduledTime - 0.02));
+                if (seqGrainsEnabled) {
+                    stopAllGrains({ role: 'sequencer' });
                 }
                 
                 // Play current step at scheduled time
                 if (step.enabled) {
                     const stepVelocity = Math.max(0, Math.min(1, (Number(step.volume) || 80) / 100));
-                    playOscillatorNote(step.pitch, scheduledTime, stepVelocity);
+                    playOscillatorNote(step.pitch, scheduledTime, stepVelocity, { role: 'sequencer' });
                     
                     // Start grain for this step if grain sequencing is enabled
                     if (seqGrainsEnabled) {
                         try {
                             // Pass the exact scheduled time to keep grains in sync with oscillators
-                            startGrainStream(step.pitch, scheduledTime, stepVelocity);
+                            startGrainStream(step.pitch, scheduledTime, stepVelocity, {
+                                role: 'sequencer',
+                                continuousLoop: false
+                            });
                         } catch (e) {
                             console.error('Error starting grain stream:', e);
                         }
@@ -6767,11 +6830,11 @@
             }
             
             stopGeneratedDryLoop();
-            stopAllOscillators();
+            stopOscillatorsByRole('sequencer');
             
-            // Also stop all grains when sequencer stops
+            // Stop only sequencer-owned grains so held keyboard notes can keep playing.
             if (seqGrainsEnabled) {
-                stopAllGrains();
+                stopAllGrains({ role: 'sequencer' });
             }
             
             document.querySelectorAll('.seq-step').forEach(el => {

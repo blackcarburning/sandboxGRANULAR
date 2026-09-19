@@ -161,6 +161,26 @@
         };
     }
 
+    function resolveLoopedPlayPosition(options = {}) {
+        const startTime = clampNumber(options.startTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
+        const rawEndTime = clampNumber(options.endTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: startTime + 0.001 });
+        const endTime = Math.max(startTime + 0.001, rawEndTime);
+        const positionPct = clampNumber(options.positionPct, { min: 0, max: 1, fallback: 0 });
+        const elapsedSeconds = clampNumber(options.elapsedSeconds, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
+        const playbackRate = Math.max(0.001, Math.abs(clampNumber(options.playbackRate, { min: -128, max: 128, fallback: 1 })));
+        const loopDuration = Math.max(0.001, endTime - startTime);
+        const baseOffset = loopDuration * positionPct;
+        const travelSeconds = elapsedSeconds * playbackRate;
+        const wrappedOffset = ((baseOffset + travelSeconds) % loopDuration + loopDuration) % loopDuration;
+        const epsilon = Math.min(0.001, loopDuration * 0.1);
+
+        return clampNumber(startTime + wrappedOffset, {
+            min: startTime,
+            max: Math.max(startTime, endTime - epsilon),
+            fallback: startTime
+        });
+    }
+
     function buildKeyboardGeometry(noteNames, whiteKeyWidth, blackKeyWidth) {
         const notes = Array.isArray(noteNames) ? noteNames : [];
         const safeWhiteWidth = clampNumber(whiteKeyWidth, { min: 24, max: 240, fallback: 48 });
@@ -196,6 +216,7 @@
         buildKeyboardGeometry,
         clampNumber,
         recordingExtensionForMimeType,
+        resolveLoopedPlayPosition,
         resolveSampleWindow,
         validatePreset
     };
