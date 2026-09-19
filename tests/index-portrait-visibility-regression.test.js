@@ -24,3 +24,16 @@ test('stale orientation-overlay css selectors are removed', () => {
         'stale #orientation-overlay CSS should not remain after responsive redesign'
     );
 });
+
+test('keyboard is not nested inside the hidden simplified controls panel', () => {
+    assert.ok(
+        /<\/div>\s*<\/div>\s*<div class="keyboard-section">/i.test(indexHtml),
+        'keyboard should be a direct mobile performance section, outside .controls-section/.top-section'
+    );
+});
+
+test('mobile performance controls expose loop generation and playback', () => {
+    assert.match(indexHtml, /id="performanceGenerateLoopBtn"/);
+    assert.match(indexHtml, /id="performanceSeqPlayBtn"/);
+    assert.match(indexHtml, /function generateInterestingLoop\(\)/);
+});

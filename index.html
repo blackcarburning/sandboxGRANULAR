@@ -1711,11 +1711,13 @@
         }
 
         .simplified-ui .synth-container {
-            position: fixed;
-            width: 100%;
-            min-height: 100svh;
+            position: relative;
+            width: min(1100px, 100%);
+            min-height: auto;
+            margin: 0 auto;
             padding: 14px;
             gap: 14px;
+            overflow: visible;
             background:
                 radial-gradient(circle at top, rgba(0, 212, 255, 0.16), transparent 42%),
                 linear-gradient(180deg, rgba(20, 24, 40, 0.96) 0%, rgba(8, 11, 19, 0.98) 100%);
@@ -1723,7 +1725,7 @@
 
         @supports (height: 100dvh) {
             .simplified-ui .synth-container {
-                min-height: 100dvh;
+                min-height: auto;
             }
         }
 
@@ -1741,6 +1743,11 @@
             gap: 14px;
             padding: 16px;
             border-radius: 20px;
+            order: 1;
+        }
+
+        .simplified-ui .top-section {
+            order: 3;
         }
 
         .simplified-ui .performance-toolbar {
@@ -1821,7 +1828,7 @@
         .simplified-ui .source-seed-buttons,
         .simplified-ui .source-secondary-buttons {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
             gap: 10px;
         }
 
@@ -1845,6 +1852,7 @@
         }
 
         .simplified-ui #performanceHoldBtn.active,
+        .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceRecordBtn.recording,
         .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
@@ -1887,23 +1895,34 @@
         }
 
         .simplified-ui .keyboard-section {
+            --keyboard-key-height: clamp(148px, 28svh, 232px);
             display: flex !important;
-            position: relative !important;
+            position: sticky !important;
             left: auto !important;
             right: auto !important;
             top: auto !important;
-            bottom: auto !important;
+            bottom: max(6px, env(safe-area-inset-bottom)) !important;
             width: 100%;
-            min-height: 240px;
+            min-height: clamp(170px, 34svh, 260px);
             height: auto;
-            flex: 1;
+            flex: none;
+            order: 2;
             padding: 14px;
             gap: 0;
+            align-items: stretch;
             border-radius: 22px;
+            z-index: 20;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x;
         }
 
         .simplified-ui .keyboard {
             min-width: 100%;
+            height: var(--keyboard-key-height);
+            min-height: var(--keyboard-key-height);
+            align-self: stretch;
             padding-top: 0;
         }
 
@@ -1915,11 +1934,15 @@
             .simplified-ui .performance-actions,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             }
         }
 
         @media (max-width: 640px) {
+            .simplified-ui {
+                overflow-y: auto;
+            }
+
             .simplified-ui .synth-container {
                 padding: 8px;
                 gap: 8px;
@@ -1940,7 +1963,8 @@
             }
 
             .simplified-ui .keyboard-section {
-                min-height: 196px;
+                --keyboard-key-height: 164px;
+                min-height: 184px;
                 padding: 8px;
             }
         }
@@ -1960,7 +1984,7 @@
             .simplified-ui .performance-actions,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
                 gap: 8px;
             }
 
@@ -1971,7 +1995,8 @@
             }
 
             .simplified-ui .keyboard-section {
-                min-height: 112px;
+                --keyboard-key-height: 98px;
+                min-height: 118px;
                 height: auto;
                 border-radius: 8px 8px 0 0;
             }
@@ -2019,9 +2044,11 @@
             </div>
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
-                <button class="performance-btn" id="performanceRandomizeBtn">Randomise</button>
+                <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
+                <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
+                <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
-                <button class="performance-btn" id="performanceSaveBtn">Save</button>
+                <button class="performance-btn" id="performancePanicBtn">Panic</button>
             </div>
         </div>
         <div class="top-section">
@@ -2976,6 +3003,8 @@
                         <button class="slope-toggle active" data-step="16">ON</button>
                     </div>
                 </div>
+            </div>
+        </div>
 
         <div class="keyboard-section">
             <div class="octave-controls">
@@ -3709,6 +3738,16 @@
             if (label) label.textContent = `${bpm} BPM`;
         }
 
+        function syncSequencerBpmControls(value) {
+            const bpm = clampBpmValue(value);
+            sequencerBPM = bpm;
+            const seqBpmInput = document.getElementById('seqBpm');
+            if (seqBpmInput) {
+                seqBpmInput.value = String(bpm);
+            }
+            return bpm;
+        }
+
         function applyGlobalBpm(value) {
             const bpm = clampBpmValue(value);
             if (syncingGlobalBpm) {
@@ -3725,6 +3764,8 @@
                     slider.value = String(bpm);
                     slider.dispatchEvent(new Event('input', { bubbles: true }));
                 });
+
+                syncSequencerBpmControls(bpm);
             } finally {
                 syncingGlobalBpm = false;
             }
@@ -4850,7 +4891,7 @@
         }
 
         // --- Granular Engine ---
-        function playGrain(note, scheduledTime = null) {
+        function playGrain(note, scheduledTime = null, velocity = 1) {
             if (!canPlayGrains()) return;
             
             // Prevent runaway node creation with smart recovery
@@ -4971,6 +5012,10 @@
                 return; // Exit early
             }
 
+            const rawVelocity = Number(velocity);
+            const velocityMultiplier = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
+            volumeMultiplier *= velocityMultiplier;
+
             const envelope = audioContext.createGain();
             const panner = audioContext.createStereoPanner();
             const mixer = audioContext.createGain();
@@ -5045,7 +5090,6 @@
 
                 source.connect(sampleGain);
                 sampleGain.connect(mixer);
-                sourcesRemaining++; // Track this source
                 sourcesRemaining++; // Track this source
 
                 const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
@@ -5159,7 +5203,7 @@
         }
 
         // --- Scheduler ---
-        function startGrainStream(note, scheduledStartTime = null) {
+        function startGrainStream(note, scheduledStartTime = null, velocity = 1) {
             if (!canPlayGrains()) return;
             
             // Monophonic mode: stop any currently playing grain before starting new one
@@ -5176,7 +5220,8 @@
 
             const grainState = { 
                 startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
-                nextTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime
+                nextTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
+                velocity: Number.isFinite(Number(velocity)) ? Math.max(0, Math.min(1, Number(velocity))) : 1
             };
 
             // Store cancellation function before first call
@@ -5188,6 +5233,9 @@
                 },
                 set nextTime(value) {
                     grainState.nextTime = value;
+                },
+                get velocity() {
+                    return grainState.velocity;
                 }
             });
             
@@ -5250,7 +5298,7 @@
 
                 while (grainInfo.nextTime < scheduleUntil) {
                     try {
-                        playGrain(note, grainInfo.nextTime);
+                        playGrain(note, grainInfo.nextTime, grainInfo.velocity);
                     } catch (e) {
                         console.error('Error playing grain:', e);
                         break;
@@ -5291,7 +5339,7 @@
             return octaveFreq * detuneMultiplier;
         }
 
-        function playOscillatorNote(note, scheduledTime = null) {
+        function playOscillatorNote(note, scheduledTime = null, velocity = 1) {
             if (!audioContext) return;
             
             // Force stop any existing voice for this note to ensure envelope restarts
@@ -5302,6 +5350,8 @@
             // Use scheduled time if provided, otherwise use current time
             const startTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             const baseFreq = getNoteFrequency(note);
+            const rawVelocity = Number(velocity);
+            const noteVelocity = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
             
             // Create oscillator 1
             const osc1 = audioContext.createOscillator();
@@ -5338,7 +5388,8 @@
             // Apply ADSR envelope for osc1
             const attack1 = osc1Config.attack / 1000;
             const decay1 = osc1Config.decay / 1000;
-            const sustain1 = osc1Config.sustain * osc1Config.level;
+            const osc1Peak = osc1Config.level * noteVelocity;
+            const sustain1 = osc1Config.sustain * osc1Peak;
             
             // Set initial value at current time to anchor the automation
             const now = audioContext.currentTime;
@@ -5350,7 +5401,7 @@
             }
             
             // Then ramp up
-            osc1Gain.gain.linearRampToValueAtTime(osc1Config.level, startTime + attack1);
+            osc1Gain.gain.linearRampToValueAtTime(osc1Peak, startTime + attack1);
             osc1Gain.gain.linearRampToValueAtTime(sustain1, startTime + attack1 + decay1);
             
             // Debug: Log envelope timing
@@ -5359,7 +5410,8 @@
             // Apply ADSR envelope for osc2
             const attack2 = osc2Config.attack / 1000;
             const decay2 = osc2Config.decay / 1000;
-            const sustain2 = osc2Config.sustain * osc2Config.level;
+            const osc2Peak = osc2Config.level * noteVelocity;
+            const sustain2 = osc2Config.sustain * osc2Peak;
             
             // Set initial value at current time to anchor the automation
             osc2Gain.gain.setValueAtTime(0, now);
@@ -5370,7 +5422,7 @@
             }
             
             // Then ramp up
-            osc2Gain.gain.linearRampToValueAtTime(osc2Config.level, startTime + attack2);
+            osc2Gain.gain.linearRampToValueAtTime(osc2Peak, startTime + attack2);
             osc2Gain.gain.linearRampToValueAtTime(sustain2, startTime + attack2 + decay2);
             
             // Store voice
@@ -5523,13 +5575,14 @@
                 
                 // Play current step at scheduled time
                 if (step.enabled) {
-                    playOscillatorNote(step.pitch, scheduledTime);
+                    const stepVelocity = Math.max(0, Math.min(1, (Number(step.volume) || 80) / 100));
+                    playOscillatorNote(step.pitch, scheduledTime, stepVelocity);
                     
                     // Start grain for this step if grain sequencing is enabled
                     if (seqGrainsEnabled) {
                         try {
                             // Pass the exact scheduled time to keep grains in sync with oscillators
-                            startGrainStream(step.pitch, scheduledTime);
+                            startGrainStream(step.pitch, scheduledTime, stepVelocity);
                         } catch (e) {
                             console.error('Error starting grain stream:', e);
                         }
@@ -6259,6 +6312,7 @@
             const value = parseInt(e.target.value);
             if (value >= 20 && value <= 300) {
                 sequencerBPM = value;
+                syncGlobalBpmControls(value);
             }
         });
 
@@ -6268,6 +6322,7 @@
             value = Math.max(20, Math.min(300, value)); // Clamp
             e.target.value = value;
             sequencerBPM = value;
+            syncGlobalBpmControls(value);
         });
 
         document.getElementById('seqGrainsEnabled').addEventListener('change', (e) => {
@@ -6288,6 +6343,75 @@
 
         // Note names array for pitch slider conversion
         const noteNames = ['C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', 'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4', 'C5'];
+
+        function updateSequencerStepUI(stepNumber) {
+            const step = sequencerSteps[stepNumber - 1];
+            if (!step) return;
+
+            const pitchIndex = Math.max(0, noteNames.indexOf(step.pitch));
+            const pitchSlider = document.getElementById(`seqStep${stepNumber}Pitch`);
+            const volumeSlider = document.getElementById(`seqStep${stepNumber}Vol`);
+            const pitchValue = document.getElementById(`seqStep${stepNumber}PitchValue`);
+            const volumeValue = document.getElementById(`seqStep${stepNumber}VolValue`);
+            const stepButton = document.querySelector(`[data-step="${stepNumber}"]`);
+
+            if (pitchSlider) pitchSlider.value = String(pitchIndex);
+            if (volumeSlider) volumeSlider.value = String(step.volume);
+            if (pitchValue) pitchValue.textContent = step.pitch;
+            if (volumeValue) volumeValue.textContent = `${step.volume}%`;
+            if (stepButton) {
+                stepButton.classList.toggle('active', step.enabled);
+                stepButton.textContent = step.enabled ? 'ON' : 'OFF';
+            }
+        }
+
+        function generateInterestingLoop() {
+            const roots = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3'];
+            const scales = [
+                { name: 'minor', intervals: [0, 2, 3, 5, 7, 10, 12, 14, 15, 17] },
+                { name: 'dorian', intervals: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15] },
+                { name: 'pentatonic', intervals: [0, 3, 5, 7, 10, 12, 15, 17] },
+                { name: 'whole tone', intervals: [0, 2, 4, 6, 8, 10, 12, 14, 16] }
+            ];
+            const rhythmicMasks = [
+                [1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1],
+                [1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0],
+                [1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0],
+                [1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0]
+            ];
+
+            const root = roots[Math.floor(Math.random() * roots.length)];
+            const rootIndex = noteNames.indexOf(root);
+            const scale = scales[Math.floor(Math.random() * scales.length)];
+            const mask = rhythmicMasks[Math.floor(Math.random() * rhythmicMasks.length)];
+            const motif = [0, 2, 4, 1, 5, 3].sort(() => Math.random() - 0.5);
+
+            for (let index = 0; index < 16; index++) {
+                const strongBeat = index % 4 === 0;
+                const enabled = Boolean(mask[index] || strongBeat);
+                const motifDegree = motif[index % motif.length];
+                const octaveLift = index > 10 && Math.random() < 0.35 ? 12 : 0;
+                const passingTone = !strongBeat && Math.random() < 0.25 ? 1 : 0;
+                const noteIndex = Math.max(0, Math.min(noteNames.length - 1, rootIndex + scale.intervals[motifDegree] + octaveLift + passingTone));
+                const volume = enabled
+                    ? Math.round(strongBeat ? 84 + Math.random() * 12 : 42 + Math.random() * 38)
+                    : 0;
+
+                sequencerSteps[index] = {
+                    enabled,
+                    pitch: noteNames[noteIndex],
+                    volume
+                };
+                updateSequencerStepUI(index + 1);
+            }
+
+            const bpm = applyGlobalBpm(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            seqGrainsEnabled = true;
+            const grainsCheckbox = document.getElementById('seqGrainsEnabled');
+            if (grainsCheckbox) grainsCheckbox.checked = true;
+            setStatus(`Generated ${scale.name} loop at ${bpm} BPM.`);
+            saveState();
+        }
 
         // Step controls
         for (let i = 1; i <= 16; i++) {
@@ -7741,7 +7865,7 @@
 
                 // Restore active tab (with validation to prevent CSS injection)
                 if (state.activeTab) {
-                    const validTabs = ['grain', 'filter', 'noise', 'fx', 'lfo', 'stereo', 'utility'];
+                    const validTabs = ['grain', 'filter', 'noise', 'fx', 'lfo', 'stereo', 'utility', 'osc', 'seq'];
                     if (validTabs.includes(state.activeTab)) {
                         const tabBtn = document.querySelector(`.tab-button[data-tab="${state.activeTab}"]`);
                         if (tabBtn && !tabBtn.classList.contains('active')) {
@@ -8148,9 +8272,11 @@
 
         // Simplified performance control bar proxies
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
+        const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
+        const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
-        const performanceSaveBtn = document.getElementById('performanceSaveBtn');
+        const performancePanicBtn = document.getElementById('performancePanicBtn');
 
         function syncPerformanceControlState() {
             if (performanceHoldBtn) {
@@ -8165,6 +8291,11 @@
                 performanceRecordBtn.classList.toggle('recording', isRecordingNow);
                 performanceRecordBtn.textContent = isProcessing ? 'Processing...' : (isRecordingNow ? 'Stop Recording' : 'Record Output');
             }
+
+            if (performanceSeqPlayBtn) {
+                performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
+                performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Stop Loop' : 'Play Loop';
+            }
         }
 
         performanceHoldBtn?.addEventListener('click', () => {
@@ -8176,8 +8307,26 @@
             document.getElementById('randomizeBtn')?.click();
         });
 
-        performanceSaveBtn?.addEventListener('click', () => {
-            document.getElementById('savePresetBtn')?.click();
+        performanceGenerateLoopBtn?.addEventListener('click', () => {
+            generateInterestingLoop();
+        });
+
+        performanceSeqPlayBtn?.addEventListener('click', () => {
+            if (!audioContext) {
+                setStatus('Start MYGRAIN before playing a loop.', 'error');
+                return;
+            }
+            if (sequencerPlaying) {
+                stopSequencer();
+            } else {
+                startSequencer();
+            }
+            syncPerformanceControlState();
+        });
+
+        performancePanicBtn?.addEventListener('click', () => {
+            panicAllNotes();
+            syncPerformanceControlState();
         });
 
         performanceRecordBtn?.addEventListener('click', () => {
@@ -8193,7 +8342,7 @@
             syncPerformanceControlState();
         });
 
-        ['holdBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText'].forEach(id => {
+        ['holdBtn', 'seqPlayBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             new MutationObserver(syncPerformanceControlState).observe(el, {
