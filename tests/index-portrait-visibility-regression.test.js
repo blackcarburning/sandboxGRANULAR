@@ -47,6 +47,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Granular\/Osc</);
     assert.match(indexHtml, /id="performanceGeneratedSourceMix"/);
     assert.match(indexHtml, />Gen Loop Mix</);
+    assert.match(indexHtml, /id="performanceGeneratedDryMix"/);
+    assert.match(indexHtml, />Gen Dry</);
     assert.match(indexHtml, /id="performanceLpfCutoff"/);
     assert.match(indexHtml, /id="performanceLpfResonance"/);
     assert.match(indexHtml, /id="performanceHpfCutoff"/);
@@ -66,8 +68,20 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceOctaveDownBtn"/);
     assert.match(indexHtml, /id="performanceLfoWaveform"/);
     assert.match(indexHtml, /id="performancePulseWidth"/);
+    assert.match(indexHtml, /id="performanceExportBars"/);
+    assert.match(indexHtml, /id="performanceExportBtn"/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
+});
+
+test('mobile keyboard presents one octave with widened touch targets', () => {
+    const keyMatches = indexHtml.match(/class="key /g) || [];
+    const whiteKeyMatches = indexHtml.match(/class="key white"/g) || [];
+    assert.equal(keyMatches.length, 12);
+    assert.equal(whiteKeyMatches.length, 7);
+    assert.doesNotMatch(indexHtml, /data-note="C1"/);
+    assert.match(indexHtml, /data-note="C2"/);
+    assert.match(indexHtml, /One octave, transposed by the octave buttons/);
 });
 
 test('source UI has separate generated and mic waveform loop controls', () => {
@@ -96,13 +110,26 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /function getAvailableGranularSources\(\)/);
     assert.match(indexHtml, /let generatedSourceMix = 1/);
     assert.match(indexHtml, /function getGranularSourceGainMap\(sources, availableGain = 1\)/);
+    assert.match(indexHtml, /let generatedDryMix = 0/);
+    assert.match(indexHtml, /function startGeneratedDryLoop\(startTime = null\)/);
+    assert.match(indexHtml, /function stopGeneratedDryLoop\(\)/);
     assert.match(indexHtml, /generatedLoopBuffer/);
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /sourceGainMap\.get\(sourceInfo\) \?\? 0/);
     assert.match(indexHtml, /resetSourceLoopPoints\(kind\)/);
     assert.match(indexHtml, /oscMix: 12/);
     assert.match(indexHtml, /performanceGeneratedSourceMix: 100/);
+    assert.match(indexHtml, /performanceGeneratedDryMix: 70/);
     assert.match(indexHtml, /setFilterEnabled\('hpf', false\)/);
+});
+
+test('daw export renders from time zero with generated dry stem', () => {
+    assert.match(indexHtml, /function exportDawReadyBars\(\)/);
+    assert.match(indexHtml, /renderDawReadyBuffer\(\{ bars, includeDryGenerated: true, dryOnly: false \}\)/);
+    assert.match(indexHtml, /renderDawReadyBuffer\(\{ bars, includeDryGenerated: true, dryOnly: true \}\)/);
+    assert.match(indexHtml, /mygrain-mix-\$\{bpm\}bpm-\$\{bars\}bars/);
+    assert.match(indexHtml, /mygrain-generated-dry-\$\{bpm\}bpm-\$\{bars\}bars/);
+    assert.match(indexHtml, /setStatus\(`Exporting \$\{bars\} bar/);
 });
 
 test('oscillators can be disabled for granular-only playback', () => {
