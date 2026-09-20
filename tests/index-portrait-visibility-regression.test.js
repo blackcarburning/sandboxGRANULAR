@@ -137,7 +137,7 @@ test('filter modulation code applies routed envelope, gain, and auto makeup stat
     assert.match(indexHtml, /const sustain = getModulatedValue\('filterEnvSustain', \{ step: getSliderStepValue\('filterEnvSustain'\) \|\| 1 \}\) \/ 100;/);
     assert.match(indexHtml, /const release = getModulatedValue\('filterEnvRelease', \{ step: getSliderStepValue\('filterEnvRelease'\) \|\| 1 \}\) \/ 1000;/);
     assert.match(indexHtml, /const preFilterGainDb = getModulatedValue\('preFilterGain', \{ step: getSliderStepValue\('preFilterGain'\) \|\| 0\.5 \}\);/);
-    assert.match(indexHtml, /const postFilterGainDb = getModulatedValue\('postFilterGain', \{ step: getSliderStepValue\('postFilterGain'\) \|\| 0\.5 \}\);/);
+    assert.match(indexHtml, /const postFilterGainDb = getModulatedValue\('postFilterGain', \{[\s\S]*baseValue: postFilterGainBaseDb,[\s\S]*step: getSliderStepValue\('postFilterGain'\) \|\| 0\.5[\s\S]*\}\);/);
     assert.match(indexHtml, /const autoMakeupEnabled = getModulatedValue\('autoMakeupGain', \{[\s\S]*allowedValues: \[0, 1\][\s\S]*\}\) >= 1;/);
     assert.match(indexHtml, /function setAutoMakeupGainEnabled\(enabled, options = \{\}\)/);
 });

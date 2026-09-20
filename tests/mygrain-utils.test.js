@@ -9,6 +9,7 @@ const {
     generateRhythmicStepBlueprint,
     pickWeighted,
     recordingExtensionForMimeType,
+    resolveFilterMakeupGainDb,
     resolveModulatedValue,
     resolveLoopedPlayPosition,
     resolveSampleWindow,
@@ -144,6 +145,26 @@ test('resolveModulatedValue keeps discrete filter states quantized and bounded',
 
     assert.equal(stepped, 3.5);
     assert.equal(discrete, 0);
+});
+
+test('resolveFilterMakeupGainDb prefers auto makeup gain when enabled', () => {
+    const manual = resolveFilterMakeupGainDb({
+        baseValue: -12,
+        autoEnabled: false,
+        autoGainLinear: 1.45,
+        min: -24,
+        max: 12
+    });
+    const auto = resolveFilterMakeupGainDb({
+        baseValue: -12,
+        autoEnabled: true,
+        autoGainLinear: 1.45,
+        min: -24,
+        max: 12
+    });
+
+    assert.equal(manual, -12);
+    assert.ok(Math.abs(auto - 3.227360044599456) < 1e-9);
 });
 
 test('buildKeyboardGeometry creates contiguous white keys and inset black keys', () => {

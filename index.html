@@ -5495,7 +5495,14 @@
             }
 
             if (makeupGain) {
-                const postFilterGainDb = getModulatedValue('postFilterGain', { step: getSliderStepValue('postFilterGain') || 0.5 });
+                const postFilterGainBaseDb = autoMakeupEnabled
+                    ? resolveAutoMakeupGainDb(document.getElementById('postFilterGain')?.value ?? 0)
+                    : Number(document.getElementById('postFilterGain')?.value ?? 0);
+                const postFilterGainDb = getModulatedValue('postFilterGain', {
+                    baseValue: postFilterGainBaseDb,
+                    range: paramRanges.postFilterGain,
+                    step: getSliderStepValue('postFilterGain') || 0.5
+                });
                 smoothRamp(makeupGain.gain, dbToLinear(postFilterGainDb));
             }
 
@@ -7749,6 +7756,21 @@
             }
         }
 
+        function resolveAutoMakeupGainDb(baseValue = document.getElementById('postFilterGain')?.value ?? 0) {
+            const autoGain = calculateAutoMakeupGain();
+            if (typeof mygrainUtils.resolveFilterMakeupGainDb === 'function') {
+                return mygrainUtils.resolveFilterMakeupGainDb({
+                    baseValue,
+                    autoEnabled: true,
+                    autoGainLinear: autoGain,
+                    min: paramRanges.postFilterGain.min,
+                    max: paramRanges.postFilterGain.max
+                });
+            }
+            const autoDb = 20 * Math.log10(autoGain);
+            return Math.max(paramRanges.postFilterGain.min, Math.min(paramRanges.postFilterGain.max, autoDb));
+        }
+
         function setAutoMakeupGainEnabled(enabled, options = {}) {
             const shouldEnable = Boolean(enabled);
             const checkbox = document.getElementById('autoMakeupGain');
@@ -7762,6 +7784,7 @@
 
             if (shouldEnable) {
                 const autoGain = calculateAutoMakeupGain();
+                const dbValue = resolveAutoMakeupGainDb();
                 if (makeupGain) {
                     if (audioContext && audioContext.state === 'running') {
                         const now = audioContext.currentTime;
@@ -7772,7 +7795,6 @@
                         makeupGain.gain.value = autoGain;
                     }
                 }
-                const dbValue = 20 * Math.log10(autoGain);
                 document.getElementById('postFilterGain').value = dbValue;
                 document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
             } else if (makeupGain) {
@@ -7799,7 +7821,7 @@
                 makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
                 makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
             }
-            const dbValue = 20 * Math.log10(autoGain);
+            const dbValue = resolveAutoMakeupGainDb();
             const sign = dbValue >= 0 ? '+' : '';
             document.getElementById('postFilterGain').value = dbValue;
             document.getElementById('postFilterGainValue').textContent = `${sign}${dbValue.toFixed(1)}dB`;

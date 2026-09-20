@@ -221,6 +221,23 @@
         return resolved;
     }
 
+    function resolveFilterMakeupGainDb(options = {}) {
+        const min = clampNumber(options.min, { min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER, fallback: -24 });
+        const max = clampNumber(options.max, { min, max: Number.MAX_SAFE_INTEGER, fallback: 12 });
+        const baseValue = clampNumber(options.baseValue, { min, max, fallback: 0 });
+        if (!options.autoEnabled) {
+            return baseValue;
+        }
+
+        const autoGainLinear = clampNumber(options.autoGainLinear, {
+            min: 0.000001,
+            max: Number.MAX_SAFE_INTEGER,
+            fallback: 1
+        });
+        const autoDb = 20 * Math.log10(autoGainLinear);
+        return clampNumber(autoDb, { min, max, fallback: baseValue });
+    }
+
     function buildKeyboardGeometry(noteNames, whiteKeyWidth, blackKeyWidth) {
         const notes = Array.isArray(noteNames) ? noteNames : [];
         const safeWhiteWidth = clampNumber(whiteKeyWidth, { min: 24, max: 240, fallback: 48 });
@@ -913,6 +930,7 @@
         generateRhythmicStepBlueprint,
         pickWeighted,
         recordingExtensionForMimeType,
+        resolveFilterMakeupGainDb,
         resolveModulatedValue,
         resolveLoopedPlayPosition,
         resolveSampleWindow,
