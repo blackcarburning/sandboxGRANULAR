@@ -2766,6 +2766,7 @@
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
                 <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
                 <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
+                <button class="performance-btn" id="performanceFinalFxPlacementBtn">FX Post Filter</button>
                 <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
@@ -4243,6 +4244,7 @@
         let finalShimmerNode = null;
         let finalShimmerTone = null;
         let finalShimmerWetGain = null;
+        let finalFxPlacement = 'post';
         let phaserNodes = [];
         let phaserLFO = null;
         let phaserLFOGain = null;
@@ -5632,12 +5634,64 @@
             return nodes.slice(0, Math.max(1, Math.min(stages, nodes.length, 2)));
         }
 
+        function safeDisconnectNode(node, destination = null) {
+            if (!node) return;
+            try {
+                if (destination) {
+                    node.disconnect(destination);
+                } else {
+                    node.disconnect();
+                }
+            } catch (e) {}
+        }
+
+        function getFinalFxFilterSource() {
+            return finalFxPlacement === 'pre' && finalFxOutput ? finalFxOutput : preFilterGainNode;
+        }
+
+        function syncFinalFxPlacementButton() {
+            const button = document.getElementById('performanceFinalFxPlacementBtn');
+            if (!button) return;
+            const isPre = finalFxPlacement === 'pre';
+            button.classList.toggle('active', isPre);
+            button.textContent = isPre ? 'FX Pre Filter' : 'FX Post Filter';
+            button.setAttribute('aria-pressed', String(isPre));
+        }
+
+        function rebuildFinalFxRouting() {
+            if (!masterGain || !preFilterGainNode || !finalFxInput || !finalFxOutput || !splitterNode) return;
+
+            safeDisconnectNode(masterGain, finalFxInput);
+            safeDisconnectNode(masterGain, splitterNode);
+            safeDisconnectNode(preFilterGainNode, finalFxInput);
+            safeDisconnectNode(finalFxOutput, splitterNode);
+
+            if (finalFxPlacement === 'pre') {
+                masterGain.connect(splitterNode);
+                preFilterGainNode.connect(finalFxInput);
+            } else {
+                masterGain.connect(finalFxInput);
+                finalFxOutput.connect(splitterNode);
+            }
+
+            rebuildFilterChain();
+            syncFinalFxPlacementButton();
+        }
+
+        function setFinalFxPlacement(placement) {
+            finalFxPlacement = placement === 'pre' ? 'pre' : 'post';
+            rebuildFinalFxRouting();
+            updateEffects();
+            setStatus(finalFxPlacement === 'pre'
+                ? 'Final effects routed before the filters.'
+                : 'Final effects routed after the filters.');
+        }
+
         function rebuildFilterChain() {
             if (!preFilterGainNode || !makeupGain) return;
 
-            try {
-                preFilterGainNode.disconnect();
-            } catch (e) {}
+            const filterSource = getFinalFxFilterSource();
+            safeDisconnectNode(filterSource);
             [...hpfNodes, ...lpfNodes].forEach((node) => {
                 try {
                     node.disconnect();
@@ -5650,11 +5704,11 @@
             ];
 
             if (chain.length === 0) {
-                preFilterGainNode.connect(makeupGain);
+                filterSource.connect(makeupGain);
                 return;
             }
 
-            preFilterGainNode.connect(chain[0]);
+            filterSource.connect(chain[0]);
             for (let i = 0; i < chain.length - 1; i++) {
                 chain[i].connect(chain[i + 1]);
             }
@@ -11834,6 +11888,7 @@
         const performanceSampleSoloBtn = document.getElementById('performanceSampleSoloBtn');
         const performanceLowNoiseSourceBtn = document.getElementById('performanceLowNoiseSourceBtn');
         const performanceLfoSquareBtn = document.getElementById('performanceLfoSquareBtn');
+        const performanceFinalFxPlacementBtn = document.getElementById('performanceFinalFxPlacementBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
@@ -12075,6 +12130,8 @@
                 performanceFxMuteBtn.setAttribute('aria-pressed', String(fxMuted));
             }
 
+            syncFinalFxPlacementButton();
+
             if (performanceDryFilterBtn) {
                 performanceDryFilterBtn.classList.toggle('dry-filtered', generatedDryThroughFilters);
                 performanceDryFilterBtn.textContent = generatedDryThroughFilters ? 'Dry Filter On' : 'Dry Filter Off';
@@ -12223,6 +12280,10 @@
 
         performanceFxMuteBtn?.addEventListener('click', () => {
             setFxMuted(!fxMuted);
+        });
+
+        performanceFinalFxPlacementBtn?.addEventListener('click', () => {
+            setFinalFxPlacement(finalFxPlacement === 'pre' ? 'post' : 'pre');
         });
 
         performanceDryFilterBtn?.addEventListener('click', () => {
