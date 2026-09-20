@@ -2645,6 +2645,20 @@
                     <input type="range" id="finalDelayDepth" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="finalDelayDivision">
+                        <span>Delay Timing</span>
+                    </label>
+                    <select id="finalDelayDivision" class="performance-select">
+                        <option value="1">1/4</option>
+                        <option value="2">1/8</option>
+                        <option value="4" selected>1/16</option>
+                        <option value="1d">1/4 Dot</option>
+                        <option value="2d">1/8 Dot</option>
+                        <option value="1t">1/4 Trip</option>
+                        <option value="2t">1/8 Trip</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
                     <label for="finalRingDepth">
                         <span>Ring Mod</span>
                         <span class="value" id="finalRingDepthValue">0%</span>
@@ -4691,13 +4705,13 @@
             statusDiv.dataset.state = state;
         }
 
-        function showSettlePopup() {
+        function showSettlePopup(message = 'let it settle') {
             if (!settlePopup) return;
             if (settlePopupTimer) {
                 clearTimeout(settlePopupTimer);
             }
 
-            settlePopup.textContent = 'let it settle';
+            settlePopup.textContent = message;
             settlePopup.classList.add('visible');
             settlePopup.setAttribute('aria-hidden', 'false');
 
@@ -5512,14 +5526,23 @@
             dryGainNode = audioContext.createGain();
             wetGainNode = audioContext.createGain();
 
-            // Create simple Impulse Response
+            // Create a dense, longer impulse response for a more obvious musical reverb.
             const sampleRate = audioContext.sampleRate;
-            const length = sampleRate * 2.5; // 2.5 seconds tail
+            const length = Math.round(sampleRate * 4.8);
             const impulse = audioContext.createBuffer(2, length, sampleRate);
             for (let channel = 0; channel < 2; channel++) {
                 const data = impulse.getChannelData(channel);
+                let smear = 0;
                 for (let i = 0; i < length; i++) {
-                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                    const t = i / sampleRate;
+                    const progress = i / length;
+                    const tail = Math.pow(1 - progress, 1.65);
+                    const early = t < 0.11 ? Math.pow(1 - (t / 0.11), 0.35) * 0.5 : 0;
+                    const widthOffset = channel === 0 ? 0.017 : 0.031;
+                    smear = (smear * 0.82) + ((Math.random() * 2 - 1) * 0.18);
+                    const body = smear + (Math.random() * 2 - 1) * 0.42;
+                    const shimmer = Math.sin(2 * Math.PI * (420 + channel * 47) * (t + widthOffset)) * 0.035;
+                    data[i] = (body + shimmer + early) * tail * 0.78;
                 }
             }
             reverbNode.buffer = impulse;
@@ -5737,6 +5760,22 @@
             return Math.max(0, Math.min(1, Number.isFinite(value) ? value / 100 : 0));
         }
 
+        function getBpmDelaySeconds(division, bpm) {
+            const safeBpm = Math.max(1, Number(bpm) || 120);
+            let delayTime = 60 / safeBpm;
+            const value = String(division || '4');
+            if (value.includes('d')) {
+                const baseDivision = parseFloat(value.replace('d', '')) || 4;
+                delayTime = (delayTime / baseDivision) * 1.5;
+            } else if (value.includes('t')) {
+                const baseDivision = parseFloat(value.replace('t', '')) || 4;
+                delayTime = (delayTime / baseDivision) * (2 / 3);
+            } else {
+                delayTime = delayTime / (parseFloat(value) || 4);
+            }
+            return delayTime;
+        }
+
         function updateFinalMixEffects() {
             if (!audioContext || audioContext.state !== 'running') return;
             const now = audioContext.currentTime;
@@ -5764,7 +5803,8 @@
 
             const delayDepth = fxMuted ? 0 : getSliderPercent('finalDelayDepth');
             const bpm = getSharedBpmClockValue();
-            const delayTime = Math.max(0.04, Math.min(2.5, 60 / bpm));
+            const division = document.getElementById('finalDelayDivision')?.value || '4';
+            const delayTime = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(division, bpm)));
             smoothRamp(finalDelayNode?.delayTime, delayTime);
             smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * 0.62);
             smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * 0.72);
@@ -5823,8 +5863,8 @@
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
             
             // Dry/Wet gains
-            smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.4));
-            smoothRamp(wetGainNode.gain, reverbAmt);
+            smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.28));
+            smoothRamp(wetGainNode.gain, Math.min(1.25, reverbAmt * 1.18));
             
             // Master gain
             smoothRamp(masterGain.gain, Math.min(1, volAmt));
@@ -5864,17 +5904,7 @@
                 const division = document.getElementById('delayDivision')?.value || '4';
                 const feedback = fxMuted ? 0 : getModulatedValue('delayFeedback') / 100;
                 const mix = fxMuted ? 0 : getModulatedValue('delayMix') / 100;
-                
-                let delayTime = 60 / bpm;
-                if (division.includes('d')) {
-                    const baseDivision = parseFloat(division.replace('d', ''));
-                    delayTime = (delayTime / baseDivision) * 1.5;
-                } else if (division.includes('t')) {
-                    const baseDivision = parseFloat(division.replace('t', ''));
-                    delayTime = (delayTime / baseDivision) * (2/3);
-                } else {
-                    delayTime = delayTime / parseFloat(division);
-                }
+                let delayTime = getBpmDelaySeconds(division, bpm);
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
                 
                 smoothRamp(delayNode.delayTime, delayTime);
@@ -8341,6 +8371,10 @@
             updateEffects();
         });
 
+        document.getElementById('finalDelayDivision')?.addEventListener('change', () => {
+            updateEffects();
+        });
+
         // --- LFO3 Waveform Selector ---
         document.getElementById('lfo3Waveform').addEventListener('change', (e) => {
             // Update oscillator waveform if it exists
@@ -8924,10 +8958,10 @@
             setSliderValue('noiseMix', randomIntegerInRange(0, 34));
             setSliderValue('delayMix', randomIntegerInRange(0, 54));
             setSliderValue('reverb', randomIntegerInRange(0, 58));
-            setSliderValue('finalDriveSoft', randomIntegerInRange(0, 42));
-            setSliderValue('finalDriveHard', randomIntegerInRange(0, 34));
-            setSliderValue('finalDriveFold', randomIntegerInRange(0, 30));
-            setSliderValue('finalDriveCrush', randomIntegerInRange(0, 28));
+            setSliderValue('finalDriveSoft', randomIntegerInRange(0, 25));
+            setSliderValue('finalDriveHard', randomIntegerInRange(0, 25));
+            setSliderValue('finalDriveFold', randomIntegerInRange(0, 25));
+            setSliderValue('finalDriveCrush', randomIntegerInRange(0, 25));
             setSliderValue('finalShimmerDepth', randomIntegerInRange(0, 45));
             setSliderValue('finalDelayDepth', randomIntegerInRange(0, 48));
             setSliderValue('finalRingDepth', randomIntegerInRange(0, 36));
@@ -8936,6 +8970,7 @@
             setSliderValue('postFilterGain', randomIntegerInRange(-10, 8));
 
             setSelectValue('delayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
+            setSelectValue('finalDelayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
             setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('noiseType', chooseRandom(['none', 'none', 'white', 'pink']));
@@ -8954,7 +8989,7 @@
             setOscillatorsEnabled(maybe(0.72));
             setGeneratedSampleSolo(maybe(0.22), { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(maybe(0.68), { silent: true });
-            setFxMuted(maybe(0.18), { silent: true });
+            setFxMuted(true, { silent: true });
             setFilterEnabled('lpf', maybe(0.92));
             setFilterEnabled('hpf', maybe(0.72));
             setFilterPoles('lpf', chooseRandom([2, 4]));
@@ -10163,6 +10198,7 @@
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
+                showSettlePopup('try unmuting effects');
                 statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
                 return;
             }
@@ -10180,6 +10216,7 @@
                 }
                 setPerformanceGenerateButtonState('generated');
                 syncPerformanceControlState();
+                showSettlePopup('try unmuting effects');
                 statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample and loop running.`;
             } catch (error) {
                 console.error(error);
@@ -10274,6 +10311,7 @@
             clearAllLfoSquareForce();
             document.getElementById('noiseType').value = 'none';
             document.getElementById('delayDivision').value = '1';
+            document.getElementById('finalDelayDivision').value = '4';
             
             enforceBpmOnlyLfoMode();
             applyGlobalBpm(defaults.delayBpm);
