@@ -6425,12 +6425,11 @@
         // --- Filter Envelope ---
         function applyFilterEnvelope(note, startTime, duration) {
             const filterEnvAmount = getModulatedValue('filterEnvAmount') / 100;
-            if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return;
-
             const attack = getModulatedValue('filterEnvAttack') / 1000;
             const decay = getModulatedValue('filterEnvDecay') / 1000;
             const sustain = getModulatedValue('filterEnvSustain') / 100;
             const release = getModulatedValue('filterEnvRelease') / 1000;
+            if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return release;
 
             const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
             const maxCutoff = 9000;
@@ -6457,6 +6456,8 @@
                 // Release phase: return to base cutoff
                 node.frequency.linearRampToValueAtTime(baseCutoff, releaseEnd);
             });
+
+            return release;
         }
 
         // --- Granular Engine ---
@@ -6820,6 +6821,7 @@
                 continuousLoop: options.continuousLoop ?? role === 'keyboard',
                 cancel: () => {},
                 startTime: grainState.startTime,
+                filterEnvRelease: 0,
                 get nextTime() {
                     return grainState.nextTime;
                 },
@@ -6834,7 +6836,11 @@
             // Apply filter envelope when note starts
             // Use a long duration (60 seconds) to allow envelope to sustain until note is released
             const FILTER_ENVELOPE_MAX_DURATION = 60;
-            applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
+            const filterEnvRelease = applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
+            const grainInfo = activeGrains.get(streamId);
+            if (grainInfo) {
+                grainInfo.filterEnvRelease = filterEnvRelease;
+            }
             scheduleActiveGrains();
         }
 
@@ -6854,7 +6860,9 @@
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
-                const filterRelease = getModulatedValue('filterEnvRelease') / 1000;
+                const filterRelease = Number.isFinite(grainInfo.filterEnvRelease)
+                    ? grainInfo.filterEnvRelease
+                    : parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
                 const baseCutoff = getModulatedValue('lpfCutoff');
                 
                 if (lpfEnabled && lpfNodes.length > 0) {

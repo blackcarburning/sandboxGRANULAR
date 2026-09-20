@@ -72,6 +72,9 @@ test('filter LFO routes are randomizable and wired into modulation-aware filter 
     assert.ok(applyFilterEnvelopeBlock.includes("getModulatedValue('filterEnvDecay') / 1000"));
     assert.ok(applyFilterEnvelopeBlock.includes("getModulatedValue('filterEnvSustain') / 100"));
     assert.ok(indexHtml.includes("getModulatedValue('filterEnvRelease') / 1000"));
+    assert.ok(indexHtml.includes('filterEnvRelease: 0'));
+    assert.ok(indexHtml.includes('grainInfo.filterEnvRelease = filterEnvRelease'));
+    assert.ok(indexHtml.includes("Number.isFinite(grainInfo.filterEnvRelease)"));
     assert.ok(updateEffectsBlock.includes("getDbControlValue('preFilterGain', 0, -24, 6, { modulated: true })"));
     assert.ok(updateEffectsBlock.includes("getDbControlValue('postFilterGain', 0, -24, 12, { modulated: true })"));
     assert.ok(getDbControlValueBlock.includes("options.modulated ? getModulatedValue(id) : Number(slider?.value ?? fallback)"));
