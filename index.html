@@ -1916,6 +1916,40 @@
             white-space: nowrap;
         }
 
+        .simplified-ui .performance-lfo-rate-row {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .simplified-ui .performance-lfo-rate-row label {
+            display: grid;
+            place-items: center;
+            min-height: 34px;
+            padding: 6px 4px;
+            border-radius: 9px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.24);
+            color: rgba(255, 255, 255, 0.76);
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+            text-align: center;
+            text-transform: none;
+        }
+
+        .simplified-ui .performance-lfo-rate-row input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .simplified-ui .performance-lfo-rate-row label:has(input:checked) {
+            color: #00131a;
+            background: linear-gradient(135deg, #7ef6ff 0%, #7effb2 100%);
+            border-color: rgba(126, 246, 255, 0.58);
+        }
+
         .simplified-ui .performance-octave-card {
             display: none;
         }
@@ -2576,6 +2610,52 @@
                         <option value="pulse">Pulse</option>
                         <option value="stepped">Stepped</option>
                     </select>
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>LFO 1 Rate</span>
+                        <span class="value" id="performanceLfo1RateValue">1x</span>
+                    </label>
+                    <div class="performance-lfo-rate-row" role="radiogroup" aria-label="LFO 1 rate multiplier">
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.25">1/4</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.375">1/4D</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.1666667">1/4T</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.5">1/2</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.75">1/2D</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.3333333">1/2T</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="1" checked>1x</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="1.5">1xD</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="0.6666667">1xT</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="2">2x</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="3">2xD</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="1.3333333">2xT</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="4">4x</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="6">4xD</label>
+                        <label><input type="radio" name="performanceLfo1Rate" value="2.6666667">4xT</label>
+                    </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>LFO 2 Rate</span>
+                        <span class="value" id="performanceLfo2RateValue">1x</span>
+                    </label>
+                    <div class="performance-lfo-rate-row" role="radiogroup" aria-label="LFO 2 rate multiplier">
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.25">1/4</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.375">1/4D</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.1666667">1/4T</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.5">1/2</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.75">1/2D</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.3333333">1/2T</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="1" checked>1x</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="1.5">1xD</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="0.6666667">1xT</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="2">2x</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="3">2xD</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="1.3333333">2xT</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="4">4x</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="6">4xD</label>
+                        <label><input type="radio" name="performanceLfo2Rate" value="2.6666667">4xT</label>
+                    </div>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performancePulseWidth">
@@ -4189,6 +4269,23 @@
         const INTERNAL_LFO_RATE_IDS = ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'phaserRate', 'tremoloRate'];
         const INTERNAL_BPM_CLOCK_RATE_IDS = ['delayBpm', ...INTERNAL_LFO_RATE_IDS];
         const INTERNAL_LFO_BPM_MULTIPLIERS = [0.25, 0.5, 1, 2, 4, 8];
+        const PERFORMANCE_LFO_RATE_OPTIONS = [
+            { ratio: 0.25, label: '1/4' },
+            { ratio: 0.375, label: '1/4D' },
+            { ratio: 0.1666667, label: '1/4T' },
+            { ratio: 0.5, label: '1/2' },
+            { ratio: 0.75, label: '1/2D' },
+            { ratio: 0.3333333, label: '1/2T' },
+            { ratio: 1, label: '1x' },
+            { ratio: 1.5, label: '1xD' },
+            { ratio: 0.6666667, label: '1xT' },
+            { ratio: 2, label: '2x' },
+            { ratio: 3, label: '2xD' },
+            { ratio: 1.3333333, label: '2xT' },
+            { ratio: 4, label: '4x' },
+            { ratio: 6, label: '4xD' },
+            { ratio: 2.6666667, label: '4xT' }
+        ];
         const INTERNAL_LFO_BPM_MIN = 10;
         const INTERNAL_LFO_BPM_MAX = 1200;
         const BPM_CLOCK_GRAIN_DIVISIONS = [0.5, 1, 2, 4, 8, 16];
@@ -4709,7 +4806,10 @@
                 INTERNAL_BPM_CLOCK_RATE_IDS.forEach((id) => {
                     const slider = document.getElementById(id);
                     if (!slider) return;
-                    slider.value = String(bpm);
+                    const lfoRatio = id === 'lfoRate'
+                        ? getPerformanceLfoRateRatio(1)
+                        : (id === 'lfo2Rate' ? getPerformanceLfoRateRatio(2) : 1);
+                    slider.value = String(clampInternalLfoBpmValue(bpm * lfoRatio));
                     slider.dispatchEvent(new Event('input', { bubbles: true }));
                 });
 
@@ -7771,12 +7871,14 @@
             const rateSlider = document.getElementById('lfoRate');
             const rateValue = document.getElementById('lfoRateValue');
             rateValue.textContent = `${clampInternalLfoBpmValue(rateSlider.value)} BPM`;
+            syncPerformanceLfoRateRadios(1);
         }
 
         function updateLFO2RateDisplay() {
             const rateSlider = document.getElementById('lfo2Rate');
             const rateValue = document.getElementById('lfo2RateValue');
             rateValue.textContent = `${clampInternalLfoBpmValue(rateSlider.value)} BPM`;
+            syncPerformanceLfoRateRadios(2);
         }
 
         function updateLFO3RateDisplay() {
@@ -8423,6 +8525,59 @@
             slider.max = String(INTERNAL_LFO_BPM_MAX);
             slider.value = String(value);
             slider.dispatchEvent(new Event('input', { bubbles: true }));
+            return value;
+        }
+
+        function getPerformanceLfoRateName(lfoNumber) {
+            return lfoNumber === 2 ? 'performanceLfo2Rate' : 'performanceLfo1Rate';
+        }
+
+        function getPerformanceLfoRateRatio(lfoNumber) {
+            const checked = document.querySelector(`input[name="${getPerformanceLfoRateName(lfoNumber)}"]:checked`);
+            const numeric = Number.parseFloat(checked?.value);
+            return Number.isFinite(numeric) ? numeric : 1;
+        }
+
+        function getPerformanceLfoRateLabel(ratio) {
+            const numeric = Number.parseFloat(ratio);
+            const match = PERFORMANCE_LFO_RATE_OPTIONS.find((option) => Math.abs(option.ratio - numeric) < 0.0001);
+            return match?.label || `${numeric.toFixed(2)}x`;
+        }
+
+        function syncPerformanceLfoRateRadios(lfoNumber) {
+            const sliderId = lfoNumber === 2 ? 'lfo2Rate' : 'lfoRate';
+            const valueId = lfoNumber === 2 ? 'performanceLfo2RateValue' : 'performanceLfo1RateValue';
+            const slider = document.getElementById(sliderId);
+            const baseBpm = getSharedBpmClockValue();
+            const currentBpm = clampInternalLfoBpmValue(slider?.value || baseBpm);
+            const currentRatio = currentBpm / baseBpm;
+            let nearest = PERFORMANCE_LFO_RATE_OPTIONS[0];
+            let nearestDistance = Math.abs(nearest.ratio - currentRatio);
+
+            PERFORMANCE_LFO_RATE_OPTIONS.forEach((option) => {
+                const distance = Math.abs(option.ratio - currentRatio);
+                if (distance < nearestDistance) {
+                    nearest = option;
+                    nearestDistance = distance;
+                }
+            });
+
+            const radio = document.querySelector(`input[name="${getPerformanceLfoRateName(lfoNumber)}"][value="${nearest.ratio}"]`);
+            if (radio) {
+                radio.checked = true;
+            }
+
+            const valueLabel = document.getElementById(valueId);
+            if (valueLabel) {
+                valueLabel.textContent = getPerformanceLfoRateLabel(nearest.ratio);
+            }
+        }
+
+        function setPerformanceLfoRateRatio(lfoNumber, ratio) {
+            const sliderId = lfoNumber === 2 ? 'lfo2Rate' : 'lfoRate';
+            const baseBpm = getSharedBpmClockValue();
+            const value = setInternalLfoRateBpm(sliderId, baseBpm * ratio);
+            syncPerformanceLfoRateRadios(lfoNumber);
             return value;
         }
 
@@ -11590,6 +11745,20 @@
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             generatedSourceMix = value / 100;
             document.getElementById('performanceGeneratedSourceMixValue').textContent = `${Math.round(value)}%`;
+        });
+
+        document.querySelectorAll('input[name="performanceLfo1Rate"]').forEach((radio) => {
+            radio.addEventListener('change', (event) => {
+                if (!event.target.checked) return;
+                setPerformanceLfoRateRatio(1, event.target.value);
+            });
+        });
+
+        document.querySelectorAll('input[name="performanceLfo2Rate"]').forEach((radio) => {
+            radio.addEventListener('change', (event) => {
+                if (!event.target.checked) return;
+                setPerformanceLfoRateRatio(2, event.target.value);
+            });
         });
 
         performanceSampleVolume?.addEventListener('input', (event) => {
