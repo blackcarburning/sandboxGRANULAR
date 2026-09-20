@@ -4030,6 +4030,7 @@
         let makeupGain = null; // Compensation for filter losses
         let preFilterGainNode = null; // Pre-filter gain control
         let autoMakeupBaseEnabled = true;
+        let manualPostFilterGainDb = 0;
         let oscOutputGain = null; // Controls overall oscillator level
         let granularOutputGain = null; // Controls overall granular level
         
@@ -7774,6 +7775,13 @@
         function setAutoMakeupGainEnabled(enabled, options = {}) {
             const shouldEnable = Boolean(enabled);
             const checkbox = document.getElementById('autoMakeupGain');
+            const wasEnabled = checkbox?.checked;
+            if (shouldEnable && !wasEnabled) {
+                const sliderValue = Number(document.getElementById('postFilterGain')?.value);
+                if (Number.isFinite(sliderValue)) {
+                    manualPostFilterGainDb = sliderValue;
+                }
+            }
             if (checkbox) {
                 checkbox.checked = shouldEnable;
             }
@@ -7798,8 +7806,9 @@
                 document.getElementById('postFilterGain').value = dbValue;
                 document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
             } else if (makeupGain) {
-                const manualDb = Number(document.getElementById('postFilterGain')?.value);
-                const safeManualDb = Number.isFinite(manualDb) ? manualDb : 0;
+                const safeManualDb = Number.isFinite(manualPostFilterGainDb) ? manualPostFilterGainDb : 0;
+                document.getElementById('postFilterGain').value = safeManualDb;
+                document.getElementById('postFilterGainValue').textContent = formatDb(safeManualDb);
                 if (audioContext && audioContext.state === 'running') {
                     const now = audioContext.currentTime;
                     makeupGain.gain.cancelScheduledValues(now);
@@ -8180,6 +8189,7 @@
 
         function setPostFilterGainDb(dbValue, options = {}) {
             const safeDb = Math.max(-24, Math.min(12, Number(dbValue) || 0));
+            manualPostFilterGainDb = safeDb;
             const slider = document.getElementById('postFilterGain');
             if (slider && slider.value !== String(safeDb)) slider.value = String(safeDb);
             const isAutoMakeupDisabled = !document.getElementById('autoMakeupGain').checked;
