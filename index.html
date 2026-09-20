@@ -442,6 +442,20 @@
             user-select: none;
         }
 
+        .utility-route-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 8px;
+            color: #aaa;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .utility-route-group .param-name {
+            flex: 1;
+        }
+
         .control-group .button-group {
             display: flex;
             gap: 2px;
@@ -3169,48 +3183,48 @@
                         <button id="randomizeBtn">Randomize</button>
                     </div>
                     <div class="control-group">
-                        <label>
-                            <span class="param-name">LP Cutoff Mod</span>
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityLpfCutoffModLabel">
+                            <span class="param-name" id="utilityLpfCutoffModLabel">LP Cutoff Mod</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2">INV</button>
                             </div>
-                        </label>
+                        </div>
                     </div>
                     <div class="control-group">
-                        <label>
-                            <span class="param-name">LP Resonance Mod</span>
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityLpfResonanceModLabel">
+                            <span class="param-name" id="utilityLpfResonanceModLabel">LP Resonance Mod</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="lpfQ" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="lpfQ" data-lfo="2">INV</button>
                             </div>
-                        </label>
+                        </div>
                     </div>
                     <div class="control-group">
-                        <label>
-                            <span class="param-name">HP Cutoff Mod</span>
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityHpfCutoffModLabel">
+                            <span class="param-name" id="utilityHpfCutoffModLabel">HP Cutoff Mod</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2">INV</button>
                             </div>
-                        </label>
+                        </div>
                     </div>
                     <div class="control-group">
-                        <label>
-                            <span class="param-name">HP Resonance Mod</span>
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityHpfResonanceModLabel">
+                            <span class="param-name" id="utilityHpfResonanceModLabel">HP Resonance Mod</span>
                             <div class="button-group">
                                 <button class="lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
                                 <button class="inv-toggle" data-param="hpfQ" data-lfo="1">INV</button>
                                 <button class="lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
                                 <button class="inv-toggle" data-param="hpfQ" data-lfo="2">INV</button>
                             </div>
-                        </label>
+                        </div>
                     </div>
                     <div class="control-group">
                         <label>

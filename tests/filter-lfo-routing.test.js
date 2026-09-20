@@ -76,10 +76,14 @@ test('filter utility section hosts the four LP/HP modulation route controls with
     assert.match(filterTabHtml, /class="filter-power-toggle active" data-filter-power="lpf">ON<\/button>/);
     assert.match(filterTabHtml, /class="slope-toggle active" data-filter="lpf" data-slope="12" data-poles="2">2P<\/button>/);
     assert.match(filterTabHtml, /class="filter-power-toggle active" data-filter-power="hpf">ON<\/button>/);
-    assert.match(utilityTabHtml, /<span class="param-name">LP Cutoff Mod<\/span>/);
-    assert.match(utilityTabHtml, /<span class="param-name">LP Resonance Mod<\/span>/);
-    assert.match(utilityTabHtml, /<span class="param-name">HP Cutoff Mod<\/span>/);
-    assert.match(utilityTabHtml, /<span class="param-name">HP Resonance Mod<\/span>/);
+    assert.match(utilityTabHtml, /class="utility-route-group" role="group" aria-labelledby="utilityLpfCutoffModLabel"/);
+    assert.match(utilityTabHtml, /<span class="param-name" id="utilityLpfCutoffModLabel">LP Cutoff Mod<\/span>/);
+    assert.match(utilityTabHtml, /class="utility-route-group" role="group" aria-labelledby="utilityLpfResonanceModLabel"/);
+    assert.match(utilityTabHtml, /<span class="param-name" id="utilityLpfResonanceModLabel">LP Resonance Mod<\/span>/);
+    assert.match(utilityTabHtml, /class="utility-route-group" role="group" aria-labelledby="utilityHpfCutoffModLabel"/);
+    assert.match(utilityTabHtml, /<span class="param-name" id="utilityHpfCutoffModLabel">HP Cutoff Mod<\/span>/);
+    assert.match(utilityTabHtml, /class="utility-route-group" role="group" aria-labelledby="utilityHpfResonanceModLabel"/);
+    assert.match(utilityTabHtml, /<span class="param-name" id="utilityHpfResonanceModLabel">HP Resonance Mod<\/span>/);
 });
 
 test('filter LFO routes are randomizable and preset-compatible', () => {
