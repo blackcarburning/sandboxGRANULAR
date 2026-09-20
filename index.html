@@ -2707,6 +2707,7 @@
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
                 <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
+                <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
@@ -11514,6 +11515,7 @@
         const performanceExportBars = document.getElementById('performanceExportBars');
         const performanceExportBtn = document.getElementById('performanceExportBtn');
         const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
+        const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         let performanceGenerateStateTimer = null;
@@ -11996,6 +11998,10 @@
 
         performanceExportPatchBtn?.addEventListener('click', () => {
             document.getElementById('savePresetBtn')?.click();
+        });
+
+        performanceImportPatchBtn?.addEventListener('click', () => {
+            document.getElementById('loadPresetBtn')?.click();
         });
 
         performanceSeqPlayBtn?.addEventListener('click', () => {

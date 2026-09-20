@@ -157,7 +157,7 @@
                 <li>Tap <strong>Generate Loop</strong> for a full patch and sequencer pattern, or <strong>Generate Sample</strong> for a new generated sample while keeping the current pattern.</li>
                 <li>Play the on-screen keyboard. Use <strong>Hold</strong> for drones and <strong>Panic</strong> if anything keeps sounding.</li>
                 <li>Shape the sound with <strong>Sample Vol</strong>, <strong>Sample Solo</strong>, filters, LFO routing, and the LFO rate radio buttons.</li>
-                <li>Use <strong>Export WAV</strong> for audio and <strong>Export JSON</strong> for patch settings.</li>
+                <li>Use <strong>Export WAV</strong> for audio, <strong>Export JSON</strong> for patch settings, and <strong>Import JSON</strong> to load a saved patch.</li>
             </ol>
         </section>
 
@@ -253,8 +253,9 @@
         <h3>Export WAV</h3>
         <p><strong>Export WAV</strong> renders DAW-ready audio for the selected bar count. When generated audio exists, MYGRAIN can also export a generated dry stem.</p>
 
-        <h3>Export JSON</h3>
+        <h3>Export JSON and Import JSON</h3>
         <p><strong>Export JSON</strong> saves the patch settings as a preset file. It stores sliders, selects, LFO routing, filter states, performance modes, and metadata about whether samples were present.</p>
+        <p><strong>Import JSON</strong> loads one of those patch files through the same preset validation path as the Utility tab's Load Preset button.</p>
         <p class="note">Audio samples are not embedded in patch JSON. JSON is good for patch settings; WAV or Save Audio is the right format for actual sound.</p>
 
         <h2 id="saving">Preset and Sample Saving</h2>
