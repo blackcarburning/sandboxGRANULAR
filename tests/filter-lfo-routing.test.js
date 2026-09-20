@@ -67,11 +67,11 @@ test('filter LFO routes are randomizable and wired into modulation-aware filter 
     assert.match(indexHtml, /'preFilterGain', 'postFilterGain', 'noiseMix', 'reverb',/);
     assert.equal(/'preFilterGain'/.test(randomizeSkipParamsBlock), false, 'preFilterGain should not be skipped by route randomization');
     assert.equal(/'postFilterGain'/.test(randomizeSkipParamsBlock), false, 'postFilterGain should not be skipped by route randomization');
-    assert.ok(applyFilterEnvelopeBlock.includes("getModulatedValue('filterEnvAmount') / 100"));
-    assert.ok(applyFilterEnvelopeBlock.includes("getModulatedValue('filterEnvAttack') / 1000"));
-    assert.ok(applyFilterEnvelopeBlock.includes("getModulatedValue('filterEnvDecay') / 1000"));
-    assert.ok(applyFilterEnvelopeBlock.includes("getModulatedValue('filterEnvSustain') / 100"));
-    assert.ok(indexHtml.includes("getModulatedValue('filterEnvRelease') / 1000"));
+    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvAmount', getModulatedValue('filterEnvAmount')) / 100"));
+    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvAttack', getModulatedValue('filterEnvAttack')) / 1000"));
+    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvDecay', getModulatedValue('filterEnvDecay')) / 1000"));
+    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvSustain', getModulatedValue('filterEnvSustain')) / 100"));
+    assert.ok(indexHtml.includes("clampToSliderBounds('filterEnvRelease', getModulatedValue('filterEnvRelease')) / 1000"));
     assert.ok(indexHtml.includes('filterEnvRelease: 0'));
     assert.ok(indexHtml.includes('grainInfo.filterEnvRelease = filterEnvRelease'));
     assert.ok(indexHtml.includes("Number.isFinite(grainInfo.filterEnvRelease)"));
