@@ -2587,6 +2587,7 @@
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
+                <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
@@ -4151,6 +4152,8 @@
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
+        let transportLoopStartTime = null;
+        let generatedDryLoopStartTime = null;
         let globalModulationAmount = 0.55;
         let granularModulationAmount = 0.75;
         let generatedDryTrimDb = -6;
@@ -5918,6 +5921,14 @@
             }
 
             generatedDryGainNode = null;
+            generatedDryLoopStartTime = null;
+        }
+
+        function getTransportLoopOriginTime() {
+            if (!audioContext) return null;
+            if (Number.isFinite(transportLoopStartTime)) return transportLoopStartTime;
+            if (Number.isFinite(generatedDryLoopStartTime)) return generatedDryLoopStartTime;
+            return null;
         }
 
         function startGeneratedDryLoop(startTime = null) {
@@ -5939,6 +5950,7 @@
             const boundedLoopEnd = Math.min(generatedLoopBuffer.duration, loopEnd);
             const now = audioContext.currentTime;
             const safeStartTime = Math.max(now, startTime ?? now);
+            generatedDryLoopStartTime = safeStartTime;
             const fadeSeconds = getFadeSecondsForDuration(boundedLoopEnd - offset);
             const outputGain = getGeneratedDryOutputGain(mix);
 
@@ -6846,6 +6858,9 @@
             const grainState = { 
                 startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
                 nextTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
+                loopOriginTime: options.streamStartTime
+                    ?? (role === 'keyboard' ? getTransportLoopOriginTime() : null)
+                    ?? (scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime),
                 velocity: Number.isFinite(Number(velocity)) ? Math.max(0, Math.min(1, Number(velocity))) : 1
             };
 
@@ -6856,6 +6871,7 @@
                 continuousLoop: options.continuousLoop ?? role === 'keyboard',
                 cancel: () => {},
                 startTime: grainState.startTime,
+                loopOriginTime: grainState.loopOriginTime,
                 filterEnvRelease: 0,
                 get nextTime() {
                     return grainState.nextTime;
@@ -6952,7 +6968,7 @@
                     try {
                         playGrain(grainInfo.note, grainInfo.nextTime, grainInfo.velocity, {
                             role: grainInfo.role,
-                            streamStartTime: grainInfo.startTime,
+                            streamStartTime: grainInfo.loopOriginTime ?? grainInfo.startTime,
                             continuousLoop: grainInfo.continuousLoop
                         });
                     } catch (e) {
@@ -7209,6 +7225,7 @@
             sequencerPlaying = true;
             sequencerCurrentStep = 0;
             sequencerNextStepTime = audioContext.currentTime + 0.04;
+            transportLoopStartTime = sequencerNextStepTime;
             startGeneratedDryLoop(sequencerNextStepTime);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
@@ -7276,6 +7293,7 @@
         function stopSequencer() {
             if (!sequencerPlaying) return;
             sequencerPlaying = false;
+            transportLoopStartTime = null;
             
             if (sequencerTimerId) {
                 clearTimeout(sequencerTimerId);
@@ -7322,9 +7340,10 @@
                 const note = key.dataset.note;
 
                 if (activeKeyCount === 0 && audioContext) {
-                    lfoStartTime = audioContext.currentTime;
-                    lfo2StartTime = audioContext.currentTime;
-                    lfo3StartTime = audioContext.currentTime;
+                    const lfoOrigin = getTransportLoopOriginTime() ?? audioContext.currentTime;
+                    lfoStartTime = lfoOrigin;
+                    lfo2StartTime = lfoOrigin;
+                    lfo3StartTime = lfoOrigin;
                 }
 
                 isKeyPressed = true;
@@ -11203,6 +11222,7 @@
         // Simplified performance control bar proxies
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
+        const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
@@ -11471,6 +11491,26 @@
                 console.error(error);
                 setStatus(`Loop generation failed: ${error.message}`, 'error');
                 setPerformanceGenerateButtonState('idle');
+            }
+        });
+
+        performanceGenerateJunkBtn?.addEventListener('click', async () => {
+            if (performanceGenerateJunkBtn.disabled) return;
+            showSettlePopup();
+            performanceGenerateJunkBtn.disabled = true;
+            performanceGenerateJunkBtn.textContent = 'Generating...';
+            try {
+                await generateStandaloneSource();
+                performanceGenerateJunkBtn.textContent = 'Generated';
+                setTimeout(() => {
+                    performanceGenerateJunkBtn.disabled = false;
+                    performanceGenerateJunkBtn.textContent = 'Generate Sample';
+                }, 900);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Sample generation failed: ${error.message}`, 'error');
+                performanceGenerateJunkBtn.disabled = false;
+                performanceGenerateJunkBtn.textContent = 'Generate Sample';
             }
         });
 
