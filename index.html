@@ -7805,16 +7805,16 @@
                 }
                 document.getElementById('postFilterGain').value = dbValue;
                 document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
-            } else if (makeupGain) {
+            } else {
                 const safeManualDb = Number.isFinite(manualPostFilterGainDb) ? manualPostFilterGainDb : 0;
                 document.getElementById('postFilterGain').value = safeManualDb;
                 document.getElementById('postFilterGainValue').textContent = formatDb(safeManualDb);
-                if (audioContext && audioContext.state === 'running') {
+                if (makeupGain && audioContext && audioContext.state === 'running') {
                     const now = audioContext.currentTime;
                     makeupGain.gain.cancelScheduledValues(now);
                     makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
                     makeupGain.gain.linearRampToValueAtTime(dbToLinear(safeManualDb), now + 0.05);
-                } else {
+                } else if (makeupGain) {
                     makeupGain.gain.value = dbToLinear(safeManualDb);
                 }
             }
