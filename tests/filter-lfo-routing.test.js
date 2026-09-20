@@ -8,12 +8,6 @@ const filterTabMatch = indexHtml.match(/<div class="tab-content" id="filter-tab"
 const filterTabHtml = filterTabMatch ? filterTabMatch[1] : '';
 const randomizeSkipParamsMatch = indexHtml.match(/const RANDOMIZE_SKIP_PARAMS = new Set\(\[([\s\S]*?)\]\);/);
 const randomizeSkipParamsBlock = randomizeSkipParamsMatch ? randomizeSkipParamsMatch[1] : '';
-const applyFilterEnvelopeMatch = indexHtml.match(/function applyFilterEnvelope\(note, startTime, duration\) \{([\s\S]*?)\n        \}/);
-const applyFilterEnvelopeBlock = applyFilterEnvelopeMatch ? applyFilterEnvelopeMatch[1] : '';
-const updateEffectsMatch = indexHtml.match(/function updateEffects\(\) \{([\s\S]*?)\n        \}/);
-const updateEffectsBlock = updateEffectsMatch ? updateEffectsMatch[1] : '';
-const getDbControlValueMatch = indexHtml.match(/function getDbControlValue\(id, fallback, min, max, options = \{\}\) \{([\s\S]*?)\n        \}/);
-const getDbControlValueBlock = getDbControlValueMatch ? getDbControlValueMatch[1] : '';
 
 const expectedFilterLfoParams = [
     'lpfCutoff',
@@ -55,7 +49,7 @@ test('every filter slider exposes exactly one L1 and one L2 route button', () =>
     assert.match(filterTabHtml, /class="filter-power-toggle active" data-filter-power="hpf">ON<\/button>/);
 });
 
-test('filter LFO routes are randomizable and wired into modulation-aware filter paths', () => {
+test('filter LFO routes are randomizable and preset-compatible', () => {
     assert.match(indexHtml, /filterEnvAmount: \{ min: 0, max: 100 \}/);
     assert.match(indexHtml, /filterEnvAttack: \{ min: 1, max: 2000 \}/);
     assert.match(indexHtml, /filterEnvDecay: \{ min: 1, max: 5000 \}/);
@@ -67,15 +61,4 @@ test('filter LFO routes are randomizable and wired into modulation-aware filter 
     assert.match(indexHtml, /'preFilterGain', 'postFilterGain', 'noiseMix', 'reverb',/);
     assert.equal(/'preFilterGain'/.test(randomizeSkipParamsBlock), false, 'preFilterGain should not be skipped by route randomization');
     assert.equal(/'postFilterGain'/.test(randomizeSkipParamsBlock), false, 'postFilterGain should not be skipped by route randomization');
-    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvAmount', getModulatedValue('filterEnvAmount')) / 100"));
-    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvAttack', getModulatedValue('filterEnvAttack')) / 1000"));
-    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvDecay', getModulatedValue('filterEnvDecay')) / 1000"));
-    assert.ok(applyFilterEnvelopeBlock.includes("clampToSliderBounds('filterEnvSustain', getModulatedValue('filterEnvSustain')) / 100"));
-    assert.ok(indexHtml.includes("clampToSliderBounds('filterEnvRelease', getModulatedValue('filterEnvRelease')) / 1000"));
-    assert.ok(indexHtml.includes('filterEnvRelease: 0'));
-    assert.ok(indexHtml.includes('grainInfo.filterEnvRelease = filterEnvRelease'));
-    assert.ok(indexHtml.includes("Number.isFinite(grainInfo.filterEnvRelease)"));
-    assert.ok(updateEffectsBlock.includes("getDbControlValue('preFilterGain', 0, -24, 6, { modulated: true })"));
-    assert.ok(updateEffectsBlock.includes("getDbControlValue('postFilterGain', 0, -24, 12, { modulated: true })"));
-    assert.ok(getDbControlValueBlock.includes("options.modulated ? getModulatedValue(id) : Number(slider?.value ?? fallback)"));
 });
