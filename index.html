@@ -2628,8 +2628,9 @@
                 </div>
                 <canvas id="waveformCanvas" class="source-waveform-canvas" data-source="legacy"></canvas>
                 <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
-                <details class="source-advanced-panel">
-                    <summary>Advanced sources</summary>
+                <details class="source-advanced-panel" id="sourceAdvancedPanel">
+                    <summary aria-controls="advancedSourceContent" aria-expanded="false">Advanced sources</summary>
+                    <div id="advancedSourceContent">
                     <div class="source-seed-group">
                         <div class="section-title">Generated & recorded sources</div>
                         <div class="source-seed-buttons">
@@ -2691,6 +2692,7 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
                     </div>
                 </details>
                 <div class="status-stack">
@@ -5687,7 +5689,8 @@
         const micWaveformCanvas = document.getElementById('micWaveformCanvas');
         const generateSourceBtn = document.getElementById('generateSourceBtn');
         const performanceLoadAudioBtn = document.getElementById('performanceLoadAudioBtn');
-        const sourceAdvancedPanel = document.querySelector('.source-advanced-panel');
+        const sourceAdvancedPanel = document.getElementById('sourceAdvancedPanel');
+        const sourceAdvancedSummary = sourceAdvancedPanel?.querySelector('summary');
 
         recordBtn.addEventListener('click', () => {
             if (!audioContext) {
@@ -5703,6 +5706,7 @@
         });
 
         sourceAdvancedPanel?.addEventListener('toggle', () => {
+            sourceAdvancedSummary?.setAttribute('aria-expanded', String(sourceAdvancedPanel.open));
             if (sourceAdvancedPanel.open) {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
@@ -6542,8 +6546,16 @@
                 ctx.fillStyle = '#0a0a15';
                 ctx.fillRect(0, 0, width, height);
 
-                if (audioBuffer) {
-                    const data = audioBuffer.getChannelData(0);
+                const activePreviewSource = [
+                    activeSourceKind === 'generated' ? { buffer: generatedLoopBuffer, startId: 'generatedLoopStart', endId: 'generatedLoopEnd' } : null,
+                    activeSourceKind === 'mic' ? { buffer: micAudioBuffer, startId: 'micLoopStart', endId: 'micLoopEnd' } : null,
+                    { buffer: generatedLoopBuffer, startId: 'generatedLoopStart', endId: 'generatedLoopEnd' },
+                    { buffer: micAudioBuffer, startId: 'micLoopStart', endId: 'micLoopEnd' },
+                    { buffer: audioBuffer, startId: 'sampleStart', endId: 'sampleEnd' }
+                ].find((source) => source?.buffer);
+
+                if (activePreviewSource?.buffer) {
+                    const data = activePreviewSource.buffer.getChannelData(0);
                     const step = Math.max(1, Math.ceil(data.length / width));
                     const amp = height / 2;
 
@@ -6564,8 +6576,8 @@
                     }
                     ctx.stroke();
 
-                    const startPct = (Number(document.getElementById('sampleStart')?.value) || 0) / 100;
-                    const endPct = (Number(document.getElementById('sampleEnd')?.value) || 100) / 100;
+                    const startPct = (Number(document.getElementById(activePreviewSource.startId)?.value) || 0) / 100;
+                    const endPct = (Number(document.getElementById(activePreviewSource.endId)?.value) || 100) / 100;
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
                     ctx.fillRect(0, 0, width * startPct, height);
                     ctx.fillRect(width * endPct, 0, width * (1 - endPct), height);
