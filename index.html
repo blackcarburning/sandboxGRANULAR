@@ -5875,18 +5875,18 @@
             const division = document.getElementById('finalDelayDivision')?.value || '4';
             const delayTime = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(division, bpm)));
             const postFilterFx = finalFxPlacement !== 'pre';
-            const feedbackCap = postFilterFx ? 0.34 : 0.46;
-            const wetCap = postFilterFx ? 0.46 : 0.62;
+            const feedbackCap = postFilterFx ? 0.16 : 0.46;
+            const wetCap = postFilterFx ? 0.28 : 0.62;
             smoothRamp(finalDelayNode?.delayTime, delayTime);
             smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * feedbackCap);
-            smoothRamp(finalDelayFeedbackHighpass?.frequency, 140 + delayDepth * 220);
-            smoothRamp(finalDelayFeedbackLowpass?.frequency, 5200 - delayDepth * 2600);
+            smoothRamp(finalDelayFeedbackHighpass?.frequency, postFilterFx ? 260 + delayDepth * 520 : 140 + delayDepth * 220);
+            smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 3200 - delayDepth * 1400 : 5200 - delayDepth * 2600);
             smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * wetCap);
-            smoothRamp(finalDelayDryGain?.gain, 1 - (delayDepth * (postFilterFx ? 0.18 : 0.12)));
+            smoothRamp(finalDelayDryGain?.gain, 1 - (delayDepth * (postFilterFx ? 0.08 : 0.12)));
 
             const shimmerDepth = fxMuted ? 0 : getSliderPercent('finalShimmerDepth');
             smoothRamp(finalShimmerTone?.frequency, 2600 + shimmerDepth * 6200);
-            smoothRamp(finalShimmerWetGain?.gain, shimmerDepth * 0.58);
+            smoothRamp(finalShimmerWetGain?.gain, shimmerDepth * (postFilterFx ? 0.32 : 0.58));
         }
 
         function createNoiseBuffers() {
@@ -6418,7 +6418,7 @@
             gain.gain.setValueAtTime(0, safeStartTime);
             gain.gain.linearRampToValueAtTime(outputGain, safeStartTime + fadeSeconds);
             source.connect(gain);
-            gain.connect((generatedDryThroughFilters || generatedSampleSolo) && preFilterGainNode ? preFilterGainNode : masterGain);
+            gain.connect(preFilterGainNode || masterGain);
             source.start(safeStartTime, offset);
             source.onended = () => {
                 if (source !== generatedDrySource) return;
