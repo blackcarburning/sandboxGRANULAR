@@ -51,7 +51,8 @@ test('legacy recording panel and in-controls keyboard layout remain present whil
     assert.match(indexHtml, /<div class="section-title">Sample Source<\/div>/);
     assert.match(indexHtml, /<canvas id="waveformCanvas" class="source-waveform-canvas" data-source="legacy"><\/canvas>/);
     assert.match(indexHtml, /<button id="auditionBtn"[\s\S]*?>Audition Sample<\/button>/);
-    assert.match(indexHtml, /<details class="source-advanced-panel" id="sourceAdvancedPanel">[\s\S]*<summary aria-controls="advancedSourceContent" aria-expanded="false">Advanced sources<\/summary>/);
+    assert.match(indexHtml, /<details class="source-advanced-panel" id="sourceAdvancedPanel">[\s\S]*<summary id="advancedSourceSummary">Advanced sources<\/summary>/);
+    assert.match(indexHtml, /<div id="advancedSourceContent" role="group" aria-labelledby="advancedSourceSummary">/);
     assert.equal(countMatches(indexHtml, /class="source-advanced-panel"/g), 1, 'advanced source panel should only appear once');
     assert.match(indexHtml, /<button id="generateSourceBtn" class="primary">Generate Source<\/button>/);
     assert.match(indexHtml, /<button id="performanceLowNoiseSourceBtn">Low Noise Source<\/button>/);
