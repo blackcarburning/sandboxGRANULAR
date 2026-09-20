@@ -9299,10 +9299,25 @@
             function addGridEvent(hit) {
                 const recipe = hit?.recipe;
                 if (!recipe || !Number.isInteger(hit.step)) return;
-                const time = hit.step * stepDuration;
+                const allowedSteps = [0, 4, 8, 12];
+                const quantizedStep = allowedSteps.reduce((best, step) => {
+                    return Math.abs(step - hit.step) < Math.abs(best - hit.step) ? step : best;
+                }, allowedSteps[0]);
+                const brightCategories = new Set(['closedHat', 'openHat', 'cymbal', 'shaker', 'click']);
+                const brightHit = brightCategories.has(recipe.category);
+                if (brightHit && hit.step !== quantizedStep) return;
+                const time = quantizedStep * stepDuration;
+                const lowFrequencyBias = brightHit ? 0.42 : 1;
+                const bodyBias = recipe.category === 'kick' || recipe.category === 'tom' ? 1.12 : 0.88;
+                const toneFreq = Number(recipe.toneFreq ?? 220);
+                const requestedDurationSteps = Math.max(4, Number(recipe.durationSteps) || 4);
+                const durationStepChoices = [4, 8, 16];
+                const quantizedDurationSteps = durationStepChoices.reduce((best, steps) => {
+                    return Math.abs(steps - requestedDurationSteps) < Math.abs(best - requestedDurationSteps) ? steps : best;
+                }, durationStepChoices[0]);
                 const durationSeconds = Math.max(
-                    Math.min(duration, stepDuration * Math.max(0.16, Number(recipe.durationSteps) || 0.5)),
-                    lowNoiseOnly ? 0.045 : 0.03
+                    Math.min(duration, stepDuration * quantizedDurationSteps),
+                    lowNoiseOnly ? 0.12 : 0.08
                 );
                 events.push({
                     type: recipe.family,
@@ -9310,24 +9325,24 @@
                     time,
                     duration: durationSeconds,
                     attack: Math.max(Number(recipe.attackSeconds ?? 0.001), lowNoiseOnly ? 0.001 : 0.0005),
-                    decay: Math.max(Number(recipe.decaySeconds ?? 0.05), lowNoiseOnly && recipe.category !== 'kick' ? 0.026 : 0.014),
-                    amp: Math.max(0.08, Math.min(1.1, Number(recipe.level ?? 0.4) * Number(hit.velocity ?? 0.7) * (hit.accent ? 1.12 : 1))),
-                    pan: Math.max(-1, Math.min(1, ((renderRandom() * 2) - 1) * Number(recipe.panWidth ?? 0))),
-                    toneFreq: Math.max(28, Number(recipe.toneFreq ?? 220)),
-                    overtone: Number(recipe.overtone ?? 1.5),
-                    metallic: Number(recipe.metallic ?? 0.2),
-                    noiseTone: Math.max(0, lowNoiseOnly ? Number(recipe.noiseTone ?? 0.2) * 0.78 : Number(recipe.noiseTone ?? 0.2)),
-                    click: Math.max(0, Number(recipe.click ?? 0.1)),
+                    decay: Math.max(Number(recipe.decaySeconds ?? 0.05) * (brightHit ? 1.25 : 1.45), lowNoiseOnly && recipe.category !== 'kick' ? 0.04 : 0.035),
+                    amp: Math.max(0.08, Math.min(1.05, Number(recipe.level ?? 0.4) * Number(hit.velocity ?? 0.7) * (hit.accent ? 1.08 : 1) * bodyBias)),
+                    pan: Math.max(-1, Math.min(1, ((renderRandom() * 2) - 1) * Number(recipe.panWidth ?? 0) * 0.55)),
+                    toneFreq: Math.max(28, Math.min(1600, brightHit ? toneFreq * 0.34 : toneFreq * 0.72)),
+                    overtone: Math.max(0.55, Number(recipe.overtone ?? 1.5) * (brightHit ? 0.62 : 0.82)),
+                    metallic: Math.max(0, Number(recipe.metallic ?? 0.2) * lowFrequencyBias),
+                    noiseTone: Math.max(0, Number(recipe.noiseTone ?? 0.2) * (lowNoiseOnly ? 0.42 : 0.58) * lowFrequencyBias),
+                    click: Math.max(0, Number(recipe.click ?? 0.1) * (brightHit ? 0.22 : 0.48)),
                     cluster: Math.max(2, Math.round(Number(recipe.cluster ?? 3))),
                     pitchDrop: Math.max(0, Number(recipe.pitchDrop ?? 0)),
-                    dropRate: Math.max(4, Number(recipe.dropRate ?? 18)),
-                    drive: Math.max(1, Number(recipe.drive ?? 1.2)),
+                    dropRate: Math.max(4, Number(recipe.dropRate ?? 18) * 0.78),
+                    drive: Math.max(1, Number(recipe.drive ?? 1.2) * 0.92),
                     phaseOffset: renderRandom() * TWO_PI
                 });
             }
 
             if (drumBlueprint?.events?.length) {
-                // Every synthesized hit starts on an integer 1/16-note step so the loop stays locked to transport BPM.
+                // Source hits are quantized to 1/4, 1/2, or 1-beat positions so generated samples feel locked rather than jittery.
                 drumBlueprint.events.forEach((hit) => addGridEvent(hit));
             } else {
                 [0, 4, 8, 12].forEach((step, index) => {
@@ -9368,8 +9383,8 @@
                             toneFreq: 210,
                             overtone: 2.4,
                             metallic: 0.2,
-                            noiseTone: 0.72,
-                            click: 0.22,
+                            noiseTone: 0.32,
+                            click: 0.08,
                             cluster: 3,
                             attackSeconds: 0.001,
                             decaySeconds: 0.12,
@@ -9380,25 +9395,25 @@
                         }
                     });
                 });
-                [1, 3, 5, 7, 9, 11, 13, 15].forEach((step) => {
+                [0, 8].forEach((step) => {
                     addGridEvent({
                         step,
-                        velocity: 0.42,
+                        velocity: 0.28,
                         accent: true,
                         recipe: {
                             family: 'hatTick',
                             category: 'closedHat',
-                            level: 0.28,
-                            panWidth: 0.62,
-                            toneFreq: 5200,
-                            overtone: 1.6,
-                            metallic: 0.82,
-                            noiseTone: 0.62,
-                            click: 0.08,
+                            level: 0.16,
+                            panWidth: 0.24,
+                            toneFreq: 1800,
+                            overtone: 1.1,
+                            metallic: 0.28,
+                            noiseTone: 0.22,
+                            click: 0.02,
                             cluster: 3,
                             attackSeconds: 0.0006,
-                            decaySeconds: 0.03,
-                            durationSteps: 0.26,
+                            decaySeconds: 0.08,
+                            durationSteps: 1,
                             pitchDrop: 0,
                             dropRate: 18,
                             drive: 1.28
@@ -9476,12 +9491,12 @@
 
                 for (let i = 0; i < frameCount; i++) {
                     const time = i / audioContext.sampleRate;
-                    const rawNoise = Math.random() * 2 - 1;
-                    lowNoise = lowNoise * 0.965 + rawNoise * 0.035;
-                    highNoise = rawNoise - lowNoise;
+                    const rawNoise = renderRandom() * 2 - 1;
+                    lowNoise = lowNoise * 0.985 + rawNoise * 0.015;
+                    highNoise = (rawNoise - lowNoise) * 0.42;
 
-                    let sample = Math.sin(TWO_PI * rootFrequency * 0.5 * time + channel * 0.33) * 0.018;
-                    sample += lowNoise * 0.008;
+                    let sample = Math.sin(TWO_PI * rootFrequency * 0.5 * time + channel * 0.33) * 0.022;
+                    sample += lowNoise * 0.018;
 
                     for (const event of events) {
                         if (event.time > time + 0.001) break;
