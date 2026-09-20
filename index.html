@@ -1484,6 +1484,28 @@
             line-height: 1.45;
         }
 
+        .manual-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 212, 255, 0.34);
+            background: rgba(0, 212, 255, 0.12);
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-decoration: none;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .manual-link:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+
         .status-stack {
             display: grid;
             gap: 8px;
@@ -2693,9 +2715,12 @@
         <div class="top-section">
             <div class="recording-section">
                 <div class="app-branding">
-                    <div class="app-kicker">MYGRAIN</div>
-                    <h2 class="app-title">Granular instrument</h2>
-                    <p class="app-subtitle">Generate, capture, or load a source waveform, then steer the granular engine from the keyboard.</p>
+                    <div>
+                        <div class="app-kicker">MYGRAIN</div>
+                        <h2 class="app-title">Granular instrument</h2>
+                        <p class="app-subtitle">Generate, capture, or load a source waveform, then steer the granular engine from the keyboard.</p>
+                    </div>
+                    <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
                 </div>
                 <div class="source-seed-group">
                     <div class="section-title">Source</div>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYGRAIN Manual</title>
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --panel: #151c2a;
+            --text: #edf6ff;
+            --muted: #a9b9c9;
+            --accent: #00d4ff;
+            --line: rgba(255, 255, 255, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            line-height: 1.58;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        main {
+            width: min(960px, 100%);
+            margin: 0 auto;
+            padding: 22px 16px 56px;
+        }
+
+        header {
+            padding: 22px 0 18px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        h1,
+        h2,
+        h3 {
+            line-height: 1.15;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: clamp(2rem, 8vw, 4rem);
+            letter-spacing: 0;
+        }
+
+        h2 {
+            margin: 34px 0 12px;
+            padding-top: 8px;
+            border-top: 1px solid var(--line);
+            color: #ffffff;
+            font-size: 1.45rem;
+        }
+
+        h3 {
+            margin: 22px 0 8px;
+            color: #dff8ff;
+            font-size: 1.08rem;
+        }
+
+        p,
+        li {
+            color: var(--muted);
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        code {
+            padding: 1px 5px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+
+        .summary {
+            display: grid;
+            gap: 10px;
+            margin: 18px 0;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+
+        .toc {
+            display: grid;
+            gap: 6px;
+            padding-left: 18px;
+        }
+
+        .note {
+            margin: 16px 0;
+            padding: 12px 14px;
+            border-left: 4px solid var(--accent);
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--text);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 18px;
+            font-size: 0.95rem;
+        }
+
+        th,
+        td {
+            padding: 9px 8px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            color: #ffffff;
+        }
+
+        @media (max-width: 640px) {
+            table,
+            tbody,
+            tr,
+            th,
+            td {
+                display: block;
+            }
+
+            th {
+                padding-top: 14px;
+                border-bottom: 0;
+            }
+
+            td {
+                padding-top: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>MYGRAIN Manual</h1>
+            <p>MYGRAIN is a keyboard-first granular instrument for generated loops, recorded or loaded samples, BPM-locked modulation, filters, and quick mobile performance.</p>
+        </header>
+
+        <section class="summary" aria-label="Quick start">
+            <h2 id="quick-start">Quick Start</h2>
+            <ol>
+                <li>Tap <strong>START MYGRAIN</strong> to unlock the browser audio engine.</li>
+                <li>Tap <strong>Generate Loop</strong> for a full patch and sequencer pattern, or <strong>Generate Sample</strong> for a new generated sample while keeping the current pattern.</li>
+                <li>Play the on-screen keyboard. Use <strong>Hold</strong> for drones and <strong>Panic</strong> if anything keeps sounding.</li>
+                <li>Shape the sound with <strong>Sample Vol</strong>, <strong>Sample Solo</strong>, filters, LFO routing, and the LFO rate radio buttons.</li>
+                <li>Use <strong>Export WAV</strong> for audio and <strong>Export JSON</strong> for patch settings.</li>
+            </ol>
+        </section>
+
+        <h2 id="contents">Contents</h2>
+        <ol class="toc">
+            <li><a href="#layout">Main Layout</a></li>
+            <li><a href="#sources">Sources and Samples</a></li>
+            <li><a href="#playing">Playing and Looping</a></li>
+            <li><a href="#sound">Sound Controls</a></li>
+            <li><a href="#filters">Filters and LFO Routing</a></li>
+            <li><a href="#lfo-rates">LFO Rate Controls</a></li>
+            <li><a href="#record-export">Recording, WAV Export, and JSON Export</a></li>
+            <li><a href="#saving">Preset and Sample Saving</a></li>
+            <li><a href="#iphone">iPhone Notes</a></li>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ol>
+
+        <h2 id="layout">Main Layout</h2>
+        <p>The app is arranged around immediate performance. The keyboard stays prominent, while the performance panel gives fast access to generation, source balance, filters, LFOs, export, and safety controls.</p>
+
+        <table>
+            <tr><th>Area</th><th>Purpose</th></tr>
+            <tr><td>Performance controls</td><td>Main sound and transport controls such as BPM, Generate Loop, Generate Sample, Play Loop, Sample Vol, Sample Solo, filter controls, LFO routing, and exports.</td></tr>
+            <tr><td>Source panel</td><td>Generated loop waveform, mic waveform, source loading, normalization, audition, and loop start/end ranges.</td></tr>
+            <tr><td>Keyboard</td><td>Touch-playable note surface. Notes trigger granular playback and oscillator voices through the current patch.</td></tr>
+            <tr><td>Tabs</td><td>Deeper grain, filter, noise, FX, LFO, stereo, utility, oscillator, and sequencer controls.</td></tr>
+        </table>
+
+        <h2 id="sources">Sources and Samples</h2>
+        <h3>Generate Loop</h3>
+        <p><strong>Generate Loop</strong> creates a complete loop-ready patch: source audio, sequencer pattern, and related randomization. The generated source is designed to stay locked to the project BPM.</p>
+
+        <h3>Generate Sample</h3>
+        <p><strong>Generate Sample</strong> creates another generated sample without replacing the current sequencer pattern. Its timing is constrained to quarter, half, and whole-beat positions, with more low-frequency noise and less high-pitched content.</p>
+
+        <h3>Low Noise Source</h3>
+        <p><strong>Low Noise Source</strong> biases generation toward lower-frequency, less bright material. This is useful when the generated source is too sharp or busy.</p>
+
+        <h3>Record Mic and Load Audio</h3>
+        <p><strong>Record Mic</strong> captures microphone input after permission is granted. <strong>Load Audio</strong> imports an audio file from the device. Loaded and recorded audio can be used as granular sources and trimmed with the waveform start/end controls.</p>
+
+        <h3>Loop Start and End</h3>
+        <p>The generated and mic waveform panels each have start/end sliders. These define the region used by direct looping and granular playback. The loop end point can be controlled by LFO 1 or LFO 2.</p>
+
+        <h2 id="playing">Playing and Looping</h2>
+        <p>Tap or drag on the keyboard to play notes. The granular engine reads from the active source loop, while oscillators can be blended in with the source controls.</p>
+        <ul>
+            <li><strong>Hold</strong> keeps notes sounding after you lift your finger.</li>
+            <li><strong>Play Loop</strong> starts or stops the sequencer loop.</li>
+            <li><strong>Osc On / Osc Off</strong> enables or disables oscillator contribution.</li>
+            <li><strong>Noise Off</strong> clears active generated noise sources when noise is present.</li>
+            <li><strong>Panic</strong> stops held notes and active voices.</li>
+        </ul>
+
+        <h2 id="sound">Sound Controls</h2>
+        <table>
+            <tr><th>Control</th><th>What it does</th></tr>
+            <tr><td>Granular/Osc</td><td>Balances sample/granular playback against oscillator voices.</td></tr>
+            <tr><td>Gen Loop Mix</td><td>Balances generated source material against other available source material.</td></tr>
+            <tr><td>Sample Vol</td><td>Sets the level of the generated sample contribution.</td></tr>
+            <tr><td>Sample Solo</td><td>Mutes oscillator and non-sample paths so the generated sample is heard clearly. The generated dry loop is forced through the filter path while solo is on.</td></tr>
+            <tr><td>Gen Dry</td><td>Adds direct generated-loop playback alongside granular playback.</td></tr>
+            <tr><td>Dry Trim and Grain Trim</td><td>Level trims for direct generated playback and granular playback.</td></tr>
+            <tr><td>Loop Transpose</td><td>Transposes the generated loop without changing the global BPM.</td></tr>
+            <tr><td>Mod Amount and Grain Mod</td><td>Global depth controls for modulation, with Grain Mod focusing granular parameters.</td></tr>
+        </table>
+
+        <h2 id="filters">Filters and LFO Routing</h2>
+        <p>The low-pass and high-pass filters sit on the main sound path. Use cutoff and resonance controls to shape the tone, then route LFO 1 or LFO 2 to each target.</p>
+        <ul>
+            <li><strong>LP Cutoff / LP Res</strong> shape the high-frequency rolloff and low-pass resonance.</li>
+            <li><strong>HP Cutoff / HP Res</strong> remove low frequencies and set high-pass resonance.</li>
+            <li><strong>LP Cutoff LFO, LP Res LFO, HP Cutoff LFO, HP Res LFO</strong> each provide L1 and L2 buttons for modulation routing.</li>
+            <li><strong>LFO 1 Filter Depth</strong> and <strong>LFO 2 Filter Depth</strong> set how strongly each LFO affects routed filter targets.</li>
+            <li><strong>LP Filter</strong> and <strong>HP Filter</strong> let you turn each filter on and choose 2-pole or 4-pole behavior.</li>
+            <li><strong>Filter In</strong> and <strong>Filter Out</strong> trim gain before and after the filter chain.</li>
+        </ul>
+
+        <h2 id="lfo-rates">LFO Rate Controls</h2>
+        <p>MYGRAIN uses BPM-locked LFO rates. The main page includes radio buttons for LFO 1 and LFO 2 with straight, dotted, and triplet values.</p>
+        <table>
+            <tr><th>Radio label</th><th>Meaning</th></tr>
+            <tr><td>1/4, 1/2, 1x, 2x, 4x</td><td>Straight divisions and multipliers relative to the shared BPM clock.</td></tr>
+            <tr><td>D</td><td>Dotted timing: one and a half times the straight value.</td></tr>
+            <tr><td>T</td><td>Triplet timing: two thirds of the straight value.</td></tr>
+        </table>
+        <p>The global BPM control preserves the selected LFO 1 and LFO 2 timing ratios when BPM changes.</p>
+
+        <h2 id="record-export">Recording, WAV Export, and JSON Export</h2>
+        <h3>Record Output</h3>
+        <p>Use <strong>Record Output</strong> to capture live performance. <strong>Arm</strong> waits for a keyboard press before starting, which is useful for cleaner takes.</p>
+
+        <h3>Export WAV</h3>
+        <p><strong>Export WAV</strong> renders DAW-ready audio for the selected bar count. When generated audio exists, MYGRAIN can also export a generated dry stem.</p>
+
+        <h3>Export JSON</h3>
+        <p><strong>Export JSON</strong> saves the patch settings as a preset file. It stores sliders, selects, LFO routing, filter states, performance modes, and metadata about whether samples were present.</p>
+        <p class="note">Audio samples are not embedded in patch JSON. JSON is good for patch settings; WAV or Save Audio is the right format for actual sound.</p>
+
+        <h2 id="saving">Preset and Sample Saving</h2>
+        <p><strong>Save Preset</strong> and <strong>Export JSON</strong> save settings only. If a patch used generated, recorded, or loaded audio, the JSON marks that a sample reload may be required.</p>
+        <p><strong>Save Audio</strong> exports the current sample as audio. <strong>Load Preset</strong> imports JSON settings. <strong>Load Audio</strong> imports audio separately.</p>
+
+        <h2 id="iphone">iPhone Notes</h2>
+        <ul>
+            <li>Always tap <strong>START MYGRAIN</strong> before generating, recording, playing, or exporting audio.</li>
+            <li>If a slider feels hard to grab, use a deliberate horizontal drag from the thumb area.</li>
+            <li>Use the browser share sheet when saving JSON or WAV files.</li>
+            <li>If audio stops after switching apps or locking the phone, return to MYGRAIN and use Reset Engine if needed.</li>
+            <li>Large audio files are intentionally limited for mobile stability.</li>
+        </ul>
+
+        <h2 id="troubleshooting">Troubleshooting</h2>
+        <table>
+            <tr><th>Problem</th><th>Try this</th></tr>
+            <tr><td>No sound</td><td>Tap START MYGRAIN, raise Master Trim, check Sample Vol, turn off FX mute, and press Panic before trying again.</td></tr>
+            <tr><td>Generated sample is too bright</td><td>Enable Low Noise Source, lower LP Cutoff, reduce LP Res, or use Sample Solo to hear the source clearly before mixing.</td></tr>
+            <tr><td>Loop feels too random</td><td>Use Generate Sample again; current generation favors quarter, half, and whole-beat timing. Reduce Gen Swing if needed.</td></tr>
+            <tr><td>Preset loads but sounds different</td><td>Reload the original sample or generate a new one. Patch JSON does not embed audio.</td></tr>
+            <tr><td>Stuck note or runaway sound</td><td>Tap Panic. If needed, use Reset Engine.</td></tr>
+            <tr><td>Export does not appear</td><td>Check the browser download/share sheet. On iPhone, files may appear through the share workflow rather than a desktop-style download bar.</td></tr>
+        </table>
+    </main>
+</body>
+</html>
