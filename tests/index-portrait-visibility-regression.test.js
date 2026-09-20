@@ -112,6 +112,65 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
 });
 
+test('filter tab exposes L1 and L2 routing for every remaining filter control', () => {
+    [
+        'filterEnvAmount',
+        'filterEnvAttack',
+        'filterEnvDecay',
+        'filterEnvSustain',
+        'filterEnvRelease',
+        'preFilterGain',
+        'postFilterGain',
+        'autoMakeupGain'
+    ].forEach((param) => {
+        assert.match(indexHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="1"`));
+        assert.match(indexHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="2"`));
+    });
+
+    assert.match(indexHtml, /id="autoMakeupGainValue">ON<\/span>/);
+});
+
+test('filter modulation code applies routed envelope, gain, and auto makeup states', () => {
+    assert.match(indexHtml, /const filterEnvAmount = getModulatedValue\('filterEnvAmount', \{ step: getSliderStepValue\('filterEnvAmount'\) \|\| 1 \}\) \/ 100;/);
+    assert.match(indexHtml, /const attack = getModulatedValue\('filterEnvAttack', \{ step: getSliderStepValue\('filterEnvAttack'\) \|\| 1 \}\) \/ 1000;/);
+    assert.match(indexHtml, /const decay = getModulatedValue\('filterEnvDecay', \{ step: getSliderStepValue\('filterEnvDecay'\) \|\| 1 \}\) \/ 1000;/);
+    assert.match(indexHtml, /const sustain = getModulatedValue\('filterEnvSustain', \{ step: getSliderStepValue\('filterEnvSustain'\) \|\| 1 \}\) \/ 100;/);
+    assert.match(indexHtml, /const release = getModulatedValue\('filterEnvRelease', \{ step: getSliderStepValue\('filterEnvRelease'\) \|\| 1 \}\) \/ 1000;/);
+    assert.match(indexHtml, /const preFilterGainDb = getModulatedValue\('preFilterGain', \{ step: getSliderStepValue\('preFilterGain'\) \|\| 0\.5 \}\);/);
+    assert.match(indexHtml, /const postFilterGainDb = getModulatedValue\('postFilterGain', \{ step: getSliderStepValue\('postFilterGain'\) \|\| 0\.5 \}\);/);
+    assert.match(indexHtml, /const autoMakeupEnabled = getModulatedValue\('autoMakeupGain', \{[\s\S]*allowedValues: \[0, 1\][\s\S]*\}\) >= 1;/);
+    assert.match(indexHtml, /function setAutoMakeupGainEnabled\(enabled, options = \{\}\)/);
+});
+
+test('filter randomize, preset, and state persistence include new filter lfo routes', () => {
+    const presetToggleParamsBlock = indexHtml.match(/const presetToggleParams = \[[\s\S]*?\];/);
+    const randomizeSkipParamsBlock = indexHtml.match(/const RANDOMIZE_SKIP_PARAMS = new Set\(\[[\s\S]*?\]\);/);
+    const randomizeSkipSlidersBlock = indexHtml.match(/const RANDOMIZE_SKIP_SLIDERS = new Set\(\[[\s\S]*?\]\);/);
+
+    assert.ok(presetToggleParamsBlock, 'preset toggle params block should exist');
+    assert.ok(randomizeSkipParamsBlock, 'randomize route skip block should exist');
+    assert.ok(randomizeSkipSlidersBlock, 'randomize slider skip block should exist');
+
+    [
+        'filterEnvAmount',
+        'filterEnvAttack',
+        'filterEnvDecay',
+        'filterEnvSustain',
+        'filterEnvRelease',
+        'preFilterGain',
+        'postFilterGain',
+        'autoMakeupGain'
+    ].forEach((param) => assert.match(presetToggleParamsBlock[0], new RegExp(`'${param}'`)));
+
+    assert.doesNotMatch(randomizeSkipParamsBlock[0], /'preFilterGain'/);
+    assert.doesNotMatch(randomizeSkipParamsBlock[0], /'postFilterGain'/);
+    assert.match(randomizeSkipSlidersBlock[0], /'preFilterGain'/);
+    assert.match(randomizeSkipSlidersBlock[0], /'postFilterGain'/);
+    assert.match(indexHtml, /autoMakeupGainEnabled: autoMakeupBaseEnabled/);
+    assert.match(indexHtml, /const importedAutoMakeupGainEnabled = safePreset\.autoMakeupGainEnabled \?\? preset\.autoMakeupGainEnabled;/);
+    assert.match(indexHtml, /state\.modes\.autoMakeupGainEnabled !== undefined/);
+});
+
 test('mobile controls can remove the noise oscillator and its modulation', () => {
     assert.match(indexHtml, /id="performanceNoiseOffBtn">Noise Off<\/button>/);
     assert.match(indexHtml, /function isNoiseOscillatorActive\(\)/);

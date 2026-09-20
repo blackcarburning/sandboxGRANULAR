@@ -2851,6 +2851,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Amount</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvAmount" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvAmount" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvAmount" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvAmount" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvAmountValue">0%</span>
                         </label>
                         <input type="range" id="filterEnvAmount" min="0" max="100" value="0" step="1">
@@ -2858,6 +2864,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Attack</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvAttack" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvAttack" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvAttack" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvAttack" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvAttackValue">10ms</span>
                         </label>
                         <input type="range" id="filterEnvAttack" min="1" max="2000" value="10" step="1">
@@ -2865,6 +2877,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Decay</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvDecay" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvDecay" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvDecay" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvDecay" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvDecayValue">200ms</span>
                         </label>
                         <input type="range" id="filterEnvDecay" min="1" max="5000" value="200" step="1">
@@ -2872,6 +2890,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Sustain</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvSustain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvSustain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvSustain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvSustain" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvSustainValue">50%</span>
                         </label>
                         <input type="range" id="filterEnvSustain" min="0" max="100" value="50" step="1">
@@ -2879,6 +2903,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Release</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvRelease" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvRelease" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvRelease" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvRelease" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvReleaseValue">100ms</span>
                         </label>
                         <input type="range" id="filterEnvRelease" min="1" max="5000" value="100" step="1">
@@ -2888,6 +2918,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Pre-Filter Gain</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="preFilterGain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="preFilterGain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="preFilterGain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="preFilterGain" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="preFilterGainValue">+0.0dB</span>
                         </label>
                         <input type="range" id="preFilterGain" min="-24" max="6" value="0" step="0.5">
@@ -2897,6 +2933,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Makeup Gain</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="postFilterGain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="postFilterGain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="postFilterGain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="postFilterGain" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="postFilterGainValue">+0.0dB</span>
                         </label>
                         <input type="range" id="postFilterGain" min="-24" max="12" value="0" step="0.5">
@@ -2904,9 +2946,16 @@
 
                     <!-- Auto Makeup Checkbox -->
                     <div class="control-group">
-                        <label style="justify-content: flex-start; gap: 8px;">
+                        <label style="justify-content: flex-start; gap: 8px; flex-wrap: wrap;">
                             <input type="checkbox" id="autoMakeupGain" checked>
                             <span class="param-name">Auto Makeup</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="autoMakeupGain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="autoMakeupGain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="autoMakeupGain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="autoMakeupGain" data-lfo="2">INV</button>
+                            </div>
+                            <span class="value" id="autoMakeupGainValue">ON</span>
                         </label>
                     </div>
                 </div>
@@ -3980,6 +4029,7 @@
         let tremoloLFOGain = null;
         let makeupGain = null; // Compensation for filter losses
         let preFilterGainNode = null; // Pre-filter gain control
+        let autoMakeupBaseEnabled = true;
         let oscOutputGain = null; // Controls overall oscillator level
         let granularOutputGain = null; // Controls overall granular level
         
@@ -4196,9 +4246,7 @@
             'noiseMix',
             'reverb',
             'delayMix',
-            'volume',
-            'preFilterGain',
-            'postFilterGain'
+            'volume'
         ]);
         const RANDOMIZE_SKIP_SELECTS = new Set([
             'lfoWaveform',
@@ -4373,6 +4421,14 @@
             lpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
             hpfCutoff: { min: 20, max: 5000 },
             hpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
+            filterEnvAmount: { min: 0, max: 100 },
+            filterEnvAttack: { min: 1, max: 2000 },
+            filterEnvDecay: { min: 1, max: 5000 },
+            filterEnvSustain: { min: 0, max: 100 },
+            filterEnvRelease: { min: 1, max: 5000 },
+            preFilterGain: { min: -24, max: 6 },
+            postFilterGain: { min: -24, max: 12 },
+            autoMakeupGain: { min: 0, max: 1 },
             noiseMix: { min: 0, max: 100 },
             distortion: { min: 0, max: 100 },
             phaserRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
@@ -4390,7 +4446,10 @@
         const presetToggleParams = [
             'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
-            'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ', 'noiseMix', 'reverb',
+            'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ',
+            'filterEnvAmount', 'filterEnvAttack', 'filterEnvDecay', 'filterEnvSustain', 'filterEnvRelease',
+            'preFilterGain', 'postFilterGain', 'autoMakeupGain',
+            'noiseMix', 'reverb',
             'volume', 'distortion', 'phaserRate', 'phaserDepth', 'tremoloRate', 'tremoloDepth',
             'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
             'lfo3Rate', 'lfo3Depth', 'panSpread'
@@ -4875,46 +4934,74 @@
             }
         }
 
-        function getModulatedValue(paramId) {
+        function getSliderStepValue(paramId) {
             const slider = document.getElementById(paramId);
-            if (!slider) return 0;
-            
-            const baseValue = parseFloat(slider.value);
-            if (DISABLED_LOOP_START_LFO_PARAMS.has(paramId)) {
+            const step = Number(slider?.step);
+            return Number.isFinite(step) && step > 0 ? step : null;
+        }
+
+        function getModulatedValue(paramId, options = {}) {
+            const slider = document.getElementById(paramId);
+            const hasBaseValue = Object.prototype.hasOwnProperty.call(options, 'baseValue');
+            const range = options.range || paramRanges[paramId];
+            const baseValue = hasBaseValue ? Number(options.baseValue) : Number(slider?.value);
+
+            if (!Number.isFinite(baseValue)) {
+                return 0;
+            }
+            if (!hasBaseValue && !slider) {
+                return 0;
+            }
+            if (!hasBaseValue && DISABLED_LOOP_START_LFO_PARAMS.has(paramId)) {
                 return baseValue;
             }
-            
-            // Calculate total modulation from both LFOs
-            let totalOffset = 0;
-            const range = paramRanges[paramId];
+            if (!range) {
+                return baseValue;
+            }
+
+            const hasRoute = Boolean(lfoEnabled[paramId] || lfo2Enabled[paramId] || lfo3Enabled[paramId]);
+            if (!hasRoute) {
+                return baseValue;
+            }
+
+            const contributions = [
+                {
+                    enabled: lfoEnabled[paramId],
+                    inverted: lfoInverted[paramId],
+                    value: getLFOValue(),
+                    scale: getLfoModulationScale(paramId)
+                },
+                {
+                    enabled: lfo2Enabled[paramId],
+                    inverted: lfo2Inverted[paramId],
+                    value: getLFOValue2(),
+                    scale: getLfoModulationScale(paramId)
+                },
+                {
+                    enabled: lfo3Enabled[paramId],
+                    inverted: lfo3Inverted[paramId],
+                    value: getLFOValue3(),
+                    scale: getLfoModulationScale(paramId)
+                }
+            ];
+
+            if (typeof mygrainUtils.resolveModulatedValue === 'function') {
+                return mygrainUtils.resolveModulatedValue({
+                    baseValue,
+                    min: range.min,
+                    max: range.max,
+                    step: options.step,
+                    allowedValues: options.allowedValues,
+                    contributions
+                });
+            }
+
             const rangeSize = range.max - range.min;
-            
-            // Apply LFO1 if enabled
-            if (lfoEnabled[paramId]) {
-                const lfoValue = getLFOValue();
-                const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
-                totalOffset += invertedLFO * rangeSize * getLfoModulationScale(paramId);
-            }
-            
-            // Apply LFO2 if enabled
-            if (lfo2Enabled[paramId]) {
-                const lfo2Value = getLFOValue2();
-                const invertedLFO2 = lfo2Inverted[paramId] ? -lfo2Value : lfo2Value;
-                totalOffset += invertedLFO2 * rangeSize * getLfoModulationScale(paramId);
-            }
-            
-            // Apply LFO3 if enabled (for panSpread/stereo modulation)
-            if (lfo3Enabled[paramId]) {
-                const lfo3Value = getLFOValue3();
-                const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
-                totalOffset += invertedLFO3 * rangeSize * getLfoModulationScale(paramId);
-            }
-            
-            // If no LFOs are enabled, return base value
-            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId] && !lfo3Enabled[paramId]) {
-                return baseValue;
-            }
-            
+            const totalOffset = contributions.reduce((sum, contribution) => {
+                if (!contribution.enabled) return sum;
+                const direction = contribution.inverted ? -1 : 1;
+                return sum + (direction * contribution.value * rangeSize * contribution.scale);
+            }, 0);
             const modulated = baseValue + totalOffset;
             return Math.max(range.min, Math.min(range.max, modulated));
         }
@@ -5245,15 +5332,7 @@
             configureHPFSlope(12);
 
             // Initialize auto makeup gain based on default filter slopes
-            if (document.getElementById('autoMakeupGain')?.checked) {
-                const autoGain = calculateAutoMakeupGain();
-                if (makeupGain) {
-                    makeupGain.gain.value = autoGain;
-                }
-                const dbValue = 20 * Math.log10(autoGain);
-                document.getElementById('postFilterGain').value = dbValue;
-                document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
-            }
+            setAutoMakeupGainEnabled(autoMakeupBaseEnabled, { fromModulation: true });
 
             updateEffects();
         }
@@ -5393,14 +5472,33 @@
             
             const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
-            
+            const autoMakeupEnabled = getModulatedValue('autoMakeupGain', {
+                baseValue: autoMakeupBaseEnabled ? 1 : 0,
+                range: paramRanges.autoMakeupGain,
+                allowedValues: [0, 1]
+            }) >= 1;
+
+            if (document.getElementById('autoMakeupGain')?.checked !== autoMakeupEnabled) {
+                setAutoMakeupGainEnabled(autoMakeupEnabled, { fromModulation: true });
+            }
+
             // Dry/Wet gains
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.4));
             smoothRamp(wetGainNode.gain, reverbAmt);
             
             // Master gain
             smoothRamp(masterGain.gain, Math.min(1, volAmt));
-            
+
+            if (preFilterGainNode) {
+                const preFilterGainDb = getModulatedValue('preFilterGain', { step: getSliderStepValue('preFilterGain') || 0.5 });
+                smoothRamp(preFilterGainNode.gain, dbToLinear(preFilterGainDb));
+            }
+
+            if (makeupGain) {
+                const postFilterGainDb = getModulatedValue('postFilterGain', { step: getSliderStepValue('postFilterGain') || 0.5 });
+                smoothRamp(makeupGain.gain, dbToLinear(postFilterGainDb));
+            }
+
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
                 const lpfCutoff = getModulatedValue('lpfCutoff');
@@ -6365,13 +6463,13 @@
 
         // --- Filter Envelope ---
         function applyFilterEnvelope(note, startTime, duration) {
-            const filterEnvAmount = parseFloat(document.getElementById('filterEnvAmount').value) / 100;
+            const filterEnvAmount = getModulatedValue('filterEnvAmount', { step: getSliderStepValue('filterEnvAmount') || 1 }) / 100;
             if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return;
 
-            const attack = parseFloat(document.getElementById('filterEnvAttack').value) / 1000;
-            const decay = parseFloat(document.getElementById('filterEnvDecay').value) / 1000;
-            const sustain = parseFloat(document.getElementById('filterEnvSustain').value) / 100;
-            const release = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+            const attack = getModulatedValue('filterEnvAttack', { step: getSliderStepValue('filterEnvAttack') || 1 }) / 1000;
+            const decay = getModulatedValue('filterEnvDecay', { step: getSliderStepValue('filterEnvDecay') || 1 }) / 1000;
+            const sustain = getModulatedValue('filterEnvSustain', { step: getSliderStepValue('filterEnvSustain') || 1 }) / 100;
+            const release = getModulatedValue('filterEnvRelease', { step: getSliderStepValue('filterEnvRelease') || 1 }) / 1000;
 
             const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
             const maxCutoff = 9000;
@@ -6795,7 +6893,7 @@
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
-                const filterRelease = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+                const filterRelease = getModulatedValue('filterEnvRelease', { step: getSliderStepValue('filterEnvRelease') || 1 }) / 1000;
                 const baseCutoff = getModulatedValue('lpfCutoff');
                 
                 if (lpfEnabled && lpfNodes.length > 0) {
@@ -7644,6 +7742,53 @@
         let lpfSlope = 12;  // Default 12db/octave
         let hpfSlope = 12;  // Default 12db/octave
 
+        function syncAutoMakeupGainValueLabel() {
+            const label = document.getElementById('autoMakeupGainValue');
+            if (label) {
+                label.textContent = document.getElementById('autoMakeupGain')?.checked ? 'ON' : 'OFF';
+            }
+        }
+
+        function setAutoMakeupGainEnabled(enabled, options = {}) {
+            const shouldEnable = Boolean(enabled);
+            const checkbox = document.getElementById('autoMakeupGain');
+            if (checkbox) {
+                checkbox.checked = shouldEnable;
+            }
+            if (!options.fromModulation) {
+                autoMakeupBaseEnabled = shouldEnable;
+            }
+            syncAutoMakeupGainValueLabel();
+
+            if (shouldEnable) {
+                const autoGain = calculateAutoMakeupGain();
+                if (makeupGain) {
+                    if (audioContext && audioContext.state === 'running') {
+                        const now = audioContext.currentTime;
+                        makeupGain.gain.cancelScheduledValues(now);
+                        makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
+                        makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
+                    } else {
+                        makeupGain.gain.value = autoGain;
+                    }
+                }
+                const dbValue = 20 * Math.log10(autoGain);
+                document.getElementById('postFilterGain').value = dbValue;
+                document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
+            } else if (makeupGain) {
+                const manualDb = Number(document.getElementById('postFilterGain')?.value);
+                const safeManualDb = Number.isFinite(manualDb) ? manualDb : 0;
+                if (audioContext && audioContext.state === 'running') {
+                    const now = audioContext.currentTime;
+                    makeupGain.gain.cancelScheduledValues(now);
+                    makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
+                    makeupGain.gain.linearRampToValueAtTime(dbToLinear(safeManualDb), now + 0.05);
+                } else {
+                    makeupGain.gain.value = dbToLinear(safeManualDb);
+                }
+            }
+        }
+
         function refreshAutoMakeupGain() {
             if (!document.getElementById('autoMakeupGain')?.checked) return;
 
@@ -8036,20 +8181,8 @@
 
         // Auto Makeup Checkbox
         document.getElementById('autoMakeupGain').addEventListener('change', (e) => {
-            if (e.target.checked) {
-                // Apply auto makeup gain
-                const autoGain = calculateAutoMakeupGain();
-                if (makeupGain && audioContext) {
-                    const now = audioContext.currentTime;
-                    makeupGain.gain.cancelScheduledValues(now);
-                    makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
-                    makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
-                }
-                // Update slider to reflect auto value
-                const dbValue = 20 * Math.log10(autoGain);
-                document.getElementById('postFilterGain').value = dbValue;
-                document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
-            }
+            setAutoMakeupGainEnabled(e.target.checked);
+            saveState();
         });
 
         // --- SEQ Tab Controls ---
@@ -9517,6 +9650,8 @@
                 filterEnvDecay: 200,
                 filterEnvSustain: 50,
                 filterEnvRelease: 100,
+                preFilterGain: 0,
+                postFilterGain: 0,
                 noiseMix: 0,
                 reverb: 20,
                 distortion: 0,
@@ -9559,6 +9694,7 @@
             setFilterEnabled('hpf', true);
             setFilterPoles('lpf', 2);
             setFilterPoles('hpf', 2);
+            setAutoMakeupGainEnabled(true);
             setFxMuted(false, { silent: true });
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
@@ -9665,6 +9801,7 @@
                 fxMuted: fxMuted,
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                autoMakeupGainEnabled: autoMakeupBaseEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
                 filterPoles: {
@@ -9766,6 +9903,10 @@
             if (safePreset.filterEnabled) {
                 setFilterEnabled('lpf', safePreset.filterEnabled.lpf !== false);
                 setFilterEnabled('hpf', safePreset.filterEnabled.hpf !== false);
+            }
+            const importedAutoMakeupGainEnabled = safePreset.autoMakeupGainEnabled ?? preset.autoMakeupGainEnabled;
+            if (importedAutoMakeupGainEnabled !== undefined) {
+                setAutoMakeupGainEnabled(importedAutoMakeupGainEnabled);
             }
             if (safePreset.generatedSourceLowNoiseMode !== undefined) {
                 setGeneratedSourceLowNoiseMode(safePreset.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
@@ -10158,6 +10299,7 @@
                     fxMuted: fxMuted,
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                    autoMakeupGainEnabled: autoMakeupBaseEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
                     lpfSlope: lpfSlope,
@@ -10281,6 +10423,9 @@
                     }
                     if (state.modes.hpfEnabled !== undefined) {
                         setFilterEnabled('hpf', state.modes.hpfEnabled);
+                    }
+                    if (state.modes.autoMakeupGainEnabled !== undefined) {
+                        setAutoMakeupGainEnabled(state.modes.autoMakeupGainEnabled);
                     }
                     if (state.modes.fxMuted !== undefined) {
                         setFxMuted(state.modes.fxMuted, { silent: true });

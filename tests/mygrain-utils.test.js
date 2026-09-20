@@ -9,6 +9,7 @@ const {
     generateRhythmicStepBlueprint,
     pickWeighted,
     recordingExtensionForMimeType,
+    resolveModulatedValue,
     resolveLoopedPlayPosition,
     resolveSampleWindow,
     validatePreset
@@ -85,6 +86,64 @@ test('resolveLoopedPlayPosition wraps held keyboard playback through the selecte
     assert.ok(Math.abs(firstLap - 0.9) < 1e-9);
     assert.ok(Math.abs(wrappedLap - 0.9) < 1e-9);
     assert.ok(Math.abs(pitchedWrap - 0.75) < 1e-9);
+});
+
+test('resolveModulatedValue combines lfo routes and restores base values when disabled', () => {
+    const lfo1Only = resolveModulatedValue({
+        baseValue: 50,
+        min: 0,
+        max: 100,
+        contributions: [
+            { enabled: true, value: 0.5, scale: 0.2 },
+            { enabled: false, value: -0.25, scale: 0.3 }
+        ]
+    });
+    const combined = resolveModulatedValue({
+        baseValue: 50,
+        min: 0,
+        max: 100,
+        contributions: [
+            { enabled: true, value: 0.5, scale: 0.2 },
+            { enabled: true, inverted: true, value: 0.25, scale: 0.2 }
+        ]
+    });
+    const unmodulated = resolveModulatedValue({
+        baseValue: 50,
+        min: 0,
+        max: 100,
+        contributions: [
+            { enabled: false, value: 1, scale: 0.5 },
+            { enabled: false, inverted: true, value: -1, scale: 0.5 }
+        ]
+    });
+
+    assert.equal(lfo1Only, 60);
+    assert.equal(combined, 55);
+    assert.equal(unmodulated, 50);
+});
+
+test('resolveModulatedValue keeps discrete filter states quantized and bounded', () => {
+    const stepped = resolveModulatedValue({
+        baseValue: 0,
+        min: -24,
+        max: 12,
+        step: 0.5,
+        contributions: [
+            { enabled: true, value: 0.51, scale: 0.2 }
+        ]
+    });
+    const discrete = resolveModulatedValue({
+        baseValue: 1,
+        min: 0,
+        max: 1,
+        allowedValues: [0, 1],
+        contributions: [
+            { enabled: true, inverted: true, value: 1, scale: 1 }
+        ]
+    });
+
+    assert.equal(stepped, 3.5);
+    assert.equal(discrete, 0);
 });
 
 test('buildKeyboardGeometry creates contiguous white keys and inset black keys', () => {

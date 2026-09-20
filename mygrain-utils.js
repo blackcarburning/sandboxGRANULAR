@@ -181,6 +181,46 @@
         });
     }
 
+    function resolveModulatedValue(options = {}) {
+        const min = clampNumber(options.min, { min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
+        const max = clampNumber(options.max, { min, max: Number.MAX_SAFE_INTEGER, fallback: min });
+        const baseValue = clampNumber(options.baseValue, { min, max, fallback: min });
+        const step = Number(options.step);
+        const allowedValues = Array.isArray(options.allowedValues) ? options.allowedValues : null;
+        const contributions = Array.isArray(options.contributions) ? options.contributions : [];
+        const rangeSize = Math.max(0, max - min);
+
+        let resolved = contributions.reduce((sum, item) => {
+            if (!item || item.enabled === false) {
+                return sum;
+            }
+
+            const value = clampNumber(item.value, { min: -1, max: 1, fallback: 0 });
+            const scale = clampNumber(item.scale, { min: 0, max: 1, fallback: 0 });
+            const direction = item.inverted ? -1 : 1;
+            return sum + (direction * value * rangeSize * scale);
+        }, baseValue);
+
+        resolved = clampNumber(resolved, { min, max, fallback: baseValue });
+
+        if (allowedValues && allowedValues.length > 0) {
+            const numericValues = allowedValues
+                .map((value) => clampNumber(value, { min, max, fallback: min }))
+                .sort((left, right) => left - right);
+
+            return numericValues.reduce((best, current) => {
+                return Math.abs(current - resolved) < Math.abs(best - resolved) ? current : best;
+            }, numericValues[0]);
+        }
+
+        if (Number.isFinite(step) && step > 0) {
+            const stepped = min + (Math.round((resolved - min) / step) * step);
+            return clampNumber(stepped, { min, max, fallback: baseValue });
+        }
+
+        return resolved;
+    }
+
     function buildKeyboardGeometry(noteNames, whiteKeyWidth, blackKeyWidth) {
         const notes = Array.isArray(noteNames) ? noteNames : [];
         const safeWhiteWidth = clampNumber(whiteKeyWidth, { min: 24, max: 240, fallback: 48 });
@@ -873,6 +913,7 @@
         generateRhythmicStepBlueprint,
         pickWeighted,
         recordingExtensionForMimeType,
+        resolveModulatedValue,
         resolveLoopedPlayPosition,
         resolveSampleWindow,
         validatePreset
