@@ -6,14 +6,19 @@ const path = require('node:path');
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const filterTabMatch = indexHtml.match(/<div class="tab-content" id="filter-tab">([\s\S]*?)<!-- Noise Tab -->/);
 const filterTabHtml = filterTabMatch ? filterTabMatch[1] : '';
+const utilityTabMatch = indexHtml.match(/<div class="tab-content" id="utility-tab">([\s\S]*?)<!-- LFO Tab -->/);
+const utilityTabHtml = utilityTabMatch ? utilityTabMatch[1] : '';
 const randomizeSkipParamsMatch = indexHtml.match(/const RANDOMIZE_SKIP_PARAMS = new Set\(\[([\s\S]*?)\]\);/);
 const randomizeSkipParamsBlock = randomizeSkipParamsMatch ? randomizeSkipParamsMatch[1] : '';
 
-const expectedFilterLfoParams = [
+const utilityMountedFilterParams = [
     'lpfCutoff',
     'lpfQ',
     'hpfCutoff',
-    'hpfQ',
+    'hpfQ'
+];
+
+const expectedFilterTabLfoParams = [
     'filterEnvAmount',
     'filterEnvAttack',
     'filterEnvDecay',
@@ -27,19 +32,43 @@ function countMatches(input, regex) {
     return (input.match(regex) || []).length;
 }
 
-test('every filter slider exposes exactly one L1 and one L2 route button', () => {
+test('filter utility section hosts the four LP/HP modulation route controls without duplicating them in the filter rows', () => {
     assert.ok(filterTabHtml, 'filter tab markup should be present');
+    assert.ok(utilityTabHtml, 'utility tab markup should be present');
 
-    expectedFilterLfoParams.forEach((param) => {
+    utilityMountedFilterParams.forEach((param) => {
+        assert.equal(
+            countMatches(filterTabHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="1"`, 'g')),
+            0,
+            `${param} should not keep an L1 route button inside the filter tab rows`
+        );
+        assert.equal(
+            countMatches(filterTabHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="2"`, 'g')),
+            0,
+            `${param} should not keep an L2 route button inside the filter tab rows`
+        );
+        assert.equal(
+            countMatches(utilityTabHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="1"`, 'g')),
+            1,
+            `${param} should expose exactly one utility-tab L1 route button`
+        );
+        assert.equal(
+            countMatches(utilityTabHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="2"`, 'g')),
+            1,
+            `${param} should expose exactly one utility-tab L2 route button`
+        );
+    });
+
+    expectedFilterTabLfoParams.forEach((param) => {
         assert.equal(
             countMatches(filterTabHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="1"`, 'g')),
             1,
-            `${param} should expose exactly one L1 route button`
+            `${param} should keep exactly one L1 route button in the filter tab`
         );
         assert.equal(
             countMatches(filterTabHtml, new RegExp(`class="lfo-toggle" data-param="${param}" data-lfo="2"`, 'g')),
             1,
-            `${param} should expose exactly one L2 route button`
+            `${param} should keep exactly one L2 route button in the filter tab`
         );
     });
 
@@ -47,6 +76,10 @@ test('every filter slider exposes exactly one L1 and one L2 route button', () =>
     assert.match(filterTabHtml, /class="filter-power-toggle active" data-filter-power="lpf">ON<\/button>/);
     assert.match(filterTabHtml, /class="slope-toggle active" data-filter="lpf" data-slope="12" data-poles="2">2P<\/button>/);
     assert.match(filterTabHtml, /class="filter-power-toggle active" data-filter-power="hpf">ON<\/button>/);
+    assert.match(utilityTabHtml, /<span class="param-name">LP Cutoff Mod<\/span>/);
+    assert.match(utilityTabHtml, /<span class="param-name">LP Resonance Mod<\/span>/);
+    assert.match(utilityTabHtml, /<span class="param-name">HP Cutoff Mod<\/span>/);
+    assert.match(utilityTabHtml, /<span class="param-name">HP Resonance Mod<\/span>/);
 });
 
 test('filter LFO routes are randomizable and preset-compatible', () => {

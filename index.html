@@ -2794,12 +2794,6 @@
                                 <button class="slope-toggle active" data-filter="lpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="lpf" data-slope="24" data-poles="4">4P</button>
                             </div>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="lpfCutoffValue">2800Hz</span>
                         </label>
                         <input type="range" id="lpfCutoff" min="80" max="12000" value="2800" step="1">
@@ -2807,12 +2801,6 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">LPF Resonance</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="lpfQ" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="lpfQ" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="lpfQValue">0.6</span>
                         </label>
                         <input type="range" id="lpfQ" min="0.1" max="2.5" value="0.6" step="0.1">
@@ -2825,12 +2813,6 @@
                                 <button class="slope-toggle active" data-filter="hpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="hpf" data-slope="24" data-poles="4">4P</button>
                             </div>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="hpfCutoffValue">20Hz</span>
                         </label>
                         <input type="range" id="hpfCutoff" min="20" max="5000" value="20" step="1">
@@ -2838,12 +2820,6 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">HPF Resonance</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="hpfQ" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="hpfQ" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="hpfQValue">0.4</span>
                         </label>
                         <input type="range" id="hpfQ" min="0.1" max="2.5" value="0.4" step="0.1">
@@ -3191,6 +3167,50 @@
                     </div>
                     <div class="control-group">
                         <button id="randomizeBtn">Randomize</button>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">LP Cutoff Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2">INV</button>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">LP Resonance Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="lpfQ" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="lpfQ" data-lfo="2">INV</button>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">HP Cutoff Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2">INV</button>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">HP Resonance Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="hpfQ" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="hpfQ" data-lfo="2">INV</button>
+                            </div>
+                        </label>
                     </div>
                     <div class="control-group">
                         <label>
