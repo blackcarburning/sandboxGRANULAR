@@ -4032,7 +4032,7 @@
         let autoMakeupBaseEnabled = true;
         let autoMakeupRuntimeEnabled = true;
         let manualPostFilterGainDb = 0;
-        let filterEnvelopeState = null;
+        let filterEnvelopeStates = new Map();
         let oscOutputGain = null; // Controls overall oscillator level
         let granularOutputGain = null; // Controls overall granular level
         
@@ -6500,7 +6500,7 @@
         }
 
         function getFilterEnvelopeCutoff(baseCutoff, now) {
-            if (!filterEnvelopeState || !lpfEnabled || lpfNodes.length === 0) {
+            if (filterEnvelopeStates.size === 0 || !lpfEnabled || lpfNodes.length === 0) {
                 return baseCutoff;
             }
 
@@ -6509,17 +6509,26 @@
                 return baseCutoff;
             }
 
-            let envelopeLevel = getFilterEnvelopeLevelAtElapsed(now - filterEnvelopeState.startTime, settings);
+            let envelopeLevel = 0;
+            filterEnvelopeStates.forEach((state, envelopeId) => {
+                let stateLevel = getFilterEnvelopeLevelAtElapsed(now - state.startTime, settings);
 
-            if (filterEnvelopeState.releaseStartedAt !== null) {
-                const releaseDuration = Math.max(0.001, Number(settings.release) || 0.001);
-                const releaseElapsed = Math.max(0, now - filterEnvelopeState.releaseStartedAt);
-                const releaseLevel = Math.max(0, Math.min(1, Number(filterEnvelopeState.releaseLevel) || 0));
-                if (releaseElapsed >= releaseDuration) {
-                    filterEnvelopeState = null;
-                    return baseCutoff;
+                if (state.releaseStartedAt !== null) {
+                    const releaseDuration = Math.max(0.001, Number(settings.release) || 0.001);
+                    const releaseElapsed = Math.max(0, now - state.releaseStartedAt);
+                    const releaseLevel = Math.max(0, Math.min(1, Number(state.releaseLevel) || 0));
+                    if (releaseElapsed >= releaseDuration) {
+                        filterEnvelopeStates.delete(envelopeId);
+                        return;
+                    }
+                    stateLevel = releaseLevel * (1 - (releaseElapsed / releaseDuration));
                 }
-                envelopeLevel = releaseLevel * (1 - (releaseElapsed / releaseDuration));
+
+                envelopeLevel = Math.max(envelopeLevel, stateLevel);
+            });
+
+            if (envelopeLevel <= 0) {
+                return baseCutoff;
             }
 
             const maxCutoff = 9000;
@@ -6529,13 +6538,13 @@
 
         // --- Filter Envelope ---
         function applyFilterEnvelope(envelopeId, startTime, duration) {
-            filterEnvelopeState = {
+            filterEnvelopeStates.set(envelopeId, {
                 envelopeId,
                 startTime,
                 duration,
                 releaseStartedAt: null,
                 releaseLevel: null
-            };
+            });
             if (audioContext && audioContext.state === 'running') {
                 updateEffects();
             }
@@ -6936,7 +6945,8 @@
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
-                if (filterEnvelopeState && filterEnvelopeState.envelopeId === streamId) {
+                const filterEnvelopeState = filterEnvelopeStates.get(streamId);
+                if (filterEnvelopeState) {
                     filterEnvelopeState.releaseStartedAt = now;
                     filterEnvelopeState.releaseLevel = getFilterEnvelopeLevelAtElapsed(
                         now - filterEnvelopeState.startTime,
@@ -6960,6 +6970,7 @@
                 if (role && grain.role !== role) return;
                 grain.cancel();
                 activeGrains.delete(streamId);
+                filterEnvelopeStates.delete(streamId);
             });
 
             if (stoppedKeyboard) {
