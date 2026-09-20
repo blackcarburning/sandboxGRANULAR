@@ -2684,6 +2684,7 @@
                 <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
+                <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
@@ -10048,7 +10049,15 @@
                     lpf: lpfEnabled,
                     hpf: hpfEnabled
                 },
-                requiresSampleReload: Boolean(audioBuffer)
+                generatedSampleSolo: generatedSampleSolo,
+                samples: {
+                    embedded: false,
+                    note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
+                    hasGeneratedSample: Boolean(generatedLoopBuffer),
+                    hasMicSample: Boolean(micAudioBuffer),
+                    hasLegacySample: Boolean(audioBuffer)
+                },
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -11479,6 +11488,7 @@
         const performancePulseWidth = document.getElementById('performancePulseWidth');
         const performanceExportBars = document.getElementById('performanceExportBars');
         const performanceExportBtn = document.getElementById('performanceExportBtn');
+        const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         let performanceGenerateStateTimer = null;
@@ -11957,6 +11967,10 @@
                 console.error(error);
                 setStatus(`Export failed: ${error.message}`, 'error');
             }
+        });
+
+        performanceExportPatchBtn?.addEventListener('click', () => {
+            document.getElementById('savePresetBtn')?.click();
         });
 
         performanceSeqPlayBtn?.addEventListener('click', () => {
