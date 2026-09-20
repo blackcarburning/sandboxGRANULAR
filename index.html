@@ -382,10 +382,24 @@
         }
 
         .source-advanced-panel summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
             cursor: pointer;
             color: #edf7ff;
             font-weight: 700;
             list-style: none;
+        }
+
+        .source-advanced-panel summary::after {
+            content: '▸';
+            color: var(--accent);
+            font-size: 0.95em;
+        }
+
+        .source-advanced-panel[open] summary::after {
+            content: '▾';
         }
 
         .source-advanced-panel summary::-webkit-details-marker {
@@ -5690,7 +5704,11 @@
 
         sourceAdvancedPanel?.addEventListener('toggle', () => {
             if (sourceAdvancedPanel.open) {
-                drawWaveform();
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        drawWaveform();
+                    });
+                });
             }
         });
 
