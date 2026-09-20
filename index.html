@@ -442,6 +442,20 @@
             user-select: none;
         }
 
+        .utility-route-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 8px;
+            color: #aaa;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .utility-route-group .param-name {
+            flex: 1;
+        }
+
         .control-group .button-group {
             display: flex;
             gap: 2px;
@@ -2794,12 +2808,6 @@
                                 <button class="slope-toggle active" data-filter="lpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="lpf" data-slope="24" data-poles="4">4P</button>
                             </div>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="lpfCutoffValue">2800Hz</span>
                         </label>
                         <input type="range" id="lpfCutoff" min="80" max="12000" value="2800" step="1">
@@ -2807,12 +2815,6 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">LPF Resonance</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="lpfQ" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="lpfQ" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="lpfQValue">0.6</span>
                         </label>
                         <input type="range" id="lpfQ" min="0.1" max="2.5" value="0.6" step="0.1">
@@ -2825,12 +2827,6 @@
                                 <button class="slope-toggle active" data-filter="hpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="hpf" data-slope="24" data-poles="4">4P</button>
                             </div>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="hpfCutoffValue">20Hz</span>
                         </label>
                         <input type="range" id="hpfCutoff" min="20" max="5000" value="20" step="1">
@@ -2838,12 +2834,6 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">HPF Resonance</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="hpfQ" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="hpfQ" data-lfo="2">INV</button>
-                            </div>
                             <span class="value" id="hpfQValue">0.4</span>
                         </label>
                         <input type="range" id="hpfQ" min="0.1" max="2.5" value="0.4" step="0.1">
@@ -2946,16 +2936,9 @@
 
                     <!-- Auto Makeup Checkbox -->
                     <div class="control-group">
-                        <label style="justify-content: flex-start; gap: 8px; flex-wrap: wrap;">
+                        <label style="justify-content: flex-start; gap: 8px;">
                             <input type="checkbox" id="autoMakeupGain" checked>
                             <span class="param-name">Auto Makeup</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="autoMakeupGain" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="autoMakeupGain" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="autoMakeupGain" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="autoMakeupGain" data-lfo="2">INV</button>
-                            </div>
-                            <span class="value" id="autoMakeupGainValue">ON</span>
                         </label>
                     </div>
                 </div>
@@ -3198,6 +3181,50 @@
                     </div>
                     <div class="control-group">
                         <button id="randomizeBtn">Randomize</button>
+                    </div>
+                    <div class="control-group">
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityLpfCutoffModLabel">
+                            <span class="param-name" id="utilityLpfCutoffModLabel">LP Cutoff Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1" aria-label="Route LFO1 to low-pass cutoff">L1</button>
+                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1" aria-label="Invert LFO1 modulation for low-pass cutoff">INV</button>
+                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2" aria-label="Route LFO2 to low-pass cutoff">L2</button>
+                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2" aria-label="Invert LFO2 modulation for low-pass cutoff">INV</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityLpfResonanceModLabel">
+                            <span class="param-name" id="utilityLpfResonanceModLabel">LP Resonance Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="1" aria-label="Route LFO1 to low-pass resonance">L1</button>
+                                <button class="inv-toggle" data-param="lpfQ" data-lfo="1" aria-label="Invert LFO1 modulation for low-pass resonance">INV</button>
+                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="2" aria-label="Route LFO2 to low-pass resonance">L2</button>
+                                <button class="inv-toggle" data-param="lpfQ" data-lfo="2" aria-label="Invert LFO2 modulation for low-pass resonance">INV</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityHpfCutoffModLabel">
+                            <span class="param-name" id="utilityHpfCutoffModLabel">HP Cutoff Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1" aria-label="Route LFO1 to high-pass cutoff">L1</button>
+                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1" aria-label="Invert LFO1 modulation for high-pass cutoff">INV</button>
+                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2" aria-label="Route LFO2 to high-pass cutoff">L2</button>
+                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2" aria-label="Invert LFO2 modulation for high-pass cutoff">INV</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="utility-route-group" role="group" aria-labelledby="utilityHpfResonanceModLabel">
+                            <span class="param-name" id="utilityHpfResonanceModLabel">HP Resonance Mod</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="1" aria-label="Route LFO1 to high-pass resonance">L1</button>
+                                <button class="inv-toggle" data-param="hpfQ" data-lfo="1" aria-label="Invert LFO1 modulation for high-pass resonance">INV</button>
+                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="2" aria-label="Route LFO2 to high-pass resonance">L2</button>
+                                <button class="inv-toggle" data-param="hpfQ" data-lfo="2" aria-label="Invert LFO2 modulation for high-pass resonance">INV</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="control-group">
                         <label>
@@ -4029,10 +4056,6 @@
         let tremoloLFOGain = null;
         let makeupGain = null; // Compensation for filter losses
         let preFilterGainNode = null; // Pre-filter gain control
-        let autoMakeupBaseEnabled = true;
-        let autoMakeupRuntimeEnabled = true;
-        let manualPostFilterGainDb = 0;
-        let filterEnvelopeStates = new Map();
         let oscOutputGain = null; // Controls overall oscillator level
         let granularOutputGain = null; // Controls overall granular level
         
@@ -4429,9 +4452,6 @@
             filterEnvDecay: { min: 1, max: 5000 },
             filterEnvSustain: { min: 0, max: 100 },
             filterEnvRelease: { min: 1, max: 5000 },
-            preFilterGain: { min: -24, max: 6 },
-            postFilterGain: { min: -24, max: 12 },
-            autoMakeupGain: { min: 0, max: 1 },
             noiseMix: { min: 0, max: 100 },
             distortion: { min: 0, max: 100 },
             phaserRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
@@ -4440,6 +4460,8 @@
             tremoloDepth: { min: 0, max: 100 },
             delayFeedback: { min: 0, max: 100 },
             delayMix: { min: 0, max: 100 },
+            preFilterGain: { min: -24, max: 6 },
+            postFilterGain: { min: -24, max: 12 },
             lfoRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo2Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo3Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
@@ -4451,8 +4473,7 @@
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
             'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ',
             'filterEnvAmount', 'filterEnvAttack', 'filterEnvDecay', 'filterEnvSustain', 'filterEnvRelease',
-            'preFilterGain', 'postFilterGain', 'autoMakeupGain',
-            'noiseMix', 'reverb',
+            'preFilterGain', 'postFilterGain', 'noiseMix', 'reverb',
             'volume', 'distortion', 'phaserRate', 'phaserDepth', 'tremoloRate', 'tremoloDepth',
             'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
             'lfo3Rate', 'lfo3Depth', 'panSpread'
@@ -4937,74 +4958,46 @@
             }
         }
 
-        function getSliderStepValue(paramId) {
+        function getModulatedValue(paramId) {
             const slider = document.getElementById(paramId);
-            const step = Number(slider?.step);
-            return Number.isFinite(step) && step > 0 ? step : null;
-        }
-
-        function getModulatedValue(paramId, options = {}) {
-            const slider = document.getElementById(paramId);
-            const hasBaseValue = Object.prototype.hasOwnProperty.call(options, 'baseValue');
-            const range = options.range || paramRanges[paramId];
-            const baseValue = hasBaseValue ? Number(options.baseValue) : Number(slider?.value);
-
-            if (!Number.isFinite(baseValue)) {
-                return 0;
-            }
+            if (!slider) return 0;
+            
+            const baseValue = parseFloat(slider.value);
             if (DISABLED_LOOP_START_LFO_PARAMS.has(paramId)) {
                 return baseValue;
             }
-            if (!hasBaseValue && !slider) {
-                return 0;
-            }
-            if (!range) {
-                return baseValue;
-            }
-
-            const hasRoute = Boolean(lfoEnabled[paramId] || lfo2Enabled[paramId] || lfo3Enabled[paramId]);
-            if (!hasRoute) {
-                return baseValue;
-            }
-
-            const contributions = [
-                {
-                    enabled: lfoEnabled[paramId],
-                    inverted: lfoInverted[paramId],
-                    value: getLFOValue(),
-                    scale: getLfoModulationScale(paramId)
-                },
-                {
-                    enabled: lfo2Enabled[paramId],
-                    inverted: lfo2Inverted[paramId],
-                    value: getLFOValue2(),
-                    scale: getLfoModulationScale(paramId)
-                },
-                {
-                    enabled: lfo3Enabled[paramId],
-                    inverted: lfo3Inverted[paramId],
-                    value: getLFOValue3(),
-                    scale: getLfoModulationScale(paramId)
-                }
-            ];
-
-            if (typeof mygrainUtils.resolveModulatedValue === 'function') {
-                return mygrainUtils.resolveModulatedValue({
-                    baseValue,
-                    min: range.min,
-                    max: range.max,
-                    step: options.step,
-                    allowedValues: options.allowedValues,
-                    contributions
-                });
-            }
-
+            
+            // Calculate total modulation from both LFOs
+            let totalOffset = 0;
+            const range = paramRanges[paramId];
             const rangeSize = range.max - range.min;
-            const totalOffset = contributions.reduce((sum, contribution) => {
-                if (!contribution.enabled) return sum;
-                const direction = contribution.inverted ? -1 : 1;
-                return sum + (direction * contribution.value * rangeSize * contribution.scale);
-            }, 0);
+            
+            // Apply LFO1 if enabled
+            if (lfoEnabled[paramId]) {
+                const lfoValue = getLFOValue();
+                const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
+                totalOffset += invertedLFO * rangeSize * getLfoModulationScale(paramId);
+            }
+            
+            // Apply LFO2 if enabled
+            if (lfo2Enabled[paramId]) {
+                const lfo2Value = getLFOValue2();
+                const invertedLFO2 = lfo2Inverted[paramId] ? -lfo2Value : lfo2Value;
+                totalOffset += invertedLFO2 * rangeSize * getLfoModulationScale(paramId);
+            }
+            
+            // Apply LFO3 if enabled (for panSpread/stereo modulation)
+            if (lfo3Enabled[paramId]) {
+                const lfo3Value = getLFOValue3();
+                const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
+                totalOffset += invertedLFO3 * rangeSize * getLfoModulationScale(paramId);
+            }
+            
+            // If no LFOs are enabled, return base value
+            if (!lfoEnabled[paramId] && !lfo2Enabled[paramId] && !lfo3Enabled[paramId]) {
+                return baseValue;
+            }
+            
             const modulated = baseValue + totalOffset;
             return Math.max(range.min, Math.min(range.max, modulated));
         }
@@ -5335,7 +5328,15 @@
             configureHPFSlope(12);
 
             // Initialize auto makeup gain based on default filter slopes
-            setAutoMakeupGainEnabled(autoMakeupBaseEnabled, { fromModulation: true });
+            if (document.getElementById('autoMakeupGain')?.checked) {
+                const autoGain = calculateAutoMakeupGain();
+                if (makeupGain) {
+                    makeupGain.gain.value = autoGain;
+                }
+                const dbValue = 20 * Math.log10(autoGain);
+                document.getElementById('postFilterGain').value = dbValue;
+                document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
+            }
 
             updateEffects();
         }
@@ -5475,43 +5476,17 @@
             
             const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
-            const autoMakeupEnabled = getModulatedValue('autoMakeupGain', {
-                baseValue: autoMakeupBaseEnabled ? 1 : 0,
-                range: paramRanges.autoMakeupGain,
-                allowedValues: [0, 1]
-            }) >= 1;
-            if (autoMakeupRuntimeEnabled !== autoMakeupEnabled) {
-                autoMakeupRuntimeEnabled = autoMakeupEnabled;
-                syncAutoMakeupGainValueLabel(autoMakeupEnabled);
-            }
-
+            
             // Dry/Wet gains
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.4));
             smoothRamp(wetGainNode.gain, reverbAmt);
             
             // Master gain
             smoothRamp(masterGain.gain, Math.min(1, volAmt));
-
-            if (preFilterGainNode) {
-                const preFilterGainDb = getModulatedValue('preFilterGain', { step: getSliderStepValue('preFilterGain') || 0.5 });
-                smoothRamp(preFilterGainNode.gain, dbToLinear(preFilterGainDb));
-            }
-
-            if (makeupGain) {
-                const postFilterGainBaseDb = autoMakeupEnabled
-                    ? resolveAutoMakeupGainDb()
-                    : Number(document.getElementById('postFilterGain')?.value ?? 0);
-                const postFilterGainDb = getModulatedValue('postFilterGain', {
-                    baseValue: postFilterGainBaseDb,
-                    range: paramRanges.postFilterGain,
-                    step: getSliderStepValue('postFilterGain') || 0.5
-                });
-                smoothRamp(makeupGain.gain, dbToLinear(postFilterGainDb));
-            }
-
+            
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
-                const lpfCutoff = getFilterEnvelopeCutoff(getModulatedValue('lpfCutoff'), now);
+                const lpfCutoff = getModulatedValue('lpfCutoff');
                 const lpfQ = clampFilterQ(getModulatedValue('lpfQ'));
                 lpfNodes.forEach(node => {
                     smoothRamp(node.frequency, lpfCutoff);
@@ -5526,6 +5501,16 @@
                     smoothRamp(node.frequency, hpfCutoff);
                     smoothRamp(node.Q, hpfQ);
                 });
+            }
+
+            if (preFilterGainNode) {
+                const preFilterGainDb = getDbControlValue('preFilterGain', 0, -24, 6, { modulated: true });
+                smoothRamp(preFilterGainNode.gain, dbToLinear(preFilterGainDb));
+            }
+
+            if (makeupGain && !document.getElementById('autoMakeupGain')?.checked) {
+                const postFilterGainDb = getDbControlValue('postFilterGain', 0, -24, 12, { modulated: true });
+                smoothRamp(makeupGain.gain, dbToLinear(postFilterGainDb));
             }
             
             // Delay parameters
@@ -5700,9 +5685,9 @@
             return generatedDryMix;
         }
 
-        function getDbControlValue(id, fallback, min, max) {
+        function getDbControlValue(id, fallback, min, max, options = {}) {
             const slider = document.getElementById(id);
-            const rawValue = Number(slider?.value ?? fallback);
+            const rawValue = options.modulated ? getModulatedValue(id) : Number(slider?.value ?? fallback);
             return Math.max(min, Math.min(max, Number.isFinite(rawValue) ? rawValue : fallback));
         }
 
@@ -6471,83 +6456,42 @@
             return Boolean(audioContext && masterGain && oscOutputGain && granularOutputGain);
         }
 
-        function getCurrentFilterEnvelopeSettings() {
-            return {
-                amount: getModulatedValue('filterEnvAmount', { step: getSliderStepValue('filterEnvAmount') || 1 }) / 100,
-                attack: getModulatedValue('filterEnvAttack', { step: getSliderStepValue('filterEnvAttack') || 1 }) / 1000,
-                decay: getModulatedValue('filterEnvDecay', { step: getSliderStepValue('filterEnvDecay') || 1 }) / 1000,
-                sustain: getModulatedValue('filterEnvSustain', { step: getSliderStepValue('filterEnvSustain') || 1 }) / 100,
-                release: getModulatedValue('filterEnvRelease', { step: getSliderStepValue('filterEnvRelease') || 1 }) / 1000
-            };
-        }
-
-        function getFilterEnvelopeLevelAtElapsed(elapsedSeconds, settings) {
-            const safeElapsed = Math.max(0, Number(elapsedSeconds) || 0);
-            const attack = Math.max(0.001, Number(settings?.attack) || 0.001);
-            const decay = Math.max(0.001, Number(settings?.decay) || 0.001);
-            const sustain = Math.max(0, Math.min(1, Number(settings?.sustain) || 0));
-
-            if (safeElapsed <= attack) {
-                return Math.max(0, Math.min(1, safeElapsed / attack));
-            }
-
-            if (safeElapsed <= attack + decay) {
-                const decayProgress = (safeElapsed - attack) / decay;
-                return 1 - ((1 - sustain) * Math.max(0, Math.min(1, decayProgress)));
-            }
-
-            return sustain;
-        }
-
-        function getFilterEnvelopeCutoff(baseCutoff, now) {
-            if (filterEnvelopeStates.size === 0 || !lpfEnabled || lpfNodes.length === 0) {
-                return baseCutoff;
-            }
-
-            const settings = getCurrentFilterEnvelopeSettings();
-            if (settings.amount <= 0) {
-                return baseCutoff;
-            }
-
-            let envelopeLevel = 0;
-            filterEnvelopeStates.forEach((state, envelopeId) => {
-                let stateLevel = getFilterEnvelopeLevelAtElapsed(now - state.startTime, settings);
-
-                if (state.releaseStartedAt !== null) {
-                    const releaseDuration = Math.max(0.001, Number(settings.release) || 0.001);
-                    const releaseElapsed = Math.max(0, now - state.releaseStartedAt);
-                    const releaseLevel = Math.max(0, Math.min(1, Number(state.releaseLevel) || 0));
-                    if (releaseElapsed >= releaseDuration) {
-                        filterEnvelopeStates.delete(envelopeId);
-                        return;
-                    }
-                    stateLevel = releaseLevel * (1 - (releaseElapsed / releaseDuration));
-                }
-
-                envelopeLevel = Math.max(envelopeLevel, stateLevel);
-            });
-
-            if (envelopeLevel <= 0) {
-                return baseCutoff;
-            }
-
-            const maxCutoff = 9000;
-            const envelopedCutoff = baseCutoff + (settings.amount * Math.max(0, maxCutoff - baseCutoff) * envelopeLevel);
-            return Math.min(12000, Math.max(paramRanges.lpfCutoff.min, envelopedCutoff));
-        }
-
         // --- Filter Envelope ---
-        function applyFilterEnvelope(envelopeId, startTime, duration) {
-            filterEnvelopeStates.set(envelopeId, {
-                envelopeId,
-                startTime,
-                duration,
-                releaseStartedAt: null,
-                releaseLevel: null
+        function applyFilterEnvelope(note, startTime, duration) {
+            const filterEnvAmount = clampToSliderBounds('filterEnvAmount', getModulatedValue('filterEnvAmount')) / 100;
+            const attack = clampToSliderBounds('filterEnvAttack', getModulatedValue('filterEnvAttack')) / 1000;
+            const decay = clampToSliderBounds('filterEnvDecay', getModulatedValue('filterEnvDecay')) / 1000;
+            const sustain = clampToSliderBounds('filterEnvSustain', getModulatedValue('filterEnvSustain')) / 100;
+            const release = clampToSliderBounds('filterEnvRelease', getModulatedValue('filterEnvRelease')) / 1000;
+            if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return release;
+
+            const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
+            const maxCutoff = 9000;
+            const envelopedCutoff = baseCutoff + (filterEnvAmount * (maxCutoff - baseCutoff));
+
+            const now = startTime;
+            const peakTime = now + attack;
+            const sustainTime = now + attack + decay;
+            const releaseStart = now + duration;
+            const releaseEnd = releaseStart + release;
+
+            lpfNodes.forEach(node => {
+                // Cancel any previous scheduled values
+                node.frequency.cancelScheduledValues(now);
+                // Set initial value to base cutoff
+                node.frequency.setValueAtTime(baseCutoff, now);
+                // Attack phase: rise to enveloped cutoff
+                node.frequency.linearRampToValueAtTime(envelopedCutoff, peakTime);
+                // Decay phase: fall to sustain level
+                const sustainCutoff = baseCutoff + ((envelopedCutoff - baseCutoff) * sustain);
+                node.frequency.linearRampToValueAtTime(sustainCutoff, sustainTime);
+                // Hold at sustain
+                node.frequency.setValueAtTime(sustainCutoff, releaseStart);
+                // Release phase: return to base cutoff
+                node.frequency.linearRampToValueAtTime(baseCutoff, releaseEnd);
             });
-            if (audioContext && audioContext.state === 'running') {
-                updateEffects();
-            }
+
+            return release;
         }
 
         // --- Granular Engine ---
@@ -6911,6 +6855,7 @@
                 continuousLoop: options.continuousLoop ?? role === 'keyboard',
                 cancel: () => {},
                 startTime: grainState.startTime,
+                filterEnvRelease: 0,
                 get nextTime() {
                     return grainState.nextTime;
                 },
@@ -6925,7 +6870,11 @@
             // Apply filter envelope when note starts
             // Use a long duration (60 seconds) to allow envelope to sustain until note is released
             const FILTER_ENVELOPE_MAX_DURATION = 60;
-            applyFilterEnvelope(streamId, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
+            const filterEnvRelease = applyFilterEnvelope(note, grainState.startTime, FILTER_ENVELOPE_MAX_DURATION);
+            const grainInfo = activeGrains.get(streamId);
+            if (grainInfo) {
+                grainInfo.filterEnvRelease = filterEnvRelease;
+            }
             scheduleActiveGrains();
         }
 
@@ -6945,14 +6894,17 @@
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
-                const filterEnvelopeState = filterEnvelopeStates.get(streamId);
-                if (filterEnvelopeState) {
-                    filterEnvelopeState.releaseStartedAt = now;
-                    filterEnvelopeState.releaseLevel = getFilterEnvelopeLevelAtElapsed(
-                        now - filterEnvelopeState.startTime,
-                        getCurrentFilterEnvelopeSettings()
-                    );
-                    updateEffects();
+                const filterRelease = Number.isFinite(grainInfo.filterEnvRelease)
+                    ? grainInfo.filterEnvRelease
+                    : parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+                const baseCutoff = getModulatedValue('lpfCutoff');
+                
+                if (lpfEnabled && lpfNodes.length > 0) {
+                    lpfNodes.forEach(node => {
+                        node.frequency.cancelScheduledValues(now);
+                        node.frequency.setValueAtTime(node.frequency.value, now);
+                        node.frequency.linearRampToValueAtTime(baseCutoff, now + filterRelease);
+                    });
                 }
                 
                 activeGrains.delete(streamId);
@@ -6970,7 +6922,6 @@
                 if (role && grain.role !== role) return;
                 grain.cancel();
                 activeGrains.delete(streamId);
-                filterEnvelopeStates.delete(streamId);
             });
 
             if (stoppedKeyboard) {
@@ -7794,77 +7745,6 @@
         let lpfSlope = 12;  // Default 12db/octave
         let hpfSlope = 12;  // Default 12db/octave
 
-        function syncAutoMakeupGainValueLabel(enabled = autoMakeupRuntimeEnabled) {
-            const label = document.getElementById('autoMakeupGainValue');
-            if (label) {
-                label.textContent = enabled ? 'ON' : 'OFF';
-            }
-        }
-
-        function resolveAutoMakeupGainDb(baseValue = document.getElementById('postFilterGain')?.value ?? 0) {
-            const autoGain = calculateAutoMakeupGain();
-            if (typeof mygrainUtils.resolveFilterMakeupGainDb === 'function') {
-                return mygrainUtils.resolveFilterMakeupGainDb({
-                    baseValue,
-                    autoEnabled: true,
-                    autoGainLinear: autoGain,
-                    min: paramRanges.postFilterGain.min,
-                    max: paramRanges.postFilterGain.max
-                });
-            }
-            const autoDb = 20 * Math.log10(autoGain);
-            return Math.max(paramRanges.postFilterGain.min, Math.min(paramRanges.postFilterGain.max, autoDb));
-        }
-
-        function setAutoMakeupGainEnabled(enabled, options = {}) {
-            const shouldEnable = Boolean(enabled);
-            const checkbox = document.getElementById('autoMakeupGain');
-            const wasEnabled = checkbox?.checked;
-            if (shouldEnable && !wasEnabled) {
-                const sliderValue = Number(document.getElementById('postFilterGain')?.value);
-                if (Number.isFinite(sliderValue)) {
-                    manualPostFilterGainDb = sliderValue;
-                }
-            }
-            if (checkbox) {
-                checkbox.checked = shouldEnable;
-            }
-            if (!options.fromModulation) {
-                autoMakeupBaseEnabled = shouldEnable;
-            }
-            autoMakeupRuntimeEnabled = shouldEnable;
-            syncAutoMakeupGainValueLabel(shouldEnable);
-
-            if (shouldEnable) {
-                const autoGain = calculateAutoMakeupGain();
-                const dbValue = resolveAutoMakeupGainDb();
-                if (makeupGain) {
-                    if (audioContext && audioContext.state === 'running') {
-                        const now = audioContext.currentTime;
-                        makeupGain.gain.cancelScheduledValues(now);
-                        makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
-                        makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
-                    } else {
-                        makeupGain.gain.value = autoGain;
-                    }
-                }
-                document.getElementById('postFilterGain').value = dbValue;
-                document.getElementById('postFilterGainValue').textContent = `${dbValue >= 0 ? '+' : ''}${dbValue.toFixed(1)}dB`;
-            } else {
-                const safeManualDb = Number.isFinite(manualPostFilterGainDb) ? manualPostFilterGainDb : 0;
-                document.getElementById('postFilterGain').value = safeManualDb;
-                document.getElementById('postFilterGainValue').textContent = formatDb(safeManualDb);
-                if (makeupGain && audioContext && audioContext.state === 'running') {
-                    const now = audioContext.currentTime;
-                    makeupGain.gain.cancelScheduledValues(now);
-                    makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
-                    makeupGain.gain.linearRampToValueAtTime(dbToLinear(safeManualDb), now + 0.05);
-                } else if (makeupGain) {
-                    makeupGain.gain.value = dbToLinear(safeManualDb);
-                }
-            }
-        }
-
         function refreshAutoMakeupGain() {
             if (!document.getElementById('autoMakeupGain')?.checked) return;
 
@@ -7875,7 +7755,7 @@
                 makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
                 makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
             }
-            const dbValue = resolveAutoMakeupGainDb();
+            const dbValue = 20 * Math.log10(autoGain);
             const sign = dbValue >= 0 ? '+' : '';
             document.getElementById('postFilterGain').value = dbValue;
             document.getElementById('postFilterGainValue').textContent = `${sign}${dbValue.toFixed(1)}dB`;
@@ -8234,9 +8114,6 @@
 
         function setPostFilterGainDb(dbValue, options = {}) {
             const safeDb = Math.max(-24, Math.min(12, Number(dbValue) || 0));
-            if (!document.getElementById('autoMakeupGain').checked || options.forceManual === true) {
-                manualPostFilterGainDb = safeDb;
-            }
             const slider = document.getElementById('postFilterGain');
             if (slider && slider.value !== String(safeDb)) slider.value = String(safeDb);
             const isAutoMakeupDisabled = !document.getElementById('autoMakeupGain').checked;
@@ -8260,8 +8137,20 @@
 
         // Auto Makeup Checkbox
         document.getElementById('autoMakeupGain').addEventListener('change', (e) => {
-            setAutoMakeupGainEnabled(e.target.checked);
-            saveState();
+            if (e.target.checked) {
+                // Apply auto makeup gain
+                const autoGain = calculateAutoMakeupGain();
+                if (makeupGain && audioContext) {
+                    const now = audioContext.currentTime;
+                    makeupGain.gain.cancelScheduledValues(now);
+                    makeupGain.gain.setValueAtTime(makeupGain.gain.value, now);
+                    makeupGain.gain.linearRampToValueAtTime(autoGain, now + 0.05);
+                }
+                // Update slider to reflect auto value
+                const dbValue = 20 * Math.log10(autoGain);
+                document.getElementById('postFilterGain').value = dbValue;
+                document.getElementById('postFilterGainValue').textContent = `+${dbValue.toFixed(1)}dB`;
+            }
         });
 
         // --- SEQ Tab Controls ---
@@ -9729,8 +9618,6 @@
                 filterEnvDecay: 200,
                 filterEnvSustain: 50,
                 filterEnvRelease: 100,
-                preFilterGain: 0,
-                postFilterGain: 0,
                 noiseMix: 0,
                 reverb: 20,
                 distortion: 0,
@@ -9768,13 +9655,11 @@
                     slider.dispatchEvent(new Event('input'));
                 }
             });
-            manualPostFilterGainDb = Number(defaults.postFilterGain) || 0;
 
             setFilterEnabled('lpf', true);
             setFilterEnabled('hpf', true);
             setFilterPoles('lpf', 2);
             setFilterPoles('hpf', 2);
-            setAutoMakeupGainEnabled(true);
             setFxMuted(false, { silent: true });
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
@@ -9881,7 +9766,6 @@
                 fxMuted: fxMuted,
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
-                autoMakeupGainEnabled: autoMakeupBaseEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
                 filterPoles: {
@@ -9946,9 +9830,6 @@
                         slider.dispatchEvent(new Event('input'));
                     }
                 });
-                if (normalizedSliders.postFilterGain !== undefined) {
-                    manualPostFilterGainDb = Number(normalizedSliders.postFilterGain) || 0;
-                }
             }
             
             // Apply dropdown values
@@ -9986,10 +9867,6 @@
             if (safePreset.filterEnabled) {
                 setFilterEnabled('lpf', safePreset.filterEnabled.lpf !== false);
                 setFilterEnabled('hpf', safePreset.filterEnabled.hpf !== false);
-            }
-            const importedAutoMakeupGainEnabled = safePreset.autoMakeupGainEnabled ?? preset.autoMakeupGainEnabled;
-            if (importedAutoMakeupGainEnabled !== undefined) {
-                setAutoMakeupGainEnabled(importedAutoMakeupGainEnabled);
             }
             if (safePreset.generatedSourceLowNoiseMode !== undefined) {
                 setGeneratedSourceLowNoiseMode(safePreset.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
@@ -10382,7 +10259,6 @@
                     fxMuted: fxMuted,
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
-                    autoMakeupGainEnabled: autoMakeupBaseEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
                     lpfSlope: lpfSlope,
@@ -10472,9 +10348,6 @@
                             slider.dispatchEvent(new Event('input'));
                         }
                     });
-                    if (normalizedStateSliders.postFilterGain !== undefined) {
-                        manualPostFilterGainDb = Number(normalizedStateSliders.postFilterGain) || 0;
-                    }
                 }
 
                 // Restore select values
@@ -10509,9 +10382,6 @@
                     }
                     if (state.modes.hpfEnabled !== undefined) {
                         setFilterEnabled('hpf', state.modes.hpfEnabled);
-                    }
-                    if (state.modes.autoMakeupGainEnabled !== undefined) {
-                        setAutoMakeupGainEnabled(state.modes.autoMakeupGainEnabled);
                     }
                     if (state.modes.fxMuted !== undefined) {
                         setFxMuted(state.modes.fxMuted, { silent: true });
