@@ -2851,6 +2851,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Amount</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvAmount" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvAmount" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvAmount" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvAmount" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvAmountValue">0%</span>
                         </label>
                         <input type="range" id="filterEnvAmount" min="0" max="100" value="0" step="1">
@@ -2858,6 +2864,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Attack</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvAttack" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvAttack" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvAttack" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvAttack" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvAttackValue">10ms</span>
                         </label>
                         <input type="range" id="filterEnvAttack" min="1" max="2000" value="10" step="1">
@@ -2865,6 +2877,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Decay</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvDecay" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvDecay" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvDecay" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvDecay" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvDecayValue">200ms</span>
                         </label>
                         <input type="range" id="filterEnvDecay" min="1" max="5000" value="200" step="1">
@@ -2872,6 +2890,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Sustain</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvSustain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvSustain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvSustain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvSustain" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvSustainValue">50%</span>
                         </label>
                         <input type="range" id="filterEnvSustain" min="0" max="100" value="50" step="1">
@@ -2879,6 +2903,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Filter Env Release</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="filterEnvRelease" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="filterEnvRelease" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="filterEnvRelease" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="filterEnvRelease" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="filterEnvReleaseValue">100ms</span>
                         </label>
                         <input type="range" id="filterEnvRelease" min="1" max="5000" value="100" step="1">
@@ -2888,6 +2918,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Pre-Filter Gain</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="preFilterGain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="preFilterGain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="preFilterGain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="preFilterGain" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="preFilterGainValue">+0.0dB</span>
                         </label>
                         <input type="range" id="preFilterGain" min="-24" max="6" value="0" step="0.5">
@@ -2897,6 +2933,12 @@
                     <div class="control-group">
                         <label>
                             <span class="param-name">Makeup Gain</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="postFilterGain" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="postFilterGain" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="postFilterGain" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="postFilterGain" data-lfo="2">INV</button>
+                            </div>
                             <span class="value" id="postFilterGainValue">+0.0dB</span>
                         </label>
                         <input type="range" id="postFilterGain" min="-24" max="12" value="0" step="0.5">
@@ -4196,9 +4238,7 @@
             'noiseMix',
             'reverb',
             'delayMix',
-            'volume',
-            'preFilterGain',
-            'postFilterGain'
+            'volume'
         ]);
         const RANDOMIZE_SKIP_SELECTS = new Set([
             'lfoWaveform',
@@ -4373,6 +4413,11 @@
             lpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
             hpfCutoff: { min: 20, max: 5000 },
             hpfQ: { min: 0.1, max: MAX_SAFE_FILTER_Q },
+            filterEnvAmount: { min: 0, max: 100 },
+            filterEnvAttack: { min: 1, max: 2000 },
+            filterEnvDecay: { min: 1, max: 5000 },
+            filterEnvSustain: { min: 0, max: 100 },
+            filterEnvRelease: { min: 1, max: 5000 },
             noiseMix: { min: 0, max: 100 },
             distortion: { min: 0, max: 100 },
             phaserRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
@@ -4381,6 +4426,8 @@
             tremoloDepth: { min: 0, max: 100 },
             delayFeedback: { min: 0, max: 100 },
             delayMix: { min: 0, max: 100 },
+            preFilterGain: { min: -24, max: 6 },
+            postFilterGain: { min: -24, max: 12 },
             lfoRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo2Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo3Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
@@ -4390,7 +4437,9 @@
         const presetToggleParams = [
             'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
-            'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ', 'noiseMix', 'reverb',
+            'pitchVar', 'grainTune', 'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ',
+            'filterEnvAmount', 'filterEnvAttack', 'filterEnvDecay', 'filterEnvSustain', 'filterEnvRelease',
+            'preFilterGain', 'postFilterGain', 'noiseMix', 'reverb',
             'volume', 'distortion', 'phaserRate', 'phaserDepth', 'tremoloRate', 'tremoloDepth',
             'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
             'lfo3Rate', 'lfo3Depth', 'panSpread'
@@ -5419,6 +5468,16 @@
                     smoothRamp(node.Q, hpfQ);
                 });
             }
+
+            if (preFilterGainNode) {
+                const preFilterGainDb = getDbControlValue('preFilterGain', 0, -24, 6, { modulated: true });
+                smoothRamp(preFilterGainNode.gain, dbToLinear(preFilterGainDb));
+            }
+
+            if (makeupGain && !document.getElementById('autoMakeupGain')?.checked) {
+                const postFilterGainDb = getDbControlValue('postFilterGain', 0, -24, 12, { modulated: true });
+                smoothRamp(makeupGain.gain, dbToLinear(postFilterGainDb));
+            }
             
             // Delay parameters
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
@@ -5592,9 +5651,9 @@
             return generatedDryMix;
         }
 
-        function getDbControlValue(id, fallback, min, max) {
+        function getDbControlValue(id, fallback, min, max, options = {}) {
             const slider = document.getElementById(id);
-            const rawValue = Number(slider?.value ?? fallback);
+            const rawValue = options.modulated ? getModulatedValue(id) : Number(slider?.value ?? fallback);
             return Math.max(min, Math.min(max, Number.isFinite(rawValue) ? rawValue : fallback));
         }
 
@@ -6365,13 +6424,13 @@
 
         // --- Filter Envelope ---
         function applyFilterEnvelope(note, startTime, duration) {
-            const filterEnvAmount = parseFloat(document.getElementById('filterEnvAmount').value) / 100;
+            const filterEnvAmount = getModulatedValue('filterEnvAmount') / 100;
             if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return;
 
-            const attack = parseFloat(document.getElementById('filterEnvAttack').value) / 1000;
-            const decay = parseFloat(document.getElementById('filterEnvDecay').value) / 1000;
-            const sustain = parseFloat(document.getElementById('filterEnvSustain').value) / 100;
-            const release = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+            const attack = getModulatedValue('filterEnvAttack') / 1000;
+            const decay = getModulatedValue('filterEnvDecay') / 1000;
+            const sustain = getModulatedValue('filterEnvSustain') / 100;
+            const release = getModulatedValue('filterEnvRelease') / 1000;
 
             const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
             const maxCutoff = 9000;
@@ -6795,7 +6854,7 @@
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
-                const filterRelease = parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
+                const filterRelease = getModulatedValue('filterEnvRelease') / 1000;
                 const baseCutoff = getModulatedValue('lpfCutoff');
                 
                 if (lpfEnabled && lpfNodes.length > 0) {
