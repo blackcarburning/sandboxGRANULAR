@@ -32,6 +32,21 @@ function countMatches(input, regex) {
     return (input.match(regex) || []).length;
 }
 
+test('default layout keeps tabbed controls section visible without simplified-ui body mode', () => {
+    assert.doesNotMatch(
+        indexHtml,
+        /<body[^>]*class="[^"]*\bsimplified-ui\b[^"]*"/i,
+        'default body should not opt into simplified-ui mode'
+    );
+    assert.match(indexHtml, /<div class="controls-section">/);
+    assert.match(indexHtml, /<div class="tab-container">/);
+    assert.match(indexHtml, /<div class="tab-content" id="utility-tab">/);
+    assert.match(indexHtml, /LP Cutoff Mod/);
+    assert.match(indexHtml, /LP Resonance Mod/);
+    assert.match(indexHtml, /HP Cutoff Mod/);
+    assert.match(indexHtml, /HP Resonance Mod/);
+});
+
 test('filter utility section hosts the four LP/HP modulation route controls without duplicating them in the filter rows', () => {
     assert.ok(filterTabHtml, 'filter tab markup should be present');
     assert.ok(utilityTabHtml, 'utility tab markup should be present');
