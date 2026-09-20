@@ -4232,6 +4232,7 @@
         let finalFxInput = null;
         let finalFxOutput = null;
         let finalDistortionNodes = [];
+        let finalDistortionTrim = null;
         let finalRingGain = null;
         let finalRingOscillator = null;
         let finalRingDepthGain = null;
@@ -5422,6 +5423,8 @@
                 node.oversample = '4x';
                 return node;
             });
+            finalDistortionTrim = audioContext.createGain();
+            finalDistortionTrim.gain.value = 0.72;
             finalRingGain = audioContext.createGain();
             finalRingGain.gain.value = 1;
             finalRingOscillator = audioContext.createOscillator();
@@ -5455,7 +5458,8 @@
             for (let i = 0; i < finalDistortionNodes.length - 1; i++) {
                 finalDistortionNodes[i].connect(finalDistortionNodes[i + 1]);
             }
-            finalDistortionNodes[finalDistortionNodes.length - 1].connect(finalRingGain);
+            finalDistortionNodes[finalDistortionNodes.length - 1].connect(finalDistortionTrim);
+            finalDistortionTrim.connect(finalRingGain);
             finalRingGain.connect(finalDelayDryGain);
             finalRingGain.connect(finalDelayNode);
             finalRingGain.connect(finalShimmerTone);
@@ -5715,25 +5719,26 @@
             const samples = 2048;
             const curve = new Float32Array(samples);
             const depth = Math.max(0, Math.min(1, Number(amount) || 0));
+            const wet = depth * 0.72;
             for (let i = 0; i < samples; i++) {
                 const x = (i * 2 / (samples - 1)) - 1;
                 let y = x;
                 if (type === 'soft') {
-                    const drive = 1 + depth * 14;
-                    y = Math.tanh(x * drive) / Math.tanh(drive);
+                    const drive = 1 + depth * 5.5;
+                    y = Math.tanh(x * drive) * 0.78;
                 } else if (type === 'hard') {
-                    const drive = 1 + depth * 28;
-                    y = Math.max(-0.92, Math.min(0.92, x * drive)) / 0.92;
+                    const drive = 1 + depth * 8;
+                    y = Math.max(-0.7, Math.min(0.7, x * drive)) * 0.95;
                 } else if (type === 'fold') {
-                    const drive = 1 + depth * 7;
-                    y = Math.sin(x * drive * Math.PI * 0.5);
+                    const drive = 1 + depth * 3.2;
+                    y = Math.sin(x * drive * Math.PI * 0.5) * 0.62;
                 } else if (type === 'crush') {
-                    const drive = 1 + depth * 10;
-                    const bits = Math.max(4, Math.round(15 - depth * 11));
+                    const drive = 1 + depth * 4.5;
+                    const bits = Math.max(7, Math.round(16 - depth * 8));
                     const steps = Math.pow(2, bits);
-                    y = Math.round(Math.tanh(x * drive) * steps) / steps;
+                    y = (Math.round(Math.tanh(x * drive) * steps) / steps) * 0.7;
                 }
-                curve[i] = Math.max(-1, Math.min(1, y));
+                curve[i] = Math.max(-1, Math.min(1, (x * (1 - wet)) + (y * wet)));
             }
             return curve;
         }
@@ -8958,10 +8963,10 @@
             setSliderValue('noiseMix', randomIntegerInRange(0, 34));
             setSliderValue('delayMix', randomIntegerInRange(0, 54));
             setSliderValue('reverb', randomIntegerInRange(0, 58));
-            setSliderValue('finalDriveSoft', randomIntegerInRange(0, 25));
-            setSliderValue('finalDriveHard', randomIntegerInRange(0, 25));
-            setSliderValue('finalDriveFold', randomIntegerInRange(0, 25));
-            setSliderValue('finalDriveCrush', randomIntegerInRange(0, 25));
+            setSliderValue('finalDriveSoft', 0);
+            setSliderValue('finalDriveHard', 0);
+            setSliderValue('finalDriveFold', 0);
+            setSliderValue('finalDriveCrush', 0);
             setSliderValue('finalShimmerDepth', randomIntegerInRange(0, 45));
             setSliderValue('finalDelayDepth', randomIntegerInRange(0, 48));
             setSliderValue('finalRingDepth', randomIntegerInRange(0, 36));
@@ -8989,7 +8994,7 @@
             setOscillatorsEnabled(maybe(0.72));
             setGeneratedSampleSolo(maybe(0.22), { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(maybe(0.68), { silent: true });
-            setFxMuted(true, { silent: true });
+            setFxMuted(false, { silent: true });
             setFilterEnabled('lpf', maybe(0.92));
             setFilterEnabled('hpf', maybe(0.72));
             setFilterPoles('lpf', chooseRandom([2, 4]));
@@ -10198,7 +10203,7 @@
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
-                showSettlePopup('try unmuting effects');
+                showSettlePopup('effects on, distortion off');
                 statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
                 return;
             }
@@ -10216,7 +10221,7 @@
                 }
                 setPerformanceGenerateButtonState('generated');
                 syncPerformanceControlState();
-                showSettlePopup('try unmuting effects');
+                showSettlePopup('effects on, distortion off');
                 statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample and loop running.`;
             } catch (error) {
                 console.error(error);
