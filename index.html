@@ -6010,7 +6010,7 @@
 
             const reverbSize = getSliderPercent('finalReverbSize');
             const reverbDecay = getSliderPercent('finalReverbDecay');
-            const reverbMix = fxMuted || !finalReverbEnabled ? 0 : getSliderPercent('finalReverbMix');
+            const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const reverbLowpass = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             updateFinalReverbImpulse(reverbSize, reverbDecay);
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
@@ -8817,7 +8817,7 @@
             }
             syncPerformanceControlState();
             if (!options.silent) {
-                setStatus(fxMuted ? 'Delay and reverb muted.' : 'Delay and reverb enabled.');
+                setStatus(fxMuted ? 'Delay and shimmer muted.' : 'Delay and shimmer enabled.');
             }
         }
 
