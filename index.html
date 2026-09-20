@@ -8422,6 +8422,33 @@
             syncPerformanceControlState();
         });
 
+        function holdRandomKeyboardKeyForRandomize() {
+            const availableKeys = Array.from(document.querySelectorAll('.keyboard .key[data-note]'));
+            if (availableKeys.length === 0) return null;
+
+            if (!holdEnabled) {
+                document.getElementById('holdBtn')?.click();
+            }
+
+            heldNotes.forEach((note) => {
+                stopGrainStream(note);
+                stopOscillatorNote(note);
+                const heldKey = document.querySelector(`.key[data-note="${note}"]`);
+                if (heldKey) heldKey.classList.remove('active');
+            });
+            heldNotes.clear();
+            activeKeyCount = 0;
+
+            octaveOffset = chooseRandom([-2, -1, 0]);
+            updateOctaveDisplay();
+
+            const key = chooseRandom(availableKeys);
+            key.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9090, pointerType: 'mouse' }));
+            key.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 9090, pointerType: 'mouse' }));
+            syncPerformanceControlState();
+            return `${transposeNoteName(key.dataset.note, octaveOffset)} held`;
+        }
+
         document.getElementById('panicBtn').addEventListener('click', () => panicAllNotes());
         document.getElementById('panicUtilityBtn').addEventListener('click', () => panicAllNotes());
 
@@ -8989,7 +9016,7 @@
 
         function randomizeFullPatchPerformanceState(options = {}) {
             const profile = options.profile || createMusicalGenerationProfile();
-            const bpm = applyGlobalBpm(chooseRandom([64, 72, 80, 90, 96, 100, 108, 112, 120, 128, 132, 140, 150, 160]));
+            const bpm = getSharedBpmClockValue();
             const lfoWaveform = chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']);
             const forceSquare = maybe(0.22);
 
@@ -10257,8 +10284,9 @@
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
+                const heldKeyLabel = holdRandomKeyboardKeyForRandomize();
                 showSettlePopup('effects on, distortion off');
-                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
+                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM${heldKeyLabel ? ` with ${heldKeyLabel}` : ''}; start MYGRAIN to generate the random sample and start the loop.`;
                 return;
             }
 
@@ -10275,8 +10303,9 @@
                 }
                 setPerformanceGenerateButtonState('generated');
                 syncPerformanceControlState();
+                const heldKeyLabel = holdRandomKeyboardKeyForRandomize();
                 showSettlePopup('effects on, distortion off');
-                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample and loop running.`;
+                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running${heldKeyLabel ? `, and ${heldKeyLabel}` : ''}.`;
             } catch (error) {
                 console.error(error);
                 setPerformanceGenerateButtonState('idle');
