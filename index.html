@@ -6424,11 +6424,11 @@
 
         // --- Filter Envelope ---
         function applyFilterEnvelope(note, startTime, duration) {
-            const filterEnvAmount = getModulatedValue('filterEnvAmount') / 100;
-            const attack = getModulatedValue('filterEnvAttack') / 1000;
-            const decay = getModulatedValue('filterEnvDecay') / 1000;
-            const sustain = getModulatedValue('filterEnvSustain') / 100;
-            const release = getModulatedValue('filterEnvRelease') / 1000;
+            const filterEnvAmount = clampToSliderBounds('filterEnvAmount', getModulatedValue('filterEnvAmount')) / 100;
+            const attack = clampToSliderBounds('filterEnvAttack', getModulatedValue('filterEnvAttack')) / 1000;
+            const decay = clampToSliderBounds('filterEnvDecay', getModulatedValue('filterEnvDecay')) / 1000;
+            const sustain = clampToSliderBounds('filterEnvSustain', getModulatedValue('filterEnvSustain')) / 100;
+            const release = clampToSliderBounds('filterEnvRelease', getModulatedValue('filterEnvRelease')) / 1000;
             if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return release;
 
             const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
