@@ -8692,7 +8692,6 @@
             const bpm = applyGlobalBpm(chooseRandom([64, 72, 80, 90, 96, 100, 108, 112, 120, 128, 132, 140, 150, 160]));
             const lfoWaveform = chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']);
             const forceSquare = maybe(0.22);
-            const loopShouldRun = maybe(0.7);
 
             setSliderValue('performanceSourceMix', randomIntegerInRange(18, 82));
             setSliderValue('performanceGeneratedSourceMix', randomIntegerInRange(58, 100));
@@ -8754,8 +8753,8 @@
             }
 
             syncPerformanceControlState();
-            console.log('Randomize full patch time base:', { bpm, loopShouldRun });
-            return { bpm, loopShouldRun };
+            console.log('Randomize full patch time base:', { bpm, loopShouldRun: true });
+            return { bpm, loopShouldRun: true };
         }
 
         function clampToSliderBounds(id, value) {
@@ -9950,10 +9949,7 @@
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
-                if (randomizeState.loopShouldRun && sequencerPlaying) {
-                    stopSequencer();
-                }
-                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample.`;
+                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
                 return;
             }
 
@@ -9965,16 +9961,12 @@
                     blueprint: loopBlueprint,
                     sourceBlueprint
                 });
-                if (randomizeState.loopShouldRun) {
-                    if (!sequencerPlaying) {
-                        startSequencer();
-                    }
-                } else if (sequencerPlaying) {
-                    stopSequencer();
+                if (!sequencerPlaying) {
+                    startSequencer();
                 }
                 setPerformanceGenerateButtonState('generated');
                 syncPerformanceControlState();
-                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample and loop ${randomizeState.loopShouldRun ? 'running' : 'stopped'}.`;
+                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample and loop running.`;
             } catch (error) {
                 console.error(error);
                 setPerformanceGenerateButtonState('idle');
