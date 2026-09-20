@@ -8189,7 +8189,9 @@
 
         function setPostFilterGainDb(dbValue, options = {}) {
             const safeDb = Math.max(-24, Math.min(12, Number(dbValue) || 0));
-            manualPostFilterGainDb = safeDb;
+            if (!document.getElementById('autoMakeupGain').checked || options.forceManual === true) {
+                manualPostFilterGainDb = safeDb;
+            }
             const slider = document.getElementById('postFilterGain');
             if (slider && slider.value !== String(safeDb)) slider.value = String(safeDb);
             const isAutoMakeupDisabled = !document.getElementById('autoMakeupGain').checked;
@@ -9721,6 +9723,7 @@
                     slider.dispatchEvent(new Event('input'));
                 }
             });
+            manualPostFilterGainDb = Number(defaults.postFilterGain) || 0;
 
             setFilterEnabled('lpf', true);
             setFilterEnabled('hpf', true);
@@ -9898,6 +9901,9 @@
                         slider.dispatchEvent(new Event('input'));
                     }
                 });
+                if (normalizedSliders.postFilterGain !== undefined) {
+                    manualPostFilterGainDb = Number(normalizedSliders.postFilterGain) || 0;
+                }
             }
             
             // Apply dropdown values
@@ -10421,6 +10427,9 @@
                             slider.dispatchEvent(new Event('input'));
                         }
                     });
+                    if (normalizedStateSliders.postFilterGain !== undefined) {
+                        manualPostFilterGainDb = Number(normalizedStateSliders.postFilterGain) || 0;
+                    }
                 }
 
                 // Restore select values
