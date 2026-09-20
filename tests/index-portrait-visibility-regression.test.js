@@ -174,14 +174,14 @@ test('click guard applies minimum fades to grains, oscillators, dry loop, and au
     assert.match(indexHtml, /const fadeSeconds = getFadeSecondsForDuration\(duration\)/);
 });
 
-test('mobile keyboard presents one octave with widened touch targets', () => {
+test('mobile keyboard keeps the legacy two-octave layout while preserving widened touch targets', () => {
     const keyMatches = indexHtml.match(/class="key /g) || [];
     const whiteKeyMatches = indexHtml.match(/class="key white"/g) || [];
-    assert.equal(keyMatches.length, 12);
-    assert.equal(whiteKeyMatches.length, 7);
-    assert.doesNotMatch(indexHtml, /data-note="C1"/);
+    assert.equal(keyMatches.length, 24);
+    assert.equal(whiteKeyMatches.length, 14);
+    assert.match(indexHtml, /data-note="C1"/);
     assert.match(indexHtml, /data-note="C2"/);
-    assert.match(indexHtml, /One octave, transposed by the octave buttons/);
+    assert.doesNotMatch(indexHtml, /One octave, transposed by the octave buttons/);
     assert.doesNotMatch(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls,\s*\n\s*\.simplified-ui \.keyboard-section \.volume-bias-container/);
     assert.match(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls/);
     assert.match(indexHtml, /performance-sound-card performance-octave-card/);

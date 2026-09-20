@@ -300,6 +300,7 @@
             min-width: 0;
         }
 
+        #waveformCanvas,
         .source-waveform-canvas {
             width: 100%;
             height: 70px;
@@ -368,6 +369,51 @@
 
         .source-loop-lfo-row .button-group {
             flex-shrink: 0;
+        }
+
+
+        .source-advanced-panel {
+            margin-top: 6px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+        }
+
+        .source-advanced-panel summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            color: #edf7ff;
+            font-weight: 700;
+            list-style: none;
+        }
+
+        .source-advanced-panel summary::after {
+            content: '▸';
+            color: var(--accent);
+            font-size: 0.95em;
+        }
+
+        .source-advanced-panel[open] summary::after {
+            content: '▾';
+        }
+
+        .source-advanced-panel summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .source-advanced-panel[open] {
+            display: grid;
+            gap: 10px;
+        }
+
+        .source-advanced-panel .source-seed-group {
+            display: grid;
+            gap: 8px;
         }
 
         .status {
@@ -690,11 +736,11 @@
         .key.black[data-note="F#1"] { left: 199px; }
         .key.black[data-note="G#1"] { left: 253px; }
         .key.black[data-note="A#1"] { left: 307px; }
-        .key.black[data-note="C#2"] { left: 52px; }
-        .key.black[data-note="D#2"] { left: 126px; }
-        .key.black[data-note="F#2"] { left: 274px; }
-        .key.black[data-note="G#2"] { left: 348px; }
-        .key.black[data-note="A#2"] { left: 422px; }
+        .key.black[data-note="C#2"] { left: 415px; }
+        .key.black[data-note="D#2"] { left: 469px; }
+        .key.black[data-note="F#2"] { left: 577px; }
+        .key.black[data-note="G#2"] { left: 631px; }
+        .key.black[data-note="A#2"] { left: 685px; }
 
         /* Octave Controls */
         .octave-controls {
@@ -1024,7 +1070,7 @@
         @media screen and (max-height: 430px) and (orientation: landscape) {
             /* Reorganize layout: Sample Source (left full height) | Controls + Keyboard (right stacked) */
             /* Use nested grid approach */
-            .synth-container {
+            .simplified-ui .synth-container {
                 display: flex;
                 flex-direction: row;
                 padding-bottom: 0;
@@ -1032,7 +1078,7 @@
             }
 
             /* Top section becomes left column with recording only */
-            .top-section {
+            .simplified-ui .top-section {
                 flex: 0 0 180px;
                 flex-direction: column;
                 margin-bottom: 0;
@@ -1041,13 +1087,13 @@
             }
 
             /* Recording section: full height on left */
-            .recording-section {
+            .simplified-ui .recording-section {
                 flex: 1;
                 padding: 5px;
             }
 
             /* Controls section: hide from top-section, will be moved */
-            .controls-section {
+            .simplified-ui .controls-section {
                 position: absolute;
                 top: 5px;
                 left: 185px;
@@ -1056,7 +1102,7 @@
             }
 
             /* Keyboard section: bottom right */
-            .keyboard-section {
+            .simplified-ui .keyboard-section {
                 flex: none;
                 display: flex;
                 border-radius: 8px 8px 0 0;
@@ -1102,7 +1148,8 @@
                 font-size: 8px;
             }
 
-            .source-waveform-canvas {
+            #waveformCanvas,
+        .source-waveform-canvas {
                 height: 50px;
             }
 
@@ -1413,11 +1460,16 @@
 
         .top-section {
             display: grid;
+            width: 100%;
             grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
             gap: 12px;
             overflow: visible;
             margin-bottom: 0;
             touch-action: auto;
+        }
+
+        .top-section > * {
+            min-width: 0;
         }
 
         .recording-section,
@@ -1452,6 +1504,7 @@
         .controls-section {
             position: relative;
             inset: auto;
+            min-width: 0;
             overflow: visible !important;
         }
 
@@ -1644,6 +1697,7 @@
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         }
 
+        #waveformCanvas,
         .source-waveform-canvas {
             height: 84px;
         }
@@ -1655,6 +1709,8 @@
             top: auto;
             bottom: 0;
             display: flex;
+            width: 100%;
+            min-width: 0;
             gap: 12px;
             align-items: stretch;
             min-height: 190px;
@@ -2557,79 +2613,88 @@
         <div class="top-section">
             <div class="recording-section">
                 <div class="app-branding">
-                    <div class="app-kicker">MYGRAIN</div>
-                    <h2 class="app-title">Granular instrument</h2>
-                    <p class="app-subtitle">Generate, capture, or load a source waveform, then steer the granular engine from the keyboard.</p>
-                </div>
-                <div class="source-seed-group">
-                    <div class="section-title">Source</div>
-                    <div class="source-seed-buttons">
-                        <button id="generateSourceBtn" class="primary">Generate Source</button>
-                        <button id="performanceLowNoiseSourceBtn">Low Noise Source</button>
-                        <button id="recordBtn">Record Mic</button>
-                        <button id="loadDemoBtn">Load Demo</button>
-                        <button id="performanceLoadAudioBtn">Load Audio</button>
+                    <div>
+                        <div class="app-kicker">MYGRAIN</div>
+                        <h2 class="app-title">Granular instrument</h2>
+                        <p class="app-subtitle">Load or record a sample, play the keyboard, and shape it with grains, filters, modulation and sequencing.</p>
                     </div>
+                    <button id="loadDemoBtn">Load Demo</button>
                 </div>
-                <div class="source-secondary-buttons">
-                    <button id="auditionBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sources</button>
+                <div class="section-title">Sample Source</div>
+                <div class="recording-buttons">
+                    <button id="recordBtn">Record Mic</button>
                     <button id="normalizeBtn" disabled>Normalize</button>
                     <button id="clearBtn">Clear</button>
                 </div>
-                <div class="source-waveform-grid" aria-label="Granular source waveforms">
-                    <div class="source-waveform-panel">
-                        <div class="source-waveform-header">
-                            <span>Generated Loop</span>
-                            <span class="source-waveform-meta" id="generatedLoopMeta">Empty</span>
+                <canvas id="waveformCanvas" class="source-waveform-canvas" data-source="legacy"></canvas>
+                <button id="auditionBtn" style="width: 100%; margin-top: 5px; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sample</button>
+                <details class="source-advanced-panel" id="sourceAdvancedPanel">
+                    <summary id="advancedSourceSummary">Advanced sources</summary>
+                    <div id="advancedSourceContent" role="group" aria-labelledby="advancedSourceSummary">
+                    <div class="source-seed-group">
+                        <div class="section-title">Generated & recorded sources</div>
+                        <div class="source-seed-buttons">
+                            <button id="generateSourceBtn" class="primary">Generate Source</button>
+                            <button id="performanceLowNoiseSourceBtn">Low Noise Source</button>
+                            <button id="performanceLoadAudioBtn">Load Audio</button>
                         </div>
-                        <canvas id="generatedWaveformCanvas" class="source-waveform-canvas" data-source="generated"></canvas>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="generatedLoopStart">Start <span id="generatedLoopStartValue">0%</span></label>
-                                <label for="generatedLoopEnd">End <span id="generatedLoopEndValue">100%</span></label>
+                    </div>
+                    <div class="source-waveform-grid" aria-label="Granular source waveforms">
+                        <div class="source-waveform-panel">
+                            <div class="source-waveform-header">
+                                <span>Generated Loop</span>
+                                <span class="source-waveform-meta" id="generatedLoopMeta">Empty</span>
                             </div>
-                            <input type="range" id="generatedLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="generatedLoopEnd" min="0" max="100" value="100" step="1">
-                            <div class="source-loop-lfo-controls">
-                                <div class="source-loop-lfo-row">
-                                    <span>End</span>
-                                    <div class="button-group">
-                                        <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="1">L1</button>
-                                        <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="1">INV</button>
-                                        <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="2">L2</button>
-                                        <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="2">INV</button>
+                            <canvas id="generatedWaveformCanvas" class="source-waveform-canvas" data-source="generated"></canvas>
+                            <div class="source-loop-controls">
+                                <div class="source-loop-labels">
+                                    <label for="generatedLoopStart">Start <span id="generatedLoopStartValue">0%</span></label>
+                                    <label for="generatedLoopEnd">End <span id="generatedLoopEndValue">100%</span></label>
+                                </div>
+                                <input type="range" id="generatedLoopStart" min="0" max="100" value="0" step="1">
+                                <input type="range" id="generatedLoopEnd" min="0" max="100" value="100" step="1">
+                                <div class="source-loop-lfo-controls">
+                                    <div class="source-loop-lfo-row">
+                                        <span>End</span>
+                                        <div class="button-group">
+                                            <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="1">L1</button>
+                                            <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="1">INV</button>
+                                            <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="2">L2</button>
+                                            <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="2">INV</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="source-waveform-panel">
+                            <div class="source-waveform-header">
+                                <span>Mic Recording</span>
+                                <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
+                            </div>
+                            <canvas id="micWaveformCanvas" class="source-waveform-canvas" data-source="mic"></canvas>
+                            <div class="source-loop-controls">
+                                <div class="source-loop-labels">
+                                    <label for="micLoopStart">Start <span id="micLoopStartValue">0%</span></label>
+                                    <label for="micLoopEnd">End <span id="micLoopEndValue">100%</span></label>
+                                </div>
+                                <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
+                                <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
+                                <div class="source-loop-lfo-controls">
+                                    <div class="source-loop-lfo-row">
+                                        <span>End</span>
+                                        <div class="button-group">
+                                            <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="1">L1</button>
+                                            <button class="inv-toggle" data-param="micLoopEnd" data-lfo="1">INV</button>
+                                            <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="2">L2</button>
+                                            <button class="inv-toggle" data-param="micLoopEnd" data-lfo="2">INV</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="source-waveform-panel">
-                        <div class="source-waveform-header">
-                            <span>Mic Recording</span>
-                            <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
-                        </div>
-                        <canvas id="micWaveformCanvas" class="source-waveform-canvas" data-source="mic"></canvas>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="micLoopStart">Start <span id="micLoopStartValue">0%</span></label>
-                                <label for="micLoopEnd">End <span id="micLoopEndValue">100%</span></label>
-                            </div>
-                            <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
-                            <div class="source-loop-lfo-controls">
-                                <div class="source-loop-lfo-row">
-                                    <span>End</span>
-                                    <div class="button-group">
-                                        <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="1">L1</button>
-                                        <button class="inv-toggle" data-param="micLoopEnd" data-lfo="1">INV</button>
-                                        <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="2">L2</button>
-                                        <button class="inv-toggle" data-param="micLoopEnd" data-lfo="2">INV</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                </div>
+                </details>
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
                     <div id="audioStatus" class="status secondary-status" role="status" aria-live="polite">Audio idle</div>
@@ -3633,8 +3698,6 @@
                         <button class="slope-toggle active" data-step="16">ON</button>
                     </div>
                 </div>
-            </div>
-        </div>
 
         <div class="keyboard-section">
             <div class="octave-controls">
@@ -3653,7 +3716,21 @@
             <button class="hold-btn" id="holdBtn">Hold</button>
             <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
             <div class="keyboard" id="keyboardContainer">
-                <!-- One octave, transposed by the octave buttons -->
+                <!-- Keys generated by JS or static HTML -->
+                <!-- Octave 1 -->
+                <div class="key white" data-note="C1">C1</div>
+                <div class="key black" data-note="C#1"></div>
+                <div class="key white" data-note="D1">D</div>
+                <div class="key black" data-note="D#1"></div>
+                <div class="key white" data-note="E1">E</div>
+                <div class="key white" data-note="F1">F</div>
+                <div class="key black" data-note="F#1"></div>
+                <div class="key white" data-note="G1">G</div>
+                <div class="key black" data-note="G#1"></div>
+                <div class="key white" data-note="A1">A</div>
+                <div class="key black" data-note="A#1"></div>
+                <div class="key white" data-note="B1">B</div>
+                <!-- Octave 2 -->
                 <div class="key white" data-note="C2">C2</div>
                 <div class="key black" data-note="C#2"></div>
                 <div class="key white" data-note="D2">D</div>
@@ -3666,6 +3743,8 @@
                 <div class="key white" data-note="A2">A</div>
                 <div class="key black" data-note="A#2"></div>
                 <div class="key white" data-note="B2">B</div>
+            </div>
+        </div>
             </div>
         </div>
     </div>
@@ -3720,7 +3799,7 @@
         
         const touchStartPositions = new Map();
         let lastTouchEnd = 0;
-        const directManipulationSelector = '.key, .keyboard, .source-waveform-canvas, input[type="range"]';
+        const directManipulationSelector = '.key, .keyboard, #waveformCanvas, .source-waveform-canvas, input[type="range"]';
         
         // Unified touchstart handler
         document.addEventListener('touchstart', (e) => {
@@ -5605,10 +5684,12 @@
         const recordBtn = document.getElementById('recordBtn');
         const normalizeBtn = document.getElementById('normalizeBtn');
         const clearBtn = document.getElementById('clearBtn');
+        const waveformCanvas = document.getElementById('waveformCanvas');
         const generatedWaveformCanvas = document.getElementById('generatedWaveformCanvas');
         const micWaveformCanvas = document.getElementById('micWaveformCanvas');
         const generateSourceBtn = document.getElementById('generateSourceBtn');
         const performanceLoadAudioBtn = document.getElementById('performanceLoadAudioBtn');
+        const sourceAdvancedPanel = document.getElementById('sourceAdvancedPanel');
 
         recordBtn.addEventListener('click', () => {
             if (!audioContext) {
@@ -5621,6 +5702,16 @@
 
         performanceLoadAudioBtn?.addEventListener('click', () => {
             document.getElementById('loadAudioBtn')?.click();
+        });
+
+        sourceAdvancedPanel?.addEventListener('toggle', () => {
+            if (sourceAdvancedPanel.open) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        drawWaveform();
+                    });
+                });
+            }
         });
 
         document.getElementById('globalBpmSlider')?.addEventListener('input', (e) => {
@@ -6442,6 +6533,74 @@
 
         // --- Waveform & Visualization ---
         function drawWaveform() {
+            if (waveformCanvas) {
+                const nextWidth = waveformCanvas.offsetWidth || 300;
+                const nextHeight = waveformCanvas.offsetHeight || 84;
+                if (waveformCanvas.width !== nextWidth) {
+                    waveformCanvas.width = nextWidth;
+                }
+                if (waveformCanvas.height !== nextHeight) {
+                    waveformCanvas.height = nextHeight;
+                }
+
+                const ctx = waveformCanvas.getContext('2d');
+                const width = waveformCanvas.width;
+                const height = waveformCanvas.height;
+
+                ctx.fillStyle = '#0a0a15';
+                ctx.fillRect(0, 0, width, height);
+
+                const activePreviewSource = [
+                    activeSourceKind === 'generated' ? { buffer: generatedLoopBuffer, startId: 'generatedLoopStart', endId: 'generatedLoopEnd' } : null,
+                    activeSourceKind === 'mic' ? { buffer: micAudioBuffer, startId: 'micLoopStart', endId: 'micLoopEnd' } : null,
+                    { buffer: generatedLoopBuffer, startId: 'generatedLoopStart', endId: 'generatedLoopEnd' },
+                    { buffer: micAudioBuffer, startId: 'micLoopStart', endId: 'micLoopEnd' },
+                    { buffer: audioBuffer, startId: 'sampleStart', endId: 'sampleEnd' }
+                ].find((source) => source?.buffer);
+
+                if (activePreviewSource?.buffer) {
+                    const data = activePreviewSource.buffer.getChannelData(0);
+                    const step = Math.max(1, Math.ceil(data.length / width));
+                    const amp = height / 2;
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#00d4ff';
+                    ctx.lineWidth = 1;
+
+                    for (let i = 0; i < width; i++) {
+                        let min = 1.0;
+                        let max = -1.0;
+                        for (let j = 0; j < step; j++) {
+                            const val = data[(i * step) + j] || 0;
+                            if (val < min) min = val;
+                            if (val > max) max = val;
+                        }
+                        ctx.moveTo(i, (1 + min) * amp);
+                        ctx.lineTo(i, (1 + max) * amp);
+                    }
+                    ctx.stroke();
+
+                    const startPct = (Number(document.getElementById(activePreviewSource.startId)?.value) || 0) / 100;
+                    const endPct = (Number(document.getElementById(activePreviewSource.endId)?.value) || 100) / 100;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.fillRect(0, 0, width * startPct, height);
+                    ctx.fillRect(width * endPct, 0, width * (1 - endPct), height);
+
+                    ctx.strokeStyle = '#ff0844';
+                    [startPct, endPct].forEach((pct) => {
+                        ctx.beginPath();
+                        ctx.moveTo(width * pct, 0);
+                        ctx.lineTo(width * pct, height);
+                        ctx.stroke();
+                    });
+                } else {
+                    ctx.fillStyle = 'rgba(255,255,255,0.24)';
+                    ctx.font = '11px system-ui, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Load, record, or generate a source', width / 2, height / 2);
+                }
+            }
+
             drawWaveforms();
         }
 
