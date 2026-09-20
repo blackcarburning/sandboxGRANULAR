@@ -4239,6 +4239,8 @@
         let finalRingDepthGain = null;
         let finalDelayNode = null;
         let finalDelayFeedbackGain = null;
+        let finalDelayFeedbackHighpass = null;
+        let finalDelayFeedbackLowpass = null;
         let finalDelayWetGain = null;
         let finalDelayDryGain = null;
         let finalShimmerNode = null;
@@ -5442,6 +5444,12 @@
             finalDelayNode.delayTime.value = 60 / getSharedBpmClockValue();
             finalDelayFeedbackGain = audioContext.createGain();
             finalDelayFeedbackGain.gain.value = 0;
+            finalDelayFeedbackHighpass = audioContext.createBiquadFilter();
+            finalDelayFeedbackHighpass.type = 'highpass';
+            finalDelayFeedbackHighpass.frequency.value = 160;
+            finalDelayFeedbackLowpass = audioContext.createBiquadFilter();
+            finalDelayFeedbackLowpass.type = 'lowpass';
+            finalDelayFeedbackLowpass.frequency.value = 4200;
             finalDelayWetGain = audioContext.createGain();
             finalDelayWetGain.gain.value = 0;
             finalDelayDryGain = audioContext.createGain();
@@ -5468,7 +5476,9 @@
             finalDelayDryGain.connect(finalFxOutput);
             finalDelayNode.connect(finalDelayWetGain);
             finalDelayNode.connect(finalDelayFeedbackGain);
-            finalDelayFeedbackGain.connect(finalDelayNode);
+            finalDelayFeedbackGain.connect(finalDelayFeedbackHighpass);
+            finalDelayFeedbackHighpass.connect(finalDelayFeedbackLowpass);
+            finalDelayFeedbackLowpass.connect(finalDelayNode);
             finalDelayWetGain.connect(finalFxOutput);
             finalShimmerTone.connect(finalShimmerNode);
             finalShimmerNode.connect(finalShimmerWetGain);
@@ -5864,10 +5874,15 @@
             const bpm = getSharedBpmClockValue();
             const division = document.getElementById('finalDelayDivision')?.value || '4';
             const delayTime = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(division, bpm)));
+            const postFilterFx = finalFxPlacement !== 'pre';
+            const feedbackCap = postFilterFx ? 0.34 : 0.46;
+            const wetCap = postFilterFx ? 0.46 : 0.62;
             smoothRamp(finalDelayNode?.delayTime, delayTime);
-            smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * 0.62);
-            smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * 0.72);
-            smoothRamp(finalDelayDryGain?.gain, Math.cos(delayDepth * Math.PI / 2));
+            smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * feedbackCap);
+            smoothRamp(finalDelayFeedbackHighpass?.frequency, 140 + delayDepth * 220);
+            smoothRamp(finalDelayFeedbackLowpass?.frequency, 5200 - delayDepth * 2600);
+            smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * wetCap);
+            smoothRamp(finalDelayDryGain?.gain, 1 - (delayDepth * (postFilterFx ? 0.18 : 0.12)));
 
             const shimmerDepth = fxMuted ? 0 : getSliderPercent('finalShimmerDepth');
             smoothRamp(finalShimmerTone?.frequency, 2600 + shimmerDepth * 6200);
