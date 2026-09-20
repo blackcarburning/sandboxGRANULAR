@@ -5249,6 +5249,14 @@
             return Math.max(0.1, Math.min(MAX_SAFE_FILTER_Q, numeric));
         }
 
+        function clampPostFilterQ(value) {
+            return Math.max(0.1, Math.min(0.85, clampFilterQ(value)));
+        }
+
+        function getSafeFilterQ(value) {
+            return finalFxPlacement === 'post' ? clampPostFilterQ(value) : clampFilterQ(value);
+        }
+
         function clampFilterPoleCount(value) {
             const numeric = Number(value);
             return numeric >= 4 ? 4 : 2;
@@ -5697,6 +5705,16 @@
 
         function setFinalFxPlacement(placement) {
             finalFxPlacement = placement === 'pre' ? 'pre' : 'post';
+            if (finalFxPlacement === 'post') {
+                ['lpfQ', 'hpfQ'].forEach((id) => {
+                    const slider = document.getElementById(id);
+                    if (!slider) return;
+                    const safeQ = clampPostFilterQ(slider.value);
+                    if (Number(slider.value) > safeQ) {
+                        setSliderValue(id, safeQ);
+                    }
+                });
+            }
             rebuildFinalFxRouting();
             updateEffects();
             setStatus(finalFxPlacement === 'pre'
@@ -5882,18 +5900,18 @@
             const division = document.getElementById('finalDelayDivision')?.value || '4';
             const delayTime = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(division, bpm)));
             const postFilterFx = finalFxPlacement !== 'pre';
-            const feedbackCap = postFilterFx ? 0.16 : 0.46;
-            const wetCap = postFilterFx ? 0.28 : 0.62;
+            const feedbackCap = postFilterFx ? 0 : 0.46;
+            const wetCap = postFilterFx ? 0.18 : 0.62;
             smoothRamp(finalDelayNode?.delayTime, delayTime);
             smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * feedbackCap);
             smoothRamp(finalDelayFeedbackHighpass?.frequency, postFilterFx ? 260 + delayDepth * 520 : 140 + delayDepth * 220);
-            smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 3200 - delayDepth * 1400 : 5200 - delayDepth * 2600);
+            smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 2400 - delayDepth * 900 : 5200 - delayDepth * 2600);
             smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * wetCap);
             smoothRamp(finalDelayDryGain?.gain, 1 - (delayDepth * (postFilterFx ? 0.08 : 0.12)));
 
             const shimmerDepth = fxMuted ? 0 : getSliderPercent('finalShimmerDepth');
             smoothRamp(finalShimmerTone?.frequency, 2600 + shimmerDepth * 6200);
-            smoothRamp(finalShimmerWetGain?.gain, shimmerDepth * (postFilterFx ? 0.32 : 0.58));
+            smoothRamp(finalShimmerWetGain?.gain, shimmerDepth * (postFilterFx ? 0.2 : 0.58));
         }
 
         function createNoiseBuffers() {
@@ -5953,7 +5971,7 @@
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
                 const lpfCutoff = getModulatedValue('lpfCutoff');
-                const lpfQ = clampFilterQ(getModulatedValue('lpfQ'));
+                const lpfQ = getSafeFilterQ(getModulatedValue('lpfQ'));
                 lpfNodes.forEach(node => {
                     smoothRamp(node.frequency, lpfCutoff);
                     smoothRamp(node.Q, lpfQ);
@@ -5962,7 +5980,7 @@
 
             if (hpfNodes && hpfNodes.length > 0) {
                 const hpfCutoff = getModulatedValue('hpfCutoff');
-                const hpfQ = clampFilterQ(getModulatedValue('hpfQ'));
+                const hpfQ = getSafeFilterQ(getModulatedValue('hpfQ'));
                 hpfNodes.forEach(node => {
                     smoothRamp(node.frequency, hpfCutoff);
                     smoothRamp(node.Q, hpfQ);
@@ -12403,7 +12421,7 @@
         });
 
         performanceLpfResonance?.addEventListener('input', (event) => {
-            const value = clampFilterQ(event.target.value);
+            const value = getSafeFilterQ(event.target.value);
             setSliderValue('lpfQ', value);
             syncPerformanceSoundControls();
         });
@@ -12414,7 +12432,7 @@
         });
 
         performanceHpfResonance?.addEventListener('input', (event) => {
-            const value = clampFilterQ(event.target.value);
+            const value = getSafeFilterQ(event.target.value);
             setSliderValue('hpfQ', value);
             syncPerformanceSoundControls();
         });
