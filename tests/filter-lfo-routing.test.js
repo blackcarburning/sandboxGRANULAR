@@ -103,3 +103,22 @@ test('filter LFO routes are randomizable and preset-compatible', () => {
     assert.equal(/'preFilterGain'/.test(randomizeSkipParamsBlock), false, 'preFilterGain should not be skipped by route randomization');
     assert.equal(/'postFilterGain'/.test(randomizeSkipParamsBlock), false, 'postFilterGain should not be skipped by route randomization');
 });
+
+test('LFO route buttons sync aria-pressed and shared state through the existing helpers', () => {
+    assert.match(
+        indexHtml,
+        /document\.querySelectorAll\('\.lfo-toggle'\)\.forEach\(btn => \{\s*btn\.setAttribute\('aria-pressed', String\(btn\.classList\.contains\('active'\)\)\);\s*btn\.addEventListener\('click', \(\) => \{\s*const param = btn\.dataset\.param;\s*const lfoNum = btn\.dataset\.lfo;\s*setLfoRouteState\(param, lfoNum, !btn\.classList\.contains\('active'\)\);/s
+    );
+    assert.match(
+        indexHtml,
+        /document\.querySelectorAll\('\.inv-toggle'\)\.forEach\(btn => \{\s*btn\.setAttribute\('aria-pressed', String\(btn\.classList\.contains\('active'\)\)\);\s*btn\.addEventListener\('click', \(\) => \{\s*const param = btn\.dataset\.param;\s*const lfoNum = btn\.dataset\.lfo;\s*setLfoInvertState\(param, lfoNum, !btn\.classList\.contains\('active'\)\);/s
+    );
+    assert.match(
+        indexHtml,
+        /function setLfoRouteState\(param, lfoNum, enabled\) \{\s*const map = lfoNum === '1' \? lfoEnabled : \(lfoNum === '2' \? lfo2Enabled : lfo3Enabled\);\s*map\[param\] = Boolean\(enabled\);\s*document\.querySelectorAll\(`\.lfo-toggle\[data-param="\$\{param\}"\]\[data-lfo="\$\{lfoNum\}"\]`\)\.forEach\(\(button\) => \{\s*button\.classList\.toggle\('active', Boolean\(enabled\)\);\s*button\.setAttribute\('aria-pressed', String\(Boolean\(enabled\)\)\);/s
+    );
+    assert.match(
+        indexHtml,
+        /function setLfoInvertState\(param, lfoNum, enabled\) \{\s*const map = lfoNum === '1' \? lfoInverted : \(lfoNum === '2' \? lfo2Inverted : lfo3Inverted\);\s*map\[param\] = Boolean\(enabled\);\s*document\.querySelectorAll\(`\.inv-toggle\[data-param="\$\{param\}"\]\[data-lfo="\$\{lfoNum\}"\]`\)\.forEach\(\(button\) => \{\s*button\.classList\.toggle\('active', Boolean\(enabled\)\);\s*button\.setAttribute\('aria-pressed', String\(Boolean\(enabled\)\)\);/s
+    );
+});

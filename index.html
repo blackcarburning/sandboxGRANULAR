@@ -7708,36 +7708,20 @@
 
         // --- LFO Toggle Listeners ---
         document.querySelectorAll('.lfo-toggle').forEach(btn => {
+            btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
             btn.addEventListener('click', () => {
                 const param = btn.dataset.param;
                 const lfoNum = btn.dataset.lfo;
-                
-                if (lfoNum === '1') {
-                    lfoEnabled[param] = !lfoEnabled[param];
-                } else if (lfoNum === '2') {
-                    lfo2Enabled[param] = !lfo2Enabled[param];
-                } else if (lfoNum === '3') {
-                    lfo3Enabled[param] = !lfo3Enabled[param];
-                }
-                
-                btn.classList.toggle('active');
+                setLfoRouteState(param, lfoNum, !btn.classList.contains('active'));
             });
         });
 
         document.querySelectorAll('.inv-toggle').forEach(btn => {
+            btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
             btn.addEventListener('click', () => {
                 const param = btn.dataset.param;
                 const lfoNum = btn.dataset.lfo;
-                
-                if (lfoNum === '1') {
-                    lfoInverted[param] = !lfoInverted[param];
-                } else if (lfoNum === '2') {
-                    lfo2Inverted[param] = !lfo2Inverted[param];
-                } else if (lfoNum === '3') {
-                    lfo3Inverted[param] = !lfo3Inverted[param];
-                }
-                
-                btn.classList.toggle('active');
+                setLfoInvertState(param, lfoNum, !btn.classList.contains('active'));
             });
         });
 
@@ -8507,21 +8491,19 @@
         function setLfoRouteState(param, lfoNum, enabled) {
             const map = lfoNum === '1' ? lfoEnabled : (lfoNum === '2' ? lfo2Enabled : lfo3Enabled);
             map[param] = Boolean(enabled);
-            const button = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`);
-            if (button) {
+            document.querySelectorAll(`.lfo-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`).forEach((button) => {
                 button.classList.toggle('active', Boolean(enabled));
                 button.setAttribute('aria-pressed', String(Boolean(enabled)));
-            }
+            });
         }
 
         function setLfoInvertState(param, lfoNum, enabled) {
             const map = lfoNum === '1' ? lfoInverted : (lfoNum === '2' ? lfo2Inverted : lfo3Inverted);
             map[param] = Boolean(enabled);
-            const button = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`);
-            if (button) {
+            document.querySelectorAll(`.inv-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`).forEach((button) => {
                 button.classList.toggle('active', Boolean(enabled));
                 button.setAttribute('aria-pressed', String(Boolean(enabled)));
-            }
+            });
         }
 
         function getRandomizableLfoTargetParams() {
