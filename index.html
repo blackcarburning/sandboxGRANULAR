@@ -5497,7 +5497,7 @@
 
             if (makeupGain) {
                 const postFilterGainBaseDb = autoMakeupEnabled
-                    ? resolveAutoMakeupGainDb(document.getElementById('postFilterGain')?.value ?? 0)
+                    ? resolveAutoMakeupGainDb()
                     : Number(document.getElementById('postFilterGain')?.value ?? 0);
                 const postFilterGainDb = getModulatedValue('postFilterGain', {
                     baseValue: postFilterGainBaseDb,
