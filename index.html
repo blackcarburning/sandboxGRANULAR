@@ -8648,6 +8648,31 @@
             }
         }
 
+        function enableNoiseOscillator(options = {}) {
+            const noiseType = document.getElementById('noiseType');
+            const noiseMix = document.getElementById('noiseMix');
+            if (noiseType && noiseType.value === 'none') {
+                setSelectValue('noiseType', 'pink');
+            }
+            if (noiseMix && Number(noiseMix.value) <= 0) {
+                setSliderValue('noiseMix', 20);
+            }
+            syncPerformanceControlState();
+            updateEffects();
+            saveState();
+            if (!options.silent) {
+                setStatus('Pink noise oscillator enabled.');
+            }
+        }
+
+        function toggleNoiseOscillator() {
+            if (isNoiseOscillatorActive()) {
+                removeNoiseOscillator();
+            } else {
+                enableNoiseOscillator();
+            }
+        }
+
         function setFxMuted(muted, options = {}) {
             fxMuted = Boolean(muted);
             updateEffects();
@@ -12152,8 +12177,9 @@
             if (performanceNoiseOffBtn) {
                 const noiseActive = isNoiseOscillatorActive();
                 performanceNoiseOffBtn.classList.toggle('noise-active', noiseActive);
+                performanceNoiseOffBtn.textContent = noiseActive ? 'Noise Off' : 'Noise On';
                 performanceNoiseOffBtn.setAttribute('aria-pressed', String(noiseActive));
-                performanceNoiseOffBtn.title = noiseActive ? 'Remove white or pink noise from the granular source' : 'Noise source is already off';
+                performanceNoiseOffBtn.title = noiseActive ? 'Remove white or pink noise from the granular source' : 'Add pink noise to the granular source';
             }
 
             if (performanceSampleSoloBtn) {
@@ -12311,7 +12337,7 @@
         });
 
         performanceNoiseOffBtn?.addEventListener('click', () => {
-            removeNoiseOscillator();
+            toggleNoiseOscillator();
         });
 
         performanceSampleSoloBtn?.addEventListener('click', () => {
