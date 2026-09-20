@@ -7461,8 +7461,37 @@
         });
 
         // --- Slider Listeners ---
+        function syncFilterLfoDepth(lfoNum, value) {
+            const safeValue = String(Math.max(0, Math.min(100, Number(value) || 0)));
+            const sourceId = lfoNum === 1 ? 'lfoDepth' : 'lfo2Depth';
+            const sourceValueId = lfoNum === 1 ? 'lfoDepthValue' : 'lfo2DepthValue';
+            const filterId = lfoNum === 1 ? 'filterLfo1Depth' : 'filterLfo2Depth';
+            const filterValueId = lfoNum === 1 ? 'filterLfo1DepthValue' : 'filterLfo2DepthValue';
+            const sourceSlider = document.getElementById(sourceId);
+            const filterSlider = document.getElementById(filterId);
+            const sourceValue = document.getElementById(sourceValueId);
+            const filterValue = document.getElementById(filterValueId);
+            if (sourceSlider && sourceSlider.value !== safeValue) sourceSlider.value = safeValue;
+            if (filterSlider && filterSlider.value !== safeValue) filterSlider.value = safeValue;
+            if (sourceValue) sourceValue.textContent = safeValue + '%';
+            if (filterValue) filterValue.textContent = safeValue + '%';
+        }
+
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
+            if (slider.id === 'filterLfo1Depth' || slider.id === 'filterLfo2Depth') {
+                slider.addEventListener('input', (e) => {
+                    syncFilterLfoDepth(e.target.id === 'filterLfo1Depth' ? 1 : 2, e.target.value);
+                });
+                slider.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                }, { passive: false });
+                slider.addEventListener('touchmove', (e) => {
+                    e.stopPropagation();
+                }, { passive: false });
+                return;
+            }
+
             // Create a throttled handler for each slider to prevent audio glitches
             const throttledHandler = throttleSlider((e) => {
                 // Special handling for LFO rate
@@ -7471,31 +7500,9 @@
                 } else if (e.target.id === 'lfo2Rate') {
                     updateLFO2RateDisplay();
                 } else if (e.target.id === 'lfoDepth') {
-                    const depth = parseFloat(e.target.value);
-                    const labelSpan = document.getElementById('lfoDepthValue');
-                    const utilitySlider = document.getElementById('filterLfo1Depth');
-                    const utilityValue = document.getElementById('filterLfo1DepthValue');
-                    if (labelSpan) labelSpan.textContent = depth + '%';
-                    if (utilitySlider && utilitySlider.value !== e.target.value) utilitySlider.value = e.target.value;
-                    if (utilityValue) utilityValue.textContent = depth + '%';
+                    syncFilterLfoDepth(1, e.target.value);
                 } else if (e.target.id === 'lfo2Depth') {
-                    const depth = parseFloat(e.target.value);
-                    const labelSpan = document.getElementById('lfo2DepthValue');
-                    const utilitySlider = document.getElementById('filterLfo2Depth');
-                    const utilityValue = document.getElementById('filterLfo2DepthValue');
-                    if (labelSpan) labelSpan.textContent = depth + '%';
-                    if (utilitySlider && utilitySlider.value !== e.target.value) utilitySlider.value = e.target.value;
-                    if (utilityValue) utilityValue.textContent = depth + '%';
-                } else if (e.target.id === 'filterLfo1Depth') {
-                    const depth = parseFloat(e.target.value);
-                    const utilityValue = document.getElementById('filterLfo1DepthValue');
-                    if (utilityValue) utilityValue.textContent = depth + '%';
-                    setSliderValue('lfoDepth', e.target.value);
-                } else if (e.target.id === 'filterLfo2Depth') {
-                    const depth = parseFloat(e.target.value);
-                    const utilityValue = document.getElementById('filterLfo2DepthValue');
-                    if (utilityValue) utilityValue.textContent = depth + '%';
-                    setSliderValue('lfo2Depth', e.target.value);
+                    syncFilterLfoDepth(2, e.target.value);
                 } else if (e.target.id === 'lfo3Rate') {
                     const rate = clampInternalLfoBpmValue(e.target.value);
                     updateLFO3RateDisplay();
