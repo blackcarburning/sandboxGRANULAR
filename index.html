@@ -4030,7 +4030,9 @@
         let makeupGain = null; // Compensation for filter losses
         let preFilterGainNode = null; // Pre-filter gain control
         let autoMakeupBaseEnabled = true;
+        let autoMakeupRuntimeEnabled = true;
         let manualPostFilterGainDb = 0;
+        let filterEnvelopeState = null;
         let oscOutputGain = null; // Controls overall oscillator level
         let granularOutputGain = null; // Controls overall granular level
         
@@ -5478,9 +5480,9 @@
                 range: paramRanges.autoMakeupGain,
                 allowedValues: [0, 1]
             }) >= 1;
-
-            if (document.getElementById('autoMakeupGain')?.checked !== autoMakeupEnabled) {
-                setAutoMakeupGainEnabled(autoMakeupEnabled, { fromModulation: true });
+            if (autoMakeupRuntimeEnabled !== autoMakeupEnabled) {
+                autoMakeupRuntimeEnabled = autoMakeupEnabled;
+                syncAutoMakeupGainValueLabel(autoMakeupEnabled);
             }
 
             // Dry/Wet gains
@@ -5509,7 +5511,7 @@
 
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
-                const lpfCutoff = getModulatedValue('lpfCutoff');
+                const lpfCutoff = getFilterEnvelopeCutoff(getModulatedValue('lpfCutoff'), now);
                 const lpfQ = clampFilterQ(getModulatedValue('lpfQ'));
                 lpfNodes.forEach(node => {
                     smoothRamp(node.frequency, lpfCutoff);
@@ -6469,41 +6471,74 @@
             return Boolean(audioContext && masterGain && oscOutputGain && granularOutputGain);
         }
 
+        function getCurrentFilterEnvelopeSettings() {
+            return {
+                amount: getModulatedValue('filterEnvAmount', { step: getSliderStepValue('filterEnvAmount') || 1 }) / 100,
+                attack: getModulatedValue('filterEnvAttack', { step: getSliderStepValue('filterEnvAttack') || 1 }) / 1000,
+                decay: getModulatedValue('filterEnvDecay', { step: getSliderStepValue('filterEnvDecay') || 1 }) / 1000,
+                sustain: getModulatedValue('filterEnvSustain', { step: getSliderStepValue('filterEnvSustain') || 1 }) / 100,
+                release: getModulatedValue('filterEnvRelease', { step: getSliderStepValue('filterEnvRelease') || 1 }) / 1000
+            };
+        }
+
+        function getFilterEnvelopeLevelAtElapsed(elapsedSeconds, settings) {
+            const safeElapsed = Math.max(0, Number(elapsedSeconds) || 0);
+            const attack = Math.max(0.001, Number(settings?.attack) || 0.001);
+            const decay = Math.max(0.001, Number(settings?.decay) || 0.001);
+            const sustain = Math.max(0, Math.min(1, Number(settings?.sustain) || 0));
+
+            if (safeElapsed <= attack) {
+                return Math.max(0, Math.min(1, safeElapsed / attack));
+            }
+
+            if (safeElapsed <= attack + decay) {
+                const decayProgress = (safeElapsed - attack) / decay;
+                return 1 - ((1 - sustain) * Math.max(0, Math.min(1, decayProgress)));
+            }
+
+            return sustain;
+        }
+
+        function getFilterEnvelopeCutoff(baseCutoff, now) {
+            if (!filterEnvelopeState || !lpfEnabled || lpfNodes.length === 0) {
+                return baseCutoff;
+            }
+
+            const settings = getCurrentFilterEnvelopeSettings();
+            if (settings.amount <= 0) {
+                return baseCutoff;
+            }
+
+            let envelopeLevel = getFilterEnvelopeLevelAtElapsed(now - filterEnvelopeState.startTime, settings);
+
+            if (filterEnvelopeState.releaseStartedAt !== null) {
+                const releaseDuration = Math.max(0.001, Number(settings.release) || 0.001);
+                const releaseElapsed = Math.max(0, now - filterEnvelopeState.releaseStartedAt);
+                const releaseLevel = Math.max(0, Math.min(1, Number(filterEnvelopeState.releaseLevel) || 0));
+                if (releaseElapsed >= releaseDuration) {
+                    filterEnvelopeState = null;
+                    return baseCutoff;
+                }
+                envelopeLevel = releaseLevel * (1 - (releaseElapsed / releaseDuration));
+            }
+
+            const maxCutoff = 9000;
+            const envelopedCutoff = baseCutoff + (settings.amount * Math.max(0, maxCutoff - baseCutoff) * envelopeLevel);
+            return Math.min(12000, Math.max(paramRanges.lpfCutoff.min, envelopedCutoff));
+        }
+
         // --- Filter Envelope ---
         function applyFilterEnvelope(note, startTime, duration) {
-            const filterEnvAmount = getModulatedValue('filterEnvAmount', { step: getSliderStepValue('filterEnvAmount') || 1 }) / 100;
-            if (!lpfEnabled || filterEnvAmount <= 0 || lpfNodes.length === 0) return;
-
-            const attack = getModulatedValue('filterEnvAttack', { step: getSliderStepValue('filterEnvAttack') || 1 }) / 1000;
-            const decay = getModulatedValue('filterEnvDecay', { step: getSliderStepValue('filterEnvDecay') || 1 }) / 1000;
-            const sustain = getModulatedValue('filterEnvSustain', { step: getSliderStepValue('filterEnvSustain') || 1 }) / 100;
-            const release = getModulatedValue('filterEnvRelease', { step: getSliderStepValue('filterEnvRelease') || 1 }) / 1000;
-
-            const baseCutoff = Math.min(12000, getModulatedValue('lpfCutoff'));
-            const maxCutoff = 9000;
-            const envelopedCutoff = baseCutoff + (filterEnvAmount * (maxCutoff - baseCutoff));
-
-            const now = startTime;
-            const peakTime = now + attack;
-            const sustainTime = now + attack + decay;
-            const releaseStart = now + duration;
-            const releaseEnd = releaseStart + release;
-
-            lpfNodes.forEach(node => {
-                // Cancel any previous scheduled values
-                node.frequency.cancelScheduledValues(now);
-                // Set initial value to base cutoff
-                node.frequency.setValueAtTime(baseCutoff, now);
-                // Attack phase: rise to enveloped cutoff
-                node.frequency.linearRampToValueAtTime(envelopedCutoff, peakTime);
-                // Decay phase: fall to sustain level
-                const sustainCutoff = baseCutoff + ((envelopedCutoff - baseCutoff) * sustain);
-                node.frequency.linearRampToValueAtTime(sustainCutoff, sustainTime);
-                // Hold at sustain
-                node.frequency.setValueAtTime(sustainCutoff, releaseStart);
-                // Release phase: return to base cutoff
-                node.frequency.linearRampToValueAtTime(baseCutoff, releaseEnd);
-            });
+            filterEnvelopeState = {
+                note,
+                startTime,
+                duration,
+                releaseStartedAt: null,
+                releaseLevel: null
+            };
+            if (audioContext && audioContext.state === 'running') {
+                updateEffects();
+            }
         }
 
         // --- Granular Engine ---
@@ -6901,15 +6936,13 @@
                 
                 // Trigger filter envelope release
                 const now = audioContext.currentTime;
-                const filterRelease = getModulatedValue('filterEnvRelease', { step: getSliderStepValue('filterEnvRelease') || 1 }) / 1000;
-                const baseCutoff = getModulatedValue('lpfCutoff');
-                
-                if (lpfEnabled && lpfNodes.length > 0) {
-                    lpfNodes.forEach(node => {
-                        node.frequency.cancelScheduledValues(now);
-                        node.frequency.setValueAtTime(node.frequency.value, now);
-                        node.frequency.linearRampToValueAtTime(baseCutoff, now + filterRelease);
-                    });
+                if (filterEnvelopeState) {
+                    filterEnvelopeState.releaseStartedAt = now;
+                    filterEnvelopeState.releaseLevel = getFilterEnvelopeLevelAtElapsed(
+                        now - filterEnvelopeState.startTime,
+                        getCurrentFilterEnvelopeSettings()
+                    );
+                    updateEffects();
                 }
                 
                 activeGrains.delete(streamId);
@@ -7750,10 +7783,10 @@
         let lpfSlope = 12;  // Default 12db/octave
         let hpfSlope = 12;  // Default 12db/octave
 
-        function syncAutoMakeupGainValueLabel() {
+        function syncAutoMakeupGainValueLabel(enabled = autoMakeupRuntimeEnabled) {
             const label = document.getElementById('autoMakeupGainValue');
             if (label) {
-                label.textContent = document.getElementById('autoMakeupGain')?.checked ? 'ON' : 'OFF';
+                label.textContent = enabled ? 'ON' : 'OFF';
             }
         }
 
@@ -7788,7 +7821,8 @@
             if (!options.fromModulation) {
                 autoMakeupBaseEnabled = shouldEnable;
             }
-            syncAutoMakeupGainValueLabel();
+            autoMakeupRuntimeEnabled = shouldEnable;
+            syncAutoMakeupGainValueLabel(shouldEnable);
 
             if (shouldEnable) {
                 const autoGain = calculateAutoMakeupGain();

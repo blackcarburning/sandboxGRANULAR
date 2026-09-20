@@ -131,11 +131,13 @@ test('filter tab exposes L1 and L2 routing for every remaining filter control', 
 });
 
 test('filter modulation code applies routed envelope, gain, and auto makeup states', () => {
-    assert.match(indexHtml, /const filterEnvAmount = getModulatedValue\('filterEnvAmount', \{ step: getSliderStepValue\('filterEnvAmount'\) \|\| 1 \}\) \/ 100;/);
-    assert.match(indexHtml, /const attack = getModulatedValue\('filterEnvAttack', \{ step: getSliderStepValue\('filterEnvAttack'\) \|\| 1 \}\) \/ 1000;/);
-    assert.match(indexHtml, /const decay = getModulatedValue\('filterEnvDecay', \{ step: getSliderStepValue\('filterEnvDecay'\) \|\| 1 \}\) \/ 1000;/);
-    assert.match(indexHtml, /const sustain = getModulatedValue\('filterEnvSustain', \{ step: getSliderStepValue\('filterEnvSustain'\) \|\| 1 \}\) \/ 100;/);
-    assert.match(indexHtml, /const release = getModulatedValue\('filterEnvRelease', \{ step: getSliderStepValue\('filterEnvRelease'\) \|\| 1 \}\) \/ 1000;/);
+    assert.match(indexHtml, /function getCurrentFilterEnvelopeSettings\(\) \{/);
+    assert.match(indexHtml, /amount: getModulatedValue\('filterEnvAmount', \{ step: getSliderStepValue\('filterEnvAmount'\) \|\| 1 \}\) \/ 100,/);
+    assert.match(indexHtml, /attack: getModulatedValue\('filterEnvAttack', \{ step: getSliderStepValue\('filterEnvAttack'\) \|\| 1 \}\) \/ 1000,/);
+    assert.match(indexHtml, /decay: getModulatedValue\('filterEnvDecay', \{ step: getSliderStepValue\('filterEnvDecay'\) \|\| 1 \}\) \/ 1000,/);
+    assert.match(indexHtml, /sustain: getModulatedValue\('filterEnvSustain', \{ step: getSliderStepValue\('filterEnvSustain'\) \|\| 1 \}\) \/ 100,/);
+    assert.match(indexHtml, /release: getModulatedValue\('filterEnvRelease', \{ step: getSliderStepValue\('filterEnvRelease'\) \|\| 1 \}\) \/ 1000/);
+    assert.match(indexHtml, /const lpfCutoff = getFilterEnvelopeCutoff\(getModulatedValue\('lpfCutoff'\), now\);/);
     assert.match(indexHtml, /const preFilterGainDb = getModulatedValue\('preFilterGain', \{ step: getSliderStepValue\('preFilterGain'\) \|\| 0\.5 \}\);/);
     assert.match(indexHtml, /const postFilterGainDb = getModulatedValue\('postFilterGain', \{[\s\S]*baseValue: postFilterGainBaseDb,[\s\S]*step: getSliderStepValue\('postFilterGain'\) \|\| 0\.5[\s\S]*\}\);/);
     assert.match(indexHtml, /const autoMakeupEnabled = getModulatedValue\('autoMakeupGain', \{[\s\S]*allowedValues: \[0, 1\][\s\S]*\}\) >= 1;/);
