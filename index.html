@@ -2603,6 +2603,55 @@
                     <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="finalDriveSoft">
+                        <span>Soft Drive</span>
+                        <span class="value" id="finalDriveSoftValue">0%</span>
+                    </label>
+                    <input type="range" id="finalDriveSoft" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalDriveHard">
+                        <span>Hard Drive</span>
+                        <span class="value" id="finalDriveHardValue">0%</span>
+                    </label>
+                    <input type="range" id="finalDriveHard" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalDriveFold">
+                        <span>Fold Drive</span>
+                        <span class="value" id="finalDriveFoldValue">0%</span>
+                    </label>
+                    <input type="range" id="finalDriveFold" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalDriveCrush">
+                        <span>Crush Drive</span>
+                        <span class="value" id="finalDriveCrushValue">0%</span>
+                    </label>
+                    <input type="range" id="finalDriveCrush" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalShimmerDepth">
+                        <span>Shimmer Verb</span>
+                        <span class="value" id="finalShimmerDepthValue">0%</span>
+                    </label>
+                    <input type="range" id="finalShimmerDepth" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalDelayDepth">
+                        <span>BPM Delay</span>
+                        <span class="value" id="finalDelayDepthValue">0%</span>
+                    </label>
+                    <input type="range" id="finalDelayDepth" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalRingDepth">
+                        <span>Ring Mod</span>
+                        <span class="value" id="finalRingDepthValue">0%</span>
+                    </label>
+                    <input type="range" id="finalRingDepth" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceClickGuard">
                         <span>Click Guard</span>
                         <span class="value" id="performanceClickGuardValue">8ms</span>
@@ -4166,6 +4215,19 @@
         let lfo3DepthGain = null;   // Controls modulation depth
         let lfo3Inverter = null;    // Inverts LFO3 for right channel
         let distortionNode = null;
+        let finalFxInput = null;
+        let finalFxOutput = null;
+        let finalDistortionNodes = [];
+        let finalRingGain = null;
+        let finalRingOscillator = null;
+        let finalRingDepthGain = null;
+        let finalDelayNode = null;
+        let finalDelayFeedbackGain = null;
+        let finalDelayWetGain = null;
+        let finalDelayDryGain = null;
+        let finalShimmerNode = null;
+        let finalShimmerTone = null;
+        let finalShimmerWetGain = null;
         let phaserNodes = [];
         let phaserLFO = null;
         let phaserLFOGain = null;
@@ -5337,7 +5399,61 @@
             // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
             masterGain.gain.value = dbToLinear(getMasterTrimDb());
-            masterGain.connect(splitterNode);
+
+            finalFxInput = audioContext.createGain();
+            finalFxOutput = audioContext.createGain();
+            finalDistortionNodes = ['soft', 'hard', 'fold', 'crush'].map((type) => {
+                const node = audioContext.createWaveShaper();
+                node.curve = makeFinalDistortionCurve(type, 0);
+                node.oversample = '4x';
+                return node;
+            });
+            finalRingGain = audioContext.createGain();
+            finalRingGain.gain.value = 1;
+            finalRingOscillator = audioContext.createOscillator();
+            finalRingOscillator.type = 'sine';
+            finalRingOscillator.frequency.value = getSharedBpmClockValue() * 2;
+            finalRingDepthGain = audioContext.createGain();
+            finalRingDepthGain.gain.value = 0;
+            finalRingOscillator.connect(finalRingDepthGain);
+            finalRingDepthGain.connect(finalRingGain.gain);
+            finalRingOscillator.start();
+
+            finalDelayNode = audioContext.createDelay(2.5);
+            finalDelayNode.delayTime.value = 60 / getSharedBpmClockValue();
+            finalDelayFeedbackGain = audioContext.createGain();
+            finalDelayFeedbackGain.gain.value = 0;
+            finalDelayWetGain = audioContext.createGain();
+            finalDelayWetGain.gain.value = 0;
+            finalDelayDryGain = audioContext.createGain();
+            finalDelayDryGain.gain.value = 1;
+
+            finalShimmerNode = audioContext.createConvolver();
+            finalShimmerNode.buffer = createFinalShimmerImpulse();
+            finalShimmerTone = audioContext.createBiquadFilter();
+            finalShimmerTone.type = 'highpass';
+            finalShimmerTone.frequency.value = 3200;
+            finalShimmerWetGain = audioContext.createGain();
+            finalShimmerWetGain.gain.value = 0;
+
+            masterGain.connect(finalFxInput);
+            finalFxInput.connect(finalDistortionNodes[0]);
+            for (let i = 0; i < finalDistortionNodes.length - 1; i++) {
+                finalDistortionNodes[i].connect(finalDistortionNodes[i + 1]);
+            }
+            finalDistortionNodes[finalDistortionNodes.length - 1].connect(finalRingGain);
+            finalRingGain.connect(finalDelayDryGain);
+            finalRingGain.connect(finalDelayNode);
+            finalRingGain.connect(finalShimmerTone);
+            finalDelayDryGain.connect(finalFxOutput);
+            finalDelayNode.connect(finalDelayWetGain);
+            finalDelayNode.connect(finalDelayFeedbackGain);
+            finalDelayFeedbackGain.connect(finalDelayNode);
+            finalDelayWetGain.connect(finalFxOutput);
+            finalShimmerTone.connect(finalShimmerNode);
+            finalShimmerNode.connect(finalShimmerWetGain);
+            finalShimmerWetGain.connect(finalFxOutput);
+            finalFxOutput.connect(splitterNode);
 
             // Create a restrained 24dB maximum filter stack. Higher slopes plus high Q were too easy to push into harsh resonance.
             lpfNodes = [];
@@ -5572,6 +5688,93 @@
             return curve;
         }
 
+        function makeFinalDistortionCurve(type, amount) {
+            const samples = 2048;
+            const curve = new Float32Array(samples);
+            const depth = Math.max(0, Math.min(1, Number(amount) || 0));
+            for (let i = 0; i < samples; i++) {
+                const x = (i * 2 / (samples - 1)) - 1;
+                let y = x;
+                if (type === 'soft') {
+                    const drive = 1 + depth * 14;
+                    y = Math.tanh(x * drive) / Math.tanh(drive);
+                } else if (type === 'hard') {
+                    const drive = 1 + depth * 28;
+                    y = Math.max(-0.92, Math.min(0.92, x * drive)) / 0.92;
+                } else if (type === 'fold') {
+                    const drive = 1 + depth * 7;
+                    y = Math.sin(x * drive * Math.PI * 0.5);
+                } else if (type === 'crush') {
+                    const drive = 1 + depth * 10;
+                    const bits = Math.max(4, Math.round(15 - depth * 11));
+                    const steps = Math.pow(2, bits);
+                    y = Math.round(Math.tanh(x * drive) * steps) / steps;
+                }
+                curve[i] = Math.max(-1, Math.min(1, y));
+            }
+            return curve;
+        }
+
+        function createFinalShimmerImpulse() {
+            const sampleRate = audioContext.sampleRate;
+            const length = Math.round(sampleRate * 3.2);
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+            for (let channel = 0; channel < 2; channel++) {
+                const data = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    const t = i / sampleRate;
+                    const decay = Math.pow(1 - (i / length), 2.2);
+                    const shimmer = Math.sin(2 * Math.PI * (880 + channel * 37) * t) * 0.16;
+                    const air = Math.sin(2 * Math.PI * (1760 + channel * 53) * t) * 0.08;
+                    data[i] = ((Math.random() * 2 - 1) * 0.72 + shimmer + air) * decay;
+                }
+            }
+            return impulse;
+        }
+
+        function getSliderPercent(id) {
+            const value = Number(document.getElementById(id)?.value);
+            return Math.max(0, Math.min(1, Number.isFinite(value) ? value / 100 : 0));
+        }
+
+        function updateFinalMixEffects() {
+            if (!audioContext || audioContext.state !== 'running') return;
+            const now = audioContext.currentTime;
+            const rampTime = 0.05;
+            const smoothRamp = (audioParam, targetValue) => {
+                if (!audioParam) return;
+                audioParam.cancelScheduledValues(now);
+                audioParam.setValueAtTime(audioParam.value, now);
+                audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
+            };
+
+            ['soft', 'hard', 'fold', 'crush'].forEach((type, index) => {
+                const node = finalDistortionNodes[index];
+                if (!node) return;
+                const sliderIds = ['finalDriveSoft', 'finalDriveHard', 'finalDriveFold', 'finalDriveCrush'];
+                node.curve = makeFinalDistortionCurve(type, fxMuted ? 0 : getSliderPercent(sliderIds[index]));
+            });
+
+            const ringDepth = fxMuted ? 0 : getSliderPercent('finalRingDepth');
+            if (finalRingOscillator) {
+                smoothRamp(finalRingOscillator.frequency, Math.max(8, getSharedBpmClockValue() * 2));
+            }
+            smoothRamp(finalRingGain?.gain, 1 - ringDepth * 0.82);
+            smoothRamp(finalRingDepthGain?.gain, ringDepth * 0.82);
+
+            const delayDepth = fxMuted ? 0 : getSliderPercent('finalDelayDepth');
+            const bpm = getSharedBpmClockValue();
+            const delayTime = Math.max(0.04, Math.min(2.5, 60 / bpm));
+            smoothRamp(finalDelayNode?.delayTime, delayTime);
+            smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * 0.62);
+            smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * 0.72);
+            smoothRamp(finalDelayDryGain?.gain, Math.cos(delayDepth * Math.PI / 2));
+
+            const shimmerDepth = fxMuted ? 0 : getSliderPercent('finalShimmerDepth');
+            smoothRamp(finalShimmerTone?.frequency, 2600 + shimmerDepth * 6200);
+            smoothRamp(finalShimmerWetGain?.gain, shimmerDepth * 0.58);
+        }
+
         function createNoiseBuffers() {
             const sampleRate = audioContext.sampleRate;
             const bufferSize = sampleRate * 2; // 2 seconds
@@ -5703,6 +5906,8 @@
                 const distAmt = getModulatedValue('distortion') / 100;
                 distortionNode.curve = makeDistortionCurve(distAmt);
             }
+
+            updateFinalMixEffects();
         }
 
         // Real-time modulation loop for global parameters
@@ -7783,7 +7988,9 @@
                 if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' || 
                     e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
-                    e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix') {
+                    e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix' ||
+                    e.target.id.startsWith('finalDrive') || e.target.id === 'finalShimmerDepth' ||
+                    e.target.id === 'finalDelayDepth' || e.target.id === 'finalRingDepth') {
                     updateEffects();
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
@@ -8717,6 +8924,13 @@
             setSliderValue('noiseMix', randomIntegerInRange(0, 34));
             setSliderValue('delayMix', randomIntegerInRange(0, 54));
             setSliderValue('reverb', randomIntegerInRange(0, 58));
+            setSliderValue('finalDriveSoft', randomIntegerInRange(0, 42));
+            setSliderValue('finalDriveHard', randomIntegerInRange(0, 34));
+            setSliderValue('finalDriveFold', randomIntegerInRange(0, 30));
+            setSliderValue('finalDriveCrush', randomIntegerInRange(0, 28));
+            setSliderValue('finalShimmerDepth', randomIntegerInRange(0, 45));
+            setSliderValue('finalDelayDepth', randomIntegerInRange(0, 48));
+            setSliderValue('finalRingDepth', randomIntegerInRange(0, 36));
             setSliderValue('volume', randomIntegerInRange(68, 100));
             setSliderValue('preFilterGain', randomIntegerInRange(-12, 3));
             setSliderValue('postFilterGain', randomIntegerInRange(-10, 8));
@@ -10001,6 +10215,13 @@
                 noiseMix: 0,
                 reverb: 20,
                 distortion: 0,
+                finalDriveSoft: 0,
+                finalDriveHard: 0,
+                finalDriveFold: 0,
+                finalDriveCrush: 0,
+                finalShimmerDepth: 0,
+                finalDelayDepth: 0,
+                finalRingDepth: 0,
                 phaserRate: 30,
                 phaserDepth: 0,
                 tremoloRate: 120,
