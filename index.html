@@ -8657,6 +8657,14 @@
             return Math.round(min + Math.random() * (max - min));
         }
 
+        function chooseRandom(values) {
+            return values[Math.floor(Math.random() * values.length)];
+        }
+
+        function maybe(probability = 0.5) {
+            return Math.random() < probability;
+        }
+
         function randomizeLfoDepths(options = {}) {
             const energy = Math.max(0.35, Math.min(1, Number(options.energy ?? 0.7) || 0.7));
             Object.entries(RANDOMIZE_LFO_DEPTH_RANGES).forEach(([id, range]) => {
@@ -8677,6 +8685,77 @@
                 return Number(raw.toFixed(range.decimals));
             }
             return Math.round(raw);
+        }
+
+        function randomizeFullPatchPerformanceState(options = {}) {
+            const profile = options.profile || createMusicalGenerationProfile();
+            const bpm = applyGlobalBpm(chooseRandom([64, 72, 80, 90, 96, 100, 108, 112, 120, 128, 132, 140, 150, 160]));
+            const lfoWaveform = chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']);
+            const forceSquare = maybe(0.22);
+            const loopShouldRun = maybe(0.7);
+
+            setSliderValue('performanceSourceMix', randomIntegerInRange(18, 82));
+            setSliderValue('performanceGeneratedSourceMix', randomIntegerInRange(58, 100));
+            setSliderValue('performanceSampleVolume', randomIntegerInRange(52, 100));
+            setSliderValue('performanceGeneratedDryMix', randomIntegerInRange(18, 86));
+            setSliderValue('performanceGeneratedDryTrim', randomIntegerInRange(-14, 2));
+            setSliderValue('performanceGranularTrim', randomIntegerInRange(-12, 3));
+            setSliderValue('performanceGeneratedSwing', randomIntegerInRange(0, Math.min(42, Math.max(18, Math.round((profile.energy || 0.7) * 44)))));
+            setSliderValue('performanceGeneratedTranspose', chooseRandom([-2, -1, 0, 0, 1, 2]));
+            setSliderValue('performanceModAmount', randomIntegerInRange(24, 100));
+            setSliderValue('performanceGrainModAmount', randomIntegerInRange(24, 100));
+            setSliderValue('performanceInputTrim', randomIntegerInRange(-12, 3));
+            setSliderValue('performancePostFilterTrim', randomIntegerInRange(-10, 8));
+            setSliderValue('performanceMasterTrim', randomIntegerInRange(-12, 0));
+            setSliderValue('performanceClickGuard', randomIntegerInRange(4, 18));
+            setSliderValue('generatedLoopStart', randomIntegerInRange(0, 18));
+            setSliderValue('generatedLoopEnd', randomIntegerInRange(72, 100));
+            setSliderValue('micLoopStart', randomIntegerInRange(0, 18));
+            setSliderValue('micLoopEnd', randomIntegerInRange(72, 100));
+
+            setSliderValue('osc1Level', randomIntegerInRange(38, 100));
+            setSliderValue('osc2Level', randomIntegerInRange(22, 92));
+            setSliderValue('noiseMix', randomIntegerInRange(0, 34));
+            setSliderValue('delayMix', randomIntegerInRange(0, 54));
+            setSliderValue('reverb', randomIntegerInRange(0, 58));
+            setSliderValue('volume', randomIntegerInRange(68, 100));
+            setSliderValue('preFilterGain', randomIntegerInRange(-12, 3));
+            setSliderValue('postFilterGain', randomIntegerInRange(-10, 8));
+
+            setSelectValue('delayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
+            setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
+            setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
+            setSelectValue('noiseType', chooseRandom(['none', 'none', 'white', 'pink']));
+
+            if (forceSquare) {
+                setAllInternalLfoWaveforms('square', { forcedSquare: true });
+            } else {
+                clearAllLfoSquareForce();
+                setAllInternalLfoWaveforms(lfoWaveform);
+            }
+            setAllInternalLfoPulseWidths(randomIntegerInRange(18, 82));
+            setPerformanceLfoRateRatio(1, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
+            setPerformanceLfoRateRatio(2, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
+
+            setGeneratedSourceLowNoiseMode(maybe(0.6), { silent: true, skipSave: true });
+            setOscillatorsEnabled(maybe(0.72));
+            setGeneratedSampleSolo(maybe(0.22), { silent: true, skipSave: true });
+            setGeneratedDryThroughFilters(maybe(0.68), { silent: true });
+            setFxMuted(maybe(0.18), { silent: true });
+            setFilterEnabled('lpf', maybe(0.92));
+            setFilterEnabled('hpf', maybe(0.72));
+            setFilterPoles('lpf', chooseRandom([2, 4]));
+            setFilterPoles('hpf', chooseRandom([2, 4]));
+
+            const exportBars = document.getElementById('performanceExportBars');
+            if (exportBars) {
+                exportBars.value = String(chooseRandom([1, 2, 4, 8, 16]));
+                exportBars.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            syncPerformanceControlState();
+            console.log('Randomize full patch time base:', { bpm, loopShouldRun });
+            return { bpm, loopShouldRun };
         }
 
         function clampToSliderBounds(id, value) {
@@ -9826,8 +9905,8 @@
         // Randomize Button
         document.getElementById('randomizeBtn').addEventListener('click', async () => {
             showSettlePopup();
-            const protectedRandomizeSliders = snapshotRandomizeProtectedSliders();
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile() });
+            const randomizeState = randomizeFullPatchPerformanceState({ profile: generationProfile });
             const loopBlueprint = buildLoopBlueprint(generationProfile);
             const sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
             randomizeLfoRoutingMatrix({ profile: generationProfile });
@@ -9865,12 +9944,16 @@
                 }
             });
 
-            restoreRandomizeProtectedSliders(protectedRandomizeSliders);
             randomizeInternalLfoTempoRatios({ profile: generationProfile });
+            setPerformanceLfoRateRatio(1, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
+            setPerformanceLfoRateRatio(2, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
-                statusDiv.textContent = 'Patch randomized; start MYGRAIN to generate the source loop.';
+                if (randomizeState.loopShouldRun && sequencerPlaying) {
+                    stopSequencer();
+                }
+                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample.`;
                 return;
             }
 
@@ -9882,8 +9965,16 @@
                     blueprint: loopBlueprint,
                     sourceBlueprint
                 });
+                if (randomizeState.loopShouldRun) {
+                    if (!sequencerPlaying) {
+                        startSequencer();
+                    }
+                } else if (sequencerPlaying) {
+                    stopSequencer();
+                }
                 setPerformanceGenerateButtonState('generated');
-                statusDiv.textContent = 'Patch randomized and new loop generated; source loop points and mix balances kept.';
+                syncPerformanceControlState();
+                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample and loop ${randomizeState.loopShouldRun ? 'running' : 'stopped'}.`;
             } catch (error) {
                 console.error(error);
                 setPerformanceGenerateButtonState('idle');
