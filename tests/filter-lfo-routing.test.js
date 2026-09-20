@@ -84,6 +84,10 @@ test('filter utility section hosts the four LP/HP modulation route controls with
     assert.match(utilityTabHtml, /<span class="param-name" id="utilityHpfCutoffModLabel">HP Cutoff Mod<\/span>/);
     assert.match(utilityTabHtml, /class="utility-route-group" role="group" aria-labelledby="utilityHpfResonanceModLabel"/);
     assert.match(utilityTabHtml, /<span class="param-name" id="utilityHpfResonanceModLabel">HP Resonance Mod<\/span>/);
+    assert.match(utilityTabHtml, /aria-label="Route LFO1 to low-pass cutoff"/);
+    assert.match(utilityTabHtml, /aria-label="Invert LFO2 modulation for low-pass cutoff"/);
+    assert.match(utilityTabHtml, /aria-label="Route LFO1 to high-pass resonance"/);
+    assert.match(utilityTabHtml, /aria-label="Invert LFO2 modulation for high-pass resonance"/);
 });
 
 test('filter LFO routes are randomizable and preset-compatible', () => {
