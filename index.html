@@ -2462,6 +2462,13 @@
                     <input type="range" id="performanceGranularTrim" min="-24" max="6" value="-3" step="0.5">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceNoiseLevel">
+                        <span>Noise Level</span>
+                        <span class="value" id="performanceNoiseLevelValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceNoiseLevel" min="0" max="20" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceGeneratedSwing">
                         <span>Gen Swing</span>
                         <span class="value" id="performanceGeneratedSwingValue">0%</span>
@@ -8619,7 +8626,7 @@
         function isNoiseOscillatorActive() {
             const noiseType = document.getElementById('noiseType')?.value || 'none';
             const noiseMix = Number(document.getElementById('noiseMix')?.value) || 0;
-            return noiseType !== 'none' || noiseMix > 0 || Boolean(lfoEnabled.noiseMix || lfo2Enabled.noiseMix || lfo3Enabled.noiseMix);
+            return noiseType !== 'none' && (noiseMix > 0 || Boolean(lfoEnabled.noiseMix || lfo2Enabled.noiseMix || lfo3Enabled.noiseMix));
         }
 
         function clearModulationForParam(param) {
@@ -9081,7 +9088,8 @@
 
             setSliderValue('osc1Level', randomIntegerInRange(38, 100));
             setSliderValue('osc2Level', randomIntegerInRange(22, 92));
-            setSliderValue('noiseMix', randomIntegerInRange(0, 34));
+            const noiseEnabled = maybe(0.5);
+            setSliderValue('noiseMix', noiseEnabled ? randomIntegerInRange(1, 20) : 0);
             setSliderValue('delayMix', randomIntegerInRange(0, 54));
             setSliderValue('reverb', randomIntegerInRange(0, 58));
             setSliderValue('finalDriveSoft', 0);
@@ -9099,7 +9107,7 @@
             setSelectValue('finalDelayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
             setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
-            setSelectValue('noiseType', chooseRandom(['none', 'none', 'white', 'pink']));
+            setSelectValue('noiseType', noiseEnabled ? chooseRandom(['white', 'pink']) : 'none');
 
             if (forceSquare) {
                 setAllInternalLfoWaveforms('square', { forcedSquare: true });
@@ -11967,6 +11975,7 @@
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
+        const performanceNoiseLevel = document.getElementById('performanceNoiseLevel');
         const performanceGeneratedSwing = document.getElementById('performanceGeneratedSwing');
         const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
         const performanceModAmount = document.getElementById('performanceModAmount');
@@ -12036,6 +12045,12 @@
                 const value = getGranularTrimDb();
                 performanceGranularTrim.value = String(value);
                 document.getElementById('performanceGranularTrimValue').textContent = formatDb(value);
+            }
+
+            if (performanceNoiseLevel) {
+                const value = Math.max(0, Math.min(20, Math.round(Number(document.getElementById('noiseMix')?.value) || 0)));
+                performanceNoiseLevel.value = String(value);
+                document.getElementById('performanceNoiseLevelValue').textContent = `${value}%`;
             }
 
             if (performanceGeneratedSwing) {
@@ -12312,6 +12327,18 @@
             granularTrimDb = getDbControlValue('performanceGranularTrim', -3, -24, 6);
             document.getElementById('performanceGranularTrimValue').textContent = formatDb(granularTrimDb);
             updateSourceMixGains();
+        });
+
+        performanceNoiseLevel?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(20, Math.round(Number(event.target.value) || 0)));
+            if (value <= 0) {
+                setSelectValue('noiseType', 'none');
+            } else if ((document.getElementById('noiseType')?.value || 'none') === 'none') {
+                setSelectValue('noiseType', 'pink');
+            }
+            setSliderValue('noiseMix', value);
+            document.getElementById('performanceNoiseLevelValue').textContent = `${value}%`;
+            syncPerformanceControlState();
         });
 
         performanceGeneratedSwing?.addEventListener('input', (event) => {
