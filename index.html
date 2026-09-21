@@ -12161,6 +12161,100 @@
             return input;
         }
 
+        function createOfflineFinalFxBus(ctx, finalDestination, bpm) {
+            const input = ctx.createGain();
+            const output = ctx.createGain();
+            const muted = Boolean(fxMuted);
+            const postFilterFx = finalFxPlacement !== 'pre';
+
+            const distortionNodes = ['soft', 'hard', 'fold', 'crush'].map((type, index) => {
+                const node = ctx.createWaveShaper();
+                const sliderIds = ['finalDriveSoft', 'finalDriveHard', 'finalDriveFold', 'finalDriveCrush'];
+                node.curve = makeFinalDistortionCurve(type, muted ? 0 : getSliderPercent(sliderIds[index]));
+                node.oversample = '4x';
+                return node;
+            });
+            const distortionTrim = ctx.createGain();
+            distortionTrim.gain.value = 0.72;
+
+            const ringGain = ctx.createGain();
+            const ringDepth = muted ? 0 : getSliderPercent('finalRingDepth');
+            ringGain.gain.value = 1 - ringDepth * 0.82;
+            const ringOscillator = ctx.createOscillator();
+            ringOscillator.type = 'sine';
+            ringOscillator.frequency.value = Math.max(8, bpm * 2);
+            const ringDepthGain = ctx.createGain();
+            ringDepthGain.gain.value = ringDepth * 0.82;
+            ringOscillator.connect(ringDepthGain);
+            ringDepthGain.connect(ringGain.gain);
+            ringOscillator.start(0);
+            ringOscillator.stop(ctx.length / ctx.sampleRate);
+
+            const delayDepth = muted ? 0 : getSliderPercent('finalDelayDepth');
+            const delayDivision = document.getElementById('finalDelayDivision')?.value || '4';
+            const delayNode = ctx.createDelay(2.5);
+            delayNode.delayTime.value = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(delayDivision, bpm)));
+            const delayFeedbackGain = ctx.createGain();
+            delayFeedbackGain.gain.value = delayDepth * (postFilterFx ? 0 : 0.46);
+            const delayFeedbackHighpass = ctx.createBiquadFilter();
+            delayFeedbackHighpass.type = 'highpass';
+            delayFeedbackHighpass.frequency.value = postFilterFx ? 260 + delayDepth * 520 : 140 + delayDepth * 220;
+            const delayFeedbackLowpass = ctx.createBiquadFilter();
+            delayFeedbackLowpass.type = 'lowpass';
+            delayFeedbackLowpass.frequency.value = postFilterFx ? 2400 - delayDepth * 900 : 5200 - delayDepth * 2600;
+            const delayWetGain = ctx.createGain();
+            delayWetGain.gain.value = Math.sin(delayDepth * Math.PI / 2) * (postFilterFx ? 0.18 : 0.62);
+            const delayDryGain = ctx.createGain();
+            delayDryGain.gain.value = 1 - (delayDepth * (postFilterFx ? 0.08 : 0.12));
+
+            const shimmerDepth = muted ? 0 : getSliderPercent('finalShimmerDepth');
+            const shimmerNode = ctx.createConvolver();
+            shimmerNode.buffer = createFinalShimmerImpulse();
+            const shimmerTone = ctx.createBiquadFilter();
+            shimmerTone.type = 'highpass';
+            shimmerTone.frequency.value = 2600 + shimmerDepth * 6200;
+            const shimmerWetGain = ctx.createGain();
+            shimmerWetGain.gain.value = shimmerDepth * (postFilterFx ? 0.2 : 0.58);
+
+            const reverbSize = getSliderPercent('finalReverbSize');
+            const reverbDecay = getSliderPercent('finalReverbDecay');
+            const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
+            const reverbNode = ctx.createConvolver();
+            reverbNode.buffer = createFinalReverbImpulse(reverbSize, reverbDecay);
+            const reverbLowpass = ctx.createBiquadFilter();
+            reverbLowpass.type = 'lowpass';
+            reverbLowpass.frequency.value = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
+            const reverbWetGain = ctx.createGain();
+            reverbWetGain.gain.value = reverbMix * 0.72;
+
+            input.connect(distortionNodes[0]);
+            for (let index = 0; index < distortionNodes.length - 1; index += 1) {
+                distortionNodes[index].connect(distortionNodes[index + 1]);
+            }
+            distortionNodes[distortionNodes.length - 1].connect(distortionTrim);
+            distortionTrim.connect(ringGain);
+            ringGain.connect(delayDryGain);
+            ringGain.connect(delayNode);
+            ringGain.connect(shimmerTone);
+            ringGain.connect(reverbNode);
+            delayDryGain.connect(output);
+            delayNode.connect(delayWetGain);
+            delayNode.connect(delayFeedbackGain);
+            delayFeedbackGain.connect(delayFeedbackHighpass);
+            delayFeedbackHighpass.connect(delayFeedbackLowpass);
+            delayFeedbackLowpass.connect(delayNode);
+            delayWetGain.connect(output);
+            shimmerTone.connect(shimmerNode);
+            shimmerNode.connect(shimmerWetGain);
+            shimmerWetGain.connect(output);
+            reverbNode.connect(reverbLowpass);
+            reverbLowpass.connect(reverbWetGain);
+            reverbWetGain.connect(output);
+            output.connect(finalDestination);
+
+            return input;
+        }
+
         async function renderDawReadyBuffer({ bars, includeDryGenerated = true, dryOnly = false }) {
             if (!window.OfflineAudioContext && !window.webkitOfflineAudioContext) {
                 throw new Error('Offline WAV export is not supported in this browser.');
@@ -12174,14 +12268,22 @@
             const offline = new OfflineCtx(2, frameCount, sampleRate);
             const master = offline.createGain();
             master.gain.value = Math.max(0.01, Math.min(1, (Number(document.getElementById('volume')?.value || 100) / 100) * dbToLinear(getMasterTrimDb())));
-            master.connect(offline.destination);
+            const finalFxInput = dryOnly ? null : createOfflineFinalFxBus(offline, offline.destination, bpm);
+            if (dryOnly) {
+                master.connect(offline.destination);
+            } else if (finalFxPlacement === 'pre') {
+                master.connect(offline.destination);
+            } else {
+                master.connect(finalFxInput);
+            }
 
             const generatedDryLevel = includeDryGenerated && generatedLoopBuffer
                 ? getGeneratedDryOutputGain()
                 : 0;
 
             if (!dryOnly) {
-                const filterInput = createOfflineFilterDestination(offline, master);
+                const filterOutput = finalFxPlacement === 'pre' ? finalFxInput : master;
+                const filterInput = createOfflineFilterDestination(offline, filterOutput);
                 scheduleOfflineLoopSource(
                     offline,
                     generatedDryThroughFilters ? filterInput : master,
@@ -12258,7 +12360,7 @@
                 performanceExportBtn.disabled = true;
                 performanceExportBtn.textContent = 'Exporting...';
             }
-            setStatus(`Exporting ${bars} bar${bars === 1 ? '' : 's'} from time 0…`);
+            setStatus(`Exporting ${bars} bar${bars === 1 ? '' : 's'} from the main bus…`);
 
             try {
                 const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
