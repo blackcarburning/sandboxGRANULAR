@@ -2802,6 +2802,7 @@
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
                 <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
+                <button class="performance-btn" id="performanceTonalDrumsBtn">Tonal Drums Off</button>
                 <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
                 <button class="performance-btn" id="performanceFinalReverbBtn">Reverb Off</button>
                 <button class="performance-btn" id="performanceFinalFxPlacementBtn">FX Post Filter</button>
@@ -4291,6 +4292,7 @@
         let finalReverbEnabled = false;
         let finalReverbImpulseKey = '';
         let finalFxPlacement = 'post';
+        let tonalDrumsEnabled = false;
         let phaserNodes = [];
         let phaserLFO = null;
         let phaserLFOGain = null;
@@ -9568,6 +9570,22 @@
             };
         }
 
+        function isTonalDrumRecipe(recipe) {
+            const category = String(recipe?.category || '');
+            return ['tom', 'rim', 'click', 'perc', 'miscPerc'].includes(category);
+        }
+
+        function setTonalDrumsEnabled(enabled, options = {}) {
+            tonalDrumsEnabled = Boolean(enabled);
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(tonalDrumsEnabled
+                    ? 'Tonal drums enabled for generated loops.'
+                    : 'Tonal drums excluded from generated loops.');
+            }
+            if (!options.skipSave) saveState();
+        }
+
         function buildGeneratedSourceDrumBlueprint(profile = null) {
             const chosenProfile = profile || createMusicalGenerationProfile();
             const generator = typeof mygrainUtils.generateDrumLoopBlueprint === 'function'
@@ -9580,7 +9598,8 @@
                 archetype: chosenProfile.id,
                 densityBias: chosenProfile.densityBias,
                 energy: chosenProfile.energy,
-                lowNoiseOnly: generatedSourceLowNoiseMode
+                lowNoiseOnly: generatedSourceLowNoiseMode,
+                includeTonalDrums: tonalDrumsEnabled
             });
         }
 
@@ -9993,6 +10012,7 @@
             function addGridEvent(hit) {
                 const recipe = hit?.recipe;
                 if (!recipe || !Number.isInteger(hit.step)) return;
+                if (!tonalDrumsEnabled && isTonalDrumRecipe(recipe)) return;
                 const allowedSteps = [0, 4, 8, 12];
                 const quantizedStep = allowedSteps.reduce((best, step) => {
                     return Math.abs(step - hit.step) < Math.abs(best - hit.step) ? step : best;
@@ -10002,7 +10022,7 @@
                 if (brightHit && hit.step !== quantizedStep) return;
                 const time = quantizedStep * stepDuration;
                 const lowFrequencyBias = brightHit ? 0.42 : 1;
-                const bodyBias = recipe.category === 'kick' || recipe.category === 'tom' ? 1.12 : 0.88;
+                const bodyBias = recipe.category === 'kick' || recipe.category === 'impact' || recipe.category === 'tom' ? 1.12 : 0.88;
                 const toneFreq = Number(recipe.toneFreq ?? 220);
                 const requestedDurationSteps = Math.max(4, Number(recipe.durationSteps) || 4);
                 const durationStepChoices = [4, 8, 16];
@@ -10134,11 +10154,14 @@
                 const transient = highNoise * event.click * Math.exp(-delta * 90);
                 let voice = 0;
 
-                if (event.category === 'kick') {
+                if (event.category === 'kick' || event.category === 'impact') {
                     const sub = Math.sin(TWO_PI * pitch * 0.5 * delta + 0.45);
-                    const body = primary + (sub * 0.46) + (overtone * 0.28);
-                    const dust = lowNoise * event.noiseTone * Math.exp(-delta * 16);
-                    voice = Math.tanh((body + dust + transient) * event.drive) * basicEnv;
+                    const body = event.category === 'impact'
+                        ? (sub * 0.92) + (primary * 0.36) + (overtone * 0.12)
+                        : primary + (sub * 0.46) + (overtone * 0.28);
+                    const dust = lowNoise * event.noiseTone * Math.exp(-delta * (event.category === 'impact' ? 9 : 16));
+                    const slam = event.category === 'impact' ? highNoise * event.click * Math.exp(-delta * 38) : transient;
+                    voice = Math.tanh((body + dust + slam) * event.drive) * basicEnv;
                 } else if (event.category === 'snare') {
                     const snap = highNoise * (event.noiseTone + 0.14) * Math.exp(-delta * 22);
                     const body = (primary * 0.34) + (overtone * 0.18) + (lowNoise * 0.2 * Math.exp(-delta * 10));
@@ -10496,6 +10519,7 @@
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile() });
             const randomizeState = randomizeFullPatchPerformanceState({ profile: generationProfile });
             const loopBlueprint = buildLoopBlueprint(generationProfile);
+            setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             const sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
             randomizeLfoRoutingMatrix({ profile: generationProfile });
 
@@ -10649,6 +10673,7 @@
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
+            setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
@@ -10754,6 +10779,7 @@
                 finalReverbEnabled: finalReverbEnabled,
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                tonalDrumsEnabled: tonalDrumsEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
                 filterPoles: {
@@ -10866,6 +10892,9 @@
             }
             if (safePreset.generatedSourceLowNoiseMode !== undefined) {
                 setGeneratedSourceLowNoiseMode(safePreset.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
+            }
+            if (safePreset.tonalDrumsEnabled !== undefined) {
+                setTonalDrumsEnabled(safePreset.tonalDrumsEnabled, { silent: true, skipSave: true });
             }
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
@@ -11260,6 +11289,7 @@
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     generatedSampleSolo: generatedSampleSolo,
+                    tonalDrumsEnabled: tonalDrumsEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
                     lpfSlope: lpfSlope,
@@ -11399,6 +11429,9 @@
                     if (state.modes.generatedSourceLowNoiseMode !== undefined) {
                         setGeneratedSourceLowNoiseMode(state.modes.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
                     }
+                    if (state.modes.tonalDrumsEnabled !== undefined) {
+                        setTonalDrumsEnabled(state.modes.tonalDrumsEnabled, { silent: true, skipSave: true });
+                    }
                     if (state.modes.globalModulationAmount !== undefined) {
                         setGlobalModulationAmount(Number(state.modes.globalModulationAmount) * 100, { save: false });
                     }
@@ -11505,6 +11538,10 @@
 
                 if (state.generatedDryThroughFilters !== undefined) {
                     setGeneratedDryThroughFilters(state.generatedDryThroughFilters, { silent: true });
+                }
+
+                if (state.tonalDrumsEnabled !== undefined) {
+                    setTonalDrumsEnabled(state.tonalDrumsEnabled, { silent: true, skipSave: true });
                 }
 
                 // Restore volume bias
@@ -12182,6 +12219,7 @@
         const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
+        const performanceTonalDrumsBtn = document.getElementById('performanceTonalDrumsBtn');
         const performanceSampleSoloBtn = document.getElementById('performanceSampleSoloBtn');
         const performanceLowNoiseSourceBtn = document.getElementById('performanceLowNoiseSourceBtn');
         const performanceLfoSquareBtn = document.getElementById('performanceLfoSquareBtn');
@@ -12422,6 +12460,15 @@
                 performanceNoiseOffBtn.title = noiseActive ? 'Remove white or pink noise from the granular source' : 'Add pink noise to the granular source';
             }
 
+            if (performanceTonalDrumsBtn) {
+                performanceTonalDrumsBtn.classList.toggle('active', tonalDrumsEnabled);
+                performanceTonalDrumsBtn.textContent = tonalDrumsEnabled ? 'Tonal Drums On' : 'Tonal Drums Off';
+                performanceTonalDrumsBtn.setAttribute('aria-pressed', String(tonalDrumsEnabled));
+                performanceTonalDrumsBtn.title = tonalDrumsEnabled
+                    ? 'Allow pitched tom, rim, click, and tuned percussion hits in generated loops'
+                    : 'Exclude pitched drum hits from generated loops';
+            }
+
             if (performanceSampleSoloBtn) {
                 performanceSampleSoloBtn.classList.toggle('active', generatedSampleSolo);
                 performanceSampleSoloBtn.textContent = generatedSampleSolo ? 'Sample Solo On' : 'Sample Solo Off';
@@ -12596,6 +12643,10 @@
 
         performanceNoiseOffBtn?.addEventListener('click', () => {
             toggleNoiseOscillator();
+        });
+
+        performanceTonalDrumsBtn?.addEventListener('click', () => {
+            setTonalDrumsEnabled(!tonalDrumsEnabled);
         });
 
         performanceSampleSoloBtn?.addEventListener('click', () => {

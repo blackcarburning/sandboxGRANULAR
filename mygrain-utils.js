@@ -374,6 +374,7 @@
         const categorySpecs = [
             { category: 'kick', count: 32, families: ['kickSub', 'kickPunch', 'kickThud'] },
             { category: 'snare', count: 28, families: ['snareCrack', 'snareDust', 'snareSnap'] },
+            { category: 'impact', count: 20, families: ['impactBoom', 'impactCrush', 'impactDoor'] },
             { category: 'clap', count: 18, families: ['clapTight', 'clapWide', 'clapDust'] },
             { category: 'closedHat', count: 28, families: ['hatTick', 'hatChip', 'hatMetal'] },
             { category: 'openHat', count: 18, families: ['openHatAir', 'openHatMetal'] },
@@ -447,6 +448,23 @@
                         durationSteps: vary(0.42, 0.84, t, 0.04),
                         drive: vary(1.18, 1.92, t, 0.04),
                         panWidth: vary(0.04, 0.18, t)
+                    });
+                } else if (category === 'impact') {
+                    Object.assign(recipe, {
+                        weight: 1.12,
+                        level: vary(0.68, 0.98, t, 0.07),
+                        toneFreq: vary(28, 54, t, 0.04),
+                        overtone: vary(0.32, 0.78, t, 0.04),
+                        metallic: vary(0.01, 0.12, t, 0.02),
+                        noiseTone: vary(0.12, 0.34, t, 0.03),
+                        click: vary(0.18, 0.48, t, 0.04),
+                        attackSeconds: vary(0.0008, 0.0028, t),
+                        decaySeconds: vary(0.26, 0.62, t, 0.06),
+                        durationSteps: vary(0.9, 1.8, t, 0.05),
+                        pitchDrop: vary(72, 150, t, 0.08),
+                        dropRate: vary(8, 20, t, 0.05),
+                        drive: vary(1.6, 2.45, t, 0.08),
+                        panWidth: vary(0.02, 0.16, t)
                     });
                 } else if (category === 'clap') {
                     Object.assign(recipe, {
@@ -624,7 +642,11 @@
         const densityBias = clampNumber(options.densityBias, { min: 0, max: 1, fallback: 0.55 });
         const energy = clampNumber(options.energy, { min: 0.35, max: 1, fallback: 0.7 });
         const lowNoiseOnly = Boolean(options.lowNoiseOnly);
-        const palette = DRUM_SOUND_PALETTE.map((recipe) => ({ ...recipe }));
+        const includeTonalDrums = Boolean(options.includeTonalDrums);
+        const tonalDrumCategories = new Set(['tom', 'rim', 'click', 'perc', 'miscPerc']);
+        const palette = DRUM_SOUND_PALETTE
+            .filter((recipe) => includeTonalDrums || !tonalDrumCategories.has(recipe.category))
+            .map((recipe) => ({ ...recipe, tonal: tonalDrumCategories.has(recipe.category) }));
         const groupedPalette = palette.reduce((groups, recipe) => {
             if (!groups[recipe.category]) groups[recipe.category] = [];
             groups[recipe.category].push(recipe);
@@ -636,6 +658,7 @@
                 label: 'steady pocket',
                 weight: 1.15,
                 kick: [[0, 1, 1], [6, 0.32, 0.62], [8, 0.92, 0.84], [11, 0.24, 0.5], [14, 0.42, 0.64]],
+                impact: [[0, 0.34, 0.62], [8, 0.24, 0.54]],
                 snare: [[4, 1, 0.96], [12, 1, 1], [15, 0.18, 0.44]],
                 hats: 'eighths',
                 perc: [[3, 0.16, 'rim'], [7, 0.24, 'shaker'], [10, 0.18, 'perc'], [15, 0.3, 'shaker']],
@@ -645,6 +668,7 @@
                 label: 'pulsed groove',
                 weight: 1.08,
                 kick: [[0, 1, 1], [3, 0.24, 0.52], [6, 0.38, 0.62], [8, 0.78, 0.82], [10, 0.26, 0.46], [14, 0.56, 0.7]],
+                impact: [[0, 0.42, 0.7], [8, 0.28, 0.58], [14, 0.2, 0.5]],
                 snare: [[4, 1, 0.94], [12, 1, 1], [11, 0.14, 0.38], [15, 0.24, 0.46]],
                 hats: 'busyOffbeats',
                 perc: [[2, 0.24, 'shaker'], [7, 0.28, 'rim'], [10, 0.26, 'perc'], [13, 0.24, 'click'], [15, 0.34, 'shaker']],
@@ -654,6 +678,7 @@
                 label: 'syncopated snap',
                 weight: 1,
                 kick: [[0, 1, 1], [3, 0.28, 0.56], [7, 0.24, 0.48], [8, 0.7, 0.74], [10, 0.34, 0.56], [14, 0.64, 0.72]],
+                impact: [[0, 0.36, 0.68], [8, 0.26, 0.6]],
                 snare: [[4, 1, 0.9], [12, 1, 0.96], [15, 0.36, 0.42]],
                 hats: 'brokenSixteenths',
                 perc: [[1, 0.2, 'click'], [6, 0.22, 'shaker'], [9, 0.32, 'rim'], [11, 0.22, 'perc'], [13, 0.28, 'miscPerc']],
@@ -663,6 +688,7 @@
                 label: 'sparse anchors',
                 weight: 0.82,
                 kick: [[0, 1, 1], [8, 0.86, 0.76], [14, 0.28, 0.54]],
+                impact: [[0, 0.3, 0.66], [8, 0.2, 0.56]],
                 snare: [[4, 1, 0.9], [12, 1, 0.95]],
                 hats: 'offbeats',
                 perc: [[7, 0.18, 'shaker'], [15, 0.22, 'rim']],
@@ -672,6 +698,7 @@
                 label: 'rolling hats',
                 weight: 1.06,
                 kick: [[0, 1, 1], [5, 0.26, 0.5], [8, 0.84, 0.8], [10, 0.22, 0.42], [13, 0.32, 0.54], [14, 0.46, 0.62]],
+                impact: [[0, 0.38, 0.7], [8, 0.26, 0.58], [14, 0.2, 0.5]],
                 snare: [[4, 1, 0.92], [12, 1, 0.96], [15, 0.22, 0.4]],
                 hats: 'sixteenths',
                 perc: [[2, 0.28, 'shaker'], [7, 0.18, 'rim'], [11, 0.26, 'click'], [15, 0.36, 'perc']],
@@ -681,6 +708,7 @@
                 label: 'fill-forward break',
                 weight: 0.72,
                 kick: [[0, 1, 1], [2, 0.18, 0.42], [6, 0.26, 0.52], [8, 0.74, 0.78], [11, 0.24, 0.46], [14, 0.68, 0.74], [15, 0.22, 0.4]],
+                impact: [[0, 0.36, 0.7], [8, 0.28, 0.62], [14, 0.24, 0.54]],
                 snare: [[4, 1, 0.9], [12, 1, 0.96], [14, 0.18, 0.36]],
                 hats: 'brokenSixteenths',
                 perc: [[1, 0.18, 'click'], [5, 0.22, 'perc'], [9, 0.28, 'shaker'], [13, 0.36, 'miscPerc'], [15, 0.42, 'rim']],
@@ -743,6 +771,10 @@
 
         groove.kick.forEach(([step, probability, velocity]) => {
             addHit(step, 'kick', velocity, { probability, accent: step === 0 || step === 8, role: 'kick' });
+        });
+
+        (groove.impact || []).forEach(([step, probability, velocity]) => {
+            addHit(step, 'impact', velocity, { probability, accent: step === 0 || step === 8, role: `impact-${step}`, allowLayer: true });
         });
 
         const backbeatRecipe = random() < 0.28 ? ['snare', 'clap'] : 'snare';
@@ -825,7 +857,9 @@
             const fillStarts = [12, 13];
             const fillStart = fillStarts[Math.floor(random() * fillStarts.length)];
             for (let step = fillStart; step < stepCount; step += 1) {
-                const fillCategory = step % 2 === 0 ? ['tom', 'snare'] : ['rim', 'perc', 'miscPerc'];
+                const fillCategory = includeTonalDrums
+                    ? (step % 2 === 0 ? ['tom', 'snare'] : ['rim', 'perc', 'miscPerc'])
+                    : (step % 2 === 0 ? ['impact', 'snare'] : ['clap', 'shaker', 'closedHat']);
                 addHit(step, fillCategory, 0.4 + ((step - fillStart) * 0.06), {
                     probability: step === stepCount - 1 ? 1 : 0.78,
                     accent: step >= stepCount - 2,
