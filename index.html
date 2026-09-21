@@ -2907,6 +2907,25 @@
                     </div>
                     <input type="range" id="fmDrumDensity" min="15" max="100" value="60" step="1">
                     <input type="range" id="fmDrumPunch" min="20" max="100" value="75" step="1">
+                    <div class="source-loop-labels">
+                        <label for="fmDrumLevel">Level <span id="fmDrumLevelValue">85%</span></label>
+                        <label for="fmDrumMinGap">Min Gap <span id="fmDrumMinGapValue">1/32</span></label>
+                    </div>
+                    <input type="range" id="fmDrumLevel" min="0" max="100" value="85" step="1">
+                    <input type="range" id="fmDrumMinGap" min="1" max="64" value="1" step="1">
+                    <div class="source-loop-lfo-controls">
+                        <div class="source-loop-lfo-row">
+                            <span>Pitch</span>
+                            <div class="button-group">
+                                <button class="lfo-toggle" data-param="fmDrumPitch" data-lfo="1">L1</button>
+                                <button class="inv-toggle" data-param="fmDrumPitch" data-lfo="1">INV</button>
+                                <button class="lfo-toggle" data-param="fmDrumPitch" data-lfo="2">L2</button>
+                                <button class="inv-toggle" data-param="fmDrumPitch" data-lfo="2">INV</button>
+                                <button class="lfo-toggle" data-param="fmDrumPitch" data-lfo="3">L3</button>
+                                <button class="inv-toggle" data-param="fmDrumPitch" data-lfo="3">INV</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
@@ -9300,6 +9319,10 @@
             setSliderValue('generatedLoopEnd', randomIntegerInRange(72, 100));
             setSliderValue('micLoopStart', randomIntegerInRange(0, 18));
             setSliderValue('micLoopEnd', randomIntegerInRange(72, 100));
+            setSliderValue('fmDrumDensity', randomIntegerInRange(28, 92));
+            setSliderValue('fmDrumPunch', randomIntegerInRange(42, 100));
+            setSliderValue('fmDrumLevel', randomIntegerInRange(48, 100));
+            setSliderValue('fmDrumMinGap', chooseRandom([1, 1, 2, 2, 4, 8, 16, 32, 64]));
 
             setSliderValue('osc1Level', randomIntegerInRange(38, 100));
             setSliderValue('osc2Level', randomIntegerInRange(22, 92));
@@ -9349,6 +9372,12 @@
             setFilterEnabled('hpf', maybe(0.72));
             setFilterPoles('lpf', chooseRandom([2, 4]));
             setFilterPoles('hpf', chooseRandom([2, 4]));
+            setLfoRouteState('fmDrumPitch', '1', maybe(0.32));
+            setLfoRouteState('fmDrumPitch', '2', maybe(0.24));
+            setLfoRouteState('fmDrumPitch', '3', maybe(0.16));
+            setLfoInvertState('fmDrumPitch', '1', maybe(0.3));
+            setLfoInvertState('fmDrumPitch', '2', maybe(0.3));
+            setLfoInvertState('fmDrumPitch', '3', maybe(0.3));
 
             const exportBars = document.getElementById('performanceExportBars');
             if (exportBars) {
@@ -9967,6 +9996,19 @@
             return Number.isFinite(value) ? value : fallback;
         }
 
+        function formatFmDrumMinGap(value) {
+            const steps = Math.max(1, Math.min(64, Math.round(Number(value) || 1)));
+            return steps === 64 ? '2 bars' : `${steps}/32`;
+        }
+
+        function getQuantizedFmDrumPitchSemitones() {
+            let semitones = 0;
+            if (lfoEnabled.fmDrumPitch) semitones += (lfoInverted.fmDrumPitch ? -1 : 1) * getLFOValue() * 12;
+            if (lfo2Enabled.fmDrumPitch) semitones += (lfo2Inverted.fmDrumPitch ? -1 : 1) * getLFOValue2() * 12;
+            if (lfo3Enabled.fmDrumPitch) semitones += (lfo3Inverted.fmDrumPitch ? -1 : 1) * getLFOValue3() * 12;
+            return Math.max(-24, Math.min(24, Math.round(semitones)));
+        }
+
         async function generateFmDrumLoopSample(options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating FM drums.');
@@ -9979,8 +10021,12 @@
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const density = Math.max(0.15, Math.min(1, getFmDrumControlValue('fmDrumDensity', 60) / 100));
             const punch = Math.max(0.2, Math.min(1, getFmDrumControlValue('fmDrumPunch', 75) / 100));
+            const fmLevel = Math.max(0, Math.min(1, getFmDrumControlValue('fmDrumLevel', 85) / 100));
+            const minGapThirtySeconds = Math.max(1, Math.min(64, Math.round(getFmDrumControlValue('fmDrumMinGap', 1))));
+            const minGapSteps = Math.max(1, Math.ceil(minGapThirtySeconds / 2));
+            const pitchRatio = Math.pow(2, getQuantizedFmDrumPitchSemitones() / 12);
             const random = typeof mygrainUtils.createSeededRandom === 'function'
-                ? mygrainUtils.createSeededRandom(`fm-drums-${Date.now()}-${bpm}-${density}-${punch}`)
+                ? mygrainUtils.createSeededRandom(`fm-drums-${Date.now()}-${bpm}-${density}-${punch}-${minGapThirtySeconds}`)
                 : Math.random;
             const stepCount = 16;
             const stepDuration = (60 / bpm) / 4;
@@ -9991,8 +10037,9 @@
             const events = [];
             const TWO_PI = Math.PI * 2;
 
-            function addEvent(step, type, velocity = 0.7, accent = false) {
+            function addEvent(step, type, velocity = 0.7, accent = false, options = {}) {
                 if (step < 0 || step >= stepCount) return;
+                if (!options.force && events.some((event) => Math.abs(event.step - step) < minGapSteps)) return;
                 events.push({
                     step,
                     type,
@@ -10002,8 +10049,8 @@
                 });
             }
 
-            [0, 8].forEach((step, index) => addEvent(step, 'kick', index === 0 ? 1 : 0.84, true));
-            [4, 12].forEach((step) => addEvent(step, 'snare', 0.82, true));
+            [0, 8].forEach((step, index) => addEvent(step, 'kick', index === 0 ? 1 : 0.84, true, { force: true }));
+            [4, 12].forEach((step) => addEvent(step, 'snare', 0.82, true, { force: true }));
             if (density > 0.36) [2, 6, 10, 14].forEach((step) => addEvent(step, 'hat', 0.38 + random() * 0.18));
             if (density > 0.52) [1, 3, 5, 7, 9, 11, 13, 15].forEach((step) => {
                 if (random() < density * 0.72) addEvent(step, 'hat', 0.24 + random() * 0.22, step === 15);
@@ -10030,7 +10077,7 @@
 
                 if (event.type === 'kick') {
                     if (delta > 0.42) return 0;
-                    const pitch = 38 + 98 * Math.exp(-delta * (18 + punch * 12));
+                    const pitch = (38 + 98 * Math.exp(-delta * (18 + punch * 12))) * pitchRatio;
                     const mod = Math.sin(TWO_PI * pitch * 1.92 * delta) * (7.2 * Math.exp(-delta * 24));
                     const body = Math.sin(TWO_PI * pitch * delta + mod);
                     const click = noise * Math.exp(-delta * 120) * (0.14 + punch * 0.2);
@@ -10039,7 +10086,7 @@
 
                 if (event.type === 'impact') {
                     if (delta > 0.58) return 0;
-                    const pitch = 28 + 62 * Math.exp(-delta * 10);
+                    const pitch = (28 + 62 * Math.exp(-delta * 10)) * pitchRatio;
                     const mod = Math.sin(TWO_PI * pitch * 0.73 * delta) * (5.5 * Math.exp(-delta * 11));
                     const sub = Math.sin(TWO_PI * pitch * 0.5 * delta + mod);
                     const dirt = noise * Math.exp(-delta * 8) * 0.22;
@@ -10048,7 +10095,7 @@
 
                 if (event.type === 'snare') {
                     if (delta > 0.24) return 0;
-                    const pitch = 172 + 48 * Math.exp(-delta * 24);
+                    const pitch = (172 + 48 * Math.exp(-delta * 24)) * pitchRatio;
                     const mod = Math.sin(TWO_PI * pitch * 2.6 * delta) * (2.2 * Math.exp(-delta * 32));
                     const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.34;
                     const snap = noise * Math.exp(-delta * 23) * 0.82;
@@ -10057,7 +10104,7 @@
 
                 if (event.type === 'hat') {
                     if (delta > 0.09) return 0;
-                    const base = 3200 + (event.step % 5) * 410;
+                    const base = (3200 + (event.step % 5) * 410) * pitchRatio;
                     const fm = Math.sin(TWO_PI * base * delta + Math.sin(TWO_PI * base * 1.47 * delta) * 4.5);
                     const metal = fm * Math.sin(TWO_PI * base * 2.11 * delta);
                     const tick = (metal * 0.36 + noise * 0.84) * Math.exp(-delta * (42 + punch * 34));
@@ -10088,7 +10135,7 @@
                     const dcBlocked = saturated - prevInput + 0.995 * prevOutput;
                     prevInput = saturated;
                     prevOutput = dcBlocked;
-                    channelData[i] = Math.max(-1, Math.min(1, dcBlocked * 0.86));
+                    channelData[i] = Math.max(-1, Math.min(1, dcBlocked * 0.86 * fmLevel));
                     peak = Math.max(peak, Math.abs(channelData[i]));
                 }
             }
@@ -10104,7 +10151,7 @@
             }
 
             await applyLoadedAudioBuffer(buffer, `${bpm} BPM FM drum loop`, 'generated');
-            setStatus(`Generated FM drum loop at ${bpm} BPM with 1/16 grid.`);
+            setStatus(`Generated FM drum loop at ${bpm} BPM with 1/16 grid, ${formatFmDrumMinGap(minGapThirtySeconds)} min gap.`);
             return buffer;
         }
 
@@ -10446,6 +10493,14 @@
 
         document.getElementById('fmDrumPunch')?.addEventListener('input', (event) => {
             document.getElementById('fmDrumPunchValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
+        });
+
+        document.getElementById('fmDrumLevel')?.addEventListener('input', (event) => {
+            document.getElementById('fmDrumLevelValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
+        });
+
+        document.getElementById('fmDrumMinGap')?.addEventListener('input', (event) => {
+            document.getElementById('fmDrumMinGapValue').textContent = formatFmDrumMinGap(event.target.value);
         });
 
         // Save Audio Button
