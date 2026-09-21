@@ -4342,6 +4342,8 @@
         let finalFxPlacementLfoEnabled = false;
         let finalFxPlacementLfoStartTime = 0;
         let finalFxPlacementLfoLastPhase = null;
+        let finalFxPlacementSwitchStartTime = 0;
+        let finalFxPlacementSwitchTimer = null;
         let tonalDrumsEnabled = false;
         let phaserNodes = [];
         let phaserLFO = null;
@@ -5829,9 +5831,39 @@
             syncFinalFxPlacementButton();
         }
 
+        function getFinalFxPlacementSwitchDuck(now = audioContext?.currentTime || 0) {
+            if (!finalFxPlacementSwitchStartTime) return 1;
+            const fadeOut = 0.045;
+            const hold = 0.025;
+            const fadeIn = 0.09;
+            const elapsed = now - finalFxPlacementSwitchStartTime;
+            if (elapsed < 0) return 1;
+            if (elapsed < fadeOut) {
+                return Math.max(0.001, 1 - (elapsed / fadeOut) * 0.999);
+            }
+            if (elapsed < fadeOut + hold) return 0.001;
+            if (elapsed < fadeOut + hold + fadeIn) {
+                return Math.min(1, 0.001 + ((elapsed - fadeOut - hold) / fadeIn) * 0.999);
+            }
+            finalFxPlacementSwitchStartTime = 0;
+            return 1;
+        }
+
         function setFinalFxPlacement(placement, options = {}) {
             const nextPlacement = placement === 'pre' ? 'pre' : 'post';
             const changed = finalFxPlacement !== nextPlacement;
+            if (options.smooth && changed && audioContext && audioContext.state === 'running') {
+                if (finalFxPlacementSwitchTimer) {
+                    clearTimeout(finalFxPlacementSwitchTimer);
+                    finalFxPlacementSwitchTimer = null;
+                }
+                finalFxPlacementSwitchStartTime = audioContext.currentTime;
+                finalFxPlacementSwitchTimer = setTimeout(() => {
+                    finalFxPlacementSwitchTimer = null;
+                    setFinalFxPlacement(nextPlacement, { ...options, smooth: false, silent: true });
+                }, 45);
+                return;
+            }
             finalFxPlacement = nextPlacement;
             if (finalFxPlacement === 'post') {
                 ['lpfQ', 'hpfQ'].forEach((id) => {
@@ -5856,6 +5888,11 @@
             finalFxPlacementLfoEnabled = Boolean(enabled);
             finalFxPlacementLfoStartTime = audioContext?.currentTime || 0;
             finalFxPlacementLfoLastPhase = null;
+            if (!finalFxPlacementLfoEnabled && finalFxPlacementSwitchTimer) {
+                clearTimeout(finalFxPlacementSwitchTimer);
+                finalFxPlacementSwitchTimer = null;
+                finalFxPlacementSwitchStartTime = 0;
+            }
             if (finalFxPlacementLfoEnabled) {
                 updateFinalFxPlacementLfo(true);
             }
@@ -5878,7 +5915,7 @@
             const phase = Math.floor(elapsed / halfCycleSeconds) % 2;
             if (!force && phase === finalFxPlacementLfoLastPhase) return;
             finalFxPlacementLfoLastPhase = phase;
-            setFinalFxPlacement(phase === 0 ? 'pre' : 'post', { silent: true });
+            setFinalFxPlacement(phase === 0 ? 'pre' : 'post', { silent: true, smooth: true });
         }
 
         function rebuildFilterChain() {
@@ -6175,13 +6212,14 @@
             
             const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
+            const placementSwitchDuck = getFinalFxPlacementSwitchDuck(now);
             
             // Dry/Wet gains
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.28));
             smoothRamp(wetGainNode.gain, Math.min(1.25, reverbAmt * 1.18));
             
             // Master gain
-            smoothRamp(masterGain.gain, Math.min(1, volAmt));
+            smoothRamp(masterGain.gain, Math.min(1, volAmt) * placementSwitchDuck);
             
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
