@@ -2797,6 +2797,8 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
+                <button class="performance-btn" id="performancePlayAllBtn">Play</button>
+                <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
                 <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
@@ -4247,6 +4249,7 @@
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
         let heldNotes = new Set();
+        let restartPerformanceOnFocusReturn = false;
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
         let engineInitialized = false;
         let engineStarting = false;
@@ -6166,10 +6169,11 @@
         // Handle tab visibility changes gracefully
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                panicAllNotes({ preserveStatus: true });
+                pausePerformanceForFocusLoss();
                 setAudioStatus('Audio paused while the page is hidden.');
             } else {
                 updateKeyboardGeometry();
+                resumePerformanceAfterFocusReturn();
                 if (audioContext) {
                     setAudioStatus(`Audio ${audioContext.state}`);
                 }
@@ -6177,7 +6181,11 @@
         });
 
         window.addEventListener('blur', () => {
-            panicAllNotes({ preserveStatus: true });
+            pausePerformanceForFocusLoss();
+        });
+
+        window.addEventListener('focus', () => {
+            resumePerformanceAfterFocusReturn();
         });
 
         // --- Recording ---
@@ -7809,6 +7817,74 @@
             if (!options.preserveStatus) {
                 setStatus('All notes off.');
             }
+        }
+
+        function stopHeldKeyboardPlaybackPreserveSelection() {
+            heldNotes.forEach((note) => {
+                stopGrainStream(note);
+                stopOscillatorNote(note);
+                const key = document.querySelector(`.key[data-note="${note}"]`);
+                if (key) key.classList.add('active');
+            });
+            activeKeyCount = 0;
+            currentGrainNote = null;
+        }
+
+        function startHeldKeyboardPlayback() {
+            if (!isAudioGraphReady()) return false;
+            if (heldNotes.size === 0) return true;
+            stopHeldKeyboardPlaybackPreserveSelection();
+            const startTime = audioContext.currentTime + 0.02;
+            heldNotes.forEach((note) => {
+                const key = document.querySelector(`.key[data-note="${note}"]`);
+                if (key) key.classList.add('active');
+                startGrainStream(note, startTime, 1, {
+                    role: 'keyboard',
+                    streamStartTime: getTransportLoopOriginTime() ?? startTime
+                });
+                playOscillatorNote(note, startTime, 1, { role: 'keyboard' });
+            });
+            activeKeyCount = heldNotes.size;
+            return true;
+        }
+
+        function playLoopAndHeldKeys(options = {}) {
+            if (!isAudioGraphReady()) {
+                setStatus('Start MYGRAIN before playing.', 'error');
+                return false;
+            }
+            startSequencer();
+            startHeldKeyboardPlayback();
+            syncPerformanceControlState();
+            if (!options.silent) setStatus('Loop and selected key playing.');
+            return true;
+        }
+
+        function stopLoopAndHeldKeys(options = {}) {
+            const hadPlayback = sequencerPlaying || activeKeyCount > 0;
+            stopSequencer();
+            stopHeldKeyboardPlaybackPreserveSelection();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(hadPlayback ? 'Loop and selected key stopped.' : 'Loop and selected key already stopped.');
+            }
+        }
+
+        function pausePerformanceForFocusLoss() {
+            if (restartPerformanceOnFocusReturn) return;
+            restartPerformanceOnFocusReturn = Boolean(sequencerPlaying || activeKeyCount > 0);
+            if (restartPerformanceOnFocusReturn) {
+                stopLoopAndHeldKeys({ silent: true });
+            }
+        }
+
+        function resumePerformanceAfterFocusReturn() {
+            if (!restartPerformanceOnFocusReturn) return;
+            restartPerformanceOnFocusReturn = false;
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().catch((error) => console.warn('Audio resume after focus failed:', error));
+            }
+            playLoopAndHeldKeys({ silent: true });
         }
 
         // --- Sequencer Functions ---
@@ -12102,6 +12178,8 @@
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
+        const performancePlayAllBtn = document.getElementById('performancePlayAllBtn');
+        const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
         const performanceSampleSoloBtn = document.getElementById('performanceSampleSoloBtn');
@@ -12324,6 +12402,10 @@
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
                 performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Stop Loop' : 'Play Loop';
+            }
+
+            if (performancePlayAllBtn) {
+                performancePlayAllBtn.classList.toggle('playing', sequencerPlaying || activeKeyCount > 0);
             }
 
             if (performanceOscToggleBtn) {
@@ -12673,6 +12755,14 @@
                 startSequencer();
             }
             syncPerformanceControlState();
+        });
+
+        performancePlayAllBtn?.addEventListener('click', () => {
+            playLoopAndHeldKeys();
+        });
+
+        performanceStopAllBtn?.addEventListener('click', () => {
+            stopLoopAndHeldKeys();
         });
 
         performancePanicBtn?.addEventListener('click', () => {
