@@ -4306,6 +4306,7 @@
         let splitterNode = null;    // Stereo splitter
         let mergerNode = null;      // Stereo merger
         let outputGainNode = null;  // Final output gain for click-free graph transitions
+        let finalAmplifierNode = null; // Absolute final audible/export output
         let lfo3Oscillator = null;  // Audio-rate oscillator for LFO3
         let lfo3DepthGain = null;   // Controls modulation depth
         let lfo3Inverter = null;    // Inverts LFO3 for right channel
@@ -5515,8 +5516,11 @@
             masterGainRight.connect(mergerNode, 0, 1); // To right output
             outputGainNode = audioContext.createGain();
             outputGainNode.gain.value = 1;
+            finalAmplifierNode = audioContext.createGain();
+            finalAmplifierNode.gain.value = 1;
             mergerNode.connect(outputGainNode);
-            outputGainNode.connect(audioContext.destination);
+            outputGainNode.connect(finalAmplifierNode);
+            finalAmplifierNode.connect(audioContext.destination);
             
             // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
@@ -12345,7 +12349,7 @@
         }
 
         async function recordLiveOutputBuffer(durationSeconds) {
-            if (!audioContext || !outputGainNode) {
+            if (!audioContext || !finalAmplifierNode) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
             if (typeof MediaRecorder === 'undefined') {
@@ -12363,13 +12367,13 @@
                 ? new MediaRecorder(destination.stream, { mimeType })
                 : new MediaRecorder(destination.stream);
 
-            outputGainNode.connect(destination);
+            finalAmplifierNode.connect(destination);
 
             return new Promise((resolve, reject) => {
                 let settled = false;
                 const cleanup = () => {
                     try {
-                        outputGainNode.disconnect(destination);
+                        finalAmplifierNode.disconnect(destination);
                     } catch (e) {}
                 };
                 const finishReject = (error) => {
@@ -12618,7 +12622,7 @@
 
         // Start recording output
         document.getElementById('startOutputRecBtn')?.addEventListener('click', () => {
-            if (!audioContext || !outputGainNode) {
+            if (!audioContext || !finalAmplifierNode) {
                 alert('Audio engine not initialized. Please start the engine first.');
                 return;
             }
@@ -12630,9 +12634,9 @@
             try {
                 // Verify final output node is properly connected and exists
                 console.log('=== START RECORDING CLICKED ===');
-                console.log('outputGainNode:', outputGainNode);
-                console.log('outputGainNode connected (numberOfOutputs):', outputGainNode?.numberOfOutputs);
-                console.log('Output gain connected to destination:', outputGainNode.context === audioContext);
+                console.log('finalAmplifierNode:', finalAmplifierNode);
+                console.log('finalAmplifierNode connected (numberOfOutputs):', finalAmplifierNode?.numberOfOutputs);
+                console.log('Final amplifier connected to destination:', finalAmplifierNode.context === audioContext);
                 console.log('AudioContext state:', audioContext.state);
                 console.log('isOutputRecordingArmedStart:', isOutputRecordingArmedStart);
                 
@@ -12641,7 +12645,7 @@
                 
                 // Create a MediaStreamDestination and connect the final audible output to it
                 outputRecordingDestination = audioContext.createMediaStreamDestination();
-                outputGainNode.connect(outputRecordingDestination);
+                finalAmplifierNode.connect(outputRecordingDestination);
                 
                 // Use MediaRecorder to record the stream
                 // Check for supported MIME types
@@ -12761,12 +12765,12 @@
             }
             
             // Clean up recording resources
-            if (outputRecordingDestination && outputGainNode) {
+            if (outputRecordingDestination && finalAmplifierNode) {
                 try {
-                    console.log('Disconnecting outputGainNode from outputRecordingDestination');
-                    outputGainNode.disconnect(outputRecordingDestination);
+                    console.log('Disconnecting finalAmplifierNode from outputRecordingDestination');
+                    finalAmplifierNode.disconnect(outputRecordingDestination);
                 } catch (e) {
-                    console.log('outputGainNode already disconnected');
+                    console.log('finalAmplifierNode already disconnected');
                 }
                 outputRecordingDestination = null;
             }
@@ -12799,7 +12803,7 @@
 
         // Arm recording output - waits for keyboard key press
         document.getElementById('armOutputRecBtn')?.addEventListener('click', () => {
-            if (!audioContext || !outputGainNode) {
+            if (!audioContext || !finalAmplifierNode) {
                 alert('Audio engine not initialized. Please start the engine first.');
                 return;
             }
