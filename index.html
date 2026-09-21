@@ -2666,6 +2666,20 @@
                     </select>
                 </div>
                 <div class="performance-sound-card">
+                    <label for="finalFxPlacementLfoDivision">
+                        <span>FX Place LFO</span>
+                    </label>
+                    <select id="finalFxPlacementLfoDivision" class="performance-select">
+                        <option value="4bar">4 bars</option>
+                        <option value="2bar">2 bars</option>
+                        <option value="1bar" selected>1 bar</option>
+                        <option value="1/2">1/2</option>
+                        <option value="1/4">1/4</option>
+                        <option value="1/8">1/8</option>
+                        <option value="1/16">1/16</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
                     <label for="finalRingDepth">
                         <span>Ring Mod</span>
                         <span class="value" id="finalRingDepthValue">0%</span>
@@ -2807,6 +2821,7 @@
                 <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
                 <button class="performance-btn" id="performanceFinalReverbBtn">Reverb Off</button>
                 <button class="performance-btn" id="performanceFinalFxPlacementBtn">FX Post Filter</button>
+                <button class="performance-btn" id="performanceFinalFxPlacementLfoBtn">FX LFO Off</button>
                 <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
@@ -2902,14 +2917,14 @@
                         <button id="generateFmDrumLoopBtn" class="primary">Generate FM Drum Loop</button>
                     </div>
                     <div class="source-loop-labels">
-                        <label for="fmDrumDensity">Density <span id="fmDrumDensityValue">60%</span></label>
-                        <label for="fmDrumPunch">Punch <span id="fmDrumPunchValue">75%</span></label>
+                        <label for="fmDrumDensity">FM Density <span id="fmDrumDensityValue">60%</span></label>
+                        <label for="fmDrumPunch">FM Punch <span id="fmDrumPunchValue">75%</span></label>
                     </div>
                     <input type="range" id="fmDrumDensity" min="15" max="100" value="60" step="1">
                     <input type="range" id="fmDrumPunch" min="20" max="100" value="75" step="1">
                     <div class="source-loop-labels">
-                        <label for="fmDrumLevel">Level <span id="fmDrumLevelValue">85%</span></label>
-                        <label for="fmDrumMinGap">Min Gap <span id="fmDrumMinGapValue">1/32</span></label>
+                        <label for="fmDrumLevel">FM Level <span id="fmDrumLevelValue">85%</span></label>
+                        <label for="fmDrumMinGap">FM Min Gap <span id="fmDrumMinGapValue">1/32</span></label>
                     </div>
                     <input type="range" id="fmDrumLevel" min="0" max="100" value="85" step="1">
                     <input type="range" id="fmDrumMinGap" min="1" max="64" value="1" step="1">
@@ -4324,6 +4339,9 @@
         let finalReverbEnabled = false;
         let finalReverbImpulseKey = '';
         let finalFxPlacement = 'post';
+        let finalFxPlacementLfoEnabled = false;
+        let finalFxPlacementLfoStartTime = 0;
+        let finalFxPlacementLfoLastPhase = null;
         let tonalDrumsEnabled = false;
         let phaserNodes = [];
         let phaserLFO = null;
@@ -5767,6 +5785,30 @@
             button.setAttribute('aria-pressed', String(isPre));
         }
 
+        function getFinalFxPlacementLfoDivisionInfo() {
+            const select = document.getElementById('finalFxPlacementLfoDivision');
+            const value = select?.value || '1bar';
+            const divisions = {
+                '4bar': { label: '4 bars', beats: 16 },
+                '2bar': { label: '2 bars', beats: 8 },
+                '1bar': { label: '1 bar', beats: 4 },
+                '1/2': { label: '1/2', beats: 2 },
+                '1/4': { label: '1/4', beats: 1 },
+                '1/8': { label: '1/8', beats: 0.5 },
+                '1/16': { label: '1/16', beats: 0.25 }
+            };
+            return divisions[value] || divisions['1bar'];
+        }
+
+        function syncFinalFxPlacementLfoButton() {
+            const button = document.getElementById('performanceFinalFxPlacementLfoBtn');
+            if (!button) return;
+            const rateLabel = getFinalFxPlacementLfoDivisionInfo().label;
+            button.classList.toggle('active', finalFxPlacementLfoEnabled);
+            button.textContent = finalFxPlacementLfoEnabled ? `FX LFO ${rateLabel}` : 'FX LFO Off';
+            button.setAttribute('aria-pressed', String(finalFxPlacementLfoEnabled));
+        }
+
         function rebuildFinalFxRouting() {
             if (!masterGain || !preFilterGainNode || !finalFxInput || !finalFxOutput || !splitterNode) return;
 
@@ -5787,8 +5829,10 @@
             syncFinalFxPlacementButton();
         }
 
-        function setFinalFxPlacement(placement) {
-            finalFxPlacement = placement === 'pre' ? 'pre' : 'post';
+        function setFinalFxPlacement(placement, options = {}) {
+            const nextPlacement = placement === 'pre' ? 'pre' : 'post';
+            const changed = finalFxPlacement !== nextPlacement;
+            finalFxPlacement = nextPlacement;
             if (finalFxPlacement === 'post') {
                 ['lpfQ', 'hpfQ'].forEach((id) => {
                     const slider = document.getElementById(id);
@@ -5801,9 +5845,40 @@
             }
             rebuildFinalFxRouting();
             updateEffects();
-            setStatus(finalFxPlacement === 'pre'
-                ? 'Final effects routed before the filters.'
-                : 'Final effects routed after the filters.');
+            if (!options.silent && changed) {
+                setStatus(finalFxPlacement === 'pre'
+                    ? 'Final effects routed before the filters.'
+                    : 'Final effects routed after the filters.');
+            }
+        }
+
+        function setFinalFxPlacementLfoEnabled(enabled, options = {}) {
+            finalFxPlacementLfoEnabled = Boolean(enabled);
+            finalFxPlacementLfoStartTime = audioContext?.currentTime || 0;
+            finalFxPlacementLfoLastPhase = null;
+            if (finalFxPlacementLfoEnabled) {
+                updateFinalFxPlacementLfo(true);
+            }
+            syncFinalFxPlacementLfoButton();
+            if (!options.silent) {
+                const rateLabel = getFinalFxPlacementLfoDivisionInfo().label;
+                setStatus(finalFxPlacementLfoEnabled
+                    ? `FX pre/post placement LFO enabled at ${rateLabel}.`
+                    : 'FX pre/post placement LFO off.');
+            }
+            if (!options.skipSave) saveState();
+        }
+
+        function updateFinalFxPlacementLfo(force = false) {
+            if (!finalFxPlacementLfoEnabled || !audioContext || audioContext.state !== 'running') return;
+            const { beats } = getFinalFxPlacementLfoDivisionInfo();
+            const secondsPerBeat = 60 / Math.max(1, getSharedBpmClockValue());
+            const halfCycleSeconds = Math.max(0.05, beats * secondsPerBeat);
+            const elapsed = Math.max(0, audioContext.currentTime - finalFxPlacementLfoStartTime);
+            const phase = Math.floor(elapsed / halfCycleSeconds) % 2;
+            if (!force && phase === finalFxPlacementLfoLastPhase) return;
+            finalFxPlacementLfoLastPhase = phase;
+            setFinalFxPlacement(phase === 0 ? 'pre' : 'post', { silent: true });
         }
 
         function rebuildFilterChain() {
@@ -6188,6 +6263,7 @@
             
             modulationIntervalId = setInterval(() => {
                 if (audioContext && audioContext.state === 'running') {
+                    updateFinalFxPlacementLfo();
                     updateEffects();
                 }
             }, MODULATION_RATE_MS);
@@ -9351,6 +9427,7 @@
             setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('noiseType', noiseEnabled ? chooseRandom(['white', 'pink']) : 'none');
+            setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setFinalFxPlacement('pre');
 
             if (forceSquare) {
@@ -9998,7 +10075,11 @@
 
         function formatFmDrumMinGap(value) {
             const steps = Math.max(1, Math.min(64, Math.round(Number(value) || 1)));
-            return steps === 64 ? '2 bars' : `${steps}/32`;
+            if (steps === 64) return '2 bars';
+            if (steps === 32) return '1 bar';
+            const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+            const divisor = gcd(steps, 32);
+            return `${steps / divisor}/${32 / divisor}`;
         }
 
         function getQuantizedFmDrumPitchSemitones() {
@@ -10919,6 +11000,7 @@
             setFilterPoles('hpf', 2);
             setFxMuted(false, { silent: true });
             setFinalReverbEnabled(false, { silent: true, skipSave: true });
+            setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
@@ -10932,6 +11014,7 @@
             document.getElementById('noiseType').value = 'none';
             document.getElementById('delayDivision').value = '1';
             document.getElementById('finalDelayDivision').value = '4';
+            document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
             
             enforceBpmOnlyLfoMode();
             applyGlobalBpm(defaults.delayBpm);
@@ -11026,6 +11109,8 @@
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
                 finalReverbEnabled: finalReverbEnabled,
+                finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
+                finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                 tonalDrumsEnabled: tonalDrumsEnabled,
@@ -11147,6 +11232,15 @@
             }
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
+            }
+            if (safePreset.finalFxPlacementLfoDivision) {
+                const placementLfoDivision = document.getElementById('finalFxPlacementLfoDivision');
+                if (placementLfoDivision) {
+                    placementLfoDivision.value = safePreset.finalFxPlacementLfoDivision;
+                }
+            }
+            if (safePreset.finalFxPlacementLfoEnabled !== undefined) {
+                setFinalFxPlacementLfoEnabled(safePreset.finalFxPlacementLfoEnabled, { silent: true, skipSave: true });
             }
             clearDisabledLoopStartLfoRoutes();
             const importedGlobalModulationAmount = safePreset.globalModulationAmount ?? preset.globalModulationAmount;
@@ -11535,6 +11629,7 @@
                     bpmLocked: bpmLocked,
                     fxMuted: fxMuted,
                     finalReverbEnabled: finalReverbEnabled,
+                    finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     generatedSampleSolo: generatedSampleSolo,
@@ -11668,6 +11763,9 @@
                     }
                     if (state.modes.finalReverbEnabled !== undefined) {
                         setFinalReverbEnabled(state.modes.finalReverbEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.finalFxPlacementLfoEnabled !== undefined) {
+                        setFinalFxPlacementLfoEnabled(state.modes.finalFxPlacementLfoEnabled, { silent: true, skipSave: true });
                     }
                     if (state.modes.generatedDryThroughFilters !== undefined) {
                         setGeneratedDryThroughFilters(state.modes.generatedDryThroughFilters, { silent: true });
@@ -12474,6 +12572,7 @@
         const performanceLowNoiseSourceBtn = document.getElementById('performanceLowNoiseSourceBtn');
         const performanceLfoSquareBtn = document.getElementById('performanceLfoSquareBtn');
         const performanceFinalFxPlacementBtn = document.getElementById('performanceFinalFxPlacementBtn');
+        const performanceFinalFxPlacementLfoBtn = document.getElementById('performanceFinalFxPlacementLfoBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
@@ -12744,6 +12843,7 @@
             }
 
             syncFinalFxPlacementButton();
+            syncFinalFxPlacementLfoButton();
 
             if (performanceDryFilterBtn) {
                 performanceDryFilterBtn.classList.toggle('dry-filtered', generatedDryThroughFilters);
@@ -12936,7 +13036,19 @@
         });
 
         performanceFinalFxPlacementBtn?.addEventListener('click', () => {
+            setFinalFxPlacementLfoEnabled(false, { silent: true });
             setFinalFxPlacement(finalFxPlacement === 'pre' ? 'post' : 'pre');
+        });
+
+        performanceFinalFxPlacementLfoBtn?.addEventListener('click', () => {
+            setFinalFxPlacementLfoEnabled(!finalFxPlacementLfoEnabled);
+        });
+
+        document.getElementById('finalFxPlacementLfoDivision')?.addEventListener('change', () => {
+            finalFxPlacementLfoStartTime = audioContext?.currentTime || 0;
+            finalFxPlacementLfoLastPhase = null;
+            updateFinalFxPlacementLfo(true);
+            syncFinalFxPlacementLfoButton();
         });
 
         performanceDryFilterBtn?.addEventListener('click', () => {
