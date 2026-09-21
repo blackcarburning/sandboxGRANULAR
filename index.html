@@ -2917,17 +2917,9 @@
                         <button id="generateFmDrumLoopBtn" class="primary">Generate FM Drum Loop</button>
                     </div>
                     <div class="source-loop-labels">
-                        <label for="fmDrumDensity">FM Density <span id="fmDrumDensityValue">60%</span></label>
-                        <label for="fmDrumPunch">FM Punch <span id="fmDrumPunchValue">75%</span></label>
-                    </div>
-                    <input type="range" id="fmDrumDensity" min="15" max="100" value="60" step="1">
-                    <input type="range" id="fmDrumPunch" min="20" max="100" value="75" step="1">
-                    <div class="source-loop-labels">
                         <label for="fmDrumLevel">FM Level <span id="fmDrumLevelValue">85%</span></label>
-                        <label for="fmDrumMinGap">FM Min Gap <span id="fmDrumMinGapValue">1/8</span></label>
                     </div>
                     <input type="range" id="fmDrumLevel" min="0" max="100" value="85" step="1">
-                    <input type="range" id="fmDrumMinGap" min="2" max="64" value="4" step="1">
                     <div class="source-loop-lfo-controls">
                         <div class="source-loop-lfo-row">
                             <span>Pitch</span>
@@ -9440,10 +9432,7 @@
             setSliderValue('generatedLoopEnd', randomIntegerInRange(72, 100));
             setSliderValue('micLoopStart', randomIntegerInRange(0, 18));
             setSliderValue('micLoopEnd', randomIntegerInRange(72, 100));
-            setSliderValue('fmDrumDensity', randomIntegerInRange(28, 92));
-            setSliderValue('fmDrumPunch', randomIntegerInRange(42, 100));
             setSliderValue('fmDrumLevel', randomIntegerInRange(48, 100));
-            setSliderValue('fmDrumMinGap', chooseRandom([2, 4, 4, 4, 8, 8, 16, 32]));
 
             setSliderValue('osc1Level', randomIntegerInRange(38, 100));
             setSliderValue('osc2Level', randomIntegerInRange(22, 92));
@@ -10118,15 +10107,6 @@
             return Number.isFinite(value) ? value : fallback;
         }
 
-        function formatFmDrumMinGap(value) {
-            const steps = Math.max(1, Math.min(64, Math.round(Number(value) || 1)));
-            if (steps === 64) return '2 bars';
-            if (steps === 32) return '1 bar';
-            const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-            const divisor = gcd(steps, 32);
-            return `${steps / divisor}/${32 / divisor}`;
-        }
-
         function getQuantizedFmDrumPitchSemitones() {
             let semitones = 0;
             if (lfoEnabled.fmDrumPitch) semitones += (lfoInverted.fmDrumPitch ? -1 : 1) * getLFOValue() * 12;
@@ -10145,14 +10125,11 @@
             lastGeneratedSourceWriteAt = lastSourceWriteAt;
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-            const density = Math.max(0.15, Math.min(1, getFmDrumControlValue('fmDrumDensity', 60) / 100));
-            const punch = Math.max(0.2, Math.min(1, getFmDrumControlValue('fmDrumPunch', 75) / 100));
             const fmLevel = Math.max(0, Math.min(1, getFmDrumControlValue('fmDrumLevel', 85) / 100));
-            const minGapThirtySeconds = Math.max(2, Math.min(64, Math.round(getFmDrumControlValue('fmDrumMinGap', 4))));
-            const minFillGapSteps = Math.max(1, Math.ceil(minGapThirtySeconds / 2));
+            const punch = 0.78;
             const pitchRatio = Math.pow(2, getQuantizedFmDrumPitchSemitones() / 12);
             const random = typeof mygrainUtils.createSeededRandom === 'function'
-                ? mygrainUtils.createSeededRandom(`fm-drums-${Date.now()}-${bpm}-${density}-${punch}-${minGapThirtySeconds}`)
+                ? mygrainUtils.createSeededRandom(`fm-drums-${Date.now()}-${bpm}-${fmLevel}`)
                 : Math.random;
             const stepCount = 16;
             const stepDuration = (60 / bpm) / 4;
@@ -10166,7 +10143,6 @@
             function addEvent(step, type, velocity = 0.7, accent = false, options = {}) {
                 if (step < 0 || step >= stepCount) return;
                 if (!options.allowLayer && events.some((event) => event.step === step && event.type === type)) return;
-                if (options.respectGap && events.some((event) => !event.core && Math.abs(event.step - step) < minFillGapSteps)) return;
                 events.push({
                     step,
                     type,
@@ -10180,13 +10156,13 @@
             const drumPatterns = [
                 {
                     name: 'straight backbeat',
-                    kick: [[0, 1, 1], [8, 1, 0.84], [14, 0.35, 0.62]],
+                    kick: [[0, 1, 1], [8, 1, 0.84], [14, 0.22, 0.58]],
                     snare: [[4, 1, 0.86], [12, 1, 0.9]],
                     hats: 'eighths'
                 },
                 {
                     name: 'rock push',
-                    kick: [[0, 1, 1], [6, 0.45, 0.58], [8, 1, 0.82], [10, 0.3, 0.48], [14, 0.42, 0.62]],
+                    kick: [[0, 1, 1], [6, 0.32, 0.56], [8, 1, 0.82], [14, 0.36, 0.62]],
                     snare: [[4, 1, 0.86], [12, 1, 0.92]],
                     hats: 'eighths'
                 },
@@ -10198,8 +10174,8 @@
                 },
                 {
                     name: 'breakbeat',
-                    kick: [[0, 1, 1], [3, 0.32, 0.52], [8, 0.88, 0.8], [11, 0.28, 0.46], [14, 0.55, 0.62]],
-                    snare: [[4, 1, 0.9], [10, 0.22, 0.42], [12, 1, 0.94]],
+                    kick: [[0, 1, 1], [3, 0.24, 0.48], [8, 0.88, 0.8], [14, 0.42, 0.62]],
+                    snare: [[4, 1, 0.9], [12, 1, 0.94], [15, 0.22, 0.42]],
                     hats: 'broken'
                 },
                 {
@@ -10209,11 +10185,10 @@
                     hats: 'eighths'
                 }
             ];
-            const densityIndex = Math.min(drumPatterns.length - 1, Math.max(0, Math.floor((density - 0.15) / 0.18)));
-            const pattern = random() < 0.68 ? drumPatterns[densityIndex] : drumPatterns[Math.floor(random() * drumPatterns.length)];
+            const pattern = drumPatterns[Math.floor(random() * drumPatterns.length)];
 
             pattern.kick.forEach(([step, probability, velocity]) => {
-                if (random() <= probability * (0.78 + density * 0.28)) {
+                if (random() <= probability) {
                     addEvent(step, 'kick', velocity, step === 0 || step === 8, { core: true, allowLayer: true });
                 }
             });
@@ -10229,30 +10204,19 @@
                 broken: [0, 2, 5, 6, 8, 10, 13, 14],
                 sixteenths: Array.from({ length: 16 }, (_, step) => step)
             };
-            const hatMode = density > 0.82 && random() < 0.38 ? 'sixteenths' : pattern.hats;
+            const hatMode = pattern.hats;
             (hatSteps[hatMode] || hatSteps.eighths).forEach((step) => {
                 const offbeat = step % 4 === 2;
                 const downbeat = step % 4 === 0;
                 const probability = hatMode === 'sixteenths'
-                    ? (downbeat ? 0.74 : 0.48 + density * 0.34)
+                    ? (downbeat ? 0.74 : 0.56)
                     : (offbeat ? 0.96 : 0.82);
                 if (random() <= probability) {
                     addEvent(step, 'hat', (offbeat ? 0.42 : 0.32) + random() * 0.12, false, { core: true, allowLayer: true });
                 }
             });
 
-            const fillChance = Math.max(0.06, (density - 0.52) * 0.72);
-            [
-                [15, random() < 0.55 ? 'snare' : 'kick', 0.34 + random() * 0.2],
-                [11, 'snare', 0.26 + random() * 0.14],
-                [3, 'kick', 0.28 + random() * 0.18]
-            ].forEach(([step, type, velocity]) => {
-                if (random() < fillChance) {
-                    addEvent(step, type, velocity, false, { respectGap: true });
-                }
-            });
-
-            if (random() < 0.3 + punch * 0.28) {
+            if (random() < 0.42) {
                 addEvent(0, 'impact', 0.44 + random() * 0.28, true, { core: true, allowLayer: true });
             }
 
@@ -10294,7 +10258,7 @@
                     const mod = Math.sin(TWO_PI * pitch * 2.6 * delta) * (2.2 * Math.exp(-delta * 32));
                     const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.34;
                     const snap = noise * Math.exp(-delta * 23) * 0.82;
-                    return Math.tanh((shell + snap) * (1.3 + punch)) * env(delta, 0.001, 0.095 + density * 0.045) * velocity * panGain;
+                    return Math.tanh((shell + snap) * (1.3 + punch)) * env(delta, 0.001, 0.125) * velocity * panGain;
                 }
 
                 if (event.type === 'hat') {
@@ -10346,7 +10310,7 @@
             }
 
             await applyLoadedAudioBuffer(buffer, `${bpm} BPM FM drum loop`, 'generated');
-            setStatus(`Generated ${pattern.name} FM drums at ${bpm} BPM with ${formatFmDrumMinGap(minGapThirtySeconds)} fill gap.`);
+            setStatus(`Generated quantized ${pattern.name} FM drums at ${bpm} BPM.`);
             return buffer;
         }
 
@@ -10682,20 +10646,8 @@
             }
         });
 
-        document.getElementById('fmDrumDensity')?.addEventListener('input', (event) => {
-            document.getElementById('fmDrumDensityValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
-        });
-
-        document.getElementById('fmDrumPunch')?.addEventListener('input', (event) => {
-            document.getElementById('fmDrumPunchValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
-        });
-
         document.getElementById('fmDrumLevel')?.addEventListener('input', (event) => {
             document.getElementById('fmDrumLevelValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
-        });
-
-        document.getElementById('fmDrumMinGap')?.addEventListener('input', (event) => {
-            document.getElementById('fmDrumMinGapValue').textContent = formatFmDrumMinGap(event.target.value);
         });
 
         // Save Audio Button
@@ -11097,10 +11049,7 @@
                 performanceGeneratedTranspose: 0,
                 performanceModAmount: 55,
                 performanceGrainModAmount: 75,
-                fmDrumDensity: 60,
-                fmDrumPunch: 75,
-                fmDrumLevel: 85,
-                fmDrumMinGap: 4
+                fmDrumLevel: 85
             };
             
             // Reset all sliders to default values
