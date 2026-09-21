@@ -4267,6 +4267,8 @@
         let audioBuffer = null;
         let generatedLoopBuffer = null;
         let generatedLoopBaseBuffer = null;
+        let generatedDrumLoopBuffer = null;
+        let generatedFmDrumLoopBuffer = null;
         let micAudioBuffer = null;
         let sourceMutationSerial = 0;
         let lastSourceWriteAt = 0;
@@ -4453,6 +4455,10 @@
         let generatedDryThroughFilters = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
+        let generatedDrumDrySource = null;
+        let generatedDrumDryGainNode = null;
+        let generatedFmDrumDrySource = null;
+        let generatedFmDrumDryGainNode = null;
         let oscillatorsEnabled = true;
         let fxMuted = false;
         let allLfosSquareForced = false;
@@ -6385,6 +6391,14 @@
             audioBuffer = generatedLoopBuffer || micAudioBuffer || null;
         }
 
+        function hasGeneratedDryLoopLayer() {
+            return Boolean(generatedLoopBuffer || generatedDrumLoopBuffer || generatedFmDrumLoopBuffer);
+        }
+
+        function isGeneratedDryLoopRunning() {
+            return Boolean(generatedDrySource || generatedDrumDrySource || generatedFmDrumDrySource);
+        }
+
         function hasGranularSource() {
             return Boolean(generatedLoopBuffer || micAudioBuffer || audioBuffer);
         }
@@ -6608,7 +6622,7 @@
 
             if (!generatedLoopBaseBuffer || !audioContext) return;
 
-            const wasDryLooping = Boolean(generatedDrySource);
+            const wasDryLooping = isGeneratedDryLoopRunning();
             stopGeneratedDryLoop();
             generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
             syncLegacyAudioBuffer();
@@ -6626,10 +6640,9 @@
         }
 
         function stopGeneratedDryLoop(options = {}) {
-            if (generatedDrySource) {
-                const source = generatedDrySource;
-                const gain = generatedDryGainNode;
-                const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration(generatedLoopBuffer?.duration || 0.02);
+            function stopLayer(source, gain, duration) {
+                if (!source) return;
+                const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration(duration || 0.02);
                 if (gain && audioContext && fadeSeconds > 0) {
                     const now = audioContext.currentTime;
                     gain.gain.cancelScheduledValues(now);
@@ -6657,10 +6670,17 @@
                         gain?.disconnect();
                     } catch (e) {}
                 }
-                generatedDrySource = null;
             }
 
+            stopLayer(generatedDrySource, generatedDryGainNode, generatedLoopBuffer?.duration);
+            stopLayer(generatedDrumDrySource, generatedDrumDryGainNode, generatedDrumLoopBuffer?.duration);
+            stopLayer(generatedFmDrumDrySource, generatedFmDrumDryGainNode, generatedFmDrumLoopBuffer?.duration);
+            generatedDrySource = null;
             generatedDryGainNode = null;
+            generatedDrumDrySource = null;
+            generatedDrumDryGainNode = null;
+            generatedFmDrumDrySource = null;
+            generatedFmDrumDryGainNode = null;
             generatedDryLoopStartTime = null;
         }
 
@@ -6672,7 +6692,7 @@
         }
 
         function startGeneratedDryLoop(startTime = null) {
-            if (!audioContext || !masterGain || !generatedLoopBuffer) return;
+            if (!audioContext || !masterGain || !hasGeneratedDryLoopLayer()) return;
 
             const mix = getGeneratedDryMixValue();
             if (mix <= 0) {
@@ -6682,39 +6702,63 @@
 
             stopGeneratedDryLoop();
 
-            const source = audioContext.createBufferSource();
-            const gain = audioContext.createGain();
-            const loopRange = getLoopRange('generatedLoopStart', 'generatedLoopEnd');
-            const offset = generatedLoopBuffer.duration * loopRange.startPct;
-            const loopEnd = Math.max(offset + 0.01, generatedLoopBuffer.duration * loopRange.endPct);
-            const boundedLoopEnd = Math.min(generatedLoopBuffer.duration, loopEnd);
             const now = audioContext.currentTime;
             const safeStartTime = Math.max(now, startTime ?? now);
             generatedDryLoopStartTime = safeStartTime;
-            const fadeSeconds = getFadeSecondsForDuration(boundedLoopEnd - offset);
             const outputGain = getGeneratedDryOutputGain(mix);
 
-            source.buffer = generatedLoopBuffer;
-            source.loop = true;
-            source.loopStart = offset;
-            source.loopEnd = boundedLoopEnd;
-            gain.gain.setValueAtTime(0, safeStartTime);
-            gain.gain.linearRampToValueAtTime(outputGain, safeStartTime + fadeSeconds);
-            source.connect(gain);
-            gain.connect(preFilterGainNode || masterGain);
-            source.start(safeStartTime, offset);
-            source.onended = () => {
-                if (source !== generatedDrySource) return;
-                try {
-                    source.disconnect();
-                    gain.disconnect();
-                } catch (e) {}
-                generatedDrySource = null;
-                generatedDryGainNode = null;
-            };
+            function startLayer(buffer, options = {}) {
+                if (!buffer) return null;
+                const source = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+                const loopRange = options.useGeneratedLoopRange ? getLoopRange('generatedLoopStart', 'generatedLoopEnd') : { startPct: 0, endPct: 1 };
+                const offset = buffer.duration * loopRange.startPct;
+                const loopEnd = Math.max(offset + 0.01, buffer.duration * loopRange.endPct);
+                const boundedLoopEnd = Math.min(buffer.duration, loopEnd);
+                const fadeSeconds = getFadeSecondsForDuration(boundedLoopEnd - offset);
+                source.buffer = buffer;
+                source.loop = true;
+                source.loopStart = offset;
+                source.loopEnd = boundedLoopEnd;
+                gain.gain.setValueAtTime(0, safeStartTime);
+                gain.gain.linearRampToValueAtTime(outputGain * (options.gainScale ?? 1), safeStartTime + fadeSeconds);
+                source.connect(gain);
+                gain.connect(preFilterGainNode || masterGain);
+                source.start(safeStartTime, offset);
+                return { source, gain };
+            }
 
-            generatedDrySource = source;
-            generatedDryGainNode = gain;
+            const sampleLayer = startLayer(generatedLoopBuffer, { useGeneratedLoopRange: true, gainScale: 1 });
+            const drumLayer = startLayer(generatedDrumLoopBuffer, { gainScale: 0.82 });
+            const fmDrumLayer = startLayer(generatedFmDrumLoopBuffer, { gainScale: 0.82 });
+
+            generatedDrySource = sampleLayer?.source || null;
+            generatedDryGainNode = sampleLayer?.gain || null;
+            generatedDrumDrySource = drumLayer?.source || null;
+            generatedDrumDryGainNode = drumLayer?.gain || null;
+            generatedFmDrumDrySource = fmDrumLayer?.source || null;
+            generatedFmDrumDryGainNode = fmDrumLayer?.gain || null;
+
+            [
+                [generatedDrySource, generatedDryGainNode, () => { generatedDrySource = null; generatedDryGainNode = null; }],
+                [generatedDrumDrySource, generatedDrumDryGainNode, () => { generatedDrumDrySource = null; generatedDrumDryGainNode = null; }],
+                [generatedFmDrumDrySource, generatedFmDrumDryGainNode, () => { generatedFmDrumDrySource = null; generatedFmDrumDryGainNode = null; }]
+            ].forEach(([source, gain, clear]) => {
+                if (!source) return;
+                source.onended = () => {
+                    clear();
+                    try {
+                        source.disconnect();
+                        gain?.disconnect();
+                    } catch (e) {}
+                };
+            });
+
+            if (!generatedDrySource && !generatedDrumDrySource && !generatedFmDrumDrySource) {
+                try {
+                    stopGeneratedDryLoop({ fade: false });
+                } catch (e) {}
+            }
         }
 
         function setGeneratedDryThroughFilters(enabled, options = {}) {
@@ -6724,7 +6768,7 @@
                 return;
             }
 
-            const wasDryLooping = Boolean(generatedDrySource);
+            const wasDryLooping = isGeneratedDryLoopRunning();
             generatedDryThroughFilters = nextValue;
             if (wasDryLooping) {
                 startGeneratedDryLoop();
@@ -6744,7 +6788,7 @@
                 return;
             }
 
-            const wasDryLooping = Boolean(generatedDrySource);
+            const wasDryLooping = isGeneratedDryLoopRunning();
             generatedSampleSolo = nextValue;
             updateSourceMixGains();
             updateGeneratedDryLoopMix();
@@ -6764,15 +6808,22 @@
 
         function updateGeneratedDryLoopMix() {
             const mix = getGeneratedDryMixValue();
-            if (generatedDryGainNode && audioContext) {
+            if (audioContext) {
                 const now = audioContext.currentTime;
-                generatedDryGainNode.gain.cancelScheduledValues(now);
-                generatedDryGainNode.gain.setValueAtTime(generatedDryGainNode.gain.value, now);
-                generatedDryGainNode.gain.linearRampToValueAtTime(getGeneratedDryOutputGain(mix), now + 0.03);
+                [
+                    [generatedDryGainNode, 1],
+                    [generatedDrumDryGainNode, 0.82],
+                    [generatedFmDrumDryGainNode, 0.82]
+                ].forEach(([gainNode, gainScale]) => {
+                    if (!gainNode) return;
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                    gainNode.gain.linearRampToValueAtTime(getGeneratedDryOutputGain(mix) * gainScale, now + 0.03);
+                });
             }
 
-            if (sequencerPlaying && generatedLoopBuffer) {
-                if (mix > 0 && !generatedDrySource) {
+            if (sequencerPlaying && hasGeneratedDryLoopLayer()) {
+                if (mix > 0 && !isGeneratedDryLoopRunning()) {
                     startGeneratedDryLoop();
                 } else if (mix <= 0) {
                     stopGeneratedDryLoop();
@@ -6882,12 +6933,36 @@
             if (kind === 'mic') {
                 micAudioBuffer = buffer;
                 activeSourceKind = 'mic';
+            } else if (kind === 'drums') {
+                const wasDryLooping = isGeneratedDryLoopRunning();
+                generatedDrumLoopBuffer = buffer;
+                lastGeneratedSourceWriteAt = Date.now();
+                if (wasDryLooping || sequencerPlaying) {
+                    startGeneratedDryLoop();
+                }
+                setStatus(`${sourceLabel} ready as drum layer (${buffer.duration.toFixed(2)}s).`);
+                updateSourceAvailability();
+                return;
+            } else if (kind === 'fmDrums') {
+                const wasDryLooping = isGeneratedDryLoopRunning();
+                generatedFmDrumLoopBuffer = buffer;
+                lastGeneratedSourceWriteAt = Date.now();
+                if (wasDryLooping || sequencerPlaying) {
+                    startGeneratedDryLoop();
+                }
+                setStatus(`${sourceLabel} ready as FM drum layer (${buffer.duration.toFixed(2)}s).`);
+                updateSourceAvailability();
+                return;
             } else {
+                const wasDryLooping = isGeneratedDryLoopRunning();
                 stopGeneratedDryLoop();
                 generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(buffer);
                 generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
                 lastGeneratedSourceWriteAt = Date.now();
                 activeSourceKind = 'generated';
+                if (wasDryLooping || sequencerPlaying) {
+                    startGeneratedDryLoop();
+                }
             }
             syncLegacyAudioBuffer();
             resetSourceLoopPoints(kind);
@@ -6982,7 +7057,7 @@
         function handleSourceLoopChange(kind) {
             drawSourceWaveform(kind);
 
-            if (kind === 'generated' && generatedDrySource) {
+            if (kind === 'generated' && isGeneratedDryLoopRunning()) {
                 startGeneratedDryLoop();
             }
 
@@ -7018,6 +7093,8 @@
             audioBuffer = null;
             generatedLoopBuffer = null;
             generatedLoopBaseBuffer = null;
+            generatedDrumLoopBuffer = null;
+            generatedFmDrumLoopBuffer = null;
             micAudioBuffer = null;
             recordedChunks = [];
             drawWaveforms();
@@ -9857,13 +9934,18 @@
                 throw new Error('Start MYGRAIN before generating a source.');
             }
             const shouldRestartSequencer = sequencerPlaying;
-            const shouldRestartDryLoop = Boolean(generatedDrySource);
+            const shouldRestartDryLoop = isGeneratedDryLoopRunning();
             if (shouldRestartSequencer) {
                 stopSequencer();
             } else if (shouldRestartDryLoop) {
                 stopGeneratedDryLoop();
             }
-            await generateRandomSourceSample({ profile: options.profile, blueprint: options.blueprint, sourceBlueprint: options.sourceBlueprint });
+            await generateRandomSourceSample({
+                profile: options.profile,
+                blueprint: options.blueprint,
+                sourceBlueprint: options.sourceBlueprint,
+                sourceKind: options.sourceKind
+            });
             if (options.refreshSequencerPattern) {
                 generateInterestingLoop({ profile: options.profile, blueprint: options.blueprint });
             }
@@ -9880,7 +9962,7 @@
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating a loop.');
             }
-            await generateSourceWithPlaybackRestart({ refreshSequencerPattern: true });
+            await generateSourceWithPlaybackRestart({ refreshSequencerPattern: true, sourceKind: 'drums' });
         }
 
         async function generateStandaloneSource() {
@@ -10045,7 +10127,9 @@
             }
 
             setSourceBuffer(kind, buffer, sourceLabel);
-            await saveAudioBufferToDB(buffer, kind === 'mic' ? MIC_AUDIO_BUFFER_KEY : GENERATED_AUDIO_BUFFER_KEY);
+            if (kind === 'mic' || kind === 'generated') {
+                await saveAudioBufferToDB(buffer, kind === 'mic' ? MIC_AUDIO_BUFFER_KEY : GENERATED_AUDIO_BUFFER_KEY);
+            }
         }
 
         async function loadAudioFromArrayBuffer(arrayBuffer, sourceLabel, kind = 'generated') {
@@ -10309,14 +10393,14 @@
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, `${bpm} BPM FM drum loop`, 'generated');
+            await applyLoadedAudioBuffer(buffer, `${bpm} BPM FM drum loop`, 'fmDrums');
             setStatus(`Generated quantized ${pattern.name} FM drums at ${bpm} BPM.`);
             return buffer;
         }
 
         async function generateFmDrumLoopWithPlaybackRestart() {
             const shouldRestartSequencer = sequencerPlaying;
-            const shouldRestartDryLoop = Boolean(generatedDrySource);
+            const shouldRestartDryLoop = isGeneratedDryLoopRunning();
             if (shouldRestartSequencer) {
                 stopSequencer();
             } else if (shouldRestartDryLoop) {
@@ -10625,7 +10709,7 @@
             const sourceLabel = drumBlueprint
                 ? `${bpm} BPM ${drumBlueprint.grooveLabel} drum source`
                 : `${bpm} BPM drum source`;
-            await applyLoadedAudioBuffer(buffer, sourceLabel, 'generated');
+            await applyLoadedAudioBuffer(buffer, sourceLabel, options.sourceKind || 'generated');
         }
 
         generateSourceBtn?.addEventListener('click', async () => {
@@ -12049,6 +12133,9 @@
         }
 
         function getLoopTimingForBuffer(buffer, startId, endId) {
+            if (!startId || !endId) {
+                return { start: 0, end: Math.max(0.01, buffer.duration) };
+            }
             const loopRange = getLoopRange(startId, endId);
             const start = Math.max(0, buffer.duration * loopRange.startPct);
             const end = Math.min(buffer.duration, Math.max(start + 0.01, buffer.duration * loopRange.endPct));
@@ -12169,7 +12256,7 @@
             master.gain.value = Math.max(0.01, Math.min(1, (Number(document.getElementById('volume')?.value || 100) / 100) * dbToLinear(getMasterTrimDb())));
             master.connect(offline.destination);
 
-            const generatedDryLevel = includeDryGenerated && generatedLoopBuffer
+            const generatedDryLevel = includeDryGenerated && hasGeneratedDryLoopLayer()
                 ? getGeneratedDryOutputGain()
                 : 0;
 
@@ -12184,9 +12271,13 @@
                     generatedDryLevel,
                     durationSeconds
                 );
+                scheduleOfflineLoopSource(offline, generatedDryThroughFilters ? filterInput : master, generatedDrumLoopBuffer, null, null, generatedDryLevel * 0.82, durationSeconds);
+                scheduleOfflineLoopSource(offline, generatedDryThroughFilters ? filterInput : master, generatedFmDrumLoopBuffer, null, null, generatedDryLevel * 0.82, durationSeconds);
                 getSequencerExportSources(offline, filterInput, getAvailableGranularSources(), durationSeconds);
             } else {
                 scheduleOfflineLoopSource(offline, master, generatedLoopBuffer, 'generatedLoopStart', 'generatedLoopEnd', generatedDryLevel, durationSeconds);
+                scheduleOfflineLoopSource(offline, master, generatedDrumLoopBuffer, null, null, generatedDryLevel * 0.82, durationSeconds);
+                scheduleOfflineLoopSource(offline, master, generatedFmDrumLoopBuffer, null, null, generatedDryLevel * 0.82, durationSeconds);
             }
 
             return offline.startRendering();
