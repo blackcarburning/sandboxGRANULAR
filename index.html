@@ -4336,6 +4336,7 @@
         let finalFxPlacementLfoStartTime = 0;
         let finalFxPlacementLfoLastPhase = null;
         let finalFxPlacementSwitchStartTime = 0;
+        let finalFxPlacementSwitchTarget = 'post';
         let finalFxPlacementSwitchTimer = null;
         let tonalDrumsEnabled = false;
         let phaserNodes = [];
@@ -5829,9 +5830,10 @@
 
         function getFinalFxPlacementSwitchDuck(now = audioContext?.currentTime || 0) {
             if (!finalFxPlacementSwitchStartTime) return 1;
-            const fadeOut = 0.08;
-            const hold = 0.035;
-            const fadeIn = 0.16;
+            const switchingToPre = finalFxPlacementSwitchTarget === 'pre';
+            const fadeOut = switchingToPre ? 0.18 : 0.08;
+            const hold = switchingToPre ? 0.16 : 0.035;
+            const fadeIn = switchingToPre ? 0.32 : 0.16;
             const elapsed = now - finalFxPlacementSwitchStartTime;
             if (elapsed < 0) return 1;
             if (elapsed < fadeOut) {
@@ -5842,6 +5844,7 @@
                 return Math.min(1, 0.001 + ((elapsed - fadeOut - hold) / fadeIn) * 0.999);
             }
             finalFxPlacementSwitchStartTime = 0;
+            finalFxPlacementSwitchTarget = finalFxPlacement;
             return 1;
         }
 
@@ -5849,15 +5852,17 @@
             const nextPlacement = placement === 'pre' ? 'pre' : 'post';
             const changed = finalFxPlacement !== nextPlacement;
             if (options.smooth && changed && audioContext && audioContext.state === 'running') {
+                const fadeOutMs = nextPlacement === 'pre' ? 180 : 80;
                 if (finalFxPlacementSwitchTimer) {
                     clearTimeout(finalFxPlacementSwitchTimer);
                     finalFxPlacementSwitchTimer = null;
                 }
                 finalFxPlacementSwitchStartTime = audioContext.currentTime;
+                finalFxPlacementSwitchTarget = nextPlacement;
                 finalFxPlacementSwitchTimer = setTimeout(() => {
                     finalFxPlacementSwitchTimer = null;
                     setFinalFxPlacement(nextPlacement, { ...options, smooth: false, silent: true });
-                }, 80);
+                }, fadeOutMs);
                 return;
             }
             finalFxPlacement = nextPlacement;
@@ -5888,6 +5893,7 @@
                 clearTimeout(finalFxPlacementSwitchTimer);
                 finalFxPlacementSwitchTimer = null;
                 finalFxPlacementSwitchStartTime = 0;
+                finalFxPlacementSwitchTarget = finalFxPlacement;
             }
             if (finalFxPlacementLfoEnabled) {
                 updateFinalFxPlacementLfo(true);
@@ -13101,7 +13107,7 @@
 
         performanceFinalFxPlacementBtn?.addEventListener('click', () => {
             setFinalFxPlacementLfoEnabled(false, { silent: true });
-            setFinalFxPlacement(finalFxPlacement === 'pre' ? 'post' : 'pre');
+            setFinalFxPlacement(finalFxPlacement === 'pre' ? 'post' : 'pre', { smooth: true });
         });
 
         performanceFinalFxPlacementLfoBtn?.addEventListener('click', () => {
