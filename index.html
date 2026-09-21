@@ -4313,6 +4313,7 @@
         let masterGainRight = null; // Right channel gain for stereo tremolo
         let splitterNode = null;    // Stereo splitter
         let mergerNode = null;      // Stereo merger
+        let outputGainNode = null;  // Final output gain for click-free graph transitions
         let lfo3Oscillator = null;  // Audio-rate oscillator for LFO3
         let lfo3DepthGain = null;   // Controls modulation depth
         let lfo3Inverter = null;    // Inverts LFO3 for right channel
@@ -5519,7 +5520,10 @@
             splitterNode.connect(masterGainRight, 1); // Right channel
             masterGainLeft.connect(mergerNode, 0, 0); // To left output
             masterGainRight.connect(mergerNode, 0, 1); // To right output
-            mergerNode.connect(audioContext.destination);
+            outputGainNode = audioContext.createGain();
+            outputGainNode.gain.value = 1;
+            mergerNode.connect(outputGainNode);
+            outputGainNode.connect(audioContext.destination);
             
             // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
@@ -5833,9 +5837,9 @@
 
         function getFinalFxPlacementSwitchDuck(now = audioContext?.currentTime || 0) {
             if (!finalFxPlacementSwitchStartTime) return 1;
-            const fadeOut = 0.045;
-            const hold = 0.025;
-            const fadeIn = 0.09;
+            const fadeOut = 0.08;
+            const hold = 0.035;
+            const fadeIn = 0.16;
             const elapsed = now - finalFxPlacementSwitchStartTime;
             if (elapsed < 0) return 1;
             if (elapsed < fadeOut) {
@@ -5861,7 +5865,7 @@
                 finalFxPlacementSwitchTimer = setTimeout(() => {
                     finalFxPlacementSwitchTimer = null;
                     setFinalFxPlacement(nextPlacement, { ...options, smooth: false, silent: true });
-                }, 45);
+                }, 80);
                 return;
             }
             finalFxPlacement = nextPlacement;
@@ -6218,8 +6222,11 @@
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.28));
             smoothRamp(wetGainNode.gain, Math.min(1.25, reverbAmt * 1.18));
             
-            // Master gain
-            smoothRamp(masterGain.gain, Math.min(1, volAmt) * placementSwitchDuck);
+            // Master and output gain
+            smoothRamp(masterGain.gain, Math.min(1, volAmt));
+            if (outputGainNode) {
+                smoothRamp(outputGainNode.gain, placementSwitchDuck);
+            }
             
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
