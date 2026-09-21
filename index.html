@@ -2796,6 +2796,7 @@
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
+                <button class="performance-btn" id="performanceGenerateFmDrumsBtn">FM Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
                 <button class="performance-btn" id="performancePlayAllBtn">Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
@@ -2894,6 +2895,18 @@
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="source-seed-group" aria-label="FM drum loop generator">
+                    <div class="section-title">FM Drum Loop</div>
+                    <div class="source-seed-buttons">
+                        <button id="generateFmDrumLoopBtn" class="primary">Generate FM Drum Loop</button>
+                    </div>
+                    <div class="source-loop-labels">
+                        <label for="fmDrumDensity">Density <span id="fmDrumDensityValue">60%</span></label>
+                        <label for="fmDrumPunch">Punch <span id="fmDrumPunchValue">75%</span></label>
+                    </div>
+                    <input type="range" id="fmDrumDensity" min="15" max="100" value="60" step="1">
+                    <input type="range" id="fmDrumPunch" min="20" max="100" value="75" step="1">
                 </div>
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
@@ -9948,6 +9961,170 @@
             await applyLoadedAudioBuffer(buffer, 'Built-in demo', 'generated');
         }
 
+        function getFmDrumControlValue(id, fallback) {
+            const element = document.getElementById(id);
+            const value = Number(element?.value);
+            return Number.isFinite(value) ? value : fallback;
+        }
+
+        async function generateFmDrumLoopSample(options = {}) {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before generating FM drums.');
+            }
+
+            sourceMutationSerial += 1;
+            lastSourceWriteAt = Date.now();
+            lastGeneratedSourceWriteAt = lastSourceWriteAt;
+
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const density = Math.max(0.15, Math.min(1, getFmDrumControlValue('fmDrumDensity', 60) / 100));
+            const punch = Math.max(0.2, Math.min(1, getFmDrumControlValue('fmDrumPunch', 75) / 100));
+            const random = typeof mygrainUtils.createSeededRandom === 'function'
+                ? mygrainUtils.createSeededRandom(`fm-drums-${Date.now()}-${bpm}-${density}-${punch}`)
+                : Math.random;
+            const stepCount = 16;
+            const stepDuration = (60 / bpm) / 4;
+            const duration = stepDuration * stepCount;
+            const sampleRate = audioContext.sampleRate;
+            const frameCount = Math.max(1, Math.floor(sampleRate * duration));
+            const buffer = audioContext.createBuffer(2, frameCount, sampleRate);
+            const events = [];
+            const TWO_PI = Math.PI * 2;
+
+            function addEvent(step, type, velocity = 0.7, accent = false) {
+                if (step < 0 || step >= stepCount) return;
+                events.push({
+                    step,
+                    type,
+                    time: step * stepDuration,
+                    velocity: Math.max(0, Math.min(1, velocity + (accent ? 0.12 : 0))),
+                    accent
+                });
+            }
+
+            [0, 8].forEach((step, index) => addEvent(step, 'kick', index === 0 ? 1 : 0.84, true));
+            [4, 12].forEach((step) => addEvent(step, 'snare', 0.82, true));
+            if (density > 0.36) [2, 6, 10, 14].forEach((step) => addEvent(step, 'hat', 0.38 + random() * 0.18));
+            if (density > 0.52) [1, 3, 5, 7, 9, 11, 13, 15].forEach((step) => {
+                if (random() < density * 0.72) addEvent(step, 'hat', 0.24 + random() * 0.22, step === 15);
+            });
+            if (density > 0.42 && random() < 0.75) addEvent(14, 'kick', 0.5 + random() * 0.22);
+            if (density > 0.58 && random() < 0.72) addEvent(15, 'snare', 0.36 + random() * 0.24);
+            [0, 8].forEach((step) => {
+                if (random() < 0.42 + punch * 0.28) addEvent(step, 'impact', 0.48 + random() * 0.32, step === 0);
+            });
+
+            function env(delta, attack, decay) {
+                if (delta < 0) return 0;
+                if (delta < attack) return delta / Math.max(attack, 0.0001);
+                return Math.exp(-(delta - attack) / Math.max(decay, 0.0001));
+            }
+
+            function renderFmEvent(event, delta, noise, channel) {
+                if (delta < 0) return 0;
+                const pan = event.type === 'hat' ? (event.step % 4 === 1 ? -0.18 : 0.18) : 0;
+                const panGain = channel === 0
+                    ? Math.cos((pan + 1) * Math.PI * 0.25)
+                    : Math.sin((pan + 1) * Math.PI * 0.25);
+                const velocity = event.velocity;
+
+                if (event.type === 'kick') {
+                    if (delta > 0.42) return 0;
+                    const pitch = 38 + 98 * Math.exp(-delta * (18 + punch * 12));
+                    const mod = Math.sin(TWO_PI * pitch * 1.92 * delta) * (7.2 * Math.exp(-delta * 24));
+                    const body = Math.sin(TWO_PI * pitch * delta + mod);
+                    const click = noise * Math.exp(-delta * 120) * (0.14 + punch * 0.2);
+                    return Math.tanh((body * 1.35 + click) * (1.4 + punch * 1.6)) * env(delta, 0.001, 0.18 + punch * 0.12) * velocity * panGain;
+                }
+
+                if (event.type === 'impact') {
+                    if (delta > 0.58) return 0;
+                    const pitch = 28 + 62 * Math.exp(-delta * 10);
+                    const mod = Math.sin(TWO_PI * pitch * 0.73 * delta) * (5.5 * Math.exp(-delta * 11));
+                    const sub = Math.sin(TWO_PI * pitch * 0.5 * delta + mod);
+                    const dirt = noise * Math.exp(-delta * 8) * 0.22;
+                    return Math.tanh((sub * 1.6 + dirt) * (1.8 + punch * 1.4)) * env(delta, 0.002, 0.26 + punch * 0.18) * velocity * panGain;
+                }
+
+                if (event.type === 'snare') {
+                    if (delta > 0.24) return 0;
+                    const pitch = 172 + 48 * Math.exp(-delta * 24);
+                    const mod = Math.sin(TWO_PI * pitch * 2.6 * delta) * (2.2 * Math.exp(-delta * 32));
+                    const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.34;
+                    const snap = noise * Math.exp(-delta * 23) * 0.82;
+                    return Math.tanh((shell + snap) * (1.3 + punch)) * env(delta, 0.001, 0.095 + density * 0.045) * velocity * panGain;
+                }
+
+                if (event.type === 'hat') {
+                    if (delta > 0.09) return 0;
+                    const base = 3200 + (event.step % 5) * 410;
+                    const fm = Math.sin(TWO_PI * base * delta + Math.sin(TWO_PI * base * 1.47 * delta) * 4.5);
+                    const metal = fm * Math.sin(TWO_PI * base * 2.11 * delta);
+                    const tick = (metal * 0.36 + noise * 0.84) * Math.exp(-delta * (42 + punch * 34));
+                    return Math.tanh(tick * 1.9) * velocity * panGain;
+                }
+
+                return 0;
+            }
+
+            events.sort((a, b) => a.time - b.time);
+            let peak = 0;
+            for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+                const channelData = buffer.getChannelData(channel);
+                let lowNoise = 0;
+                let prevInput = 0;
+                let prevOutput = 0;
+                for (let i = 0; i < frameCount; i += 1) {
+                    const time = i / sampleRate;
+                    const rawNoise = random() * 2 - 1;
+                    lowNoise = lowNoise * 0.965 + rawNoise * 0.035;
+                    const highNoise = rawNoise - lowNoise;
+                    let sample = 0;
+                    for (const event of events) {
+                        if (event.time > time + 0.001) break;
+                        sample += renderFmEvent(event, time - event.time, highNoise, channel);
+                    }
+                    const saturated = Math.tanh(sample * 1.18);
+                    const dcBlocked = saturated - prevInput + 0.995 * prevOutput;
+                    prevInput = saturated;
+                    prevOutput = dcBlocked;
+                    channelData[i] = Math.max(-1, Math.min(1, dcBlocked * 0.86));
+                    peak = Math.max(peak, Math.abs(channelData[i]));
+                }
+            }
+
+            if (peak > 0.001) {
+                const scale = Math.min(0.96 / peak, 1.6);
+                for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+                    const channelData = buffer.getChannelData(channel);
+                    for (let i = 0; i < frameCount; i += 1) {
+                        channelData[i] *= scale;
+                    }
+                }
+            }
+
+            await applyLoadedAudioBuffer(buffer, `${bpm} BPM FM drum loop`, 'generated');
+            setStatus(`Generated FM drum loop at ${bpm} BPM with 1/16 grid.`);
+            return buffer;
+        }
+
+        async function generateFmDrumLoopWithPlaybackRestart() {
+            const shouldRestartSequencer = sequencerPlaying;
+            const shouldRestartDryLoop = Boolean(generatedDrySource);
+            if (shouldRestartSequencer) {
+                stopSequencer();
+            } else if (shouldRestartDryLoop) {
+                stopGeneratedDryLoop();
+            }
+            await generateFmDrumLoopSample();
+            if (shouldRestartSequencer) {
+                startSequencer();
+            } else if (shouldRestartDryLoop) {
+                startGeneratedDryLoop();
+            }
+            syncPerformanceControlState();
+        }
+
         function setGeneratedSourceLowNoiseMode(enabled, options = {}) {
             generatedSourceLowNoiseMode = Boolean(enabled);
             syncPerformanceControlState();
@@ -10252,6 +10429,23 @@
                 console.error(error);
                 setStatus(`Random source failed: ${error.message}`, 'error');
             }
+        });
+
+        document.getElementById('generateFmDrumLoopBtn')?.addEventListener('click', async () => {
+            try {
+                await generateFmDrumLoopWithPlaybackRestart();
+            } catch (error) {
+                console.error(error);
+                setStatus(`FM drum loop failed: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('fmDrumDensity')?.addEventListener('input', (event) => {
+            document.getElementById('fmDrumDensityValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
+        });
+
+        document.getElementById('fmDrumPunch')?.addEventListener('input', (event) => {
+            document.getElementById('fmDrumPunchValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
         });
 
         // Save Audio Button
@@ -12214,6 +12408,7 @@
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
+        const performanceGenerateFmDrumsBtn = document.getElementById('performanceGenerateFmDrumsBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performancePlayAllBtn = document.getElementById('performancePlayAllBtn');
         const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
@@ -12552,6 +12747,26 @@
                 setStatus(`Sample generation failed: ${error.message}`, 'error');
                 performanceGenerateJunkBtn.disabled = false;
                 performanceGenerateJunkBtn.textContent = 'Generate Sample';
+            }
+        });
+
+        performanceGenerateFmDrumsBtn?.addEventListener('click', async () => {
+            if (performanceGenerateFmDrumsBtn.disabled) return;
+            showSettlePopup();
+            performanceGenerateFmDrumsBtn.disabled = true;
+            performanceGenerateFmDrumsBtn.textContent = 'Generating...';
+            try {
+                await generateFmDrumLoopWithPlaybackRestart();
+                performanceGenerateFmDrumsBtn.textContent = 'Generated';
+                setTimeout(() => {
+                    performanceGenerateFmDrumsBtn.disabled = false;
+                    performanceGenerateFmDrumsBtn.textContent = 'FM Drums';
+                }, 900);
+            } catch (error) {
+                console.error(error);
+                setStatus(`FM drum loop failed: ${error.message}`, 'error');
+                performanceGenerateFmDrumsBtn.disabled = false;
+                performanceGenerateFmDrumsBtn.textContent = 'FM Drums';
             }
         });
 
