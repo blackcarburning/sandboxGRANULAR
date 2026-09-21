@@ -12340,6 +12340,81 @@
             }
         }
 
+        function delayMs(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function recordLiveOutputBuffer(durationSeconds) {
+            if (!audioContext || !outputGainNode) {
+                throw new Error('Start MYGRAIN before exporting.');
+            }
+            if (typeof MediaRecorder === 'undefined') {
+                throw new Error('Live output export is not supported in this browser.');
+            }
+
+            if (audioContext.state !== 'running') {
+                await audioContext.resume();
+            }
+
+            const destination = audioContext.createMediaStreamDestination();
+            const chunks = [];
+            const mimeType = chooseRecordingMimeType();
+            const recorder = mimeType
+                ? new MediaRecorder(destination.stream, { mimeType })
+                : new MediaRecorder(destination.stream);
+
+            outputGainNode.connect(destination);
+
+            return new Promise((resolve, reject) => {
+                let settled = false;
+                const cleanup = () => {
+                    try {
+                        outputGainNode.disconnect(destination);
+                    } catch (e) {}
+                };
+                const finishReject = (error) => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    reject(error);
+                };
+
+                recorder.ondataavailable = (event) => {
+                    if (event.data?.size > 0) chunks.push(event.data);
+                };
+                recorder.onerror = (event) => {
+                    finishReject(event.error || new Error('Live output recording failed.'));
+                };
+                recorder.onstop = async () => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    try {
+                        if (chunks.length === 0) {
+                            throw new Error('No live output audio was captured.');
+                        }
+                        const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const rendered = await audioContext.decodeAudioData(arrayBuffer);
+                        resolve(rendered);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                try {
+                    recorder.start();
+                    setTimeout(() => {
+                        if (recorder.state === 'recording') {
+                            recorder.stop();
+                        }
+                    }, Math.max(250, Math.ceil(durationSeconds * 1000)));
+                } catch (error) {
+                    finishReject(error);
+                }
+            });
+        }
+
         async function exportDawReadyBars() {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before exporting.');
@@ -12360,7 +12435,24 @@
 
             try {
                 const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-                const fullMix = await renderDawReadyBuffer({ bars, includeDryGenerated: true, dryOnly: false });
+                const durationSeconds = (60 / bpm) * 4 * bars;
+                const wasSequencerPlaying = sequencerPlaying;
+                const wasOutputRecordingArmed = isOutputRecordingArmed;
+                if (!wasSequencerPlaying) {
+                    isOutputRecordingArmed = false;
+                    startSequencer();
+                    isOutputRecordingArmed = wasOutputRecordingArmed;
+                    await delayMs(80);
+                }
+                let fullMix;
+                try {
+                    fullMix = await recordLiveOutputBuffer(durationSeconds);
+                } finally {
+                    if (!wasSequencerPlaying) {
+                        stopSequencer();
+                        isOutputRecordingArmed = wasOutputRecordingArmed;
+                    }
+                }
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                 const files = [{
                     filename: `mygrain-mix-${bpm}bpm-${bars}bars-${timestamp}.wav`,
@@ -12376,7 +12468,7 @@
                 }
 
                 await saveAudioFiles(files, `MYGRAIN ${bpm} BPM ${bars} bar export`);
-                setStatus(`Exported ${files.length} DAW-ready WAV file${files.length === 1 ? '' : 's'} from time 0.`);
+                setStatus(`Exported ${files.length} WAV file${files.length === 1 ? '' : 's'} from the live final output.`);
             } finally {
                 if (performanceExportBtn) {
                     performanceExportBtn.disabled = false;
@@ -12526,7 +12618,7 @@
 
         // Start recording output
         document.getElementById('startOutputRecBtn')?.addEventListener('click', () => {
-            if (!audioContext || !masterGain) {
+            if (!audioContext || !outputGainNode) {
                 alert('Audio engine not initialized. Please start the engine first.');
                 return;
             }
@@ -12536,20 +12628,20 @@
             }
 
             try {
-                // Verify masterGain is properly connected and exists
+                // Verify final output node is properly connected and exists
                 console.log('=== START RECORDING CLICKED ===');
-                console.log('masterGain:', masterGain);
-                console.log('masterGain connected (numberOfOutputs):', masterGain?.numberOfOutputs);
-                console.log('MasterGain connected to destination:', masterGain.context === audioContext);
+                console.log('outputGainNode:', outputGainNode);
+                console.log('outputGainNode connected (numberOfOutputs):', outputGainNode?.numberOfOutputs);
+                console.log('Output gain connected to destination:', outputGainNode.context === audioContext);
                 console.log('AudioContext state:', audioContext.state);
                 console.log('isOutputRecordingArmedStart:', isOutputRecordingArmedStart);
                 
                 outputRecordedChunks = [];
                 isOutputRecording = true;
                 
-                // Create a MediaStreamDestination and connect masterGain to it
+                // Create a MediaStreamDestination and connect the final audible output to it
                 outputRecordingDestination = audioContext.createMediaStreamDestination();
-                masterGain.connect(outputRecordingDestination);
+                outputGainNode.connect(outputRecordingDestination);
                 
                 // Use MediaRecorder to record the stream
                 // Check for supported MIME types
@@ -12669,12 +12761,12 @@
             }
             
             // Clean up recording resources
-            if (outputRecordingDestination && masterGain) {
+            if (outputRecordingDestination && outputGainNode) {
                 try {
-                    console.log('Disconnecting masterGain from outputRecordingDestination');
-                    masterGain.disconnect(outputRecordingDestination);
+                    console.log('Disconnecting outputGainNode from outputRecordingDestination');
+                    outputGainNode.disconnect(outputRecordingDestination);
                 } catch (e) {
-                    console.log('masterGain already disconnected');
+                    console.log('outputGainNode already disconnected');
                 }
                 outputRecordingDestination = null;
             }
@@ -12707,7 +12799,7 @@
 
         // Arm recording output - waits for keyboard key press
         document.getElementById('armOutputRecBtn')?.addEventListener('click', () => {
-            if (!audioContext || !masterGain) {
+            if (!audioContext || !outputGainNode) {
                 alert('Audio engine not initialized. Please start the engine first.');
                 return;
             }
