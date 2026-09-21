@@ -12463,16 +12463,8 @@
                     blob: new Blob([audioBufferToWav24bit(fullMix)], { type: 'audio/wav' })
                 }];
 
-                if (generatedLoopBuffer) {
-                    const generatedStem = await renderDawReadyBuffer({ bars, includeDryGenerated: true, dryOnly: true });
-                    files.push({
-                        filename: `mygrain-generated-dry-${bpm}bpm-${bars}bars-${timestamp}.wav`,
-                        blob: new Blob([audioBufferToWav24bit(generatedStem)], { type: 'audio/wav' })
-                    });
-                }
-
                 await saveAudioFiles(files, `MYGRAIN ${bpm} BPM ${bars} bar export`);
-                setStatus(`Exported ${files.length} WAV file${files.length === 1 ? '' : 's'} from the live final output.`);
+                setStatus('Exported one WAV file from the live final output.');
             } finally {
                 if (performanceExportBtn) {
                     performanceExportBtn.disabled = false;
