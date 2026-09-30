@@ -2848,6 +2848,8 @@
                         <button id="generateSourceBtn" class="primary">Generate Source</button>
                         <button id="performanceLowNoiseSourceBtn">Low Noise Source</button>
                         <button id="recordBtn">Record Mic</button>
+                        <button id="recordGrainAMicBtn">Rec Grain A Mic</button>
+                        <button id="recordGrainBMicBtn">Rec Grain B Mic</button>
                         <button id="loadDemoBtn">Load Demo</button>
                         <button id="performanceLoadAudioBtn">Load Audio</button>
                     </div>
@@ -2910,6 +2912,51 @@
                             </div>
                         </div>
                     </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Grain A Mic</span>
+                            <span class="source-waveform-meta" id="grainAMicWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="grainAMicWaveformCanvas" class="source-waveform-canvas" data-source="grainAMic"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="grainAMicLoopStart">Start <span id="grainAMicLoopStartValue">0%</span></label>
+                                <label for="grainAMicLoopEnd">End <span id="grainAMicLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="grainAMicLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="grainAMicLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                    </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Grain B Mic</span>
+                            <span class="source-waveform-meta" id="grainBMicWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="grainBMicWaveformCanvas" class="source-waveform-canvas" data-source="grainBMic"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="grainBMicLoopStart">Start <span id="grainBMicLoopStartValue">0%</span></label>
+                                <label for="grainBMicLoopEnd">End <span id="grainBMicLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="grainBMicLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="grainBMicLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                    </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Output Source</span>
+                            <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="outputWaveformCanvas" class="source-waveform-canvas" data-source="output"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="outputLoopStart">Start <span id="outputLoopStartValue">0%</span></label>
+                                <label for="outputLoopEnd">End <span id="outputLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="outputLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="outputLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                    </div>
                 </div>
                 <div class="source-seed-group" aria-label="FM drum loop generator">
                     <div class="section-title">FM Drum Loop</div>
@@ -2954,6 +3001,10 @@
                         <button id="stopOutputRecBtn" disabled>Stop</button>
                         <button id="armOutputRecBtn">Arm</button>
                     </div>
+                    <label class="recording-indicator" style="justify-content: flex-start;">
+                        <input type="checkbox" id="outputRecToSource">
+                        <span>Use recording as source</span>
+                    </label>
                     <div class="recording-indicator" id="outputRecStatus">
                         <div class="recording-dot" id="outputRecDot"></div>
                         <span id="outputRecText">Ready</span>
@@ -3116,6 +3167,16 @@
                         <input type="range" id="grainSynthAMix" min="0" max="100" value="28" step="1">
                     </div>
                     <div class="control-group">
+                        <label><span>Grain Synth A Source</span></label>
+                        <select id="grainSynthASource">
+                            <option value="all">All Sources</option>
+                            <option value="generated">Generated Loop</option>
+                            <option value="mic">Main Mic</option>
+                            <option value="layerMic">Grain A Mic</option>
+                            <option value="output">Output Source</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
                         <label>
                             <span class="param-name">Grain Synth A Tune</span>
                             <div class="button-group">
@@ -3189,6 +3250,16 @@
                             <span class="value" id="grainSynthBMixValue">22%</span>
                         </label>
                         <input type="range" id="grainSynthBMix" min="0" max="100" value="22" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label><span>Grain Synth B Source</span></label>
+                        <select id="grainSynthBSource">
+                            <option value="all">All Sources</option>
+                            <option value="generated">Generated Loop</option>
+                            <option value="mic">Main Mic</option>
+                            <option value="layerMic">Grain B Mic</option>
+                            <option value="output">Output Source</option>
+                        </select>
                     </div>
                     <div class="control-group">
                         <label>
@@ -4434,6 +4505,9 @@
         let generatedLoopBuffer = null;
         let generatedLoopBaseBuffer = null;
         let micAudioBuffer = null;
+        let grainSynthAMicBuffer = null;
+        let grainSynthBMicBuffer = null;
+        let outputSourceBuffer = null;
         let sourceMutationSerial = 0;
         let lastSourceWriteAt = 0;
         let lastGeneratedSourceWriteAt = 0;
@@ -4442,6 +4516,8 @@
         let micStream = null;
         let recordedChunks = [];
         let isRecording = false;
+        let recordingTargetKind = 'mic';
+        let activeRecordingButton = null;
         let activeGrains = new Map();
         let activeGrainNodes = 0;
         const MAX_GRAIN_NODES = 150; // Prevent runaway node creation (increased from 100)
@@ -4949,6 +5025,12 @@
             generatedLoopEnd: { min: 0, max: 100 },
             micLoopStart: { min: 0, max: 100 },
             micLoopEnd: { min: 0, max: 100 },
+            grainAMicLoopStart: { min: 0, max: 100 },
+            grainAMicLoopEnd: { min: 0, max: 100 },
+            grainBMicLoopStart: { min: 0, max: 100 },
+            grainBMicLoopEnd: { min: 0, max: 100 },
+            outputLoopStart: { min: 0, max: 100 },
+            outputLoopEnd: { min: 0, max: 100 },
             grainSize: { min: 10, max: 500 },
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
@@ -4998,6 +5080,8 @@
         const presetToggleParams = [
             'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
+            'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
+            'outputLoopStart', 'outputLoopEnd',
             'pitchVar', 'grainTune',
             'grainSynthAMix', 'grainSynthATune', 'grainSynthASize', 'grainSynthADensity', 'grainSynthASpread',
             'grainSynthBMix', 'grainSynthBTune', 'grainSynthBSize', 'grainSynthBDensity', 'grainSynthBSpread',
@@ -5705,9 +5789,15 @@
                     // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
                     const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
                     const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
+                    const restoredGrainAMicBuffer = await loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY);
+                    const restoredGrainBMicBuffer = await loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY);
+                    const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
                     const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                     const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
+                    const shouldRestoreGrainAMic = restoredGrainAMicBuffer && restoreStillCurrent;
+                    const shouldRestoreGrainBMic = restoredGrainBMicBuffer && restoreStillCurrent;
+                    const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
                     if (shouldRestoreGenerated) {
                         generatedLoopBuffer = restoredGeneratedBuffer;
                         generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
@@ -5715,7 +5805,16 @@
                     if (shouldRestoreMic) {
                         micAudioBuffer = restoredMicBuffer;
                     }
-                    if (shouldRestoreGenerated || shouldRestoreMic) {
+                    if (shouldRestoreGrainAMic) {
+                        grainSynthAMicBuffer = restoredGrainAMicBuffer;
+                    }
+                    if (shouldRestoreGrainBMic) {
+                        grainSynthBMicBuffer = restoredGrainBMicBuffer;
+                    }
+                    if (shouldRestoreOutput) {
+                        outputSourceBuffer = restoredOutputBuffer;
+                    }
+                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput) {
                         syncLegacyAudioBuffer();
                         drawWaveforms();
                         updateSourceAvailability();
@@ -6612,8 +6711,13 @@
         const clearBtn = document.getElementById('clearBtn');
         const generatedWaveformCanvas = document.getElementById('generatedWaveformCanvas');
         const micWaveformCanvas = document.getElementById('micWaveformCanvas');
+        const grainAMicWaveformCanvas = document.getElementById('grainAMicWaveformCanvas');
+        const grainBMicWaveformCanvas = document.getElementById('grainBMicWaveformCanvas');
+        const outputWaveformCanvas = document.getElementById('outputWaveformCanvas');
         const generateSourceBtn = document.getElementById('generateSourceBtn');
         const performanceLoadAudioBtn = document.getElementById('performanceLoadAudioBtn');
+        const recordGrainAMicBtn = document.getElementById('recordGrainAMicBtn');
+        const recordGrainBMicBtn = document.getElementById('recordGrainBMicBtn');
 
         recordBtn.addEventListener('click', () => {
             if (!audioContext) {
@@ -6621,7 +6725,25 @@
                 return;
             }
             if (isRecording) stopRecording();
-            else startRecording();
+            else startRecording('mic');
+        });
+
+        recordGrainAMicBtn?.addEventListener('click', () => {
+            if (!audioContext) {
+                setStatus('Start MYGRAIN before recording Grain A mic.', 'error');
+                return;
+            }
+            if (isRecording) stopRecording();
+            else startRecording('grainAMic');
+        });
+
+        recordGrainBMicBtn?.addEventListener('click', () => {
+            if (!audioContext) {
+                setStatus('Start MYGRAIN before recording Grain B mic.', 'error');
+                return;
+            }
+            if (isRecording) stopRecording();
+            else startRecording('grainBMic');
         });
 
         performanceLoadAudioBtn?.addEventListener('click', () => {
@@ -6646,28 +6768,137 @@
             applyGlobalBpm(e.target.value);
         });
 
+        function getSourceSlotConfig(kind) {
+            const configs = {
+                generated: {
+                    buffer: () => generatedLoopBuffer,
+                    setBuffer: (buffer) => {
+                        stopGeneratedDryLoop();
+                        generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(buffer);
+                        generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
+                        lastGeneratedSourceWriteAt = Date.now();
+                    },
+                    startId: 'generatedLoopStart',
+                    endId: 'generatedLoopEnd',
+                    canvas: generatedWaveformCanvas,
+                    metaId: 'generatedLoopMeta',
+                    dbKey: () => GENERATED_AUDIO_BUFFER_KEY,
+                    emptyText: 'Generate or load audio to fill this source',
+                    color: '#00d4ff'
+                },
+                mic: {
+                    buffer: () => micAudioBuffer,
+                    setBuffer: (buffer) => { micAudioBuffer = buffer; },
+                    startId: 'micLoopStart',
+                    endId: 'micLoopEnd',
+                    canvas: micWaveformCanvas,
+                    metaId: 'micWaveformMeta',
+                    dbKey: () => MIC_AUDIO_BUFFER_KEY,
+                    emptyText: 'Record main mic to fill this source',
+                    color: '#7effb2'
+                },
+                grainAMic: {
+                    buffer: () => grainSynthAMicBuffer,
+                    setBuffer: (buffer) => { grainSynthAMicBuffer = buffer; },
+                    startId: 'grainAMicLoopStart',
+                    endId: 'grainAMicLoopEnd',
+                    canvas: grainAMicWaveformCanvas,
+                    metaId: 'grainAMicWaveformMeta',
+                    dbKey: () => GRAIN_A_MIC_AUDIO_BUFFER_KEY,
+                    emptyText: 'Record Grain A mic to fill this source',
+                    color: '#ffc857'
+                },
+                grainBMic: {
+                    buffer: () => grainSynthBMicBuffer,
+                    setBuffer: (buffer) => { grainSynthBMicBuffer = buffer; },
+                    startId: 'grainBMicLoopStart',
+                    endId: 'grainBMicLoopEnd',
+                    canvas: grainBMicWaveformCanvas,
+                    metaId: 'grainBMicWaveformMeta',
+                    dbKey: () => GRAIN_B_MIC_AUDIO_BUFFER_KEY,
+                    emptyText: 'Record Grain B mic to fill this source',
+                    color: '#ff8ad6'
+                },
+                output: {
+                    buffer: () => outputSourceBuffer,
+                    setBuffer: (buffer) => { outputSourceBuffer = buffer; },
+                    startId: 'outputLoopStart',
+                    endId: 'outputLoopEnd',
+                    canvas: outputWaveformCanvas,
+                    metaId: 'outputWaveformMeta',
+                    dbKey: () => OUTPUT_AUDIO_BUFFER_KEY,
+                    emptyText: 'Record synth output to fill this source',
+                    color: '#b9a7ff'
+                }
+            };
+            return configs[kind] || configs.generated;
+        }
+
         function getSourceBuffer(kind) {
-            if (kind === 'generated') return generatedLoopBuffer;
-            if (kind === 'mic') return micAudioBuffer;
-            return audioBuffer;
+            if (kind === 'legacy') return audioBuffer;
+            return getSourceSlotConfig(kind).buffer();
         }
 
         function syncLegacyAudioBuffer() {
-            audioBuffer = generatedLoopBuffer || micAudioBuffer || null;
+            audioBuffer = generatedLoopBuffer || micAudioBuffer || outputSourceBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || null;
         }
 
         function hasGranularSource() {
-            return Boolean(generatedLoopBuffer || micAudioBuffer || audioBuffer);
+            return Boolean(generatedLoopBuffer || micAudioBuffer || outputSourceBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || audioBuffer);
         }
 
-        function getAvailableGranularSources() {
-            const sources = [];
-            if (generatedLoopBuffer) {
-                sources.push({ kind: 'generated', buffer: generatedLoopBuffer, startId: 'generatedLoopStart', endId: 'generatedLoopEnd' });
+        function makeGranularSource(kind, bufferOverride = null) {
+            const config = getSourceSlotConfig(kind);
+            const buffer = bufferOverride || config.buffer();
+            if (!buffer) return null;
+            return {
+                kind,
+                buffer,
+                startId: config.startId,
+                endId: config.endId
+            };
+        }
+
+        function getBaseGranularSources() {
+            return [
+                makeGranularSource('generated'),
+                makeGranularSource('mic'),
+                makeGranularSource('output')
+            ].filter(Boolean);
+        }
+
+        function getAllGranularSources() {
+            return [
+                makeGranularSource('generated'),
+                makeGranularSource('mic'),
+                makeGranularSource('grainAMic'),
+                makeGranularSource('grainBMic'),
+                makeGranularSource('output')
+            ].filter(Boolean);
+        }
+
+        function getAvailableGranularSources(options = {}) {
+            const mode = options.mode || 'all';
+            const layer = options.layer || null;
+            const layerMicKind = layer === 'A' ? 'grainAMic' : (layer === 'B' ? 'grainBMic' : null);
+            let sources = [];
+
+            if (mode === 'generated') {
+                sources = [makeGranularSource('generated')].filter(Boolean);
+            } else if (mode === 'mic') {
+                sources = [makeGranularSource('mic')].filter(Boolean);
+            } else if (mode === 'layerMic' && layerMicKind) {
+                sources = [makeGranularSource(layerMicKind)].filter(Boolean);
+            } else if (mode === 'output') {
+                sources = [makeGranularSource('output')].filter(Boolean);
+            } else {
+                sources = getBaseGranularSources();
+                if (layerMicKind) {
+                    const layerMicSource = makeGranularSource(layerMicKind);
+                    if (layerMicSource) sources.push(layerMicSource);
+                }
             }
-            if (micAudioBuffer) {
-                sources.push({ kind: 'mic', buffer: micAudioBuffer, startId: 'micLoopStart', endId: 'micLoopEnd' });
-            }
+
             if (sources.length === 0 && audioBuffer) {
                 sources.push({ kind: 'legacy', buffer: audioBuffer, startId: 'sampleStart', endId: 'sampleEnd' });
             }
@@ -7137,29 +7368,22 @@
             const hasSources = hasGranularSource();
             normalizeBtn.disabled = !hasSources;
             document.getElementById('auditionBtn').disabled = !hasSources;
-            const generatedMeta = document.getElementById('generatedLoopMeta');
-            const micMeta = document.getElementById('micWaveformMeta');
-            if (generatedMeta) {
-                generatedMeta.textContent = generatedLoopBuffer ? `${generatedLoopBuffer.duration.toFixed(2)}s` : 'Empty';
-            }
-            if (micMeta) {
-                micMeta.textContent = micAudioBuffer ? `${micAudioBuffer.duration.toFixed(2)}s` : 'Empty';
-            }
+            ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => {
+                const config = getSourceSlotConfig(kind);
+                const meta = document.getElementById(config.metaId);
+                const buffer = config.buffer();
+                if (meta) {
+                    meta.textContent = buffer ? `${buffer.duration.toFixed(2)}s` : 'Empty';
+                }
+            });
         }
 
         function setSourceBuffer(kind, buffer, sourceLabel) {
             sourceMutationSerial += 1;
             lastSourceWriteAt = Date.now();
-            if (kind === 'mic') {
-                micAudioBuffer = buffer;
-                activeSourceKind = 'mic';
-            } else {
-                stopGeneratedDryLoop();
-                generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(buffer);
-                generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
-                lastGeneratedSourceWriteAt = Date.now();
-                activeSourceKind = 'generated';
-            }
+            const config = getSourceSlotConfig(kind);
+            config.setBuffer(buffer);
+            activeSourceKind = kind;
             syncLegacyAudioBuffer();
             resetSourceLoopPoints(kind);
             drawWaveforms();
@@ -7168,31 +7392,31 @@
         }
 
         function updateLoopLabels(kind) {
-            const prefix = kind === 'mic' ? 'mic' : 'generated';
-            const start = document.getElementById(`${prefix}LoopStart`)?.value ?? 0;
-            const end = document.getElementById(`${prefix}LoopEnd`)?.value ?? 100;
-            const startLabel = document.getElementById(`${prefix}LoopStartValue`);
-            const endLabel = document.getElementById(`${prefix}LoopEndValue`);
+            const config = getSourceSlotConfig(kind);
+            const start = document.getElementById(config.startId)?.value ?? 0;
+            const end = document.getElementById(config.endId)?.value ?? 100;
+            const startLabel = document.getElementById(`${config.startId}Value`);
+            const endLabel = document.getElementById(`${config.endId}Value`);
             if (startLabel) startLabel.textContent = `${Math.round(Number(start) || 0)}%`;
             if (endLabel) endLabel.textContent = `${Math.round(Number(end) || 100)}%`;
         }
 
         function resetSourceLoopPoints(kind) {
-            const prefix = kind === 'mic' ? 'mic' : 'generated';
-            const start = document.getElementById(`${prefix}LoopStart`);
-            const end = document.getElementById(`${prefix}LoopEnd`);
+            const config = getSourceSlotConfig(kind);
+            const start = document.getElementById(config.startId);
+            const end = document.getElementById(config.endId);
             if (start) start.value = '0';
             if (end) end.value = '100';
             updateLoopLabels(kind);
         }
 
         function drawWaveforms() {
-            drawSourceWaveform('generated');
-            drawSourceWaveform('mic');
+            ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => drawSourceWaveform(kind));
         }
 
         function drawSourceWaveform(kind) {
-            const canvas = kind === 'mic' ? micWaveformCanvas : generatedWaveformCanvas;
+            const config = getSourceSlotConfig(kind);
+            const canvas = config.canvas;
             if (!canvas) return;
             const buffer = getSourceBuffer(kind);
             canvas.width = canvas.offsetWidth || 300;
@@ -7209,14 +7433,14 @@
                 ctx.fillStyle = 'rgba(255,255,255,0.24)';
                 ctx.font = '11px system-ui, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(kind === 'mic' ? 'Record mic to fill this source' : 'Generate or load audio to fill this source', width / 2, height / 2);
+                ctx.fillText(config.emptyText, width / 2, height / 2);
                 return;
             }
 
             const data = buffer.getChannelData(0);
             const step = Math.max(1, Math.ceil(data.length / width));
             const amp = height / 2;
-            const color = kind === 'mic' ? '#7effb2' : '#00d4ff';
+            const color = config.color;
 
             ctx.beginPath();
             ctx.strokeStyle = color;
@@ -7234,10 +7458,7 @@
             }
             ctx.stroke();
 
-            const ids = kind === 'mic'
-                ? { start: 'micLoopStart', end: 'micLoopEnd' }
-                : { start: 'generatedLoopStart', end: 'generatedLoopEnd' };
-            const { startPct, endPct } = getLoopRange(ids.start, ids.end);
+            const { startPct, endPct } = getLoopRange(config.startId, config.endId);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
             ctx.fillRect(0, 0, width * startPct, height);
             ctx.fillRect(width * endPct, 0, width * (1 - endPct), height);
@@ -7270,12 +7491,11 @@
             }
         }
 
-        ['generatedLoopStart', 'generatedLoopEnd'].forEach((id) => {
-            document.getElementById(id)?.addEventListener('input', () => handleSourceLoopChange('generated'));
-        });
-
-        ['micLoopStart', 'micLoopEnd'].forEach((id) => {
-            document.getElementById(id)?.addEventListener('input', () => handleSourceLoopChange('mic'));
+        ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => {
+            const config = getSourceSlotConfig(kind);
+            [config.startId, config.endId].forEach((id) => {
+                document.getElementById(id)?.addEventListener('input', () => handleSourceLoopChange(kind));
+            });
         });
 
         normalizeBtn.addEventListener('click', () => {
@@ -7290,6 +7510,9 @@
             generatedLoopBuffer = null;
             generatedLoopBaseBuffer = null;
             micAudioBuffer = null;
+            grainSynthAMicBuffer = null;
+            grainSynthBMicBuffer = null;
+            outputSourceBuffer = null;
             recordedChunks = [];
             drawWaveforms();
             setStatus('Buffer cleared.');
@@ -7312,17 +7535,12 @@
             });
             auditionSources = [];
 
-            const sources = getAvailableGranularSources();
+            const sources = getAllGranularSources();
             const sourceGainMap = getGranularSourceGainMap(sources, 1);
             sources.forEach((sourceInfo) => {
                 const source = audioContext.createBufferSource();
                 const gain = audioContext.createGain();
-                const ids = sourceInfo.kind === 'mic'
-                    ? { start: 'micLoopStart', end: 'micLoopEnd' }
-                    : sourceInfo.kind === 'generated'
-                        ? { start: 'generatedLoopStart', end: 'generatedLoopEnd' }
-                        : { start: 'sampleStart', end: 'sampleEnd' };
-                const { startPct, endPct } = getLoopRange(ids.start, ids.end);
+                const { startPct, endPct } = getLoopRange(sourceInfo.startId, sourceInfo.endId);
                 const offset = sourceInfo.buffer.duration * startPct;
                 const duration = Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct));
                 const fadeSeconds = getFadeSecondsForDuration(duration);
@@ -7356,7 +7574,19 @@
             }
         }
 
-        async function startRecording() {
+        function getRecordingButtonForKind(kind) {
+            if (kind === 'grainAMic') return recordGrainAMicBtn;
+            if (kind === 'grainBMic') return recordGrainBMicBtn;
+            return recordBtn;
+        }
+
+        function getRecordingLabelForKind(kind) {
+            if (kind === 'grainAMic') return 'Grain A Mic';
+            if (kind === 'grainBMic') return 'Grain B Mic';
+            return 'Microphone take';
+        }
+
+        async function startRecording(kind = 'mic') {
             if (!window.isSecureContext) {
                 setStatus('Microphone recording requires HTTPS or localhost.', 'error');
                 return;
@@ -7384,20 +7614,23 @@
                 const mimeType = chooseRecordingMimeType();
                 mediaRecorder = mimeType ? new MediaRecorder(micStream, { mimeType }) : new MediaRecorder(micStream);
                 recordedChunks = [];
+                recordingTargetKind = kind;
+                activeRecordingButton = getRecordingButtonForKind(kind);
 
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) recordedChunks.push(e.data);
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const previousBuffer = micAudioBuffer;
+                    const targetKind = recordingTargetKind;
+                    const previousBuffer = getSourceBuffer(targetKind);
                     try {
                         const blob = new Blob(recordedChunks, { type: mimeType || mediaRecorder.mimeType || 'audio/webm' });
                         const arrayBuffer = await blob.arrayBuffer();
-                        await loadAudioFromArrayBuffer(arrayBuffer, 'Microphone take', 'mic');
+                        await loadAudioFromArrayBuffer(arrayBuffer, getRecordingLabelForKind(targetKind), targetKind);
                     } catch (err) {
                         console.error(err);
-                        micAudioBuffer = previousBuffer;
+                        getSourceSlotConfig(targetKind).setBuffer(previousBuffer);
                         syncLegacyAudioBuffer();
                         setStatus(`Mic decode failed: ${err.message}`, 'error');
                     } finally {
@@ -7413,9 +7646,11 @@
 
                 mediaRecorder.start();
                 isRecording = true;
-                recordBtn.textContent = "STOP";
-                recordBtn.classList.add('recording');
-                setStatus('Recording microphone…');
+                if (activeRecordingButton) {
+                    activeRecordingButton.textContent = "STOP";
+                    activeRecordingButton.classList.add('recording');
+                }
+                setStatus(`Recording ${getRecordingLabelForKind(kind)}…`);
             } catch (err) {
                 console.error(err);
                 stopMicCapture();
@@ -7427,14 +7662,18 @@
             if (mediaRecorder && isRecording) {
                 mediaRecorder.stop();
                 isRecording = false;
-                recordBtn.textContent = "Record Mic";
-                recordBtn.classList.remove('recording');
-                setStatus('Processing microphone take…');
+                if (activeRecordingButton) {
+                    activeRecordingButton.textContent = activeRecordingButton === recordGrainAMicBtn
+                        ? 'Rec Grain A Mic'
+                        : (activeRecordingButton === recordGrainBMicBtn ? 'Rec Grain B Mic' : 'Record Mic');
+                    activeRecordingButton.classList.remove('recording');
+                }
+                setStatus(`Processing ${getRecordingLabelForKind(recordingTargetKind)}…`);
             }
         }
 
         function normalizeAudio() {
-            const sources = getAvailableGranularSources();
+            const sources = getAllGranularSources();
             if (sources.length === 0) return;
 
             const normalizeBuffer = (buffer) => {
@@ -7472,14 +7711,8 @@
             const results = sources.map((sourceInfo) => ({ ...sourceInfo, ...normalizeBuffer(sourceInfo.buffer) }));
             results.forEach((result) => {
                 if (!result.changed) return;
-                if (result.kind === 'mic') {
-                    micAudioBuffer = result.buffer;
-                    saveAudioBufferToDB(micAudioBuffer, MIC_AUDIO_BUFFER_KEY);
-                } else {
-                    generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(result.buffer);
-                    generatedLoopBuffer = result.buffer;
-                    saveAudioBufferToDB(generatedLoopBuffer, GENERATED_AUDIO_BUFFER_KEY);
-                }
+                getSourceSlotConfig(result.kind).setBuffer(result.buffer);
+                saveAudioBufferToDB(getSourceBuffer(result.kind), getSourceSlotConfig(result.kind).dbKey());
             });
 
             syncLegacyAudioBuffer();
@@ -7577,6 +7810,7 @@
                     sizeId: 'grainSynthASize',
                     densityId: 'grainSynthADensity',
                     spreadId: 'grainSynthASpread',
+                    sourceId: 'grainSynthASource',
                     positionOffset: 0.17,
                     gainTrim: 0.72
                 },
@@ -7587,6 +7821,7 @@
                     sizeId: 'grainSynthBSize',
                     densityId: 'grainSynthBDensity',
                     spreadId: 'grainSynthBSpread',
+                    sourceId: 'grainSynthBSource',
                     positionOffset: -0.13,
                     gainTrim: 0.64
                 }
@@ -7598,6 +7833,7 @@
                 const sizeSeconds = Math.max(0.01, Math.min(0.5, (Number(getModulatedValue(spec.sizeId)) || 80) / 1000));
                 const density = Math.max(0, Math.min(1, Number(getModulatedValue(spec.densityId)) / 100 || 0));
                 const spread = Math.max(0, Math.min(1, Number(getModulatedValue(spec.spreadId)) / 100 || 0));
+                const sourceMode = document.getElementById(spec.sourceId)?.value || 'all';
                 const rate = baseRate * Math.pow(2, tune / 12);
 
                 return {
@@ -7607,6 +7843,7 @@
                     sizeSeconds,
                     density,
                     spread,
+                    sourceMode,
                     rate: Number.isFinite(rate) && rate > 0 ? rate : baseRate
                 };
             }).filter((voice) => voice.mix > 0.001 && voice.density > 0.001);
@@ -7774,93 +8011,91 @@
             // Create sample source if available and needed
             const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
 
-            const granularSources = getAvailableGranularSources();
-            if (granularSources.length > 0 && noiseMix < 1.0) {
-                const sourceGainMap = getGranularSourceGainMap(granularSources, 1 - noiseMix);
-                const posSlider = getModulatedValue('position') / 100;
-
-                granularSources.forEach((sourceInfo) => {
+            const posSlider = getModulatedValue('position') / 100;
+            const scheduleSourceVoice = (sourceInfo, voice) => {
+                if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
                     const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
-                    const sourceGain = sourceGainMap.get(sourceInfo) ?? 0;
-
-                    const buildSampleWindow = (positionPct, sizeSeconds, sprayAmount) => {
-                        return typeof mygrainUtils.resolveSampleWindow === 'function'
-                            ? mygrainUtils.resolveSampleWindow({
-                                bufferDuration: sourceInfo.buffer.duration,
-                                startPct: loopRange.startPct,
-                                endPct: loopRange.endPct,
-                                positionPct,
-                                grainSizeSeconds: sizeSeconds,
-                                sprayAmount,
-                                randomValue: Math.random() * 2 - 1
-                            })
-                            : {
-                                playPosition: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
-                                grainSizeSeconds: sizeSeconds,
-                                startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
-                                endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
-                            };
+                const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
+                    ? mygrainUtils.resolveSampleWindow({
+                        bufferDuration: sourceInfo.buffer.duration,
+                        startPct: loopRange.startPct,
+                        endPct: loopRange.endPct,
+                        positionPct: voice.positionPct,
+                        grainSizeSeconds: voice.sizeSeconds,
+                        sprayAmount: voice.sprayAmount,
+                        randomValue: Math.random() * 2 - 1
+                    })
+                    : {
+                        playPosition: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
+                        grainSizeSeconds: voice.sizeSeconds,
+                        startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
+                        endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
                     };
+                maxEnvelopeGrainSize = Math.max(maxEnvelopeGrainSize, sampleWindow.grainSizeSeconds);
 
-                    const scheduleSampleVoice = (voice) => {
-                        if (voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
-                        const sampleWindow = buildSampleWindow(voice.positionPct, voice.sizeSeconds, voice.sprayAmount);
-                        maxEnvelopeGrainSize = Math.max(maxEnvelopeGrainSize, sampleWindow.grainSizeSeconds);
-                        const source = audioContext.createBufferSource();
-                        const sampleGain = audioContext.createGain();
-                        const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
-                        const playPosition = options.continuousLoop
-                            ? resolveContinuousLoopPosition(sampleWindow, voice.positionPct, now, options.streamStartTime, voice.rate)
-                            : sampleWindow.playPosition;
-                        source.buffer = sourceInfo.buffer;
-                        source.playbackRate.value = voice.rate;
-                        source.loop = true;
-                        source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
-                        source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
-                        sampleGain.gain.value = voice.gain;
+                const source = audioContext.createBufferSource();
+                const sampleGain = audioContext.createGain();
+                const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
+                const playPosition = options.continuousLoop
+                    ? resolveContinuousLoopPosition(sampleWindow, voice.positionPct, now, options.streamStartTime, voice.rate)
+                    : sampleWindow.playPosition;
+                source.buffer = sourceInfo.buffer;
+                source.playbackRate.value = voice.rate;
+                source.loop = true;
+                source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
+                source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
+                sampleGain.gain.value = voice.gain;
 
-                        source.connect(sampleGain);
-                        if (voicePanner) {
-                            voicePanner.pan.value = voice.pan;
-                            sampleGain.connect(voicePanner);
-                            voicePanner.connect(mixer);
-                        } else {
-                            sampleGain.connect(mixer);
-                        }
-                        sourcesRemaining++;
+                source.connect(sampleGain);
+                if (voicePanner) {
+                    voicePanner.pan.value = voice.pan;
+                    sampleGain.connect(voicePanner);
+                    voicePanner.connect(mixer);
+                } else {
+                    sampleGain.connect(mixer);
+                }
+                sourcesRemaining++;
 
-                        const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
-                        source.start(now, playPosition);
-                        source.stop(now + totalDuration);
+                const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
+                source.start(now, playPosition);
+                source.stop(now + totalDuration);
 
-                        source.onended = () => {
-                            try {
-                                source.disconnect();
-                                sampleGain.disconnect();
-                                if (voicePanner) voicePanner.disconnect();
-                            } catch(e) {
-                                // Node may already be disconnected
-                            }
-                            cleanupCommonNodes();
-                        };
-                    };
+                source.onended = () => {
+                    try {
+                        source.disconnect();
+                        sampleGain.disconnect();
+                        if (voicePanner) voicePanner.disconnect();
+                    } catch(e) {
+                        // Node may already be disconnected
+                    }
+                    cleanupCommonNodes();
+                };
+            };
 
-                    scheduleSampleVoice({
+            if (noiseMix < 1.0) {
+                const baseSources = getAvailableGranularSources();
+                const baseGainMap = getGranularSourceGainMap(baseSources, 1 - noiseMix);
+                baseSources.forEach((sourceInfo) => {
+                    scheduleSourceVoice(sourceInfo, {
                         rate: finalRate,
-                        gain: sourceGain,
+                        gain: baseGainMap.get(sourceInfo) ?? 0,
                         positionPct: posSlider,
                         sizeSeconds: grainSize,
                         sprayAmount: options.continuousLoop ? 0 : spray,
                         useVoicePanner: false,
                         pan: 0
                     });
+                });
 
-                    secondaryGrainVoices.forEach((voice) => {
-                        if (Math.random() > voice.density) return;
-                        const shiftedPosition = ((posSlider + voice.positionOffset + 1) % 1 + 1) % 1;
-                        scheduleSampleVoice({
+                secondaryGrainVoices.forEach((voice) => {
+                    if (Math.random() > voice.density) return;
+                    const voiceSources = getAvailableGranularSources({ mode: voice.sourceMode, layer: voice.label });
+                    const voiceGainMap = getGranularSourceGainMap(voiceSources, 1 - noiseMix);
+                    const shiftedPosition = ((posSlider + voice.positionOffset + 1) % 1 + 1) % 1;
+                    voiceSources.forEach((sourceInfo) => {
+                        scheduleSourceVoice(sourceInfo, {
                             rate: voice.rate,
-                            gain: sourceGain * voice.mix * voice.gainTrim,
+                            gain: (voiceGainMap.get(sourceInfo) ?? 0) * voice.mix * voice.gainTrim,
                             positionPct: shiftedPosition,
                             sizeSeconds: voice.sizeSeconds,
                             sprayAmount: options.continuousLoop ? 0 : Math.min(1, spray + 0.12 + voice.spread * 0.2),
@@ -10429,7 +10664,7 @@
             }
 
             setSourceBuffer(kind, buffer, sourceLabel);
-            await saveAudioBufferToDB(buffer, kind === 'mic' ? MIC_AUDIO_BUFFER_KEY : GENERATED_AUDIO_BUFFER_KEY);
+            await saveAudioBufferToDB(getSourceBuffer(kind), getSourceSlotConfig(kind).dbKey());
         }
 
         async function loadAudioFromArrayBuffer(arrayBuffer, sourceLabel, kind = 'generated') {
@@ -10441,6 +10676,9 @@
             const previousGeneratedBuffer = generatedLoopBuffer;
             const previousGeneratedBaseBuffer = generatedLoopBaseBuffer;
             const previousMicBuffer = micAudioBuffer;
+            const previousGrainAMicBuffer = grainSynthAMicBuffer;
+            const previousGrainBMicBuffer = grainSynthBMicBuffer;
+            const previousOutputBuffer = outputSourceBuffer;
             setStatus(`Loading ${sourceLabel}…`);
             const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
 
@@ -10454,6 +10692,9 @@
                 generatedLoopBuffer = previousGeneratedBuffer;
                 generatedLoopBaseBuffer = previousGeneratedBaseBuffer;
                 micAudioBuffer = previousMicBuffer;
+                grainSynthAMicBuffer = previousGrainAMicBuffer;
+                grainSynthBMicBuffer = previousGrainBMicBuffer;
+                outputSourceBuffer = previousOutputBuffer;
                 syncLegacyAudioBuffer();
                 throw error;
             }
@@ -11374,6 +11615,16 @@
             const defaults = {
                 sampleStart: 0,
                 sampleEnd: 100,
+                generatedLoopStart: 0,
+                generatedLoopEnd: 100,
+                micLoopStart: 0,
+                micLoopEnd: 100,
+                grainAMicLoopStart: 0,
+                grainAMicLoopEnd: 100,
+                grainBMicLoopStart: 0,
+                grainBMicLoopEnd: 100,
+                outputLoopStart: 0,
+                outputLoopEnd: 100,
                 grainSize: 100,
                 density: 10,
                 position: 0,
@@ -11475,6 +11726,8 @@
             document.getElementById('lfo3Waveform').value = 'sine';
             clearAllLfoSquareForce();
             document.getElementById('noiseType').value = 'none';
+            document.getElementById('grainSynthASource').value = 'all';
+            document.getElementById('grainSynthBSource').value = 'all';
             document.getElementById('delayDivision').value = '1';
             document.getElementById('finalDelayDivision').value = '4';
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
@@ -11593,9 +11846,12 @@
                     note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
                     hasGeneratedSample: Boolean(generatedLoopBuffer),
                     hasMicSample: Boolean(micAudioBuffer),
+                    hasGrainAMicSample: Boolean(grainSynthAMicBuffer),
+                    hasGrainBMicSample: Boolean(grainSynthBMicBuffer),
+                    hasOutputSample: Boolean(outputSourceBuffer),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -11607,6 +11863,8 @@
             preset.lfoWaveform = document.getElementById('lfoWaveform').value;
             preset.lfo2Waveform = document.getElementById('lfo2Waveform').value;
             preset.lfo3Waveform = document.getElementById('lfo3Waveform').value;
+            preset.grainSynthASource = document.getElementById('grainSynthASource')?.value || 'all';
+            preset.grainSynthBSource = document.getElementById('grainSynthBSource')?.value || 'all';
             preset.noiseType = document.getElementById('noiseType').value;
             
             // Gather LFO enabled/inverted states
@@ -11660,6 +11918,16 @@
             }
             if (safePreset.lfo3Waveform) {
                 document.getElementById('lfo3Waveform').value = safePreset.lfo3Waveform;
+            }
+            const importedGrainSynthASource = safePreset.grainSynthASource ?? preset.grainSynthASource;
+            const importedGrainSynthBSource = safePreset.grainSynthBSource ?? preset.grainSynthBSource;
+            if (importedGrainSynthASource) {
+                const sourceSelect = document.getElementById('grainSynthASource');
+                if (sourceSelect) sourceSelect.value = importedGrainSynthASource;
+            }
+            if (importedGrainSynthBSource) {
+                const sourceSelect = document.getElementById('grainSynthBSource');
+                if (sourceSelect) sourceSelect.value = importedGrainSynthBSource;
             }
             if (safePreset.noiseType) {
                 document.getElementById('noiseType').value = safePreset.noiseType;
@@ -11968,6 +12236,9 @@
         const AUDIO_BUFFER_KEY = 'currentAudioBuffer';
         const GENERATED_AUDIO_BUFFER_KEY = 'generatedLoopBuffer';
         const MIC_AUDIO_BUFFER_KEY = 'micAudioBuffer';
+        const GRAIN_A_MIC_AUDIO_BUFFER_KEY = 'grainSynthAMicBuffer';
+        const GRAIN_B_MIC_AUDIO_BUFFER_KEY = 'grainSynthBMicBuffer';
+        const OUTPUT_AUDIO_BUFFER_KEY = 'outputSourceBuffer';
 
         // Open IndexedDB
         function openAudioDB() {
@@ -13079,6 +13350,11 @@
                         console.log('Converting to WAV format...');
                         const wav = audioBufferToWav24bit(audioBuffer);
                         console.log('WAV conversion complete. Size:', wav.byteLength, 'bytes');
+
+                        if (document.getElementById('outputRecToSource')?.checked) {
+                            await applyLoadedAudioBuffer(audioBuffer, 'Output source recording', 'output');
+                            console.log('Output recording loaded into granular output source slot');
+                        }
                         
                         // Save the WAV file using the new cross-platform function
                         console.log('Calling saveWavFile...');
