@@ -2497,6 +2497,34 @@
                     <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceGrainMainVolume">
+                        <span>Main Grain</span>
+                        <span class="value" id="performanceGrainMainVolumeValue">100%</span>
+                    </label>
+                    <input type="range" id="performanceGrainMainVolume" min="0" max="150" value="100" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceGrainAVolume">
+                        <span>Grain A</span>
+                        <span class="value" id="performanceGrainAVolumeValue">100%</span>
+                    </label>
+                    <input type="range" id="performanceGrainAVolume" min="0" max="150" value="100" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceGrainBVolume">
+                        <span>Grain B</span>
+                        <span class="value" id="performanceGrainBVolumeValue">100%</span>
+                    </label>
+                    <input type="range" id="performanceGrainBVolume" min="0" max="150" value="100" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceGrainMixerAmp">
+                        <span>Grain Amp</span>
+                        <span class="value" id="performanceGrainMixerAmpValue">100%</span>
+                    </label>
+                    <input type="range" id="performanceGrainMixerAmp" min="0" max="200" value="100" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceLpfCutoff">
                         <span>LP Cutoff</span>
                         <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
@@ -9129,7 +9157,9 @@
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
                 if (e.target.id === 'oscMix' || e.target.id === 'lpfCutoff' || e.target.id === 'lpfQ' ||
-                    e.target.id === 'hpfCutoff' || e.target.id === 'hpfQ') {
+                    e.target.id === 'hpfCutoff' || e.target.id === 'hpfQ' ||
+                    e.target.id === 'grainMainVolume' || e.target.id === 'grainSynthAVolume' ||
+                    e.target.id === 'grainSynthBVolume' || e.target.id === 'grainMixerAmp') {
                     syncPerformanceSoundControls();
                 }
             });
@@ -13651,6 +13681,10 @@
         const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
         const performanceModAmount = document.getElementById('performanceModAmount');
         const performanceGrainModAmount = document.getElementById('performanceGrainModAmount');
+        const performanceGrainMainVolume = document.getElementById('performanceGrainMainVolume');
+        const performanceGrainAVolume = document.getElementById('performanceGrainAVolume');
+        const performanceGrainBVolume = document.getElementById('performanceGrainBVolume');
+        const performanceGrainMixerAmp = document.getElementById('performanceGrainMixerAmp');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
@@ -13671,6 +13705,34 @@
         const performanceFinalReverbBtn = document.getElementById('performanceFinalReverbBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         let performanceGenerateStateTimer = null;
+
+        function syncPerformanceLinkedSlider(sourceId, performanceSlider, performanceValueId) {
+            const sourceSlider = document.getElementById(sourceId);
+            const performanceValue = document.getElementById(performanceValueId);
+            if (!sourceSlider || !performanceSlider) return;
+            const value = Math.round(Number(sourceSlider.value) || 0);
+            performanceSlider.value = String(value);
+            if (performanceValue) {
+                performanceValue.textContent = `${value}%`;
+            }
+        }
+
+        function bindPerformanceLinkedSlider(performanceSlider, performanceValueId, sourceId) {
+            performanceSlider?.addEventListener('input', (event) => {
+                const sourceSlider = document.getElementById(sourceId);
+                const rawValue = Number(event.target.value);
+                const value = Math.max(
+                    Number(event.target.min) || 0,
+                    Math.min(Number(event.target.max) || 100, Number.isFinite(rawValue) ? rawValue : 0)
+                );
+                event.target.value = String(value);
+                document.getElementById(performanceValueId).textContent = `${Math.round(value)}%`;
+                if (sourceSlider) {
+                    sourceSlider.value = String(value);
+                    sourceSlider.dispatchEvent(new Event('input'));
+                }
+            });
+        }
 
         function syncPerformanceSoundControls() {
             const sourceMixSlider = document.getElementById('oscMix');
@@ -13748,6 +13810,11 @@
                 performanceGrainModAmount.value = String(value);
                 document.getElementById('performanceGrainModAmountValue').textContent = `${value}%`;
             }
+
+            syncPerformanceLinkedSlider('grainMainVolume', performanceGrainMainVolume, 'performanceGrainMainVolumeValue');
+            syncPerformanceLinkedSlider('grainSynthAVolume', performanceGrainAVolume, 'performanceGrainAVolumeValue');
+            syncPerformanceLinkedSlider('grainSynthBVolume', performanceGrainBVolume, 'performanceGrainBVolumeValue');
+            syncPerformanceLinkedSlider('grainMixerAmp', performanceGrainMixerAmp, 'performanceGrainMixerAmpValue');
 
             if (performanceLpfCutoff && lpfCutoffSlider) {
                 const value = Math.round(Number(lpfCutoffSlider.value) || DEFAULT_PERFORMANCE_CUTOFF);
@@ -14028,6 +14095,11 @@
             document.getElementById('performanceGeneratedDryMixValue').textContent = `${Math.round(value)}%`;
             updateGeneratedDryLoopMix();
         });
+
+        bindPerformanceLinkedSlider(performanceGrainMainVolume, 'performanceGrainMainVolumeValue', 'grainMainVolume');
+        bindPerformanceLinkedSlider(performanceGrainAVolume, 'performanceGrainAVolumeValue', 'grainSynthAVolume');
+        bindPerformanceLinkedSlider(performanceGrainBVolume, 'performanceGrainBVolumeValue', 'grainSynthBVolume');
+        bindPerformanceLinkedSlider(performanceGrainMixerAmp, 'performanceGrainMixerAmpValue', 'grainMixerAmp');
 
         performanceGeneratedDryTrim?.addEventListener('input', (event) => {
             generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', -6, -24, 6);
