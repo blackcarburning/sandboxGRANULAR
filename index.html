@@ -2948,6 +2948,9 @@
                             <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
                         </div>
                         <canvas id="outputWaveformCanvas" class="source-waveform-canvas" data-source="output"></canvas>
+                        <div class="source-seed-buttons">
+                            <button id="recordOutputSourcePanelBtn" class="primary" data-idle-text="Record Output to Source">Record Output to Source</button>
+                        </div>
                         <div class="source-loop-controls">
                             <div class="source-loop-labels">
                                 <label for="outputLoopStart">Start <span id="outputLoopStartValue">0%</span></label>
@@ -2998,7 +3001,7 @@
                     <div class="section-title">Record Output</div>
                     <div class="recording-buttons">
                         <button id="startOutputRecBtn">Start</button>
-                        <button id="recordOutputSourceBtn">Rec Output Source</button>
+                        <button id="recordOutputSourceBtn" data-idle-text="Rec Output Source">Rec Output Source</button>
                         <button id="stopOutputRecBtn" disabled>Stop</button>
                         <button id="armOutputRecBtn">Arm</button>
                     </div>
@@ -13272,17 +13275,22 @@
 
         function setOutputRecordingButtons(recording, target = outputRecordingTarget) {
             const startBtn = document.getElementById('startOutputRecBtn');
-            const sourceBtn = document.getElementById('recordOutputSourceBtn');
+            const sourceBtns = [
+                document.getElementById('recordOutputSourceBtn'),
+                document.getElementById('recordOutputSourcePanelBtn')
+            ].filter(Boolean);
             const stopBtn = document.getElementById('stopOutputRecBtn');
             if (startBtn) {
                 startBtn.disabled = recording;
                 startBtn.classList.toggle('recording', recording && target === 'file');
             }
-            if (sourceBtn) {
+            sourceBtns.forEach((sourceBtn) => {
                 sourceBtn.disabled = recording && target !== 'source';
                 sourceBtn.classList.toggle('recording', recording && target === 'source');
-                sourceBtn.textContent = recording && target === 'source' ? 'Stop Source' : 'Rec Output Source';
-            }
+                sourceBtn.textContent = recording && target === 'source'
+                    ? 'Stop Source'
+                    : (sourceBtn.dataset.idleText || 'Rec Output Source');
+            });
             if (stopBtn) {
                 stopBtn.disabled = !recording;
             }
@@ -13303,125 +13311,125 @@
             }
 
             return (async () => {
-            try {
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-                // Verify final output node is properly connected and exists
-                console.log('=== START RECORDING CLICKED ===');
-                console.log('finalAmplifierNode:', finalAmplifierNode);
-                console.log('finalAmplifierNode connected (numberOfOutputs):', finalAmplifierNode?.numberOfOutputs);
-                console.log('Final amplifier connected to destination:', finalAmplifierNode.context === audioContext);
-                console.log('AudioContext state:', audioContext.state);
-                console.log('isOutputRecordingArmedStart:', isOutputRecordingArmedStart);
-                
-                outputRecordedChunks = [];
-                outputRecordingTarget = target;
-                isOutputRecording = true;
-                
-                // Create a MediaStreamDestination and connect the final audible output to it
-                outputRecordingDestination = audioContext.createMediaStreamDestination();
-                finalAmplifierNode.connect(outputRecordingDestination);
-                
-                // Use MediaRecorder to record the stream
-                // Check for supported MIME types
-                outputRecordingMimeType = chooseRecordingMimeType();
-                console.log('Using MediaRecorder with MIME type:', outputRecordingMimeType || 'default');
-                
-                const options = outputRecordingMimeType ? { mimeType: outputRecordingMimeType } : {};
-                outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, options);
-                
-                outputMediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        outputRecordedChunks.push(e.data);
-                        console.log('MediaRecorder chunk received:', e.data.size, 'bytes. Total chunks:', outputRecordedChunks.length);
-                    } else {
-                        console.warn('MediaRecorder received empty chunk');
+                try {
+                    if (audioContext.state === 'suspended') {
+                        await audioContext.resume();
                     }
-                };
-                
-                outputMediaRecorder.onstop = async () => {
-                    console.log('=== MEDIARECORDER ONSTOP TRIGGERED ===');
-                    console.log('Processing', outputRecordedChunks.length, 'chunks');
-                    
-                    if (outputRecordedChunks.length === 0) {
-                        console.error('No audio chunks recorded!');
-                        alert('No audio was recorded. Please try again.');
-                        resetRecordingUI(true);
-                        return;
-                    }
-                    
-                    try {
-                        // Use the MIME type that was actually set on MediaRecorder, or fallback to webm
-                        const blobMimeType = outputRecordingMimeType || 'audio/webm';
-                        const recordedBlob = new Blob(outputRecordedChunks, { type: blobMimeType });
-                        console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', blobMimeType);
-                        
-                        // Convert recorded audio to WAV
-                        console.log('Converting to ArrayBuffer...');
-                        const arrayBuffer = await recordedBlob.arrayBuffer();
-                        console.log('Decoding audio data...');
-                        let audioBuffer;
-                        try {
-                            audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                            console.log('Audio decoded successfully. Duration:', audioBuffer.duration, 'seconds');
-                        } catch (decodeErr) {
-                            console.error('Failed to decode audio data:', decodeErr);
-                            alert('Failed to decode recorded audio. The recording format may not be supported. Please try again.');
+                    // Verify final output node is properly connected and exists
+                    console.log('=== START RECORDING CLICKED ===');
+                    console.log('finalAmplifierNode:', finalAmplifierNode);
+                    console.log('finalAmplifierNode connected (numberOfOutputs):', finalAmplifierNode?.numberOfOutputs);
+                    console.log('Final amplifier connected to destination:', finalAmplifierNode.context === audioContext);
+                    console.log('AudioContext state:', audioContext.state);
+                    console.log('isOutputRecordingArmedStart:', isOutputRecordingArmedStart);
+
+                    outputRecordedChunks = [];
+                    outputRecordingTarget = target;
+                    isOutputRecording = true;
+
+                    // Create a MediaStreamDestination and connect the final audible output to it
+                    outputRecordingDestination = audioContext.createMediaStreamDestination();
+                    finalAmplifierNode.connect(outputRecordingDestination);
+
+                    // Use MediaRecorder to record the stream
+                    // Check for supported MIME types
+                    outputRecordingMimeType = chooseRecordingMimeType();
+                    console.log('Using MediaRecorder with MIME type:', outputRecordingMimeType || 'default');
+
+                    const options = outputRecordingMimeType ? { mimeType: outputRecordingMimeType } : {};
+                    outputMediaRecorder = new MediaRecorder(outputRecordingDestination.stream, options);
+
+                    outputMediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) {
+                            outputRecordedChunks.push(e.data);
+                            console.log('MediaRecorder chunk received:', e.data.size, 'bytes. Total chunks:', outputRecordedChunks.length);
+                        } else {
+                            console.warn('MediaRecorder received empty chunk');
+                        }
+                    };
+
+                    outputMediaRecorder.onstop = async () => {
+                        console.log('=== MEDIARECORDER ONSTOP TRIGGERED ===');
+                        console.log('Processing', outputRecordedChunks.length, 'chunks');
+
+                        if (outputRecordedChunks.length === 0) {
+                            console.error('No audio chunks recorded!');
+                            alert('No audio was recorded. Please try again.');
                             resetRecordingUI(true);
                             return;
                         }
-                        if (outputRecordingTarget === 'source') {
-                            await applyLoadedAudioBuffer(audioBuffer, 'Output source recording', 'output');
-                            console.log('Output recording loaded into granular output source slot');
-                        } else {
-                            console.log('Converting to WAV format...');
-                            const wav = audioBufferToWav24bit(audioBuffer);
-                            console.log('WAV conversion complete. Size:', wav.byteLength, 'bytes');
 
-                            // Save the WAV file using the new cross-platform function
-                            console.log('Calling saveWavFile...');
-                            await saveWavFile(wav);
-                            console.log('saveWavFile completed');
+                        try {
+                            // Use the MIME type that was actually set on MediaRecorder, or fallback to webm
+                            const blobMimeType = outputRecordingMimeType || 'audio/webm';
+                            const recordedBlob = new Blob(outputRecordedChunks, { type: blobMimeType });
+                            console.log('Recorded blob size:', recordedBlob.size, 'bytes, type:', blobMimeType);
+
+                            // Convert recorded audio to WAV
+                            console.log('Converting to ArrayBuffer...');
+                            const arrayBuffer = await recordedBlob.arrayBuffer();
+                            console.log('Decoding audio data...');
+                            let audioBuffer;
+                            try {
+                                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                                console.log('Audio decoded successfully. Duration:', audioBuffer.duration, 'seconds');
+                            } catch (decodeErr) {
+                                console.error('Failed to decode audio data:', decodeErr);
+                                alert('Failed to decode recorded audio. The recording format may not be supported. Please try again.');
+                                resetRecordingUI(true);
+                                return;
+                            }
+                            if (outputRecordingTarget === 'source') {
+                                await applyLoadedAudioBuffer(audioBuffer, 'Output source recording', 'output');
+                                console.log('Output recording loaded into granular output source slot');
+                            } else {
+                                console.log('Converting to WAV format...');
+                                const wav = audioBufferToWav24bit(audioBuffer);
+                                console.log('WAV conversion complete. Size:', wav.byteLength, 'bytes');
+
+                                // Save the WAV file using the new cross-platform function
+                                console.log('Calling saveWavFile...');
+                                await saveWavFile(wav);
+                                console.log('saveWavFile completed');
+                            }
+
+                            document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
+                                ? 'Output source recorded'
+                                : 'Recording saved';
+                            setTimeout(() => {
+                                document.getElementById('outputRecText').textContent = 'Ready';
+                            }, 3000);
+
+                        } catch (err) {
+                            console.error('Failed to process recording:', err);
+                            alert('Failed to process recording: ' + err.message);
+                            document.getElementById('outputRecText').textContent = 'Error';
+                            setTimeout(() => {
+                                document.getElementById('outputRecText').textContent = 'Ready';
+                            }, 3000);
                         }
                         
-                        document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
-                            ? 'Output source recorded'
-                            : 'Recording saved';
-                        setTimeout(() => {
-                            document.getElementById('outputRecText').textContent = 'Ready';
-                        }, 3000);
-                        
-                    } catch (err) {
-                        console.error('Failed to process recording:', err);
-                        alert('Failed to process recording: ' + err.message);
-                        document.getElementById('outputRecText').textContent = 'Error';
-                        setTimeout(() => {
-                            document.getElementById('outputRecText').textContent = 'Ready';
-                        }, 3000);
-                    }
+                        console.log('Resetting recording UI...');
+                        resetRecordingUI(true);
+                        console.log('=== RECORDING STOP COMPLETE ===');
+                    };
                     
-                    console.log('Resetting recording UI...');
+                    outputMediaRecorder.start();
+                    console.log('MediaRecorder started');
+
+                    // Update UI
+                    setOutputRecordingButtons(true, outputRecordingTarget);
+                    document.getElementById('outputRecStatus').classList.add('active');
+                    document.getElementById('outputRecDot').classList.add('active');
+                    document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
+                        ? 'Recording output source...'
+                        : 'Recording...';
+
+                } catch (err) {
+                    console.error('Failed to start recording:', err);
                     resetRecordingUI(true);
-                    console.log('=== RECORDING STOP COMPLETE ===');
-                };
-                
-                outputMediaRecorder.start();
-                console.log('MediaRecorder started');
-
-                // Update UI
-                setOutputRecordingButtons(true, outputRecordingTarget);
-                document.getElementById('outputRecStatus').classList.add('active');
-                document.getElementById('outputRecDot').classList.add('active');
-                document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
-                    ? 'Recording output source...'
-                    : 'Recording...';
-
-            } catch (err) {
-                console.error('Failed to start recording:', err);
-                resetRecordingUI(true);
-                alert('Failed to start recording: ' + err.message);
-            }
+                    alert('Failed to start recording: ' + err.message);
+                }
             })();
         }
 
@@ -13430,13 +13438,16 @@
             startOutputRecording('file');
         });
 
-        document.getElementById('recordOutputSourceBtn')?.addEventListener('click', () => {
+        const handleOutputSourceRecordClick = () => {
             if (isOutputRecording && outputRecordingTarget === 'source') {
                 stopOutputRecording();
             } else {
                 startOutputRecording('source');
             }
-        });
+        };
+
+        document.getElementById('recordOutputSourceBtn')?.addEventListener('click', handleOutputSourceRecordClick);
+        document.getElementById('recordOutputSourcePanelBtn')?.addEventListener('click', handleOutputSourceRecordClick);
 
         // Helper function to reset recording UI
         function resetRecordingUI(skipMediaRecorderStop = false) {
