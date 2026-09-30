@@ -3151,6 +3151,69 @@
                         </label>
                         <input type="range" id="grainTune" min="-24" max="24" value="0" step="1">
                     </div>
+                    <div class="source-seed-group" aria-label="Grain layer mixer">
+                        <div class="section-title">Grain Layer Mixer</div>
+                        <div class="control-group highlight">
+                            <label>
+                                <span class="param-name">Main Grain Volume</span>
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="grainMainVolume" data-lfo="1">L1</button>
+                                    <button class="inv-toggle" data-param="grainMainVolume" data-lfo="1">INV</button>
+                                    <button class="lfo-toggle" data-param="grainMainVolume" data-lfo="2">L2</button>
+                                    <button class="inv-toggle" data-param="grainMainVolume" data-lfo="2">INV</button>
+                                    <button class="lfo-toggle" data-param="grainMainVolume" data-lfo="3">L3</button>
+                                    <button class="inv-toggle" data-param="grainMainVolume" data-lfo="3">INV</button>
+                                </div>
+                                <span class="value" id="grainMainVolumeValue">100%</span>
+                            </label>
+                            <input type="range" id="grainMainVolume" min="0" max="150" value="100" step="1">
+                        </div>
+                        <div class="control-group highlight">
+                            <label>
+                                <span class="param-name">Grain A Volume</span>
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="grainSynthAVolume" data-lfo="1">L1</button>
+                                    <button class="inv-toggle" data-param="grainSynthAVolume" data-lfo="1">INV</button>
+                                    <button class="lfo-toggle" data-param="grainSynthAVolume" data-lfo="2">L2</button>
+                                    <button class="inv-toggle" data-param="grainSynthAVolume" data-lfo="2">INV</button>
+                                    <button class="lfo-toggle" data-param="grainSynthAVolume" data-lfo="3">L3</button>
+                                    <button class="inv-toggle" data-param="grainSynthAVolume" data-lfo="3">INV</button>
+                                </div>
+                                <span class="value" id="grainSynthAVolumeValue">100%</span>
+                            </label>
+                            <input type="range" id="grainSynthAVolume" min="0" max="150" value="100" step="1">
+                        </div>
+                        <div class="control-group highlight">
+                            <label>
+                                <span class="param-name">Grain B Volume</span>
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="grainSynthBVolume" data-lfo="1">L1</button>
+                                    <button class="inv-toggle" data-param="grainSynthBVolume" data-lfo="1">INV</button>
+                                    <button class="lfo-toggle" data-param="grainSynthBVolume" data-lfo="2">L2</button>
+                                    <button class="inv-toggle" data-param="grainSynthBVolume" data-lfo="2">INV</button>
+                                    <button class="lfo-toggle" data-param="grainSynthBVolume" data-lfo="3">L3</button>
+                                    <button class="inv-toggle" data-param="grainSynthBVolume" data-lfo="3">INV</button>
+                                </div>
+                                <span class="value" id="grainSynthBVolumeValue">100%</span>
+                            </label>
+                            <input type="range" id="grainSynthBVolume" min="0" max="150" value="100" step="1">
+                        </div>
+                        <div class="control-group highlight">
+                            <label>
+                                <span class="param-name">Overall Grain Amp</span>
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="grainMixerAmp" data-lfo="1">L1</button>
+                                    <button class="inv-toggle" data-param="grainMixerAmp" data-lfo="1">INV</button>
+                                    <button class="lfo-toggle" data-param="grainMixerAmp" data-lfo="2">L2</button>
+                                    <button class="inv-toggle" data-param="grainMixerAmp" data-lfo="2">INV</button>
+                                    <button class="lfo-toggle" data-param="grainMixerAmp" data-lfo="3">L3</button>
+                                    <button class="inv-toggle" data-param="grainMixerAmp" data-lfo="3">INV</button>
+                                </div>
+                                <span class="value" id="grainMixerAmpValue">100%</span>
+                            </label>
+                            <input type="range" id="grainMixerAmp" min="0" max="200" value="100" step="1">
+                        </div>
+                    </div>
                     <div class="control-group highlight">
                         <label>
                             <span class="param-name">Grain Synth A Mix</span>
@@ -5039,6 +5102,10 @@
             release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
             grainTune: { min: -24, max: 24 },
+            grainMainVolume: { min: 0, max: 150 },
+            grainSynthAVolume: { min: 0, max: 150 },
+            grainSynthBVolume: { min: 0, max: 150 },
+            grainMixerAmp: { min: 0, max: 200 },
             grainSynthAMix: { min: 0, max: 100 },
             grainSynthATune: { min: -24, max: 24 },
             grainSynthASize: { min: 10, max: 500 },
@@ -5083,6 +5150,7 @@
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
             'outputLoopStart', 'outputLoopEnd',
             'pitchVar', 'grainTune',
+            'grainMainVolume', 'grainSynthAVolume', 'grainSynthBVolume', 'grainMixerAmp',
             'grainSynthAMix', 'grainSynthATune', 'grainSynthASize', 'grainSynthADensity', 'grainSynthASpread',
             'grainSynthBMix', 'grainSynthBTune', 'grainSynthBSize', 'grainSynthBDensity', 'grainSynthBSpread',
             'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ',
@@ -7849,6 +7917,12 @@
             }).filter((voice) => voice.mix > 0.001 && voice.density > 0.001);
         }
 
+        function getGrainLayerGain(paramId, fallback = 1) {
+            const rawValue = Number(getModulatedValue(paramId));
+            const safeValue = Number.isFinite(rawValue) ? rawValue : fallback * 100;
+            return Math.max(0, safeValue) / 100;
+        }
+
         function playGrain(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
             
@@ -7934,6 +8008,10 @@
             }
 
             const secondaryGrainVoices = getSecondaryGrainSynthVoices(finalRate);
+            const mainGrainVolume = getGrainLayerGain('grainMainVolume', 1);
+            const grainSynthAVolume = getGrainLayerGain('grainSynthAVolume', 1);
+            const grainSynthBVolume = getGrainLayerGain('grainSynthBVolume', 1);
+            const grainMixerAmp = getGrainLayerGain('grainMixerAmp', 1);
 
             // Volume multiplier with validation
             const volumeBiasValue = typeof keyboardVolumeBias === 'number' && isFinite(keyboardVolumeBias) 
@@ -8078,7 +8156,7 @@
                 baseSources.forEach((sourceInfo) => {
                     scheduleSourceVoice(sourceInfo, {
                         rate: finalRate,
-                        gain: baseGainMap.get(sourceInfo) ?? 0,
+                        gain: (baseGainMap.get(sourceInfo) ?? 0) * mainGrainVolume,
                         positionPct: posSlider,
                         sizeSeconds: grainSize,
                         sprayAmount: options.continuousLoop ? 0 : spray,
@@ -8091,11 +8169,12 @@
                     if (Math.random() > voice.density) return;
                     const voiceSources = getAvailableGranularSources({ mode: voice.sourceMode, layer: voice.label });
                     const voiceGainMap = getGranularSourceGainMap(voiceSources, 1 - noiseMix);
+                    const layerVolume = voice.label === 'A' ? grainSynthAVolume : grainSynthBVolume;
                     const shiftedPosition = ((posSlider + voice.positionOffset + 1) % 1 + 1) % 1;
                     voiceSources.forEach((sourceInfo) => {
                         scheduleSourceVoice(sourceInfo, {
                             rate: voice.rate,
-                            gain: (voiceGainMap.get(sourceInfo) ?? 0) * voice.mix * voice.gainTrim,
+                            gain: (voiceGainMap.get(sourceInfo) ?? 0) * voice.mix * voice.gainTrim * layerVolume,
                             positionPct: shiftedPosition,
                             sizeSeconds: voice.sizeSeconds,
                             sprayAmount: options.continuousLoop ? 0 : Math.min(1, spray + 0.12 + voice.spread * 0.2),
@@ -8162,8 +8241,9 @@
             }
 
             envelope.gain.setValueAtTime(0, now);
-            envelope.gain.linearRampToValueAtTime(volumeMultiplier, now + attack);
-            envelope.gain.setValueAtTime(volumeMultiplier, now + attack + sustainTime);
+            const grainAmpMultiplier = volumeMultiplier * grainMixerAmp;
+            envelope.gain.linearRampToValueAtTime(grainAmpMultiplier, now + attack);
+            envelope.gain.setValueAtTime(grainAmpMultiplier, now + attack + sustainTime);
             envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
             
             const totalDuration = attack + sustainTime + release;
@@ -11633,6 +11713,10 @@
                 release: 50,
                 pitchVar: 0,
                 grainTune: 0,
+                grainMainVolume: 100,
+                grainSynthAVolume: 100,
+                grainSynthBVolume: 100,
+                grainMixerAmp: 100,
                 grainSynthAMix: 28,
                 grainSynthATune: 7,
                 grainSynthASize: 55,
