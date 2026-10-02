@@ -10418,7 +10418,7 @@
         document.getElementById('seqPlayBtn').addEventListener('click', () => {
             if (sequencerPlaying) return;
             if (isArpeggiatorPlaying()) {
-                alert('stop arp first');
+                setStatus('Stop arp first.', 'error');
                 return;
             }
             startSequencer();
@@ -15042,7 +15042,7 @@
                 return;
             }
             if (isArpeggiatorPlaying()) {
-                alert('stop arp first');
+                setStatus('Stop arp first.', 'error');
                 return;
             }
             if (sequencerPlaying) return;
