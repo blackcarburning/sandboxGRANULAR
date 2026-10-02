@@ -12341,7 +12341,9 @@
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
                 showSettlePopup('effects on, distortion off');
-                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
+                statusDiv.textContent = arpEnabled
+                    ? `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample with the loop stopped.`
+                    : `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
                 return;
             }
 
@@ -12353,13 +12355,17 @@
                     blueprint: loopBlueprint,
                     sourceBlueprint
                 });
-                if (!sequencerPlaying) {
+                if (arpEnabled) {
+                    stopSequencer();
+                } else {
                     startSequencer();
                 }
                 setPerformanceGenerateButtonState('generated');
                 syncPerformanceControlState();
                 showSettlePopup('effects on, distortion off');
-                statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`;
+                statusDiv.textContent = arpEnabled
+                    ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop stopped because arp is active.`
+                    : `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`;
             } catch (error) {
                 console.error(error);
                 setPerformanceGenerateButtonState('idle');
