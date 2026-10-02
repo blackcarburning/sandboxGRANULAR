@@ -5215,7 +5215,6 @@
         let sequencerNextStepTime = 0;
         let sequencerTimerId = null;
         let seqGrainsEnabled = true; // Track if sequencer should trigger grains
-        let loopPlayArpWarningActive = false;
         const SCHEDULE_AHEAD_TIME = 0.12;
         const SCHEDULER_INTERVAL = 10;
         
@@ -7884,7 +7883,6 @@
                 }
             } else {
                 stopArpeggiatorPlayback({ restoreHeldPlayback: true });
-                setGeneratedLoopPlayArpWarningActive(false);
             }
 
             if (!options.skipSync) {
@@ -9233,7 +9231,6 @@
             sequencerNextStepTime = audioContext.currentTime + 0.04;
             transportLoopStartTime = sequencerNextStepTime;
             startGeneratedDryLoop(sequencerNextStepTime);
-            setGeneratedLoopPlayArpWarningActive(false);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
             
@@ -9319,7 +9316,6 @@
             });
             
             document.getElementById('seqPlayBtn').classList.remove('playing');
-            setGeneratedLoopPlayArpWarningActive(false);
         }
 
         function resetSequencer() {
@@ -10422,7 +10418,7 @@
         document.getElementById('seqPlayBtn').addEventListener('click', () => {
             if (sequencerPlaying) return;
             if (isArpeggiatorPlaying()) {
-                setGeneratedLoopPlayArpWarningActive(true);
+                setStatus('Stop arp first.', 'error');
                 return;
             }
             startSequencer();
@@ -14625,22 +14621,6 @@
             }
         }
 
-        function syncGeneratedLoopPlayButtonLabel() {
-            const label = loopPlayArpWarningActive ? 'STOP ARP FIRST!' : 'Play';
-            const seqPlayButton = document.getElementById('seqPlayBtn');
-            if (seqPlayButton) {
-                seqPlayButton.textContent = label;
-            }
-            if (performanceSeqPlayBtn) {
-                performanceSeqPlayBtn.textContent = label;
-            }
-        }
-
-        function setGeneratedLoopPlayArpWarningActive(active) {
-            loopPlayArpWarningActive = Boolean(active);
-            syncGeneratedLoopPlayButtonLabel();
-        }
-
         function syncPerformanceControlState() {
             syncPerformanceSoundControls();
 
@@ -14672,9 +14652,8 @@
 
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
+                performanceSeqPlayBtn.textContent = 'Play';
             }
-
-            syncGeneratedLoopPlayButtonLabel();
 
             if (performanceOscToggleBtn) {
                 performanceOscToggleBtn.classList.toggle('osc-off', !oscillatorsEnabled);
@@ -15069,7 +15048,7 @@
                 return;
             }
             if (isArpeggiatorPlaying()) {
-                setGeneratedLoopPlayArpWarningActive(true);
+                setStatus('Stop arp first.', 'error');
                 return;
             }
             if (sequencerPlaying) return;
