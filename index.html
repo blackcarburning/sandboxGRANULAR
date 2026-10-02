@@ -2291,7 +2291,7 @@
         .simplified-ui .keyboard-section {
             --keyboard-key-height: clamp(148px, 28svh, 232px);
             display: grid !important;
-            grid-template-columns: repeat(4, minmax(88px, auto));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             grid-template-rows: minmax(0, 1fr) auto auto;
             position: sticky !important;
             left: auto !important;
@@ -2332,16 +2332,18 @@
             grid-column: 1 / -1;
             grid-row: 3;
             display: grid;
-            grid-template-columns: 44px minmax(88px, 1fr) 44px;
+            grid-template-columns: 44px minmax(0, 1fr) 44px;
             gap: 8px;
             align-items: center;
             justify-self: center;
-            width: min(260px, 100%);
+            width: 100%;
+            max-width: 260px;
         }
 
         .simplified-ui .keyboard-section .arp-clock-btn {
             min-height: 38px;
-            min-width: 88px;
+            min-width: 0;
+            width: 100%;
             border-radius: 12px;
             padding: 8px 10px;
             font-size: 11px;
@@ -2356,7 +2358,8 @@
             justify-content: center;
             align-self: stretch;
             min-height: 38px;
-            min-width: 88px;
+            min-width: 0;
+            width: 100%;
             padding: 8px 12px;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2382,7 +2385,8 @@
             justify-content: center;
             align-self: stretch;
             min-height: 38px;
-            min-width: 88px;
+            min-width: 0;
+            width: 100%;
             padding: 8px 12px;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2394,6 +2398,8 @@
 
         .simplified-ui .keyboard-section #octaveDownBtn {
             order: 1;
+            grid-column: 1;
+            grid-row: 3;
         }
 
         .simplified-ui .keyboard-section .octave-display {
@@ -2412,6 +2418,8 @@
 
         .simplified-ui .keyboard-section #octaveUpBtn {
             order: 3;
+            grid-column: 3;
+            grid-row: 3;
         }
 
         .simplified-ui .keyboard-section #arpClockMultiplierBtn {
@@ -2429,9 +2437,15 @@
             justify-content: center;
             align-self: stretch;
             min-height: 38px;
-            min-width: 88px;
+            min-width: 0;
+            width: 100%;
             padding: 8px 12px;
             border-radius: 12px;
+        }
+
+        .simplified-ui .keyboard-section .octave-display {
+            grid-column: 2;
+            grid-row: 3;
         }
 
         .simplified-ui .keyboard-section .octave-btn {
