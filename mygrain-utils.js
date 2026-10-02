@@ -161,6 +161,36 @@
         };
     }
 
+    function trimAudioBufferToWindow(sourceBuffer, startTime, endTime, audioContext) {
+        if (!sourceBuffer || !audioContext || typeof audioContext.createBuffer !== 'function') {
+            return sourceBuffer || null;
+        }
+
+        const duration = clampNumber(sourceBuffer.duration, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
+        if (duration <= 0) return sourceBuffer;
+
+        const safeStart = clampNumber(startTime, { min: 0, max: duration, fallback: 0 });
+        const safeEnd = clampNumber(endTime, { min: 0, max: duration, fallback: duration });
+        const start = Math.min(safeStart, safeEnd);
+        const end = Math.max(safeStart, safeEnd);
+        const trimmedDuration = Math.max(0.001, end - start);
+        const frameRate = Math.max(1, sourceBuffer.sampleRate || audioContext.sampleRate || 44100);
+        const frameCount = Math.max(1, Math.round(trimmedDuration * frameRate));
+        const startFrame = Math.max(0, Math.floor(start * frameRate));
+        const output = audioContext.createBuffer(sourceBuffer.numberOfChannels, frameCount, frameRate);
+
+        for (let channel = 0; channel < sourceBuffer.numberOfChannels; channel += 1) {
+            const input = sourceBuffer.getChannelData(channel);
+            const target = output.getChannelData(channel);
+            for (let i = 0; i < frameCount; i += 1) {
+                const sourceIndex = Math.min(input.length - 1, startFrame + i);
+                target[i] = input[sourceIndex] || 0;
+            }
+        }
+
+        return output;
+    }
+
     function resolveLoopedPlayPosition(options = {}) {
         const startTime = clampNumber(options.startTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
         const rawEndTime = clampNumber(options.endTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: startTime + 0.001 });
@@ -909,6 +939,7 @@
         recordingExtensionForMimeType,
         resolveLoopedPlayPosition,
         resolveSampleWindow,
+        trimAudioBufferToWindow,
         validatePreset
     };
 

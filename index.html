@@ -8304,6 +8304,14 @@
                         startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
                         endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
                     };
+                const trimmedBuffer = typeof mygrainUtils.trimAudioBufferToWindow === 'function'
+                    ? mygrainUtils.trimAudioBufferToWindow(
+                        sourceInfo.buffer,
+                        sampleWindow.startTime,
+                        sampleWindow.endTime,
+                        audioContext
+                    )
+                    : sourceInfo.buffer;
                 maxEnvelopeGrainSize = Math.max(maxEnvelopeGrainSize, sampleWindow.grainSizeSeconds);
 
                 const source = audioContext.createBufferSource();
@@ -8312,11 +8320,11 @@
                 const playPosition = options.continuousLoop
                     ? resolveContinuousLoopPosition(sampleWindow, sourceShape.positionPct, now, options.streamStartTime, voice.rate)
                     : sampleWindow.playPosition;
-                source.buffer = sourceInfo.buffer;
+                source.buffer = trimmedBuffer;
                 source.playbackRate.value = voice.rate;
                 source.loop = true;
-                source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
-                source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
+                source.loopStart = 0;
+                source.loopEnd = trimmedBuffer?.duration ?? sampleWindow.grainSizeSeconds;
                 sampleGain.gain.setValueAtTime(0, now);
 
                 source.connect(sampleGain);
@@ -8335,7 +8343,7 @@
                 sampleGain.gain.setValueAtTime(voice.gain, now + sourceShape.sourceAttack + sourceSustain);
                 sampleGain.gain.linearRampToValueAtTime(0, now + totalDuration);
                 maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, totalDuration);
-                source.start(now, playPosition);
+                source.start(now, Math.max(0, Math.min(trimmedBuffer?.duration ?? 0, playPosition - sampleWindow.startTime)));
                 source.stop(now + totalDuration);
 
                 source.onended = () => {
