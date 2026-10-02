@@ -2770,10 +2770,17 @@
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalDelayDepth">
-                        <span>BPM Delay</span>
+                        <span>Delay Mix</span>
                         <span class="value" id="finalDelayDepthValue">0%</span>
                     </label>
                     <input type="range" id="finalDelayDepth" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalDelayFeedback">
+                        <span>Delay Feedback</span>
+                        <span class="value" id="finalDelayFeedbackValue">30%</span>
+                    </label>
+                    <input type="range" id="finalDelayFeedback" min="0" max="100" value="30" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalDelayDivision">
@@ -2950,6 +2957,14 @@
                 <div class="keyboard" id="keyboardContainer">
                 </div>
             </div>
+            <div class="internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">
+                <div class="internal-effects-header">
+                    <span class="performance-chip">Internal Effects</span>
+                    <h3 class="internal-effects-title">Internal Effects</h3>
+                    <p class="internal-effects-note">Advanced effect controls that sit inside the final chain.</p>
+                </div>
+                <div class="internal-effects-grid" id="internalEffectsGrid"></div>
+            </div>
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
@@ -2973,14 +2988,6 @@
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
-            </div>
-            <div class="internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">
-                <div class="internal-effects-header">
-                    <span class="performance-chip">Internal Effects</span>
-                    <h3 class="internal-effects-title">Internal Effects</h3>
-                    <p class="internal-effects-note">Advanced effect controls that sit inside the final chain.</p>
-                </div>
-                <div class="internal-effects-grid" id="internalEffectsGrid"></div>
             </div>
         </div>
         <div class="top-section">
@@ -6797,7 +6804,8 @@
             smoothRamp(finalRingGain?.gain, 1 - ringDepth * 0.82);
             smoothRamp(finalRingDepthGain?.gain, ringDepth * 0.82);
 
-            const delayDepth = fxMuted ? 0 : getSliderPercent('finalDelayDepth');
+            const delayMix = fxMuted ? 0 : getSliderPercent('finalDelayDepth');
+            const delayFeedback = fxMuted ? 0 : getSliderPercent('finalDelayFeedback');
             const bpm = getSharedBpmClockValue();
             const division = document.getElementById('finalDelayDivision')?.value || '4';
             const delayTime = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(division, bpm)));
@@ -6805,11 +6813,11 @@
             const feedbackCap = postFilterFx ? 0 : 0.46;
             const wetCap = postFilterFx ? 0.18 : 0.62;
             smoothRamp(finalDelayNode?.delayTime, delayTime);
-            smoothRamp(finalDelayFeedbackGain?.gain, delayDepth * feedbackCap);
-            smoothRamp(finalDelayFeedbackHighpass?.frequency, postFilterFx ? 260 + delayDepth * 520 : 140 + delayDepth * 220);
-            smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 2400 - delayDepth * 900 : 5200 - delayDepth * 2600);
-            smoothRamp(finalDelayWetGain?.gain, Math.sin(delayDepth * Math.PI / 2) * wetCap);
-            smoothRamp(finalDelayDryGain?.gain, 1 - (delayDepth * (postFilterFx ? 0.08 : 0.12)));
+            smoothRamp(finalDelayFeedbackGain?.gain, delayFeedback * feedbackCap);
+            smoothRamp(finalDelayFeedbackHighpass?.frequency, postFilterFx ? 260 + delayFeedback * 520 : 140 + delayFeedback * 220);
+            smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 2400 - delayFeedback * 900 : 5200 - delayFeedback * 2600);
+            smoothRamp(finalDelayWetGain?.gain, Math.sin(delayMix * Math.PI / 2) * wetCap);
+            smoothRamp(finalDelayDryGain?.gain, 1 - (delayMix * (postFilterFx ? 0.08 : 0.12)));
 
             const shimmerDepth = fxMuted ? 0 : getSliderPercent('finalShimmerDepth');
             smoothRamp(finalShimmerTone?.frequency, 2600 + shimmerDepth * 6200);
@@ -10721,6 +10729,7 @@
             setSliderValue('finalDriveCrush', 0);
             setSliderValue('finalShimmerDepth', randomIntegerInRange(0, 45));
             setSliderValue('finalDelayDepth', randomIntegerInRange(0, 48));
+            setSliderValue('finalDelayFeedback', randomIntegerInRange(10, 68));
             setSliderValue('finalRingDepth', randomIntegerInRange(0, 36));
             setSliderValue('finalReverbSize', randomIntegerInRange(18, 92));
             setSliderValue('finalReverbDecay', randomIntegerInRange(18, 92));
@@ -11163,6 +11172,7 @@
                 delayFeedback: rand(8, Math.round(16 + wetAmount * 50)),
                 delayMix: rand(0, Math.round(6 + wetAmount * 70)),
                 reverb: rand(0, Math.round(10 + wetAmount * 90)),
+                finalDelayFeedback: rand(10, Math.round(30 + wetAmount * 40)),
                 lfo3ToLfo1Mod: rand(0, Math.round(4 + profile.energy * 12)),
                 lfo3ToLfo2Mod: rand(0, Math.round(4 + profile.energy * 12)),
                 lfo1ToLfo3Mod: rand(0, Math.round(4 + profile.energy * 10)),
@@ -12407,6 +12417,7 @@
                 finalDriveCrush: 0,
                 finalShimmerDepth: 0,
                 finalDelayDepth: 0,
+                finalDelayFeedback: 30,
                 finalRingDepth: 0,
                 finalReverbSize: 45,
                 finalReverbDecay: 55,
@@ -13611,22 +13622,23 @@
             ringOscillator.start(0);
             ringOscillator.stop(ctx.length / ctx.sampleRate);
 
-            const delayDepth = muted ? 0 : getSliderPercent('finalDelayDepth');
+            const delayMix = muted ? 0 : getSliderPercent('finalDelayDepth');
+            const delayFeedback = muted ? 0 : getSliderPercent('finalDelayFeedback');
             const delayDivision = document.getElementById('finalDelayDivision')?.value || '4';
             const delayNode = ctx.createDelay(2.5);
             delayNode.delayTime.value = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(delayDivision, bpm)));
             const delayFeedbackGain = ctx.createGain();
-            delayFeedbackGain.gain.value = delayDepth * (postFilterFx ? 0 : 0.46);
+            delayFeedbackGain.gain.value = delayFeedback * (postFilterFx ? 0 : 0.46);
             const delayFeedbackHighpass = ctx.createBiquadFilter();
             delayFeedbackHighpass.type = 'highpass';
-            delayFeedbackHighpass.frequency.value = postFilterFx ? 260 + delayDepth * 520 : 140 + delayDepth * 220;
+            delayFeedbackHighpass.frequency.value = postFilterFx ? 260 + delayFeedback * 520 : 140 + delayFeedback * 220;
             const delayFeedbackLowpass = ctx.createBiquadFilter();
             delayFeedbackLowpass.type = 'lowpass';
-            delayFeedbackLowpass.frequency.value = postFilterFx ? 2400 - delayDepth * 900 : 5200 - delayDepth * 2600;
+            delayFeedbackLowpass.frequency.value = postFilterFx ? 2400 - delayFeedback * 900 : 5200 - delayFeedback * 2600;
             const delayWetGain = ctx.createGain();
-            delayWetGain.gain.value = Math.sin(delayDepth * Math.PI / 2) * (postFilterFx ? 0.18 : 0.62);
+            delayWetGain.gain.value = Math.sin(delayMix * Math.PI / 2) * (postFilterFx ? 0.18 : 0.62);
             const delayDryGain = ctx.createGain();
-            delayDryGain.gain.value = 1 - (delayDepth * (postFilterFx ? 0.08 : 0.12));
+            delayDryGain.gain.value = 1 - (delayMix * (postFilterFx ? 0.08 : 0.12));
 
             const shimmerDepth = muted ? 0 : getSliderPercent('finalShimmerDepth');
             const shimmerNode = ctx.createConvolver();
@@ -14359,6 +14371,7 @@
             'finalDriveCrush',
             'finalShimmerDepth',
             'finalDelayDepth',
+            'finalDelayFeedback',
             'finalDelayDivision',
             'finalFxPlacementLfoDivision',
             'finalRingDepth',
