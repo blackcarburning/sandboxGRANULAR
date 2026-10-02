@@ -47,21 +47,23 @@ test('default layout keeps tabbed controls section visible without simplified-ui
     assert.match(indexHtml, /HP Resonance Mod/);
 });
 
-test('legacy recording panel and in-controls keyboard layout remain present while advanced sources stay available', () => {
-    assert.match(indexHtml, /<div class="section-title">Sample Source<\/div>/);
-    assert.match(indexHtml, /<canvas id="waveformCanvas" class="source-waveform-canvas" data-source="legacy"><\/canvas>/);
-    assert.match(indexHtml, /<button id="auditionBtn"[\s\S]*?>Audition Sample<\/button>/);
-    assert.match(indexHtml, /<details class="source-advanced-panel" id="sourceAdvancedPanel">[\s\S]*<summary id="advancedSourceSummary">Advanced sources<\/summary>/);
-    assert.match(indexHtml, /<div id="advancedSourceContent" role="group" aria-labelledby="advancedSourceSummary">/);
-    assert.equal(countMatches(indexHtml, /class="source-advanced-panel"/g), 1, 'advanced source panel should only appear once');
+test('five visible source panels and the standalone transposable keyboard retain recording and touch controls', () => {
+    assert.match(indexHtml, /<div class="source-waveform-grid" aria-label="Granular source waveforms">/);
+    assert.equal(countMatches(indexHtml, /class="source-waveform-panel"/g), 5, 'all five sources should have a visible panel');
+    ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => {
+        assert.match(indexHtml, new RegExp(`<canvas id="${kind}WaveformCanvas" class="source-waveform-canvas" data-source="${kind}"><\\/canvas>`));
+    });
+    assert.match(indexHtml, /<button id="auditionBtn"[\s\S]*?>Audition Sources<\/button>/);
+    assert.doesNotMatch(indexHtml, /<canvas id="waveformCanvas"/);
+    assert.doesNotMatch(indexHtml, /class="source-advanced-panel"/);
     assert.match(indexHtml, /<button id="generateSourceBtn" class="primary">Generate Source<\/button>/);
     assert.match(indexHtml, /<button id="performanceLowNoiseSourceBtn">Low Noise Source<\/button>/);
     assert.match(indexHtml, /<button id="performanceLoadAudioBtn">Load Audio<\/button>/);
     assert.equal(countMatches(indexHtml, /class="keyboard-section"/g), 1, 'keyboard section should only be rendered once');
-    assert.match(indexHtml, /<div class="controls-section">[\s\S]*<div class="keyboard-section">[\s\S]*data-note="C1"[\s\S]*data-note="B2"[\s\S]*<\/div>\s*<\/div>\s*<\/div>/);
-    assert.equal(countMatches(indexHtml, /class="key white"/g), 14, 'legacy keyboard should expose two octaves of white keys');
-    assert.equal(countMatches(indexHtml, /class="key black"/g), 10, 'legacy keyboard should expose two octaves of black keys');
-    assert.match(indexHtml, /const directManipulationSelector = '\.key, \.keyboard, #waveformCanvas, \.source-waveform-canvas, input\[type=\"range\"\]';/);
+    assert.match(indexHtml, /<\/div>\s*<\/div>\s*<div class="keyboard-section">[\s\S]*data-note="C2"[\s\S]*data-note="B2"/);
+    assert.equal(countMatches(indexHtml, /class="key white"/g), 7, 'one transposable octave should expose seven white keys');
+    assert.equal(countMatches(indexHtml, /class="key black"/g), 5, 'one transposable octave should expose five black keys');
+    assert.match(indexHtml, /const directManipulationSelector = '\.key, \.keyboard, \.source-waveform-canvas, input\[type=\"range\"\]';/);
 });
 
 test('filter utility section hosts the four LP/HP modulation route controls without duplicating them in the filter rows', () => {

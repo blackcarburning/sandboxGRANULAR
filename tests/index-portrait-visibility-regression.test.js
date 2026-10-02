@@ -44,7 +44,7 @@ test('mobile performance controls expose loop generation and playback', () => {
 
 test('generate and randomize actions show a two second settle popup', () => {
     assert.match(indexHtml, /id="settlePopup"[\s\S]*>let it settle<\/div>/);
-    assert.match(indexHtml, /function showSettlePopup\(\)/);
+    assert.match(indexHtml, /function showSettlePopup\(message = 'let it settle'\)/);
     assert.match(indexHtml, /settlePopup\.classList\.add\('visible'\)/);
     assert.match(indexHtml, /settlePopupTimer = setTimeout\(\(\) => \{[\s\S]*\}, 2000\);/);
     assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{\s*showSettlePopup\(\);/);
@@ -121,7 +121,8 @@ test('mobile controls can remove the noise oscillator and its modulation', () =>
     assert.match(indexHtml, /setSliderValue\('noiseMix', 0\)/);
     assert.match(indexHtml, /clearModulationForParam\('noiseMix'\)/);
     assert.match(indexHtml, /performanceNoiseOffBtn\.classList\.toggle\('noise-active', noiseActive\)/);
-    assert.match(indexHtml, /performanceNoiseOffBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*removeNoiseOscillator\(\);/);
+    assert.match(indexHtml, /performanceNoiseOffBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*toggleNoiseOscillator\(\);/);
+    assert.match(indexHtml, /function toggleNoiseOscillator\(\) \{[\s\S]*if \(isNoiseOscillatorActive\(\)\) \{\s*removeNoiseOscillator\(\);/);
     assert.match(indexHtml, /document\.getElementById\('noiseType'\)\?\.addEventListener\('change', syncPerformanceControlState\)/);
 });
 
@@ -174,14 +175,14 @@ test('click guard applies minimum fades to grains, oscillators, dry loop, and au
     assert.match(indexHtml, /const fadeSeconds = getFadeSecondsForDuration\(duration\)/);
 });
 
-test('mobile keyboard keeps the legacy two-octave layout while preserving widened touch targets', () => {
+test('mobile keyboard exposes one transposable octave while preserving widened touch targets', () => {
     const keyMatches = indexHtml.match(/class="key /g) || [];
     const whiteKeyMatches = indexHtml.match(/class="key white"/g) || [];
-    assert.equal(keyMatches.length, 24);
-    assert.equal(whiteKeyMatches.length, 14);
-    assert.match(indexHtml, /data-note="C1"/);
+    assert.equal(keyMatches.length, 12);
+    assert.equal(whiteKeyMatches.length, 7);
     assert.match(indexHtml, /data-note="C2"/);
-    assert.doesNotMatch(indexHtml, /One octave, transposed by the octave buttons/);
+    assert.match(indexHtml, /data-note="B2"/);
+    assert.match(indexHtml, /One octave, transposed by the octave buttons/);
     assert.doesNotMatch(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls,\s*\n\s*\.simplified-ui \.keyboard-section \.volume-bias-container/);
     assert.match(indexHtml, /\.simplified-ui \.keyboard-section \.octave-controls/);
     assert.match(indexHtml, /performance-sound-card performance-octave-card/);
@@ -220,9 +221,9 @@ test('held keyboard grains loop continuously while sequencer grains play separat
     assert.match(indexHtml, /function resolveContinuousLoopPosition\(sampleWindow, positionPct, scheduledTime, streamStartTime, playbackRate\)/);
     assert.match(indexHtml, /resolveLoopedPlayPosition/);
     assert.match(indexHtml, /sprayAmount: options\.continuousLoop \? 0 : spray/);
-    assert.match(indexHtml, /const playPosition = options\.continuousLoop[\s\S]*resolveContinuousLoopPosition/);
+    assert.match(indexHtml, /const proposedPosition = snapshot \? snapshot\.playPosition : options\.continuousLoop[\s\S]*resolveContinuousLoopPosition/);
     assert.match(indexHtml, /activeGrains\.set\(streamId, \{[\s\S]*note,[\s\S]*role,[\s\S]*continuousLoop: options\.continuousLoop \?\? role === 'keyboard'/);
-    assert.match(indexHtml, /playGrain\(grainInfo\.note, grainInfo\.nextTime, grainInfo\.velocity, \{[\s\S]*streamStartTime: grainInfo\.startTime,[\s\S]*continuousLoop: grainInfo\.continuousLoop/);
+    assert.match(indexHtml, /playGrain\(grainInfo\.note, grainInfo\.nextTime, grainInfo\.velocity, \{[\s\S]*streamStartTime: grainInfo\.loopOriginTime \?\? grainInfo\.startTime,[\s\S]*continuousLoop: grainInfo\.continuousLoop/);
     assert.match(indexHtml, /stopAllGrains\(\{ role: 'sequencer' \}\)/);
     assert.match(indexHtml, /startGrainStream\(step\.pitch, scheduledTime, stepVelocity, \{[\s\S]*role: 'sequencer',[\s\S]*continuousLoop: false/);
     assert.doesNotMatch(indexHtml, /currentGrainNote !== null && currentGrainNote !== note/);
@@ -248,16 +249,18 @@ test('source UI has separate generated and mic waveform loop controls', () => {
     assert.match(indexHtml, /grainInfo\.nextTime = now/);
 });
 
-test('patch randomize does not move manual source loop points', () => {
+test('generic randomization protects manual source points while explicit randomization pairs windows', () => {
     assert.match(indexHtml, /const RANDOMIZE_SKIP_SLIDERS = new Set/);
     assert.match(indexHtml, /'generatedLoopStart'/);
     assert.match(indexHtml, /'generatedLoopEnd'/);
     assert.match(indexHtml, /'micLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
     assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.has\(id\)/);
+    assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.add\(kind \+ suffix\)/);
+    assert.match(indexHtml, /function randomizeLayerWindows\(\)/);
 });
 
-test('patch randomize leaves instrument mix and balance controls alone', () => {
+test('experimental patch generation leaves instrument mix and balance controls alone', () => {
     const experimentalPatch = indexHtml.match(/function applyExperimentalLoopPatch\(options = \{\}\) \{[\s\S]*?\n        \}/)?.[0] || '';
     assert.ok(experimentalPatch, 'applyExperimentalLoopPatch should be present');
 
@@ -288,7 +291,7 @@ test('patch randomize leaves instrument mix and balance controls alone', () => {
     });
     assert.match(indexHtml, /const RANDOMIZE_SKIP_PARAMS = new Set/);
     assert.match(indexHtml, /RANDOMIZE_SKIP_PARAMS\.has\(param\)/);
-    assert.match(indexHtml, /Patch randomized and new loop generated; source loop points and mix balances kept\./);
+    assert.match(indexHtml, /function snapshotRandomizeProtectedSliders\(\)/);
     assert.doesNotMatch(experimentalPatch, /oscMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedSourceMix:/);
     assert.doesNotMatch(experimentalPatch, /performanceGeneratedDryMix:/);
@@ -307,20 +310,23 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /let generatedLoopBuffer = null/);
     assert.match(indexHtml, /let generatedLoopBaseBuffer = null/);
     assert.match(indexHtml, /let micAudioBuffer = null/);
-    assert.match(indexHtml, /function getAvailableGranularSources\(\)/);
+    assert.match(indexHtml, /function getAvailableGranularSources\(options = \{\}\)/);
     assert.match(indexHtml, /let generatedSourceMix = 1/);
     assert.match(indexHtml, /function getGranularSourceGainMap\(sources, availableGain = 1\)/);
     assert.match(indexHtml, /let generatedDryMix = 0/);
     assert.match(indexHtml, /function startGeneratedDryLoop\(startTime = null\)/);
     assert.match(indexHtml, /function stopGeneratedDryLoop\(options = \{\}\)/);
     assert.match(indexHtml, /let generatedDryThroughFilters = false/);
-    assert.match(indexHtml, /gain\.connect\(generatedDryThroughFilters && preFilterGainNode \? preFilterGainNode : masterGain\)/);
+    assert.match(indexHtml, /gain\.connect\(preFilterGainNode \|\| masterGain\)/);
     assert.match(indexHtml, /performanceDryFilterBtn\.classList\.toggle\('dry-filtered', generatedDryThroughFilters\)/);
     assert.match(indexHtml, /setGeneratedDryThroughFilters\(!generatedDryThroughFilters\)/);
     assert.match(indexHtml, /generatedLoopBuffer/);
     assert.match(indexHtml, /micAudioBuffer/);
     assert.match(indexHtml, /sourceGainMap\.get\(sourceInfo\) \?\? 0/);
-    assert.match(indexHtml, /resetSourceLoopPoints\(kind\)/);
+    const sourceSetter = indexHtml.match(/function setSourceBuffer\(kind, buffer, sourceLabel\) \{[\s\S]*?\n        \}/)?.[0] || '';
+    assert.ok(sourceSetter);
+    assert.doesNotMatch(sourceSetter, /resetSourceLoopPoints\(kind\)/);
+    assert.match(sourceSetter, /updateLoopLabels\(kind\)/);
     assert.match(indexHtml, /setFilterEnabled\('hpf', profile\.id !== 'sparse'\)/);
 });
 
@@ -381,8 +387,9 @@ test('generate source restarts active loop playback after replacing the source',
 test('randomize patch automatically generates a new performance loop', () => {
     assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{/);
     assert.match(indexHtml, /setPerformanceGenerateButtonState\('generating'\);[\s\S]*await generateSourceWithPlaybackRestart\(\{[\s\S]*refreshSequencerPattern: true,[\s\S]*profile: generationProfile,[\s\S]*blueprint: loopBlueprint[\s\S]*\}\);[\s\S]*setPerformanceGenerateButtonState\('generated'\);/);
-    assert.match(indexHtml, /Patch randomized and new loop generated; source loop points and mix balances kept\./);
-    assert.match(indexHtml, /Patch randomized; start MYGRAIN to generate the source loop\./);
+    assert.match(indexHtml, /Full patch randomized at \$\{randomizeState\.bpm\} BPM with a new sample, loop running/);
+    assert.match(indexHtml, /start MYGRAIN to generate the random sample and start the loop\./);
+    assert.match(indexHtml, /sourceBlueprint\s*\}\);\s*randomizeLayerWindows\(\);/);
 });
 
 test('daw export renders from time zero with generated dry stem', () => {
@@ -442,7 +449,9 @@ test('all internal lfos can be forced to square and waveform controls stay manua
     assert.match(indexHtml, /setAllInternalLfoWaveforms\('square', \{ forcedSquare: true \}\)/);
     assert.match(indexHtml, /if \(allLfosSquareForced\) \{\s*clearAllLfoSquareForce\(\{ restoreWaveforms: true \}\);/);
     assert.match(indexHtml, /Object\.entries\(previousWaveforms\)\.forEach\(\(\[id, value\]\) => \{/);
-    assert.doesNotMatch(indexHtml, /clearAllLfoSquareForce\(\);[\s\S]*\/\/ Randomize oscillator octave buttons/);
+    const randomizeHandler = indexHtml.match(/document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{[\s\S]*?\n        \}\);/)?.[0] || '';
+    assert.ok(randomizeHandler);
+    assert.doesNotMatch(randomizeHandler, /clearAllLfoSquareForce\(\)/);
     assert.match(indexHtml, /setAllInternalLfoWaveforms\(event\.target\.value\)/);
     assert.match(indexHtml, /setAllInternalLfoPulseWidths\(event\.target\.value\)/);
     assert.match(indexHtml, /performanceLfoSquareBtn\.classList\.toggle\('active', allLfosSquareForced\)/);
@@ -461,7 +470,7 @@ test('randomize snaps internal lfo rates to musical BPM ratios', () => {
     assert.match(indexHtml, /setInternalLfoRateBpm\(id, baseBpm \* multiplier\)/);
     assert.match(indexHtml, /INTERNAL_BPM_CLOCK_RATE_IDS\.forEach\(\(id\) => \{/);
     assert.match(indexHtml, /const bpm = getSharedBpmClockValue\(\);[\s\S]*const division = document\.getElementById\('delayDivision'\)\?\.value \|\| '4'/);
-    assert.match(indexHtml, /restoreRandomizeProtectedSliders\(protectedRandomizeSliders\);\s*randomizeInternalLfoTempoRatios\(\{ profile: generationProfile \}\);/);
+    assert.match(indexHtml, /randomizeInternalLfoTempoRatios\(\{ profile: generationProfile \}\);/);
     assert.match(indexHtml, /phaserLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('phaserRate'\)\?\.value \|\| 30\) \/ 60/);
     assert.match(indexHtml, /tremoloLFO\.frequency\.value = clampInternalLfoBpmValue\(document\.getElementById\('tremoloRate'\)\?\.value \|\| 120\) \/ 60/);
 });
@@ -474,7 +483,7 @@ test('randomize tames lfo depth and routes modulation broadly', () => {
     assert.match(indexHtml, /phaserDepth: \{ min: 0, max: 18 \}/);
     assert.match(indexHtml, /tremoloDepth: \{ min: 0, max: 16 \}/);
     assert.match(indexHtml, /const GRANULAR_LFO_MODULATION_SCALES = \{/);
-    assert.match(indexHtml, /const DISABLED_LOOP_START_LFO_PARAMS = new Set\(\['sampleStart', 'generatedLoopStart', 'micLoopStart'\]\)/);
+    assert.match(indexHtml, /const DISABLED_LOOP_START_LFO_PARAMS = new Set\(\['sampleStart'\]\)/);
     assert.match(indexHtml, /generatedLoopEnd: 0\.12/);
     assert.match(indexHtml, /micLoopEnd: 0\.12/);
     assert.match(indexHtml, /grainSize: 0\.14/);
@@ -527,10 +536,10 @@ test('grain scheduling and generated loops are BPM-grid rhythmic and bright agai
     assert.match(indexHtml, /voice = Math\.tanh\(\(wash \+ \(\(metallicA \* metallicB\) \+ metallicC \* 0\.42\) \* event\.metallic \+ transient \* 0\.6\) \* event\.drive\) \* basicEnv/);
 });
 
-test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {
-    assert.doesNotMatch(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
+test('granular loop endpoints both remain lfo-routable for playback', () => {
+    assert.match(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="generatedLoopEnd" data-lfo="2"/);
-    assert.doesNotMatch(indexHtml, /data-param="micLoopStart" data-lfo="1"/);
+    assert.match(indexHtml, /data-param="micLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="micLoopEnd" data-lfo="2"/);
     assert.match(indexHtml, /generatedLoopStart: \{ min: 0, max: 100 \}/);
     assert.match(indexHtml, /micLoopEnd: \{ min: 0, max: 100 \}/);
