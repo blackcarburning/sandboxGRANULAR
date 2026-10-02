@@ -5,52 +5,14 @@ const {
     buildDrumSoundPalette,
     buildKeyboardGeometry,
     createSeededRandom,
-    createGrainEnvelopeCurve,
     generateDrumLoopBlueprint,
     generateRhythmicStepBlueprint,
     pickWeighted,
-    randomizeLayerWindow,
     recordingExtensionForMimeType,
     resolveLoopedPlayPosition,
     resolveSampleWindow,
     validatePreset
 } = require('../mygrain-utils.js');
-
-test('randomizeLayerWindow returns percentage-scaled bounded windows and useful grain sizes', () => {
-    const randomValues = [0.99, 0.99, 0.5];
-    const window = randomizeLayerWindow(() => randomValues.shift(), 2);
-
-    assert.equal(window.startPct, 70);
-    assert.equal(window.endPct, 100);
-    assert.ok(window.endPct - window.startPct >= 10);
-    assert.ok(window.grainSizeMs >= 20 && window.grainSizeMs <= 400);
-    const shortBufferWindow = randomizeLayerWindow(() => 0.5, 0.005);
-    assert.ok(shortBufferWindow.grainSizeMs <= 2);
-
-    for (let seed = 0; seed < 100; seed += 1) {
-        const random = createSeededRandom(`window-${seed}`);
-        const nextWindow = randomizeLayerWindow(random);
-        assert.ok(nextWindow.startPct >= 0 && nextWindow.startPct <= 70);
-        assert.ok(nextWindow.endPct <= 100);
-        assert.ok(nextWindow.endPct - nextWindow.startPct >= 10);
-        assert.ok(nextWindow.endPct - nextWindow.startPct <= 60);
-        assert.ok(nextWindow.grainSizeMs >= 20 && nextWindow.grainSizeMs <= 400);
-    }
-});
-
-test('createGrainEnvelopeCurve provides click-safe supported shapes with controllable skew', () => {
-    const shapes = ['hann', 'triangle', 'trapezoid', 'exponential', 'reverse-exponential', 'gaussian'];
-    const curves = shapes.map((shape) => createGrainEnvelopeCurve(shape, 0.35, 96));
-    curves.forEach((curve) => {
-        assert.equal(curve.length, 96);
-        assert.equal(curve[0], 0);
-        assert.equal(curve[curve.length - 1], 0);
-        assert.ok(Array.from(curve).every((value) => value >= 0 && value <= 1));
-    });
-    assert.notDeepEqual(Array.from(curves[0]), Array.from(curves[1]));
-    const peakIndex = Array.from(curves[1]).indexOf(Math.max(...curves[1]));
-    assert.ok(Math.abs(peakIndex / 95 - 0.35) < 0.03);
-});
 
 test('validatePreset clamps values and removes unsupported fields', () => {
     const sliderSchema = {

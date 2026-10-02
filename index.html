@@ -348,29 +348,16 @@
         .source-loop-controls {
             display: grid;
             gap: 4px;
-            min-width: 0;
-        }
-
-        .source-loop-controls > label {
-            font-size: 0.78rem;
-            line-height: 1.4;
-        }
-
-        .source-loop-controls input[type="range"],
-        .source-loop-controls select {
-            width: 100%;
-            min-width: 0;
         }
 
         .source-loop-lfo-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: 1fr 1fr;
             gap: 4px;
         }
 
         .source-loop-lfo-row {
             display: flex;
-            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
             gap: 4px;
@@ -380,24 +367,7 @@
         }
 
         .source-loop-lfo-row .button-group {
-            display: flex;
-            flex: 1 1 180px;
-            flex-wrap: wrap;
-            gap: 4px;
-            min-width: 0;
-        }
-
-        .source-loop-lfo-row button,
-        .source-loop-controls > .button-group button {
-            min-height: 32px;
-            padding: 6px;
-            font-size: 0.68rem;
-        }
-
-        .source-loop-controls > .button-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
+            flex-shrink: 0;
         }
 
         .status {
@@ -474,17 +444,12 @@
 
         .utility-route-group {
             display: flex;
-            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
             font-size: 8px;
             color: #aaa;
             font-weight: 600;
             width: 100%;
-        }
-
-        .utility-route-group .button-group {
-            flex-wrap: wrap;
         }
 
         .utility-route-group .param-name {
@@ -1449,7 +1414,6 @@
         .top-section {
             display: grid;
             grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-            align-items: start;
             gap: 12px;
             overflow: visible;
             margin-bottom: 0;
@@ -2421,7 +2385,7 @@
         }
     </style>
 </head>
-<body>
+<body class="simplified-ui">
 
     <div id="settlePopup" class="settle-popup" role="status" aria-live="polite" aria-hidden="true">let it settle</div>
 
@@ -2930,30 +2894,6 @@
                             <span class="source-waveform-meta" id="generatedLoopMeta">Empty</span>
                         </div>
                         <canvas id="generatedWaveformCanvas" class="source-waveform-canvas" data-source="generated"></canvas>
-                        <output id="generatedEffectiveWindow" class="source-waveform-meta">Playback region: — (orange)</output>
-                        <div class="source-loop-controls">
-                            <label for="generatedGrainSize">Grain size <span id="generatedGrainSizeValue">100ms</span></label>
-                            <input type="range" id="generatedGrainSize" min="1" max="500" value="100" step="1">
-                            <div class="source-loop-lfo-row"><span>Size</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="generatedGrainSize" data-lfo="1">L1</button><button class="inv-toggle" data-param="generatedGrainSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="generatedGrainSize" data-lfo="2">L2</button><button class="inv-toggle" data-param="generatedGrainSize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="generatedGrainSize" data-lfo="3">L3</button><button class="inv-toggle" data-param="generatedGrainSize" data-lfo="3">INV</button>
-                            </div></div>
-                            <label><input type="checkbox" id="generatedSizeIndependent"> Independent size (otherwise global/voice size)</label>
-                            <label for="generatedStretch">Speed <span id="generatedStretchValue">1x</span></label>
-                            <input type="range" id="generatedStretch" min="0.25" max="4" value="1" step="0.01">
-                            <div class="source-loop-lfo-row"><span>Speed</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="generatedStretch" data-lfo="1">L1</button><button class="inv-toggle" data-param="generatedStretch" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="generatedStretch" data-lfo="2">L2</button><button class="inv-toggle" data-param="generatedStretch" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="generatedStretch" data-lfo="3">L3</button><button class="inv-toggle" data-param="generatedStretch" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row" aria-label="Generated start modulation"><span>Start</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="1">L1</button><button class="inv-toggle" data-param="generatedLoopStart" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="2">L2</button><button class="inv-toggle" data-param="generatedLoopStart" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="generatedLoopStart" data-lfo="3">L3</button><button class="inv-toggle" data-param="generatedLoopStart" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>End L3</span><div class="button-group"><button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="3">L3</button><button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="3">INV</button></div></div>
-                        </div>
                         <div class="source-loop-controls">
                             <div class="source-loop-labels">
                                 <label for="generatedLoopStart">Start <span id="generatedLoopStartValue">0%</span></label>
@@ -2980,30 +2920,6 @@
                             <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
                         </div>
                         <canvas id="micWaveformCanvas" class="source-waveform-canvas" data-source="mic"></canvas>
-                        <output id="micEffectiveWindow" class="source-waveform-meta">Playback region: — (orange)</output>
-                        <div class="source-loop-controls">
-                            <label for="micGrainSize">Grain size <span id="micGrainSizeValue">100ms</span></label>
-                            <input type="range" id="micGrainSize" min="1" max="500" value="100" step="1">
-                            <div class="source-loop-lfo-row"><span>Size</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="micGrainSize" data-lfo="1">L1</button><button class="inv-toggle" data-param="micGrainSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="micGrainSize" data-lfo="2">L2</button><button class="inv-toggle" data-param="micGrainSize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="micGrainSize" data-lfo="3">L3</button><button class="inv-toggle" data-param="micGrainSize" data-lfo="3">INV</button>
-                            </div></div>
-                            <label><input type="checkbox" id="micSizeIndependent"> Independent size (otherwise global/voice size)</label>
-                            <label for="micStretch">Speed <span id="micStretchValue">1x</span></label>
-                            <input type="range" id="micStretch" min="0.25" max="4" value="1" step="0.01">
-                            <div class="source-loop-lfo-row"><span>Speed</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="micStretch" data-lfo="1">L1</button><button class="inv-toggle" data-param="micStretch" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="micStretch" data-lfo="2">L2</button><button class="inv-toggle" data-param="micStretch" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="micStretch" data-lfo="3">L3</button><button class="inv-toggle" data-param="micStretch" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row" aria-label="Mic start modulation"><span>Start</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="micLoopStart" data-lfo="1">L1</button><button class="inv-toggle" data-param="micLoopStart" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="micLoopStart" data-lfo="2">L2</button><button class="inv-toggle" data-param="micLoopStart" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="micLoopStart" data-lfo="3">L3</button><button class="inv-toggle" data-param="micLoopStart" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>End L3</span><div class="button-group"><button class="lfo-toggle" data-param="micLoopEnd" data-lfo="3">L3</button><button class="inv-toggle" data-param="micLoopEnd" data-lfo="3">INV</button></div></div>
-                        </div>
                         <div class="source-loop-controls">
                             <div class="source-loop-labels">
                                 <label for="micLoopStart">Start <span id="micLoopStartValue">0%</span></label>
@@ -3030,34 +2946,6 @@
                             <span class="source-waveform-meta" id="grainAMicWaveformMeta">Empty</span>
                         </div>
                         <canvas id="grainAMicWaveformCanvas" class="source-waveform-canvas" data-source="grainAMic"></canvas>
-                        <output id="grainAMicEffectiveWindow" class="source-waveform-meta">Playback region: — (orange)</output>
-                        <div class="source-loop-controls">
-                            <label for="grainAMicGrainSize">Grain size <span id="grainAMicGrainSizeValue">100ms</span></label>
-                            <input type="range" id="grainAMicGrainSize" min="1" max="500" value="100" step="1">
-                            <div class="source-loop-lfo-row"><span>Size</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainAMicGrainSize" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainAMicGrainSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicGrainSize" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainAMicGrainSize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicGrainSize" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainAMicGrainSize" data-lfo="3">INV</button>
-                            </div></div>
-                            <label><input type="checkbox" id="grainAMicSizeIndependent"> Independent size (otherwise global/voice size)</label>
-                            <label for="grainAMicStretch">Speed <span id="grainAMicStretchValue">1x</span></label>
-                            <input type="range" id="grainAMicStretch" min="0.25" max="4" value="1" step="0.01">
-                            <div class="source-loop-lfo-row"><span>Speed</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainAMicStretch" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainAMicStretch" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicStretch" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainAMicStretch" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicStretch" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainAMicStretch" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>Start</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainAMicLoopStart" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainAMicLoopStart" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicLoopStart" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainAMicLoopStart" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicLoopStart" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainAMicLoopStart" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>End</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainAMicLoopEnd" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainAMicLoopEnd" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicLoopEnd" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainAMicLoopEnd" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainAMicLoopEnd" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainAMicLoopEnd" data-lfo="3">INV</button>
-                            </div></div>
-                        </div>
                         <div class="source-loop-controls">
                             <div class="source-loop-labels">
                                 <label for="grainAMicLoopStart">Start <span id="grainAMicLoopStartValue">0%</span></label>
@@ -3073,34 +2961,6 @@
                             <span class="source-waveform-meta" id="grainBMicWaveformMeta">Empty</span>
                         </div>
                         <canvas id="grainBMicWaveformCanvas" class="source-waveform-canvas" data-source="grainBMic"></canvas>
-                        <output id="grainBMicEffectiveWindow" class="source-waveform-meta">Playback region: — (orange)</output>
-                        <div class="source-loop-controls">
-                            <label for="grainBMicGrainSize">Grain size <span id="grainBMicGrainSizeValue">100ms</span></label>
-                            <input type="range" id="grainBMicGrainSize" min="1" max="500" value="100" step="1">
-                            <div class="source-loop-lfo-row"><span>Size</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainBMicGrainSize" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainBMicGrainSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicGrainSize" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainBMicGrainSize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicGrainSize" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainBMicGrainSize" data-lfo="3">INV</button>
-                            </div></div>
-                            <label><input type="checkbox" id="grainBMicSizeIndependent"> Independent size (otherwise global/voice size)</label>
-                            <label for="grainBMicStretch">Speed <span id="grainBMicStretchValue">1x</span></label>
-                            <input type="range" id="grainBMicStretch" min="0.25" max="4" value="1" step="0.01">
-                            <div class="source-loop-lfo-row"><span>Speed</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainBMicStretch" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainBMicStretch" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicStretch" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainBMicStretch" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicStretch" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainBMicStretch" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>Start</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainBMicLoopStart" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainBMicLoopStart" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicLoopStart" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainBMicLoopStart" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicLoopStart" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainBMicLoopStart" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>End</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="grainBMicLoopEnd" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainBMicLoopEnd" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicLoopEnd" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainBMicLoopEnd" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainBMicLoopEnd" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainBMicLoopEnd" data-lfo="3">INV</button>
-                            </div></div>
-                        </div>
                         <div class="source-loop-controls">
                             <div class="source-loop-labels">
                                 <label for="grainBMicLoopStart">Start <span id="grainBMicLoopStartValue">0%</span></label>
@@ -3116,34 +2976,6 @@
                             <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
                         </div>
                         <canvas id="outputWaveformCanvas" class="source-waveform-canvas" data-source="output"></canvas>
-                        <output id="outputEffectiveWindow" class="source-waveform-meta">Playback region: — (orange)</output>
-                        <div class="source-loop-controls">
-                            <label for="outputGrainSize">Grain size <span id="outputGrainSizeValue">100ms</span></label>
-                            <input type="range" id="outputGrainSize" min="1" max="500" value="100" step="1">
-                            <div class="source-loop-lfo-row"><span>Size</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="outputGrainSize" data-lfo="1">L1</button><button class="inv-toggle" data-param="outputGrainSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="outputGrainSize" data-lfo="2">L2</button><button class="inv-toggle" data-param="outputGrainSize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="outputGrainSize" data-lfo="3">L3</button><button class="inv-toggle" data-param="outputGrainSize" data-lfo="3">INV</button>
-                            </div></div>
-                            <label><input type="checkbox" id="outputSizeIndependent"> Independent size (otherwise global/voice size)</label>
-                            <label for="outputStretch">Speed <span id="outputStretchValue">1x</span></label>
-                            <input type="range" id="outputStretch" min="0.25" max="4" value="1" step="0.01">
-                            <div class="source-loop-lfo-row"><span>Speed</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="outputStretch" data-lfo="1">L1</button><button class="inv-toggle" data-param="outputStretch" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="outputStretch" data-lfo="2">L2</button><button class="inv-toggle" data-param="outputStretch" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="outputStretch" data-lfo="3">L3</button><button class="inv-toggle" data-param="outputStretch" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>Start</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="outputLoopStart" data-lfo="1">L1</button><button class="inv-toggle" data-param="outputLoopStart" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="outputLoopStart" data-lfo="2">L2</button><button class="inv-toggle" data-param="outputLoopStart" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="outputLoopStart" data-lfo="3">L3</button><button class="inv-toggle" data-param="outputLoopStart" data-lfo="3">INV</button>
-                            </div></div>
-                            <div class="source-loop-lfo-row"><span>End</span><div class="button-group">
-                                <button class="lfo-toggle" data-param="outputLoopEnd" data-lfo="1">L1</button><button class="inv-toggle" data-param="outputLoopEnd" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="outputLoopEnd" data-lfo="2">L2</button><button class="inv-toggle" data-param="outputLoopEnd" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="outputLoopEnd" data-lfo="3">L3</button><button class="inv-toggle" data-param="outputLoopEnd" data-lfo="3">INV</button>
-                            </div></div>
-                        </div>
                         <div class="source-seed-buttons">
                             <button id="recordOutputSourcePanelBtn" class="primary" data-idle-text="Record Output to Source">Record Output to Source</button>
                         </div>
@@ -3223,46 +3055,6 @@
 
                 <!-- Grain Tab -->
                 <div class="tab-content active" id="grain-tab">
-                    <div class="control-group highlight">
-                        <div class="source-loop-controls" aria-label="Grain shaping">
-                            <label for="grainEnvelopeShape">Grain envelope</label>
-                            <select id="grainEnvelopeShape"><option value="hann">Hann</option><option value="triangle">Triangle</option><option value="trapezoid">Trapezoid (attack/release)</option><option value="exponential">Exponential</option><option value="reverse-exponential">Reverse exponential</option><option value="gaussian">Gaussian</option></select>
-                            <label for="grainEnvelopeSkew">Envelope skew <span id="grainEnvelopeSkewValue">50%</span></label>
-                            <input type="range" id="grainEnvelopeSkew" min="10" max="90" value="50" step="1">
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainEnvelopeSkew" data-lfo="1">L1</button><button class="inv-toggle" data-param="grainEnvelopeSkew" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainEnvelopeSkew" data-lfo="2">L2</button><button class="inv-toggle" data-param="grainEnvelopeSkew" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainEnvelopeSkew" data-lfo="3">L3</button><button class="inv-toggle" data-param="grainEnvelopeSkew" data-lfo="3">INV</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="source-loop-controls">
-                            <label for="grainReverseProbability">Reverse probability <span id="grainReverseProbabilityValue">0%</span></label>
-                            <input type="range" id="grainReverseProbability" min="0" max="100" value="0" step="1">
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="source-loop-controls">
-                            <label for="grainPitchQuantization">Pitch quantization (relative to source, includes speed)</label>
-                            <select id="grainPitchQuantization"><option value="off">Off</option><option value="chromatic">Chromatic</option><option value="major">Major</option><option value="minor-pentatonic">Minor pentatonic</option><option value="octaves-fifths">Octaves + fifths</option></select>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="source-loop-controls">
-                            <label for="grainStereoPosition">Position-linked pan <span id="grainStereoPositionValue">0%</span></label>
-                            <input type="range" id="grainStereoPosition" min="-100" max="100" value="0" step="1">
-                            <label for="grainStereoScatter">Stereo scatter <span id="grainStereoScatterValue">0%</span></label>
-                            <input type="range" id="grainStereoScatter" min="0" max="100" value="0" step="1">
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="source-loop-controls">
-                            <label><input type="checkbox" id="grainFreeze"> Freeze window and playhead snapshot</label>
-                            <label for="grainTimingJitter">Timing jitter <span id="grainTimingJitterValue">0%</span></label>
-                            <input type="range" id="grainTimingJitter" min="0" max="100" value="0" step="1">
-                        </div>
-                    </div>
                     <div class="control-group highlight">
                         <label>
                             <span class="param-name">Sample Start</span>
@@ -4000,50 +3792,6 @@
 
                 <!-- Utility Tab -->
                 <div class="tab-content" id="utility-tab">
-                    <div class="control-group">
-                        <div class="utility-route-group" role="group" aria-labelledby="utilityLpfCutoffModLabel">
-                            <span class="param-name" id="utilityLpfCutoffModLabel">LP Cutoff Mod</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="1" aria-label="Route LFO1 to low-pass cutoff">L1</button>
-                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="1" aria-label="Invert LFO1 modulation for low-pass cutoff">INV</button>
-                                <button class="lfo-toggle" data-param="lpfCutoff" data-lfo="2" aria-label="Route LFO2 to low-pass cutoff">L2</button>
-                                <button class="inv-toggle" data-param="lpfCutoff" data-lfo="2" aria-label="Invert LFO2 modulation for low-pass cutoff">INV</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="utility-route-group" role="group" aria-labelledby="utilityLpfResonanceModLabel">
-                            <span class="param-name" id="utilityLpfResonanceModLabel">LP Resonance Mod</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="1" aria-label="Route LFO1 to low-pass resonance">L1</button>
-                                <button class="inv-toggle" data-param="lpfQ" data-lfo="1" aria-label="Invert LFO1 modulation for low-pass resonance">INV</button>
-                                <button class="lfo-toggle" data-param="lpfQ" data-lfo="2" aria-label="Route LFO2 to low-pass resonance">L2</button>
-                                <button class="inv-toggle" data-param="lpfQ" data-lfo="2" aria-label="Invert LFO2 modulation for low-pass resonance">INV</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="utility-route-group" role="group" aria-labelledby="utilityHpfCutoffModLabel">
-                            <span class="param-name" id="utilityHpfCutoffModLabel">HP Cutoff Mod</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="1" aria-label="Route LFO1 to high-pass cutoff">L1</button>
-                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="1" aria-label="Invert LFO1 modulation for high-pass cutoff">INV</button>
-                                <button class="lfo-toggle" data-param="hpfCutoff" data-lfo="2" aria-label="Route LFO2 to high-pass cutoff">L2</button>
-                                <button class="inv-toggle" data-param="hpfCutoff" data-lfo="2" aria-label="Invert LFO2 modulation for high-pass cutoff">INV</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="control-group">
-                        <div class="utility-route-group" role="group" aria-labelledby="utilityHpfResonanceModLabel">
-                            <span class="param-name" id="utilityHpfResonanceModLabel">HP Resonance Mod</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="1" aria-label="Route LFO1 to high-pass resonance">L1</button>
-                                <button class="inv-toggle" data-param="hpfQ" data-lfo="1" aria-label="Invert LFO1 modulation for high-pass resonance">INV</button>
-                                <button class="lfo-toggle" data-param="hpfQ" data-lfo="2" aria-label="Route LFO2 to high-pass resonance">L2</button>
-                                <button class="inv-toggle" data-param="hpfQ" data-lfo="2" aria-label="Invert LFO2 modulation for high-pass resonance">INV</button>
-                            </div>
-                        </div>
-                    </div>
                     <div class="control-group">
                         <button id="panicUtilityBtn">All Notes Off</button>
                     </div>
@@ -4998,7 +4746,7 @@
         let lfo3StartTime = 0;
         let lfo3Enabled = {};
         let lfo3Inverted = {};
-        const DISABLED_LOOP_START_LFO_PARAMS = new Set(['sampleStart']);
+        const DISABLED_LOOP_START_LFO_PARAMS = new Set(['sampleStart', 'generatedLoopStart', 'micLoopStart']);
         
         // Oscillator state
         let osc1Config = {
@@ -5362,21 +5110,6 @@
         
         // Parameter ranges for clamping
         const paramRanges = {
-            generatedGrainSize: { min: 1, max: 500 },
-            generatedStretch: { min: 0.25, max: 4 },
-            micGrainSize: { min: 1, max: 500 },
-            micStretch: { min: 0.25, max: 4 },
-            grainAMicGrainSize: { min: 1, max: 500 },
-            grainAMicStretch: { min: 0.25, max: 4 },
-            grainBMicGrainSize: { min: 1, max: 500 },
-            grainBMicStretch: { min: 0.25, max: 4 },
-            outputGrainSize: { min: 1, max: 500 },
-            outputStretch: { min: 0.25, max: 4 },
-            grainEnvelopeSkew: { min: 10, max: 90 },
-            grainReverseProbability: { min: 0, max: 100 },
-            grainStereoPosition: { min: -100, max: 100 },
-            grainStereoScatter: { min: 0, max: 100 },
-            grainTimingJitter: { min: 0, max: 100 },
             sampleStart: { min: 0, max: 100 },
             sampleEnd: { min: 0, max: 100 },
             generatedLoopStart: { min: 0, max: 100 },
@@ -5440,10 +5173,6 @@
         };
 
         const presetToggleParams = [
-            'generatedGrainSize', 'generatedStretch', 'micGrainSize', 'micStretch',
-            'grainAMicGrainSize', 'grainAMicStretch', 'grainBMicGrainSize', 'grainBMicStretch',
-            'outputGrainSize', 'outputStretch', 'grainEnvelopeSkew', 'grainReverseProbability',
-            'grainStereoPosition', 'grainStereoScatter', 'grainTimingJitter',
             'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
@@ -5459,26 +5188,6 @@
             'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
             'lfo3Rate', 'lfo3Depth', 'panSpread'
         ];
-
-        const GRANULAR_SOURCE_KINDS = ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'];
-        GRANULAR_SOURCE_KINDS.forEach((kind) => {
-            ['LoopStart', 'LoopEnd', 'GrainSize', 'Stretch'].forEach((suffix) => {
-                RANDOMIZE_SKIP_SLIDERS.add(kind + suffix);
-                GRANULAR_LFO_MODULATION_SCALES[kind + suffix] = 0.12;
-            });
-        });
-        GRANULAR_LFO_MODULATION_SCALES.grainEnvelopeSkew = 0.18;
-        const grainEnvelopeCache = new Map();
-        const reversedGrainBuffers = new WeakMap();
-        const reversedGrainPreparations = new WeakMap();
-        const reversePreparationQueue = [];
-        let reversePreparationScheduled = false;
-        const frozenGrainSnapshots = new Map();
-        const latestGrainSnapshots = new Map();
-        const effectiveGrainWindows = new Map();
-        const waveformTraceCache = new WeakMap();
-        let lastWaveformModulationDraw = 0;
-        let pendingLayerWindowRandomization = false;
 
         const statusDiv = document.getElementById('status');
         const audioStatusDiv = document.getElementById('audioStatus');
@@ -7059,10 +6768,6 @@
                 if (audioContext && audioContext.state === 'running') {
                     updateFinalFxPlacementLfo();
                     updateEffects();
-                    if (!document.hidden && Date.now() - lastWaveformModulationDraw >= 100) {
-                        lastWaveformModulationDraw = Date.now();
-                        GRANULAR_SOURCE_KINDS.forEach(drawSourceWaveform);
-                    }
                 }
             }, MODULATION_RATE_MS);
         }
@@ -7245,8 +6950,6 @@
             return {
                 kind,
                 buffer,
-                sizeId: kind + 'GrainSize',
-                speedId: kind + 'Stretch',
                 startId: config.startId,
                 endId: config.endId
             };
@@ -7579,9 +7282,10 @@
 
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const { start: offset, end: boundedLoopEnd } = getLoopTimingForBuffer(
-                generatedLoopBuffer, 'generatedLoopStart', 'generatedLoopEnd'
-            );
+            const loopRange = getLoopRange('generatedLoopStart', 'generatedLoopEnd');
+            const offset = generatedLoopBuffer.duration * loopRange.startPct;
+            const loopEnd = Math.max(offset + 0.01, generatedLoopBuffer.duration * loopRange.endPct);
+            const boundedLoopEnd = Math.min(generatedLoopBuffer.duration, loopEnd);
             const now = audioContext.currentTime;
             const safeStartTime = Math.max(now, startTime ?? now);
             generatedDryLoopStartTime = safeStartTime;
@@ -7710,6 +7414,10 @@
             let startPct = Math.max(0, Math.min(100, Number.isFinite(rawStart) ? rawStart : 0)) / 100;
             let endPct = Math.max(0, Math.min(100, Number.isFinite(rawEnd) ? rawEnd : 100)) / 100;
             if (endPct < startPct) [startPct, endPct] = [endPct, startPct];
+            if (Math.abs(endPct - startPct) < 0.01) {
+                endPct = Math.min(1, startPct + 0.01);
+                if (endPct - startPct < 0.01) startPct = Math.max(0, endPct - 0.01);
+            }
             return { startPct, endPct };
         }
 
@@ -7764,7 +7472,6 @@
                     meta.textContent = buffer ? `${buffer.duration.toFixed(2)}s` : 'Empty';
                 }
             });
-            prepareAvailableReversedGrains();
         }
 
         function setSourceBuffer(kind, buffer, sourceLabel) {
@@ -7772,12 +7479,9 @@
             lastSourceWriteAt = Date.now();
             const config = getSourceSlotConfig(kind);
             config.setBuffer(buffer);
-            frozenGrainSnapshots.delete(kind);
-            latestGrainSnapshots.delete(kind);
-            effectiveGrainWindows.delete(kind);
             activeSourceKind = kind;
             syncLegacyAudioBuffer();
-            updateLoopLabels(kind);
+            resetSourceLoopPoints(kind);
             drawWaveforms();
             updateSourceAvailability();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
@@ -7790,7 +7494,7 @@
             const startLabel = document.getElementById(`${config.startId}Value`);
             const endLabel = document.getElementById(`${config.endId}Value`);
             if (startLabel) startLabel.textContent = `${Math.round(Number(start) || 0)}%`;
-            if (endLabel) endLabel.textContent = `${Math.round(Number(end))}%`;
+            if (endLabel) endLabel.textContent = `${Math.round(Number(end) || 100)}%`;
         }
 
         function resetSourceLoopPoints(kind) {
@@ -7820,8 +7524,6 @@
             ctx.fillRect(0, 0, width, height);
 
             updateLoopLabels(kind);
-            const effectiveLabel = document.getElementById(kind + 'EffectiveWindow');
-            if (effectiveLabel) effectiveLabel.textContent = 'Playback region: — (orange)';
 
             if (!buffer) {
                 ctx.fillStyle = 'rgba(255,255,255,0.24)';
@@ -7831,24 +7533,8 @@
                 return;
             }
 
-            let trace = waveformTraceCache.get(buffer);
-            if (!trace || trace.width !== width) {
-                const data = buffer.getChannelData(0);
-                const step = Math.max(1, Math.ceil(data.length / width));
-                const peaks = new Float32Array(width * 2);
-                for (let i = 0; i < width; i++) {
-                    let min = 1;
-                    let max = -1;
-                    for (let j = i * step; j < Math.min(data.length, (i + 1) * step); j++) {
-                        min = Math.min(min, data[j]);
-                        max = Math.max(max, data[j]);
-                    }
-                    peaks[i * 2] = min;
-                    peaks[i * 2 + 1] = max;
-                }
-                trace = { width, peaks };
-                waveformTraceCache.set(buffer, trace);
-            }
+            const data = buffer.getChannelData(0);
+            const step = Math.max(1, Math.ceil(data.length / width));
             const amp = height / 2;
             const color = config.color;
 
@@ -7856,17 +7542,19 @@
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
             for (let i = 0; i < width; i++) {
-                const min = trace.peaks[i * 2];
-                const max = trace.peaks[i * 2 + 1];
+                let min = 1.0;
+                let max = -1.0;
+                for (let j = 0; j < step; j++) {
+                    const val = data[(i * step) + j] || 0;
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
                 ctx.moveTo(i, (1 + min) * amp);
                 ctx.lineTo(i, (1 + max) * amp);
             }
             ctx.stroke();
 
-            const snapshot = document.getElementById('grainFreeze').checked && frozenGrainSnapshots.get(kind);
-            const { startPct, endPct } = snapshot && snapshot.buffer === buffer
-                ? snapshot.loopRange
-                : getLoopRange(config.startId, config.endId, { modulated: true });
+            const { startPct, endPct } = getLoopRange(config.startId, config.endId);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
             ctx.fillRect(0, 0, width * startPct, height);
             ctx.fillRect(width * endPct, 0, width * (1 - endPct), height);
@@ -7877,18 +7565,6 @@
                 ctx.lineTo(width * pct, height);
                 ctx.stroke();
             });
-            const effective = effectiveGrainWindows.get(kind);
-            if (effective && effective.buffer === buffer && audioContext && effective.until >= audioContext.currentTime) {
-                ctx.fillStyle = 'rgba(255, 200, 87, 0.12)';
-                ctx.fillRect(width * effective.startPct, 0, width * (effective.endPct - effective.startPct), height);
-                ctx.strokeStyle = '#ffc857';
-                ctx.strokeRect(width * effective.startPct, 0, width * (effective.endPct - effective.startPct), height);
-                if (effectiveLabel) {
-                    effectiveLabel.textContent = `Playback region: ${(effective.startPct * 100).toFixed(3)}–${(effective.endPct * 100).toFixed(3)}% (orange; recent grains)`;
-                }
-            } else if (effective) {
-                effectiveGrainWindows.delete(kind);
-            }
         }
 
         function handleSourceLoopChange(kind) {
@@ -7934,9 +7610,6 @@
             grainSynthBMicBuffer = null;
             outputSourceBuffer = null;
             recordedChunks = [];
-            frozenGrainSnapshots.clear();
-            latestGrainSnapshots.clear();
-            effectiveGrainWindows.clear();
             drawWaveforms();
             setStatus('Buffer cleared.');
             updateSourceAvailability();
@@ -7964,14 +7637,8 @@
                 const source = audioContext.createBufferSource();
                 const gain = audioContext.createGain();
                 const { startPct, endPct } = getLoopRange(sourceInfo.startId, sourceInfo.endId);
-                const sampleWindow = mygrainUtils.resolveSampleWindow({
-                    bufferDuration: sourceInfo.buffer.duration,
-                    startPct,
-                    endPct,
-                    grainSizeSeconds: Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct))
-                });
-                const offset = sampleWindow.startTime;
-                const duration = sampleWindow.grainSizeSeconds;
+                const offset = sourceInfo.buffer.duration * startPct;
+                const duration = Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct));
                 const fadeSeconds = getFadeSecondsForDuration(duration);
                 const level = sourceGainMap.get(sourceInfo) ?? 0;
 
@@ -7982,8 +7649,7 @@
                 gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
                 source.connect(gain);
                 gain.connect(masterGain);
-                source.start(audioContext.currentTime, offset);
-                source.stop(audioContext.currentTime + duration);
+                source.start(0, offset, duration);
                 source.onended = () => {
                     try {
                         source.disconnect();
@@ -8147,7 +7813,6 @@
 
             syncLegacyAudioBuffer();
             drawWaveforms();
-            prepareAvailableReversedGrains();
             const changed = results.filter((result) => result.changed);
             statusDiv.textContent = changed.length > 0
                 ? `Normalized ${changed.length} source${changed.length === 1 ? '' : 's'}.`
@@ -8215,20 +7880,18 @@
 
         function resolveContinuousLoopPosition(sampleWindow, positionPct, scheduledTime, streamStartTime, playbackRate) {
             const elapsedSeconds = Math.max(0, (scheduledTime ?? audioContext.currentTime) - (streamStartTime ?? scheduledTime ?? audioContext.currentTime));
-            const latestStart = Math.max(sampleWindow.startTime, sampleWindow.endTime - (sampleWindow.sourceDuration || 0));
-            const loopDuration = latestStart - sampleWindow.startTime;
-            if (loopDuration <= 0) return sampleWindow.startTime;
 
             if (typeof mygrainUtils.resolveLoopedPlayPosition === 'function') {
                 return mygrainUtils.resolveLoopedPlayPosition({
                     startTime: sampleWindow.startTime,
-                    endTime: latestStart,
+                    endTime: sampleWindow.endTime,
                     positionPct,
                     elapsedSeconds,
                     playbackRate
                 });
             }
 
+            const loopDuration = Math.max(0.001, sampleWindow.endTime - sampleWindow.startTime);
             const baseOffset = loopDuration * Math.max(0, Math.min(1, positionPct));
             const travelSeconds = elapsedSeconds * Math.max(0.001, Math.abs(playbackRate || 1));
             return sampleWindow.startTime + (((baseOffset + travelSeconds) % loopDuration + loopDuration) % loopDuration);
@@ -8287,209 +7950,6 @@
             const safeValue = Number.isFinite(rawValue) ? rawValue : fallback * 100;
             return Math.max(0, safeValue) / 100;
         }
-
-        function trackEffectiveGrainWindow(kind, buffer, startTime, endTime, until) {
-            const previous = effectiveGrainWindows.get(kind);
-            const overlap = previous && previous.buffer === buffer && previous.until >= audioContext.currentTime;
-            effectiveGrainWindows.set(kind, {
-                buffer,
-                startPct: Math.min(startTime / buffer.duration, overlap ? previous.startPct : 1),
-                endPct: Math.max(endTime / buffer.duration, overlap ? previous.endPct : 0),
-                until: Math.max(until, overlap ? previous.until : 0)
-            });
-        }
-
-        function getCachedGrainEnvelope(duration, attack, release) {
-            const shape = document.getElementById('grainEnvelopeShape').value;
-            const skew = Math.round(getModulatedValue('grainEnvelopeSkew')) / 100;
-            const attackFraction = Math.round(Math.min(1, attack / duration) * 100) / 100;
-            const releaseFraction = Math.round(Math.min(1, release / duration) * 100) / 100;
-            const key = `${shape}:${skew}:${shape === 'trapezoid' ? `${attackFraction}:${releaseFraction}` : ''}`;
-            if (!grainEnvelopeCache.has(key)) {
-                if (grainEnvelopeCache.size >= 128) grainEnvelopeCache.delete(grainEnvelopeCache.keys().next().value);
-                grainEnvelopeCache.set(key, mygrainUtils.createGrainEnvelopeCurve(shape, skew, 128, attackFraction, releaseFraction));
-            }
-            return grainEnvelopeCache.get(key);
-        }
-
-        function applyGrainEnvelope(gain, duration, attack, release, now) {
-            const shortDuration = Math.max(0.002, 4 / (audioContext.sampleRate || 48000));
-            if (duration <= shortDuration) {
-                const peak = Math.max(0.1, Math.min(0.9, getModulatedValue('grainEnvelopeSkew') / 100));
-                gain.setValueAtTime(0, now);
-                gain.linearRampToValueAtTime(1, now + duration * peak);
-                gain.linearRampToValueAtTime(0, now + duration);
-            } else {
-                gain.setValueCurveAtTime(getCachedGrainEnvelope(duration, attack, release), now, duration);
-            }
-        }
-
-        function scheduleReversePreparationWork() {
-            if (reversePreparationScheduled || reversePreparationQueue.length === 0) return;
-            reversePreparationScheduled = true;
-            const runChunk = () => {
-                reversePreparationScheduled = false;
-                reversePreparationQueue.shift()();
-                scheduleReversePreparationWork();
-            };
-            if (typeof requestIdleCallback === 'function') {
-                requestIdleCallback(runChunk, { timeout: 25 });
-            } else {
-                setTimeout(runChunk, 0);
-            }
-        }
-
-        function prepareReversedGrainBuffer(buffer) {
-            if (!buffer || !audioContext) return Promise.resolve(null);
-            if (reversedGrainBuffers.has(buffer)) return Promise.resolve(reversedGrainBuffers.get(buffer));
-            if (reversedGrainPreparations.has(buffer)) return reversedGrainPreparations.get(buffer);
-            const context = audioContext;
-            const promise = new Promise((resolve) => {
-                let reversed = null;
-                let scratch = null;
-                let channel = 0;
-                let position = 0;
-                const enqueue = () => {
-                    reversePreparationQueue.push(fillChunk);
-                    scheduleReversePreparationWork();
-                };
-                const fillChunk = () => {
-                    const active = [...GRANULAR_SOURCE_KINDS, 'legacy'].some((kind) => getSourceBuffer(kind) === buffer);
-                    if (audioContext !== context || !active) {
-                        reversedGrainPreparations.delete(buffer);
-                        resolve(null);
-                        return;
-                    }
-                    try {
-                        if (!reversed) {
-                            reversed = context.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-                            scratch = new Float32Array(Math.min(65536, buffer.length));
-                        }
-                        const count = Math.min(scratch.length, buffer.length - position);
-                        const chunk = scratch.subarray(0, count);
-                        const readPosition = buffer.length - position - count;
-                        if (typeof buffer.copyFromChannel === 'function' && typeof reversed.copyToChannel === 'function') {
-                            buffer.copyFromChannel(chunk, channel, readPosition);
-                            chunk.reverse();
-                            reversed.copyToChannel(chunk, channel, position);
-                        } else {
-                            const input = buffer.getChannelData(channel);
-                            const output = reversed.getChannelData(channel);
-                            for (let index = 0; index < count; index++) output[position + index] = input[buffer.length - position - index - 1];
-                        }
-                        position += count;
-                        if (position >= buffer.length) {
-                            channel++;
-                            position = 0;
-                        }
-                        if (channel >= buffer.numberOfChannels) {
-                            reversedGrainBuffers.set(buffer, reversed);
-                            reversedGrainPreparations.delete(buffer);
-                            resolve(reversed);
-                        } else {
-                            enqueue();
-                        }
-                    } catch (error) {
-                        console.warn('Reverse buffer preparation failed; using forward grains.', error);
-                        resolve(null);
-                    }
-                };
-                enqueue();
-            });
-            reversedGrainPreparations.set(buffer, promise);
-            return promise;
-        }
-
-        function prepareAvailableReversedGrains() {
-            const enabled = Number(document.getElementById('grainReverseProbability')?.value) > 0 ||
-                lfoEnabled.grainReverseProbability || lfo2Enabled.grainReverseProbability || lfo3Enabled.grainReverseProbability;
-            if (enabled) {
-                [...GRANULAR_SOURCE_KINDS, 'legacy'].forEach((kind) => {
-                    const buffer = getSourceBuffer(kind);
-                    if (buffer) prepareReversedGrainBuffer(buffer);
-                });
-            }
-        }
-
-        function getReversedGrainBuffer(buffer) {
-            const reversed = reversedGrainBuffers.get(buffer);
-            if (!reversed) {
-                prepareReversedGrainBuffer(buffer);
-            }
-            return reversed || null;
-        }
-        document.getElementById('grainReverseProbability').addEventListener('input', prepareAvailableReversedGrains);
-
-        function quantizeGrainPlaybackRate(rate) {
-            const mode = document.getElementById('grainPitchQuantization').value;
-            const scales = {
-                chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                major: [0, 2, 4, 5, 7, 9, 11],
-                'minor-pentatonic': [0, 3, 5, 7, 10],
-                'octaves-fifths': [0, 7]
-            };
-            if (!scales[mode]) return rate;
-            const semitones = 12 * Math.log2(rate);
-            const octave = Math.floor(semitones / 12);
-            let nearest = 0;
-            let distance = Infinity;
-            for (let shift = octave - 1; shift <= octave + 1; shift++) {
-                scales[mode].forEach((interval) => {
-                    const candidate = shift * 12 + interval;
-                    if (Math.abs(candidate - semitones) < distance) {
-                        nearest = candidate;
-                        distance = Math.abs(candidate - semitones);
-                    }
-                });
-            }
-            return Math.pow(2, nearest / 12);
-        }
-
-        function syncGrainFreeze() {
-            frozenGrainSnapshots.clear();
-            if (document.getElementById('grainFreeze').checked) {
-                latestGrainSnapshots.forEach((snapshot, kind) => {
-                    if (snapshot.buffer !== getSourceBuffer(kind)) return;
-                    if (!snapshot.continuousLoop || !audioContext) {
-                        frozenGrainSnapshots.set(kind, snapshot);
-                        return;
-                    }
-                    const loopRange = getLoopRange(snapshot.startId, snapshot.endId, { modulated: true });
-                    const sampleWindow = mygrainUtils.resolveSampleWindow({
-                        bufferDuration: snapshot.buffer.duration,
-                        startPct: loopRange.startPct,
-                        endPct: loopRange.endPct,
-                        grainSizeSeconds: snapshot.grainSizeSeconds,
-                        playbackRate: snapshot.playbackRate,
-                        positionPct: snapshot.positionPct
-                    });
-                    const currentPosition = resolveContinuousLoopPosition(sampleWindow, snapshot.positionPct,
-                        audioContext.currentTime, snapshot.streamStartTime, snapshot.playbackRate);
-                    frozenGrainSnapshots.set(kind, {
-                        ...snapshot,
-                        loopRange: {
-                            startPct: sampleWindow.startTime / snapshot.buffer.duration,
-                            endPct: sampleWindow.endTime / snapshot.buffer.duration
-                        },
-                        playPosition: Math.max(sampleWindow.startTime,
-                            Math.min(sampleWindow.endTime - sampleWindow.sourceDuration, currentPosition))
-                    });
-                });
-            }
-        }
-        document.getElementById('grainFreeze').addEventListener('change', syncGrainFreeze);
-        GRANULAR_SOURCE_KINDS.forEach((kind) => {
-            document.getElementById(kind + 'GrainSize').addEventListener('input', () => {
-                document.getElementById(kind + 'SizeIndependent').checked = true;
-            });
-            document.getElementById(kind + 'SizeIndependent').addEventListener('change', () => {
-                if (!document.getElementById(kind + 'SizeIndependent').checked) {
-                    clearModulationForParam(kind + 'GrainSize');
-                }
-                saveState();
-            });
-        });
-        document.getElementById('grainFreeze').addEventListener('change', saveState);
 
         function playGrain(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
@@ -8658,120 +8118,58 @@
             const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
 
             const posSlider = getModulatedValue('position') / 100;
-            let continuousStreamActive = false;
-            for (const grainInfo of activeGrains.values()) {
-                if (grainInfo.continuousLoop) {
-                    continuousStreamActive = true;
-                    break;
-                }
-            }
             const scheduleSourceVoice = (sourceInfo, voice) => {
                 if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
-                const independent = document.getElementById(sourceInfo.kind + 'SizeIndependent')?.checked;
-                const sizeSeconds = independent ? getModulatedValue(sourceInfo.sizeId) / 1000 : voice.sizeSeconds;
-                const speed = sourceInfo.speedId ? getModulatedValue(sourceInfo.speedId) : 1;
-                const playbackRate = Math.max(0.001, Math.min(512, quantizeGrainPlaybackRate(voice.rate * speed)));
-                const freeze = document.getElementById('grainFreeze').checked;
-                let snapshot = freeze && frozenGrainSnapshots.get(sourceInfo.kind);
-                if (snapshot && snapshot.buffer !== sourceInfo.buffer) snapshot = null;
-                const loopRange = snapshot ? snapshot.loopRange : getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
+                    const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
                 const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
                     ? mygrainUtils.resolveSampleWindow({
                         bufferDuration: sourceInfo.buffer.duration,
                         startPct: loopRange.startPct,
                         endPct: loopRange.endPct,
                         positionPct: voice.positionPct,
-                        grainSizeSeconds: sizeSeconds,
-                        playbackRate,
-                        sprayAmount: freeze ? 0 : voice.sprayAmount,
+                        grainSizeSeconds: voice.sizeSeconds,
+                        sprayAmount: voice.sprayAmount,
                         randomValue: Math.random() * 2 - 1
                     })
                     : {
                         playPosition: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
                         grainSizeSeconds: voice.sizeSeconds,
-                        sourceDuration: voice.sizeSeconds * playbackRate,
                         startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
                         endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
                     };
-                if (snapshot) {
-                    // Freeze must not move the captured window/playhead when size or pitch changes.
-                    sampleWindow.startTime = sourceInfo.buffer.duration * loopRange.startPct;
-                    sampleWindow.endTime = sourceInfo.buffer.duration * loopRange.endPct;
-                    sampleWindow.grainSizeSeconds = Math.min(sizeSeconds,
-                        Math.max(0, sampleWindow.endTime - snapshot.playPosition) / playbackRate);
-                    sampleWindow.sourceDuration = sampleWindow.grainSizeSeconds * playbackRate;
-                    sampleWindow.playPosition = snapshot.playPosition;
-                }
-                if (sampleWindow.grainSizeSeconds <= 0) return;
                 maxEnvelopeGrainSize = Math.max(maxEnvelopeGrainSize, sampleWindow.grainSizeSeconds);
 
                 const source = audioContext.createBufferSource();
                 const sampleGain = audioContext.createGain();
-                const voiceEnvelope = audioContext.createGain();
-                const voicePanner = audioContext.createStereoPanner();
-                const proposedPosition = snapshot ? snapshot.playPosition : options.continuousLoop
-                    ? resolveContinuousLoopPosition(sampleWindow, voice.positionPct,
-                        freeze ? audioContext.currentTime : now, options.streamStartTime, playbackRate)
+                const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
+                const playPosition = options.continuousLoop
+                    ? resolveContinuousLoopPosition(sampleWindow, voice.positionPct, now, options.streamStartTime, voice.rate)
                     : sampleWindow.playPosition;
-                const playPosition = Math.max(sampleWindow.startTime, Math.min(sampleWindow.endTime - sampleWindow.sourceDuration, proposedPosition));
-                const nextSnapshot = {
-                    buffer: sourceInfo.buffer,
-                    loopRange: {
-                        startPct: sampleWindow.startTime / sourceInfo.buffer.duration,
-                        endPct: sampleWindow.endTime / sourceInfo.buffer.duration
-                    },
-                    playPosition,
-                    continuousLoop: Boolean(options.continuousLoop),
-                    positionPct: voice.positionPct,
-                    streamStartTime: options.streamStartTime ?? now,
-                    playbackRate,
-                    grainSizeSeconds: sampleWindow.grainSizeSeconds,
-                    startId: sourceInfo.startId,
-                    endId: sourceInfo.endId
-                };
-                const previousSnapshot = latestGrainSnapshots.get(sourceInfo.kind);
-                if (options.continuousLoop || !continuousStreamActive || !previousSnapshot?.continuousLoop) {
-                    latestGrainSnapshots.set(sourceInfo.kind, nextSnapshot);
-                }
-                if (freeze && !snapshot) frozenGrainSnapshots.set(sourceInfo.kind, nextSnapshot);
-                const reverseRequested = Math.random() * 100 < getModulatedValue('grainReverseProbability');
-                // A cold cache plays forward while idle preparation runs, never copying audio in the scheduler.
-                const reversedBuffer = reverseRequested ? getReversedGrainBuffer(sourceInfo.buffer) : null;
-                const reverse = Boolean(reversedBuffer);
-                source.buffer = reversedBuffer || sourceInfo.buffer;
-                source.playbackRate.value = playbackRate;
-                source.loop = false;
-                const offset = reverse ? Math.max(0, sourceInfo.buffer.duration - playPosition - sampleWindow.sourceDuration) : playPosition;
+                source.buffer = sourceInfo.buffer;
+                source.playbackRate.value = voice.rate;
+                source.loop = true;
+                source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
+                source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
                 sampleGain.gain.value = voice.gain;
 
                 source.connect(sampleGain);
-                sampleGain.connect(voiceEnvelope);
-                applyGrainEnvelope(voiceEnvelope.gain, sampleWindow.grainSizeSeconds, attack, release, now);
                 if (voicePanner) {
-                    const regionDuration = sampleWindow.endTime - sampleWindow.startTime;
-                    const normalizedPlaybackPosition = regionDuration > 0
-                        ? (playPosition - sampleWindow.startTime) / regionDuration : 0.5;
-                    const linkedPan = (normalizedPlaybackPosition * 2 - 1) * getModulatedValue('grainStereoPosition') / 100;
-                    voicePanner.pan.value = Math.max(-1, Math.min(1, voice.pan + linkedPan +
-                        (Math.random() * 2 - 1) * getModulatedValue('grainStereoScatter') / 100));
-                    voiceEnvelope.connect(voicePanner);
+                    voicePanner.pan.value = voice.pan;
+                    sampleGain.connect(voicePanner);
                     voicePanner.connect(mixer);
                 } else {
-                    voiceEnvelope.connect(mixer);
+                    sampleGain.connect(mixer);
                 }
                 sourcesRemaining++;
 
-                const totalDuration = sampleWindow.grainSizeSeconds;
-                source.start(now, offset);
+                const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
+                source.start(now, playPosition);
                 source.stop(now + totalDuration);
-                trackEffectiveGrainWindow(sourceInfo.kind, sourceInfo.buffer,
-                    sampleWindow.startTime, sampleWindow.endTime, now + totalDuration);
 
                 source.onended = () => {
                     try {
                         source.disconnect();
                         sampleGain.disconnect();
-                        voiceEnvelope.disconnect();
                         if (voicePanner) voicePanner.disconnect();
                     } catch(e) {
                         // Node may already be disconnected
@@ -8824,17 +8222,14 @@
                 noiseSource.loop = true;
 
                 noiseGain = audioContext.createGain();
-                applyGrainEnvelope(noiseGain.gain, grainSize, attack, release, now);
-                const noiseLevel = audioContext.createGain();
-                noiseLevel.gain.value = noiseMix;
+                noiseGain.gain.value = noiseMix;
 
                 noiseSource.connect(noiseGain);
-                noiseGain.connect(noiseLevel);
-                noiseLevel.connect(mixer);
+                noiseGain.connect(mixer);
                 
                 sourcesRemaining++; // Track this source
 
-                const totalDuration = grainSize;
+                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
                 noiseSource.start(now);
                 noiseSource.stop(now + totalDuration);
                 
@@ -8843,7 +8238,6 @@
                     try {
                         noiseSource.disconnect();
                         noiseGain.disconnect();
-                        noiseLevel.disconnect();
                     } catch(e) {
                         // Node may already be disconnected
                     }
@@ -8874,10 +8268,13 @@
                 return;
             }
 
+            envelope.gain.setValueAtTime(0, now);
             const grainAmpMultiplier = volumeMultiplier * grainMixerAmp;
-            envelope.gain.setValueAtTime(grainAmpMultiplier, now);
+            envelope.gain.linearRampToValueAtTime(grainAmpMultiplier, now + attack);
+            envelope.gain.setValueAtTime(grainAmpMultiplier, now + attack + sustainTime);
+            envelope.gain.linearRampToValueAtTime(0, now + attack + sustainTime + release);
             
-            const totalDuration = maxEnvelopeGrainSize;
+            const totalDuration = attack + sustainTime + release;
             
             // If no sources were created at all, clean up immediately after envelope
             if (sourcesRemaining === 0) {
@@ -9046,8 +8443,7 @@
                         console.error('Error playing grain:', e);
                         break;
                     }
-                    const jitter = getModulatedValue('grainTimingJitter') / 100;
-                    grainInfo.nextTime += Math.max(0.001, intervalSeconds * (1 + (Math.random() * 2 - 1) * jitter * 0.9));
+                    grainInfo.nextTime += intervalSeconds;
                 }
             });
 
@@ -9736,8 +9132,7 @@
                         } else if (e.target.id === 'performanceClickGuard') {
                             labelSpan.textContent = `${Math.round(Number(e.target.value) || 0)}ms`;
                             return;
-                        } else if (e.target.id.endsWith('Stretch')) suffix = 'x';
-                        else if (e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay') suffix = '%';
+                        } else if (e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay') suffix = '%';
                         else if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
                         else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff' || e.target.id === 'finalReverbLowpass') suffix = 'Hz';
@@ -9912,20 +9307,36 @@
 
         // --- LFO Toggle Listeners ---
         document.querySelectorAll('.lfo-toggle').forEach(btn => {
-            btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
             btn.addEventListener('click', () => {
                 const param = btn.dataset.param;
                 const lfoNum = btn.dataset.lfo;
-                setLfoRouteState(param, lfoNum, !btn.classList.contains('active'));
+                
+                if (lfoNum === '1') {
+                    lfoEnabled[param] = !lfoEnabled[param];
+                } else if (lfoNum === '2') {
+                    lfo2Enabled[param] = !lfo2Enabled[param];
+                } else if (lfoNum === '3') {
+                    lfo3Enabled[param] = !lfo3Enabled[param];
+                }
+                
+                btn.classList.toggle('active');
             });
         });
 
         document.querySelectorAll('.inv-toggle').forEach(btn => {
-            btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
             btn.addEventListener('click', () => {
                 const param = btn.dataset.param;
                 const lfoNum = btn.dataset.lfo;
-                setLfoInvertState(param, lfoNum, !btn.classList.contains('active'));
+                
+                if (lfoNum === '1') {
+                    lfoInverted[param] = !lfoInverted[param];
+                } else if (lfoNum === '2') {
+                    lfo2Inverted[param] = !lfo2Inverted[param];
+                } else if (lfoNum === '3') {
+                    lfo3Inverted[param] = !lfo3Inverted[param];
+                }
+                
+                btn.classList.toggle('active');
             });
         });
 
@@ -10915,24 +10326,21 @@
         function setLfoRouteState(param, lfoNum, enabled) {
             const map = lfoNum === '1' ? lfoEnabled : (lfoNum === '2' ? lfo2Enabled : lfo3Enabled);
             map[param] = Boolean(enabled);
-            document.querySelectorAll(`.lfo-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`).forEach((button) => {
+            const button = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`);
+            if (button) {
                 button.classList.toggle('active', Boolean(enabled));
                 button.setAttribute('aria-pressed', String(Boolean(enabled)));
-            });
-            if (enabled && param.endsWith('GrainSize')) {
-                const kind = GRANULAR_SOURCE_KINDS.find((kind) => param === kind + 'GrainSize');
-                if (kind) document.getElementById(kind + 'SizeIndependent').checked = true;
             }
-            if (enabled && param === 'grainReverseProbability') prepareAvailableReversedGrains();
         }
 
         function setLfoInvertState(param, lfoNum, enabled) {
             const map = lfoNum === '1' ? lfoInverted : (lfoNum === '2' ? lfo2Inverted : lfo3Inverted);
             map[param] = Boolean(enabled);
-            document.querySelectorAll(`.inv-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`).forEach((button) => {
+            const button = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="${lfoNum}"]`);
+            if (button) {
                 button.classList.toggle('active', Boolean(enabled));
                 button.setAttribute('aria-pressed', String(Boolean(enabled)));
-            });
+            }
         }
 
         function getRandomizableLfoTargetParams() {
@@ -11185,10 +10593,6 @@
                 stopGeneratedDryLoop();
             }
             await generateRandomSourceSample({ profile: options.profile, blueprint: options.blueprint, sourceBlueprint: options.sourceBlueprint });
-            if (pendingLayerWindowRandomization) {
-                pendingLayerWindowRandomization = false;
-                randomizeLayerWindows();
-            }
             if (options.refreshSequencerPattern) {
                 generateInterestingLoop({ profile: options.profile, blueprint: options.blueprint });
             }
@@ -12238,22 +11642,6 @@
         });
 
         // Randomize Button
-        function randomizeLayerWindows() {
-            GRANULAR_SOURCE_KINDS.forEach((kind) => {
-                const config = getSourceSlotConfig(kind);
-                const window = mygrainUtils.randomizeLayerWindow(Math.random, config.buffer()?.duration);
-                [[config.startId, window.startPct], [config.endId, window.endPct], [kind + 'GrainSize', window.grainSizeMs]].forEach(([id, value]) => {
-                    const slider = document.getElementById(id);
-                    slider.value = value;
-                    slider.dispatchEvent(new Event('input'));
-                });
-                document.getElementById(kind + 'SizeIndependent').checked = true;
-                drawSourceWaveform(kind);
-            });
-            latestGrainSnapshots.clear();
-            syncGrainFreeze();
-        }
-
         document.getElementById('randomizeBtn').addEventListener('click', async () => {
             showSettlePopup();
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile() });
@@ -12301,8 +11689,6 @@
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
-                randomizeLayerWindows();
-                pendingLayerWindowRandomization = true;
                 const heldKeyLabel = holdRandomKeyboardKeyForRandomize();
                 showSettlePopup('effects on, distortion off');
                 statusDiv.textContent = `Full patch randomized at ${randomizeState.bpm} BPM${heldKeyLabel ? ` with ${heldKeyLabel}` : ''}; start MYGRAIN to generate the random sample and start the loop.`;
@@ -12317,7 +11703,6 @@
                     blueprint: loopBlueprint,
                     sourceBlueprint
                 });
-                randomizeLayerWindows();
                 if (!sequencerPlaying) {
                     startSequencer();
                 }
@@ -12436,7 +11821,6 @@
                     slider.dispatchEvent(new Event('input'));
                 }
             });
-            resetGrainControls();
 
             setFilterEnabled('lpf', true);
             setFilterEnabled('hpf', true);
@@ -12528,54 +11912,9 @@
         document.getElementById('toggleDebugBtn').addEventListener('click', toggleDebugPanel);
 
         // Helper function to gather all preset data
-        function gatherGrainControls() {
-            return {
-                envelope: document.getElementById('grainEnvelopeShape').value,
-                quantization: document.getElementById('grainPitchQuantization').value,
-                freeze: document.getElementById('grainFreeze').checked,
-                independentSizes: Object.fromEntries(GRANULAR_SOURCE_KINDS.map((kind) =>
-                    [kind, document.getElementById(kind + 'SizeIndependent').checked]))
-            };
-        }
-
-        function applyGrainControls(raw) {
-            const controls = raw && typeof raw === 'object' ? raw : {};
-            const shapes = ['hann', 'triangle', 'trapezoid', 'exponential', 'reverse-exponential', 'gaussian'];
-            const scales = ['off', 'chromatic', 'major', 'minor-pentatonic', 'octaves-fifths'];
-            document.getElementById('grainEnvelopeShape').value = shapes.includes(controls.envelope) ? controls.envelope : 'hann';
-            document.getElementById('grainPitchQuantization').value = scales.includes(controls.quantization) ? controls.quantization : 'off';
-            GRANULAR_SOURCE_KINDS.forEach((kind) => {
-                document.getElementById(kind + 'SizeIndependent').checked = controls.independentSizes?.[kind] === true;
-                if (!document.getElementById(kind + 'SizeIndependent').checked) {
-                    clearModulationForParam(kind + 'GrainSize');
-                }
-            });
-            document.getElementById('grainFreeze').checked = controls.freeze === true;
-            latestGrainSnapshots.clear();
-            syncGrainFreeze();
-            pendingLayerWindowRandomization = false;
-        }
-
-        function resetGrainControls() {
-            GRANULAR_SOURCE_KINDS.forEach((kind) => {
-                ['GrainSize', 'Stretch', 'LoopStart', 'LoopEnd'].forEach((suffix) => {
-                    const slider = document.getElementById(kind + suffix);
-                    slider.value = slider.defaultValue;
-                    slider.dispatchEvent(new Event('input'));
-                });
-            });
-            ['grainEnvelopeSkew', 'grainReverseProbability', 'grainStereoPosition', 'grainStereoScatter', 'grainTimingJitter'].forEach((id) => {
-                const slider = document.getElementById(id);
-                slider.value = slider.defaultValue;
-                slider.dispatchEvent(new Event('input'));
-            });
-            applyGrainControls(null);
-        }
-
         function gatherPreset() {
             const preset = {
                 version: '3.1',
-                grainControls: gatherGrainControls(),
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 sequencerBpm: document.getElementById('seqBpm')?.value ?? String(sequencerBPM),
@@ -12759,16 +12098,6 @@
             }
             
             // Apply LFO enabled states
-            const grainRouteParams = [
-                ...GRANULAR_SOURCE_KINDS.flatMap((kind) => ['GrainSize', 'Stretch', 'LoopStart', 'LoopEnd'].map((suffix) => kind + suffix)),
-                'grainEnvelopeSkew', 'grainReverseProbability', 'grainStereoPosition', 'grainStereoScatter', 'grainTimingJitter'
-            ];
-            grainRouteParams.forEach((param) => {
-                [['1', safePreset.lfo], ['2', safePreset.lfo2], ['3', safePreset.lfo3]].forEach(([lfoNum, state]) => {
-                    setLfoRouteState(param, lfoNum, state?.enabled?.[param] === true);
-                    setLfoInvertState(param, lfoNum, state?.inverted?.[param] === true);
-                });
-            });
             if (safePreset.lfo && safePreset.lfo.enabled) {
                 Object.keys(safePreset.lfo.enabled).forEach(param => {
                     const shouldBeEnabled = safePreset.lfo.enabled[param];
@@ -12847,7 +12176,6 @@
             }
             
             // Apply octave offset
-            applyGrainControls(preset.grainControls);
             if (safePreset.octave !== undefined) {
                 octaveOffset = safePreset.octave;
                 updateOctaveDisplay();
@@ -13127,7 +12455,6 @@
         function saveState() {
             const state = {
                 version: '1.2',
-                grainControls: gatherGrainControls(),
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 sequencerBpm: document.getElementById('seqBpm')?.value ?? String(sequencerBPM),
@@ -13255,7 +12582,6 @@
                         }
                     });
                 }
-                applyGrainControls(state.grainControls);
 
                 enforceBpmOnlyLfoMode();
 
@@ -13505,13 +12831,9 @@
 
         function getLoopTimingForBuffer(buffer, startId, endId) {
             const loopRange = getLoopRange(startId, endId);
-            const window = mygrainUtils.resolveSampleWindow({
-                bufferDuration: buffer.duration,
-                startPct: loopRange.startPct,
-                endPct: loopRange.endPct,
-                grainSizeSeconds: 0.01
-            });
-            return { start: window.startTime, end: window.endTime };
+            const start = Math.max(0, buffer.duration * loopRange.startPct);
+            const end = Math.min(buffer.duration, Math.max(start + 0.01, buffer.duration * loopRange.endPct));
+            return { start, end };
         }
 
         function scheduleOfflineLoopSource(ctx, destination, sourceBuffer, startId, endId, gainValue, durationSeconds) {

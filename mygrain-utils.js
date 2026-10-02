@@ -123,12 +123,7 @@
         const bufferDuration = clampNumber(options.bufferDuration, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
         const startPct = clampNumber(options.startPct, { min: 0, max: 1, fallback: 0 });
         const endPct = clampNumber(options.endPct, { min: 0, max: 1, fallback: 1 });
-        const playbackRate = clampNumber(Math.abs(Number(options.playbackRate ?? 1)), { min: 0.001, max: 512, fallback: 1 });
-        const grainSizeSeconds = Math.min(
-            clampNumber(options.grainSizeSeconds, { min: 0.001, max: 60, fallback: 0.1 }),
-            bufferDuration / playbackRate
-        );
-        const sourceDuration = grainSizeSeconds * playbackRate;
+        const grainSizeSeconds = clampNumber(options.grainSizeSeconds, { min: 0.001, max: Math.max(bufferDuration, 0.001), fallback: 0.1 });
         const positionPct = clampNumber(options.positionPct, { min: 0, max: 1, fallback: 0 });
         const sprayAmount = clampNumber(options.sprayAmount, { min: 0, max: 1, fallback: 0 });
         const randomValue = clampNumber(options.randomValue, { min: -1, max: 1, fallback: 0 });
@@ -139,17 +134,17 @@
         let startTime = bufferDuration * boundedStartPct;
         let endTime = bufferDuration * boundedEndPct;
 
-        if (endTime - startTime < sourceDuration) {
+        if (endTime - startTime < grainSizeSeconds) {
             const midpoint = (startTime + endTime) / 2;
-            const halfSize = sourceDuration / 2;
+            const halfSize = grainSizeSeconds / 2;
             startTime = Math.max(0, midpoint - halfSize);
-            endTime = Math.min(bufferDuration, startTime + sourceDuration);
-            startTime = Math.max(0, endTime - sourceDuration);
+            endTime = Math.min(bufferDuration, startTime + grainSizeSeconds);
+            startTime = Math.max(0, endTime - grainSizeSeconds);
         }
 
-        const usableDuration = Math.max(0, endTime - startTime);
+        const usableDuration = Math.max(0.001, endTime - startTime);
         const sprayOffset = randomValue * usableDuration * 0.5 * sprayAmount;
-        const maxPlayPosition = Math.max(startTime, endTime - sourceDuration);
+        const maxPlayPosition = Math.max(startTime, endTime - grainSizeSeconds);
         const rawPlayPosition = startTime + usableDuration * positionPct + sprayOffset;
         const playPosition = clampNumber(rawPlayPosition, {
             min: startTime,
@@ -162,86 +157,26 @@
             endTime,
             usableDuration,
             playPosition,
-            grainSizeSeconds,
-            sourceDuration,
-            playbackRate
+            grainSizeSeconds: Math.min(grainSizeSeconds, Math.max(0.001, bufferDuration || grainSizeSeconds))
         };
-    }
-
-    function randomizeLayerWindow(random = Math.random, bufferDuration = Infinity) {
-        const nextRandom = typeof random === 'function' ? random : Math.random;
-        const startPct = Math.floor(nextRandom() * 71);
-        const windowPct = 10 + Math.floor(nextRandom() * 51);
-        const endPct = Math.min(100, startPct + windowPct);
-        const rawSizeMs = 20 * Math.pow(400 / 20, nextRandom());
-        const duration = Number(bufferDuration);
-        const maxSizeMs = Number.isFinite(duration) && duration > 0
-            ? Math.max(1, duration * ((endPct - startPct) / 100) * 1000)
-            : 400;
-
-        return {
-            startPct,
-            endPct,
-            grainSizeMs: Math.max(1, Math.min(400, maxSizeMs, Math.max(20, Math.round(rawSizeMs))))
-        };
-    }
-
-    function createGrainEnvelopeCurve(shape = 'hann', skew = 0.5, sampleCount = 128, attackFraction = 0.1, releaseFraction = 0.1) {
-        const validShapes = new Set(['hann', 'triangle', 'trapezoid', 'exponential', 'reverse-exponential', 'gaussian']);
-        const selectedShape = validShapes.has(shape) ? shape : 'hann';
-        const count = Math.max(8, Math.min(2048, Math.floor(Number(sampleCount) || 128)));
-        const peak = clampNumber(skew, { min: 0.1, max: 0.9, fallback: 0.5 });
-        const curve = new Float32Array(count);
-        let attack = clampNumber(attackFraction, { min: 0.001, max: 1, fallback: 0.1 });
-        let release = clampNumber(releaseFraction, { min: 0.001, max: 1, fallback: 0.1 });
-        const rampScale = Math.max(1, attack + release);
-        attack /= rampScale;
-        release /= rampScale;
-
-        for (let index = 0; index < count; index += 1) {
-            const phase = index / (count - 1);
-            const shapedPhase = phase <= peak ? phase / peak : (1 - phase) / (1 - peak);
-            let value;
-            if (selectedShape === 'triangle') {
-                value = Math.max(0, shapedPhase);
-            } else if (selectedShape === 'trapezoid') {
-                value = Math.min(1, phase / attack, (1 - phase) / release);
-            } else if (selectedShape === 'exponential') {
-                const warpedPhase = phase <= peak ? phase * 0.5 / peak : 0.5 + (phase - peak) * 0.5 / (1 - peak);
-                value = Math.exp(-5 * warpedPhase) * Math.min(1, phase * 32, (1 - phase) * 32);
-            } else if (selectedShape === 'reverse-exponential') {
-                const warpedPhase = phase <= peak ? phase * 0.5 / peak : 0.5 + (phase - peak) * 0.5 / (1 - peak);
-                value = Math.exp(-5 * (1 - warpedPhase)) * Math.min(1, phase * 32, (1 - phase) * 32);
-            } else if (selectedShape === 'gaussian') {
-                const floor = Math.exp(-4.5);
-                value = (Math.exp(-4.5 * Math.pow(1 - shapedPhase, 2)) - floor) / (1 - floor);
-            } else {
-                value = 0.5 - (0.5 * Math.cos(Math.PI * shapedPhase));
-            }
-            curve[index] = Math.max(0, Math.min(1, value));
-        }
-
-        curve[0] = 0;
-        curve[count - 1] = 0;
-        return curve;
     }
 
     function resolveLoopedPlayPosition(options = {}) {
         const startTime = clampNumber(options.startTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
         const rawEndTime = clampNumber(options.endTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: startTime + 0.001 });
-        const endTime = Math.max(startTime, rawEndTime);
+        const endTime = Math.max(startTime + 0.001, rawEndTime);
         const positionPct = clampNumber(options.positionPct, { min: 0, max: 1, fallback: 0 });
         const elapsedSeconds = clampNumber(options.elapsedSeconds, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
         const playbackRate = Math.max(0.001, Math.abs(clampNumber(options.playbackRate, { min: -128, max: 128, fallback: 1 })));
-        const loopDuration = endTime - startTime;
-        if (loopDuration <= 0) return startTime;
+        const loopDuration = Math.max(0.001, endTime - startTime);
         const baseOffset = loopDuration * positionPct;
         const travelSeconds = elapsedSeconds * playbackRate;
         const wrappedOffset = ((baseOffset + travelSeconds) % loopDuration + loopDuration) % loopDuration;
+        const epsilon = Math.min(0.001, loopDuration * 0.1);
 
         return clampNumber(startTime + wrappedOffset, {
             min: startTime,
-            max: endTime,
+            max: Math.max(startTime, endTime - epsilon),
             fallback: startTime
         });
     }
@@ -967,13 +902,11 @@
         buildDrumSoundPalette,
         buildKeyboardGeometry,
         clampNumber,
-        createGrainEnvelopeCurve,
         createSeededRandom,
         generateDrumLoopBlueprint,
         generateRhythmicStepBlueprint,
         pickWeighted,
         recordingExtensionForMimeType,
-        randomizeLayerWindow,
         resolveLoopedPlayPosition,
         resolveSampleWindow,
         validatePreset
