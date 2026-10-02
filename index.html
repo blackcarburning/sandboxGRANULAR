@@ -2961,9 +2961,14 @@
                 <div class="internal-effects-header">
                     <span class="performance-chip">Internal Effects</span>
                     <h3 class="internal-effects-title">Internal Effects</h3>
-                    <p class="internal-effects-note">Advanced effect controls that sit inside the final chain.</p>
+                    <p class="internal-effects-note">Advanced effect controls for the final chain and the FX-muted path.</p>
                 </div>
                 <div class="internal-effects-grid" id="internalEffectsGrid"></div>
+                <div class="internal-effects-header">
+                    <span class="performance-chip">FX-muted path</span>
+                    <p class="internal-effects-note">Delay and reverb controls that sit behind the FX on/off toggle.</p>
+                </div>
+                <div class="internal-effects-grid" id="internalFxMutedGrid"></div>
             </div>
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
@@ -7747,6 +7752,10 @@
             if (options.restoreHeldPlayback && holdEnabled && heldNotes.size > 0) {
                 startHeldKeyboardPlayback();
             }
+        }
+
+        function isArpeggiatorPlaying() {
+            return Boolean(arpEnabled && arpTimerId !== null);
         }
 
         function scheduleArpeggiatorPlayback() {
@@ -14364,6 +14373,7 @@
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         const internalEffectsPanel = document.getElementById('internalEffectsPanel');
         const internalEffectsGrid = document.getElementById('internalEffectsGrid');
+        const internalFxMutedGrid = document.getElementById('internalFxMutedGrid');
         const INTERNAL_EFFECT_PANEL_CARD_IDS = [
             'finalDriveSoft',
             'finalDriveHard',
@@ -14380,15 +14390,29 @@
             'finalReverbLowpass',
             'finalReverbMix'
         ];
+        const INTERNAL_FX_MUTED_CONTROL_IDS = [
+            'reverb',
+            'delayBpm',
+            'delayDivision',
+            'delayFeedback',
+            'delayMix'
+        ];
         let performanceGenerateStateTimer = null;
 
         function mountInternalEffectsPanel() {
-            if (!internalEffectsPanel || !internalEffectsGrid) return;
+            if (!internalEffectsPanel || !internalEffectsGrid || !internalFxMutedGrid) return;
             INTERNAL_EFFECT_PANEL_CARD_IDS.forEach((id) => {
                 const control = document.getElementById(id);
                 const card = control?.closest('.performance-sound-card');
                 if (card && card.parentElement !== internalEffectsGrid) {
                     internalEffectsGrid.appendChild(card);
+                }
+            });
+            INTERNAL_FX_MUTED_CONTROL_IDS.forEach((id) => {
+                const control = document.getElementById(id);
+                const group = control?.closest('.control-group');
+                if (group && group.parentElement !== internalFxMutedGrid) {
+                    internalFxMutedGrid.appendChild(group);
                 }
             });
         }
@@ -15018,7 +15042,7 @@
                 setStatus('Start MYGRAIN before playing a loop.', 'error');
                 return;
             }
-            if (arpEnabled) {
+            if (isArpeggiatorPlaying()) {
                 alert('stop arp first');
                 return;
             }
