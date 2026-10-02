@@ -785,37 +785,24 @@
             box-shadow: 0 0 10px var(--accent-glow);
         }
 
-        .arp-clock-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-items: center;
-            flex-shrink: 0;
-            padding: 0 2px;
-        }
-
-        .arp-clock-row {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .arp-clock-row label {
-            font-size: 8px;
-            color: #aaa;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .arp-clock-select {
-            min-width: 58px;
-            padding: 5px 6px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(0, 0, 0, 0.28);
-            color: #fff;
+        .arp-clock-btn {
+            padding: 6px 8px;
             font-size: 10px;
-            font-weight: 800;
+            font-weight: bold;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            min-width: 72px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .arp-clock-btn.active {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent-glow);
         }
 
         .volume-bias-container {
@@ -2298,7 +2285,7 @@
         .simplified-ui .keyboard-section {
             --keyboard-key-height: clamp(148px, 28svh, 232px);
             display: grid !important;
-            grid-template-columns: minmax(0, 1fr) minmax(88px, auto) minmax(112px, auto);
+            grid-template-columns: minmax(0, 1fr) repeat(3, minmax(72px, auto));
             grid-template-rows: minmax(0, 1fr) auto;
             position: sticky !important;
             left: auto !important;
@@ -2348,22 +2335,17 @@
 
         .simplified-ui .keyboard-section .arp-clock-controls {
             order: 4;
-            grid-column: 3;
+            grid-column: 4;
             grid-row: 2;
             align-self: stretch;
             justify-self: center;
-            width: min(120px, 100%);
+            width: min(88px, 100%);
             padding: 0;
         }
 
-        .simplified-ui .keyboard-section .arp-clock-row {
-            justify-content: space-between;
-            width: 100%;
-        }
-
-        .simplified-ui .keyboard-section .arp-clock-select {
-            width: 100%;
+        .simplified-ui .keyboard-section .arp-clock-btn {
             min-height: 38px;
+            min-width: 88px;
             border-radius: 12px;
             padding: 8px 10px;
             font-size: 11px;
@@ -2415,6 +2397,25 @@
 
         .simplified-ui .keyboard-section #octaveUpBtn {
             order: 3;
+        }
+
+        .simplified-ui .keyboard-section #arpBtn {
+            order: 4;
+            grid-column: 3;
+            grid-row: 2;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            align-self: stretch;
+            min-height: 38px;
+            min-width: 88px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 900;
         }
 
         .simplified-ui .keyboard-section .octave-btn {
@@ -3009,26 +3010,7 @@
                 </div>
                 <button class="hold-btn" id="holdBtn">Hold</button>
                 <button class="hold-btn" id="arpBtn">Arp</button>
-                <div class="arp-clock-controls" aria-label="Arpeggiator clock controls">
-                    <div class="arp-clock-row">
-                        <label for="arpClockDivider">Div</label>
-                        <select id="arpClockDivider" class="arp-clock-select" aria-label="Arpeggiator clock divider">
-                            <option value="1">1/1</option>
-                            <option value="2">1/2</option>
-                            <option value="4">1/4</option>
-                            <option value="8">1/8</option>
-                        </select>
-                    </div>
-                    <div class="arp-clock-row">
-                        <label for="arpClockMultiplier">Mul</label>
-                        <select id="arpClockMultiplier" class="arp-clock-select" aria-label="Arpeggiator clock multiplier">
-                            <option value="1">1x</option>
-                            <option value="2">2x</option>
-                            <option value="4">4x</option>
-                            <option value="8">8x</option>
-                        </select>
-                    </div>
-                </div>
+                <button class="arp-clock-btn" id="arpClockMultiplierBtn" title="Arpeggiator clock multiplier">Mul 1x</button>
                 <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
                 <div class="keyboard" id="keyboardContainer">
                 </div>
@@ -4819,10 +4801,18 @@
         let arpTimerId = null;
         let arpCurrentNote = null;
         let arpStepIndex = 0;
-        const ARP_CLOCK_DIVIDER_OPTIONS = [1, 2, 4, 8];
-        const ARP_CLOCK_MULTIPLIER_OPTIONS = [1, 2, 4, 8];
-        let arpClockDivider = 1;
-        let arpClockMultiplier = 1;
+        const ARP_CLOCK_MULTIPLIER_OPTIONS = [
+            { value: 0.0625, label: '1/16' },
+            { value: 0.125, label: '1/8' },
+            { value: 0.25, label: '1/4' },
+            { value: 0.5, label: '1/2' },
+            { value: 1, label: '1' },
+            { value: 2, label: '2' },
+            { value: 4, label: '4' },
+            { value: 8, label: '8' },
+            { value: 16, label: '16' }
+        ];
+        let arpClockMultiplierIndex = 4;
         let heldNotes = new Set();
         let restartPerformanceOnFocusReturn = false;
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
@@ -7838,14 +7828,32 @@
             return Boolean(arpEnabled && arpTimerId !== null);
         }
 
-        function syncArpClockControls() {
-            const dividerSelect = document.getElementById('arpClockDivider');
-            const multiplierSelect = document.getElementById('arpClockMultiplier');
-            if (dividerSelect) {
-                dividerSelect.value = String(arpClockDivider);
+        function getArpClockMultiplierOption(index = arpClockMultiplierIndex) {
+            return ARP_CLOCK_MULTIPLIER_OPTIONS[Math.max(0, Math.min(ARP_CLOCK_MULTIPLIER_OPTIONS.length - 1, index))] || ARP_CLOCK_MULTIPLIER_OPTIONS[4];
+        }
+
+        function getArpClockMultiplierValue() {
+            return getArpClockMultiplierOption().value;
+        }
+
+        function getArpClockMultiplierDisplayLabel() {
+            const value = getArpClockMultiplierValue();
+            if (value < 1) {
+                return `1/${Math.round(1 / value)}`;
             }
-            if (multiplierSelect) {
-                multiplierSelect.value = String(arpClockMultiplier);
+            if (value === 1) {
+                return '1x';
+            }
+            return `x${value}`;
+        }
+
+        function syncArpClockControls() {
+            const multiplierBtn = document.getElementById('arpClockMultiplierBtn');
+            if (multiplierBtn) {
+                const displayLabel = getArpClockMultiplierDisplayLabel();
+                multiplierBtn.textContent = `Mul ${displayLabel}`;
+                multiplierBtn.title = `Arpeggiator clock multiplier: ${displayLabel}`;
+                multiplierBtn.classList.toggle('active', arpClockMultiplierIndex !== 4);
             }
         }
 
@@ -7863,31 +7871,15 @@
             arpTimerId = setTimeout(scheduleArpeggiatorPlayback, getArpeggiatorStepSeconds() * 1000);
         }
 
-        function setArpClockDivider(nextValue, options = {}) {
-            const numericValue = Number(nextValue);
-            const normalizedValue = ARP_CLOCK_DIVIDER_OPTIONS.includes(numericValue) ? numericValue : 1;
-            if (arpClockDivider === normalizedValue) {
-                syncArpClockControls();
-                return;
-            }
-            arpClockDivider = normalizedValue;
-            syncArpClockControls();
-            if (!options.skipSave) {
-                saveState();
-            }
-            if (!options.skipRestart) {
-                rescheduleArpeggiatorPlaybackIfActive();
-            }
-        }
-
         function setArpClockMultiplier(nextValue, options = {}) {
             const numericValue = Number(nextValue);
-            const normalizedValue = ARP_CLOCK_MULTIPLIER_OPTIONS.includes(numericValue) ? numericValue : 1;
-            if (arpClockMultiplier === normalizedValue) {
+            const normalizedIndex = ARP_CLOCK_MULTIPLIER_OPTIONS.findIndex((option) => Math.abs(option.value - numericValue) < 0.0001);
+            const nextIndex = normalizedIndex >= 0 ? normalizedIndex : 4;
+            if (arpClockMultiplierIndex === nextIndex) {
                 syncArpClockControls();
                 return;
             }
-            arpClockMultiplier = normalizedValue;
+            arpClockMultiplierIndex = nextIndex;
             syncArpClockControls();
             if (!options.skipSave) {
                 saveState();
@@ -7899,7 +7891,7 @@
 
         function getArpeggiatorStepSeconds() {
             const baseStepSeconds = Math.max(0.08, (60 / Math.max(1, sequencerBPM || 120)) / 4);
-            return Math.max(0.05, baseStepSeconds * (arpClockDivider / Math.max(1, arpClockMultiplier)));
+            return Math.max(0.05, baseStepSeconds / Math.max(0.0625, getArpClockMultiplierValue()));
         }
 
         function scheduleArpeggiatorPlayback() {
@@ -10252,12 +10244,9 @@
             syncPerformanceControlState();
         });
 
-        document.getElementById('arpClockDivider').addEventListener('change', (e) => {
-            setArpClockDivider(e.target.value);
-        });
-
-        document.getElementById('arpClockMultiplier').addEventListener('change', (e) => {
-            setArpClockMultiplier(e.target.value);
+        document.getElementById('arpClockMultiplierBtn').addEventListener('click', () => {
+            const nextIndex = (arpClockMultiplierIndex + 1) % ARP_CLOCK_MULTIPLIER_OPTIONS.length;
+            setArpClockMultiplier(ARP_CLOCK_MULTIPLIER_OPTIONS[nextIndex].value);
         });
 
         document.getElementById('panicBtn').addEventListener('click', () => panicAllNotes());
@@ -13267,7 +13256,7 @@
         // Function to save current state to localStorage
         function saveState() {
             const state = {
-                version: '1.4',
+                version: '1.5',
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 sequencerBpm: document.getElementById('seqBpm')?.value ?? String(sequencerBPM),
@@ -13288,8 +13277,7 @@
                     lfo3Mode: 'bpm',
                     holdEnabled: holdEnabled,
                     arpEnabled: arpEnabled,
-                    arpClockDivider: arpClockDivider,
-                    arpClockMultiplier: arpClockMultiplier,
+                    arpClockMultiplier: getArpClockMultiplierValue(),
                     bpmLocked: bpmLocked,
                     fxMuted: fxMuted,
                     finalReverbEnabled: finalReverbEnabled,
@@ -13403,9 +13391,6 @@
 
                 // Restore other modes
                 if (state.modes) {
-                    if (state.modes.arpClockDivider !== undefined) {
-                        setArpClockDivider(state.modes.arpClockDivider, { skipSave: true, skipRestart: true });
-                    }
                     if (state.modes.arpClockMultiplier !== undefined) {
                         setArpClockMultiplier(state.modes.arpClockMultiplier, { skipSave: true, skipRestart: true });
                     }
