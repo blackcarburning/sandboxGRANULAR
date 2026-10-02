@@ -2876,6 +2876,38 @@
                     <input type="number" id="performanceExportBars" min="1" max="64" value="4" step="1" inputmode="numeric">
                 </div>
             </div>
+            <div class="keyboard-section">
+                <div class="octave-controls">
+                    <button class="octave-btn" id="octaveUpBtn">+</button>
+                    <div class="octave-display" id="octaveDisplay">Oct: 0</div>
+                    <button class="octave-btn" id="octaveDownBtn">-</button>
+                </div>
+                <div class="volume-bias-container">
+                    <label>Vol Bias</label>
+                    <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
+                    <div style="font-size: 8px; color: #666;">
+                        <div>Treble</div>
+                        <div style="margin-top: 40px;">Bass</div>
+                    </div>
+                </div>
+                <button class="hold-btn" id="holdBtn">Hold</button>
+                <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
+                <div class="keyboard" id="keyboardContainer">
+                    <!-- One octave, transposed by the octave buttons -->
+                    <div class="key white" data-note="C2">C2</div>
+                    <div class="key black" data-note="C#2"></div>
+                    <div class="key white" data-note="D2">D</div>
+                    <div class="key black" data-note="D#2"></div>
+                    <div class="key white" data-note="E2">E</div>
+                    <div class="key white" data-note="F2">F</div>
+                    <div class="key black" data-note="F#2"></div>
+                    <div class="key white" data-note="G2">G</div>
+                    <div class="key black" data-note="G#2"></div>
+                    <div class="key white" data-note="A2">A</div>
+                    <div class="key black" data-note="A#2"></div>
+                    <div class="key white" data-note="B2">B</div>
+                </div>
+            </div>
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
@@ -2955,6 +2987,9 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Locators</button>
+                        </div>
                     </div>
                     <div class="source-waveform-panel">
                         <div class="source-waveform-header">
@@ -2981,6 +3016,9 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Locators</button>
+                        </div>
                     </div>
                     <div class="source-waveform-panel">
                         <div class="source-waveform-header">
@@ -2996,6 +3034,9 @@
                             <input type="range" id="grainAMicLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="grainAMicLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Locators</button>
+                        </div>
                     </div>
                     <div class="source-waveform-panel">
                         <div class="source-waveform-header">
@@ -3010,6 +3051,9 @@
                             </div>
                             <input type="range" id="grainBMicLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="grainBMicLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Locators</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -3028,6 +3072,9 @@
                             </div>
                             <input type="range" id="outputLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="outputLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Locators</button>
                         </div>
                     </div>
                 </div>
@@ -4266,38 +4313,6 @@
             </div>
         </div>
 
-        <div class="keyboard-section">
-            <div class="octave-controls">
-                <button class="octave-btn" id="octaveUpBtn">+</button>
-                <div class="octave-display" id="octaveDisplay">Oct: 0</div>
-                <button class="octave-btn" id="octaveDownBtn">-</button>
-            </div>
-            <div class="volume-bias-container">
-                <label>Vol Bias</label>
-                <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
-                <div style="font-size: 8px; color: #666;">
-                    <div>Treble</div>
-                    <div style="margin-top: 40px;">Bass</div>
-                </div>
-            </div>
-            <button class="hold-btn" id="holdBtn">Hold</button>
-            <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
-            <div class="keyboard" id="keyboardContainer">
-                <!-- One octave, transposed by the octave buttons -->
-                <div class="key white" data-note="C2">C2</div>
-                <div class="key black" data-note="C#2"></div>
-                <div class="key white" data-note="D2">D</div>
-                <div class="key black" data-note="D#2"></div>
-                <div class="key white" data-note="E2">E</div>
-                <div class="key white" data-note="F2">F</div>
-                <div class="key black" data-note="F#2"></div>
-                <div class="key white" data-note="G2">G</div>
-                <div class="key black" data-note="G#2"></div>
-                <div class="key white" data-note="A2">A</div>
-                <div class="key black" data-note="A#2"></div>
-                <div class="key white" data-note="B2">B</div>
-            </div>
-        </div>
     </div>
 
     <div id="debugPanel">
@@ -9309,8 +9324,46 @@
             });
         }
 
+        function trimSourceBufferToLocators(kind) {
+            const config = getSourceSlotConfig(kind);
+            const buffer = config.buffer();
+            if (!buffer || !audioContext || typeof mygrainUtils.trimAudioBufferToWindow !== 'function') {
+                return false;
+            }
+
+            const loopRange = getLoopRange(config.startId, config.endId);
+            const trimmedBuffer = mygrainUtils.trimAudioBufferToWindow(
+                buffer,
+                buffer.duration * loopRange.startPct,
+                buffer.duration * loopRange.endPct,
+                audioContext
+            );
+
+            if (!trimmedBuffer) return false;
+
+            setSourceBuffer(kind, trimmedBuffer, `${definitionLabelForSourceKind(kind)} trimmed`);
+            return true;
+        }
+
+        function definitionLabelForSourceKind(kind) {
+            const labels = {
+                generated: 'Generated loop',
+                mic: 'Mic recording',
+                grainAMic: 'Grain A mic',
+                grainBMic: 'Grain B mic',
+                output: 'Output source'
+            };
+            return labels[kind] || 'Source';
+        }
+
         addSourceLoopLfoControls();
         addSourceGrainEnvelopeControls();
+
+        document.querySelectorAll('.trim-source-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                trimSourceBufferToLocators(button.dataset.sourceKind);
+            });
+        });
 
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
@@ -9736,13 +9789,11 @@
         }
 
         document.getElementById('octaveUpBtn').addEventListener('click', () => {
-            panicAllNotes({ preserveStatus: true });
             octaveOffset = Math.min(octaveOffset + 1, 3);
             updateOctaveDisplay();
         });
 
         document.getElementById('octaveDownBtn').addEventListener('click', () => {
-            panicAllNotes({ preserveStatus: true });
             octaveOffset = Math.max(octaveOffset - 1, -3);
             updateOctaveDisplay();
         });
