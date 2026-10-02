@@ -1952,6 +1952,42 @@
             gap: 10px;
         }
 
+        .simplified-ui .internal-effects-panel {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(126, 246, 255, 0.18);
+        }
+
+        .simplified-ui .internal-effects-header {
+            display: grid;
+            gap: 4px;
+        }
+
+        .simplified-ui .internal-effects-title {
+            margin: 0;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .internal-effects-note {
+            margin: 0;
+            color: rgba(230, 240, 255, 0.68);
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .simplified-ui .internal-effects-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
         .simplified-ui .performance-sound-card {
             display: grid;
             gap: 8px;
@@ -2117,6 +2153,13 @@
             box-shadow: 0 12px 26px rgba(0, 198, 255, 0.26);
         }
 
+        .simplified-ui #performanceSeqPlayBtn {
+            color: #00131a;
+            background: linear-gradient(135deg, #7effb2 0%, #00c6ff 100%);
+            border-color: rgba(126, 255, 178, 0.55);
+            box-shadow: 0 12px 26px rgba(0, 198, 255, 0.22);
+        }
+
         .simplified-ui #performanceGenerateLoopBtn:active,
         .simplified-ui #performanceGenerateLoopBtn.generating,
         .simplified-ui #performanceGenerateLoopBtn.generated {
@@ -2140,7 +2183,6 @@
         .simplified-ui #performanceLowNoiseSourceBtn.active,
         .simplified-ui #performanceSampleSoloBtn.active,
         .simplified-ui #performanceLfoSquareBtn.active,
-        .simplified-ui #performanceSeqPlayBtn.playing,
         .simplified-ui #performanceOscToggleBtn.osc-off,
         .simplified-ui #performanceFxMuteBtn.fx-muted,
         .simplified-ui #performanceDryFilterBtn.dry-filtered,
@@ -2150,6 +2192,10 @@
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
             color: #fff;
             box-shadow: 0 0 10px rgba(255, 82, 99, 0.45);
+        }
+
+        .simplified-ui #performanceSeqPlayBtn.playing {
+            box-shadow: 0 0 0 2px rgba(126, 255, 178, 0.24), 0 0 22px rgba(126, 246, 255, 0.34);
         }
 
         .simplified-ui .recording-section {
@@ -2335,6 +2381,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .simplified-ui .internal-effects-grid {
+                grid-template-columns: 1fr;
+            }
+
             .simplified-ui .performance-actions,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
@@ -2355,6 +2405,10 @@
             .simplified-ui .performance-controls {
                 gap: 10px;
                 order: 2;
+            }
+
+            .simplified-ui .internal-effects-panel {
+                padding: 12px;
             }
 
             .simplified-ui .performance-btn {
@@ -2902,7 +2956,6 @@
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">FM Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
-                <button class="performance-btn" id="performancePlayAllBtn">Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
@@ -2920,6 +2973,14 @@
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
+            </div>
+            <div class="internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">
+                <div class="internal-effects-header">
+                    <span class="performance-chip">Internal Effects</span>
+                    <h3 class="internal-effects-title">Internal Effects</h3>
+                    <p class="internal-effects-note">Advanced effect controls that sit inside the final chain.</p>
+                </div>
+                <div class="internal-effects-grid" id="internalEffectsGrid"></div>
             </div>
         </div>
         <div class="top-section">
@@ -7793,6 +7854,9 @@
                 if (!holdEnabled) {
                     setHoldEnabled(true, { skipSync: true });
                 }
+                if (sequencerPlaying) {
+                    stopSequencer();
+                }
                 stopArpeggiatorPlayback();
                 if (!options.skipChordRestart) {
                     stopHeldKeyboardPlaybackPreserveSelection();
@@ -9072,6 +9136,14 @@
                 setStatus('Start MYGRAIN before playing.', 'error');
                 return false;
             }
+            if (arpEnabled) {
+                if (holdEnabled) {
+                    startArpeggiatorPlayback();
+                }
+                syncPerformanceControlState();
+                if (!options.silent) setStatus('Arpeggiator active; loop stays stopped.');
+                return true;
+            }
             startSequencer();
             startHeldKeyboardPlayback();
             syncPerformanceControlState();
@@ -9080,7 +9152,16 @@
         }
 
         function stopLoopAndHeldKeys(options = {}) {
-            const hadPlayback = sequencerPlaying || activeKeyCount > 0;
+            const hadPlayback = sequencerPlaying || activeKeyCount > 0 || arpEnabled;
+            if (arpEnabled) {
+                arpEnabled = false;
+                const arpBtn = document.getElementById('arpBtn');
+                if (arpBtn) {
+                    arpBtn.classList.remove('active');
+                    arpBtn.setAttribute('aria-pressed', 'false');
+                }
+                stopArpeggiatorPlayback();
+            }
             stopSequencer();
             stopHeldKeyboardPlaybackPreserveSelection();
             syncPerformanceControlState();
@@ -14223,7 +14304,6 @@
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
         const performanceGenerateFmDrumsBtn = document.getElementById('performanceGenerateFmDrumsBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
-        const performancePlayAllBtn = document.getElementById('performancePlayAllBtn');
         const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
@@ -14270,7 +14350,37 @@
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceFinalReverbBtn = document.getElementById('performanceFinalReverbBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
+        const internalEffectsPanel = document.getElementById('internalEffectsPanel');
+        const internalEffectsGrid = document.getElementById('internalEffectsGrid');
+        const INTERNAL_EFFECT_PANEL_CARD_IDS = [
+            'finalDriveSoft',
+            'finalDriveHard',
+            'finalDriveFold',
+            'finalDriveCrush',
+            'finalShimmerDepth',
+            'finalDelayDepth',
+            'finalDelayDivision',
+            'finalFxPlacementLfoDivision',
+            'finalRingDepth',
+            'finalReverbSize',
+            'finalReverbDecay',
+            'finalReverbLowpass',
+            'finalReverbMix'
+        ];
         let performanceGenerateStateTimer = null;
+
+        function mountInternalEffectsPanel() {
+            if (!internalEffectsPanel || !internalEffectsGrid) return;
+            INTERNAL_EFFECT_PANEL_CARD_IDS.forEach((id) => {
+                const control = document.getElementById(id);
+                const card = control?.closest('.performance-sound-card');
+                if (card && card.parentElement !== internalEffectsGrid) {
+                    internalEffectsGrid.appendChild(card);
+                }
+            });
+        }
+
+        mountInternalEffectsPanel();
 
         function syncPerformanceLinkedSlider(sourceId, performanceSlider, performanceValueId) {
             const sourceSlider = document.getElementById(sourceId);
@@ -14501,11 +14611,6 @@
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
                 performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Stop Loop' : 'Play Loop';
-            }
-
-            if (performancePlayAllBtn) {
-                const keyboardHasSoundingNotes = getKeyboardActiveNotes().length > 0;
-                performancePlayAllBtn.classList.toggle('playing', sequencerPlaying || activeKeyCount > 0 || (arpEnabled && keyboardHasSoundingNotes));
             }
 
             if (performanceOscToggleBtn) {
@@ -14900,16 +15005,16 @@
                 setStatus('Start MYGRAIN before playing a loop.', 'error');
                 return;
             }
+            if (arpEnabled) {
+                alert('stop arp first');
+                return;
+            }
             if (sequencerPlaying) {
                 stopSequencer();
             } else {
                 startSequencer();
             }
             syncPerformanceControlState();
-        });
-
-        performancePlayAllBtn?.addEventListener('click', () => {
-            playLoopAndHeldKeys();
         });
 
         performanceStopAllBtn?.addEventListener('click', () => {
