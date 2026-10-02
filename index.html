@@ -2186,6 +2186,13 @@
             box-shadow: 0 12px 26px rgba(0, 198, 255, 0.22);
         }
 
+        .simplified-ui #performanceRestartAllBtn {
+            color: #00131a;
+            background: linear-gradient(135deg, #ffe08a 0%, #ff9f6e 100%);
+            border-color: rgba(255, 224, 138, 0.55);
+            box-shadow: 0 12px 26px rgba(255, 159, 110, 0.22);
+        }
+
         .simplified-ui #performanceGenerateLoopBtn:active,
         .simplified-ui #performanceGenerateLoopBtn.generating,
         .simplified-ui #performanceGenerateLoopBtn.generated {
@@ -3066,6 +3073,7 @@
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">FM Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
+                <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
                 <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
@@ -7925,8 +7933,20 @@
             return Math.max(0.05, baseStepSeconds / Math.max(0.0625, getArpClockMultiplierValue()));
         }
 
-        function scheduleArpeggiatorPlayback() {
+        function scheduleArpeggiatorPlayback(startTime = null) {
             if (!arpEnabled || !holdEnabled || !audioContext) return;
+
+            const targetStartTime = Number.isFinite(startTime) ? Math.max(audioContext.currentTime, startTime) : null;
+            if (targetStartTime !== null && targetStartTime > audioContext.currentTime) {
+                if (arpTimerId) {
+                    clearTimeout(arpTimerId);
+                }
+                arpTimerId = setTimeout(() => {
+                    arpTimerId = null;
+                    scheduleArpeggiatorPlayback();
+                }, Math.max(0, (targetStartTime - audioContext.currentTime) * 1000));
+                return;
+            }
 
             const notes = getArpeggiatorNotes();
             if (notes.length === 0) {
@@ -7967,13 +7987,13 @@
             arpTimerId = setTimeout(scheduleArpeggiatorPlayback, stepSeconds * 1000);
         }
 
-        function startArpeggiatorPlayback() {
+        function startArpeggiatorPlayback(startTime = null) {
             if (!arpEnabled || !holdEnabled || !audioContext) return;
             stopArpeggiatorPlayback();
             const notes = getArpeggiatorNotes();
             if (notes.length === 0) return;
             arpStepIndex = 0;
-            scheduleArpeggiatorPlayback();
+            scheduleArpeggiatorPlayback(startTime);
         }
 
         function setHoldEnabled(nextEnabled, options = {}) {
@@ -9354,6 +9374,52 @@
             }
         }
 
+        function restartAllTransport(options = {}) {
+            if (!isAudioGraphReady()) {
+                setStatus('Start MYGRAIN before restarting.', 'error');
+                return false;
+            }
+
+            const shouldRestartSequencer = sequencerPlaying;
+            const shouldRestartArp = arpEnabled && holdEnabled;
+            const restartTime = audioContext.currentTime;
+
+            if (shouldRestartSequencer) {
+                stopSequencer();
+            }
+            if (shouldRestartArp) {
+                stopArpeggiatorPlayback();
+            }
+
+            lfoStartTime = restartTime;
+            lfo2StartTime = restartTime;
+            lfo3StartTime = restartTime;
+            finalFxPlacementLfoStartTime = restartTime;
+            finalFxPlacementLfoLastPhase = null;
+            if (finalFxPlacementLfoEnabled) {
+                updateFinalFxPlacementLfo(true);
+            }
+
+            if (shouldRestartSequencer) {
+                startSequencer(restartTime);
+            } else if (shouldRestartArp) {
+                transportLoopStartTime = restartTime;
+            }
+
+            if (shouldRestartArp) {
+                startArpeggiatorPlayback(restartTime);
+            }
+
+            updateEffects();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(shouldRestartSequencer || shouldRestartArp
+                    ? 'Restarted loop, arp, and LFO phases from the start.'
+                    : 'Restarted LFO phases from the start.');
+            }
+            return true;
+        }
+
         function pausePerformanceForFocusLoss() {
             if (restartPerformanceOnFocusReturn) return;
             restartPerformanceOnFocusReturn = Boolean(sequencerPlaying || activeKeyCount > 0);
@@ -9372,7 +9438,7 @@
         }
 
         // --- Sequencer Functions ---
-        function startSequencer() {
+        function startSequencer(startTime = null) {
             if (sequencerPlaying) return;
             if (!isAudioGraphReady()) {
                 setStatus('Start MYGRAIN before playing a loop.', 'error');
@@ -9395,9 +9461,11 @@
             
             sequencerPlaying = true;
             sequencerCurrentStep = 0;
-            sequencerNextStepTime = audioContext.currentTime + 0.04;
-            transportLoopStartTime = sequencerNextStepTime;
-            startGeneratedDryLoop(sequencerNextStepTime);
+            const now = audioContext.currentTime;
+            const startAt = Number.isFinite(startTime) ? Math.max(now, startTime) : now + 0.04;
+            sequencerNextStepTime = startAt;
+            transportLoopStartTime = startAt;
+            startGeneratedDryLoop(startAt);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
             
@@ -14514,6 +14582,7 @@
         const performanceGenerateFmDrumsBtn = document.getElementById('performanceGenerateFmDrumsBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
+        const performanceRestartAllBtn = document.getElementById('performanceRestartAllBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
         const performanceTonalDrumsBtn = document.getElementById('performanceTonalDrumsBtn');
@@ -15244,6 +15313,10 @@
         performanceStopAllBtn?.addEventListener('click', () => {
             stopSequencer();
             syncPerformanceControlState();
+        });
+
+        performanceRestartAllBtn?.addEventListener('click', () => {
+            restartAllTransport();
         });
 
         performancePanicBtn?.addEventListener('click', () => {
