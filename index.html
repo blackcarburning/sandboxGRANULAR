@@ -370,6 +370,48 @@
             flex-shrink: 0;
         }
 
+        .source-grain-envelope-controls {
+            display: grid;
+            gap: 7px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .source-grain-row {
+            display: grid;
+            gap: 4px;
+        }
+
+        .source-grain-row label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            color: #aaa;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .source-grain-row .value {
+            color: var(--accent);
+            font-size: 8px;
+            min-width: 38px;
+            text-align: right;
+        }
+
+        .source-grain-lfo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .source-grain-lfo input[type="range"] {
+            flex: 1;
+            min-width: 0;
+        }
+
         .status {
             font-size: 9px;
             color: #888;
@@ -5172,6 +5214,77 @@
             lfo3Depth: { min: 0, max: 100 }
         };
 
+        const SOURCE_GRAIN_CONTROL_DEFINITIONS = [
+            {
+                kind: 'generated',
+                label: 'Generated',
+                controls: {
+                    position: { id: 'generatedGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
+                    scale: { id: 'generatedGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    attack: { id: 'generatedGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
+                    release: { id: 'generatedGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
+                }
+            },
+            {
+                kind: 'mic',
+                label: 'Mic',
+                controls: {
+                    position: { id: 'micGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
+                    scale: { id: 'micGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    attack: { id: 'micGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
+                    release: { id: 'micGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
+                }
+            },
+            {
+                kind: 'grainAMic',
+                label: 'Grain A',
+                controls: {
+                    position: { id: 'grainAMicGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
+                    scale: { id: 'grainAMicGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    attack: { id: 'grainAMicGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
+                    release: { id: 'grainAMicGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
+                }
+            },
+            {
+                kind: 'grainBMic',
+                label: 'Grain B',
+                controls: {
+                    position: { id: 'grainBMicGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
+                    scale: { id: 'grainBMicGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    attack: { id: 'grainBMicGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
+                    release: { id: 'grainBMicGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
+                }
+            },
+            {
+                kind: 'output',
+                label: 'Output',
+                controls: {
+                    position: { id: 'outputGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
+                    scale: { id: 'outputGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    attack: { id: 'outputGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
+                    release: { id: 'outputGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
+                }
+            }
+        ];
+        const SOURCE_GRAIN_CONTROL_BY_KIND = Object.fromEntries(
+            SOURCE_GRAIN_CONTROL_DEFINITIONS.map((definition) => [definition.kind, definition.controls])
+        );
+        const SOURCE_GRAIN_CONTROL_IDS = SOURCE_GRAIN_CONTROL_DEFINITIONS.flatMap((definition) => Object.values(definition.controls).map((control) => control.id));
+
+        SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
+            Object.entries(definition.controls).forEach(([role, control]) => {
+                paramRanges[control.id] = { min: control.min, max: control.max };
+                INTERNAL_RANDOMIZE_SLIDER_RANGES[control.id] = role === 'position'
+                    ? { min: -28, max: 28 }
+                    : { min: 55, max: 165 };
+                GRANULAR_LFO_MODULATION_SCALES[control.id] = role === 'position' ? 0.1 : 0.08;
+                RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.add(control.id);
+            });
+        });
+        ['generatedGrainPosition', 'generatedGrainScale', 'micGrainPosition', 'micGrainScale'].forEach((id) => {
+            PRIORITY_RANDOM_LFO_TARGET_PARAMS.add(id);
+        });
+
         const presetToggleParams = [
             'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
@@ -5188,6 +5301,7 @@
             'delayBpm', 'delayFeedback', 'delayMix', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth',
             'lfo3Rate', 'lfo3Depth', 'panSpread'
         ];
+        presetToggleParams.push(...SOURCE_GRAIN_CONTROL_IDS);
 
         const statusDiv = document.getElementById('status');
         const audioStatusDiv = document.getElementById('audioStatus');
@@ -7001,6 +7115,39 @@
             return sources;
         }
 
+        function getSourceGrainControlValue(kind, role, fallback) {
+            const controls = SOURCE_GRAIN_CONTROL_BY_KIND[kind];
+            const control = controls?.[role];
+            if (!control) return fallback;
+            const rawValue = getModulatedValue(control.id);
+            const bounded = Math.max(control.min, Math.min(control.max, Number.isFinite(rawValue) ? rawValue : fallback));
+            return bounded;
+        }
+
+        function wrapUnitInterval(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 0;
+            return ((numeric % 1) + 1) % 1;
+        }
+
+        function getSourceGrainShape(sourceInfo, voice, baseEnvelope) {
+            const kind = sourceInfo?.kind || 'legacy';
+            const positionOffset = getSourceGrainControlValue(kind, 'position', 0) / 100;
+            const scale = getSourceGrainControlValue(kind, 'scale', 100) / 100;
+            const attackScale = getSourceGrainControlValue(kind, 'attack', 100) / 100;
+            const releaseScale = getSourceGrainControlValue(kind, 'release', 100) / 100;
+            const minimumFade = baseEnvelope.minimumFadeSeconds || 0.001;
+            const sourceAttack = Math.max(minimumFade, baseEnvelope.attack * attackScale);
+            const sourceRelease = Math.max(minimumFade, baseEnvelope.release * releaseScale);
+
+            return {
+                positionPct: wrapUnitInterval((Number(voice.positionPct) || 0) + positionOffset),
+                sizeSeconds: Math.max(0.01, Math.min(0.5, (Number(voice.sizeSeconds) || 0.1) * scale)),
+                sourceAttack,
+                sourceRelease
+            };
+        }
+
         function getGeneratedSourceMixValue() {
             if (generatedSampleSolo) return 1;
             const slider = document.getElementById('performanceGeneratedSourceMix');
@@ -8097,6 +8244,7 @@
             let sourcesRemaining = 0;
             let cleanupCompleted = false; // Track if cleanup already happened
             let maxEnvelopeGrainSize = grainSize;
+            let maxVoiceTotalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
             
             // Cleanup function for common nodes (mixer, envelope, panner)
             const cleanupCommonNodes = () => {
@@ -8120,14 +8268,19 @@
             const posSlider = getModulatedValue('position') / 100;
             const scheduleSourceVoice = (sourceInfo, voice) => {
                 if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
-                    const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
+                const sourceShape = getSourceGrainShape(sourceInfo, voice, {
+                    attack,
+                    release,
+                    minimumFadeSeconds
+                });
+                const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
                 const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
                     ? mygrainUtils.resolveSampleWindow({
                         bufferDuration: sourceInfo.buffer.duration,
                         startPct: loopRange.startPct,
                         endPct: loopRange.endPct,
-                        positionPct: voice.positionPct,
-                        grainSizeSeconds: voice.sizeSeconds,
+                        positionPct: sourceShape.positionPct,
+                        grainSizeSeconds: sourceShape.sizeSeconds,
                         sprayAmount: voice.sprayAmount,
                         randomValue: Math.random() * 2 - 1
                     })
@@ -8143,14 +8296,14 @@
                 const sampleGain = audioContext.createGain();
                 const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
                 const playPosition = options.continuousLoop
-                    ? resolveContinuousLoopPosition(sampleWindow, voice.positionPct, now, options.streamStartTime, voice.rate)
+                    ? resolveContinuousLoopPosition(sampleWindow, sourceShape.positionPct, now, options.streamStartTime, voice.rate)
                     : sampleWindow.playPosition;
                 source.buffer = sourceInfo.buffer;
                 source.playbackRate.value = voice.rate;
                 source.loop = true;
                 source.loopStart = sampleWindow.startTime ?? (sourceInfo.buffer.duration * loopRange.startPct);
                 source.loopEnd = sampleWindow.endTime ?? (sourceInfo.buffer.duration * loopRange.endPct);
-                sampleGain.gain.value = voice.gain;
+                sampleGain.gain.setValueAtTime(0, now);
 
                 source.connect(sampleGain);
                 if (voicePanner) {
@@ -8162,7 +8315,12 @@
                 }
                 sourcesRemaining++;
 
-                const totalDuration = attack + Math.max(sampleWindow.grainSizeSeconds - attack, 0.001) + release;
+                const sourceSustain = Math.max(sampleWindow.grainSizeSeconds - sourceShape.sourceAttack, 0.001);
+                const totalDuration = sourceShape.sourceAttack + sourceSustain + sourceShape.sourceRelease;
+                sampleGain.gain.linearRampToValueAtTime(voice.gain, now + sourceShape.sourceAttack);
+                sampleGain.gain.setValueAtTime(voice.gain, now + sourceShape.sourceAttack + sourceSustain);
+                sampleGain.gain.linearRampToValueAtTime(0, now + totalDuration);
+                maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, totalDuration);
                 source.start(now, playPosition);
                 source.stop(now + totalDuration);
 
@@ -8230,6 +8388,7 @@
                 sourcesRemaining++; // Track this source
 
                 const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
+                maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, totalDuration);
                 noiseSource.start(now);
                 noiseSource.stop(now + totalDuration);
                 
@@ -8251,7 +8410,7 @@
             panner.connect(granularOutputGain);
 
             // Envelope - with validated values
-            const sustainTime = Math.max(maxEnvelopeGrainSize - attack, 0.001); // Ensure positive sustain duration
+            const sustainTime = Math.max(maxVoiceTotalDuration - attack - release, Math.max(maxEnvelopeGrainSize - attack, 0.001)); // Ensure positive sustain duration
 
             // Final validation before AudioParam assignments
             if (!isFinite(volumeMultiplier) || !isFinite(attack) || !isFinite(sustainTime) || !isFinite(release)) {
@@ -9031,6 +9190,75 @@
             if (sourceValue) sourceValue.textContent = safeValue + '%';
             if (filterValue) filterValue.textContent = safeValue + '%';
         }
+
+        function createSourceGrainLfoButtons(paramId) {
+            const group = document.createElement('div');
+            group.className = 'button-group';
+            ['1', '2'].forEach((lfoNum) => {
+                const route = document.createElement('button');
+                route.className = 'lfo-toggle';
+                route.dataset.param = paramId;
+                route.dataset.lfo = lfoNum;
+                route.type = 'button';
+                route.textContent = `L${lfoNum}`;
+
+                const invert = document.createElement('button');
+                invert.className = 'inv-toggle';
+                invert.dataset.param = paramId;
+                invert.dataset.lfo = lfoNum;
+                invert.type = 'button';
+                invert.textContent = 'INV';
+
+                group.append(route, invert);
+            });
+            return group;
+        }
+
+        function addSourceGrainEnvelopeControls() {
+            SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
+                const canvas = getSourceSlotConfig(definition.kind).canvas;
+                const panel = canvas?.closest('.source-waveform-panel');
+                if (!panel || panel.querySelector('.source-grain-envelope-controls')) return;
+
+                const controls = document.createElement('div');
+                controls.className = 'source-grain-envelope-controls';
+                controls.setAttribute('aria-label', `${definition.label} grain envelope, position, and size`);
+
+                Object.values(definition.controls).forEach((control) => {
+                    const row = document.createElement('div');
+                    row.className = 'source-grain-row';
+
+                    const label = document.createElement('label');
+                    label.setAttribute('for', control.id);
+                    const name = document.createElement('span');
+                    name.textContent = control.label;
+                    const value = document.createElement('span');
+                    value.className = 'value';
+                    value.id = `${control.id}Value`;
+                    value.textContent = `${control.value}%`;
+                    label.append(name, value);
+
+                    const sliderLine = document.createElement('div');
+                    sliderLine.className = 'source-grain-lfo';
+                    const slider = document.createElement('input');
+                    slider.type = 'range';
+                    slider.id = control.id;
+                    slider.min = String(control.min);
+                    slider.max = String(control.max);
+                    slider.value = String(control.value);
+                    slider.defaultValue = String(control.value);
+                    slider.step = String(control.step);
+                    sliderLine.append(slider, createSourceGrainLfoButtons(control.id));
+
+                    row.append(label, sliderLine);
+                    controls.append(row);
+                });
+
+                panel.append(controls);
+            });
+        }
+
+        addSourceGrainEnvelopeControls();
 
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
@@ -11812,6 +12040,11 @@
                 performanceGrainModAmount: 75,
                 fmDrumLevel: 85
             };
+            SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
+                Object.values(definition.controls).forEach((control) => {
+                    defaults[control.id] = control.value;
+                });
+            });
             
             // Reset all sliders to default values
             Object.keys(defaults).forEach(id => {
