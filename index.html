@@ -2975,7 +2975,7 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">FM Drums</button>
-                <button class="performance-btn" id="performanceSeqPlayBtn">Play Loop</button>
+                <button class="performance-btn" id="performanceSeqPlayBtn">Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
@@ -4251,7 +4251,7 @@
                     </div>
                     
                     <div class="control-group">
-                        <button id="seqPlayBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);">PLAY</button>
+                        <button id="seqPlayBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);">Play</button>
                     </div>
                     
                     <div class="control-group">
@@ -9233,7 +9233,6 @@
             startGeneratedDryLoop(sequencerNextStepTime);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
-            document.getElementById('seqPlayBtn').textContent = 'STOP';
             
             scheduleSequencer();
         }
@@ -9317,7 +9316,6 @@
             });
             
             document.getElementById('seqPlayBtn').classList.remove('playing');
-            document.getElementById('seqPlayBtn').textContent = 'PLAY';
         }
 
         function resetSequencer() {
@@ -10418,11 +10416,12 @@
         });
 
         document.getElementById('seqPlayBtn').addEventListener('click', () => {
-            if (sequencerPlaying) {
-                stopSequencer();
-            } else {
-                startSequencer();
+            if (sequencerPlaying) return;
+            if (isArpeggiatorPlaying()) {
+                alert('stop arp first');
+                return;
             }
+            startSequencer();
         });
 
         document.getElementById('seqResetBtn').addEventListener('click', () => {
@@ -14647,7 +14646,7 @@
 
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
-                performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Stop Loop' : 'Play Loop';
+                performanceSeqPlayBtn.textContent = 'Play';
             }
 
             if (performanceOscToggleBtn) {
@@ -15046,16 +15045,14 @@
                 alert('stop arp first');
                 return;
             }
-            if (sequencerPlaying) {
-                stopSequencer();
-            } else {
-                startSequencer();
-            }
+            if (sequencerPlaying) return;
+            startSequencer();
             syncPerformanceControlState();
         });
 
         performanceStopAllBtn?.addEventListener('click', () => {
-            stopLoopAndHeldKeys();
+            stopSequencer();
+            syncPerformanceControlState();
         });
 
         performancePanicBtn?.addEventListener('click', () => {
