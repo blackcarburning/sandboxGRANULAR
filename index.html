@@ -9374,6 +9374,48 @@
             }
         }
 
+        function restartInternalEffectOscillators(startTime = null) {
+            if (!audioContext) return false;
+
+            const now = audioContext.currentTime;
+            const startAt = Number.isFinite(startTime) ? Math.max(now, startTime) : now;
+            const phaserRate = clampInternalLfoBpmValue(document.getElementById('phaserRate')?.value || 30) / 60;
+            const tremoloRate = clampInternalLfoBpmValue(document.getElementById('tremoloRate')?.value || 120) / 60;
+
+            if (phaserLFO || phaserLFOGain) {
+                try { phaserLFO?.stop(now); } catch (e) {}
+                safeDisconnectNode(phaserLFO);
+                safeDisconnectNode(phaserLFOGain);
+            }
+            if (tremoloLFO || tremoloLFOGain) {
+                try { tremoloLFO?.stop(now); } catch (e) {}
+                safeDisconnectNode(tremoloLFO);
+                safeDisconnectNode(tremoloLFOGain);
+            }
+
+            if (phaserNodes.length > 0) {
+                phaserLFO = audioContext.createOscillator();
+                phaserLFO.frequency.value = phaserRate;
+                phaserLFOGain = audioContext.createGain();
+                phaserLFOGain.gain.value = 0;
+                phaserLFO.connect(phaserLFOGain);
+                phaserNodes.forEach((node) => phaserLFOGain.connect(node.frequency));
+                phaserLFO.start(startAt);
+            }
+
+            if (tremoloGain) {
+                tremoloLFO = audioContext.createOscillator();
+                tremoloLFO.frequency.value = tremoloRate;
+                tremoloLFOGain = audioContext.createGain();
+                tremoloLFOGain.gain.value = 0;
+                tremoloLFO.connect(tremoloLFOGain);
+                tremoloLFOGain.connect(tremoloGain.gain);
+                tremoloLFO.start(startAt);
+            }
+
+            return true;
+        }
+
         function restartAllTransport(options = {}) {
             if (!isAudioGraphReady()) {
                 setStatus('Start MYGRAIN before restarting.', 'error');
@@ -9396,6 +9438,7 @@
             lfo3StartTime = restartTime;
             finalFxPlacementLfoStartTime = restartTime;
             finalFxPlacementLfoLastPhase = null;
+            restartInternalEffectOscillators(restartTime);
             if (finalFxPlacementLfoEnabled) {
                 updateFinalFxPlacementLfo(true);
             }
