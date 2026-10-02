@@ -161,6 +161,56 @@
         };
     }
 
+    function randomizeLayerWindow(random = Math.random, bufferDuration = Infinity) {
+        const nextRandom = typeof random === 'function' ? random : Math.random;
+        const startPct = Math.floor(nextRandom() * 71);
+        const windowPct = 10 + Math.floor(nextRandom() * 51);
+        const endPct = Math.min(100, startPct + windowPct);
+        const rawSizeMs = 20 * Math.pow(400 / 20, nextRandom());
+        const duration = Number(bufferDuration);
+        const maxSizeMs = Number.isFinite(duration) && duration > 0
+            ? Math.max(1, duration * ((endPct - startPct) / 100) * 1000)
+            : 400;
+
+        return {
+            startPct,
+            endPct,
+            grainSizeMs: Math.max(1, Math.min(400, maxSizeMs, Math.max(20, Math.round(rawSizeMs))))
+        };
+    }
+
+    function createGrainEnvelopeCurve(shape = 'hann', skew = 0.5, sampleCount = 128) {
+        const validShapes = new Set(['hann', 'triangle', 'trapezoid', 'exponential', 'reverse-exponential', 'gaussian']);
+        const selectedShape = validShapes.has(shape) ? shape : 'hann';
+        const count = Math.max(8, Math.min(2048, Math.floor(Number(sampleCount) || 128)));
+        const peak = clampNumber(skew, { min: 0.1, max: 0.9, fallback: 0.5 });
+        const curve = new Float32Array(count);
+
+        for (let index = 0; index < count; index += 1) {
+            const phase = index / (count - 1);
+            const shapedPhase = phase <= peak ? phase / peak : (1 - phase) / (1 - peak);
+            let value;
+            if (selectedShape === 'triangle') {
+                value = Math.max(0, shapedPhase);
+            } else if (selectedShape === 'trapezoid') {
+                value = Math.min(1, shapedPhase * 5);
+            } else if (selectedShape === 'exponential') {
+                value = Math.exp(-5 * (1 - shapedPhase));
+            } else if (selectedShape === 'reverse-exponential') {
+                value = Math.exp(-5 * shapedPhase);
+            } else if (selectedShape === 'gaussian') {
+                value = Math.exp(-4.5 * Math.pow((phase - peak) / Math.max(peak, 1 - peak), 2));
+            } else {
+                value = 0.5 - (0.5 * Math.cos(Math.PI * shapedPhase));
+            }
+            curve[index] = Math.max(0, Math.min(1, value));
+        }
+
+        curve[0] = 0;
+        curve[count - 1] = 0;
+        return curve;
+    }
+
     function resolveLoopedPlayPosition(options = {}) {
         const startTime = clampNumber(options.startTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: 0 });
         const rawEndTime = clampNumber(options.endTime, { min: 0, max: Number.MAX_SAFE_INTEGER, fallback: startTime + 0.001 });
@@ -902,11 +952,13 @@
         buildDrumSoundPalette,
         buildKeyboardGeometry,
         clampNumber,
+        createGrainEnvelopeCurve,
         createSeededRandom,
         generateDrumLoopBlueprint,
         generateRhythmicStepBlueprint,
         pickWeighted,
         recordingExtensionForMimeType,
+        randomizeLayerWindow,
         resolveLoopedPlayPosition,
         resolveSampleWindow,
         validatePreset
