@@ -9773,7 +9773,7 @@
             });
         }
 
-        function trimSourceBufferToLocators(kind) {
+        async function trimSourceBufferToLocators(kind) {
             const config = getSourceSlotConfig(kind);
             const buffer = config.buffer();
             if (!buffer || !audioContext || typeof mygrainUtils.trimAudioBufferToWindow !== 'function') {
@@ -9791,6 +9791,8 @@
             if (!trimmedBuffer) return false;
 
             setSourceBuffer(kind, trimmedBuffer, `${definitionLabelForSourceKind(kind)} trimmed`);
+            await saveAudioBufferToDB(trimmedBuffer, config.dbKey());
+            setStatus(`${definitionLabelForSourceKind(kind)} trimmed and saved.`);
             return true;
         }
 
@@ -9809,8 +9811,13 @@
         addSourceGrainEnvelopeControls();
 
         document.querySelectorAll('.trim-source-btn').forEach((button) => {
-            button.addEventListener('click', () => {
-                trimSourceBufferToLocators(button.dataset.sourceKind);
+            button.addEventListener('click', async () => {
+                try {
+                    await trimSourceBufferToLocators(button.dataset.sourceKind);
+                } catch (error) {
+                    console.error(error);
+                    setStatus(`Trim failed: ${error.message}`, 'error');
+                }
             });
         });
 
