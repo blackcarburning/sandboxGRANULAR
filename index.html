@@ -4788,7 +4788,7 @@
         let lfo3StartTime = 0;
         let lfo3Enabled = {};
         let lfo3Inverted = {};
-        const DISABLED_LOOP_START_LFO_PARAMS = new Set(['sampleStart', 'generatedLoopStart', 'micLoopStart']);
+        const DISABLED_LOOP_START_LFO_PARAMS = new Set();
         
         // Oscillator state
         let osc1Config = {
@@ -5270,18 +5270,32 @@
             SOURCE_GRAIN_CONTROL_DEFINITIONS.map((definition) => [definition.kind, definition.controls])
         );
         const SOURCE_GRAIN_CONTROL_IDS = SOURCE_GRAIN_CONTROL_DEFINITIONS.flatMap((definition) => Object.values(definition.controls).map((control) => control.id));
+        const SOURCE_LOOP_CONTROL_DEFINITIONS = [
+            { kind: 'generated', label: 'Generated', startId: 'generatedLoopStart', endId: 'generatedLoopEnd' },
+            { kind: 'mic', label: 'Mic', startId: 'micLoopStart', endId: 'micLoopEnd' },
+            { kind: 'grainAMic', label: 'Grain A', startId: 'grainAMicLoopStart', endId: 'grainAMicLoopEnd' },
+            { kind: 'grainBMic', label: 'Grain B', startId: 'grainBMicLoopStart', endId: 'grainBMicLoopEnd' },
+            { kind: 'output', label: 'Output', startId: 'outputLoopStart', endId: 'outputLoopEnd' }
+        ];
+        const SOURCE_LOOP_START_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.map((definition) => definition.startId);
+        const SOURCE_LOOP_END_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.map((definition) => definition.endId);
+        const SOURCE_LOOP_CONTROL_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.flatMap((definition) => [definition.startId, definition.endId]);
 
         SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
             Object.entries(definition.controls).forEach(([role, control]) => {
                 paramRanges[control.id] = { min: control.min, max: control.max };
                 INTERNAL_RANDOMIZE_SLIDER_RANGES[control.id] = role === 'position'
-                    ? { min: -28, max: 28 }
-                    : { min: 55, max: 165 };
+                    ? { min: -24, max: 24 }
+                    : { min: 60, max: 160 };
                 GRANULAR_LFO_MODULATION_SCALES[control.id] = role === 'position' ? 0.1 : 0.08;
                 RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.add(control.id);
             });
         });
-        ['generatedGrainPosition', 'generatedGrainScale', 'micGrainPosition', 'micGrainScale'].forEach((id) => {
+        SOURCE_LOOP_CONTROL_IDS.forEach((id) => {
+            GRANULAR_LFO_MODULATION_SCALES[id] = 0.06;
+            RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.add(id);
+        });
+        SOURCE_GRAIN_CONTROL_IDS.concat(SOURCE_LOOP_CONTROL_IDS).forEach((id) => {
             PRIORITY_RANDOM_LFO_TARGET_PARAMS.add(id);
         });
 
@@ -9214,6 +9228,35 @@
             return group;
         }
 
+        function addSourceLoopLfoControls() {
+            SOURCE_LOOP_CONTROL_DEFINITIONS.forEach((definition) => {
+                const startSlider = document.getElementById(definition.startId);
+                const endSlider = document.getElementById(definition.endId);
+                const host = startSlider?.closest('.source-loop-controls') || endSlider?.closest('.source-loop-controls');
+                if (!host) return;
+
+                let controls = host.querySelector('.source-loop-lfo-controls');
+                if (!controls) {
+                    controls = document.createElement('div');
+                    controls.className = 'source-loop-lfo-controls';
+                    host.append(controls);
+                }
+
+                [
+                    { id: definition.startId, label: 'Start' },
+                    { id: definition.endId, label: 'End' }
+                ].forEach((control) => {
+                    if (controls.querySelector(`.lfo-toggle[data-param="${control.id}"]`)) return;
+                    const row = document.createElement('div');
+                    row.className = 'source-loop-lfo-row';
+                    const label = document.createElement('span');
+                    label.textContent = control.label;
+                    row.append(label, createSourceGrainLfoButtons(control.id));
+                    controls.append(row);
+                });
+            });
+        }
+
         function addSourceGrainEnvelopeControls() {
             SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
                 const canvas = getSourceSlotConfig(definition.kind).canvas;
@@ -9258,6 +9301,7 @@
             });
         }
 
+        addSourceLoopLfoControls();
         addSourceGrainEnvelopeControls();
 
         const sliders = document.querySelectorAll('input[type="range"]');
@@ -10480,6 +10524,24 @@
             };
         }
 
+        function randomizeSourceLoopRanges(profile = {}) {
+            const densityBias = Math.max(0, Math.min(1, Number(profile.densityBias) || 0.5));
+            const energy = Math.max(0, Math.min(1, Number(profile.energy) || 0.7));
+            const minSpan = Math.round(22 + ((1 - densityBias) * 16));
+            const maxSpan = Math.round(58 + ((1 - energy) * 22));
+
+            SOURCE_LOOP_CONTROL_DEFINITIONS.forEach((definition, index) => {
+                const span = randomIntegerInRange(minSpan, Math.max(minSpan + 8, maxSpan));
+                const sourceBias = (index % 3) * 4;
+                const maxStart = Math.max(8, Math.min(54, 92 - span - sourceBias));
+                const minStart = Math.min(4 + sourceBias, maxStart);
+                const start = randomIntegerInRange(minStart, maxStart);
+                const end = Math.max(start + 12, Math.min(96, start + span));
+                setSliderValue(definition.startId, clampToSliderBounds(definition.startId, start));
+                setSliderValue(definition.endId, clampToSliderBounds(definition.endId, end));
+            });
+        }
+
         function randomizeInternalParameters(options = {}) {
             const profile = options.profile || createMusicalGenerationProfile();
             const [densityMin, densityMax] = profile.densityRange || [10, 28];
@@ -10545,6 +10607,7 @@
                     : randomValueForInternalRange(range);
                 setSliderValue(id, clampToSliderBounds(id, nextValue));
             });
+            randomizeSourceLoopRanges(profile);
             randomizeLfoDepths({ energy: profile.energy });
             syncPerformanceControlState();
             updateEffects();
@@ -10624,6 +10687,49 @@
                     activeRoutes += 1;
                 });
             }
+        }
+
+        function randomItem(items) {
+            const list = Array.isArray(items) ? items.filter(Boolean) : [];
+            if (list.length === 0) return null;
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        function shuffledItems(items) {
+            return [...items].sort(() => Math.random() - 0.5);
+        }
+
+        function randomizeSourceGrainAndLoopLfoRouting(options = {}) {
+            const availableTargets = new Set(getRandomizableLfoTargetParams());
+            const availableFrom = (items) => items.filter((id) => availableTargets.has(id));
+            const sourcePositionIds = availableFrom(SOURCE_GRAIN_CONTROL_DEFINITIONS.map((definition) => definition.controls.position.id));
+            const sourceGrainIds = availableFrom(SOURCE_GRAIN_CONTROL_IDS);
+            const sourceStartIds = availableFrom(SOURCE_LOOP_START_IDS);
+            const sourceEndIds = availableFrom(SOURCE_LOOP_END_IDS);
+            const chosen = new Set([
+                randomItem(sourcePositionIds),
+                randomItem(sourceStartIds),
+                randomItem(sourceEndIds)
+            ].filter(Boolean));
+            const profile = options.profile || {};
+            const extraCount = randomIntegerInRange(2, Math.max(3, Math.round(3 + (Number(profile.energy) || 0.7) * 4)));
+
+            shuffledItems([...sourceGrainIds, ...sourceStartIds, ...sourceEndIds]).some((param) => {
+                if (chosen.size >= extraCount + 3) return true;
+                chosen.add(param);
+                return false;
+            });
+
+            chosen.forEach((param) => {
+                const firstLfo = Math.random() < 0.5 ? '1' : '2';
+                const secondLfo = firstLfo === '1' ? '2' : '1';
+                setLfoRouteState(param, firstLfo, true);
+                setLfoInvertState(param, firstLfo, Math.random() < 0.42);
+                if (Math.random() < 0.18) {
+                    setLfoRouteState(param, secondLfo, true);
+                    setLfoInvertState(param, secondLfo, Math.random() < 0.34);
+                }
+            });
         }
 
         function quantizePitchOffsetToScale(offset, scaleIntervals) {
@@ -11878,6 +11984,7 @@
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             const sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
             randomizeLfoRoutingMatrix({ profile: generationProfile });
+            randomizeSourceGrainAndLoopLfoRouting({ profile: generationProfile });
 
             // Randomize key type/division selectors while leaving waveform controls manual.
             [
