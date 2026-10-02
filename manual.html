@@ -181,7 +181,7 @@
         <table>
             <tr><th>Area</th><th>Purpose</th></tr>
             <tr><td>Performance controls</td><td>Main sound and transport controls such as BPM, Generate Loop, Generate Sample, Play Loop, Sample Vol, Sample Solo, filter controls, LFO routing, and exports.</td></tr>
-            <tr><td>Source panel</td><td>Generated loop waveform, mic waveform, source loading, normalization, audition, and loop start/end ranges.</td></tr>
+            <tr><td>Source panel</td><td>Generated, mic, Grain A/B mic, and output waveforms, source loading, normalization, audition, and independent granular controls.</td></tr>
             <tr><td>Keyboard</td><td>Touch-playable note surface. Notes trigger granular playback and oscillator voices through the current patch.</td></tr>
             <tr><td>Tabs</td><td>Deeper grain, filter, noise, FX, LFO, stereo, utility, oscillator, and sequencer controls.</td></tr>
         </table>
@@ -200,7 +200,8 @@
         <p><strong>Record Mic</strong> captures microphone input after permission is granted. <strong>Load Audio</strong> imports an audio file from the device. Loaded and recorded audio can be used as granular sources and trimmed with the waveform start/end controls.</p>
 
         <h3>Loop Start and End</h3>
-        <p>The generated and mic waveform panels each have start/end sliders. These define the region used by direct looping and granular playback. The loop end point can be controlled by LFO 1 or LFO 2.</p>
+        <p>Each source waveform has independent grain size, stretch/speed (0.25x–4x), start, and end controls. Editing grain size or enabling its LFO routing enables independent size; turn it off to follow the global or voice size. L1, L2, and L3 route modulation to each parameter; INV reverses that route. Red markers show manual bounds, lighter markers show the modulated region, and orange shows the effective playback region. Crossed bounds are ordered safely, and playback adjusts tiny regions to fit a grain at its playback rate.</p>
+        <p><strong>Randomize</strong> deliberately changes every source window (start 0–70%, length 10–60%) and grain size (roughly 20–400 ms, limited by the available audio). Generate Loop and Generate Sample preserve manual source windows.</p>
 
         <h2 id="playing">Playing and Looping</h2>
         <p>Tap or drag on the keyboard to play notes. The granular engine reads from the active source loop, while oscillators can be blended in with the source controls.</p>
@@ -213,6 +214,8 @@
         </ul>
 
         <h2 id="sound">Sound Controls</h2>
+        <p>The <strong>Grain</strong> tab offers Hann, triangle, trapezoid/ADSR, exponential decay, reverse exponential, and Gaussian envelopes. Skew moves the envelope shape and accepts LFO routing; attack/release remain active for trapezoid/ADSR.</p>
+        <p>Use reverse probability for backwards grains, pitch quantization for scale-constrained playback (including speed changes), signed position-linked pan and stereo scatter for spatial motion, and density humanize for timing variation. <strong>Freeze</strong> holds the current granular position and window without stopping grain generation. These settings and source controls are saved in JSON patches and returned to defaults by Reset Patch; older patches retain their existing grain settings.</p>
         <table>
             <tr><th>Control</th><th>What it does</th></tr>
             <tr><td>Granular/Osc</td><td>Balances sample/granular playback against oscillator voices.</td></tr>
