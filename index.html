@@ -3085,7 +3085,7 @@
                 <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
-                <button class="performance-btn" id="performanceRepoExportBtn">Export Loop to Repo</button>
+                <button class="performance-btn" id="performanceRepoExportBtn">Export Final Mix to Repo</button>
                 <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
                 <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                 <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
@@ -14162,7 +14162,39 @@
             });
         }
 
-        async function exportDawReadyBars() {
+        function findAudioBufferStart(audioBuffer, threshold = 0.0005) {
+            if (!audioBuffer || !audioBuffer.length) return 0;
+            const channelData = Array.from({ length: audioBuffer.numberOfChannels }, (_, channelIndex) =>
+                audioBuffer.getChannelData(channelIndex)
+            );
+
+            for (let frame = 0; frame < audioBuffer.length; frame += 1) {
+                for (let channelIndex = 0; channelIndex < channelData.length; channelIndex += 1) {
+                    if (Math.abs(channelData[channelIndex][frame]) > threshold) {
+                        return frame / audioBuffer.sampleRate;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        function sliceAudioBuffer(audioBuffer, startSeconds, durationSeconds) {
+            const startFrame = Math.max(0, Math.floor(startSeconds * audioBuffer.sampleRate));
+            const requestedLengthFrames = Math.max(0, Math.floor(durationSeconds * audioBuffer.sampleRate));
+            const endFrame = Math.min(audioBuffer.length, startFrame + requestedLengthFrames);
+            const length = Math.max(0, endFrame - startFrame);
+            const sliced = audioContext.createBuffer(audioBuffer.numberOfChannels, length, audioBuffer.sampleRate);
+
+            for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+                const source = audioBuffer.getChannelData(channelIndex).subarray(startFrame, endFrame);
+                sliced.copyToChannel(source, channelIndex, 0);
+            }
+
+            return sliced;
+        }
+
+        async function renderDawReadyBarsExport() {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
@@ -14174,39 +14206,51 @@
             if (performanceExportBars) performanceExportBars.value = String(bars);
             document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
 
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const durationSeconds = (60 / bpm) * 4 * bars;
+            const wasSequencerPlaying = sequencerPlaying;
+            const wasArpPlaying = isArpeggiatorPlaying();
+            const captureSeconds = durationSeconds + 0.35;
+            const recordingPromise = recordLiveOutputBuffer(captureSeconds);
+            try {
+                if (wasSequencerPlaying || wasArpPlaying) {
+                    restartAllTransport({ silent: true });
+                } else {
+                    startSequencer();
+                    if (arpEnabled && holdEnabled) {
+                        startArpeggiatorPlayback();
+                    }
+                }
+
+                const fullMix = await recordingPromise;
+                const trimmedStart = Math.max(0, findAudioBufferStart(fullMix) - 0.01);
+                const exportMix = sliceAudioBuffer(fullMix, trimmedStart, durationSeconds);
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const filename = `mygrain-mix-${bpm}bpm-${bars}bars-${timestamp}.wav`;
+                return {
+                    bars,
+                    bpm,
+                    filename,
+                    blob: new Blob([audioBufferToWav24bit(exportMix)], { type: 'audio/wav' }),
+                };
+            } finally {
+                if (!wasSequencerPlaying && !wasArpPlaying) {
+                    stopSequencer();
+                    stopArpeggiatorPlayback({ restoreHeldPlayback: true });
+                }
+            }
+        }
+
+        async function exportDawReadyBars() {
             if (performanceExportBtn) {
                 performanceExportBtn.disabled = true;
                 performanceExportBtn.textContent = 'Exporting...';
             }
-            setStatus(`Exporting ${bars} bar${bars === 1 ? '' : 's'} from the main bus…`);
+            setStatus('Exporting the live final amp render from a fresh loop restart…');
 
             try {
-                const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-                const durationSeconds = (60 / bpm) * 4 * bars;
-                const wasSequencerPlaying = sequencerPlaying;
-                const wasOutputRecordingArmed = isOutputRecordingArmed;
-                if (!wasSequencerPlaying) {
-                    isOutputRecordingArmed = false;
-                    startSequencer();
-                    isOutputRecordingArmed = wasOutputRecordingArmed;
-                    await delayMs(80);
-                }
-                let fullMix;
-                try {
-                    fullMix = await recordLiveOutputBuffer(durationSeconds);
-                } finally {
-                    if (!wasSequencerPlaying) {
-                        stopSequencer();
-                        isOutputRecordingArmed = wasOutputRecordingArmed;
-                    }
-                }
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                const files = [{
-                    filename: `mygrain-mix-${bpm}bpm-${bars}bars-${timestamp}.wav`,
-                    blob: new Blob([audioBufferToWav24bit(fullMix)], { type: 'audio/wav' })
-                }];
-
-                await saveAudioFiles(files, `MYGRAIN ${bpm} BPM ${bars} bar export`);
+                const exportData = await renderDawReadyBarsExport();
+                await saveAudioFiles([{ filename: exportData.filename, blob: exportData.blob }], `MYGRAIN ${exportData.bpm} BPM ${exportData.bars} bar export`);
                 setStatus('Exported one WAV file from the live final output.');
             } finally {
                 if (performanceExportBtn) {
@@ -14217,10 +14261,6 @@
         }
 
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
-
-        function getGeneratedLoopExportBuffer() {
-            return generatedLoopBuffer || (generatedLoopBaseBuffer ? renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer) : null);
-        }
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
             const fallback = `${fallbackBase}.wav`;
@@ -14254,17 +14294,8 @@
         }
 
         async function exportGeneratedLoopToRepository() {
-            if (!audioContext) {
-                throw new Error('Start MYGRAIN before exporting.');
-            }
-            const sourceBuffer = getGeneratedLoopExportBuffer();
-            if (!sourceBuffer) {
-                throw new Error('Generate or load a loop before exporting to the repository.');
-            }
-
-            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const defaultName = `mygrain-loop-${bpm}bpm-${timestamp}`;
+            const exportData = await renderDawReadyBarsExport();
+            const defaultName = exportData.filename.replace(/\.wav$/i, '');
             const userFilename = prompt('Enter filename for WAV repository export:', defaultName);
             if (!userFilename) {
                 setStatus('Repository export cancelled.');
@@ -14279,13 +14310,12 @@
             setStatus(`Uploading ${filename} to the WAV repository…`);
 
             try {
-                const wavBlob = new Blob([audioBufferToWav24bit(sourceBuffer)], { type: 'audio/wav' });
-                const result = await uploadWavToRepository(wavBlob, filename);
+                const result = await uploadWavToRepository(exportData.blob, filename);
                 setStatus(`Uploaded ${result.savedName || filename} to the WAV repository.`);
             } finally {
                 if (performanceRepoExportBtn) {
                     performanceRepoExportBtn.disabled = false;
-                    performanceRepoExportBtn.textContent = 'Export Loop to Repo';
+                    performanceRepoExportBtn.textContent = 'Export Final Mix to Repo';
                 }
             }
         }
