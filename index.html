@@ -12647,6 +12647,7 @@
                     blueprint: loopBlueprint,
                     sourceBlueprint
                 });
+                restartAllTransport({ silent: true });
                 if (arpEnabled) {
                     stopSequencer();
                 } else {
@@ -13447,6 +13448,7 @@
                 octave: octaveOffset,
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 volumeBias: keyboardVolumeBias,
+                performanceExportBars: performanceExportBars ? clampExportBars(performanceExportBars.value) : 4,
                 activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'grain'
             };
 
@@ -13689,6 +13691,12 @@
                 if (state.generatedLoopTransposeOctaves !== undefined) {
                     generatedLoopTransposeOctaves = clampGeneratedLoopTransposeOctaves(state.generatedLoopTransposeOctaves);
                     updateGeneratedLoopTransposeLabel();
+                }
+
+                if (state.performanceExportBars !== undefined && performanceExportBars) {
+                    const bars = clampExportBars(state.performanceExportBars);
+                    performanceExportBars.value = String(bars);
+                    document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
                 }
 
                 if (state.fxMuted !== undefined) {
@@ -14210,6 +14218,7 @@
             const bars = clampExportBars(performanceExportBars?.value || 4);
             if (performanceExportBars) performanceExportBars.value = String(bars);
             document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
+            saveState();
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const durationSeconds = (60 / bpm) * 4 * bars;
@@ -15434,12 +15443,14 @@
         performanceExportBars?.addEventListener('input', (event) => {
             const bars = Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 4)));
             document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
+            saveState();
         });
 
         performanceExportBars?.addEventListener('change', (event) => {
             const bars = Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 4)));
             event.target.value = String(bars);
             document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
+            saveState();
         });
 
         performanceExportBtn?.addEventListener('click', async () => {
