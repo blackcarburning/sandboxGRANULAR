@@ -5013,6 +5013,7 @@
         let generatedLoopTransposeOctaves = 0;
         let transportLoopStartTime = null;
         let generatedDryLoopStartTime = null;
+        const TRANSPORT_START_BUFFER_SECONDS = 0.08;
         let globalModulationAmount = 0.55;
         let granularModulationAmount = 0.75;
         let generatedDryTrimDb = -6;
@@ -7623,6 +7624,13 @@
             return null;
         }
 
+        function getBufferedTransportStartTime(referenceTime = null) {
+            if (!audioContext) return null;
+            const now = audioContext.currentTime;
+            const requestedTime = Number.isFinite(referenceTime) ? referenceTime : now;
+            return Math.max(now + TRANSPORT_START_BUFFER_SECONDS, requestedTime);
+        }
+
         function startGeneratedDryLoop(startTime = null) {
             if (!audioContext || !masterGain || !generatedLoopBuffer) return;
 
@@ -7863,7 +7871,7 @@
             }
 
             if (options.restoreHeldPlayback && holdEnabled && heldNotes.size > 0) {
-                startHeldKeyboardPlayback();
+                startHeldKeyboardPlayback(transportLoopStartTime);
             }
         }
 
@@ -8010,7 +8018,9 @@
             const notes = getArpeggiatorNotes();
             if (notes.length === 0) return;
             arpStepIndex = 0;
-            arpNextStepTime = Number.isFinite(startTime) ? Math.max(audioContext.currentTime, startTime) : audioContext.currentTime;
+            arpNextStepTime = Number.isFinite(startTime)
+                ? Math.max(audioContext.currentTime, startTime)
+                : getBufferedTransportStartTime();
             if (!sequencerPlaying) {
                 transportLoopStartTime = arpNextStepTime;
             }
@@ -9338,19 +9348,19 @@
             currentGrainNote = null;
         }
 
-        function startHeldKeyboardPlayback() {
+        function startHeldKeyboardPlayback(startTime = null) {
             if (!isAudioGraphReady()) return false;
             if (heldNotes.size === 0) return true;
             stopHeldKeyboardPlaybackPreserveSelection();
-            const startTime = audioContext.currentTime + 0.02;
+            const startAt = Number.isFinite(startTime) ? Math.max(audioContext.currentTime, startTime) : getBufferedTransportStartTime();
             heldNotes.forEach((note) => {
                 const key = document.querySelector(`.key[data-note="${note}"]`);
                 if (key) key.classList.add('active');
-                startGrainStream(note, startTime, 1, {
+                startGrainStream(note, startAt, 1, {
                     role: 'keyboard',
-                    streamStartTime: getTransportLoopOriginTime() ?? startTime
+                    streamStartTime: getTransportLoopOriginTime() ?? startAt
                 });
-                playOscillatorNote(note, startTime, 1, { role: 'keyboard' });
+                playOscillatorNote(note, startAt, 1, { role: 'keyboard' });
             });
             activeKeyCount = heldNotes.size;
             return true;
@@ -9361,16 +9371,17 @@
                 setStatus('Start MYGRAIN before playing.', 'error');
                 return false;
             }
+            const transportStartTime = getBufferedTransportStartTime();
             if (arpEnabled) {
                 if (holdEnabled) {
-                    startArpeggiatorPlayback();
+                    startArpeggiatorPlayback(transportStartTime);
                 }
                 syncPerformanceControlState();
                 if (!options.silent) setStatus('Arpeggiator active; loop stays stopped.');
                 return true;
             }
-            startSequencer();
-            startHeldKeyboardPlayback();
+            startSequencer(transportStartTime);
+            startHeldKeyboardPlayback(transportStartTime);
             syncPerformanceControlState();
             if (!options.silent) setStatus('Loop and selected key playing.');
             return true;
@@ -9445,7 +9456,7 @@
 
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartArp = arpEnabled && holdEnabled;
-            const restartTime = audioContext.currentTime;
+            const restartTime = getBufferedTransportStartTime();
 
             if (shouldRestartSequencer) {
                 stopSequencer();
@@ -9526,7 +9537,7 @@
             sequencerPlaying = true;
             sequencerCurrentStep = 0;
             const now = audioContext.currentTime;
-            const startAt = Number.isFinite(startTime) ? Math.max(now, startTime) : now + 0.04;
+            const startAt = Number.isFinite(startTime) ? Math.max(now, startTime) : getBufferedTransportStartTime();
             sequencerNextStepTime = startAt;
             transportLoopStartTime = startAt;
             startGeneratedDryLoop(startAt);
@@ -11835,14 +11846,18 @@
             const buffer = audioContext.createBuffer(2, frameCount, sampleRate);
             const events = [];
             const TWO_PI = Math.PI * 2;
+            const fmDrumGridSteps = [0, 2, 4, 6];
 
             function addEvent(step, type, velocity = 0.7, accent = false, options = {}) {
                 if (step < 0 || step >= stepCount) return;
-                if (!options.allowLayer && events.some((event) => event.step === step && event.type === type)) return;
+                const quantizedStep = fmDrumGridSteps.reduce((best, gridStep) => {
+                    return Math.abs(gridStep - step) < Math.abs(best - step) ? gridStep : best;
+                }, fmDrumGridSteps[0]);
+                if (!options.allowLayer && events.some((event) => event.step === quantizedStep && event.type === type)) return;
                 events.push({
-                    step,
+                    step: quantizedStep,
                     type,
-                    time: step * stepDuration,
+                    time: quantizedStep * stepDuration,
                     velocity: Math.max(0, Math.min(1, velocity + (accent ? 0.12 : 0))),
                     accent,
                     core: Boolean(options.core)
