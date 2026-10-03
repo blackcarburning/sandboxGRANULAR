@@ -10,6 +10,16 @@
     <meta name="apple-mobile-web-app-title" content="MYGRAIN">
     <link rel="icon" href="data:,">
     <title>MYGRAIN</title>
+    <script>
+        (function cacheBustMygrain() {
+            const cacheBuster = '2026-10-03-17-03-b6bd3d3';
+            if (!/^https?:$/.test(location.protocol)) return;
+            const url = new URL(location.href);
+            if (url.searchParams.get('v') === cacheBuster) return;
+            url.searchParams.set('v', cacheBuster);
+            location.replace(url.toString());
+        })();
+    </script>
     <script defer type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="t3fqkzcnvmjuwfn"></script>
     <script src="mygrain-utils.js"></script>
     <style>
