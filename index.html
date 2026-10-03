@@ -6390,6 +6390,12 @@
                     if (restored) {
                         console.log('State restored from localStorage');
                     }
+                    if (window.matchMedia('(max-width: 900px)').matches) {
+                        const oscTabButton = document.querySelector('.tab-button[data-tab="osc"]');
+                        if (oscTabButton && !oscTabButton.classList.contains('active')) {
+                            activateTab(oscTabButton);
+                        }
+                    }
                     setupStateSaving();
                     
                     // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
