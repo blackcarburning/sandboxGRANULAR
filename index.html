@@ -14050,8 +14050,13 @@
             if (navigator.share && navigator.canShare) {
                 const shareFiles = files.map(({ blob, filename }) => new File([blob], filename, { type: 'audio/wav' }));
                 if (navigator.canShare({ files: shareFiles })) {
-                    await navigator.share({ files: shareFiles, title });
-                    return;
+                    try {
+                        await navigator.share({ files: shareFiles, title });
+                        return;
+                    } catch (error) {
+                        if (error?.name === 'AbortError') return;
+                        console.warn('navigator.share failed, falling back to download:', error);
+                    }
                 }
             }
 
