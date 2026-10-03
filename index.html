@@ -3085,6 +3085,8 @@
                 <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
                 <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
                 <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
+                <button class="performance-btn" id="performanceRepoExportBtn">Export Loop to Repo</button>
+                <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
                 <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                 <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
@@ -14214,6 +14216,84 @@
             }
         }
 
+        const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
+
+        function getGeneratedLoopExportBuffer() {
+            return generatedLoopBuffer || (generatedLoopBaseBuffer ? renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer) : null);
+        }
+
+        function sanitizeWavRepositoryFilename(value, fallbackBase) {
+            const fallback = `${fallbackBase}.wav`;
+            const input = String(value || '').trim();
+            if (!input) return fallback;
+            const lastSegment = input.replace(/\\/g, '/').split('/').pop() || '';
+            const cleaned = lastSegment
+                .replace(/\.wav$/i, '')
+                .replace(/[^A-Za-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^[-_.]+|[-_.]+$/g, '');
+            return `${cleaned || fallbackBase}.wav`;
+        }
+
+        async function uploadWavToRepository(blob, filename) {
+            const uploadUrl = `${WAV_REPOSITORY_BASE_URL}/api/upload?filename=${encodeURIComponent(filename)}`;
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'audio/wav',
+                    'X-Filename': filename
+                },
+                body: blob
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Upload failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function exportGeneratedLoopToRepository() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before exporting.');
+            }
+            const sourceBuffer = getGeneratedLoopExportBuffer();
+            if (!sourceBuffer) {
+                throw new Error('Generate or load a loop before exporting to the repository.');
+            }
+
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const defaultName = `mygrain-loop-${bpm}bpm-${timestamp}`;
+            const userFilename = prompt('Enter filename for WAV repository export:', defaultName);
+            if (!userFilename) {
+                setStatus('Repository export cancelled.');
+                return;
+            }
+
+            const filename = sanitizeWavRepositoryFilename(userFilename, defaultName);
+            if (performanceRepoExportBtn) {
+                performanceRepoExportBtn.disabled = true;
+                performanceRepoExportBtn.textContent = 'Uploading...';
+            }
+            setStatus(`Uploading ${filename} to the WAV repository…`);
+
+            try {
+                const wavBlob = new Blob([audioBufferToWav24bit(sourceBuffer)], { type: 'audio/wav' });
+                const result = await uploadWavToRepository(wavBlob, filename);
+                setStatus(`Uploaded ${result.savedName || filename} to the WAV repository.`);
+            } finally {
+                if (performanceRepoExportBtn) {
+                    performanceRepoExportBtn.disabled = false;
+                    performanceRepoExportBtn.textContent = 'Export Loop to Repo';
+                }
+            }
+        }
+
+        function openWavRepositoryBrowser() {
+            window.open(`${WAV_REPOSITORY_BASE_URL}/`, '_blank', 'noopener');
+        }
+
 
         // --- OUTPUT RECORDING SYSTEM ---
         let outputMediaRecorder = null;
@@ -14666,6 +14746,8 @@
         const performancePulseWidth = document.getElementById('performancePulseWidth');
         const performanceExportBars = document.getElementById('performanceExportBars');
         const performanceExportBtn = document.getElementById('performanceExportBtn');
+        const performanceRepoExportBtn = document.getElementById('performanceRepoExportBtn');
+        const performanceWavBrowserBtn = document.getElementById('performanceWavBrowserBtn');
         const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
         const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
@@ -15329,6 +15411,19 @@
                 console.error(error);
                 setStatus(`Export failed: ${error.message}`, 'error');
             }
+        });
+
+        performanceRepoExportBtn?.addEventListener('click', async () => {
+            try {
+                await exportGeneratedLoopToRepository();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Repository export failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceWavBrowserBtn?.addEventListener('click', () => {
+            openWavRepositoryBrowser();
         });
 
         performanceExportPatchBtn?.addEventListener('click', () => {
