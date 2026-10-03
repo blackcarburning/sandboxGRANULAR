@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-03-19-05-synth-keyboard-arp-wiring';
+            const cacheBuster = '2026-10-03-19-45-audible-simple-drums';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -2754,17 +2754,17 @@
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceGeneratedDryMix">
-                        <span>Gen Dry</span>
-                        <span class="value" id="performanceGeneratedDryMixValue">0%</span>
+                        <span>Loop Level</span>
+                        <span class="value" id="performanceGeneratedDryMixValue">80%</span>
                     </label>
-                    <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="0" step="1">
+                    <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="80" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceGeneratedDryTrim">
                         <span>Dry Trim</span>
-                        <span class="value" id="performanceGeneratedDryTrimValue">-6.0dB</span>
+                        <span class="value" id="performanceGeneratedDryTrimValue">0.0dB</span>
                     </label>
-                    <input type="range" id="performanceGeneratedDryTrim" min="-24" max="6" value="-6" step="0.5">
+                    <input type="range" id="performanceGeneratedDryTrim" min="-24" max="6" value="0" step="0.5">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceGranularTrim">
@@ -3370,43 +3370,14 @@
                     </div>
                     <select id="hugeDrumKit">
                         <option value="studio" selected>Studio</option>
-                        <option value="arena">Arena</option>
-                        <option value="concrete">Concrete</option>
-                        <option value="chrome">Chrome</option>
-                        <option value="velvet">Velvet</option>
-                        <option value="jungle">Jungle</option>
-                        <option value="industrial">Industrial</option>
-                        <option value="disco">Disco</option>
-                        <option value="punch">Punch</option>
                         <option value="deep">Deep</option>
-                        <option value="loft">Loft</option>
-                        <option value="mono">Mono</option>
-                        <option value="neon">Neon</option>
-                        <option value="brick">Brick</option>
-                        <option value="turbo">Turbo</option>
-                        <option value="dust">Dust</option>
-                        <option value="satin">Satin</option>
-                        <option value="garage">Garage</option>
+                        <option value="punch">Punch</option>
                         <option value="giant">Giant</option>
-                        <option value="rattle">Rattle</option>
                     </select>
                     <div class="source-loop-labels">
-                        <label for="fmDrumLevel">Drum Level <span id="fmDrumLevelValue">85%</span></label>
+                        <label for="fmDrumLevel">Drum Level <span id="fmDrumLevelValue">100%</span></label>
                     </div>
-                    <input type="range" id="fmDrumLevel" min="0" max="100" value="85" step="1">
-                    <div class="source-loop-lfo-controls">
-                        <div class="source-loop-lfo-row">
-                            <span>Pitch</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="fmDrumPitch" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="fmDrumPitch" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="fmDrumPitch" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="fmDrumPitch" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="fmDrumPitch" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="fmDrumPitch" data-lfo="3">INV</button>
-                            </div>
-                        </div>
-                    </div>
+                    <input type="range" id="fmDrumLevel" min="0" max="100" value="100" step="1">
                 </div>
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
@@ -5231,7 +5202,7 @@
         let oscRouteMode = 'random';
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
-        let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
+        let generatedDryMix = 0.8; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
         let generatedSampleSolo = false;
         let generatedSourceSwing = 0; // 0 = straight generated source timing
@@ -5242,7 +5213,7 @@
         const TRANSPORT_START_BUFFER_SECONDS = 0.08;
         let globalModulationAmount = 0.55;
         let granularModulationAmount = 0.75;
-        let generatedDryTrimDb = -6;
+        let generatedDryTrimDb = 0;
         let granularTrimDb = -3;
         let masterTrimDb = -3;
         let clickGuardMs = 8;
@@ -7614,6 +7585,16 @@
             return generatedDryMix;
         }
 
+        function setGeneratedDryMixPercent(value, options = {}) {
+            const clamped = Math.max(0, Math.min(100, Number(value) || 0));
+            generatedDryMix = clamped / 100;
+            const slider = document.getElementById('performanceGeneratedDryMix');
+            if (slider && slider.value !== String(clamped)) slider.value = String(clamped);
+            const label = document.getElementById('performanceGeneratedDryMixValue');
+            if (label) label.textContent = `${Math.round(clamped)}%`;
+            if (options.update !== false) updateGeneratedDryLoopMix();
+        }
+
         function getDbControlValue(id, fallback, min, max, options = {}) {
             const slider = document.getElementById(id);
             const rawValue = options.modulated ? getModulatedValue(id) : Number(slider?.value ?? fallback);
@@ -7623,6 +7604,16 @@
         function getGeneratedDryTrimDb() {
             generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', generatedDryTrimDb, -24, 6);
             return generatedDryTrimDb;
+        }
+
+        function setGeneratedDryTrimDb(dbValue, options = {}) {
+            const safeDb = Math.max(-24, Math.min(6, Number(dbValue) || 0));
+            generatedDryTrimDb = safeDb;
+            const slider = document.getElementById('performanceGeneratedDryTrim');
+            if (slider && slider.value !== String(safeDb)) slider.value = String(safeDb);
+            const label = document.getElementById('performanceGeneratedDryTrimValue');
+            if (label) label.textContent = formatDb(safeDb);
+            if (options.update !== false) updateGeneratedDryLoopMix();
         }
 
         function getGranularTrimDb() {
@@ -10063,15 +10054,14 @@
                 const step = sequencerSteps[sequencerCurrentStep];
                 const scheduledTime = sequencerNextStepTime;
                 
-                // Keep the sequencer monophonic without stealing held keyboard notes.
-                stopOscillatorsByRole('sequencer', Math.max(0, scheduledTime - 0.02));
-                if (seqGrainsEnabled) {
-                    stopAllGrains({ role: 'sequencer' });
-                }
-                
                 // Play current step at scheduled time
                 if (step.enabled) {
                     const stepVelocity = Math.max(0, Math.min(1, (Number(step.volume) || 80) / 100));
+                    const stopTime = Math.max(0, scheduledTime - getClickGuardSeconds());
+                    stopOscillatorsByRole('sequencer', stopTime);
+                    if (seqGrainsEnabled) {
+                        stopAllGrains({ role: 'sequencer' });
+                    }
                     playOscillatorNote(step.pitch, scheduledTime, stepVelocity, { role: 'sequencer' });
                     
                     // Start grain for this step if grain sequencing is enabled
@@ -10087,6 +10077,11 @@
                         }
                     }
 
+                } else {
+                    stopOscillatorsByRole('sequencer', Math.max(0, scheduledTime - getClickGuardSeconds()));
+                    if (seqGrainsEnabled) {
+                        stopAllGrains({ role: 'sequencer' });
+                    }
                 }
                 
                 // Update visual indicator (deferred to not block audio)
@@ -11690,7 +11685,7 @@
             setSliderValue('performanceGeneratedSourceMix', randomIntegerInRange(58, 100));
             setSliderValue('performanceSampleVolume', randomIntegerInRange(52, 100));
             setSliderValue('performanceGeneratedDryMix', randomIntegerInRange(18, 86));
-            setSliderValue('performanceGeneratedDryTrim', randomIntegerInRange(-14, 2));
+            setSliderValue('performanceGeneratedDryTrim', randomIntegerInRange(-3, 2));
             setSliderValue('performanceGranularTrim', randomIntegerInRange(-12, 3));
             setSliderValue('performanceGeneratedSwing', randomIntegerInRange(0, Math.min(42, Math.max(18, Math.round((profile.energy || 0.7) * 44)))));
             setSliderValue('performanceGeneratedTranspose', chooseRandom([-2, -1, 0, 0, 1, 2]));
@@ -11704,7 +11699,7 @@
             setSliderValue('generatedLoopEnd', randomIntegerInRange(72, 100));
             setSliderValue('micLoopStart', randomIntegerInRange(0, 18));
             setSliderValue('micLoopEnd', randomIntegerInRange(72, 100));
-            setSliderValue('fmDrumLevel', randomIntegerInRange(48, 100));
+            setSliderValue('fmDrumLevel', randomIntegerInRange(88, 100));
 
             setSliderValue('osc1Semitone', chooseRandom([-12, -7, -5, 0, 0, 0, 7, 12]));
             setSliderValue('osc1Detune', randomIntegerInRange(-12, 12));
@@ -11760,7 +11755,7 @@
             setSliderValue('oscSynthResonance', Number((0.5 + Math.random() * 2.9).toFixed(1)));
             setSliderValue('oscSynthDrive', Number((Math.random() * 8.5).toFixed(1)));
             setSelectValue('oscRouteMode', chooseRandom(['random', 'blend', 'wide', 'metal', 'sub']));
-            setSelectValue('hugeDrumKit', chooseRandom(HUGE_DRUM_KITS).id);
+            setSelectValue('hugeDrumKit', chooseRandom(['studio', 'deep', 'punch', 'giant']));
             setSelectValue('noiseType', noiseEnabled ? chooseRandom(['white', 'pink']) : 'none');
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setFinalFxPlacement('pre');
@@ -11784,12 +11779,6 @@
             setFilterEnabled('hpf', maybe(0.72));
             setFilterPoles('lpf', chooseRandom([2, 4]));
             setFilterPoles('hpf', chooseRandom([2, 4]));
-            setLfoRouteState('fmDrumPitch', '1', maybe(0.32));
-            setLfoRouteState('fmDrumPitch', '2', maybe(0.24));
-            setLfoRouteState('fmDrumPitch', '3', maybe(0.16));
-            setLfoInvertState('fmDrumPitch', '1', maybe(0.3));
-            setLfoInvertState('fmDrumPitch', '2', maybe(0.3));
-            setLfoInvertState('fmDrumPitch', '3', maybe(0.3));
 
             const exportBars = document.getElementById('performanceExportBars');
             if (exportBars) {
@@ -12628,12 +12617,12 @@
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const fmLevel = Math.max(0, Math.min(1, getFmDrumControlValue('fmDrumLevel', 85) / 100));
             const kit = getHugeDrumKitDefinition();
-            const punch = 0.78;
-            const pitchRatio = Math.pow(2, getQuantizedFmDrumPitchSemitones() / 12);
+            const punch = 0.95;
+            const pitchRatio = 1;
             const random = typeof mygrainUtils.createSeededRandom === 'function'
                 ? mygrainUtils.createSeededRandom(`huge-drums-${Date.now()}-${bpm}-${fmLevel}-${kit.id}`)
                 : Math.random;
-            const bars = 4;
+            const bars = 2;
             const stepsPerBar = 16;
             const stepCount = bars * stepsPerBar;
             const stepDuration = (60 / bpm) / 4;
@@ -12644,51 +12633,13 @@
             const events = [];
             const TWO_PI = Math.PI * 2;
 
-            const drumPatterns = [
-                {
-                    name: 'straight backbeat',
-                    kick: [0, 8],
-                    snare: [4, 12],
-                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
-                    openHat: [15]
-                },
-                {
-                    name: 'four on the floor',
-                    kick: [0, 4, 8, 12],
-                    snare: [4, 12],
-                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
-                    openHat: [7, 15]
-                },
-                {
-                    name: 'slow rock',
-                    kick: [0, 8],
-                    snare: [4, 12],
-                    hats: [0, 4, 8, 12],
-                    openHat: [14]
-                },
-                {
-                    name: 'half time',
-                    kick: [0, 8, 10],
-                    snare: [8],
-                    hats: [0, 4, 8, 12],
-                    openHat: [14]
-                },
-                {
-                    name: 'disco drive',
-                    kick: [0, 6, 8, 14],
-                    snare: [4, 12],
-                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
-                    openHat: [15]
-                },
-                {
-                    name: 'big room rock',
-                    kick: [0, 8],
-                    snare: [4, 12],
-                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
-                    openHat: [11, 15]
-                }
-            ];
-            const pattern = drumPatterns[Math.floor(random() * drumPatterns.length)];
+            const pattern = {
+                name: 'simple backbeat',
+                kick: [0, 8, 14],
+                snare: [4, 12],
+                hats: [0, 2, 4, 6, 8, 10, 12, 14],
+                openHat: [15]
+            };
 
             function addEvent(step, type, velocity = 0.7, accent = false, options = {}) {
                 if (!Number.isFinite(step)) return;
@@ -12711,23 +12662,22 @@
                 const accentBar = barIndex % 2 === 0;
 
                 pattern.kick.forEach((step, index) => {
-                    addEvent(barOffset + step, 'kick', index === 0 ? 1 : 0.86, accentBar && step === 0, { core: true, allowLayer: true });
+                    addEvent(barOffset + step, 'kick', index === 0 ? 1 : 0.94, accentBar && step === 0, { core: true, allowLayer: true });
                 });
                 pattern.snare.forEach((step, index) => {
-                    addEvent(barOffset + step, 'snare', index === 0 ? 0.94 : 0.9, step === 4 || step === 12, { core: true, allowLayer: true });
+                    addEvent(barOffset + step, 'snare', index === 0 ? 1 : 0.96, step === 4 || step === 12, { core: true, allowLayer: true });
                 });
                 pattern.hats.forEach((step) => {
-                    const hatVelocity = step % 4 === 0 ? 0.34 : 0.26;
+                    const hatVelocity = step % 4 === 0 ? 0.48 : 0.36;
                     addEvent(barOffset + step, 'hat', hatVelocity, step === 0 || step === 8, { core: true, allowLayer: true });
                 });
                 pattern.openHat.forEach((step) => {
-                    addEvent(barOffset + step, 'openHat', 0.28, false, { core: true, allowLayer: true });
+                    addEvent(barOffset + step, 'openHat', 0.40, false, { core: true, allowLayer: true });
                 });
 
-                if (barIndex === bars - 1) {
-                    const fillSteps = kit.fillBias > 0.3 ? [8, 10, 12, 14, 15] : [10, 12, 14, 15];
-                    fillSteps.forEach((step, index) => {
-                        addEvent(barOffset + step, 'tom', 0.45 - (index * 0.04), index === fillSteps.length - 1, { core: true, allowLayer: true });
+                if (barIndex === bars - 1 && kit.fillBias > 0.3) {
+                    [10, 12, 14].forEach((step, index) => {
+                        addEvent(barOffset + step, 'tom', 0.42 - (index * 0.06), index === 2, { core: true, allowLayer: true });
                     });
                 }
             }
@@ -12818,13 +12768,13 @@
                     const dcBlocked = saturated - prevInput + 0.995 * prevOutput;
                     prevInput = saturated;
                     prevOutput = dcBlocked;
-                    channelData[i] = Math.max(-1, Math.min(1, dcBlocked * 0.86 * fmLevel));
+                    channelData[i] = Math.max(-1, Math.min(1, dcBlocked * 1.18 * fmLevel));
                     peak = Math.max(peak, Math.abs(channelData[i]));
                 }
             }
 
             if (peak > 0.001) {
-                const scale = Math.min(0.96 / peak, 1.6);
+                const scale = Math.min(0.98 / peak, 2.4);
                 for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
                     const channelData = buffer.getChannelData(channel);
                     for (let i = 0; i < frameCount; i += 1) {
@@ -12834,23 +12784,34 @@
             }
 
             await applyLoadedAudioBuffer(buffer, `${bpm} BPM huge drum sequencer`, 'generated');
-            setStatus(`Generated grid-locked ${pattern.name} huge drums with the ${kit.name} kit at ${bpm} BPM (${bars} bars).`);
+            setStatus(`Generated simple audible huge drums with the ${kit.name} kit at ${bpm} BPM (${bars} bars).`);
             return buffer;
+        }
+
+        function makeHugeDrumsAudible(startTime = null) {
+            setGeneratedSampleSolo(false, { silent: true, skipSave: true });
+            setGeneratedDryThroughFilters(false, { silent: true });
+            setGeneratedDryMixPercent(88, { update: false });
+            setGeneratedDryTrimDb(0, { update: false });
+            setSliderValue('performanceGeneratedSourceMix', 100);
+            setSliderValue('performanceSampleVolume', 100);
+            syncPerformanceSoundControls();
+            updateSourceMixGains();
+            startGeneratedDryLoop(Number.isFinite(startTime) ? startTime : getBufferedTransportStartTime());
         }
 
         async function generateFmDrumLoopWithPlaybackRestart() {
             const shouldRestartSequencer = sequencerPlaying;
-            const shouldRestartDryLoop = Boolean(generatedDrySource);
+            const restartTime = getBufferedTransportStartTime();
             if (shouldRestartSequencer) {
                 stopSequencer();
-            } else if (shouldRestartDryLoop) {
+            } else {
                 stopGeneratedDryLoop();
             }
             await generateFmDrumLoopSample();
+            makeHugeDrumsAudible(restartTime);
             if (shouldRestartSequencer) {
-                startSequencer();
-            } else if (shouldRestartDryLoop) {
-                startGeneratedDryLoop();
+                startSequencer(restartTime);
             }
             syncPerformanceControlState();
         }
@@ -13609,7 +13570,8 @@
                 oscMix: 35,
                 performanceGeneratedSourceMix: 100,
                 performanceSampleVolume: 100,
-                performanceGeneratedDryMix: 0,
+                performanceGeneratedDryMix: 80,
+                performanceGeneratedDryTrim: 0,
                 performanceGeneratedSwing: 0,
                 performanceGeneratedTranspose: 0,
                 performanceModAmount: 55,
@@ -13638,7 +13600,7 @@
                 oscSynthCutoff: 13500,
                 oscSynthResonance: 0.7,
                 oscSynthDrive: 0,
-                fmDrumLevel: 85
+                fmDrumLevel: 100
             };
             const bpmResetIds = new Set(['delayBpm', 'lfoRate', 'lfo2Rate', 'lfo3Rate', 'seqBpm', 'globalBpmSlider']);
             applyGlobalBpm(defaults.delayBpm);
@@ -16228,7 +16190,7 @@
         bindPerformanceLinkedSlider(performanceGrainMixerAmp, 'performanceGrainMixerAmpValue', 'grainMixerAmp');
 
         performanceGeneratedDryTrim?.addEventListener('input', (event) => {
-            generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', -6, -24, 6);
+            generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', 0, -24, 6);
             document.getElementById('performanceGeneratedDryTrimValue').textContent = formatDb(generatedDryTrimDb);
             updateGeneratedDryLoopMix();
         });
