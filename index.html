@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-03-17-55-synth-popup-modal';
+            const cacheBuster = '2026-10-03-18-22-synth-osc-sync';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4328,10 +4328,119 @@
                     <div id="oscSynthModuleAnchor"></div>
                     <div class="source-seed-group" aria-label="3-voice synth controls">
                         <div class="section-title">3-Voice Synth</div>
+
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Waveform</span>
-                            </label>
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 1</label>
+                            <label><span class="param-name">Waveform</span></label>
+                            <select id="osc1Wave">
+                                <option value="sine">Sine</option>
+                                <option value="triangle">Triangle</option>
+                                <option value="sawtooth" selected>Sawtooth</option>
+                                <option value="square">Square</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Octave</span></label>
+                            <div class="slope-group" style="gap: 2px;">
+                                <button class="slope-toggle" data-osc="1" data-octave="32">32'</button>
+                                <button class="slope-toggle" data-osc="1" data-octave="16">16'</button>
+                                <button class="slope-toggle active" data-osc="1" data-octave="8">8'</button>
+                                <button class="slope-toggle" data-osc="1" data-octave="4">4'</button>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Semi Tune</span><span class="value" id="osc1SemitoneValue">0st</span></label>
+                            <input type="range" id="osc1Semitone" min="-24" max="24" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Fine Tune</span><span class="value" id="osc1DetuneValue">0c</span></label>
+                            <input type="range" id="osc1Detune" min="-100" max="100" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Level</span><span class="value" id="osc1LevelValue">50%</span></label>
+                            <input type="range" id="osc1Level" min="0" max="100" value="50" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Hard Sync</span><span class="value" id="osc1SyncValue">Master</span></label>
+                            <select id="osc1Sync" disabled>
+                                <option value="master" selected>Master</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Attack</span><span class="value" id="osc1AttackValue">10ms</span></label>
+                            <input type="range" id="osc1Attack" min="0" max="2000" value="10" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Decay</span><span class="value" id="osc1DecayValue">200ms</span></label>
+                            <input type="range" id="osc1Decay" min="0" max="2000" value="200" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Sustain</span><span class="value" id="osc1SustainValue">70%</span></label>
+                            <input type="range" id="osc1Sustain" min="0" max="100" value="70" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Release</span><span class="value" id="osc1ReleaseValue">300ms</span></label>
+                            <input type="range" id="osc1Release" min="0" max="3000" value="300" step="1">
+                        </div>
+
+                        <div class="control-group">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 2</label>
+                            <label><span class="param-name">Waveform</span></label>
+                            <select id="osc2Wave">
+                                <option value="sine">Sine</option>
+                                <option value="triangle">Triangle</option>
+                                <option value="sawtooth">Sawtooth</option>
+                                <option value="square" selected>Square</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Octave</span></label>
+                            <div class="slope-group" style="gap: 2px;">
+                                <button class="slope-toggle" data-osc="2" data-octave="32">32'</button>
+                                <button class="slope-toggle active" data-osc="2" data-octave="16">16'</button>
+                                <button class="slope-toggle" data-osc="2" data-octave="8">8'</button>
+                                <button class="slope-toggle" data-osc="2" data-octave="4">4'</button>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Semi Tune</span><span class="value" id="osc2SemitoneValue">0st</span></label>
+                            <input type="range" id="osc2Semitone" min="-24" max="24" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Fine Tune</span><span class="value" id="osc2DetuneValue">0c</span></label>
+                            <input type="range" id="osc2Detune" min="-100" max="100" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Level</span><span class="value" id="osc2LevelValue">50%</span></label>
+                            <input type="range" id="osc2Level" min="0" max="100" value="50" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Hard Sync</span><span class="value" id="osc2SyncValue">Off</span></label>
+                            <select id="osc2Sync">
+                                <option value="off" selected>Off</option>
+                                <option value="osc1">To Osc 1</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Attack</span><span class="value" id="osc2AttackValue">10ms</span></label>
+                            <input type="range" id="osc2Attack" min="0" max="2000" value="10" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Decay</span><span class="value" id="osc2DecayValue">200ms</span></label>
+                            <input type="range" id="osc2Decay" min="0" max="2000" value="200" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Sustain</span><span class="value" id="osc2SustainValue">70%</span></label>
+                            <input type="range" id="osc2Sustain" min="0" max="100" value="70" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Release</span><span class="value" id="osc2ReleaseValue">300ms</span></label>
+                            <input type="range" id="osc2Release" min="0" max="3000" value="300" step="1">
+                        </div>
+
+                        <div class="control-group">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 3</label>
+                            <label><span class="param-name">Waveform</span></label>
                             <select id="osc3Wave">
                                 <option value="sine">Sine</option>
                                 <option value="triangle" selected>Triangle</option>
@@ -4340,9 +4449,7 @@
                             </select>
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Octave</span>
-                            </label>
+                            <label><span class="param-name">Octave</span></label>
                             <div class="slope-group" style="gap: 2px;">
                                 <button class="slope-toggle" data-osc="3" data-octave="32">32'</button>
                                 <button class="slope-toggle" data-osc="3" data-octave="16">16'</button>
@@ -4351,52 +4458,44 @@
                             </div>
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Fine Tune</span>
-                                <span class="value" id="osc3DetuneValue">0c</span>
-                            </label>
+                            <label><span class="param-name">Semi Tune</span><span class="value" id="osc3SemitoneValue">0st</span></label>
+                            <input type="range" id="osc3Semitone" min="-24" max="24" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Fine Tune</span><span class="value" id="osc3DetuneValue">0c</span></label>
                             <input type="range" id="osc3Detune" min="-100" max="100" value="0" step="1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Level</span>
-                                <span class="value" id="osc3LevelValue">35%</span>
-                            </label>
+                            <label><span class="param-name">Level</span><span class="value" id="osc3LevelValue">35%</span></label>
                             <input type="range" id="osc3Level" min="0" max="100" value="35" step="1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Attack</span>
-                                <span class="value" id="osc3AttackValue">12ms</span>
-                            </label>
+                            <label><span class="param-name">Hard Sync</span><span class="value" id="osc3SyncValue">Off</span></label>
+                            <select id="osc3Sync">
+                                <option value="off" selected>Off</option>
+                                <option value="osc1">To Osc 1</option>
+                                <option value="osc2">To Osc 2</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Attack</span><span class="value" id="osc3AttackValue">12ms</span></label>
                             <input type="range" id="osc3Attack" min="0" max="2000" value="12" step="1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Decay</span>
-                                <span class="value" id="osc3DecayValue">320ms</span>
-                            </label>
+                            <label><span class="param-name">Decay</span><span class="value" id="osc3DecayValue">320ms</span></label>
                             <input type="range" id="osc3Decay" min="0" max="2000" value="320" step="1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Sustain</span>
-                                <span class="value" id="osc3SustainValue">58%</span>
-                            </label>
+                            <label><span class="param-name">Sustain</span><span class="value" id="osc3SustainValue">58%</span></label>
                             <input type="range" id="osc3Sustain" min="0" max="100" value="58" step="1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Release</span>
-                                <span class="value" id="osc3ReleaseValue">420ms</span>
-                            </label>
+                            <label><span class="param-name">Release</span><span class="value" id="osc3ReleaseValue">420ms</span></label>
                             <input type="range" id="osc3Release" min="0" max="3000" value="420" step="1">
                         </div>
+
                         <div class="control-group highlight">
-                            <label>
-                                <span class="param-name">Synth Filter</span>
-                                <span class="value" id="oscSynthFilterTypeValue">Lowpass</span>
-                            </label>
+                            <label><span class="param-name">Synth Filter</span><span class="value" id="oscSynthFilterTypeValue">Lowpass</span></label>
                             <select id="oscSynthFilterType">
                                 <option value="lowpass" selected>Lowpass</option>
                                 <option value="bandpass">Bandpass</option>
@@ -4406,31 +4505,19 @@
                             </select>
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Cutoff</span>
-                                <span class="value" id="oscSynthCutoffValue">13500Hz</span>
-                            </label>
+                            <label><span class="param-name">Cutoff</span><span class="value" id="oscSynthCutoffValue">13500Hz</span></label>
                             <input type="range" id="oscSynthCutoff" min="100" max="18000" value="13500" step="1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Resonance</span>
-                                <span class="value" id="oscSynthResonanceValue">0.7</span>
-                            </label>
+                            <label><span class="param-name">Resonance</span><span class="value" id="oscSynthResonanceValue">0.7</span></label>
                             <input type="range" id="oscSynthResonance" min="0.1" max="20" value="0.7" step="0.1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Drive</span>
-                                <span class="value" id="oscSynthDriveValue">0.0dB</span>
-                            </label>
+                            <label><span class="param-name">Drive</span><span class="value" id="oscSynthDriveValue">0.0dB</span></label>
                             <input type="range" id="oscSynthDrive" min="0" max="12" value="0" step="0.1">
                         </div>
                         <div class="control-group">
-                            <label>
-                                <span class="param-name">Route</span>
-                                <span class="value" id="oscRouteModeValue">Random</span>
-                            </label>
+                            <label><span class="param-name">Route</span><span class="value" id="oscRouteModeValue">Random</span></label>
                             <select id="oscRouteMode">
                                 <option value="random" selected>Random</option>
                                 <option value="blend">Blend</option>
@@ -4439,163 +4526,10 @@
                                 <option value="sub">Sub</option>
                             </select>
                         </div>
-                    </div>
-
-                    <!-- Oscillator 1 -->
-                    <div class="control-group">
-                        <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 1</label>
-                        <label>
-                            <span class="param-name">Waveform</span>
-                        </label>
-                        <select id="osc1Wave">
-                            <option value="sine">Sine</option>
-                            <option value="triangle">Triangle</option>
-                            <option value="sawtooth" selected>Sawtooth</option>
-                            <option value="square">Square</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Octave</span>
-                        </label>
-                        <div class="slope-group" style="gap: 2px;">
-                            <button class="slope-toggle" data-osc="1" data-octave="32">32'</button>
-                            <button class="slope-toggle" data-osc="1" data-octave="16">16'</button>
-                            <button class="slope-toggle active" data-osc="1" data-octave="8">8'</button>
-                            <button class="slope-toggle" data-osc="1" data-octave="4">4'</button>
+                        <div class="control-group" style="grid-column: span 2;">
+                            <label><span class="param-name">Wave/Sample Mix</span><span class="value" id="oscMixValue">35% wave</span></label>
+                            <input type="range" id="oscMix" min="0" max="100" value="35" step="1">
                         </div>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Fine Tune</span>
-                            <span class="value" id="osc1DetuneValue">0c</span>
-                        </label>
-                        <input type="range" id="osc1Detune" min="-100" max="100" value="0" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Level</span>
-                            <span class="value" id="osc1LevelValue">50%</span>
-                        </label>
-                        <input type="range" id="osc1Level" min="0" max="100" value="50" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Attack</span>
-                            <span class="value" id="osc1AttackValue">10ms</span>
-                        </label>
-                        <input type="range" id="osc1Attack" min="0" max="2000" value="10" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Decay</span>
-                            <span class="value" id="osc1DecayValue">200ms</span>
-                        </label>
-                        <input type="range" id="osc1Decay" min="0" max="2000" value="200" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Sustain</span>
-                            <span class="value" id="osc1SustainValue">70%</span>
-                        </label>
-                        <input type="range" id="osc1Sustain" min="0" max="100" value="70" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Release</span>
-                            <span class="value" id="osc1ReleaseValue">300ms</span>
-                        </label>
-                        <input type="range" id="osc1Release" min="0" max="3000" value="300" step="1">
-                    </div>
-
-                    <!-- Oscillator 2 -->
-                    <div class="control-group">
-                        <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 2</label>
-                        <label>
-                            <span class="param-name">Waveform</span>
-                        </label>
-                        <select id="osc2Wave">
-                            <option value="sine">Sine</option>
-                            <option value="triangle">Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
-                            <option value="square" selected>Square</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Octave</span>
-                        </label>
-                        <div class="slope-group" style="gap: 2px;">
-                            <button class="slope-toggle" data-osc="2" data-octave="32">32'</button>
-                            <button class="slope-toggle active" data-osc="2" data-octave="16">16'</button>
-                            <button class="slope-toggle" data-osc="2" data-octave="8">8'</button>
-                            <button class="slope-toggle" data-osc="2" data-octave="4">4'</button>
-                        </div>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Fine Tune</span>
-                            <span class="value" id="osc2DetuneValue">0c</span>
-                        </label>
-                        <input type="range" id="osc2Detune" min="-100" max="100" value="0" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Level</span>
-                            <span class="value" id="osc2LevelValue">50%</span>
-                        </label>
-                        <input type="range" id="osc2Level" min="0" max="100" value="50" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Attack</span>
-                            <span class="value" id="osc2AttackValue">10ms</span>
-                        </label>
-                        <input type="range" id="osc2Attack" min="0" max="2000" value="10" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Decay</span>
-                            <span class="value" id="osc2DecayValue">200ms</span>
-                        </label>
-                        <input type="range" id="osc2Decay" min="0" max="2000" value="200" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Sustain</span>
-                            <span class="value" id="osc2SustainValue">70%</span>
-                        </label>
-                        <input type="range" id="osc2Sustain" min="0" max="100" value="70" step="1">
-                    </div>
-                    
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Release</span>
-                            <span class="value" id="osc2ReleaseValue">300ms</span>
-                        </label>
-                        <input type="range" id="osc2Release" min="0" max="3000" value="300" step="1">
-                    </div>
-
-                    <!-- Mix Control -->
-                    <div class="control-group" style="grid-column: span 2;">
-                        <label>
-                            <span class="param-name">Wave/Sample Mix</span>
-                            <span class="value" id="oscMixValue">35% wave</span>
-                        </label>
-                        <input type="range" id="oscMix" min="0" max="100" value="35" step="1">
                     </div>
                 </div>
 
@@ -5261,7 +5195,9 @@
         let osc1Config = {
             waveform: 'sawtooth',
             octave: 8,
+            semitone: 0,
             detune: 0,
+            sync: 'master',
             level: 0.5,
             attack: 10,
             decay: 200,
@@ -5271,7 +5207,9 @@
         let osc2Config = {
             waveform: 'square',
             octave: 16,
+            semitone: 0,
             detune: 0,
+            sync: 'off',
             level: 0.5,
             attack: 10,
             decay: 200,
@@ -5281,7 +5219,9 @@
         let osc3Config = {
             waveform: 'triangle',
             octave: 8,
+            semitone: 0,
             detune: 0,
+            sync: 'off',
             level: 0.35,
             attack: 12,
             decay: 320,
@@ -9412,7 +9352,7 @@
         }
 
         // --- Oscillator Functions ---
-        function getOscillatorFrequency(baseFreq, octave, detune) {
+        function getOscillatorFrequency(baseFreq, octave, detune, semitone = 0) {
             const octaveMultipliers = {
                 32: 0.25,
                 16: 0.5,
@@ -9420,8 +9360,71 @@
                 4: 2.0
             };
             const octaveFreq = baseFreq * octaveMultipliers[octave];
+            const semitoneMultiplier = Math.pow(2, (Number(semitone) || 0) / 12);
             const detuneMultiplier = Math.pow(2, detune / 1200); // cents to frequency ratio
-            return octaveFreq * detuneMultiplier;
+            return octaveFreq * semitoneMultiplier * detuneMultiplier;
+        }
+
+        function sampleOscillatorWaveform(waveform, phase) {
+            const wrapped = ((phase % 1) + 1) % 1;
+            switch (waveform) {
+                case 'sine':
+                    return Math.sin(wrapped * Math.PI * 2);
+                case 'triangle':
+                    return 1 - 4 * Math.abs(Math.round(wrapped - 0.25) - (wrapped - 0.25));
+                case 'square':
+                    return wrapped < 0.5 ? 1 : -1;
+                case 'sawtooth':
+                default:
+                    return (wrapped * 2) - 1;
+            }
+        }
+
+        const hardSyncWaveCache = new Map();
+
+        function createHardSyncPeriodicWave(waveform, slaveToMasterRatio) {
+            if (!audioContext) return null;
+            const safeRatio = Math.max(0.125, Math.min(16, Number(slaveToMasterRatio) || 1));
+            const roundedRatio = Math.round(safeRatio * 1000) / 1000;
+            const key = `${waveform}:${roundedRatio}:${audioContext.sampleRate}`;
+            const cached = hardSyncWaveCache.get(key);
+            if (cached && cached.context === audioContext) return cached.wave;
+
+            const sampleCount = 512;
+            const harmonics = 96;
+            const real = new Float32Array(harmonics + 1);
+            const imag = new Float32Array(harmonics + 1);
+
+            for (let harmonic = 1; harmonic <= harmonics; harmonic += 1) {
+                let cosine = 0;
+                let sine = 0;
+                for (let i = 0; i < sampleCount; i += 1) {
+                    const phase = i / sampleCount;
+                    const sample = sampleOscillatorWaveform(waveform, phase * roundedRatio);
+                    const angle = Math.PI * 2 * harmonic * phase;
+                    cosine += sample * Math.cos(angle);
+                    sine += sample * Math.sin(angle);
+                }
+                real[harmonic] = (2 / sampleCount) * cosine;
+                imag[harmonic] = (-2 / sampleCount) * sine;
+            }
+
+            const wave = audioContext.createPeriodicWave(real, imag, { disableNormalization: false });
+            hardSyncWaveCache.set(key, { context: audioContext, wave });
+            return wave;
+        }
+
+        function configureOscillatorWaveAndPitch(oscillator, config, ownFrequency, masterFrequency = null) {
+            if (masterFrequency && masterFrequency > 0) {
+                const syncWave = createHardSyncPeriodicWave(config.waveform, ownFrequency / masterFrequency);
+                oscillator.frequency.value = masterFrequency;
+                if (syncWave) {
+                    oscillator.setPeriodicWave(syncWave);
+                    return;
+                }
+            }
+            oscillator.type = getNativeOscillatorWaveform(config.waveform);
+            oscillator.frequency.value = ownFrequency;
         }
 
         const OSC_ROUTE_MODES = ['blend', 'wide', 'metal', 'sub'];
@@ -9523,25 +9526,31 @@
             const noteVelocity = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
             const routeMode = resolveOscRouteModeForVoice();
             const voiceClickGuard = getClickGuardSeconds();
+            const osc1Frequency = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune, osc1Config.semitone);
+            const osc2Frequency = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune, osc2Config.semitone);
+            const osc3Frequency = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Config.detune, osc3Config.semitone);
+            const osc2MasterFrequency = osc2Config.sync === 'osc1' ? osc1Frequency : null;
+            const osc2AudibleFundamental = osc2MasterFrequency || osc2Frequency;
+            const osc3MasterFrequency =
+                osc3Config.sync === 'osc1' ? osc1Frequency :
+                osc3Config.sync === 'osc2' ? osc2AudibleFundamental :
+                null;
 
             // Create oscillator 1
             const osc1 = audioContext.createOscillator();
-            osc1.type = osc1Config.waveform;
-            osc1.frequency.value = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune);
+            configureOscillatorWaveAndPitch(osc1, osc1Config, osc1Frequency);
             const osc1Gain = audioContext.createGain();
             osc1Gain.gain.value = 0;
 
             // Create oscillator 2
             const osc2 = audioContext.createOscillator();
-            osc2.type = osc2Config.waveform;
-            osc2.frequency.value = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune);
+            configureOscillatorWaveAndPitch(osc2, osc2Config, osc2Frequency, osc2MasterFrequency);
             const osc2Gain = audioContext.createGain();
             osc2Gain.gain.value = 0;
 
             // Create oscillator 3
             const osc3 = audioContext.createOscillator();
-            osc3.type = osc3Config.waveform;
-            osc3.frequency.value = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Config.detune);
+            configureOscillatorWaveAndPitch(osc3, osc3Config, osc3Frequency, osc3MasterFrequency);
             const osc3Gain = audioContext.createGain();
             osc3Gain.gain.value = 0;
 
@@ -10927,6 +10936,11 @@
             document.getElementById('osc1DetuneValue').textContent = `${e.target.value}c`;
         });
 
+        document.getElementById('osc1Semitone').addEventListener('input', (e) => {
+            osc1Config.semitone = parseFloat(e.target.value);
+            document.getElementById('osc1SemitoneValue').textContent = `${e.target.value}st`;
+        });
+
         document.getElementById('osc1Level').addEventListener('input', (e) => {
             osc1Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc1LevelValue').textContent = `${e.target.value}%`;
@@ -10970,6 +10984,16 @@
             document.getElementById('osc2DetuneValue').textContent = `${e.target.value}c`;
         });
 
+        document.getElementById('osc2Semitone').addEventListener('input', (e) => {
+            osc2Config.semitone = parseFloat(e.target.value);
+            document.getElementById('osc2SemitoneValue').textContent = `${e.target.value}st`;
+        });
+
+        document.getElementById('osc2Sync').addEventListener('change', (e) => {
+            osc2Config.sync = e.target.value;
+            document.getElementById('osc2SyncValue').textContent = e.target.value === 'osc1' ? 'Osc 1' : 'Off';
+        });
+
         document.getElementById('osc2Level').addEventListener('input', (e) => {
             osc2Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc2LevelValue').textContent = `${e.target.value}%`;
@@ -11011,6 +11035,17 @@
         document.getElementById('osc3Detune').addEventListener('input', (e) => {
             osc3Config.detune = parseFloat(e.target.value);
             document.getElementById('osc3DetuneValue').textContent = `${e.target.value}c`;
+        });
+
+        document.getElementById('osc3Semitone').addEventListener('input', (e) => {
+            osc3Config.semitone = parseFloat(e.target.value);
+            document.getElementById('osc3SemitoneValue').textContent = `${e.target.value}st`;
+        });
+
+        document.getElementById('osc3Sync').addEventListener('change', (e) => {
+            osc3Config.sync = e.target.value;
+            const labels = { off: 'Off', osc1: 'Osc 1', osc2: 'Osc 2' };
+            document.getElementById('osc3SyncValue').textContent = labels[e.target.value] || 'Off';
         });
 
         document.getElementById('osc3Level').addEventListener('input', (e) => {
@@ -11557,8 +11592,21 @@
             setSliderValue('micLoopEnd', randomIntegerInRange(72, 100));
             setSliderValue('fmDrumLevel', randomIntegerInRange(48, 100));
 
+            setSliderValue('osc1Semitone', chooseRandom([-12, -7, -5, 0, 0, 0, 7, 12]));
+            setSliderValue('osc1Detune', randomIntegerInRange(-12, 12));
             setSliderValue('osc1Level', randomIntegerInRange(38, 100));
+            setSliderValue('osc1Attack', randomIntegerInRange(4, 120));
+            setSliderValue('osc1Decay', randomIntegerInRange(80, 520));
+            setSliderValue('osc1Sustain', randomIntegerInRange(24, 86));
+            setSliderValue('osc1Release', randomIntegerInRange(90, 760));
+            setSliderValue('osc2Semitone', chooseRandom([-24, -12, -7, 0, 0, 5, 7, 12]));
+            setSliderValue('osc2Detune', randomIntegerInRange(-24, 24));
             setSliderValue('osc2Level', randomIntegerInRange(22, 92));
+            setSliderValue('osc2Attack', randomIntegerInRange(4, 150));
+            setSliderValue('osc2Decay', randomIntegerInRange(70, 560));
+            setSliderValue('osc2Sustain', randomIntegerInRange(12, 78));
+            setSliderValue('osc2Release', randomIntegerInRange(90, 780));
+            setSliderValue('osc3Semitone', chooseRandom([-24, -12, -7, -5, 0, 0, 7, 12, 19]));
             setSliderValue('osc3Detune', randomIntegerInRange(-24, 24));
             setSliderValue('osc3Level', randomIntegerInRange(18, 82));
             setSliderValue('osc3Attack', randomIntegerInRange(4, 180));
@@ -11591,6 +11639,8 @@
             setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc3Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
+            setSelectValue('osc2Sync', chooseRandom(['off', 'off', 'off', 'osc1']));
+            setSelectValue('osc3Sync', chooseRandom(['off', 'off', 'osc1', 'osc2']));
             setSelectValue('oscSynthFilterType', chooseRandom(['lowpass', 'bandpass', 'highpass', 'notch', 'allpass']));
             setSliderValue('oscSynthCutoff', randomIntegerInRange(480, 17000));
             setSliderValue('oscSynthResonance', Number((0.5 + Math.random() * 2.9).toFixed(1)));
@@ -13449,6 +13499,21 @@
                 performanceGeneratedTranspose: 0,
                 performanceModAmount: 55,
                 performanceGrainModAmount: 75,
+                osc1Semitone: 0,
+                osc1Detune: 0,
+                osc1Level: 50,
+                osc1Attack: 10,
+                osc1Decay: 200,
+                osc1Sustain: 70,
+                osc1Release: 300,
+                osc2Semitone: 0,
+                osc2Detune: 0,
+                osc2Level: 50,
+                osc2Attack: 10,
+                osc2Decay: 200,
+                osc2Sustain: 70,
+                osc2Release: 300,
+                osc3Semitone: 0,
                 osc3Detune: 0,
                 osc3Level: 35,
                 osc3Attack: 12,
@@ -13504,10 +13569,17 @@
             document.getElementById('delayDivision').value = '1';
             document.getElementById('finalDelayDivision').value = '4';
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
+            document.getElementById('osc1Wave').value = 'sawtooth';
+            document.getElementById('osc2Wave').value = 'square';
             document.getElementById('osc3Wave').value = 'triangle';
+            document.getElementById('osc2Sync').value = 'off';
+            document.getElementById('osc3Sync').value = 'off';
             document.getElementById('oscSynthFilterType').value = 'lowpass';
             document.getElementById('hugeDrumKit').value = HUGE_DRUM_KITS[0].id;
             document.getElementById('hugeDrumKitValue').textContent = HUGE_DRUM_KITS[0].name;
+            ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync'].forEach((id) => {
+                document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
+            });
             syncOscRouteModeUI('random');
             syncOscSynthFilterControls();
             setOscillatorOctave(1, 8);
@@ -13625,6 +13697,15 @@
                     lpf: lpfEnabled,
                     hpf: hpfEnabled
                 },
+                oscillatorSelects: {
+                    osc1Wave: document.getElementById('osc1Wave')?.value || 'sawtooth',
+                    osc2Wave: document.getElementById('osc2Wave')?.value || 'square',
+                    osc3Wave: document.getElementById('osc3Wave')?.value || 'triangle',
+                    osc2Sync: document.getElementById('osc2Sync')?.value || 'off',
+                    osc3Sync: document.getElementById('osc3Sync')?.value || 'off',
+                    oscRouteMode: document.getElementById('oscRouteMode')?.value || 'random',
+                    oscSynthFilterType: document.getElementById('oscSynthFilterType')?.value || 'lowpass'
+                },
                 generatedSampleSolo: generatedSampleSolo,
                 samples: {
                     embedded: false,
@@ -13716,6 +13797,15 @@
             }
             if (safePreset.noiseType) {
                 document.getElementById('noiseType').value = safePreset.noiseType;
+            }
+            const importedOscillatorSelects = safePreset.oscillatorSelects ?? preset.oscillatorSelects;
+            if (importedOscillatorSelects) {
+                Object.entries(importedOscillatorSelects).forEach(([id, value]) => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        setSelectValue(id, value);
+                    }
+                });
             }
             syncOscSynthFilterControls();
             syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
@@ -14271,6 +14361,9 @@
                         }
                     });
                 }
+                ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync'].forEach((id) => {
+                    document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
+                });
                 syncOscSynthFilterControls();
                 syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
                 const hugeDrumKitSelect = document.getElementById('hugeDrumKit');
