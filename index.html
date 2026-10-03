@@ -54,6 +54,18 @@
             -webkit-overflow-scrolling: auto;
         }
 
+        body.synth-popup-open {
+            overflow: hidden;
+        }
+
+        body.synth-popup-open::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+            z-index: 1980;
+        }
+
         /* Overlays for Orientation and Start */
         .overlay {
             position: fixed;
@@ -477,6 +489,46 @@
         #osc-tab .source-seed-group .control-group {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .osc-popup-toolbar {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 2px;
+        }
+
+        .osc-popup-close-btn {
+            min-height: 34px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.26) 0%, rgba(0, 168, 255, 0.36) 100%);
+            border: 1px solid rgba(126, 246, 255, 0.35);
+            color: #ecfdff;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+        }
+
+        .osc-popup-close-btn:active {
+            transform: translateY(1px);
+        }
+
+        body:not(.synth-popup-open) #oscPopupCloseBtn {
+            display: none;
+        }
+
+        body.synth-popup-open #osc-tab.active {
+            position: fixed;
+            inset: 12px;
+            z-index: 1995;
+            max-height: calc(100vh - 24px);
+            padding: 14px;
+            border-radius: 22px;
+            background: rgba(7, 12, 19, 0.98);
+            border: 1px solid rgba(0, 212, 255, 0.34);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
         }
 
         /* More compact control groups in Grain and Filter tabs for iPhone */
@@ -3126,6 +3178,7 @@
                 <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                 <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
+                <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
             </div>
@@ -4235,6 +4288,9 @@
 
                 <!-- OSC Tab -->
                 <div class="tab-content" id="osc-tab">
+                    <div class="osc-popup-toolbar">
+                        <button class="osc-popup-close-btn" id="oscPopupCloseBtn" type="button">Close Synth</button>
+                    </div>
                     <div class="source-seed-group" aria-label="3-voice synth controls">
                         <div class="section-title">3-Voice Synth</div>
                         <div class="control-group">
@@ -6389,12 +6445,6 @@
                     const restored = restoreState();
                     if (restored) {
                         console.log('State restored from localStorage');
-                    }
-                    if (window.matchMedia('(max-width: 900px)').matches) {
-                        const oscTabButton = document.querySelector('.tab-button[data-tab="osc"]');
-                        if (oscTabButton && !oscTabButton.classList.contains('active')) {
-                            activateTab(oscTabButton);
-                        }
                     }
                     setupStateSaving();
                     
@@ -12061,6 +12111,7 @@
         const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
         const tabPanels = Array.from(document.querySelectorAll('.tab-content'));
         const tabContainer = document.querySelector('.tab-container');
+        let synthPopupPreviousTabButton = null;
         if (tabContainer) {
             tabContainer.setAttribute('role', 'tablist');
             tabContainer.setAttribute('aria-label', 'MYGRAIN control sections');
@@ -12085,9 +12136,35 @@
                 panel.hidden = !isActive;
             });
 
+            if (targetTab !== 'osc') {
+                document.body.classList.remove('synth-popup-open');
+                synthPopupPreviousTabButton = null;
+            }
+
             button.id = `tab-${targetTab}`;
             if (focusButton) {
                 button.focus();
+            }
+        }
+
+        function openSynthPopup() {
+            const oscTabButton = document.querySelector('.tab-button[data-tab="osc"]');
+            if (!oscTabButton) return;
+
+            const activeTabButton = document.querySelector('.tab-button.active');
+            synthPopupPreviousTabButton = activeTabButton && activeTabButton.dataset.tab !== 'osc' ? activeTabButton : null;
+
+            activateTab(oscTabButton);
+            document.body.classList.add('synth-popup-open');
+            document.getElementById('oscPopupCloseBtn')?.focus();
+        }
+
+        function closeSynthPopup() {
+            document.body.classList.remove('synth-popup-open');
+            const restoreTabButton = synthPopupPreviousTabButton;
+            synthPopupPreviousTabButton = null;
+            if (restoreTabButton && restoreTabButton.dataset.tab !== 'osc') {
+                activateTab(restoreTabButton, true);
             }
         }
 
@@ -15407,6 +15484,8 @@
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceFinalReverbBtn = document.getElementById('performanceFinalReverbBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
+        const performanceSynthPopupBtn = document.getElementById('performanceSynthPopupBtn');
+        const oscPopupCloseBtn = document.getElementById('oscPopupCloseBtn');
         const internalEffectsPanel = document.getElementById('internalEffectsPanel');
         const internalEffectsGrid = document.getElementById('internalEffectsGrid');
         const internalFxMutedGrid = document.getElementById('internalFxMutedGrid');
@@ -15764,6 +15843,14 @@
             document.getElementById('randomizeBtn')?.click();
         });
 
+        performanceSynthPopupBtn?.addEventListener('click', () => {
+            openSynthPopup();
+        });
+
+        oscPopupCloseBtn?.addEventListener('click', () => {
+            closeSynthPopup();
+        });
+
         performanceGenerateLoopBtn?.addEventListener('click', async () => {
             if (performanceGenerateLoopBtn.classList.contains('generating')) return;
             showSettlePopup();
@@ -15841,6 +15928,12 @@
                 if (!event.target.checked) return;
                 setPerformanceLfoRateRatio(2, event.target.value);
             });
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && document.body.classList.contains('synth-popup-open')) {
+                closeSynthPopup();
+            }
         });
 
         performanceSampleVolume?.addEventListener('input', (event) => {
