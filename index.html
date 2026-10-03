@@ -14299,22 +14299,25 @@
         }
 
         async function exportGeneratedLoopToRepository() {
-            const exportData = await renderDawReadyBarsExport();
-            const defaultName = exportData.filename.replace(/\.wav$/i, '');
-            const userFilename = prompt('Enter filename for WAV repository export:', defaultName);
-            if (!userFilename) {
-                setStatus('Repository export cancelled.');
-                return;
-            }
-
-            const filename = sanitizeWavRepositoryFilename(userFilename, defaultName);
             if (performanceRepoExportBtn) {
                 performanceRepoExportBtn.disabled = true;
-                performanceRepoExportBtn.textContent = 'Uploading...';
+                performanceRepoExportBtn.textContent = 'working';
             }
-            setStatus(`Uploading ${filename} to the WAV repository…`);
-
             try {
+                const exportData = await renderDawReadyBarsExport();
+                const defaultName = exportData.filename.replace(/\.wav$/i, '');
+                const userFilename = prompt('Enter filename for WAV repository export:', defaultName);
+                if (!userFilename) {
+                    setStatus('Repository export cancelled.');
+                    return;
+                }
+
+                const filename = sanitizeWavRepositoryFilename(userFilename, defaultName);
+                if (performanceRepoExportBtn) {
+                    performanceRepoExportBtn.textContent = 'Uploading...';
+                }
+                setStatus(`Uploading ${filename} to the WAV repository…`);
+
                 const result = await uploadWavToRepository(exportData.blob, filename);
                 setStatus(`Uploaded ${result.savedName || filename} to the WAV repository.`);
             } finally {
