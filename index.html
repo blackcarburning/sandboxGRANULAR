@@ -4347,92 +4347,92 @@
                         <input type="range" id="osc2Release" min="0" max="3000" value="300" step="1">
                     </div>
 
-                    <!-- Oscillator 3 -->
-                    <div class="control-group">
-                        <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 3</label>
-                        <label>
-                            <span class="param-name">Waveform</span>
-                        </label>
-                        <select id="osc3Wave">
-                            <option value="sine">Sine</option>
-                            <option value="triangle" selected>Triangle</option>
-                            <option value="sawtooth">Sawtooth</option>
-                            <option value="square">Square</option>
-                        </select>
-                    </div>
-
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Octave</span>
-                        </label>
-                        <div class="slope-group" style="gap: 2px;">
-                            <button class="slope-toggle" data-osc="3" data-octave="32">32'</button>
-                            <button class="slope-toggle" data-osc="3" data-octave="16">16'</button>
-                            <button class="slope-toggle active" data-osc="3" data-octave="8">8'</button>
-                            <button class="slope-toggle" data-osc="3" data-octave="4">4'</button>
+                    <div class="source-seed-group" aria-label="Oscillator 3 voice controls">
+                        <div class="section-title">Oscillator 3 Voice</div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Waveform</span>
+                            </label>
+                            <select id="osc3Wave">
+                                <option value="sine">Sine</option>
+                                <option value="triangle" selected>Triangle</option>
+                                <option value="sawtooth">Sawtooth</option>
+                                <option value="square">Square</option>
+                            </select>
                         </div>
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Octave</span>
+                            </label>
+                            <div class="slope-group" style="gap: 2px;">
+                                <button class="slope-toggle" data-osc="3" data-octave="32">32'</button>
+                                <button class="slope-toggle" data-osc="3" data-octave="16">16'</button>
+                                <button class="slope-toggle active" data-osc="3" data-octave="8">8'</button>
+                                <button class="slope-toggle" data-osc="3" data-octave="4">4'</button>
+                            </div>
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Fine Tune</span>
-                            <span class="value" id="osc3DetuneValue">0c</span>
-                        </label>
-                        <input type="range" id="osc3Detune" min="-100" max="100" value="0" step="1">
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Fine Tune</span>
+                                <span class="value" id="osc3DetuneValue">0c</span>
+                            </label>
+                            <input type="range" id="osc3Detune" min="-100" max="100" value="0" step="1">
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Level</span>
-                            <span class="value" id="osc3LevelValue">35%</span>
-                        </label>
-                        <input type="range" id="osc3Level" min="0" max="100" value="35" step="1">
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Level</span>
+                                <span class="value" id="osc3LevelValue">35%</span>
+                            </label>
+                            <input type="range" id="osc3Level" min="0" max="100" value="35" step="1">
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Attack</span>
-                            <span class="value" id="osc3AttackValue">12ms</span>
-                        </label>
-                        <input type="range" id="osc3Attack" min="0" max="2000" value="12" step="1">
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Attack</span>
+                                <span class="value" id="osc3AttackValue">12ms</span>
+                            </label>
+                            <input type="range" id="osc3Attack" min="0" max="2000" value="12" step="1">
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Decay</span>
-                            <span class="value" id="osc3DecayValue">320ms</span>
-                        </label>
-                        <input type="range" id="osc3Decay" min="0" max="2000" value="320" step="1">
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Decay</span>
+                                <span class="value" id="osc3DecayValue">320ms</span>
+                            </label>
+                            <input type="range" id="osc3Decay" min="0" max="2000" value="320" step="1">
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Sustain</span>
-                            <span class="value" id="osc3SustainValue">58%</span>
-                        </label>
-                        <input type="range" id="osc3Sustain" min="0" max="100" value="58" step="1">
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Sustain</span>
+                                <span class="value" id="osc3SustainValue">58%</span>
+                            </label>
+                            <input type="range" id="osc3Sustain" min="0" max="100" value="58" step="1">
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Release</span>
-                            <span class="value" id="osc3ReleaseValue">420ms</span>
-                        </label>
-                        <input type="range" id="osc3Release" min="0" max="3000" value="420" step="1">
-                    </div>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Release</span>
+                                <span class="value" id="osc3ReleaseValue">420ms</span>
+                            </label>
+                            <input type="range" id="osc3Release" min="0" max="3000" value="420" step="1">
+                        </div>
 
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Route</span>
-                            <span class="value" id="oscRouteModeValue">Random</span>
-                        </label>
-                        <select id="oscRouteMode">
-                            <option value="random" selected>Random</option>
-                            <option value="blend">Blend</option>
-                            <option value="wide">Wide</option>
-                            <option value="metal">Metal</option>
-                            <option value="sub">Sub</option>
-                        </select>
+                        <div class="control-group">
+                            <label>
+                                <span class="param-name">Route</span>
+                                <span class="value" id="oscRouteModeValue">Random</span>
+                            </label>
+                            <select id="oscRouteMode">
+                                <option value="random" selected>Random</option>
+                                <option value="blend">Blend</option>
+                                <option value="wide">Wide</option>
+                                <option value="metal">Metal</option>
+                                <option value="sub">Sub</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Mix Control -->
