@@ -4842,6 +4842,7 @@
         let arpTimerId = null;
         let arpCurrentNote = null;
         let arpStepIndex = 0;
+        let arpNextStepTime = null;
         const ARP_CLOCK_MULTIPLIER_OPTIONS = [
             { value: 0.0625, label: '1/16' },
             { value: 0.125, label: '1/8' },
@@ -7853,6 +7854,7 @@
                 clearTimeout(arpTimerId);
                 arpTimerId = null;
             }
+            arpNextStepTime = null;
 
             if (arpCurrentNote) {
                 stopGrainStream(arpCurrentNote);
@@ -7909,7 +7911,7 @@
             if (arpTimerId) {
                 clearTimeout(arpTimerId);
             }
-            arpTimerId = setTimeout(scheduleArpeggiatorPlayback, getArpeggiatorStepSeconds() * 1000);
+            scheduleArpeggiatorPlayback();
         }
 
         function setArpClockMultiplier(nextValue, options = {}) {
@@ -7938,15 +7940,24 @@
         function scheduleArpeggiatorPlayback(startTime = null) {
             if (!arpEnabled || !holdEnabled || !audioContext) return;
 
-            const targetStartTime = Number.isFinite(startTime) ? Math.max(audioContext.currentTime, startTime) : null;
-            if (targetStartTime !== null && targetStartTime > audioContext.currentTime) {
+            if (Number.isFinite(startTime)) {
+                arpNextStepTime = Math.max(audioContext.currentTime, startTime);
+            }
+
+            if (!Number.isFinite(arpNextStepTime)) {
+                arpNextStepTime = audioContext.currentTime;
+            }
+
+            const stepSeconds = getArpeggiatorStepSeconds();
+            const currentTime = audioContext.currentTime;
+            if (arpNextStepTime > currentTime) {
                 if (arpTimerId) {
                     clearTimeout(arpTimerId);
                 }
                 arpTimerId = setTimeout(() => {
                     arpTimerId = null;
                     scheduleArpeggiatorPlayback();
-                }, Math.max(0, (targetStartTime - audioContext.currentTime) * 1000));
+                }, Math.max(0, (arpNextStepTime - currentTime) * 1000));
                 return;
             }
 
@@ -7961,7 +7972,8 @@
             }
 
             const nextNote = notes[arpStepIndex];
-            const now = audioContext.currentTime;
+            const scheduledTime = arpNextStepTime;
+            const playTime = Math.max(currentTime, scheduledTime);
             const currentKey = document.querySelector(`.key[data-note="${nextNote}"]`);
             const alreadySounding = Boolean(currentKey && currentKey.classList.contains('active') && !heldNotes.has(nextNote));
 
@@ -7974,19 +7986,22 @@
                 if (alreadySounding) {
                     arpCurrentNote = nextNote;
                 } else {
-                    const streamStartTime = getTransportLoopOriginTime() ?? now;
-                    startGrainStream(nextNote, now, 1, {
+                    const streamStartTime = getTransportLoopOriginTime() ?? currentTime;
+                    startGrainStream(nextNote, playTime, 1, {
                         role: 'keyboard',
                         streamStartTime
                     });
-                    playOscillatorNote(nextNote, now, 1, { role: 'keyboard' });
+                    playOscillatorNote(nextNote, playTime, 1, { role: 'keyboard' });
                     arpCurrentNote = nextNote;
                 }
             }
 
             arpStepIndex = (arpStepIndex + 1) % notes.length;
-            const stepSeconds = getArpeggiatorStepSeconds();
-            arpTimerId = setTimeout(scheduleArpeggiatorPlayback, stepSeconds * 1000);
+            arpNextStepTime = scheduledTime + stepSeconds;
+            if (arpTimerId) {
+                clearTimeout(arpTimerId);
+            }
+            arpTimerId = setTimeout(scheduleArpeggiatorPlayback, Math.max(0, (arpNextStepTime - audioContext.currentTime) * 1000));
         }
 
         function startArpeggiatorPlayback(startTime = null) {
@@ -7995,7 +8010,11 @@
             const notes = getArpeggiatorNotes();
             if (notes.length === 0) return;
             arpStepIndex = 0;
-            scheduleArpeggiatorPlayback(startTime);
+            arpNextStepTime = Number.isFinite(startTime) ? Math.max(audioContext.currentTime, startTime) : audioContext.currentTime;
+            if (!sequencerPlaying) {
+                transportLoopStartTime = arpNextStepTime;
+            }
+            scheduleArpeggiatorPlayback(arpNextStepTime);
         }
 
         function setHoldEnabled(nextEnabled, options = {}) {
