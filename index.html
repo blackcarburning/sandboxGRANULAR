@@ -12156,7 +12156,13 @@
 
             activateTab(oscTabButton);
             document.body.classList.add('synth-popup-open');
-            document.getElementById('oscPopupCloseBtn')?.focus();
+            requestAnimationFrame(() => {
+                const oscTab = document.getElementById('osc-tab');
+                if (oscTab) {
+                    oscTab.scrollTop = 0;
+                }
+                document.getElementById('oscPopupCloseBtn')?.focus();
+            });
         }
 
         function closeSynthPopup() {
