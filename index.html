@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-03-17-03-b6bd3d3';
+            const cacheBuster = '2026-10-03-17-55-synth-popup-modal';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -54,32 +54,28 @@
             -webkit-overflow-scrolling: auto;
         }
 
-        body.synth-popup-open {
-            overflow: hidden;
-        }
-
-        body.synth-popup-open::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.72);
-            z-index: 1980;
-        }
-
         .synth-popup-overlay {
             position: fixed;
-            inset: 12px;
-            z-index: 1995;
+            inset: 0;
+            z-index: 2147483000;
             display: none;
+            align-items: stretch;
+            justify-content: center;
+            padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            pointer-events: auto;
         }
 
         body.synth-popup-open .synth-popup-overlay {
-            display: block;
+            display: flex;
         }
 
         .synth-popup-shell {
-            position: absolute;
-            inset: 0;
+            position: relative;
+            width: min(560px, 100%);
+            max-height: calc(100dvh - 24px);
             padding: 14px;
             border-radius: 22px;
             background: rgba(7, 12, 19, 0.98);
@@ -89,11 +85,10 @@
         }
 
         .synth-popup-mount {
-            position: absolute;
-            inset: 14px;
             display: flex;
             flex-direction: column;
             gap: 8px;
+            max-height: calc(100dvh - 52px);
             overflow: hidden;
         }
 
@@ -566,44 +561,6 @@
         }
 
         body:not(.synth-popup-open) #oscPopupCloseBtn {
-            display: none;
-        }
-
-        body.synth-popup-open #osc-tab.active {
-            position: fixed;
-            inset: 12px;
-            z-index: 1995;
-            max-height: calc(100vh - 24px);
-            padding: 14px;
-            border-radius: 22px;
-            background: rgba(7, 12, 19, 0.98);
-            border: 1px solid rgba(0, 212, 255, 0.34);
-            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
-            overflow: hidden;
-        }
-
-        body.synth-popup-open #osc-tab.active .osc-popup-toolbar {
-            position: fixed;
-            top: 24px;
-            left: 24px;
-            right: 24px;
-            z-index: 1998;
-            margin-bottom: 0;
-        }
-
-        body.synth-popup-open #osc-tab.active .source-seed-group {
-            position: fixed;
-            top: 72px;
-            left: 24px;
-            right: 24px;
-            bottom: 24px;
-            z-index: 1997;
-            max-height: none;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        body.synth-popup-open #osc-tab.active > :not(.osc-popup-toolbar):not(.source-seed-group) {
             display: none;
         }
 
@@ -12195,7 +12152,6 @@
         const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
         const tabPanels = Array.from(document.querySelectorAll('.tab-content'));
         const tabContainer = document.querySelector('.tab-container');
-        let synthPopupPreviousTabButton = null;
         if (tabContainer) {
             tabContainer.setAttribute('role', 'tablist');
             tabContainer.setAttribute('aria-label', 'MYGRAIN control sections');
@@ -12220,11 +12176,6 @@
                 panel.hidden = !isActive;
             });
 
-            if (targetTab !== 'osc') {
-                document.body.classList.remove('synth-popup-open');
-                synthPopupPreviousTabButton = null;
-            }
-
             button.id = `tab-${targetTab}`;
             if (focusButton) {
                 button.focus();
@@ -12234,8 +12185,12 @@
         function openSynthPopup() {
             if (!synthPopupOverlay || !synthPopupMount) return;
 
-            const popupToolbar = document.querySelector('#osc-tab .osc-popup-toolbar');
-            const synthModule = document.querySelector('#osc-tab .source-seed-group[aria-label="3-voice synth controls"]');
+            if (synthPopupOverlay.parentElement !== document.body) {
+                document.body.appendChild(synthPopupOverlay);
+            }
+
+            const popupToolbar = document.querySelector('.osc-popup-toolbar');
+            const synthModule = document.querySelector('.source-seed-group[aria-label="3-voice synth controls"]');
             if (popupToolbar && popupToolbar.parentElement !== synthPopupMount) {
                 synthPopupMount.appendChild(popupToolbar);
             }
@@ -12243,11 +12198,14 @@
                 synthPopupMount.appendChild(synthModule);
             }
 
-            document.body.classList.add('synth-popup-open');
             synthPopupOverlay.hidden = false;
             synthPopupOverlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('synth-popup-open');
+            synthPopupMount.scrollTop = 0;
             requestAnimationFrame(() => {
-                document.getElementById('oscPopupCloseBtn')?.focus();
+                synthPopupMount.scrollTop = 0;
+                const firstControl = synthPopupMount.querySelector('select, input, button');
+                (document.getElementById('oscPopupCloseBtn') || firstControl)?.focus();
             });
         }
 
