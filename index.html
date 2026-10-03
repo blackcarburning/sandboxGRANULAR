@@ -529,6 +529,32 @@
             background: rgba(7, 12, 19, 0.98);
             border: 1px solid rgba(0, 212, 255, 0.34);
             box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
+            overflow: hidden;
+        }
+
+        body.synth-popup-open #osc-tab.active .osc-popup-toolbar {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            z-index: 1998;
+            margin-bottom: 0;
+        }
+
+        body.synth-popup-open #osc-tab.active .source-seed-group {
+            position: fixed;
+            top: 72px;
+            left: 24px;
+            right: 24px;
+            bottom: 24px;
+            z-index: 1997;
+            max-height: none;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        body.synth-popup-open #osc-tab.active > :not(.osc-popup-toolbar):not(.source-seed-group) {
+            display: none;
         }
 
         /* More compact control groups in Grain and Filter tabs for iPhone */
