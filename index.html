@@ -3070,7 +3070,7 @@
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
-                <button class="performance-btn" id="performanceGenerateFmDrumsBtn">FM Drums</button>
+                <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
                 <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
@@ -3238,13 +3238,38 @@
                         </div>
                     </div>
                 </div>
-                <div class="source-seed-group" aria-label="FM drum loop generator">
-                    <div class="section-title">FM Drum Loop</div>
+                <div class="source-seed-group" aria-label="Huge drum sequencer generator">
+                    <div class="section-title">Huge Drum Sequencer</div>
                     <div class="source-seed-buttons">
-                        <button id="generateFmDrumLoopBtn" class="primary">Generate FM Drum Loop</button>
+                        <button id="generateFmDrumLoopBtn" class="primary">Generate Huge Drums</button>
                     </div>
                     <div class="source-loop-labels">
-                        <label for="fmDrumLevel">FM Level <span id="fmDrumLevelValue">85%</span></label>
+                        <label for="hugeDrumKit">Kit <span id="hugeDrumKitValue">Studio</span></label>
+                    </div>
+                    <select id="hugeDrumKit">
+                        <option value="studio" selected>Studio</option>
+                        <option value="arena">Arena</option>
+                        <option value="concrete">Concrete</option>
+                        <option value="chrome">Chrome</option>
+                        <option value="velvet">Velvet</option>
+                        <option value="jungle">Jungle</option>
+                        <option value="industrial">Industrial</option>
+                        <option value="disco">Disco</option>
+                        <option value="punch">Punch</option>
+                        <option value="deep">Deep</option>
+                        <option value="loft">Loft</option>
+                        <option value="mono">Mono</option>
+                        <option value="neon">Neon</option>
+                        <option value="brick">Brick</option>
+                        <option value="turbo">Turbo</option>
+                        <option value="dust">Dust</option>
+                        <option value="satin">Satin</option>
+                        <option value="garage">Garage</option>
+                        <option value="giant">Giant</option>
+                        <option value="rattle">Rattle</option>
+                    </select>
+                    <div class="source-loop-labels">
+                        <label for="fmDrumLevel">Drum Level <span id="fmDrumLevelValue">85%</span></label>
                     </div>
                     <input type="range" id="fmDrumLevel" min="0" max="100" value="85" step="1">
                     <div class="source-loop-lfo-controls">
@@ -4322,6 +4347,94 @@
                         <input type="range" id="osc2Release" min="0" max="3000" value="300" step="1">
                     </div>
 
+                    <!-- Oscillator 3 -->
+                    <div class="control-group">
+                        <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 3</label>
+                        <label>
+                            <span class="param-name">Waveform</span>
+                        </label>
+                        <select id="osc3Wave">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Octave</span>
+                        </label>
+                        <div class="slope-group" style="gap: 2px;">
+                            <button class="slope-toggle" data-osc="3" data-octave="32">32'</button>
+                            <button class="slope-toggle" data-osc="3" data-octave="16">16'</button>
+                            <button class="slope-toggle active" data-osc="3" data-octave="8">8'</button>
+                            <button class="slope-toggle" data-osc="3" data-octave="4">4'</button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Fine Tune</span>
+                            <span class="value" id="osc3DetuneValue">0c</span>
+                        </label>
+                        <input type="range" id="osc3Detune" min="-100" max="100" value="0" step="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Level</span>
+                            <span class="value" id="osc3LevelValue">35%</span>
+                        </label>
+                        <input type="range" id="osc3Level" min="0" max="100" value="35" step="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Attack</span>
+                            <span class="value" id="osc3AttackValue">12ms</span>
+                        </label>
+                        <input type="range" id="osc3Attack" min="0" max="2000" value="12" step="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Decay</span>
+                            <span class="value" id="osc3DecayValue">320ms</span>
+                        </label>
+                        <input type="range" id="osc3Decay" min="0" max="2000" value="320" step="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Sustain</span>
+                            <span class="value" id="osc3SustainValue">58%</span>
+                        </label>
+                        <input type="range" id="osc3Sustain" min="0" max="100" value="58" step="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Release</span>
+                            <span class="value" id="osc3ReleaseValue">420ms</span>
+                        </label>
+                        <input type="range" id="osc3Release" min="0" max="3000" value="420" step="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Route</span>
+                            <span class="value" id="oscRouteModeValue">Random</span>
+                        </label>
+                        <select id="oscRouteMode">
+                            <option value="random" selected>Random</option>
+                            <option value="blend">Blend</option>
+                            <option value="wide">Wide</option>
+                            <option value="metal">Metal</option>
+                            <option value="sub">Sub</option>
+                        </select>
+                    </div>
+
                     <!-- Mix Control -->
                     <div class="control-group" style="grid-column: span 2;">
                         <label>
@@ -5003,6 +5116,17 @@
             sustain: 0.7,
             release: 300
         };
+        let osc3Config = {
+            waveform: 'triangle',
+            octave: 8,
+            detune: 0,
+            level: 0.35,
+            attack: 12,
+            decay: 320,
+            sustain: 0.58,
+            release: 420
+        };
+        let oscRouteMode = 'random';
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0; // Direct generated-loop bus, bypasses granular/filter path
@@ -9132,6 +9256,38 @@
             return octaveFreq * detuneMultiplier;
         }
 
+        const OSC_ROUTE_MODES = ['blend', 'wide', 'metal', 'sub'];
+
+        function getOscRouteModeLabel(mode) {
+            switch (mode) {
+                case 'blend':
+                    return 'Blend';
+                case 'wide':
+                    return 'Wide';
+                case 'metal':
+                    return 'Metal';
+                case 'sub':
+                    return 'Sub';
+                default:
+                    return 'Random';
+            }
+        }
+
+        function syncOscRouteModeUI(mode = document.getElementById('oscRouteMode')?.value || oscRouteMode) {
+            const resolvedMode = mode || 'random';
+            oscRouteMode = resolvedMode;
+            const label = document.getElementById('oscRouteModeValue');
+            if (label) label.textContent = getOscRouteModeLabel(resolvedMode);
+        }
+
+        function resolveOscRouteModeForVoice() {
+            const selected = document.getElementById('oscRouteMode')?.value || oscRouteMode || 'random';
+            if (selected === 'random') {
+                return OSC_ROUTE_MODES[Math.floor(Math.random() * OSC_ROUTE_MODES.length)];
+            }
+            return selected;
+        }
+
         function playOscillatorNote(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!audioContext) return;
             if (!oscillatorsEnabled) return;
@@ -9150,86 +9306,144 @@
             const baseFreq = getKeyboardNoteFrequency(note);
             const rawVelocity = Number(velocity);
             const noteVelocity = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
-            
+            const routeMode = resolveOscRouteModeForVoice();
+            const voiceClickGuard = getClickGuardSeconds();
+
             // Create oscillator 1
             const osc1 = audioContext.createOscillator();
             osc1.type = osc1Config.waveform;
             osc1.frequency.value = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune);
-            
             const osc1Gain = audioContext.createGain();
             osc1Gain.gain.value = 0;
-            
+
             // Create oscillator 2
             const osc2 = audioContext.createOscillator();
             osc2.type = osc2Config.waveform;
             osc2.frequency.value = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune);
-            
             const osc2Gain = audioContext.createGain();
             osc2Gain.gain.value = 0;
-            
+
+            // Create oscillator 3
+            const osc3 = audioContext.createOscillator();
+            osc3.type = osc3Config.waveform;
+            osc3.frequency.value = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Config.detune);
+            const osc3Gain = audioContext.createGain();
+            osc3Gain.gain.value = 0;
+
             // Mix oscillators
             const oscMixer = audioContext.createGain();
             oscMixer.gain.value = 1.0;
-            
+
+            const voiceNodes = [osc1, osc2, osc3, osc1Gain, osc2Gain, osc3Gain, oscMixer];
+            let osc1Pan = null;
+            let osc2Pan = null;
+            let osc3Pan = null;
+            let osc3ToneFilter = null;
+            let osc3ModGain = null;
+
+            if (routeMode === 'wide' && typeof audioContext.createStereoPanner === 'function') {
+                osc1Pan = audioContext.createStereoPanner();
+                osc2Pan = audioContext.createStereoPanner();
+                osc3Pan = audioContext.createStereoPanner();
+                osc1Pan.pan.value = -0.75;
+                osc2Pan.pan.value = 0;
+                osc3Pan.pan.value = 0.75;
+                voiceNodes.push(osc1Pan, osc2Pan, osc3Pan);
+            } else if (routeMode === 'sub' || routeMode === 'metal') {
+                osc3ToneFilter = audioContext.createBiquadFilter();
+                osc3ToneFilter.type = routeMode === 'sub' ? 'lowpass' : 'highpass';
+                osc3ToneFilter.frequency.value = routeMode === 'sub' ? 420 : 920;
+                osc3ToneFilter.Q.value = routeMode === 'sub' ? 0.75 : 0.95;
+                voiceNodes.push(osc3ToneFilter);
+            }
+
+            if (routeMode === 'metal') {
+                osc3ModGain = audioContext.createGain();
+                osc3ModGain.gain.value = Math.max(8, baseFreq * (0.14 + (noteVelocity * 0.16)));
+                voiceNodes.push(osc3ModGain);
+            }
+
+            const routeMix = {
+                blend: { osc1: 1.0, osc2: 0.92, osc3: 0.74 },
+                wide: { osc1: 0.88, osc2: 0.78, osc3: 0.68 },
+                metal: { osc1: 0.66, osc2: 0.58, osc3: 0.24 },
+                sub: { osc1: 0.56, osc2: 0.50, osc3: 0.94 }
+            }[routeMode] || { osc1: 1.0, osc2: 0.92, osc3: 0.74 };
+
             osc1.connect(osc1Gain);
             osc2.connect(osc2Gain);
-            osc1Gain.connect(oscMixer);
-            osc2Gain.connect(oscMixer);
-            
+            if (osc3ToneFilter) {
+                osc3.connect(osc3ToneFilter);
+                osc3ToneFilter.connect(osc3Gain);
+            } else {
+                osc3.connect(osc3Gain);
+            }
+
+            if (osc1Pan) {
+                osc1Gain.connect(osc1Pan);
+                osc1Pan.connect(oscMixer);
+            } else {
+                osc1Gain.connect(oscMixer);
+            }
+
+            if (osc2Pan) {
+                osc2Gain.connect(osc2Pan);
+                osc2Pan.connect(oscMixer);
+            } else {
+                osc2Gain.connect(oscMixer);
+            }
+
+            if (osc3ModGain) {
+                osc3.connect(osc3ModGain);
+                osc3ModGain.connect(osc1.frequency);
+                osc3ModGain.connect(osc2.frequency);
+            }
+
+            osc3Gain.connect(oscMixer);
+
             // Connect to oscillator output gain node (then to filter chain)
             oscMixer.connect(oscOutputGain);
-            
+
             // Start oscillators at the precise scheduled time
             osc1.start(startTime);
             osc2.start(startTime);
-            
-            // Apply ADSR envelope for osc1
-            const voiceClickGuard = getClickGuardSeconds();
-            const attack1 = Math.max(osc1Config.attack / 1000, voiceClickGuard);
-            const decay1 = osc1Config.decay / 1000;
-            const osc1Peak = osc1Config.level * noteVelocity;
-            const sustain1 = osc1Config.sustain * osc1Peak;
-            
-            // Set initial value at current time to anchor the automation
+            osc3.start(startTime);
+
             const now = audioContext.currentTime;
-            osc1Gain.gain.setValueAtTime(0, now);
-            
-            // If startTime is in the future, hold at 0 until then
-            if (startTime > now) {
-                osc1Gain.gain.setValueAtTime(0, startTime);
+
+            function applyVoiceEnvelope(gainNode, config, peakMultiplier) {
+                const attack = Math.max(config.attack / 1000, voiceClickGuard);
+                const decay = config.decay / 1000;
+                const peak = config.level * noteVelocity * peakMultiplier;
+                const sustain = config.sustain * peak;
+                gainNode.gain.setValueAtTime(0, now);
+                if (startTime > now) {
+                    gainNode.gain.setValueAtTime(0, startTime);
+                }
+                gainNode.gain.linearRampToValueAtTime(peak, startTime + attack);
+                gainNode.gain.linearRampToValueAtTime(sustain, startTime + attack + decay);
+                return { attack, decay, peak, sustain };
             }
-            
-            // Then ramp up
-            osc1Gain.gain.linearRampToValueAtTime(osc1Peak, startTime + attack1);
-            osc1Gain.gain.linearRampToValueAtTime(sustain1, startTime + attack1 + decay1);
-            
+
+            const envelopes = {
+                osc1: applyVoiceEnvelope(osc1Gain, osc1Config, routeMix.osc1),
+                osc2: applyVoiceEnvelope(osc2Gain, osc2Config, routeMix.osc2),
+                osc3: applyVoiceEnvelope(osc3Gain, osc3Config, routeMix.osc3)
+            };
+
             // Debug: Log envelope timing
-            console.log(`[OSC Debug] Note: ${note}, Now: ${now.toFixed(3)}, StartTime: ${startTime.toFixed(3)}, Attack: ${attack1.toFixed(3)}s, Decay: ${decay1.toFixed(3)}s`);
-            
-            // Apply ADSR envelope for osc2
-            const attack2 = Math.max(osc2Config.attack / 1000, voiceClickGuard);
-            const decay2 = osc2Config.decay / 1000;
-            const osc2Peak = osc2Config.level * noteVelocity;
-            const sustain2 = osc2Config.sustain * osc2Peak;
-            
-            // Set initial value at current time to anchor the automation
-            osc2Gain.gain.setValueAtTime(0, now);
-            
-            // If startTime is in the future, hold at 0 until then
-            if (startTime > now) {
-                osc2Gain.gain.setValueAtTime(0, startTime);
-            }
-            
-            // Then ramp up
-            osc2Gain.gain.linearRampToValueAtTime(osc2Peak, startTime + attack2);
-            osc2Gain.gain.linearRampToValueAtTime(sustain2, startTime + attack2 + decay2);
-            
+            console.log(`[OSC Debug] Note: ${note}, Route: ${routeMode}, Now: ${now.toFixed(3)}, StartTime: ${startTime.toFixed(3)}, Attack: ${envelopes.osc1.attack.toFixed(3)}s, ${envelopes.osc2.attack.toFixed(3)}s, ${envelopes.osc3.attack.toFixed(3)}s`);
+
             // Store voice
             activeOscVoices.set(voiceId, {
                 note,
                 role,
-                osc1, osc2, osc1Gain, osc2Gain, oscMixer,
-                startTime: startTime
+                routeMode,
+                osc1, osc2, osc3, osc1Gain, osc2Gain, osc3Gain, oscMixer,
+                osc1Pan, osc2Pan, osc3Pan,
+                osc3ToneFilter, osc3ModGain,
+                nodes: voiceNodes,
+                startTime
             });
         }
 
@@ -9249,6 +9463,7 @@
             
             // Apply release envelope for osc1
             const release1 = Math.max(osc1Config.release / 1000, getClickGuardSeconds());
+            const release3 = Math.max(osc3Config.release / 1000, getClickGuardSeconds());
             
             // Cancel from now, not from stopTime
             voice.osc1Gain.gain.cancelScheduledValues(now);
@@ -9269,6 +9484,12 @@
             
             // Apply release envelope for osc2
             const release2 = Math.max(osc2Config.release / 1000, getClickGuardSeconds());
+            voice.osc3Gain.gain.cancelScheduledValues(now);
+            voice.osc3Gain.gain.setValueAtTime(voice.osc3Gain.gain.value, now);
+            if (actualStopTime > now) {
+                voice.osc3Gain.gain.setValueAtTime(voice.osc3Gain.gain.value, actualStopTime);
+            }
+            voice.osc3Gain.gain.linearRampToValueAtTime(0, actualStopTime + release3);
             
             // Cancel from now, not from stopTime
             voice.osc2Gain.gain.cancelScheduledValues(now);
@@ -9285,18 +9506,21 @@
             voice.osc2Gain.gain.linearRampToValueAtTime(0, actualStopTime + release2);
             
             // Stop oscillators after release
-            const maxRelease = Math.max(release1, release2);
+            const maxRelease = Math.max(release1, release2, release3);
             voice.osc1.stop(actualStopTime + maxRelease);
             voice.osc2.stop(actualStopTime + maxRelease);
+            voice.osc3.stop(actualStopTime + maxRelease);
             
             // Clean up - disconnect nodes after they stop (voice reference is still valid)
             setTimeout(() => {
                 try {
-                    voice.osc1.disconnect();
-                    voice.osc2.disconnect();
-                    voice.osc1Gain.disconnect();
-                    voice.osc2Gain.disconnect();
-                    voice.oscMixer.disconnect();
+                    (voice.nodes || []).forEach((node) => {
+                        try {
+                            node.disconnect();
+                        } catch (e) {
+                            // Node may already be disconnected
+                        }
+                    });
                 } catch(e) {
                     // Node may already be disconnected
                 }
@@ -10551,6 +10775,54 @@
             document.getElementById('osc2ReleaseValue').textContent = `${e.target.value}ms`;
         });
 
+        // Oscillator 3
+        document.getElementById('osc3Wave').addEventListener('change', (e) => {
+            osc3Config.waveform = e.target.value;
+        });
+
+        document.querySelectorAll('[data-osc="3"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-osc="3"]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                osc3Config.octave = parseInt(btn.dataset.octave);
+            });
+        });
+
+        document.getElementById('osc3Detune').addEventListener('input', (e) => {
+            osc3Config.detune = parseFloat(e.target.value);
+            document.getElementById('osc3DetuneValue').textContent = `${e.target.value}c`;
+        });
+
+        document.getElementById('osc3Level').addEventListener('input', (e) => {
+            osc3Config.level = parseFloat(e.target.value) / 100;
+            document.getElementById('osc3LevelValue').textContent = `${e.target.value}%`;
+        });
+
+        document.getElementById('osc3Attack').addEventListener('input', (e) => {
+            osc3Config.attack = parseFloat(e.target.value);
+            document.getElementById('osc3AttackValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('osc3Decay').addEventListener('input', (e) => {
+            osc3Config.decay = parseFloat(e.target.value);
+            document.getElementById('osc3DecayValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('osc3Sustain').addEventListener('input', (e) => {
+            osc3Config.sustain = parseFloat(e.target.value) / 100;
+            document.getElementById('osc3SustainValue').textContent = `${e.target.value}%`;
+        });
+
+        document.getElementById('osc3Release').addEventListener('input', (e) => {
+            osc3Config.release = parseFloat(e.target.value);
+            document.getElementById('osc3ReleaseValue').textContent = `${e.target.value}ms`;
+        });
+
+        document.getElementById('oscRouteMode').addEventListener('change', (e) => {
+            syncOscRouteModeUI(e.target.value);
+        });
+        syncOscRouteModeUI();
+
         function updateSourceMixGains() {
             const oscLevel = generatedSampleSolo ? 0 : (oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM : 0);
             const granularLevel = Math.sqrt(generatedSampleSolo ? 1 : (oscillatorsEnabled ? (1 - oscMix) : 1)) * MIX_HEADROOM * dbToLinear(getGranularTrimDb());
@@ -10853,6 +11125,7 @@
             }
             if (oscNumber === 1) osc1Config.octave = octave;
             if (oscNumber === 2) osc2Config.octave = octave;
+            if (oscNumber === 3) osc3Config.octave = octave;
         }
 
         function snapshotRandomizeProtectedSliders() {
@@ -11049,6 +11322,12 @@
 
             setSliderValue('osc1Level', randomIntegerInRange(38, 100));
             setSliderValue('osc2Level', randomIntegerInRange(22, 92));
+            setSliderValue('osc3Detune', randomIntegerInRange(-24, 24));
+            setSliderValue('osc3Level', randomIntegerInRange(18, 82));
+            setSliderValue('osc3Attack', randomIntegerInRange(4, 180));
+            setSliderValue('osc3Decay', randomIntegerInRange(110, 620));
+            setSliderValue('osc3Sustain', randomIntegerInRange(18, 76));
+            setSliderValue('osc3Release', randomIntegerInRange(140, 820));
             const noiseEnabled = maybe(0.5);
             setSliderValue('noiseMix', noiseEnabled ? randomIntegerInRange(1, 20) : 0);
             setSliderValue('delayMix', randomIntegerInRange(0, 54));
@@ -11074,6 +11353,9 @@
             setSelectValue('finalDelayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
             setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
+            setSelectValue('osc3Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
+            setSelectValue('oscRouteMode', chooseRandom(['random', 'blend', 'wide', 'metal', 'sub']));
+            setSelectValue('hugeDrumKit', chooseRandom(HUGE_DRUM_KITS).id);
             setSelectValue('noiseType', noiseEnabled ? chooseRandom(['white', 'pink']) : 'none');
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setFinalFxPlacement('pre');
@@ -11822,9 +12104,68 @@
             return Math.max(-7, Math.min(7, Math.round(semitones)));
         }
 
+        function createHugeDrumKit(id, name, overrides = {}) {
+            return {
+                id,
+                name,
+                kickBase: 54,
+                kickSweep: 88,
+                kickDecay: 0.18,
+                kickClick: 0.22,
+                kickPunch: 1.0,
+                kickDrive: 1.05,
+                snareBase: 202,
+                snareDecay: 0.11,
+                snareNoise: 0.95,
+                snareSnap: 0.28,
+                snareRing: 0.22,
+                hatBase: 7600,
+                hatDecay: 0.055,
+                hatMetal: 0.96,
+                hatNoise: 1.0,
+                hatToneShift: 0,
+                tomBase: 138,
+                tomDecay: 0.17,
+                tomBody: 0.5,
+                openHatDecay: 0.12,
+                room: 0.08,
+                fillBias: 0.25,
+                accent: 0.05,
+                ...overrides
+            };
+        }
+
+        const HUGE_DRUM_KITS = [
+            createHugeDrumKit('studio', 'Studio', { kickBase: 52, kickSweep: 84, snareBase: 198, hatBase: 7300, room: 0.05, fillBias: 0.18 }),
+            createHugeDrumKit('arena', 'Arena', { kickBase: 50, kickSweep: 92, kickDrive: 1.14, snareBase: 194, snareRing: 0.30, hatBase: 8200, room: 0.16, fillBias: 0.32 }),
+            createHugeDrumKit('concrete', 'Concrete', { kickBase: 48, kickClick: 0.28, kickDrive: 1.18, snareNoise: 1.08, hatMetal: 1.0, hatToneShift: 180, room: 0.10, fillBias: 0.28 }),
+            createHugeDrumKit('chrome', 'Chrome', { kickBase: 55, kickPunch: 1.08, snareBase: 214, snareSnap: 0.34, hatBase: 9100, hatMetal: 1.18, openHatDecay: 0.16, room: 0.08, fillBias: 0.24 }),
+            createHugeDrumKit('velvet', 'Velvet', { kickBase: 53, kickDecay: 0.22, snareBase: 188, snareNoise: 0.86, hatBase: 6800, hatDecay: 0.045, room: 0.11, fillBias: 0.20 }),
+            createHugeDrumKit('jungle', 'Jungle', { kickBase: 51, kickSweep: 96, snareBase: 206, snareRing: 0.26, hatBase: 7900, room: 0.12, fillBias: 0.34 }),
+            createHugeDrumKit('industrial', 'Industrial', { kickBase: 47, kickDrive: 1.24, kickClick: 0.32, snareNoise: 1.12, snareSnap: 0.22, hatMetal: 1.2, hatToneShift: 260, room: 0.09, fillBias: 0.38 }),
+            createHugeDrumKit('disco', 'Disco', { kickBase: 56, kickPunch: 1.05, snareBase: 208, hatBase: 8600, hatDecay: 0.05, openHatDecay: 0.14, room: 0.07, fillBias: 0.22 }),
+            createHugeDrumKit('punch', 'Punch', { kickBase: 58, kickSweep: 78, kickDecay: 0.16, kickDrive: 1.08, snareBase: 192, snareSnap: 0.30, room: 0.06, fillBias: 0.20 }),
+            createHugeDrumKit('deep', 'Deep', { kickBase: 46, kickSweep: 74, kickDecay: 0.24, kickPunch: 1.12, snareBase: 184, hatBase: 7200, room: 0.09, fillBias: 0.16 }),
+            createHugeDrumKit('loft', 'Loft', { kickBase: 53, kickDrive: 1.02, snareBase: 200, hatBase: 7800, room: 0.14, fillBias: 0.26 }),
+            createHugeDrumKit('mono', 'Mono', { kickBase: 57, kickPunch: 0.96, snareBase: 196, snareNoise: 0.90, hatBase: 7000, room: 0.04, fillBias: 0.18 }),
+            createHugeDrumKit('neon', 'Neon', { kickBase: 54, kickDrive: 1.10, snareBase: 210, snareSnap: 0.36, hatBase: 9600, hatMetal: 1.22, room: 0.08, fillBias: 0.29 }),
+            createHugeDrumKit('brick', 'Brick', { kickBase: 49, kickClick: 0.24, kickDrive: 1.16, snareNoise: 1.0, snareRing: 0.24, hatBase: 7600, room: 0.12, fillBias: 0.30 }),
+            createHugeDrumKit('turbo', 'Turbo', { kickBase: 60, kickSweep: 102, kickDrive: 1.14, snareBase: 212, hatBase: 8400, hatDecay: 0.052, room: 0.06, fillBias: 0.24 }),
+            createHugeDrumKit('dust', 'Dust', { kickBase: 50, kickDecay: 0.20, kickClick: 0.20, snareBase: 186, snareNoise: 1.04, hatBase: 6900, room: 0.15, fillBias: 0.19 }),
+            createHugeDrumKit('satin', 'Satin', { kickBase: 55, kickPunch: 0.98, snareBase: 204, snareNoise: 0.88, hatBase: 7800, hatDecay: 0.048, room: 0.07, fillBias: 0.21 }),
+            createHugeDrumKit('garage', 'Garage', { kickBase: 52, kickDrive: 1.20, kickClick: 0.30, snareBase: 196, snareRing: 0.18, hatBase: 8000, room: 0.13, fillBias: 0.33 }),
+            createHugeDrumKit('giant', 'Giant', { kickBase: 44, kickSweep: 110, kickDecay: 0.28, kickDrive: 1.08, snareBase: 176, snareRing: 0.26, hatBase: 7400, room: 0.18, fillBias: 0.36 }),
+            createHugeDrumKit('rattle', 'Rattle', { kickBase: 51, kickClick: 0.34, kickDrive: 1.14, snareBase: 206, snareNoise: 1.10, hatBase: 9000, hatMetal: 1.08, room: 0.10, fillBias: 0.35 })
+        ];
+
+        function getHugeDrumKitDefinition() {
+            const kitId = document.getElementById('hugeDrumKit')?.value || HUGE_DRUM_KITS[0].id;
+            return HUGE_DRUM_KITS.find((kit) => kit.id === kitId) || HUGE_DRUM_KITS[0];
+        }
+
         async function generateFmDrumLoopSample(options = {}) {
             if (!audioContext) {
-                throw new Error('Start MYGRAIN before generating FM drums.');
+                throw new Error('Start MYGRAIN before generating drums.');
             }
 
             sourceMutationSerial += 1;
@@ -11833,80 +12174,110 @@
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const fmLevel = Math.max(0, Math.min(1, getFmDrumControlValue('fmDrumLevel', 85) / 100));
+            const kit = getHugeDrumKitDefinition();
             const punch = 0.78;
             const pitchRatio = Math.pow(2, getQuantizedFmDrumPitchSemitones() / 12);
             const random = typeof mygrainUtils.createSeededRandom === 'function'
-                ? mygrainUtils.createSeededRandom(`fm-drums-${Date.now()}-${bpm}-${fmLevel}`)
+                ? mygrainUtils.createSeededRandom(`huge-drums-${Date.now()}-${bpm}-${fmLevel}-${kit.id}`)
                 : Math.random;
-            const stepCount = 4;
-            const stepDuration = 60 / bpm;
+            const bars = 4;
+            const stepsPerBar = 16;
+            const stepCount = bars * stepsPerBar;
+            const stepDuration = (60 / bpm) / 4;
             const duration = stepDuration * stepCount;
             const sampleRate = audioContext.sampleRate;
             const frameCount = Math.max(1, Math.floor(sampleRate * duration));
             const buffer = audioContext.createBuffer(2, frameCount, sampleRate);
             const events = [];
             const TWO_PI = Math.PI * 2;
-            const fmDrumGridSteps = [0, 1, 2, 3];
+
+            const drumPatterns = [
+                {
+                    name: 'straight backbeat',
+                    kick: [0, 8],
+                    snare: [4, 12],
+                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
+                    openHat: [15]
+                },
+                {
+                    name: 'four on the floor',
+                    kick: [0, 4, 8, 12],
+                    snare: [4, 12],
+                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
+                    openHat: [7, 15]
+                },
+                {
+                    name: 'slow rock',
+                    kick: [0, 8],
+                    snare: [4, 12],
+                    hats: [0, 4, 8, 12],
+                    openHat: [14]
+                },
+                {
+                    name: 'half time',
+                    kick: [0, 8, 10],
+                    snare: [8],
+                    hats: [0, 4, 8, 12],
+                    openHat: [14]
+                },
+                {
+                    name: 'disco drive',
+                    kick: [0, 6, 8, 14],
+                    snare: [4, 12],
+                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
+                    openHat: [15]
+                },
+                {
+                    name: 'big room rock',
+                    kick: [0, 8],
+                    snare: [4, 12],
+                    hats: [0, 2, 4, 6, 8, 10, 12, 14],
+                    openHat: [11, 15]
+                }
+            ];
+            const pattern = drumPatterns[Math.floor(random() * drumPatterns.length)];
 
             function addEvent(step, type, velocity = 0.7, accent = false, options = {}) {
+                if (!Number.isFinite(step)) return;
                 if (step < 0 || step >= stepCount) return;
-                const quantizedStep = fmDrumGridSteps.reduce((best, gridStep) => {
-                    return Math.abs(gridStep - step) < Math.abs(best - step) ? gridStep : best;
-                }, fmDrumGridSteps[0]);
+                const quantizedStep = Math.max(0, Math.min(stepCount - 1, Math.round(step)));
                 if (!options.allowLayer && events.some((event) => event.step === quantizedStep && event.type === type)) return;
                 events.push({
                     step: quantizedStep,
                     type,
                     time: quantizedStep * stepDuration,
-                    velocity: Math.max(0, Math.min(1, velocity + (accent ? 0.12 : 0))),
+                    velocity: Math.max(0, Math.min(1, velocity + (accent ? 0.12 + kit.accent : 0))),
                     accent,
-                    core: Boolean(options.core)
+                    core: Boolean(options.core),
+                    bar: Math.floor(quantizedStep / stepsPerBar)
                 });
             }
 
-            const drumPatterns = [
-                {
-                    name: 'straight backbeat',
-                    kick: [0, 2],
-                    snare: [1, 3],
-                    hats: [0, 1, 2, 3]
-                },
-                {
-                    name: 'slow rock',
-                    kick: [0, 2],
-                    snare: [1, 3],
-                    hats: [0, 2]
-                },
-                {
-                    name: 'four on the floor',
-                    kick: [0, 1, 2, 3],
-                    snare: [1, 3],
-                    hats: [0, 1, 2, 3]
-                },
-                {
-                    name: 'half time',
-                    kick: [0, 2],
-                    snare: [2],
-                    hats: [0, 2]
-                },
-                {
-                    name: 'sparse backbeat',
-                    kick: [0, 2],
-                    snare: [1, 3],
-                    hats: [0, 2]
-                }
-            ];
-            const pattern = drumPatterns[Math.floor(random() * drumPatterns.length)];
+            for (let barIndex = 0; barIndex < bars; barIndex += 1) {
+                const barOffset = barIndex * stepsPerBar;
+                const accentBar = barIndex % 2 === 0;
 
-            pattern.kick.forEach((step, index) => {
-                addEvent(step, 'kick', index === 0 ? 1 : 0.84, step === 0, { core: true, allowLayer: true });
-            });
-            pattern.snare.forEach((step, index) => {
-                addEvent(step, 'snare', index === 0 ? 0.92 : 0.88, true, { core: true, allowLayer: true });
-            });
-            pattern.hats.forEach((step) => {
-                addEvent(step, 'hat', step % 2 === 0 ? 0.28 : 0.24, false, { core: true, allowLayer: true });
-            });
+                pattern.kick.forEach((step, index) => {
+                    addEvent(barOffset + step, 'kick', index === 0 ? 1 : 0.86, accentBar && step === 0, { core: true, allowLayer: true });
+                });
+                pattern.snare.forEach((step, index) => {
+                    addEvent(barOffset + step, 'snare', index === 0 ? 0.94 : 0.9, step === 4 || step === 12, { core: true, allowLayer: true });
+                });
+                pattern.hats.forEach((step) => {
+                    const hatVelocity = step % 4 === 0 ? 0.34 : 0.26;
+                    addEvent(barOffset + step, 'hat', hatVelocity, step === 0 || step === 8, { core: true, allowLayer: true });
+                });
+                pattern.openHat.forEach((step) => {
+                    addEvent(barOffset + step, 'openHat', 0.28, false, { core: true, allowLayer: true });
+                });
+
+                if (barIndex === bars - 1) {
+                    const fillSteps = kit.fillBias > 0.3 ? [8, 10, 12, 14, 15] : [10, 12, 14, 15];
+                    fillSteps.forEach((step, index) => {
+                        addEvent(barOffset + step, 'tom', 0.45 - (index * 0.04), index === fillSteps.length - 1, { core: true, allowLayer: true });
+                    });
+                }
+            }
 
             function env(delta, attack, decay) {
                 if (delta < 0) return 0;
@@ -11914,50 +12285,60 @@
                 return Math.exp(-(delta - attack) / Math.max(decay, 0.0001));
             }
 
-            function renderFmEvent(event, delta, noise, channel) {
+            function renderHugeDrumEvent(event, delta, noise, channel) {
                 if (delta < 0) return 0;
-                const pan = event.type === 'hat' ? (event.step % 2 === 1 ? -0.16 : 0.16) : 0;
+                const pan = event.type === 'hat' || event.type === 'openHat' ? (event.step % 2 === 1 ? -0.18 : 0.18) : 0;
                 const panGain = channel === 0
                     ? Math.cos((pan + 1) * Math.PI * 0.25)
                     : Math.sin((pan + 1) * Math.PI * 0.25);
                 const velocity = event.velocity;
+                const roomLift = 1 + (kit.room * 0.12);
 
                 if (event.type === 'kick') {
-                    if (delta > 0.32) return 0;
-                    const pitch = (54 + 92 * Math.exp(-delta * (22 + punch * 10))) * pitchRatio;
-                    const mod = Math.sin(TWO_PI * pitch * 1.58 * delta) * (4.2 * Math.exp(-delta * 28));
-                    const body = Math.sin(TWO_PI * pitch * delta + mod);
-                    const knock = Math.sin(TWO_PI * pitch * 2.15 * delta) * Math.exp(-delta * 34) * 0.2;
-                    const click = noise * Math.exp(-delta * 145) * (0.22 + punch * 0.16);
-                    return Math.tanh((body * 1.18 + knock + click) * (1.25 + punch * 1.15)) * env(delta, 0.001, 0.145 + punch * 0.08) * velocity * panGain;
-                }
-
-                if (event.type === 'impact') {
                     if (delta > 0.34) return 0;
-                    const pitch = (68 + 74 * Math.exp(-delta * 14)) * pitchRatio;
-                    const mod = Math.sin(TWO_PI * pitch * 0.82 * delta) * (2.8 * Math.exp(-delta * 14));
-                    const thump = Math.sin(TWO_PI * pitch * delta + mod);
-                    const dirt = noise * Math.exp(-delta * 14) * 0.28;
-                    return Math.tanh((thump * 1.15 + dirt) * (1.35 + punch)) * env(delta, 0.002, 0.18 + punch * 0.08) * velocity * panGain;
+                    const pitch = (kit.kickBase + kit.kickSweep * Math.exp(-delta * (20 + punch * 9))) * pitchRatio;
+                    const mod = Math.sin(TWO_PI * pitch * 1.48 * delta) * (4.0 * Math.exp(-delta * 28));
+                    const body = Math.sin(TWO_PI * pitch * delta + mod);
+                    const knock = Math.sin(TWO_PI * pitch * 2.12 * delta) * Math.exp(-delta * 34) * 0.18;
+                    const click = noise * Math.exp(-delta * 145) * (kit.kickClick + punch * 0.16);
+                    const punchGain = 1.15 + kit.kickPunch * 1.08;
+                    return Math.tanh((body * punchGain + knock + click) * kit.kickDrive) * env(delta, 0.001, kit.kickDecay + punch * 0.08) * velocity * panGain * (1 + kit.room * 0.04);
                 }
 
                 if (event.type === 'snare') {
-                    if (delta > 0.21) return 0;
-                    const pitch = (205 + 38 * Math.exp(-delta * 28)) * pitchRatio;
-                    const mod = Math.sin(TWO_PI * pitch * 1.87 * delta) * (1.25 * Math.exp(-delta * 35));
-                    const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.24;
-                    const rattle = Math.sin(TWO_PI * 720 * pitchRatio * delta) * Math.exp(-delta * 34) * 0.12;
-                    const snap = noise * Math.exp(-delta * 30) * 0.94;
-                    return Math.tanh((shell + rattle + snap) * (1.18 + punch * 0.72)) * env(delta, 0.001, 0.105) * velocity * panGain;
+                    if (delta > 0.24) return 0;
+                    const pitch = (kit.snareBase + 34 * Math.exp(-delta * 26)) * pitchRatio;
+                    const mod = Math.sin(TWO_PI * pitch * 1.83 * delta) * (1.12 * Math.exp(-delta * 34));
+                    const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.22;
+                    const rattle = Math.sin(TWO_PI * 720 * pitchRatio * delta) * Math.exp(-delta * 34) * kit.snareRing;
+                    const snap = noise * Math.exp(-delta * 30) * kit.snareNoise;
+                    return Math.tanh((shell + rattle + snap) * (1.14 + punch * 0.62) * kit.snareSnap) * env(delta, 0.001, kit.snareDecay * roomLift) * velocity * panGain * roomLift;
                 }
 
                 if (event.type === 'hat') {
-                    if (delta > 0.075) return 0;
-                    const base = (6200 + (event.step % 4) * 540) * Math.min(1.35, Math.max(0.8, pitchRatio));
+                    if (delta > 0.09) return 0;
+                    const base = (kit.hatBase + (event.step % 8) * 180 + kit.hatToneShift) * Math.min(1.2, Math.max(0.82, pitchRatio));
                     const fm = Math.sin(TWO_PI * base * delta + Math.sin(TWO_PI * base * 1.31 * delta) * 2.2);
                     const metal = fm * Math.sin(TWO_PI * base * 2.03 * delta);
-                    const tick = (metal * 0.22 + noise * 1.02) * Math.exp(-delta * (58 + punch * 30));
-                    return Math.tanh(tick * 1.55) * velocity * panGain;
+                    const tick = (metal * kit.hatMetal + noise * kit.hatNoise) * Math.exp(-delta * (58 + punch * 28));
+                    return Math.tanh(tick * 1.55) * env(delta, 0.0005, kit.hatDecay * roomLift) * velocity * panGain * roomLift;
+                }
+
+                if (event.type === 'openHat') {
+                    if (delta > 0.22) return 0;
+                    const base = (kit.hatBase + 320 + kit.hatToneShift) * Math.min(1.2, Math.max(0.82, pitchRatio));
+                    const fm = Math.sin(TWO_PI * base * delta + Math.sin(TWO_PI * base * 0.91 * delta) * 1.8);
+                    const tick = (fm * kit.hatMetal + noise * kit.hatNoise) * Math.exp(-delta * 42);
+                    return Math.tanh(tick * 1.25) * env(delta, 0.001, kit.openHatDecay * roomLift) * velocity * panGain * roomLift;
+                }
+
+                if (event.type === 'tom') {
+                    if (delta > 0.36) return 0;
+                    const pitch = (kit.tomBase + 42 * Math.exp(-delta * 12)) * pitchRatio;
+                    const wobble = Math.sin(TWO_PI * pitch * 1.02 * delta) * (2.6 * Math.exp(-delta * 18));
+                    const body = Math.sin(TWO_PI * pitch * delta + wobble);
+                    const dirt = noise * Math.exp(-delta * 18) * 0.28;
+                    return Math.tanh((body + dirt) * 1.08) * env(delta, 0.001, kit.tomDecay * roomLift) * velocity * panGain * roomLift;
                 }
 
                 return 0;
@@ -11978,7 +12359,7 @@
                     let sample = 0;
                     for (const event of events) {
                         if (event.time > time + 0.001) break;
-                        sample += renderFmEvent(event, time - event.time, highNoise, channel);
+                        sample += renderHugeDrumEvent(event, time - event.time, highNoise, channel);
                     }
                     const saturated = Math.tanh(sample * 1.18);
                     const dcBlocked = saturated - prevInput + 0.995 * prevOutput;
@@ -11999,8 +12380,8 @@
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, `${bpm} BPM FM drum loop`, 'generated');
-            setStatus(`Generated grid-locked ${pattern.name} FM drums at ${bpm} BPM (${duration.toFixed(2)}s bar).`);
+            await applyLoadedAudioBuffer(buffer, `${bpm} BPM huge drum sequencer`, 'generated');
+            setStatus(`Generated grid-locked ${pattern.name} huge drums with the ${kit.name} kit at ${bpm} BPM (${bars} bars).`);
             return buffer;
         }
 
@@ -12332,12 +12713,17 @@
                 await generateFmDrumLoopWithPlaybackRestart();
             } catch (error) {
                 console.error(error);
-                setStatus(`FM drum loop failed: ${error.message}`, 'error');
+                setStatus(`Huge drum sequencer failed: ${error.message}`, 'error');
             }
         });
 
         document.getElementById('fmDrumLevel')?.addEventListener('input', (event) => {
             document.getElementById('fmDrumLevelValue').textContent = `${Math.round(Number(event.target.value) || 0)}%`;
+        });
+
+        document.getElementById('hugeDrumKit')?.addEventListener('change', (event) => {
+            const selectedKit = HUGE_DRUM_KITS.find((kit) => kit.id === event.target.value) || HUGE_DRUM_KITS[0];
+            document.getElementById('hugeDrumKitValue').textContent = selectedKit.name;
         });
 
         // Save Audio Button
@@ -12623,7 +13009,7 @@
             });
 
             // Randomize oscillator octave buttons
-            ['1', '2'].forEach(osc => {
+            ['1', '2', '3'].forEach(osc => {
                 const octaveButtons = Array.from(document.querySelectorAll(`.slope-toggle[data-osc="${osc}"]`));
                 if (octaveButtons.length === 0) return;
                 const randomBtn = octaveButtons[Math.floor(Math.random() * octaveButtons.length)];
@@ -12775,6 +13161,12 @@
                 performanceGeneratedTranspose: 0,
                 performanceModAmount: 55,
                 performanceGrainModAmount: 75,
+                osc3Detune: 0,
+                osc3Level: 35,
+                osc3Attack: 12,
+                osc3Decay: 320,
+                osc3Sustain: 58,
+                osc3Release: 420,
                 fmDrumLevel: 85
             };
             const bpmResetIds = new Set(['delayBpm', 'lfoRate', 'lfo2Rate', 'lfo3Rate', 'seqBpm', 'globalBpmSlider']);
@@ -12813,6 +13205,7 @@
             document.getElementById('lfoWaveform').value = 'sine';
             document.getElementById('lfo2Waveform').value = 'sine';
             document.getElementById('lfo3Waveform').value = 'sine';
+            document.getElementById('oscRouteMode').value = 'random';
             clearAllLfoSquareForce();
             document.getElementById('noiseType').value = 'none';
             document.getElementById('grainSynthASource').value = 'all';
@@ -12820,6 +13213,13 @@
             document.getElementById('delayDivision').value = '1';
             document.getElementById('finalDelayDivision').value = '4';
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
+            document.getElementById('osc3Wave').value = 'triangle';
+            document.getElementById('hugeDrumKit').value = HUGE_DRUM_KITS[0].id;
+            document.getElementById('hugeDrumKitValue').textContent = HUGE_DRUM_KITS[0].name;
+            syncOscRouteModeUI('random');
+            setOscillatorOctave(1, 8);
+            setOscillatorOctave(2, 16);
+            setOscillatorOctave(3, 8);
             
             enforceBpmOnlyLfoMode();
             // Turn off all LFO toggles
@@ -12909,6 +13309,11 @@
                     inverted: {}
                 },
                 octave: octaveOffset,
+                oscillatorOctaves: {
+                    osc1: osc1Config.octave,
+                    osc2: osc2Config.octave,
+                    osc3: osc3Config.octave
+                },
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
                 finalReverbEnabled: finalReverbEnabled,
@@ -13019,6 +13424,10 @@
             if (safePreset.noiseType) {
                 document.getElementById('noiseType').value = safePreset.noiseType;
             }
+            syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
+            const restoredHugeKit = HUGE_DRUM_KITS.find((kit) => kit.id === document.getElementById('hugeDrumKit')?.value) || HUGE_DRUM_KITS[0];
+            const hugeKitLabel = document.getElementById('hugeDrumKitValue');
+            if (hugeKitLabel) hugeKitLabel.textContent = restoredHugeKit.name;
             
             enforceBpmOnlyLfoMode();
             const usesSharedBpmPreset = safePreset.bpmOnlyLfos === true || safePreset.globalBpm != null || normalizedSliders?.globalBpmSlider != null;
@@ -13152,6 +13561,11 @@
             if (safePreset.octave !== undefined) {
                 octaveOffset = safePreset.octave;
                 updateOctaveDisplay();
+            }
+            if (safePreset.oscillatorOctaves) {
+                if (safePreset.oscillatorOctaves.osc1 !== undefined) setOscillatorOctave(1, safePreset.oscillatorOctaves.osc1);
+                if (safePreset.oscillatorOctaves.osc2 !== undefined) setOscillatorOctave(2, safePreset.oscillatorOctaves.osc2);
+                if (safePreset.oscillatorOctaves.osc3 !== undefined) setOscillatorOctave(3, safePreset.oscillatorOctaves.osc3);
             }
 
             if (validated.warnings.length > 0) {
@@ -13465,6 +13879,11 @@
                     hpfEnabled: hpfEnabled
                 },
                 octave: octaveOffset,
+                oscillatorOctaves: {
+                    osc1: osc1Config.octave,
+                    osc2: osc2Config.octave,
+                    osc3: osc3Config.octave
+                },
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 volumeBias: keyboardVolumeBias,
                 performanceExportBars: performanceExportBars ? clampExportBars(performanceExportBars.value) : 4,
@@ -13557,6 +13976,13 @@
                             select.value = state.selects[id];
                         }
                     });
+                }
+                syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
+                const hugeDrumKitSelect = document.getElementById('hugeDrumKit');
+                if (hugeDrumKitSelect) {
+                    const restoredHugeKit = HUGE_DRUM_KITS.find((kit) => kit.id === hugeDrumKitSelect.value) || HUGE_DRUM_KITS[0];
+                    const hugeKitLabel = document.getElementById('hugeDrumKitValue');
+                    if (hugeKitLabel) hugeKitLabel.textContent = restoredHugeKit.name;
                 }
 
                 enforceBpmOnlyLfoMode();
@@ -13705,6 +14131,11 @@
                 if (state.octave !== undefined) {
                     octaveOffset = state.octave;
                     updateOctaveDisplay();
+                }
+                if (state.oscillatorOctaves) {
+                    if (state.oscillatorOctaves.osc1 !== undefined) setOscillatorOctave(1, state.oscillatorOctaves.osc1);
+                    if (state.oscillatorOctaves.osc2 !== undefined) setOscillatorOctave(2, state.oscillatorOctaves.osc2);
+                    if (state.oscillatorOctaves.osc3 !== undefined) setOscillatorOctave(3, state.oscillatorOctaves.osc3);
                 }
 
                 if (state.generatedLoopTransposeOctaves !== undefined) {
@@ -15220,13 +15651,13 @@
                 performanceGenerateFmDrumsBtn.textContent = 'Generated';
                 setTimeout(() => {
                     performanceGenerateFmDrumsBtn.disabled = false;
-                    performanceGenerateFmDrumsBtn.textContent = 'FM Drums';
+                    performanceGenerateFmDrumsBtn.textContent = 'Huge Drums';
                 }, 900);
             } catch (error) {
                 console.error(error);
-                setStatus(`FM drum loop failed: ${error.message}`, 'error');
+                setStatus(`Huge drum sequencer failed: ${error.message}`, 'error');
                 performanceGenerateFmDrumsBtn.disabled = false;
-                performanceGenerateFmDrumsBtn.textContent = 'FM Drums';
+                performanceGenerateFmDrumsBtn.textContent = 'Huge Drums';
             }
         });
 
