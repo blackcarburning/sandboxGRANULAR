@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-03-18-22-synth-osc-sync';
+            const cacheBuster = '2026-10-03-19-05-synth-keyboard-arp-wiring';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -8097,8 +8097,8 @@
             arpNextStepTime = null;
 
             if (arpCurrentNote) {
-                stopGrainStream(arpCurrentNote);
-                stopOscillatorNote(arpCurrentNote);
+                stopGrainStream(arpCurrentNote, { role: 'arp' });
+                stopOscillatorNote(arpCurrentNote, null, { role: 'arp' });
                 arpCurrentNote = null;
             }
 
@@ -8214,27 +8214,21 @@
             const nextNote = notes[arpStepIndex];
             const scheduledTime = arpNextStepTime;
             const playTime = Math.max(currentTime, scheduledTime);
-            const currentKey = document.querySelector(`.key[data-note="${nextNote}"]`);
-            const alreadySounding = Boolean(currentKey && currentKey.classList.contains('active') && !heldNotes.has(nextNote));
 
-            if (arpCurrentNote && arpCurrentNote !== nextNote) {
-                stopGrainStream(arpCurrentNote);
-                stopOscillatorNote(arpCurrentNote);
+            if (arpCurrentNote) {
+                const stopTime = Math.max(0, playTime - getClickGuardSeconds());
+                stopGrainStream(arpCurrentNote, { role: 'arp' });
+                stopOscillatorNote(arpCurrentNote, stopTime, { role: 'arp' });
             }
 
-            if (arpCurrentNote !== nextNote) {
-                if (alreadySounding) {
-                    arpCurrentNote = nextNote;
-                } else {
-                    const streamStartTime = getTransportLoopOriginTime() ?? currentTime;
-                    startGrainStream(nextNote, playTime, 1, {
-                        role: 'keyboard',
-                        streamStartTime
-                    });
-                    playOscillatorNote(nextNote, playTime, 1, { role: 'keyboard' });
-                    arpCurrentNote = nextNote;
-                }
-            }
+            const streamStartTime = getTransportLoopOriginTime() ?? currentTime;
+            startGrainStream(nextNote, playTime, 1, {
+                role: 'arp',
+                streamStartTime,
+                continuousLoop: false
+            });
+            playOscillatorNote(nextNote, playTime, 1, { role: 'arp' });
+            arpCurrentNote = nextNote;
 
             arpStepIndex = (arpStepIndex + 1) % notes.length;
             arpNextStepTime = scheduledTime + stepSeconds;
@@ -9427,6 +9421,71 @@
             oscillator.frequency.value = ownFrequency;
         }
 
+        function getOscillatorVoiceFrequencies(note) {
+            const baseFreq = getKeyboardNoteFrequency(note);
+            const osc1Frequency = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune, osc1Config.semitone);
+            const osc2Frequency = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune, osc2Config.semitone);
+            const osc3Frequency = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Config.detune, osc3Config.semitone);
+            const osc2MasterFrequency = osc2Config.sync === 'osc1' ? osc1Frequency : null;
+            const osc2AudibleFundamental = osc2MasterFrequency || osc2Frequency;
+            const osc3MasterFrequency =
+                osc3Config.sync === 'osc1' ? osc1Frequency :
+                osc3Config.sync === 'osc2' ? osc2AudibleFundamental :
+                null;
+            return {
+                osc1Frequency,
+                osc2Frequency,
+                osc3Frequency,
+                osc2MasterFrequency,
+                osc3MasterFrequency
+            };
+        }
+
+        function refreshActiveOscillatorVoices() {
+            activeOscVoices.forEach((voice) => {
+                const frequencies = getOscillatorVoiceFrequencies(voice.note);
+                configureOscillatorWaveAndPitch(voice.osc1, osc1Config, frequencies.osc1Frequency);
+                configureOscillatorWaveAndPitch(voice.osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency);
+                configureOscillatorWaveAndPitch(voice.osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency);
+            });
+        }
+
+        function refreshActiveOscillatorLevels() {
+            if (!audioContext) return;
+            const now = audioContext.currentTime;
+            activeOscVoices.forEach((voice) => {
+                const velocity = Number.isFinite(voice.noteVelocity) ? voice.noteVelocity : 1;
+                const routeMix = voice.routeMix || { osc1: 1, osc2: 1, osc3: 1 };
+                [
+                    [voice.osc1Gain, osc1Config, routeMix.osc1],
+                    [voice.osc2Gain, osc2Config, routeMix.osc2],
+                    [voice.osc3Gain, osc3Config, routeMix.osc3]
+                ].forEach(([gainNode, config, multiplier]) => {
+                    if (!gainNode || !gainNode.gain) return;
+                    const target = config.level * velocity * (Number.isFinite(multiplier) ? multiplier : 1);
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                    gainNode.gain.linearRampToValueAtTime(target, now + 0.025);
+                });
+            });
+        }
+
+        function ensureSynthVoicePathAudible(options = {}) {
+            const minOscMix = Number.isFinite(Number(options.minOscMix)) ? Number(options.minOscMix) : 0.35;
+            if (!oscillatorsEnabled) {
+                oscillatorsEnabled = true;
+            }
+            if (generatedSampleSolo) {
+                setGeneratedSampleSolo(false, { silent: true, skipSave: true });
+            }
+            if (oscMix < minOscMix) {
+                setSliderValue('oscMix', Math.round(minOscMix * 100));
+            } else {
+                updateSourceMixGains();
+                syncPerformanceControlState();
+            }
+        }
+
         const OSC_ROUTE_MODES = ['blend', 'wide', 'metal', 'sub'];
 
         function getOscRouteModeLabel(mode) {
@@ -9508,6 +9567,7 @@
 
         function playOscillatorNote(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!audioContext) return;
+            ensureSynthVoicePathAudible();
             if (!oscillatorsEnabled) return;
             if (!oscOutputGain) return;
 
@@ -9526,31 +9586,23 @@
             const noteVelocity = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
             const routeMode = resolveOscRouteModeForVoice();
             const voiceClickGuard = getClickGuardSeconds();
-            const osc1Frequency = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune, osc1Config.semitone);
-            const osc2Frequency = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune, osc2Config.semitone);
-            const osc3Frequency = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Config.detune, osc3Config.semitone);
-            const osc2MasterFrequency = osc2Config.sync === 'osc1' ? osc1Frequency : null;
-            const osc2AudibleFundamental = osc2MasterFrequency || osc2Frequency;
-            const osc3MasterFrequency =
-                osc3Config.sync === 'osc1' ? osc1Frequency :
-                osc3Config.sync === 'osc2' ? osc2AudibleFundamental :
-                null;
+            const frequencies = getOscillatorVoiceFrequencies(note);
 
             // Create oscillator 1
             const osc1 = audioContext.createOscillator();
-            configureOscillatorWaveAndPitch(osc1, osc1Config, osc1Frequency);
+            configureOscillatorWaveAndPitch(osc1, osc1Config, frequencies.osc1Frequency);
             const osc1Gain = audioContext.createGain();
             osc1Gain.gain.value = 0;
 
             // Create oscillator 2
             const osc2 = audioContext.createOscillator();
-            configureOscillatorWaveAndPitch(osc2, osc2Config, osc2Frequency, osc2MasterFrequency);
+            configureOscillatorWaveAndPitch(osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency);
             const osc2Gain = audioContext.createGain();
             osc2Gain.gain.value = 0;
 
             // Create oscillator 3
             const osc3 = audioContext.createOscillator();
-            configureOscillatorWaveAndPitch(osc3, osc3Config, osc3Frequency, osc3MasterFrequency);
+            configureOscillatorWaveAndPitch(osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency);
             const osc3Gain = audioContext.createGain();
             osc3Gain.gain.value = 0;
 
@@ -9668,6 +9720,8 @@
                 note,
                 role,
                 routeMode,
+                noteVelocity,
+                routeMix,
                 osc1, osc2, osc3, osc1Gain, osc2Gain, osc3Gain, oscMixer,
                 osc1Pan, osc2Pan, osc3Pan,
                 osc3ToneFilter, osc3ModGain,
@@ -9772,6 +9826,7 @@
 
         function panicAllNotes(options = {}) {
             stopSequencer();
+            stopArpeggiatorPlayback();
             stopAllGrains();
             stopAllOscillators();
             heldNotes.clear();
@@ -10101,6 +10156,9 @@
         
         keys.forEach(key => {
             let isKeyPressed = false;
+            let lastPointerKeyActionAt = 0;
+            let lastTouchKeyActionAt = 0;
+            const duplicateInputSuppressMs = 350;
 
             const pressKey = (pointerId = null) => {
                 if (isKeyPressed) return;
@@ -10162,48 +10220,25 @@
                 }
             };
 
-            // Add specific touch event handlers to prevent double-tap zoom
-            key.addEventListener('touchstart', (e) => {
-                const now = Date.now();
-                const lastTouch = keyLastTouchTime.get(key) || 0;
-                
-                // If touches are very close together (< 300ms), prevent default to block zoom
-                if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
-                    e.preventDefault();
+            const triggerArmedOutputRecording = () => {
+                if (!isOutputRecordingArmed) return;
+                console.log('Armed recording triggered by key press');
+                isOutputRecordingArmed = false;
+                isOutputRecordingArmedStart = true; // Mark that recording was started via armed mode
+                const armBtn = document.getElementById('armOutputRecBtn');
+                if (armBtn) {
+                    armBtn.classList.remove('armed');
+                    armBtn.textContent = 'Arm';
                 }
-                
-                keyLastTouchTime.set(key, now);
-            }, { passive: false });
-            
-            key.addEventListener('touchend', (e) => {
-                // Prevent double-tap zoom on touchend as well
-                const now = Date.now();
-                const lastTouch = keyLastTouchTime.get(key) || 0;
-                
-                if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
-            
-            // Use pointerdown/up for unified mouse/touch support
-            key.addEventListener('pointerdown', (e) => {
-                e.preventDefault(); // Prevent scrolling
+                // Trigger the start recording button
+                document.getElementById('startOutputRecBtn')?.click();
+            };
+
+            const beginKeyInteraction = (pointerId = null) => {
                 const note = key.dataset.note;
-                
-                // Check if output recording is armed - if so, trigger recording and disarm
-                if (isOutputRecordingArmed) {
-                    console.log('Armed recording triggered by key press');
-                    isOutputRecordingArmed = false;
-                    isOutputRecordingArmedStart = true; // Mark that recording was started via armed mode
-                    const armBtn = document.getElementById('armOutputRecBtn');
-                    if (armBtn) {
-                        armBtn.classList.remove('armed');
-                        armBtn.textContent = 'Arm';
-                    }
-                    // Trigger the start recording button
-                    document.getElementById('startOutputRecBtn')?.click();
-                }
-                
+
+                triggerArmedOutputRecording();
+
                 // If note is already held, release it
                 if (heldNotes.has(note)) {
                     heldNotes.delete(note);
@@ -10215,8 +10250,52 @@
                     }
                     return;
                 }
+
+                pressKey(pointerId);
+            };
+
+            // Add specific touch event handlers to prevent double-tap zoom
+            key.addEventListener('touchstart', (e) => {
+                const now = Date.now();
+                const lastTouch = keyLastTouchTime.get(key) || 0;
+                e.preventDefault();
                 
-                pressKey(e.pointerId);
+                // If touches are very close together (< 300ms), prevent default to block zoom
+                if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
+                    e.preventDefault();
+                }
+                
+                keyLastTouchTime.set(key, now);
+                if (now - lastPointerKeyActionAt > duplicateInputSuppressMs) {
+                    lastTouchKeyActionAt = now;
+                    beginKeyInteraction();
+                }
+            }, { passive: false });
+            
+            key.addEventListener('touchend', (e) => {
+                // Prevent double-tap zoom on touchend as well
+                const now = Date.now();
+                const lastTouch = keyLastTouchTime.get(key) || 0;
+                e.preventDefault();
+                
+                if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
+                    e.preventDefault();
+                }
+                releaseKey();
+            }, { passive: false });
+
+            key.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                releaseKey();
+            }, { passive: false });
+            
+            // Use pointerdown/up for unified mouse/touch support
+            key.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // Prevent scrolling
+                const now = Date.now();
+                if (now - lastTouchKeyActionAt <= duplicateInputSuppressMs) return;
+                lastPointerKeyActionAt = now;
+                beginKeyInteraction(e.pointerId);
             });
 
             key.addEventListener('pointerup', (e) => {
@@ -10235,6 +10314,24 @@
                 releaseKey(e.pointerId);
             });
 
+            key.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                const now = Date.now();
+                if (
+                    now - lastPointerKeyActionAt <= duplicateInputSuppressMs ||
+                    now - lastTouchKeyActionAt <= duplicateInputSuppressMs
+                ) {
+                    return;
+                }
+                e.preventDefault();
+                beginKeyInteraction();
+            });
+
+            key.addEventListener('mouseup', (e) => {
+                if (e.button !== 0) return;
+                releaseKey();
+            });
+
             key.addEventListener('lostpointercapture', (e) => {
                 if (key.classList.contains('active')) {
                     releaseKey(e.pointerId);
@@ -10244,7 +10341,7 @@
             key.addEventListener('keydown', (e) => {
                 if ((e.key !== 'Enter' && e.key !== ' ') || e.repeat) return;
                 e.preventDefault();
-                pressKey();
+                beginKeyInteraction();
             });
 
             key.addEventListener('keyup', (e) => {
@@ -10921,6 +11018,7 @@
         // Oscillator 1
         document.getElementById('osc1Wave').addEventListener('change', (e) => {
             osc1Config.waveform = e.target.value;
+            refreshActiveOscillatorVoices();
         });
 
         document.querySelectorAll('[data-osc="1"]').forEach(btn => {
@@ -10928,22 +11026,26 @@
                 document.querySelectorAll('[data-osc="1"]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 osc1Config.octave = parseInt(btn.dataset.octave);
+                refreshActiveOscillatorVoices();
             });
         });
 
         document.getElementById('osc1Detune').addEventListener('input', (e) => {
             osc1Config.detune = parseFloat(e.target.value);
             document.getElementById('osc1DetuneValue').textContent = `${e.target.value}c`;
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc1Semitone').addEventListener('input', (e) => {
             osc1Config.semitone = parseFloat(e.target.value);
             document.getElementById('osc1SemitoneValue').textContent = `${e.target.value}st`;
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc1Level').addEventListener('input', (e) => {
             osc1Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc1LevelValue').textContent = `${e.target.value}%`;
+            refreshActiveOscillatorLevels();
         });
 
         document.getElementById('osc1Attack').addEventListener('input', (e) => {
@@ -10969,6 +11071,7 @@
         // Oscillator 2
         document.getElementById('osc2Wave').addEventListener('change', (e) => {
             osc2Config.waveform = e.target.value;
+            refreshActiveOscillatorVoices();
         });
 
         document.querySelectorAll('[data-osc="2"]').forEach(btn => {
@@ -10976,27 +11079,32 @@
                 document.querySelectorAll('[data-osc="2"]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 osc2Config.octave = parseInt(btn.dataset.octave);
+                refreshActiveOscillatorVoices();
             });
         });
 
         document.getElementById('osc2Detune').addEventListener('input', (e) => {
             osc2Config.detune = parseFloat(e.target.value);
             document.getElementById('osc2DetuneValue').textContent = `${e.target.value}c`;
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Semitone').addEventListener('input', (e) => {
             osc2Config.semitone = parseFloat(e.target.value);
             document.getElementById('osc2SemitoneValue').textContent = `${e.target.value}st`;
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Sync').addEventListener('change', (e) => {
             osc2Config.sync = e.target.value;
             document.getElementById('osc2SyncValue').textContent = e.target.value === 'osc1' ? 'Osc 1' : 'Off';
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Level').addEventListener('input', (e) => {
             osc2Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc2LevelValue').textContent = `${e.target.value}%`;
+            refreshActiveOscillatorLevels();
         });
 
         document.getElementById('osc2Attack').addEventListener('input', (e) => {
@@ -11022,6 +11130,7 @@
         // Oscillator 3
         document.getElementById('osc3Wave').addEventListener('change', (e) => {
             osc3Config.waveform = e.target.value;
+            refreshActiveOscillatorVoices();
         });
 
         document.querySelectorAll('[data-osc="3"]').forEach(btn => {
@@ -11029,28 +11138,33 @@
                 document.querySelectorAll('[data-osc="3"]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 osc3Config.octave = parseInt(btn.dataset.octave);
+                refreshActiveOscillatorVoices();
             });
         });
 
         document.getElementById('osc3Detune').addEventListener('input', (e) => {
             osc3Config.detune = parseFloat(e.target.value);
             document.getElementById('osc3DetuneValue').textContent = `${e.target.value}c`;
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Semitone').addEventListener('input', (e) => {
             osc3Config.semitone = parseFloat(e.target.value);
             document.getElementById('osc3SemitoneValue').textContent = `${e.target.value}st`;
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Sync').addEventListener('change', (e) => {
             osc3Config.sync = e.target.value;
             const labels = { off: 'Off', osc1: 'Osc 1', osc2: 'Osc 2' };
             document.getElementById('osc3SyncValue').textContent = labels[e.target.value] || 'Off';
+            refreshActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Level').addEventListener('input', (e) => {
             osc3Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc3LevelValue').textContent = `${e.target.value}%`;
+            refreshActiveOscillatorLevels();
         });
 
         document.getElementById('osc3Attack').addEventListener('input', (e) => {
@@ -12234,6 +12348,7 @@
 
         function openSynthPopup() {
             if (!synthPopupOverlay || !synthPopupMount) return;
+            ensureSynthVoicePathAudible();
 
             if (synthPopupOverlay.parentElement !== document.body) {
                 document.body.appendChild(synthPopupOverlay);
