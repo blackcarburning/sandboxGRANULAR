@@ -14300,14 +14300,7 @@
 
         async function exportGeneratedLoopToRepository() {
             const exportData = await renderDawReadyBarsExport();
-            const defaultName = exportData.filename.replace(/\.wav$/i, '');
-            const userFilename = prompt('Enter filename for WAV repository export:', defaultName);
-            if (!userFilename) {
-                setStatus('Repository export cancelled.');
-                return;
-            }
-
-            const filename = sanitizeWavRepositoryFilename(userFilename, defaultName);
+            const filename = exportData.filename;
             if (performanceRepoExportBtn) {
                 performanceRepoExportBtn.disabled = true;
                 performanceRepoExportBtn.textContent = 'Uploading...';
