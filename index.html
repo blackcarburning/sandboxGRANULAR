@@ -12762,6 +12762,7 @@
                 fmDrumLevel: 85
             };
             const bpmResetIds = new Set(['delayBpm', 'lfoRate', 'lfo2Rate', 'lfo3Rate', 'seqBpm', 'globalBpmSlider']);
+            applyGlobalBpm(defaults.delayBpm);
             SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
                 Object.values(definition.controls).forEach((control) => {
                     defaults[control.id] = control.value;
@@ -12772,10 +12773,11 @@
             Object.keys(defaults).forEach(id => {
                 const slider = document.getElementById(id);
                 if (slider) {
-                    slider.value = defaults[id];
-                    if (!bpmResetIds.has(id)) {
-                        slider.dispatchEvent(new Event('input'));
+                    if (bpmResetIds.has(id)) {
+                        return;
                     }
+                    slider.value = defaults[id];
+                    slider.dispatchEvent(new Event('input'));
                 }
             });
 
@@ -12804,8 +12806,6 @@
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
             
             enforceBpmOnlyLfoMode();
-            applyGlobalBpm(defaults.delayBpm);
-            
             // Turn off all LFO toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
                 const param = btn.dataset.param;
