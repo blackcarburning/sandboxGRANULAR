@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-04-10-20-stacked-synth-filter-depth';
+            const cacheBuster = '2026-10-04-10-45-preserve-osc-mix';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -9642,7 +9642,7 @@
             if (generatedSampleSolo) {
                 setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             }
-            if (oscMix < minOscMix) {
+            if (options.forceMinimumMix === true && oscMix < minOscMix) {
                 setSliderValue('oscMix', Math.round(minOscMix * 100));
             } else {
                 updateSourceMixGains();
