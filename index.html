@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-03-19-45-audible-simple-drums';
+            const cacheBuster = '2026-10-04-08-20-synth-lfo-routes';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4325,7 +4325,17 @@
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Fine Tune</span><span class="value" id="osc1DetuneValue">0c</span></label>
-                            <input type="range" id="osc1Detune" min="-100" max="100" value="0" step="1">
+                            <div class="source-grain-lfo">
+                                <input type="range" id="osc1Detune" min="-100" max="100" value="0" step="1">
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="osc1Detune" data-lfo="1" aria-pressed="false">L1</button>
+                                    <button class="inv-toggle" data-param="osc1Detune" data-lfo="1" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="osc1Detune" data-lfo="2" aria-pressed="false">L2</button>
+                                    <button class="inv-toggle" data-param="osc1Detune" data-lfo="2" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="osc1Detune" data-lfo="3" aria-pressed="false">L3</button>
+                                    <button class="inv-toggle" data-param="osc1Detune" data-lfo="3" aria-pressed="false">INV</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Level</span><span class="value" id="osc1LevelValue">50%</span></label>
@@ -4379,7 +4389,17 @@
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Fine Tune</span><span class="value" id="osc2DetuneValue">0c</span></label>
-                            <input type="range" id="osc2Detune" min="-100" max="100" value="0" step="1">
+                            <div class="source-grain-lfo">
+                                <input type="range" id="osc2Detune" min="-100" max="100" value="0" step="1">
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="osc2Detune" data-lfo="1" aria-pressed="false">L1</button>
+                                    <button class="inv-toggle" data-param="osc2Detune" data-lfo="1" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="osc2Detune" data-lfo="2" aria-pressed="false">L2</button>
+                                    <button class="inv-toggle" data-param="osc2Detune" data-lfo="2" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="osc2Detune" data-lfo="3" aria-pressed="false">L3</button>
+                                    <button class="inv-toggle" data-param="osc2Detune" data-lfo="3" aria-pressed="false">INV</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Level</span><span class="value" id="osc2LevelValue">50%</span></label>
@@ -4434,7 +4454,17 @@
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Fine Tune</span><span class="value" id="osc3DetuneValue">0c</span></label>
-                            <input type="range" id="osc3Detune" min="-100" max="100" value="0" step="1">
+                            <div class="source-grain-lfo">
+                                <input type="range" id="osc3Detune" min="-100" max="100" value="0" step="1">
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="osc3Detune" data-lfo="1" aria-pressed="false">L1</button>
+                                    <button class="inv-toggle" data-param="osc3Detune" data-lfo="1" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="osc3Detune" data-lfo="2" aria-pressed="false">L2</button>
+                                    <button class="inv-toggle" data-param="osc3Detune" data-lfo="2" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="osc3Detune" data-lfo="3" aria-pressed="false">L3</button>
+                                    <button class="inv-toggle" data-param="osc3Detune" data-lfo="3" aria-pressed="false">INV</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Level</span><span class="value" id="osc3LevelValue">35%</span></label>
@@ -4477,11 +4507,31 @@
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Cutoff</span><span class="value" id="oscSynthCutoffValue">13500Hz</span></label>
-                            <input type="range" id="oscSynthCutoff" min="100" max="18000" value="13500" step="1">
+                            <div class="source-grain-lfo">
+                                <input type="range" id="oscSynthCutoff" min="100" max="18000" value="13500" step="1">
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="oscSynthCutoff" data-lfo="1" aria-pressed="false">L1</button>
+                                    <button class="inv-toggle" data-param="oscSynthCutoff" data-lfo="1" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="oscSynthCutoff" data-lfo="2" aria-pressed="false">L2</button>
+                                    <button class="inv-toggle" data-param="oscSynthCutoff" data-lfo="2" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="oscSynthCutoff" data-lfo="3" aria-pressed="false">L3</button>
+                                    <button class="inv-toggle" data-param="oscSynthCutoff" data-lfo="3" aria-pressed="false">INV</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Resonance</span><span class="value" id="oscSynthResonanceValue">0.7</span></label>
-                            <input type="range" id="oscSynthResonance" min="0.1" max="20" value="0.7" step="0.1">
+                            <div class="source-grain-lfo">
+                                <input type="range" id="oscSynthResonance" min="0.1" max="20" value="0.7" step="0.1">
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="oscSynthResonance" data-lfo="1" aria-pressed="false">L1</button>
+                                    <button class="inv-toggle" data-param="oscSynthResonance" data-lfo="1" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="oscSynthResonance" data-lfo="2" aria-pressed="false">L2</button>
+                                    <button class="inv-toggle" data-param="oscSynthResonance" data-lfo="2" aria-pressed="false">INV</button>
+                                    <button class="lfo-toggle" data-param="oscSynthResonance" data-lfo="3" aria-pressed="false">L3</button>
+                                    <button class="inv-toggle" data-param="oscSynthResonance" data-lfo="3" aria-pressed="false">INV</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="control-group">
                             <label><span class="param-name">Drive</span><span class="value" id="oscSynthDriveValue">0.0dB</span></label>
@@ -5371,11 +5421,23 @@
             'clickGuardMs',
             'osc1Level',
             'osc2Level',
+            'osc1Detune',
+            'osc2Detune',
+            'osc3Detune',
+            'oscSynthCutoff',
+            'oscSynthResonance',
             'noiseMix',
             'reverb',
             'delayMix',
             'volume'
         ]);
+        const SYNTH_LFO_TARGET_PARAMS = [
+            'osc1Detune',
+            'osc2Detune',
+            'osc3Detune',
+            'oscSynthCutoff',
+            'oscSynthResonance'
+        ];
         const RANDOMIZE_SKIP_SELECTS = new Set([
             'lfoWaveform',
             'lfo2Waveform',
@@ -5598,6 +5660,11 @@
             delayMix: { min: 0, max: 100 },
             preFilterGain: { min: -24, max: 6 },
             postFilterGain: { min: -24, max: 12 },
+            osc1Detune: { min: -100, max: 100 },
+            osc2Detune: { min: -100, max: 100 },
+            osc3Detune: { min: -100, max: 100 },
+            oscSynthCutoff: { min: 100, max: 18000 },
+            oscSynthResonance: { min: 0.1, max: 20 },
             lfoRate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo2Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
             lfo3Rate: { min: INTERNAL_LFO_BPM_MIN, max: INTERNAL_LFO_BPM_MAX },
@@ -6245,6 +6312,7 @@
             // Calculate total modulation from both LFOs
             let totalOffset = 0;
             const range = paramRanges[paramId];
+            if (!range) return baseValue;
             const rangeSize = range.max - range.min;
             
             // Apply LFO1 if enabled
@@ -6275,6 +6343,39 @@
             
             const modulated = baseValue + totalOffset;
             return Math.max(range.min, Math.min(range.max, modulated));
+        }
+
+        function hasActiveSynthLfoRouting() {
+            return SYNTH_LFO_TARGET_PARAMS.some((param) => (
+                lfoEnabled[param] ||
+                lfo2Enabled[param] ||
+                lfo3Enabled[param]
+            ));
+        }
+
+        function getSynthModulatedValue(paramId, fallbackValue = 0) {
+            const value = getModulatedValue(paramId);
+            return Number.isFinite(value) ? value : fallbackValue;
+        }
+
+        function syncSynthDetuneLabels() {
+            [
+                ['osc1Detune', 'osc1DetuneValue'],
+                ['osc2Detune', 'osc2DetuneValue'],
+                ['osc3Detune', 'osc3DetuneValue']
+            ].forEach(([sliderId, labelId]) => {
+                const label = document.getElementById(labelId);
+                if (!label) return;
+                const value = getSynthModulatedValue(sliderId, Number(document.getElementById(sliderId)?.value) || 0);
+                label.textContent = `${Math.round(value)}c`;
+            });
+        }
+
+        function updateSynthLfoModulation() {
+            if (!hasActiveSynthLfoRouting()) return;
+            refreshActiveOscillatorVoices();
+            syncSynthDetuneLabels();
+            syncOscSynthFilterControls({ preserveSliderValues: true });
         }
 
         function clearDisabledLoopStartLfoRoutes() {
@@ -7293,6 +7394,7 @@
                 if (audioContext && audioContext.state === 'running') {
                     updateFinalFxPlacementLfo();
                     updateEffects();
+                    updateSynthLfoModulation();
                 }
             }, MODULATION_RATE_MS);
         }
@@ -9414,9 +9516,12 @@
 
         function getOscillatorVoiceFrequencies(note) {
             const baseFreq = getKeyboardNoteFrequency(note);
-            const osc1Frequency = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Config.detune, osc1Config.semitone);
-            const osc2Frequency = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Config.detune, osc2Config.semitone);
-            const osc3Frequency = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Config.detune, osc3Config.semitone);
+            const osc1Detune = getSynthModulatedValue('osc1Detune', osc1Config.detune);
+            const osc2Detune = getSynthModulatedValue('osc2Detune', osc2Config.detune);
+            const osc3Detune = getSynthModulatedValue('osc3Detune', osc3Config.detune);
+            const osc1Frequency = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Detune, osc1Config.semitone);
+            const osc2Frequency = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Detune, osc2Config.semitone);
+            const osc3Frequency = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Detune, osc3Config.semitone);
             const osc2MasterFrequency = osc2Config.sync === 'osc1' ? osc1Frequency : null;
             const osc2AudibleFundamental = osc2MasterFrequency || osc2Frequency;
             const osc3MasterFrequency =
@@ -9516,17 +9621,19 @@
             }
         }
 
-        function syncOscSynthFilterControls() {
+        function syncOscSynthFilterControls(options = {}) {
             const filterType = document.getElementById('oscSynthFilterType')?.value || 'lowpass';
             const cutoffSlider = document.getElementById('oscSynthCutoff');
             const resonanceSlider = document.getElementById('oscSynthResonance');
             const driveSlider = document.getElementById('oscSynthDrive');
-            const cutoff = clampToSliderBounds('oscSynthCutoff', cutoffSlider?.value ?? 13500);
-            const resonance = Math.max(0.1, Math.min(20, Number(resonanceSlider?.value ?? 0.7) || 0.7));
+            const cutoffBase = clampToSliderBounds('oscSynthCutoff', cutoffSlider?.value ?? 13500);
+            const resonanceBase = clampToSliderBounds('oscSynthResonance', resonanceSlider?.value ?? 0.7);
             const driveDb = Math.max(0, Math.min(12, Number(driveSlider?.value ?? 0) || 0));
+            const cutoff = getSynthModulatedValue('oscSynthCutoff', cutoffBase);
+            const resonance = getSynthModulatedValue('oscSynthResonance', resonanceBase);
 
-            if (cutoffSlider) cutoffSlider.value = String(cutoff);
-            if (resonanceSlider) resonanceSlider.value = String(resonance);
+            if (!options.preserveSliderValues && cutoffSlider) cutoffSlider.value = String(cutoffBase);
+            if (!options.preserveSliderValues && resonanceSlider) resonanceSlider.value = String(resonanceBase);
             if (driveSlider) driveSlider.value = String(driveDb);
 
             const typeLabel = document.getElementById('oscSynthFilterTypeValue');
@@ -10797,6 +10904,12 @@
                 }
                 
                 btn.classList.toggle('active');
+                btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
+                if (SYNTH_LFO_TARGET_PARAMS.includes(param)) {
+                    refreshActiveOscillatorVoices();
+                    syncSynthDetuneLabels();
+                    syncOscSynthFilterControls({ preserveSliderValues: true });
+                }
             });
         });
 
@@ -10814,6 +10927,12 @@
                 }
                 
                 btn.classList.toggle('active');
+                btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
+                if (SYNTH_LFO_TARGET_PARAMS.includes(param)) {
+                    refreshActiveOscillatorVoices();
+                    syncSynthDetuneLabels();
+                    syncOscSynthFilterControls({ preserveSliderValues: true });
+                }
             });
         });
 
