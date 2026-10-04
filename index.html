@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-04-11-20-preserve-performance-toggles';
+            const cacheBuster = '2026-10-04-11-45-preserve-loop-sliders';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -7729,12 +7729,12 @@
             };
         }
 
-        function getGeneratedSourceMixValue() {
-            if (generatedSampleSolo) return 1;
+        function getGeneratedSourceMixValue(options = {}) {
             const slider = document.getElementById('performanceGeneratedSourceMix');
             const rawValue = Number(slider?.value ?? (generatedSourceMix * 100));
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
             generatedSourceMix = clamped / 100;
+            if (options.applySoloOverride !== false && generatedSampleSolo) return 1;
             return generatedSourceMix;
         }
 
@@ -7746,12 +7746,12 @@
             return generatedSampleVolume;
         }
 
-        function getGeneratedDryMixValue() {
-            if (generatedSampleSolo) return getGeneratedSampleVolumeValue();
+        function getGeneratedDryMixValue(options = {}) {
             const slider = document.getElementById('performanceGeneratedDryMix');
             const rawValue = Number(slider?.value ?? (generatedDryMix * 100));
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             generatedDryMix = clamped / 100;
+            if (options.applySoloOverride !== false && generatedSampleSolo) return getGeneratedSampleVolumeValue();
             return generatedDryMix;
         }
 
@@ -16043,7 +16043,7 @@
             }
 
             if (performanceGeneratedSourceMix) {
-                const value = Math.round(getGeneratedSourceMixValue() * 100);
+                const value = Math.round(getGeneratedSourceMixValue({ applySoloOverride: false }) * 100);
                 performanceGeneratedSourceMix.value = String(value);
                 document.getElementById('performanceGeneratedSourceMixValue').textContent = `${value}%`;
             }
@@ -16055,7 +16055,7 @@
             }
 
             if (performanceGeneratedDryMix) {
-                const value = Math.round(getGeneratedDryMixValue() * 100);
+                const value = Math.round(getGeneratedDryMixValue({ applySoloOverride: false }) * 100);
                 performanceGeneratedDryMix.value = String(value);
                 document.getElementById('performanceGeneratedDryMixValue').textContent = `${value}%`;
             }
