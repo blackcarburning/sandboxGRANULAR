@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-04-10-45-preserve-osc-mix';
+            const cacheBuster = '2026-10-04-11-20-preserve-performance-toggles';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -9636,10 +9636,10 @@
 
         function ensureSynthVoicePathAudible(options = {}) {
             const minOscMix = Number.isFinite(Number(options.minOscMix)) ? Number(options.minOscMix) : 0.35;
-            if (!oscillatorsEnabled) {
+            if (options.forceOscillatorsEnabled === true && !oscillatorsEnabled) {
                 oscillatorsEnabled = true;
             }
-            if (generatedSampleSolo) {
+            if (options.disableSampleSolo === true && generatedSampleSolo) {
                 setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             }
             if (options.forceMinimumMix === true && oscMix < minOscMix) {
@@ -11441,14 +11441,19 @@
             }
         }
 
-        function setOscillatorsEnabled(enabled) {
+        function setOscillatorsEnabled(enabled, options = {}) {
             oscillatorsEnabled = Boolean(enabled);
             if (!oscillatorsEnabled) {
                 stopAllOscillators();
             }
             updateSourceMixGains();
             syncPerformanceControlState();
-            setStatus(oscillatorsEnabled ? 'Oscillators enabled.' : 'Oscillators off. Granular sources only.');
+            if (!options.silent) {
+                setStatus(oscillatorsEnabled ? 'Oscillators enabled.' : 'Oscillators off. Granular sources only.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
         }
 
         function isNoiseOscillatorActive() {
@@ -11987,7 +11992,7 @@
             setPerformanceLfoRateRatio(2, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
 
             setGeneratedSourceLowNoiseMode(maybe(0.6), { silent: true, skipSave: true });
-            setOscillatorsEnabled(maybe(0.72));
+            setOscillatorsEnabled(maybe(0.72), { silent: true, skipSave: true });
             setGeneratedSampleSolo(maybe(0.22), { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(maybe(0.68), { silent: true });
             setFxMuted(false, { silent: true });
@@ -14551,6 +14556,7 @@
                     finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                    oscillatorsEnabled: oscillatorsEnabled,
                     generatedSampleSolo: generatedSampleSolo,
                     tonalDrumsEnabled: tonalDrumsEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
@@ -14714,6 +14720,9 @@
                     }
                     if (state.modes.generatedDryThroughFilters !== undefined) {
                         setGeneratedDryThroughFilters(state.modes.generatedDryThroughFilters, { silent: true });
+                    }
+                    if (state.modes.oscillatorsEnabled !== undefined) {
+                        setOscillatorsEnabled(state.modes.oscillatorsEnabled, { silent: true, skipSave: true });
                     }
                     if (state.modes.generatedSampleSolo !== undefined) {
                         setGeneratedSampleSolo(state.modes.generatedSampleSolo, { silent: true, skipSave: true });
