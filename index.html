@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-04-13-25-cloud-grain-mode';
+            const cacheBuster = '2026-10-05-10-10-simple-drums-bpm-names';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -13083,6 +13083,36 @@
             return HUGE_DRUM_KITS.find((kit) => kit.id === kitId) || HUGE_DRUM_KITS[0];
         }
 
+        function chooseSimpleHugeDrumPattern(random) {
+            const patterns = [
+                {
+                    name: 'anchor backbeat',
+                    kick: [0, 8],
+                    snare: [4, 12],
+                    hats: [2, 6, 10, 14]
+                },
+                {
+                    name: 'steady half time',
+                    kick: [0, 10],
+                    snare: [8],
+                    hats: [2, 6, 10, 14]
+                },
+                {
+                    name: 'square pulse',
+                    kick: [0, 8],
+                    snare: [4, 12],
+                    hats: [3, 7, 11, 15]
+                },
+                {
+                    name: 'slow march',
+                    kick: [0, 7],
+                    snare: [4, 12],
+                    hats: [2, 10]
+                }
+            ];
+            return patterns[Math.floor(random() * patterns.length)] || patterns[0];
+        }
+
         async function generateFmDrumLoopSample(options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating drums.');
@@ -13095,7 +13125,7 @@
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const fmLevel = Math.max(0, Math.min(1, getFmDrumControlValue('fmDrumLevel', 85) / 100));
             const kit = getHugeDrumKitDefinition();
-            const punch = 0.95;
+            const punch = 0.72;
             const pitchRatio = 1;
             const random = typeof mygrainUtils.createSeededRandom === 'function'
                 ? mygrainUtils.createSeededRandom(`huge-drums-${Date.now()}-${bpm}-${fmLevel}-${kit.id}`)
@@ -13111,19 +13141,13 @@
             const events = [];
             const TWO_PI = Math.PI * 2;
 
-            const pattern = {
-                name: 'simple backbeat',
-                kick: [0, 8, 14],
-                snare: [4, 12],
-                hats: [0, 2, 4, 6, 8, 10, 12, 14],
-                openHat: [15]
-            };
+            const pattern = chooseSimpleHugeDrumPattern(random);
 
             function addEvent(step, type, velocity = 0.7, accent = false, options = {}) {
                 if (!Number.isFinite(step)) return;
                 if (step < 0 || step >= stepCount) return;
                 const quantizedStep = Math.max(0, Math.min(stepCount - 1, Math.round(step)));
-                if (!options.allowLayer && events.some((event) => event.step === quantizedStep && event.type === type)) return;
+                if (events.some((event) => event.step === quantizedStep && (!options.allowLayer || event.type === type))) return;
                 events.push({
                     step: quantizedStep,
                     type,
@@ -13137,27 +13161,15 @@
 
             for (let barIndex = 0; barIndex < bars; barIndex += 1) {
                 const barOffset = barIndex * stepsPerBar;
-                const accentBar = barIndex % 2 === 0;
-
                 pattern.kick.forEach((step, index) => {
-                    addEvent(barOffset + step, 'kick', index === 0 ? 1 : 0.94, accentBar && step === 0, { core: true, allowLayer: true });
+                    addEvent(barOffset + step, 'kick', index === 0 ? 0.98 : 0.88, barIndex === 0 && step === 0, { core: true });
                 });
                 pattern.snare.forEach((step, index) => {
-                    addEvent(barOffset + step, 'snare', index === 0 ? 1 : 0.96, step === 4 || step === 12, { core: true, allowLayer: true });
+                    addEvent(barOffset + step, 'snare', index === 0 ? 0.84 : 0.78, step === 4 || step === 12, { core: true });
                 });
                 pattern.hats.forEach((step) => {
-                    const hatVelocity = step % 4 === 0 ? 0.48 : 0.36;
-                    addEvent(barOffset + step, 'hat', hatVelocity, step === 0 || step === 8, { core: true, allowLayer: true });
+                    addEvent(barOffset + step, 'hat', step % 8 === 2 ? 0.24 : 0.18, false, { core: true });
                 });
-                pattern.openHat.forEach((step) => {
-                    addEvent(barOffset + step, 'openHat', 0.40, false, { core: true, allowLayer: true });
-                });
-
-                if (barIndex === bars - 1 && kit.fillBias > 0.3) {
-                    [10, 12, 14].forEach((step, index) => {
-                        addEvent(barOffset + step, 'tom', 0.42 - (index * 0.06), index === 2, { core: true, allowLayer: true });
-                    });
-                }
             }
 
             function env(delta, attack, decay) {
@@ -13189,20 +13201,20 @@
                 if (event.type === 'snare') {
                     if (delta > 0.24) return 0;
                     const pitch = (kit.snareBase + 34 * Math.exp(-delta * 26)) * pitchRatio;
-                    const mod = Math.sin(TWO_PI * pitch * 1.83 * delta) * (1.12 * Math.exp(-delta * 34));
-                    const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.22;
-                    const rattle = Math.sin(TWO_PI * 720 * pitchRatio * delta) * Math.exp(-delta * 34) * kit.snareRing;
-                    const snap = noise * Math.exp(-delta * 30) * kit.snareNoise;
-                    return Math.tanh((shell + rattle + snap) * (1.14 + punch * 0.62) * kit.snareSnap) * env(delta, 0.001, kit.snareDecay * roomLift) * velocity * panGain * roomLift;
+                    const mod = Math.sin(TWO_PI * pitch * 1.42 * delta) * (0.72 * Math.exp(-delta * 32));
+                    const shell = Math.sin(TWO_PI * pitch * delta + mod) * 0.32;
+                    const rattle = Math.sin(TWO_PI * 620 * pitchRatio * delta) * Math.exp(-delta * 36) * kit.snareRing * 0.55;
+                    const snap = noise * Math.exp(-delta * 34) * kit.snareNoise * 0.62;
+                    return Math.tanh((shell + rattle + snap) * (0.98 + punch * 0.38) * kit.snareSnap) * env(delta, 0.001, kit.snareDecay * roomLift) * velocity * panGain * roomLift;
                 }
 
                 if (event.type === 'hat') {
-                    if (delta > 0.09) return 0;
-                    const base = (kit.hatBase + (event.step % 8) * 180 + kit.hatToneShift) * Math.min(1.2, Math.max(0.82, pitchRatio));
-                    const fm = Math.sin(TWO_PI * base * delta + Math.sin(TWO_PI * base * 1.31 * delta) * 2.2);
-                    const metal = fm * Math.sin(TWO_PI * base * 2.03 * delta);
-                    const tick = (metal * kit.hatMetal + noise * kit.hatNoise) * Math.exp(-delta * (58 + punch * 28));
-                    return Math.tanh(tick * 1.55) * env(delta, 0.0005, kit.hatDecay * roomLift) * velocity * panGain * roomLift;
+                    if (delta > 0.055) return 0;
+                    const base = (kit.hatBase + kit.hatToneShift * 0.25) * Math.min(1.08, Math.max(0.9, pitchRatio));
+                    const tickTone = Math.sin(TWO_PI * base * delta) * Math.exp(-delta * 95) * 0.28;
+                    const tickNoise = noise * Math.exp(-delta * 82) * kit.hatNoise * 0.46;
+                    const tick = tickTone + tickNoise;
+                    return Math.tanh(tick * 1.05) * env(delta, 0.0005, kit.hatDecay * 0.78) * velocity * panGain * roomLift;
                 }
 
                 if (event.type === 'openHat') {
@@ -13261,8 +13273,8 @@
                 }
             }
 
-            await applyLoadedAudioBuffer(buffer, `${bpm} BPM huge drum sequencer`, 'generated');
-            setStatus(`Generated simple audible huge drums with the ${kit.name} kit at ${bpm} BPM (${bars} bars).`);
+            await applyLoadedAudioBuffer(buffer, `${bpm} BPM ${pattern.name} huge drums`, 'generated');
+            setStatus(`Generated ${pattern.name} huge drums with the ${kit.name} kit at ${bpm} BPM (${bars} bars).`);
             return buffer;
         }
 
@@ -13630,7 +13642,7 @@
             const blob = new Blob([wav], { type: 'audio/wav' });
             
             // Prompt user for filename (works on iOS)
-            const defaultName = 'mygrain-sample';
+            const defaultName = createBpmWavFilename().replace(/\.wav$/i, '');
             let userFilename = prompt('Enter filename for audio:', defaultName);
             if (!userFilename) {
                 statusDiv.textContent = 'Save cancelled';
@@ -15509,6 +15521,53 @@
             }
         }
 
+        const BPM_FILENAME_FIRST_WORDS = [
+            'Amber', 'Arc', 'Ash', 'Blue', 'Brass', 'Bright', 'Cedar', 'Chrome',
+            'Copper', 'Dawn', 'Deep', 'Drift', 'Dust', 'Echo', 'Elm', 'Feral',
+            'Field', 'Flint', 'Ghost', 'Glass', 'Golden', 'Green', 'Grey', 'Honey',
+            'Iron', 'Ivory', 'Jade', 'Kind', 'Late', 'Lilac', 'Lunar', 'Maple',
+            'Mint', 'Neon', 'North', 'Opal', 'Pearl', 'Quiet', 'Red', 'River',
+            'Rust', 'Silver', 'Slow', 'Soft', 'Stone', 'Tiny', 'Velvet', 'Wild'
+        ];
+
+        const BPM_FILENAME_SECOND_WORDS = [
+            'anchor', 'arc', 'beam', 'bird', 'bloom', 'branch', 'brook', 'cable',
+            'circle', 'cloud', 'drift', 'field', 'flame', 'glass', 'glow', 'harbor',
+            'heart', 'hinge', 'island', 'lantern', 'letter', 'map', 'market', 'mirror',
+            'needle', 'orbit', 'paper', 'path', 'pocket', 'river', 'signal', 'spark',
+            'stone', 'thread', 'tide', 'tower', 'trace', 'valley', 'window', 'wire'
+        ];
+
+        const usedBpmFilenameBases = new Set();
+
+        function getRandomArrayItem(items) {
+            if (!Array.isArray(items) || items.length === 0) return '';
+            if (window.crypto?.getRandomValues) {
+                const values = new Uint32Array(1);
+                window.crypto.getRandomValues(values);
+                return items[values[0] % items.length];
+            }
+            return items[Math.floor(Math.random() * items.length)];
+        }
+
+        function createBpmFilenameBase(bpmValue = null) {
+            const bpm = clampBpmValue(bpmValue || document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            for (let attempt = 0; attempt < 10; attempt += 1) {
+                const base = `${getRandomArrayItem(BPM_FILENAME_FIRST_WORDS)}_${getRandomArrayItem(BPM_FILENAME_SECOND_WORDS)}.${bpm}`;
+                if (!usedBpmFilenameBases.has(base)) {
+                    usedBpmFilenameBases.add(base);
+                    return base;
+                }
+            }
+            const fallback = `${getRandomArrayItem(BPM_FILENAME_FIRST_WORDS)}_${getRandomArrayItem(BPM_FILENAME_SECOND_WORDS)}_${getRandomArrayItem(BPM_FILENAME_SECOND_WORDS)}.${bpm}`;
+            usedBpmFilenameBases.add(fallback);
+            return fallback;
+        }
+
+        function createBpmWavFilename(bpmValue = null) {
+            return `${createBpmFilenameBase(bpmValue)}.wav`;
+        }
+
         function delayMs(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
@@ -15648,8 +15707,7 @@
                 const fullMix = await recordingPromise;
                 const trimmedStart = Math.max(0, findAudioBufferStart(fullMix) - 0.01);
                 const exportMix = sliceAudioBuffer(fullMix, trimmedStart, durationSeconds);
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                const filename = `mygrain-mix-${bpm}bpm-${bars}bars-${timestamp}.wav`;
+                const filename = createBpmWavFilename(bpm);
                 return {
                     bars,
                     bpm,
@@ -15765,9 +15823,8 @@
         async function saveWavFile(wavArrayBuffer) {
             console.log('=== SAVEWAVFILE CALLED ===');
             const blob = new Blob([wavArrayBuffer], { type: 'audio/wav' });
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const filename = `mygrain-${sequencerBPM}bpm-${timestamp}.wav`;
-            const fallbackFilename = `recordings/${filename}`;
+            const filename = createBpmWavFilename(sequencerBPM);
+            const fallbackFilename = filename;
             console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
             
             // Desktop: Use File System Access API for Save As dialog
