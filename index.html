@@ -3014,6 +3014,14 @@
                     <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="35" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLevel">
+                        <span>Bastardloop</span>
+                        <span class="value" id="performanceBastardLoopLevelValue">60%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
+                    <div class="source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceGeneratedDryTrim">
                         <span>Dry Trim</span>
                         <span class="value" id="performanceGeneratedDryTrimValue">0.0dB</span>
@@ -3444,6 +3452,7 @@
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
+                <button class="performance-btn" id="performanceGenerateBastardLoopBtn">Generate Bastardloop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play</button>
@@ -5537,6 +5546,9 @@
         let grainSynthAMicBuffer = null;
         let grainSynthBMicBuffer = null;
         let outputSourceBuffer = null;
+        let bastardLoopBuffer = null;
+        let bastardLoopMetadata = null;
+        let bastardLoopSourceBpm = 120;
         let sourceMutationSerial = 0;
         let lastSourceWriteAt = 0;
         let lastGeneratedSourceWriteAt = 0;
@@ -5784,6 +5796,10 @@
         let masterTrimDb = -3;
         let clickGuardMs = 8;
         let generatedDryThroughFilters = false;
+        let bastardLoopLevel = 0.6;
+        let bastardLoopSource = null;
+        let bastardLoopGainNode = null;
+        let bastardLoopGenerationInFlight = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -6601,6 +6617,7 @@
                 });
 
                 syncSequencerBpmControls(bpm);
+                syncBastardLoopTempo();
             } finally {
                 syncingGlobalBpm = false;
             }
@@ -7190,12 +7207,14 @@
                     const restoredGrainAMicBuffer = await loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY);
                     const restoredGrainBMicBuffer = await loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY);
                     const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
+                    const restoredBastardLoopBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY);
                     const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                     const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
                     const shouldRestoreGrainAMic = restoredGrainAMicBuffer && restoreStillCurrent;
                     const shouldRestoreGrainBMic = restoredGrainBMicBuffer && restoreStillCurrent;
                     const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
+                    const shouldRestoreBastardLoop = restoredBastardLoopBuffer && restoreStillCurrent;
                     if (shouldRestoreGenerated) {
                         generatedLoopBuffer = restoredGeneratedBuffer;
                         generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
@@ -7212,11 +7231,18 @@
                     if (shouldRestoreOutput) {
                         outputSourceBuffer = restoredOutputBuffer;
                     }
-                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput) {
+                    if (shouldRestoreBastardLoop) {
+                        bastardLoopBuffer = restoredBastardLoopBuffer;
+                        bastardLoopMetadata = {
+                            summary: `${restoredBastardLoopBuffer.duration.toFixed(2)}s · restored`
+                        };
+                    }
+                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop) {
                         syncLegacyAudioBuffer();
                         drawWaveforms();
                         updateSourceAvailability();
-                        setStatus('Granular source audio restored.');
+                        syncBastardLoopUi();
+                        setStatus('Audio sources restored.');
                     }
                 }, 500);
             } catch (e) {
@@ -9219,6 +9245,191 @@
             return Math.max(now + TRANSPORT_START_BUFFER_SECONDS, requestedTime);
         }
 
+        function getBastardLoopLevelValue() {
+            const slider = document.getElementById('performanceBastardLoopLevel');
+            const rawValue = Number(slider?.value ?? (bastardLoopLevel * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoopLevel = clamped / 100;
+            return bastardLoopLevel;
+        }
+
+        function getBastardLoopOutputGain(level = getBastardLoopLevelValue()) {
+            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.92;
+        }
+
+        function getBastardLoopPlaybackRate() {
+            const sourceBpm = clampBpmValue(bastardLoopSourceBpm || sequencerBPM || 120);
+            const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
+            return Math.max(0.25, Math.min(4, currentBpm / sourceBpm));
+        }
+
+        function describeBastardLoopMeta() {
+            if (bastardLoopGenerationInFlight) return 'Generating...';
+            if (!bastardLoopBuffer) return 'Empty';
+            if (bastardLoopMetadata?.summary) return bastardLoopMetadata.summary;
+            return `${bastardLoopBuffer.duration.toFixed(2)}s · ready`;
+        }
+
+        function syncBastardLoopUi() {
+            const slider = document.getElementById('performanceBastardLoopLevel');
+            const label = document.getElementById('performanceBastardLoopLevelValue');
+            const meta = document.getElementById('performanceBastardLoopMeta');
+            const button = document.getElementById('performanceGenerateBastardLoopBtn');
+            const value = Math.round(getBastardLoopLevelValue() * 100);
+
+            if (slider) slider.value = String(value);
+            if (label) label.textContent = `${value}%`;
+            if (meta) meta.textContent = describeBastardLoopMeta();
+            if (button) {
+                button.disabled = bastardLoopGenerationInFlight;
+                button.textContent = bastardLoopGenerationInFlight
+                    ? 'Building Bastardloop...'
+                    : (bastardLoopBuffer ? 'Rebuild Bastardloop' : 'Generate Bastardloop');
+            }
+        }
+
+        function syncBastardLoopTempo() {
+            if (!bastardLoopSource || !audioContext) return;
+            const now = audioContext.currentTime;
+            const nextRate = getBastardLoopPlaybackRate();
+            bastardLoopSource.playbackRate.cancelScheduledValues(now);
+            bastardLoopSource.playbackRate.setValueAtTime(bastardLoopSource.playbackRate.value, now);
+            bastardLoopSource.playbackRate.linearRampToValueAtTime(nextRate, now + 0.04);
+        }
+
+        function stopBastardLoop(options = {}) {
+            if (bastardLoopSource) {
+                const source = bastardLoopSource;
+                const gain = bastardLoopGainNode;
+                const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration(bastardLoopBuffer?.duration || 0.02);
+                if (audioContext && fadeSeconds > 0 && gain) {
+                    const now = audioContext.currentTime;
+                    gain.gain.cancelScheduledValues(now);
+                    gain.gain.setValueAtTime(gain.gain.value, now);
+                    gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+                    try {
+                        source.stop(now + fadeSeconds + 0.005);
+                    } catch (error) {
+                        console.debug('Bastardloop already stopped:', error);
+                    }
+                    setTimeout(() => {
+                        try {
+                            source.disconnect();
+                            gain.disconnect();
+                        } catch (error) {}
+                    }, (fadeSeconds * 1000) + 40);
+                } else {
+                    try {
+                        source.stop();
+                    } catch (error) {
+                        console.debug('Bastardloop already stopped:', error);
+                    }
+                    try {
+                        source.disconnect();
+                        gain?.disconnect();
+                    } catch (error) {}
+                }
+            }
+
+            bastardLoopSource = null;
+            bastardLoopGainNode = null;
+        }
+
+        function startBastardLoop(startTime = null) {
+            if (!audioContext || !preFilterGainNode || !bastardLoopBuffer) return;
+
+            const level = getBastardLoopLevelValue();
+            if (level <= 0) {
+                stopBastardLoop();
+                return;
+            }
+
+            stopBastardLoop();
+
+            const source = audioContext.createBufferSource();
+            const gain = audioContext.createGain();
+            const now = audioContext.currentTime;
+            const requestedStartTime = Number.isFinite(startTime) ? startTime : getTransportLoopOriginTime();
+            const playbackRate = getBastardLoopPlaybackRate();
+            const loopDuration = Math.max(0.01, bastardLoopBuffer.duration);
+            const fadeSeconds = getFadeSecondsForDuration(loopDuration);
+            let safeStartTime = now;
+            let offset = 0;
+
+            if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
+                safeStartTime = requestedStartTime;
+            } else if (Number.isFinite(requestedStartTime)) {
+                const elapsed = Math.max(0, now - requestedStartTime);
+                offset = (elapsed * playbackRate) % loopDuration;
+            }
+
+            source.buffer = bastardLoopBuffer;
+            source.loop = true;
+            source.loopStart = 0;
+            source.loopEnd = loopDuration;
+            source.playbackRate.value = playbackRate;
+
+            gain.gain.setValueAtTime(0, safeStartTime);
+            gain.gain.linearRampToValueAtTime(getBastardLoopOutputGain(level), safeStartTime + fadeSeconds);
+            source.connect(gain);
+            gain.connect(preFilterGainNode);
+            source.start(safeStartTime, offset);
+            source.onended = () => {
+                if (source !== bastardLoopSource) return;
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+                bastardLoopSource = null;
+                bastardLoopGainNode = null;
+            };
+
+            bastardLoopSource = source;
+            bastardLoopGainNode = gain;
+        }
+
+        function updateBastardLoopMix() {
+            const level = getBastardLoopLevelValue();
+            if (bastardLoopGainNode && audioContext) {
+                const now = audioContext.currentTime;
+                bastardLoopGainNode.gain.cancelScheduledValues(now);
+                bastardLoopGainNode.gain.setValueAtTime(bastardLoopGainNode.gain.value, now);
+                bastardLoopGainNode.gain.linearRampToValueAtTime(getBastardLoopOutputGain(level), now + 0.03);
+            }
+
+            if (sequencerPlaying && bastardLoopBuffer) {
+                if (level > 0 && !bastardLoopSource) {
+                    startBastardLoop();
+                } else if (level <= 0) {
+                    stopBastardLoop();
+                }
+            }
+            syncBastardLoopUi();
+        }
+
+        async function applyLoadedBastardLoopBuffer(buffer, sourceLabel, metadata = null) {
+            if (!buffer) {
+                throw new Error('Decoded bastardloop buffer is empty.');
+            }
+            if (!Number.isFinite(buffer.duration) || buffer.duration <= 0.02) {
+                throw new Error('Bastardloop audio is too short to use.');
+            }
+            if (buffer.duration > MAX_SAMPLE_DURATION_SECONDS) {
+                throw new Error(`Bastardloop audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
+            }
+
+            bastardLoopBuffer = buffer;
+            bastardLoopMetadata = metadata || {
+                summary: `${buffer.duration.toFixed(2)}s · ready`
+            };
+            if (Number.isFinite(Number(metadata?.bpm))) {
+                bastardLoopSourceBpm = clampBpmValue(metadata.bpm);
+            }
+            await saveAudioBufferToDB(bastardLoopBuffer, BASTARD_LOOP_AUDIO_BUFFER_KEY);
+            syncBastardLoopUi();
+            setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s).`);
+        }
+
         function startGeneratedDryLoop(startTime = null) {
             if (!audioContext || !masterGain || !generatedLoopBuffer) return;
 
@@ -9752,6 +9963,7 @@
                     meta.textContent = buffer ? `${buffer.duration.toFixed(2)}s` : 'Empty';
                 }
             });
+            syncBastardLoopUi();
         }
 
         function setSourceBuffer(kind, buffer, sourceLabel) {
@@ -9884,6 +10096,7 @@
         clearBtn.addEventListener('click', () => {
             panicAllNotes({ preserveStatus: true });
             stopGeneratedDryLoop();
+            stopBastardLoop();
             audioBuffer = null;
             generatedLoopBuffer = null;
             generatedLoopBaseBuffer = null;
@@ -9891,6 +10104,8 @@
             grainSynthAMicBuffer = null;
             grainSynthBMicBuffer = null;
             outputSourceBuffer = null;
+            bastardLoopBuffer = null;
+            bastardLoopMetadata = null;
             recordedChunks = [];
             drawWaveforms();
             setStatus('Buffer cleared.');
@@ -11543,6 +11758,7 @@
             sequencerNextStepTime = startAt;
             transportLoopStartTime = startAt;
             startGeneratedDryLoop(startAt);
+            startBastardLoop(startAt);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
             
@@ -11620,6 +11836,7 @@
             }
             
             stopGeneratedDryLoop();
+            stopBastardLoop();
             stopOscillatorsByRole('sequencer');
             
             // Stop only sequencer-owned grains so held keyboard notes can keep playing.
@@ -15357,6 +15574,7 @@
                 performanceGeneratedSourceMix: 100,
                 performanceSampleVolume: 100,
                 performanceGeneratedDryMix: 0,
+                performanceBastardLoopLevel: 60,
                 performanceGeneratedDryTrim: 0,
                 performanceGeneratedSwing: 0,
                 performanceGeneratedTranspose: 0,
@@ -15576,9 +15794,10 @@
                     hasGrainAMicSample: Boolean(grainSynthAMicBuffer),
                     hasGrainBMicSample: Boolean(grainSynthBMicBuffer),
                     hasOutputSample: Boolean(outputSourceBuffer),
+                    hasBastardLoop: Boolean(bastardLoopBuffer),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -15997,6 +16216,7 @@
         const GRAIN_A_MIC_AUDIO_BUFFER_KEY = 'grainSynthAMicBuffer';
         const GRAIN_B_MIC_AUDIO_BUFFER_KEY = 'grainSynthBMicBuffer';
         const OUTPUT_AUDIO_BUFFER_KEY = 'outputSourceBuffer';
+        const BASTARD_LOOP_AUDIO_BUFFER_KEY = 'bastardLoopBuffer';
 
         // Open IndexedDB
         function openAudioDB() {
@@ -16998,7 +17218,7 @@
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
-            if (!hasGranularSource() && !generatedLoopBuffer) {
+            if (!hasGranularSource() && !bastardLoopBuffer) {
                 throw new Error('Generate, load, or record a source before exporting.');
             }
 
@@ -17059,6 +17279,7 @@
         }
 
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
+        const BASTARD_LOOP_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/bastardloop`;
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
             const fallback = `${fallbackBase}.wav`;
@@ -17089,6 +17310,74 @@
                 throw new Error(payload.error || `Upload failed with status ${response.status}`);
             }
             return payload;
+        }
+
+        async function generateBastardLoopWithPlaybackRestart() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before generating a bastardloop.');
+            }
+
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const shouldRestartSequencer = sequencerPlaying;
+            const restartTime = getBufferedTransportStartTime();
+            const previousBuffer = bastardLoopBuffer;
+            const previousMetadata = bastardLoopMetadata;
+            const previousSourceBpm = bastardLoopSourceBpm;
+            bastardLoopGenerationInFlight = true;
+            syncBastardLoopUi();
+            setStatus(`Building bastardloop from SAMPLEDROP at ${bpm} BPM…`);
+
+            try {
+                if (shouldRestartSequencer) {
+                    stopSequencer();
+                } else {
+                    stopBastardLoop();
+                }
+
+                const response = await fetch(BASTARD_LOOP_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Bastardloop build failed with status ${response.status}`);
+                }
+
+                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${WAV_REPOSITORY_BASE_URL}/`).toString();
+                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
+                if (!audioResponse.ok) {
+                    throw new Error(`Generated bastardloop fetch failed with status ${audioResponse.status}`);
+                }
+                const arrayBuffer = await audioResponse.arrayBuffer();
+                await applyLoadedBastardLoopBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop ${bpm} BPM`, payload);
+
+                if (shouldRestartSequencer) {
+                    startSequencer(restartTime);
+                }
+
+                const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
+                setStatus(names
+                    ? `Bastardloop ready from ${names}${payload.sampleNames.length > 4 ? '…' : ''}.`
+                    : 'Bastardloop ready.');
+            } catch (error) {
+                bastardLoopBuffer = previousBuffer;
+                bastardLoopMetadata = previousMetadata;
+                bastardLoopSourceBpm = previousSourceBpm;
+                if (shouldRestartSequencer && !sequencerPlaying) {
+                    startSequencer(restartTime);
+                }
+                throw error;
+            } finally {
+                bastardLoopGenerationInFlight = false;
+                syncBastardLoopUi();
+            }
         }
 
         async function exportGeneratedLoopToRepository() {
@@ -17531,6 +17820,7 @@
         // Simplified performance control bar proxies
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
+        const performanceGenerateBastardLoopBtn = document.getElementById('performanceGenerateBastardLoopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
         const performanceGenerateFmDrumsBtn = document.getElementById('performanceGenerateFmDrumsBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
@@ -17552,6 +17842,7 @@
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceSampleVolume = document.getElementById('performanceSampleVolume');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
+        const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
         const performanceNoiseLevel = document.getElementById('performanceNoiseLevel');
@@ -17699,6 +17990,12 @@
                 document.getElementById('performanceGeneratedDryMixValue').textContent = `${value}%`;
             }
 
+            if (performanceBastardLoopLevel) {
+                const value = Math.round(getBastardLoopLevelValue() * 100);
+                performanceBastardLoopLevel.value = String(value);
+                document.getElementById('performanceBastardLoopLevelValue').textContent = `${value}%`;
+            }
+
             if (performanceGeneratedDryTrim) {
                 const value = getGeneratedDryTrimDb();
                 performanceGeneratedDryTrim.value = String(value);
@@ -17806,6 +18103,7 @@
             }
 
             syncFilterPoleControls();
+            syncBastardLoopUi();
         }
 
         function setPerformanceGenerateButtonState(state) {
@@ -17855,6 +18153,8 @@
                 performanceGenerateLoopBtn.classList.toggle('arp-locked', arpEnabled);
                 performanceGenerateLoopBtn.title = arpEnabled ? 'Disabled while arpeggiator is active.' : '';
             }
+
+            syncBastardLoopUi();
 
             if (performanceRecordBtn) {
                 const recText = document.getElementById('outputRecText')?.textContent || '';
@@ -17974,6 +18274,17 @@
             }
         });
 
+        performanceGenerateBastardLoopBtn?.addEventListener('click', async () => {
+            if (bastardLoopGenerationInFlight) return;
+            showSettlePopup();
+            try {
+                await generateBastardLoopWithPlaybackRestart();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Bastardloop generation failed: ${error.message}`, 'error');
+            }
+        });
+
         performanceGenerateJunkBtn?.addEventListener('click', async () => {
             if (performanceGenerateJunkBtn.disabled) return;
             showSettlePopup();
@@ -18058,6 +18369,13 @@
             generatedDryMix = value / 100;
             document.getElementById('performanceGeneratedDryMixValue').textContent = `${Math.round(value)}%`;
             updateGeneratedDryLoopMix();
+        });
+
+        performanceBastardLoopLevel?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopLevel = value / 100;
+            document.getElementById('performanceBastardLoopLevelValue').textContent = `${Math.round(value)}%`;
+            updateBastardLoopMix();
         });
 
         bindPerformanceLinkedSlider(performanceGrainMainVolume, 'performanceGrainMainVolumeValue', 'grainMainVolume');

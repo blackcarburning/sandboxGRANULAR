@@ -58,6 +58,9 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Gen Loop Mix</);
     assert.match(indexHtml, /id="performanceGeneratedDryMix"/);
     assert.match(indexHtml, />Gen Dry</);
+    assert.match(indexHtml, /id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1"/);
+    assert.match(indexHtml, />Bastardloop</);
+    assert.match(indexHtml, /id="performanceBastardLoopMeta">Empty<\/div>/);
     assert.match(indexHtml, /id="performanceGeneratedDryTrim" min="-24" max="6" value="-6"/);
     assert.match(indexHtml, />Dry Trim</);
     assert.match(indexHtml, /id="performanceGranularTrim" min="-24" max="6" value="-3"/);
@@ -100,12 +103,17 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performancePulseWidth"/);
     assert.match(indexHtml, /id="performanceExportBars"/);
     assert.match(indexHtml, /id="performanceExportBtn"/);
+    assert.match(indexHtml, /id="performanceGenerateBastardLoopBtn">Generate Bastardloop<\/button>/);
     assert.match(indexHtml, /id="performanceFxMuteBtn"/);
     assert.match(indexHtml, /id="performanceDryFilterBtn"/);
     assert.match(indexHtml, /id="performanceNoiseOffBtn"/);
     assert.match(indexHtml, /id="performanceLowNoiseSourceBtn"/);
     assert.match(indexHtml, /function setFxMuted\(muted, options = \{\}\)/);
     assert.match(indexHtml, /function setGeneratedDryThroughFilters\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /async function generateBastardLoopWithPlaybackRestart\(\)/);
+    assert.match(indexHtml, /function startBastardLoop\(startTime = null\)/);
+    assert.match(indexHtml, /function updateBastardLoopMix\(\)/);
+    assert.match(indexHtml, /performanceBastardLoopLevel\?\.addEventListener\('input'/);
     assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
     assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
