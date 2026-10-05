@@ -6608,6 +6608,62 @@
             return bpm;
         }
 
+        function readStoredStateSnapshot() {
+            try {
+                const savedState = localStorage.getItem(STATE_STORAGE_KEY);
+                return savedState ? JSON.parse(savedState) : null;
+            } catch (error) {
+                console.warn('Failed to read saved MYGRAIN state:', error);
+                return null;
+            }
+        }
+
+        function resolveRememberedBpmSnapshot(state) {
+            if (!state) return null;
+
+            const savedLfoMode = state.modes?.lfoMode ?? state.toggles?.lfoMode;
+            const savedLfo2Mode = state.modes?.lfo2Mode ?? state.toggles?.lfo2Mode;
+            const savedLfo3Mode = state.modes?.lfo3Mode ?? state.toggles?.lfo3Mode;
+            const normalizedStateSliders = normalizeStoredLfoSliderValues(state.sliders, {
+                bpmOnlyLfos: state.bpmOnlyLfos === true,
+                lfoMode: savedLfoMode,
+                lfo2Mode: savedLfo2Mode,
+                lfo3Mode: savedLfo3Mode
+            });
+
+            const rememberedBpm = state.globalBpm ??
+                normalizedStateSliders?.globalBpmSlider ??
+                normalizedStateSliders?.globalBpmNumber ??
+                state.sequencerBpm ??
+                normalizedStateSliders?.seqBpm ??
+                normalizedStateSliders?.delayBpm ??
+                normalizedStateSliders?.lfoRate ??
+                normalizedStateSliders?.lfo2Rate ??
+                normalizedStateSliders?.lfo3Rate;
+
+            if (rememberedBpm == null) {
+                return null;
+            }
+
+            return {
+                bpm: clampBpmValue(rememberedBpm)
+            };
+        }
+
+        function restoreRememberedBpmFromStorage(options = {}) {
+            const snapshot = resolveRememberedBpmSnapshot(readStoredStateSnapshot());
+            if (!snapshot) return false;
+
+            if (options.applySharedClock) {
+                applyGlobalBpm(snapshot.bpm);
+            } else {
+                syncGlobalBpmControls(snapshot.bpm);
+                syncSequencerBpmControls(snapshot.bpm);
+            }
+
+            return true;
+        }
+
         function getSharedBpmClockValue() {
             return clampBpmValue(
                 document.getElementById('globalBpmSlider')?.value ??
@@ -7102,6 +7158,7 @@
             setStatus('Starting MYGRAIN…');
             try {
                 await createAudioContextInstance();
+                restoreRememberedBpmFromStorage({ applySharedClock: true });
                 lfoStartTime = audioContext.currentTime;
                 lfo2StartTime = audioContext.currentTime;
                 lfo3StartTime = audioContext.currentTime;
@@ -14066,14 +14123,47 @@
             container.style.touchAction = 'pan-y pinch-zoom';
         }
 
+        function enableDesktopWheelScroll(container) {
+            if (!container) return;
+            container.addEventListener('wheel', (event) => {
+                if (event.defaultPrevented || event.ctrlKey) {
+                    return;
+                }
+
+                const canScroll = container.scrollHeight > container.clientHeight + 1;
+                if (!canScroll) {
+                    return;
+                }
+
+                const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX)
+                    ? event.deltaY
+                    : event.deltaX;
+                if (!Number.isFinite(dominantDelta) || Math.abs(dominantDelta) < 0.5) {
+                    return;
+                }
+
+                const previousScrollTop = container.scrollTop;
+                const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+                container.scrollTop = Math.max(0, Math.min(maxScrollTop, previousScrollTop + dominantDelta));
+
+                if (container.scrollTop !== previousScrollTop) {
+                    event.preventDefault();
+                }
+            }, { passive: false });
+        }
+
         // Prevent scrolling/moving in tab content areas
         document.querySelectorAll('.tab-content').forEach(preventScrollingOnContainer);
+        document.querySelectorAll('.tab-content').forEach(enableDesktopWheelScroll);
 
         // Prevent scrolling in controls-section container
         const controlsSection = document.querySelector('.controls-section');
         if (controlsSection) {
             preventScrollingOnContainer(controlsSection);
+            enableDesktopWheelScroll(controlsSection);
         }
+
+        document.querySelectorAll('.recording-section, .source-seed-group').forEach(enableDesktopWheelScroll);
 
         document.getElementById('loadDemoBtn').addEventListener('click', async () => {
             try {
@@ -16092,10 +16182,8 @@
         // Function to restore state from localStorage
         function restoreState() {
             try {
-                const savedState = localStorage.getItem(STATE_STORAGE_KEY);
-                if (!savedState) return false;
-
-                const state = JSON.parse(savedState);
+                const state = readStoredStateSnapshot();
+                if (!state) return false;
                 const savedLfoMode = state.modes?.lfoMode ?? state.toggles?.lfoMode;
                 const savedLfo2Mode = state.modes?.lfo2Mode ?? state.toggles?.lfo2Mode;
                 const savedLfo3Mode = state.modes?.lfo3Mode ?? state.toggles?.lfo3Mode;
@@ -18248,6 +18336,7 @@
             });
         });
 
+        restoreRememberedBpmFromStorage();
         syncFinalPanControlDisplays();
         syncPerformanceControlState();
 
