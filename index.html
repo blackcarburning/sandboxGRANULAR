@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-14-16-export-bars-remembered';
+            const cacheBuster = '2026-10-05-14-21-waveform-solo-tune-grid';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -429,6 +429,69 @@
             font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+        }
+
+        .waveform-control-grid {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .waveform-control-rows {
+            display: grid;
+            grid-template-columns: minmax(84px, 1fr) minmax(98px, 128px) minmax(86px, 112px) minmax(148px, 1.4fr);
+            gap: 8px;
+            align-items: center;
+        }
+
+        .waveform-control-label,
+        .waveform-control-kind {
+            min-width: 0;
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .waveform-control-kind {
+            color: #aaa;
+            font-weight: 700;
+            letter-spacing: 0;
+        }
+
+        .waveform-control-rows select,
+        .waveform-control-rows input[type="range"] {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .waveform-control-tune {
+            display: grid;
+            gap: 3px;
+            color: #aaa;
+            font-size: 8px;
+            text-transform: uppercase;
+        }
+
+        .waveform-solo-btn {
+            width: 100%;
+            min-height: 36px;
+            padding: 7px 8px;
+            border-radius: 6px;
+            font-size: 9px;
+            line-height: 1.1;
+            white-space: normal;
+        }
+
+        .waveform-solo-btn.active {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(255, 82, 99, 0.45);
         }
 
         .source-grain-mode-control .value {
@@ -2463,6 +2526,16 @@
             background: rgba(5, 8, 15, 0.4);
         }
 
+        .simplified-ui .waveform-control-grid {
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(5, 8, 15, 0.44);
+        }
+
+        .simplified-ui .waveform-control-rows {
+            grid-template-columns: minmax(76px, 0.9fr) minmax(90px, 1fr) minmax(78px, 0.8fr) minmax(130px, 1.35fr);
+        }
+
         .simplified-ui .status {
             padding: 10px 12px;
             border-radius: 14px;
@@ -2712,6 +2785,22 @@
                 padding: 8px 10px;
             }
 
+            .simplified-ui .waveform-control-rows {
+                grid-template-columns: minmax(0, 1fr) minmax(94px, 1fr);
+                gap: 7px;
+            }
+
+            .simplified-ui .waveform-control-label {
+                align-self: center;
+            }
+
+            .simplified-ui .waveform-control-kind,
+            .simplified-ui .waveform-control-rows select,
+            .simplified-ui .waveform-solo-btn,
+            .simplified-ui .waveform-control-tune {
+                min-height: 38px;
+            }
+
             .simplified-ui .bpm-input-row {
                 grid-template-columns: 1fr;
             }
@@ -2748,6 +2837,10 @@
                 min-height: 38px;
                 font-size: 10px;
                 padding: 6px 8px;
+            }
+
+            .simplified-ui .waveform-control-rows {
+                grid-template-columns: minmax(74px, 0.8fr) minmax(92px, 1fr) minmax(78px, 0.8fr) minmax(124px, 1.2fr);
             }
 
             .simplified-ui .keyboard-section {
@@ -3482,6 +3575,73 @@
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Locators</button>
                         </div>
+                    </div>
+                </div>
+                <div class="waveform-control-grid" aria-label="Waveform solo and tune controls">
+                    <div class="section-title">Waveform Solo + Tune</div>
+                    <div class="waveform-control-rows">
+                        <span class="waveform-control-label">Osc 1</span>
+                        <select id="waveformOsc1Wave" data-linked-select="osc1Wave" aria-label="Osc 1 waveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth" selected>Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                        <button type="button" class="waveform-solo-btn" data-osc-solo="1" aria-pressed="false">Solo Osc 1</button>
+                        <label class="waveform-control-tune" for="waveformOsc1Tune">
+                            Tune <span class="value" id="waveformOsc1TuneValue">0st</span>
+                            <input type="range" id="waveformOsc1Tune" data-linked-slider="osc1Semitone" data-linked-value="waveformOsc1TuneValue" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="waveform-control-label">Osc 2</span>
+                        <select id="waveformOsc2Wave" data-linked-select="osc2Wave" aria-label="Osc 2 waveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square" selected>Square</option>
+                        </select>
+                        <button type="button" class="waveform-solo-btn" data-osc-solo="2" aria-pressed="false">Solo Osc 2</button>
+                        <label class="waveform-control-tune" for="waveformOsc2Tune">
+                            Tune <span class="value" id="waveformOsc2TuneValue">0st</span>
+                            <input type="range" id="waveformOsc2Tune" data-linked-slider="osc2Semitone" data-linked-value="waveformOsc2TuneValue" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="waveform-control-label">Osc 3</span>
+                        <select id="waveformOsc3Wave" data-linked-select="osc3Wave" aria-label="Osc 3 waveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle" selected>Triangle</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="square">Square</option>
+                        </select>
+                        <button type="button" class="waveform-solo-btn" data-osc-solo="3" aria-pressed="false">Solo Osc 3</button>
+                        <label class="waveform-control-tune" for="waveformOsc3Tune">
+                            Tune <span class="value" id="waveformOsc3TuneValue">0st</span>
+                            <input type="range" id="waveformOsc3Tune" data-linked-slider="osc3Semitone" data-linked-value="waveformOsc3TuneValue" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="waveform-control-label">Main Grain</span>
+                        <span class="waveform-control-kind">Grain</span>
+                        <button type="button" class="waveform-solo-btn grain-layer-solo-btn" data-grain-layer-solo="main" aria-pressed="false">Solo Main</button>
+                        <label class="waveform-control-tune" for="waveformMainGrainTune">
+                            Tune <span class="value" id="waveformMainGrainTuneValue">0st</span>
+                            <input type="range" id="waveformMainGrainTune" data-linked-slider="grainMainTune" data-linked-value="waveformMainGrainTuneValue" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="waveform-control-label">Grain A</span>
+                        <span class="waveform-control-kind">Grain</span>
+                        <button type="button" class="waveform-solo-btn grain-layer-solo-btn" data-grain-layer-solo="A" aria-pressed="false">Solo A</button>
+                        <label class="waveform-control-tune" for="waveformGrainATune">
+                            Tune <span class="value" id="waveformGrainATuneValue">+7st</span>
+                            <input type="range" id="waveformGrainATune" data-linked-slider="grainSynthATune" data-linked-value="waveformGrainATuneValue" min="-24" max="24" value="7" step="1">
+                        </label>
+
+                        <span class="waveform-control-label">Grain B</span>
+                        <span class="waveform-control-kind">Grain</span>
+                        <button type="button" class="waveform-solo-btn grain-layer-solo-btn" data-grain-layer-solo="B" aria-pressed="false">Solo B</button>
+                        <label class="waveform-control-tune" for="waveformGrainBTune">
+                            Tune <span class="value" id="waveformGrainBTuneValue">-12st</span>
+                            <input type="range" id="waveformGrainBTune" data-linked-slider="grainSynthBTune" data-linked-value="waveformGrainBTuneValue" min="-24" max="24" value="-12" step="1">
+                        </label>
                     </div>
                 </div>
                 <div class="source-seed-group" aria-label="Huge drum sequencer generator">
@@ -5424,6 +5584,7 @@
         let generatedSampleVolume = 1;
         let generatedSampleSolo = false;
         let grainLayerSolo = 'none';
+        let oscillatorSolo = 'none';
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
@@ -8469,6 +8630,39 @@
             return grainLayerSolo === 'none' || grainLayerSolo === normalized ? 1 : 0;
         }
 
+        function normalizeOscillatorSolo(value) {
+            const normalized = String(value || '').replace(/^osc/i, '');
+            return ['1', '2', '3'].includes(normalized) ? normalized : 'none';
+        }
+
+        function syncOscillatorSoloButtons() {
+            document.querySelectorAll('[data-osc-solo]').forEach((button) => {
+                const voice = normalizeOscillatorSolo(button.dataset.oscSolo);
+                const active = oscillatorSolo === voice;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                button.textContent = active ? `Osc ${voice} Solo On` : `Solo Osc ${voice}`;
+            });
+        }
+
+        function setOscillatorSolo(voice, options = {}) {
+            const requested = normalizeOscillatorSolo(voice);
+            oscillatorSolo = options.toggle && oscillatorSolo === requested ? 'none' : requested;
+            syncOscillatorSoloButtons();
+            refreshActiveOscillatorLevels();
+            if (!options.silent) {
+                setStatus(oscillatorSolo === 'none' ? 'All oscillator waveforms active.' : `Osc ${oscillatorSolo} soloed.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function getOscillatorSoloGain(voice) {
+            const normalized = normalizeOscillatorSolo(voice);
+            return oscillatorSolo === 'none' || oscillatorSolo === normalized ? 1 : 0;
+        }
+
         function updateGeneratedDryLoopMix() {
             const mix = getGeneratedDryMixValue();
             if (generatedDryGainNode && audioContext) {
@@ -10051,9 +10245,9 @@
                 const velocity = Number.isFinite(voice.noteVelocity) ? voice.noteVelocity : 1;
                 const routeMix = voice.routeMix || { osc1: 1, osc2: 1, osc3: 1 };
                 [
-                    [voice.osc1Gain, osc1Config, routeMix.osc1],
-                    [voice.osc2Gain, osc2Config, routeMix.osc2],
-                    [voice.osc3Gain, osc3Config, routeMix.osc3]
+                    [voice.osc1Gain, osc1Config, routeMix.osc1 * getOscillatorSoloGain('1')],
+                    [voice.osc2Gain, osc2Config, routeMix.osc2 * getOscillatorSoloGain('2')],
+                    [voice.osc3Gain, osc3Config, routeMix.osc3 * getOscillatorSoloGain('3')]
                 ].forEach(([gainNode, config, multiplier]) => {
                     if (!gainNode || !gainNode.gain) return;
                     const target = config.level * velocity * (Number.isFinite(multiplier) ? multiplier : 1);
@@ -10303,9 +10497,9 @@
             }
 
             const envelopes = {
-                osc1: applyVoiceEnvelope(osc1Gain, osc1Config, routeMix.osc1),
-                osc2: applyVoiceEnvelope(osc2Gain, osc2Config, routeMix.osc2),
-                osc3: applyVoiceEnvelope(osc3Gain, osc3Config, routeMix.osc3)
+                osc1: applyVoiceEnvelope(osc1Gain, osc1Config, routeMix.osc1 * getOscillatorSoloGain('1')),
+                osc2: applyVoiceEnvelope(osc2Gain, osc2Config, routeMix.osc2 * getOscillatorSoloGain('2')),
+                osc3: applyVoiceEnvelope(osc3Gain, osc3Config, routeMix.osc3 * getOscillatorSoloGain('3'))
             };
 
             // Debug: Log envelope timing
@@ -14364,6 +14558,7 @@
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             setGrainLayerSolo('none', { silent: true, skipSave: true });
+            setOscillatorSolo('none', { silent: true, skipSave: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             setOscillatorsEnabled(false, { silent: true, skipSave: true });
@@ -14428,6 +14623,7 @@
             
             syncPerformanceControlState();
             syncPerformanceExportBars(DEFAULT_EXPORT_BARS, { skipSave: true });
+            syncWaveformLinkedControls();
             updateSourceMixGains();
             updateGeneratedDryLoopMix();
             saveState();
@@ -14497,6 +14693,7 @@
                 },
                 generatedSampleSolo: generatedSampleSolo,
                 grainLayerSolo: grainLayerSolo,
+                oscillatorSolo: oscillatorSolo,
                 samples: {
                     embedded: false,
                     note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
@@ -14639,6 +14836,8 @@
             }
             const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
             setGrainLayerSolo(importedGrainLayerSolo, { silent: true, skipSave: true });
+            const importedOscillatorSolo = safePreset.oscillatorSolo ?? preset.oscillatorSolo ?? 'none';
+            setOscillatorSolo(importedOscillatorSolo, { silent: true, skipSave: true });
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
             }
@@ -15054,6 +15253,7 @@
                     oscillatorsEnabled: oscillatorsEnabled,
                     generatedSampleSolo: generatedSampleSolo,
                     grainLayerSolo: grainLayerSolo,
+                    oscillatorSolo: oscillatorSolo,
                     tonalDrumsEnabled: tonalDrumsEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
@@ -15226,6 +15426,9 @@
                     }
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.oscillatorSolo !== undefined) {
+                        setOscillatorSolo(state.modes.oscillatorSolo, { silent: true, skipSave: true });
                     }
                     if (state.modes.generatedSourceLowNoiseMode !== undefined) {
                         setGeneratedSourceLowNoiseMode(state.modes.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
@@ -16555,6 +16758,9 @@
         }
 
         mountInternalEffectsPanel();
+        bindWaveformLinkedControls();
+        syncWaveformLinkedControls();
+        syncOscillatorSoloButtons();
 
         function syncPerformanceLinkedSlider(sourceId, performanceSlider, performanceValueId) {
             const sourceSlider = document.getElementById(sourceId);
@@ -16581,6 +16787,57 @@
                     sourceSlider.value = String(value);
                     sourceSlider.dispatchEvent(new Event('input'));
                 }
+            });
+        }
+
+        function formatWaveformLinkedTuneValue(value) {
+            const numeric = Math.round(Number(value) || 0);
+            return `${numeric > 0 ? '+' : ''}${numeric}st`;
+        }
+
+        function syncWaveformLinkedControls() {
+            document.querySelectorAll('[data-linked-slider]').forEach((slider) => {
+                const source = document.getElementById(slider.dataset.linkedSlider);
+                if (!source) return;
+                slider.min = source.min;
+                slider.max = source.max;
+                slider.step = source.step;
+                slider.value = source.value;
+                const valueLabel = document.getElementById(slider.dataset.linkedValue);
+                if (valueLabel) {
+                    valueLabel.textContent = formatWaveformLinkedTuneValue(source.value);
+                }
+            });
+
+            document.querySelectorAll('[data-linked-select]').forEach((select) => {
+                const source = document.getElementById(select.dataset.linkedSelect);
+                if (source) {
+                    select.value = source.value;
+                }
+            });
+        }
+
+        function bindWaveformLinkedControls() {
+            document.querySelectorAll('[data-linked-slider]').forEach((slider) => {
+                const source = document.getElementById(slider.dataset.linkedSlider);
+                if (!source) return;
+                slider.addEventListener('input', (event) => {
+                    source.value = event.target.value;
+                    source.dispatchEvent(new Event('input', { bubbles: true }));
+                    syncWaveformLinkedControls();
+                });
+                source.addEventListener('input', syncWaveformLinkedControls);
+            });
+
+            document.querySelectorAll('[data-linked-select]').forEach((select) => {
+                const source = document.getElementById(select.dataset.linkedSelect);
+                if (!source) return;
+                select.addEventListener('change', (event) => {
+                    source.value = event.target.value;
+                    source.dispatchEvent(new Event('change', { bubbles: true }));
+                    syncWaveformLinkedControls();
+                });
+                source.addEventListener('change', syncWaveformLinkedControls);
             });
         }
 
@@ -17044,6 +17301,12 @@
         document.querySelectorAll('[data-grain-layer-solo]').forEach((button) => {
             button.addEventListener('click', () => {
                 setGrainLayerSolo(button.dataset.grainLayerSolo, { toggle: true });
+            });
+        });
+
+        document.querySelectorAll('[data-osc-solo]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setOscillatorSolo(button.dataset.oscSolo, { toggle: true });
             });
         });
 
