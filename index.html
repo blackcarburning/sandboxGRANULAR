@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-14-11-export-bars-reset-sync';
+            const cacheBuster = '2026-10-05-14-16-export-bars-remembered';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -12478,12 +12478,6 @@
             setFilterEnabled('hpf', maybe(0.72));
             setFilterPoles('lpf', chooseRandom([2, 4]));
             setFilterPoles('hpf', chooseRandom([2, 4]));
-
-            const exportBars = document.getElementById('performanceExportBars');
-            if (exportBars) {
-                exportBars.value = String(chooseRandom([1, 2, 4, 8, 16]));
-                exportBars.dispatchEvent(new Event('input', { bubbles: true }));
-            }
 
             syncPerformanceControlState();
             console.log('Randomize full patch time base:', { bpm, loopShouldRun: true });
