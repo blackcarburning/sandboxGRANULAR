@@ -104,8 +104,13 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceExportBars"/);
     assert.match(indexHtml, /id="performanceExportBtn"/);
     assert.match(indexHtml, /id="performanceGenerateBastardLoopBtn">Generate Bastardloop<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopBrowserBtn">Bastardloop Browser<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoopPlayBtn">Play Bastardloop<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoopStopBtn">Stop Bastardloop<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardDivisionQuarter" value="1\/4"/);
+    assert.match(indexHtml, /id="performanceBastardDivisionEighth" value="1\/8"/);
+    assert.match(indexHtml, /id="performanceBastardDivisionSixteenth" value="1\/16" checked/);
+    assert.match(indexHtml, /id="performanceBastardDivisionThirtySecond" value="1\/32"/);
     assert.match(indexHtml, /id="performanceFxMuteBtn"/);
     assert.match(indexHtml, /id="performanceDryFilterBtn"/);
     assert.match(indexHtml, /id="performanceNoiseOffBtn"/);
@@ -115,6 +120,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /async function generateBastardLoopWithPlaybackRestart\(\)/);
     assert.match(indexHtml, /function startBastardLoop\(startTime = null\)/);
     assert.match(indexHtml, /function updateBastardLoopMix\(\)/);
+    assert.match(indexHtml, /const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-bastardloops'/);
+    assert.match(indexHtml, /body: JSON\.stringify\(\{[\s\S]*divisions[\s\S]*\}\)/);
     assert.match(indexHtml, /performanceBastardLoopLevel\?\.addEventListener\('input'/);
     assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
     assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
@@ -462,6 +469,19 @@ test('bastardloop has independent transport controls and is not owned by the seq
     const stopSequencerBlock = indexHtml.match(/function stopSequencer\(\) \{[\s\S]*?\n        \}/);
     assert.ok(stopSequencerBlock, 'stopSequencer block should exist');
     assert.doesNotMatch(stopSequencerBlock[0], /stopBastardLoop\(\);/);
+});
+
+test('bastardloop uses its own browser route and selectable note sizes', () => {
+    assert.match(indexHtml, /id="performanceBastardLoopBrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-bastardloops'/);
+    assert.match(indexHtml, /const BASTARD_LOOP_API_URL = `\$\{BASTARD_LOOP_REPOSITORY_BASE_URL\}\/api\/bastardloop`/);
+    assert.match(indexHtml, /id="performanceBastardDivisionQuarter" value="1\/4"/);
+    assert.match(indexHtml, /id="performanceBastardDivisionEighth" value="1\/8"/);
+    assert.match(indexHtml, /id="performanceBastardDivisionSixteenth" value="1\/16" checked/);
+    assert.match(indexHtml, /id="performanceBastardDivisionThirtySecond" value="1\/32"/);
+    assert.match(indexHtml, /function getSelectedBastardLoopDivisions\(options = \{\}\)/);
+    assert.match(indexHtml, /function applyBastardLoopDivisionSelection\(divisions, options = \{\}\)/);
+    assert.match(indexHtml, /body: JSON\.stringify\(\{[\s\S]*divisions[\s\S]*\}\)/);
 });
 
 test('tempo-locked keyboard pitch reads source buffers in the non-reversed direction', () => {

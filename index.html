@@ -2267,6 +2267,13 @@
             gap: 12px;
         }
 
+        .simplified-ui .performance-feature-actions {
+            display: grid;
+            gap: 8px;
+            justify-items: stretch;
+            min-width: min(100%, 204px);
+        }
+
         .simplified-ui .performance-feature-copy {
             display: grid;
             gap: 4px;
@@ -2298,6 +2305,34 @@
             color: rgba(126, 246, 255, 0.86);
             font-size: 0.78rem;
             font-weight: 700;
+        }
+
+        .simplified-ui .performance-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .simplified-ui .performance-checkbox-option {
+            display: grid;
+            gap: 6px;
+            justify-items: center;
+            min-height: 52px;
+            padding: 8px 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.24);
+            color: rgba(255, 255, 255, 0.76);
+            font-size: 11px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .simplified-ui .performance-checkbox-option input {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #7ef6ff;
         }
 
         .simplified-ui .performance-sound-controls {
@@ -2945,6 +2980,10 @@
                 min-width: 0;
             }
 
+            .simplified-ui .performance-checkbox-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .simplified-ui .performance-sound-controls {
                 grid-template-columns: 1fr;
             }
@@ -3121,9 +3160,35 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">New Layer</div>
                         <h3 class="performance-feature-title">Bastardloop</h3>
-                        <p class="performance-feature-note">Build a 16-slice loop from random `SAMPLEDROP` hits and feed it through the same filter and FX path as the other layers.</p>
+                        <p class="performance-feature-note">Build a one-bar loop from random `SAMPLEDROP` hits, choose which note lengths can appear, and keep the generated results in a separate Bastardloop browser.</p>
                     </div>
-                    <button class="performance-btn primary" id="performanceGenerateBastardLoopBtn">Generate Bastardloop</button>
+                    <div class="performance-feature-actions">
+                        <button class="performance-btn primary" id="performanceGenerateBastardLoopBtn">Generate Bastardloop</button>
+                        <button class="performance-btn" id="performanceBastardLoopBrowserBtn">Bastardloop Browser</button>
+                    </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>Bastardloop Note Sizes</span>
+                    </label>
+                    <div class="performance-checkbox-grid" role="group" aria-label="Bastardloop note sizes">
+                        <label class="performance-checkbox-option" for="performanceBastardDivisionQuarter">
+                            <input type="checkbox" id="performanceBastardDivisionQuarter" value="1/4">
+                            <span>1/4</span>
+                        </label>
+                        <label class="performance-checkbox-option" for="performanceBastardDivisionEighth">
+                            <input type="checkbox" id="performanceBastardDivisionEighth" value="1/8">
+                            <span>1/8</span>
+                        </label>
+                        <label class="performance-checkbox-option" for="performanceBastardDivisionSixteenth">
+                            <input type="checkbox" id="performanceBastardDivisionSixteenth" value="1/16" checked>
+                            <span>1/16</span>
+                        </label>
+                        <label class="performance-checkbox-option" for="performanceBastardDivisionThirtySecond">
+                            <input type="checkbox" id="performanceBastardDivisionThirtySecond" value="1/32">
+                            <span>1/32</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopPitch">
@@ -5740,6 +5805,12 @@
             centroid: 'Centroid',
             hybrid: 'Hybrid'
         };
+        const BASTARD_LOOP_DIVISION_OPTIONS = [
+            { id: 'performanceBastardDivisionQuarter', value: '1/4' },
+            { id: 'performanceBastardDivisionEighth', value: '1/8' },
+            { id: 'performanceBastardDivisionSixteenth', value: '1/16' },
+            { id: 'performanceBastardDivisionThirtySecond', value: '1/32' }
+        ];
         const mygrainUtils = window.MYGRAIN_UTILS || {};
         let currentGrainNote = null; // Last keyboard grain note, retained for legacy UI state
         let octaveOffset = 0;
@@ -9438,6 +9509,42 @@
 
         function getBastardLoopOutputGain(level = getBastardLoopLevelValue()) {
             return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.92;
+        }
+
+        function getBastardLoopDivisionInputs() {
+            return BASTARD_LOOP_DIVISION_OPTIONS
+                .map(({ id, value }) => ({ input: document.getElementById(id), value }))
+                .filter(({ input }) => input);
+        }
+
+        function getSelectedBastardLoopDivisions(options = {}) {
+            const { ensureDefault = true } = options;
+            const selected = getBastardLoopDivisionInputs()
+                .filter(({ input }) => input.checked)
+                .map(({ value }) => value);
+            if (selected.length || !ensureDefault) {
+                return selected;
+            }
+            const defaultInput = document.getElementById('performanceBastardDivisionSixteenth');
+            if (defaultInput) {
+                defaultInput.checked = true;
+            }
+            return ['1/16'];
+        }
+
+        function applyBastardLoopDivisionSelection(divisions, options = {}) {
+            const { save = true } = options;
+            const requested = new Set(Array.isArray(divisions) ? divisions.map(String) : []);
+            let selectedCount = 0;
+            getBastardLoopDivisionInputs().forEach(({ input, value }) => {
+                input.checked = requested.has(value);
+                if (input.checked) selectedCount += 1;
+            });
+            if (selectedCount === 0) {
+                const defaultInput = document.getElementById('performanceBastardDivisionSixteenth');
+                if (defaultInput) defaultInput.checked = true;
+            }
+            if (save) saveState();
         }
 
         function clampBastardLoopPitchOctaves(value) {
@@ -16769,6 +16876,7 @@
                     generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                     generatedDryLoopEnabled: generatedDryLoopEnabled,
                     bastardLoopEnabled: bastardLoopEnabled,
+                    bastardLoopDivisions: getSelectedBastardLoopDivisions({ ensureDefault: false }),
                     grainLayerSolo: grainLayerSolo,
                     sourceWaveformSolo: getSourceWaveformSoloState(),
                     tonalDrumsEnabled: tonalDrumsEnabled,
@@ -16947,6 +17055,9 @@
                     }
                     if (state.modes.bastardLoopEnabled !== undefined) {
                         setBastardLoopEnabled(state.modes.bastardLoopEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoopDivisions !== undefined) {
+                        applyBastardLoopDivisionSelection(state.modes.bastardLoopDivisions, { save: false });
                     }
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
@@ -17750,7 +17861,8 @@
         }
 
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
-        const BASTARD_LOOP_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/bastardloop`;
+        const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
+        const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
             const fallback = `${fallbackBase}.wav`;
@@ -17789,6 +17901,7 @@
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const divisions = getSelectedBastardLoopDivisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
             const restartTime = getBufferedTransportStartTime();
@@ -17798,7 +17911,7 @@
             const previousTransportStartTime = bastardLoopTransportStartTime;
             bastardLoopGenerationInFlight = true;
             syncBastardLoopUi();
-            setStatus(`Building bastardloop from SAMPLEDROP at ${bpm} BPM…`);
+            setStatus(`Building bastardloop from SAMPLEDROP at ${bpm} BPM using ${divisions.join(', ')}…`);
 
             try {
                 if (shouldRestartSequencer) {
@@ -17818,7 +17931,8 @@
                     },
                     body: JSON.stringify({
                         bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        divisions
                     })
                 });
                 const payload = await response.json().catch(() => ({}));
@@ -17826,7 +17940,7 @@
                     throw new Error(payload.error || `Bastardloop build failed with status ${response.status}`);
                 }
 
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${WAV_REPOSITORY_BASE_URL}/`).toString();
+                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
                 const audioResponse = await fetch(audioUrl, { mode: 'cors' });
                 if (!audioResponse.ok) {
                     throw new Error(`Generated bastardloop fetch failed with status ${audioResponse.status}`);
@@ -17896,6 +18010,10 @@
 
         function openWavRepositoryBrowser() {
             window.open(`${WAV_REPOSITORY_BASE_URL}/`, '_blank', 'noopener');
+        }
+
+        function openBastardLoopRepositoryBrowser() {
+            window.open(`${BASTARD_LOOP_REPOSITORY_BASE_URL}/`, '_blank', 'noopener');
         }
 
 
@@ -18305,6 +18423,7 @@
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceGenerateBastardLoopBtn = document.getElementById('performanceGenerateBastardLoopBtn');
+        const performanceBastardLoopBrowserBtn = document.getElementById('performanceBastardLoopBrowserBtn');
         const performanceBastardLoopPlayBtn = document.getElementById('performanceBastardLoopPlayBtn');
         const performanceBastardLoopStopBtn = document.getElementById('performanceBastardLoopStopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
@@ -18803,6 +18922,25 @@
                 console.error(error);
                 setStatus(`Bastardloop generation failed: ${error.message}`, 'error');
             }
+        });
+
+        performanceBastardLoopBrowserBtn?.addEventListener('click', () => {
+            openBastardLoopRepositoryBrowser();
+        });
+
+        getBastardLoopDivisionInputs().forEach(({ input, value }) => {
+            input.addEventListener('change', () => {
+                const selected = getSelectedBastardLoopDivisions({ ensureDefault: false });
+                if (!selected.length) {
+                    const defaultInput = document.getElementById('performanceBastardDivisionSixteenth');
+                    if (defaultInput && value !== '1/16') {
+                        defaultInput.checked = true;
+                    } else {
+                        input.checked = true;
+                    }
+                }
+                saveState();
+            });
         });
 
         performanceBastardLoopPlayBtn?.addEventListener('click', () => {
