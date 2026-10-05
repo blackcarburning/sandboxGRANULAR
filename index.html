@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-12-20-reset-grain-solo-tune';
+            const cacheBuster = '2026-10-05-13-45-tempo-locked-grain-stretch';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5427,6 +5427,7 @@
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
+        const tempoLockedPitchBufferCache = new WeakMap();
         let transportLoopStartTime = null;
         let generatedDryLoopStartTime = null;
         const TRANSPORT_START_BUFFER_SECONDS = 0.08;
@@ -8158,23 +8159,24 @@
             return peak;
         }
 
-        function pitchShiftBufferKeepDuration(sourceBuffer, octaves) {
-            if (!audioContext || !sourceBuffer) return sourceBuffer;
-            const octaveShift = clampGeneratedLoopTransposeOctaves(octaves);
-            const outputBuffer = audioContext.createBuffer(
+        function pitchShiftBufferByRatioKeepDuration(sourceBuffer, pitchRatio = 1, targetContext = audioContext) {
+            if (!targetContext || !sourceBuffer) return sourceBuffer;
+            const safePitchRatio = Number.isFinite(Number(pitchRatio))
+                ? Math.max(0.0625, Math.min(16, Math.abs(Number(pitchRatio))))
+                : 1;
+            const outputBuffer = targetContext.createBuffer(
                 sourceBuffer.numberOfChannels,
                 sourceBuffer.length,
                 sourceBuffer.sampleRate
             );
 
-            if (octaveShift === 0 || sourceBuffer.length < 4) {
+            if (Math.abs(safePitchRatio - 1) < 0.0001 || sourceBuffer.length < 4) {
                 for (let channel = 0; channel < sourceBuffer.numberOfChannels; channel++) {
                     outputBuffer.copyToChannel(sourceBuffer.getChannelData(channel), channel);
                 }
                 return outputBuffer;
             }
 
-            const pitchRatio = Math.pow(2, octaveShift);
             const length = sourceBuffer.length;
             const grainFrames = Math.max(96, Math.min(length, Math.round(sourceBuffer.sampleRate * 0.085)));
             const hopFrames = Math.max(24, Math.round(grainFrames / 4));
@@ -8193,7 +8195,7 @@
 
                         const phase = grainFrames <= 1 ? 0 : frame / (grainFrames - 1);
                         const windowValue = 0.5 - (0.5 * Math.cos(2 * Math.PI * phase));
-                        let sourcePos = (outStart + (frame * pitchRatio)) % length;
+                        let sourcePos = (outStart + (frame * safePitchRatio)) % length;
                         if (sourcePos < 0) sourcePos += length;
                         const sourceIndex = Math.floor(sourcePos);
                         const nextIndex = (sourceIndex + 1) % length;
@@ -8224,6 +8226,38 @@
             }
 
             return outputBuffer;
+        }
+
+        function pitchShiftBufferKeepDuration(sourceBuffer, octaves) {
+            const octaveShift = clampGeneratedLoopTransposeOctaves(octaves);
+            return pitchShiftBufferByRatioKeepDuration(sourceBuffer, Math.pow(2, octaveShift), audioContext);
+        }
+
+        function getTempoLockedPitchBuffer(sourceBuffer, pitchRatio = 1) {
+            if (!sourceBuffer || !audioContext) return sourceBuffer;
+            const safePitchRatio = Number.isFinite(Number(pitchRatio))
+                ? Math.max(0.0625, Math.min(16, Math.abs(Number(pitchRatio))))
+                : 1;
+            if (Math.abs(safePitchRatio - 1) < 0.0001) return sourceBuffer;
+
+            const cents = Math.round(1200 * Math.log2(safePitchRatio));
+            const cacheKey = String(Math.max(-4800, Math.min(4800, Math.round(cents / 25) * 25)));
+            let bufferCache = tempoLockedPitchBufferCache.get(sourceBuffer);
+            if (!bufferCache) {
+                bufferCache = new Map();
+                tempoLockedPitchBufferCache.set(sourceBuffer, bufferCache);
+            }
+            const cached = bufferCache.get(cacheKey);
+            if (cached) return cached;
+
+            const quantizedRatio = Math.pow(2, Number(cacheKey) / 1200);
+            const shiftedBuffer = pitchShiftBufferByRatioKeepDuration(sourceBuffer, quantizedRatio, audioContext);
+            bufferCache.set(cacheKey, shiftedBuffer);
+            if (bufferCache.size > 48) {
+                const oldestKey = bufferCache.keys().next().value;
+                bufferCache.delete(oldestKey);
+            }
+            return shiftedBuffer;
         }
 
         function renderGeneratedLoopBufferWithTranspose(sourceBuffer = generatedLoopBaseBuffer) {
@@ -9541,6 +9575,7 @@
                 : getModulatedValue('position') / 100;
             const scheduleSourceVoice = (sourceInfo, voice) => {
                 if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
+                const sourceAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0 ? voice.advanceRate : 1;
                 const sourceShape = getSourceGrainShape(sourceInfo, voice, {
                     attack,
                     release,
@@ -9563,24 +9598,25 @@
                         startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
                         endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
                     };
+                const pitchShiftedBuffer = getTempoLockedPitchBuffer(sourceInfo.buffer, voice.rate);
                 const trimmedBuffer = typeof mygrainUtils.trimAudioBufferToWindow === 'function'
                     ? mygrainUtils.trimAudioBufferToWindow(
-                        sourceInfo.buffer,
+                        pitchShiftedBuffer,
                         sampleWindow.startTime,
                         sampleWindow.endTime,
                         audioContext
                     )
-                    : sourceInfo.buffer;
+                    : pitchShiftedBuffer;
                 maxEnvelopeGrainSize = Math.max(maxEnvelopeGrainSize, sampleWindow.grainSizeSeconds);
 
                 const source = audioContext.createBufferSource();
                 const sampleGain = audioContext.createGain();
                 const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
                 const playPosition = options.continuousLoop
-                    ? resolveContinuousLoopPosition(sampleWindow, sourceShape.positionPct, now, options.streamStartTime, voice.rate)
+                    ? resolveContinuousLoopPosition(sampleWindow, sourceShape.positionPct, now, options.streamStartTime, sourceAdvanceRate)
                     : sampleWindow.playPosition;
                 source.buffer = trimmedBuffer;
-                source.playbackRate.value = voice.rate;
+                source.playbackRate.value = 1;
                 source.loop = true;
                 source.loopStart = 0;
                 source.loopEnd = trimmedBuffer?.duration ?? sampleWindow.grainSizeSeconds;
@@ -15471,7 +15507,7 @@
 
                     const source = ctx.createBufferSource();
                     const gain = ctx.createGain();
-                    const buffer = copyBufferToContext(ctx, sourceInfo.buffer);
+                    const buffer = pitchShiftBufferByRatioKeepDuration(sourceInfo.buffer, playbackRate, ctx);
                     const loop = getLoopTimingForBuffer(sourceInfo.buffer, sourceInfo.startId, sourceInfo.endId);
                     const loopDuration = Math.max(0.01, loop.end - loop.start);
                     const position = (stepIndex % 16) / 16;
@@ -15481,7 +15517,7 @@
                     source.loop = true;
                     source.loopStart = loop.start;
                     source.loopEnd = loop.end;
-                    source.playbackRate.value = playbackRate;
+                    source.playbackRate.value = 1;
                     gain.gain.setValueAtTime(0, stepTime);
                     gain.gain.linearRampToValueAtTime(gainAmount, stepTime + 0.004);
                     gain.gain.exponentialRampToValueAtTime(0.0001, stepTime + stepLength);
