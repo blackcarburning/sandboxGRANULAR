@@ -2227,6 +2227,58 @@
             font-weight: 700;
         }
 
+        .simplified-ui .performance-feature-card {
+            display: grid;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top left, rgba(126, 246, 255, 0.18), transparent 50%),
+                linear-gradient(180deg, rgba(10, 14, 26, 0.92) 0%, rgba(6, 9, 18, 0.96) 100%);
+            border: 1px solid rgba(126, 246, 255, 0.24);
+            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+        }
+
+        .simplified-ui .performance-feature-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .simplified-ui .performance-feature-copy {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .simplified-ui .performance-feature-title {
+            margin: 0;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-feature-note {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.76);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .simplified-ui .performance-feature-card .performance-btn {
+            min-width: 164px;
+        }
+
+        .simplified-ui .performance-feature-meta {
+            margin: 0;
+            color: rgba(126, 246, 255, 0.86);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
         .simplified-ui .performance-sound-controls {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2819,6 +2871,16 @@
                 grid-template-columns: 1fr;
             }
 
+            .simplified-ui .performance-feature-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .simplified-ui .performance-feature-card .performance-btn {
+                width: 100%;
+                min-width: 0;
+            }
+
             .simplified-ui .performance-sound-controls {
                 grid-template-columns: 1fr;
             }
@@ -2984,6 +3046,24 @@
                     </div>
                 </div>
             </div>
+            <div class="performance-feature-card" aria-label="Bastardloop controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">New Layer</div>
+                        <h3 class="performance-feature-title">Bastardloop</h3>
+                        <p class="performance-feature-note">Build a 16-slice loop from random `SAMPLEDROP` hits and feed it through the same filter and FX path as the other layers.</p>
+                    </div>
+                    <button class="performance-btn primary" id="performanceGenerateBastardLoopBtn">Generate Bastardloop</button>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLevel">
+                        <span>Bastardloop Level</span>
+                        <span class="value" id="performanceBastardLoopLevelValue">60%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
+                    <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
+                </div>
+            </div>
             <div class="performance-sound-controls" aria-label="Sound controls">
                 <div class="performance-sound-card">
                     <label for="performanceSourceMix">
@@ -3012,14 +3092,6 @@
                         <span class="value" id="performanceGeneratedDryMixValue">35%</span>
                     </label>
                     <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="35" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceBastardLoopLevel">
-                        <span>Bastardloop</span>
-                        <span class="value" id="performanceBastardLoopLevelValue">60%</span>
-                    </label>
-                    <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
-                    <div class="source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceGeneratedDryTrim">
@@ -3452,7 +3524,6 @@
             <div class="performance-actions">
                 <button class="performance-btn" id="performanceHoldBtn">Hold</button>
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
-                <button class="performance-btn" id="performanceGenerateBastardLoopBtn">Generate Bastardloop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Play</button>
