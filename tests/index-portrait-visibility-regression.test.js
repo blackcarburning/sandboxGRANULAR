@@ -445,6 +445,13 @@ test('bastardloop has octave pitch steps and resyncs its loop cycle when retuned
     assert.match(indexHtml, /performanceBastardLoopPitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoopPitchOctaves\(event\.target\.value\);/);
 });
 
+test('tempo-locked keyboard pitch reads source buffers in the non-reversed direction', () => {
+    assert.match(indexHtml, /function getTempoLockedSourceReadRatio\(musicalPitchRatio = 1\)/);
+    assert.match(indexHtml, /return 1 \/ safePitchRatio;/);
+    assert.match(indexHtml, /getTempoLockedPitchBuffer\(\s*sourceInfo\.buffer,\s*getTempoLockedSourceReadRatio\(sourcePitchRate\)\s*\)/);
+    assert.match(indexHtml, /pitchShiftBufferByRatioKeepDuration\(\s*sourceInfo\.buffer,\s*getTempoLockedSourceReadRatio\(sourcePlaybackRate\),\s*ctx\s*\)/);
+});
+
 test('oscillators can be disabled for granular-only playback', () => {
     assert.match(indexHtml, /id="performanceOscToggleBtn"/);
     assert.match(indexHtml, /let oscillatorsEnabled = true/);
