@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-16-12-source-tune-activation';
+            const cacheBuster = '2026-10-05-16-21-bpm-out-of-randomise';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5576,6 +5576,13 @@
         const INTERNAL_LFO_WAVEFORM_IDS = ['lfoWaveform', 'lfo2Waveform', 'lfo3Waveform'];
         const INTERNAL_LFO_RATE_IDS = ['lfoRate', 'lfo2Rate', 'lfo3Rate', 'phaserRate', 'tremoloRate'];
         const INTERNAL_BPM_CLOCK_RATE_IDS = ['delayBpm', ...INTERNAL_LFO_RATE_IDS];
+        const BPM_RANDOMIZE_PROTECTED_IDS = [
+            'globalBpmSlider',
+            'globalBpmNumber',
+            'seqBpm',
+            ...INTERNAL_BPM_CLOCK_RATE_IDS
+        ];
+        const BPM_RANDOMIZE_PROTECTED_PARAMS = new Set(BPM_RANDOMIZE_PROTECTED_IDS);
         const INTERNAL_LFO_BPM_MULTIPLIERS = [0.25, 0.5, 1, 2, 4, 8];
         const PERFORMANCE_LFO_RATE_OPTIONS = [
             { ratio: 0.25, label: '1/4' },
@@ -5681,6 +5688,7 @@
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
             'globalBpmSlider',
+            ...INTERNAL_BPM_CLOCK_RATE_IDS,
             'oscMix',
             'performanceSourceMix',
             'performanceGeneratedSourceMix',
@@ -5717,6 +5725,7 @@
             'performancePulseWidth'
         ]);
         const RANDOMIZE_SKIP_PARAMS = new Set([
+            ...BPM_RANDOMIZE_PROTECTED_IDS,
             'oscMix',
             'generatedSourceMix',
             'generatedDryMix',
@@ -12553,6 +12562,59 @@
             });
         }
 
+        function snapshotRandomizeBpmState() {
+            const values = {};
+            BPM_RANDOMIZE_PROTECTED_IDS.forEach((id) => {
+                const input = document.getElementById(id);
+                if (input) values[id] = input.value;
+            });
+            const radios = {};
+            [1, 2].forEach((lfoNumber) => {
+                const name = getPerformanceLfoRateName(lfoNumber);
+                radios[name] = document.querySelector(`input[name="${name}"]:checked`)?.value ?? null;
+            });
+            return {
+                values,
+                radios,
+                sequencerBPM,
+                sharedBpm: getSharedBpmClockValue()
+            };
+        }
+
+        function restoreRandomizeBpmState(snapshot) {
+            if (!snapshot) return;
+            const values = snapshot.values || {};
+            const sharedBpm = clampBpmValue(values.globalBpmSlider ?? values.globalBpmNumber ?? snapshot.sharedBpm ?? sequencerBPM ?? 120);
+
+            syncingGlobalBpm = true;
+            try {
+                syncGlobalBpmControls(sharedBpm);
+                syncSequencerBpmControls(values.seqBpm ?? snapshot.sequencerBPM ?? sharedBpm);
+                BPM_RANDOMIZE_PROTECTED_IDS.forEach((id) => {
+                    if (id === 'globalBpmSlider' || id === 'globalBpmNumber' || id === 'seqBpm') return;
+                    const input = document.getElementById(id);
+                    if (!input || values[id] === undefined) return;
+                    input.value = values[id];
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            } finally {
+                syncingGlobalBpm = false;
+            }
+
+            Object.entries(snapshot.radios || {}).forEach(([name, value]) => {
+                if (value == null) return;
+                const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+                if (radio) radio.checked = true;
+            });
+            syncPerformanceLfoRateRadios(1);
+            syncPerformanceLfoRateRadios(2);
+            updateLFORateDisplay();
+            updateLFO2RateDisplay();
+            updateLFO3RateDisplay();
+            updateEffects();
+            syncPerformanceControlState();
+        }
+
         function setInternalLfoRateBpm(id, bpm) {
             const slider = document.getElementById(id);
             if (!slider) return null;
@@ -12816,9 +12878,6 @@
                 setAllInternalLfoWaveforms(lfoWaveform);
             }
             setAllInternalLfoPulseWidths(randomIntegerInRange(18, 82));
-            setPerformanceLfoRateRatio(1, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
-            setPerformanceLfoRateRatio(2, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
-
             setGeneratedSourceLowNoiseMode(maybe(0.6), { silent: true, skipSave: true });
             setOscillatorsEnabled(maybe(0.72), { silent: true, skipSave: true });
             setGeneratedSampleSolo(maybe(0.22), { silent: true, skipSave: true });
@@ -14476,6 +14535,7 @@
         // Randomize Button
         document.getElementById('randomizeBtn').addEventListener('click', async () => {
             showSettlePopup();
+            const bpmSnapshot = snapshotRandomizeBpmState();
             const randomizeGrainMode = chooseRandom(['cloud', 'cloud', 'cloud', 'rhythmic', 'drum']);
             setGrainTimingMode(randomizeGrainMode, { silent: true, skipSave: true, skipRestart: true });
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile(), grainMode: randomizeGrainMode });
@@ -14518,9 +14578,7 @@
                 }
             });
 
-            randomizeInternalLfoTempoRatios({ profile: generationProfile });
-            setPerformanceLfoRateRatio(1, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
-            setPerformanceLfoRateRatio(2, chooseRandom(PERFORMANCE_LFO_RATE_OPTIONS).ratio);
+            restoreRandomizeBpmState(bpmSnapshot);
 
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
