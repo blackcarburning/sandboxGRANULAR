@@ -484,6 +484,38 @@ test('bastardloop uses its own browser route and selectable note sizes', () => {
     assert.match(indexHtml, /body: JSON\.stringify\(\{[\s\S]*divisions[\s\S]*\}\)/);
 });
 
+test('second bastardloop layer has its own level, resolutions, mute, and reverse controls', () => {
+    assert.match(indexHtml, /id="performanceGenerateBastardLoop2Btn">Generate Bastardloop B<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoop2BrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /id="performanceBastard2DivisionQuarter" value="1\/4"/);
+    assert.match(indexHtml, /id="performanceBastard2DivisionEighth" value="1\/8"/);
+    assert.match(indexHtml, /id="performanceBastard2DivisionSixteenth" value="1\/16" checked/);
+    assert.match(indexHtml, /id="performanceBastard2DivisionThirtySecond" value="1\/32"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2Level" min="0" max="100" value="55" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2ReverseBtn"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2ToggleBtn"/);
+    assert.match(indexHtml, /let bastardLoop2Level = 0\.55/);
+    assert.match(indexHtml, /let bastardLoop2Enabled = true/);
+    assert.match(indexHtml, /let bastardLoop2Reverse = false/);
+    assert.match(indexHtml, /function getSelectedBastardLoop2Divisions\(options = \{\}\)/);
+    assert.match(indexHtml, /function applyBastardLoop2DivisionSelection\(divisions, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop2Enabled\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop2Reverse\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function getReversedAudioBuffer\(buffer\)/);
+    assert.match(indexHtml, /performanceBastardLoop2ReverseBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop2Reverse\(!bastardLoop2Reverse\);/);
+    assert.match(indexHtml, /performanceBastardLoop2ToggleBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop2Enabled\(!bastardLoop2Enabled\);/);
+});
+
+test('bastardloop transport can start both loop layers together', () => {
+    assert.match(indexHtml, /function stopAllBastardLoopLayers\(options = \{\}\)/);
+    assert.match(indexHtml, /function startAllBastardLoopLayers\(startTime = null, options = \{\}\)/);
+    assert.match(indexHtml, /const startedA = startBastardLoop\(resolvedStartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /const startedB = startBastardLoop2\(resolvedStartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /performanceBastardLoopPlayBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(true\);/);
+    assert.match(indexHtml, /performanceBastardLoopStopBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(false\);/);
+    assert.match(indexHtml, /if \(!bastardLoopBuffer && !bastardLoop2Buffer\) \{/);
+});
+
 test('tempo-locked keyboard pitch reads source buffers in the non-reversed direction', () => {
     assert.match(indexHtml, /function getTempoLockedSourceReadRatio\(musicalPitchRatio = 1\)/);
     assert.match(indexHtml, /return 1 \/ safePitchRatio;/);
