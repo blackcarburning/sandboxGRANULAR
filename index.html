@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-13-45-tempo-locked-grain-stretch';
+            const cacheBuster = '2026-10-05-14-11-export-bars-reset-sync';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3238,9 +3238,9 @@
                 <div class="performance-sound-card">
                     <label for="performanceExportBars">
                         <span>Export Bars</span>
-                        <span class="value" id="performanceExportBarsValue">4 bars</span>
+                        <span class="value" id="performanceExportBarsValue">2 bars</span>
                     </label>
-                    <input type="number" id="performanceExportBars" min="1" max="64" value="4" step="1" inputmode="numeric">
+                    <input type="number" id="performanceExportBars" min="1" max="64" value="2" step="1" inputmode="numeric">
                 </div>
             </div>
             <div class="keyboard-section">
@@ -14433,6 +14433,7 @@
             }
             
             syncPerformanceControlState();
+            syncPerformanceExportBars(DEFAULT_EXPORT_BARS, { skipSave: true });
             updateSourceMixGains();
             updateGeneratedDryLoopMix();
             saveState();
@@ -15075,7 +15076,7 @@
                 },
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 volumeBias: keyboardVolumeBias,
-                performanceExportBars: performanceExportBars ? clampExportBars(performanceExportBars.value) : 4,
+                performanceExportBars: performanceExportBars ? clampExportBars(performanceExportBars.value) : DEFAULT_EXPORT_BARS,
                 activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'grain'
             };
 
@@ -15344,9 +15345,7 @@
                 }
 
                 if (state.performanceExportBars !== undefined && performanceExportBars) {
-                    const bars = clampExportBars(state.performanceExportBars);
-                    performanceExportBars.value = String(bars);
-                    document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
+                    syncPerformanceExportBars(state.performanceExportBars, { skipSave: true });
                 }
 
                 if (state.fxMuted !== undefined) {
@@ -15436,11 +15435,27 @@
             document.getElementById('lockBpmSlider')?.addEventListener('change', saveState);
         }
 
+        const DEFAULT_EXPORT_BARS = 2;
 
         function clampExportBars(value) {
             const numeric = Number.parseFloat(value);
-            if (!Number.isFinite(numeric)) return 4;
+            if (!Number.isFinite(numeric)) return DEFAULT_EXPORT_BARS;
             return Math.max(1, Math.min(64, Math.round(numeric)));
+        }
+
+        function syncPerformanceExportBars(value = DEFAULT_EXPORT_BARS, options = {}) {
+            const bars = clampExportBars(value);
+            if (performanceExportBars) {
+                performanceExportBars.value = String(bars);
+            }
+            const label = document.getElementById('performanceExportBarsValue');
+            if (label) {
+                label.textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+            return bars;
         }
 
         function copyBufferToContext(ctx, sourceBuffer) {
@@ -15912,9 +15927,7 @@
                 throw new Error('Generate, load, or record a source before exporting.');
             }
 
-            const bars = clampExportBars(performanceExportBars?.value || 4);
-            if (performanceExportBars) performanceExportBars.value = String(bars);
-            document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
+            const bars = syncPerformanceExportBars(performanceExportBars?.value || DEFAULT_EXPORT_BARS, { skipSave: true });
             saveState();
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
@@ -17183,16 +17196,11 @@
         document.getElementById('noiseMix')?.addEventListener('input', syncPerformanceControlState);
 
         performanceExportBars?.addEventListener('input', (event) => {
-            const bars = Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 4)));
-            document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
-            saveState();
+            syncPerformanceExportBars(event.target.value);
         });
 
         performanceExportBars?.addEventListener('change', (event) => {
-            const bars = Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 4)));
-            event.target.value = String(bars);
-            document.getElementById('performanceExportBarsValue').textContent = `${bars} bar${bars === 1 ? '' : 's'}`;
-            saveState();
+            syncPerformanceExportBars(event.target.value);
         });
 
         performanceExportBtn?.addEventListener('click', async () => {
