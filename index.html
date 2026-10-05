@@ -2306,6 +2306,49 @@
             gap: 10px;
         }
 
+        .simplified-ui .performance-layer-switches-card {
+            display: grid;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(4, 10, 20, 0.68);
+            border: 1px solid rgba(126, 246, 255, 0.18);
+        }
+
+        .simplified-ui .performance-layer-switches-copy {
+            display: grid;
+            gap: 3px;
+        }
+
+        .simplified-ui .performance-layer-switches-title {
+            margin: 0;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-layer-switches-note {
+            margin: 0;
+            color: rgba(230, 240, 255, 0.68);
+            font-size: 0.78rem;
+            line-height: 1.4;
+        }
+
+        .simplified-ui .performance-layer-switches {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .simplified-ui .performance-btn.layer-muted {
+            background: rgba(30, 38, 54, 0.92);
+            color: rgba(233, 242, 255, 0.72);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: none;
+        }
+
         .simplified-ui .internal-effects-panel {
             display: grid;
             gap: 12px;
@@ -2906,6 +2949,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .simplified-ui .performance-layer-switches {
+                grid-template-columns: 1fr;
+            }
+
             .simplified-ui .internal-effects-grid,
             .simplified-ui .final-pan-grid,
             .simplified-ui .final-pan-monitor {
@@ -3085,6 +3132,18 @@
                     </label>
                     <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
                     <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
+                </div>
+            </div>
+            <div class="performance-layer-switches-card" aria-label="Quick layer switches">
+                <div class="performance-layer-switches-copy">
+                    <div class="performance-chip">Quick Mutes</div>
+                    <h3 class="performance-layer-switches-title">Layer Switches</h3>
+                    <p class="performance-layer-switches-note">Mute the generated sample or huge drums layer, the dry loop, or bastardloop without opening the mixer.</p>
+                </div>
+                <div class="performance-layer-switches">
+                    <button class="performance-btn" id="performanceGeneratedLayerBtn" aria-pressed="true" title="Enable or mute the generated sample or huge drums granular layer">Sample/Drums On</button>
+                    <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
+                    <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the bastardloop layer">Bastardloop On</button>
                 </div>
             </div>
             <div class="performance-sound-controls" aria-label="Sound controls">
@@ -5874,6 +5933,8 @@
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0.35; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
+        let generatedSampleLayerEnabled = true;
+        let generatedDryLoopEnabled = true;
         let generatedSampleSolo = false;
         let grainLayerSolo = 'none';
         let generatedSourceSwing = 0; // 0 = straight generated source timing
@@ -5891,6 +5952,7 @@
         let clickGuardMs = 8;
         let generatedDryThroughFilters = false;
         let bastardLoopLevel = 0.6;
+        let bastardLoopEnabled = true;
         let bastardLoopSource = null;
         let bastardLoopGainNode = null;
         let bastardLoopGenerationInFlight = false;
@@ -8850,12 +8912,13 @@
             return generatedSourceMix;
         }
 
-        function getGeneratedSampleVolumeValue() {
+        function getGeneratedSampleVolumeValue(options = {}) {
             const slider = document.getElementById('performanceSampleVolume');
             const rawValue = Number(slider?.value ?? (generatedSampleVolume * 100));
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
             generatedSampleVolume = clamped / 100;
-            return generatedSampleVolume;
+            if (options.applyLayerToggle === false) return generatedSampleVolume;
+            return generatedSampleLayerEnabled ? generatedSampleVolume : 0;
         }
 
         function getGeneratedDryMixValue(options = {}) {
@@ -8863,8 +8926,11 @@
             const rawValue = Number(slider?.value ?? (generatedDryMix * 100));
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             generatedDryMix = clamped / 100;
-            if (options.applySoloOverride !== false && generatedSampleSolo) return getGeneratedSampleVolumeValue();
-            return generatedDryMix;
+            const dryMixValue = options.applySoloOverride !== false && generatedSampleSolo
+                ? getGeneratedSampleVolumeValue({ applyLayerToggle: false })
+                : generatedDryMix;
+            if (options.applyLayerToggle === false) return dryMixValue;
+            return generatedDryLoopEnabled ? dryMixValue : 0;
         }
 
         function setGeneratedDryMixPercent(value, options = {}) {
@@ -9339,12 +9405,13 @@
             return Math.max(now + TRANSPORT_START_BUFFER_SECONDS, requestedTime);
         }
 
-        function getBastardLoopLevelValue() {
+        function getBastardLoopLevelValue(options = {}) {
             const slider = document.getElementById('performanceBastardLoopLevel');
             const rawValue = Number(slider?.value ?? (bastardLoopLevel * 100));
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             bastardLoopLevel = clamped / 100;
-            return bastardLoopLevel;
+            if (options.applyLayerToggle === false) return bastardLoopLevel;
+            return bastardLoopEnabled ? bastardLoopLevel : 0;
         }
 
         function getBastardLoopOutputGain(level = getBastardLoopLevelValue()) {
@@ -9369,7 +9436,7 @@
             const label = document.getElementById('performanceBastardLoopLevelValue');
             const meta = document.getElementById('performanceBastardLoopMeta');
             const button = document.getElementById('performanceGenerateBastardLoopBtn');
-            const value = Math.round(getBastardLoopLevelValue() * 100);
+            const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
@@ -9499,6 +9566,59 @@
                 }
             }
             syncBastardLoopUi();
+        }
+
+        function setGeneratedSampleLayerEnabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (generatedSampleLayerEnabled === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+            generatedSampleLayerEnabled = nextValue;
+            updateSourceMixGains();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(generatedSampleLayerEnabled
+                    ? 'Generated sample and huge drums layer enabled.'
+                    : 'Generated sample and huge drums layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setGeneratedDryLoopEnabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (generatedDryLoopEnabled === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+            generatedDryLoopEnabled = nextValue;
+            updateGeneratedDryLoopMix();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(generatedDryLoopEnabled ? 'Dry loop layer enabled.' : 'Dry loop layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoopEnabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (bastardLoopEnabled === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+            bastardLoopEnabled = nextValue;
+            updateBastardLoopMix();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(bastardLoopEnabled ? 'Bastardloop layer enabled.' : 'Bastardloop layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
         }
 
         async function applyLoadedBastardLoopBuffer(buffer, sourceLabel, metadata = null) {
@@ -15738,6 +15858,9 @@
             setFinalReverbEnabled(false, { silent: true, skipSave: true });
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(false, { silent: true });
+            setGeneratedSampleLayerEnabled(true, { silent: true, skipSave: true });
+            setGeneratedDryLoopEnabled(true, { silent: true, skipSave: true });
+            setBastardLoopEnabled(true, { silent: true, skipSave: true });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             setGrainLayerSolo('none', { silent: true, skipSave: true });
             setSourceWaveformSolo('none', { silent: true, skipSave: true });
@@ -15857,6 +15980,9 @@
                 finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                generatedSampleLayerEnabled: generatedSampleLayerEnabled,
+                generatedDryLoopEnabled: generatedDryLoopEnabled,
+                bastardLoopEnabled: bastardLoopEnabled,
                 tonalDrumsEnabled: tonalDrumsEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
@@ -16020,6 +16146,18 @@
             }
             if (safePreset.generatedSampleSolo !== undefined) {
                 setGeneratedSampleSolo(safePreset.generatedSampleSolo, { silent: true, skipSave: true });
+            }
+            const importedGeneratedSampleLayerEnabled = safePreset.generatedSampleLayerEnabled ?? preset.generatedSampleLayerEnabled;
+            if (importedGeneratedSampleLayerEnabled !== undefined) {
+                setGeneratedSampleLayerEnabled(importedGeneratedSampleLayerEnabled, { silent: true, skipSave: true });
+            }
+            const importedGeneratedDryLoopEnabled = safePreset.generatedDryLoopEnabled ?? preset.generatedDryLoopEnabled;
+            if (importedGeneratedDryLoopEnabled !== undefined) {
+                setGeneratedDryLoopEnabled(importedGeneratedDryLoopEnabled, { silent: true, skipSave: true });
+            }
+            const importedBastardLoopEnabled = safePreset.bastardLoopEnabled ?? preset.bastardLoopEnabled;
+            if (importedBastardLoopEnabled !== undefined) {
+                setBastardLoopEnabled(importedBastardLoopEnabled, { silent: true, skipSave: true });
             }
             const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
             setGrainLayerSolo(importedGrainLayerSolo, { silent: true, skipSave: true });
@@ -16442,6 +16580,9 @@
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     oscillatorsEnabled: oscillatorsEnabled,
                     generatedSampleSolo: generatedSampleSolo,
+                    generatedSampleLayerEnabled: generatedSampleLayerEnabled,
+                    generatedDryLoopEnabled: generatedDryLoopEnabled,
+                    bastardLoopEnabled: bastardLoopEnabled,
                     grainLayerSolo: grainLayerSolo,
                     sourceWaveformSolo: getSourceWaveformSoloState(),
                     tonalDrumsEnabled: tonalDrumsEnabled,
@@ -16611,6 +16752,15 @@
                     }
                     if (state.modes.generatedSampleSolo !== undefined) {
                         setGeneratedSampleSolo(state.modes.generatedSampleSolo, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.generatedSampleLayerEnabled !== undefined) {
+                        setGeneratedSampleLayerEnabled(state.modes.generatedSampleLayerEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.generatedDryLoopEnabled !== undefined) {
+                        setGeneratedDryLoopEnabled(state.modes.generatedDryLoopEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoopEnabled !== undefined) {
+                        setBastardLoopEnabled(state.modes.bastardLoopEnabled, { silent: true, skipSave: true });
                     }
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
@@ -17957,6 +18107,9 @@
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
         const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
         const performanceRestartAllBtn = document.getElementById('performanceRestartAllBtn');
+        const performanceGeneratedLayerBtn = document.getElementById('performanceGeneratedLayerBtn');
+        const performanceDryLoopLayerBtn = document.getElementById('performanceDryLoopLayerBtn');
+        const performanceBastardLoopToggleBtn = document.getElementById('performanceBastardLoopToggleBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
         const performanceTonalDrumsBtn = document.getElementById('performanceTonalDrumsBtn');
@@ -18110,19 +18263,19 @@
             }
 
             if (performanceSampleVolume) {
-                const value = Math.round(getGeneratedSampleVolumeValue() * 100);
+                const value = Math.round(getGeneratedSampleVolumeValue({ applyLayerToggle: false }) * 100);
                 performanceSampleVolume.value = String(value);
                 document.getElementById('performanceSampleVolumeValue').textContent = `${value}%`;
             }
 
             if (performanceGeneratedDryMix) {
-                const value = Math.round(getGeneratedDryMixValue({ applySoloOverride: false }) * 100);
+                const value = Math.round(getGeneratedDryMixValue({ applySoloOverride: false, applyLayerToggle: false }) * 100);
                 performanceGeneratedDryMix.value = String(value);
                 document.getElementById('performanceGeneratedDryMixValue').textContent = `${value}%`;
             }
 
             if (performanceBastardLoopLevel) {
-                const value = Math.round(getBastardLoopLevelValue() * 100);
+                const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
                 performanceBastardLoopLevel.value = String(value);
                 document.getElementById('performanceBastardLoopLevelValue').textContent = `${value}%`;
             }
@@ -18330,6 +18483,24 @@
                 performanceSampleSoloBtn.setAttribute('aria-pressed', String(generatedSampleSolo));
             }
 
+            if (performanceGeneratedLayerBtn) {
+                performanceGeneratedLayerBtn.classList.toggle('layer-muted', !generatedSampleLayerEnabled);
+                performanceGeneratedLayerBtn.textContent = generatedSampleLayerEnabled ? 'Sample/Drums On' : 'Sample/Drums Off';
+                performanceGeneratedLayerBtn.setAttribute('aria-pressed', String(generatedSampleLayerEnabled));
+            }
+
+            if (performanceDryLoopLayerBtn) {
+                performanceDryLoopLayerBtn.classList.toggle('layer-muted', !generatedDryLoopEnabled);
+                performanceDryLoopLayerBtn.textContent = generatedDryLoopEnabled ? 'Loop On' : 'Loop Off';
+                performanceDryLoopLayerBtn.setAttribute('aria-pressed', String(generatedDryLoopEnabled));
+            }
+
+            if (performanceBastardLoopToggleBtn) {
+                performanceBastardLoopToggleBtn.classList.toggle('layer-muted', !bastardLoopEnabled);
+                performanceBastardLoopToggleBtn.textContent = bastardLoopEnabled ? 'Bastardloop On' : 'Bastardloop Off';
+                performanceBastardLoopToggleBtn.setAttribute('aria-pressed', String(bastardLoopEnabled));
+            }
+
             syncGrainLayerSoloButtons();
 
             if (performanceLowNoiseSourceBtn) {
@@ -18454,6 +18625,18 @@
                 performanceGenerateFmDrumsBtn.disabled = false;
                 performanceGenerateFmDrumsBtn.textContent = 'Huge Drums';
             }
+        });
+
+        performanceGeneratedLayerBtn?.addEventListener('click', () => {
+            setGeneratedSampleLayerEnabled(!generatedSampleLayerEnabled);
+        });
+
+        performanceDryLoopLayerBtn?.addEventListener('click', () => {
+            setGeneratedDryLoopEnabled(!generatedDryLoopEnabled);
+        });
+
+        performanceBastardLoopToggleBtn?.addEventListener('click', () => {
+            setBastardLoopEnabled(!bastardLoopEnabled);
         });
 
         performanceSourceMix?.addEventListener('input', (event) => {

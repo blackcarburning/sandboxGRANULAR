@@ -412,6 +412,24 @@ test('export bars field stays editable until commit', () => {
     assert.match(indexHtml, /performanceExportBars\?\.\s*addEventListener\('blur', \(event\) => \{\s*syncPerformanceExportBars\(event\.target\.value\);/);
 });
 
+test('performance layer switches can mute sample-drums, dry loop, and bastardloop without moving the mixer sliders', () => {
+    assert.match(indexHtml, /id="performanceGeneratedLayerBtn"/);
+    assert.match(indexHtml, /id="performanceDryLoopLayerBtn"/);
+    assert.match(indexHtml, /id="performanceBastardLoopToggleBtn"/);
+    assert.match(indexHtml, /let generatedSampleLayerEnabled = true/);
+    assert.match(indexHtml, /let generatedDryLoopEnabled = true/);
+    assert.match(indexHtml, /let bastardLoopEnabled = true/);
+    assert.match(indexHtml, /function setGeneratedSampleLayerEnabled\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setGeneratedDryLoopEnabled\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoopEnabled\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /performanceGeneratedLayerBtn\?\.addEventListener\('click', \(\) => \{\s*setGeneratedSampleLayerEnabled\(!generatedSampleLayerEnabled\);/);
+    assert.match(indexHtml, /performanceDryLoopLayerBtn\?\.addEventListener\('click', \(\) => \{\s*setGeneratedDryLoopEnabled\(!generatedDryLoopEnabled\);/);
+    assert.match(indexHtml, /performanceBastardLoopToggleBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopEnabled\(!bastardLoopEnabled\);/);
+    assert.match(indexHtml, /generatedSampleLayerEnabled: generatedSampleLayerEnabled/);
+    assert.match(indexHtml, /generatedDryLoopEnabled: generatedDryLoopEnabled/);
+    assert.match(indexHtml, /bastardLoopEnabled: bastardLoopEnabled/);
+});
+
 test('oscillators can be disabled for granular-only playback', () => {
     assert.match(indexHtml, /id="performanceOscToggleBtn"/);
     assert.match(indexHtml, /let oscillatorsEnabled = true/);
