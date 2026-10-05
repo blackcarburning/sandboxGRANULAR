@@ -10,6 +10,50 @@
         return Math.min(max, Math.max(min, numericValue));
     }
 
+    function scaleRangeValue(value, options = {}) {
+        const {
+            inMin = 0,
+            inMax = 1,
+            outMin = 0,
+            outMax = 1,
+            fallback = outMin
+        } = options;
+        const safeInMin = Number(inMin);
+        const safeInMax = Number(inMax);
+        const safeOutMin = Number(outMin);
+        const safeOutMax = Number(outMax);
+        if (!Number.isFinite(safeInMin) || !Number.isFinite(safeInMax) || safeInMin === safeInMax) {
+            return clampNumber(fallback, {
+                min: Math.min(safeOutMin, safeOutMax),
+                max: Math.max(safeOutMin, safeOutMax),
+                fallback: safeOutMin
+            });
+        }
+        const clampedInput = clampNumber(value, {
+            min: Math.min(safeInMin, safeInMax),
+            max: Math.max(safeInMin, safeInMax),
+            fallback: fallback
+        });
+        const normalized = (clampedInput - safeInMin) / (safeInMax - safeInMin);
+        return safeOutMin + ((safeOutMax - safeOutMin) * normalized);
+    }
+
+    function resolveModeScaledGrainSize(options = {}) {
+        const sliderMin = clampNumber(options.sliderMin, { min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER, fallback: 10 });
+        const sliderMax = clampNumber(options.sliderMax, { min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER, fallback: 500 });
+        const minSeconds = clampNumber(options.minSeconds, { min: 0.001, max: Number.MAX_SAFE_INTEGER, fallback: 0.05 });
+        const maxSeconds = clampNumber(options.maxSeconds, { min: minSeconds, max: Number.MAX_SAFE_INTEGER, fallback: Math.max(minSeconds, 0.25) });
+        const fallbackSeconds = clampNumber(options.fallbackSeconds, { min: minSeconds, max: maxSeconds, fallback: minSeconds });
+
+        return scaleRangeValue(options.sliderValue, {
+            inMin: sliderMin,
+            inMax: sliderMax,
+            outMin: minSeconds,
+            outMax: maxSeconds,
+            fallback: fallbackSeconds
+        });
+    }
+
     function sanitizeBooleanMap(input, allowedKeys) {
         const output = {};
         if (!input || typeof input !== 'object') {
@@ -937,8 +981,10 @@
         generateRhythmicStepBlueprint,
         pickWeighted,
         recordingExtensionForMimeType,
+        resolveModeScaledGrainSize,
         resolveLoopedPlayPosition,
         resolveSampleWindow,
+        scaleRangeValue,
         trimAudioBufferToWindow,
         validatePreset
     };

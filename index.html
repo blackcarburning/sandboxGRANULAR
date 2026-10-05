@@ -2269,6 +2269,88 @@
             gap: 10px;
         }
 
+        .simplified-ui .final-pan-section {
+            order: 4;
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(126, 246, 255, 0.18);
+            background:
+                radial-gradient(circle at top right, rgba(126, 246, 255, 0.12), transparent 38%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.26);
+            backdrop-filter: blur(12px);
+        }
+
+        .simplified-ui .final-pan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .simplified-ui .final-pan-copy {
+            display: grid;
+            gap: 5px;
+        }
+
+        .simplified-ui .final-pan-title {
+            margin: 0;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .final-pan-note {
+            margin: 0;
+            color: rgba(230, 240, 255, 0.68);
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .simplified-ui .final-pan-monitor {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(110px, 1fr));
+            gap: 10px;
+            min-width: min(100%, 280px);
+        }
+
+        .simplified-ui .final-pan-monitor-card {
+            display: grid;
+            gap: 4px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(5, 8, 15, 0.46);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .simplified-ui .final-pan-monitor-card span {
+            color: rgba(230, 240, 255, 0.62);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .final-pan-monitor-card strong {
+            color: var(--accent);
+            font-size: 1rem;
+            line-height: 1.1;
+        }
+
+        .simplified-ui .final-pan-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .simplified-ui .final-pan-card {
+            min-height: 100%;
+        }
+
         .simplified-ui .performance-sound-card {
             display: grid;
             gap: 8px;
@@ -2741,8 +2823,14 @@
                 grid-template-columns: 1fr;
             }
 
-            .simplified-ui .internal-effects-grid {
+            .simplified-ui .internal-effects-grid,
+            .simplified-ui .final-pan-grid,
+            .simplified-ui .final-pan-monitor {
                 grid-template-columns: 1fr;
+            }
+
+            .simplified-ui .final-pan-header {
+                flex-direction: column;
             }
 
             .simplified-ui .performance-actions,
@@ -2768,6 +2856,10 @@
             }
 
             .simplified-ui .internal-effects-panel {
+                padding: 12px;
+            }
+
+            .simplified-ui .final-pan-section {
                 padding: 12px;
             }
 
@@ -2969,17 +3061,6 @@
                         <span class="value" id="performanceGrainModAmountValue">75%</span>
                     </label>
                     <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGrainTimingMode">
-                        <span>Grain Mode</span>
-                        <span class="value" id="performanceGrainTimingModeValue">Cloud</span>
-                    </label>
-                    <select id="performanceGrainTimingMode">
-                        <option value="cloud" selected>Cloud</option>
-                        <option value="rhythmic">Rhythmic</option>
-                        <option value="drum">Drum</option>
-                    </select>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceGrainMainVolume">
@@ -4980,6 +5061,133 @@
             </div>
         </div>
 
+        <section class="final-pan-section" id="finalPanSection" aria-label="Final output panning lab">
+            <div class="final-pan-header">
+                <div class="final-pan-copy">
+                    <span class="performance-chip">Final Output Panning</span>
+                    <h3 class="final-pan-title">Pan Lab</h3>
+                    <p class="final-pan-note">Master-space motion after the stereo tremolo and final FX. This shapes the live final output and the recorder feed.</p>
+                </div>
+                <div class="final-pan-monitor" aria-label="Final pan monitoring">
+                    <div class="final-pan-monitor-card">
+                        <span>Tracked Pitch</span>
+                        <strong id="finalPanDetectedHzValue">-- Hz</strong>
+                    </div>
+                    <div class="final-pan-monitor-card">
+                        <span>Pan Rate</span>
+                        <strong id="finalPanMotionHzValue">0.00 Hz</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="final-pan-grid">
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanCenter">
+                        <span>Center</span>
+                        <span class="value" id="finalPanCenterValue">0%</span>
+                    </label>
+                    <input type="range" id="finalPanCenter" min="-100" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanWidth">
+                        <span>Motion Width</span>
+                        <span class="value" id="finalPanWidthValue">100%</span>
+                    </label>
+                    <input type="range" id="finalPanWidth" min="0" max="100" value="100" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanLfoRate">
+                        <span>LFO Rate</span>
+                        <span class="value" id="finalPanLfoRateValue">90 BPM</span>
+                    </label>
+                    <input type="range" id="finalPanLfoRate" min="10" max="1200" value="90" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanLfoDepth">
+                        <span>LFO Depth</span>
+                        <span class="value" id="finalPanLfoDepthValue">0%</span>
+                    </label>
+                    <input type="range" id="finalPanLfoDepth" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanLfoWaveform">
+                        <span>LFO Wave</span>
+                        <span class="value" id="finalPanLfoWaveformValue">Sine</span>
+                    </label>
+                    <select id="finalPanLfoWaveform" class="performance-select">
+                        <option value="sine" selected>Sine</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="sawtooth">Saw</option>
+                        <option value="ramp">Ramp</option>
+                        <option value="square">Square</option>
+                        <option value="pulse">Pulse</option>
+                        <option value="stepped">Stepped</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanLfoPulseWidth">
+                        <span>Pulse Width</span>
+                        <span class="value" id="finalPanLfoPulseWidthValue">50%</span>
+                    </label>
+                    <input type="range" id="finalPanLfoPulseWidth" min="5" max="95" value="50" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanAudioDepth">
+                        <span>Pitch Depth</span>
+                        <span class="value" id="finalPanAudioDepthValue">0%</span>
+                    </label>
+                    <input type="range" id="finalPanAudioDepth" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanAudioDivider">
+                        <span>Pitch Divide</span>
+                        <span class="value" id="finalPanAudioDividerValue">/16</span>
+                    </label>
+                    <select id="finalPanAudioDivider" class="performance-select">
+                        <option value="1">/1</option>
+                        <option value="2">/2</option>
+                        <option value="4">/4</option>
+                        <option value="8">/8</option>
+                        <option value="16" selected>/16</option>
+                        <option value="32">/32</option>
+                        <option value="64">/64</option>
+                        <option value="128">/128</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanAudioMode">
+                        <span>Tracking</span>
+                        <span class="value" id="finalPanAudioModeValue">Hybrid</span>
+                    </label>
+                    <select id="finalPanAudioMode" class="performance-select">
+                        <option value="peak">Peak</option>
+                        <option value="centroid">Centroid</option>
+                        <option value="hybrid" selected>Hybrid</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanAudioSmoothing">
+                        <span>Smoothing</span>
+                        <span class="value" id="finalPanAudioSmoothingValue">72%</span>
+                    </label>
+                    <input type="range" id="finalPanAudioSmoothing" min="0" max="100" value="72" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanOrbit">
+                        <span>Orbit Drift</span>
+                        <span class="value" id="finalPanOrbitValue">0%</span>
+                    </label>
+                    <input type="range" id="finalPanOrbit" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card final-pan-card">
+                    <label for="finalPanGravity">
+                        <span>Center Gravity</span>
+                        <span class="value" id="finalPanGravityValue">30%</span>
+                    </label>
+                    <input type="range" id="finalPanGravity" min="0" max="100" value="30" step="1">
+                </div>
+            </div>
+        </section>
+
         <div class="synth-popup-overlay" id="synthPopupOverlay" hidden aria-hidden="true">
             <div class="synth-popup-shell">
                 <div class="synth-popup-mount" id="synthPopupMount"></div>
@@ -5351,6 +5559,11 @@
             rhythmic: 'Rhythmic',
             drum: 'Drum'
         };
+        const FINAL_PAN_AUDIO_MODE_LABELS = {
+            peak: 'Peak',
+            centroid: 'Centroid',
+            hybrid: 'Hybrid'
+        };
         const mygrainUtils = window.MYGRAIN_UTILS || {};
         let currentGrainNote = null; // Last keyboard grain note, retained for legacy UI state
         let octaveOffset = 0;
@@ -5391,10 +5604,21 @@
         let splitterNode = null;    // Stereo splitter
         let mergerNode = null;      // Stereo merger
         let outputGainNode = null;  // Final output gain for click-free graph transitions
+        let finalOutputPanner = null; // Master output panner after the stereo merge
         let finalAmplifierNode = null; // Absolute final audible/export output
         let lfo3Oscillator = null;  // Audio-rate oscillator for LFO3
         let lfo3DepthGain = null;   // Controls modulation depth
         let lfo3Inverter = null;    // Inverts LFO3 for right channel
+        let finalPanAnalyser = null;
+        let finalPanBaseOffsetSource = null;
+        let finalPanAudioOscillator = null;
+        let finalPanAudioDepthGain = null;
+        let finalPanFrequencyData = null;
+        let finalPanTimeDomainData = null;
+        let finalPanTrackedFrequency = 0;
+        let finalPanTrackedMotionHz = 0;
+        let finalPanTrackedRms = 0;
+        let finalPanLfoStartTime = 0;
         let distortionNode = null;
         let finalFxInput = null;
         let finalFxOutput = null;
@@ -6076,6 +6300,34 @@
             grainBMic: 'grainBMicSourceTune',
             output: 'outputSourceTune'
         };
+        const ACTIVE_GRAIN_REALTIME_CONTROL_IDS = new Set([
+            'grainSize',
+            'density',
+            'position',
+            'spray',
+            'attack',
+            'release',
+            'pitchVar',
+            'grainTune',
+            'grainMainTune',
+            'grainMainVolume',
+            'grainSynthAVolume',
+            'grainSynthBVolume',
+            'grainMixerAmp',
+            'grainSynthAMix',
+            'grainSynthATune',
+            'grainSynthASize',
+            'grainSynthADensity',
+            'grainSynthASpread',
+            'grainSynthBMix',
+            'grainSynthBTune',
+            'grainSynthBSize',
+            'grainSynthBDensity',
+            'grainSynthBSpread',
+            'noiseMix',
+            ...SOURCE_GRAIN_CONTROL_IDS,
+            ...Object.values(SOURCE_TUNE_CONTROL_IDS)
+        ]);
         let sourceWaveformSoloKinds = new Set();
         let sourceWaveformSoloAuditionNodes = [];
 
@@ -6965,11 +7217,33 @@
             masterGainRight.connect(mergerNode, 0, 1); // To right output
             outputGainNode = audioContext.createGain();
             outputGainNode.gain.value = 1;
+            finalOutputPanner = audioContext.createStereoPanner();
+            finalOutputPanner.pan.value = 0;
+            finalPanAnalyser = audioContext.createAnalyser();
+            finalPanAnalyser.fftSize = 2048;
+            finalPanAnalyser.smoothingTimeConstant = 0.18;
+            finalPanFrequencyData = new Float32Array(finalPanAnalyser.frequencyBinCount);
+            finalPanTimeDomainData = new Float32Array(finalPanAnalyser.fftSize);
+            finalPanBaseOffsetSource = audioContext.createConstantSource();
+            finalPanBaseOffsetSource.offset.value = 0;
+            finalPanAudioOscillator = audioContext.createOscillator();
+            finalPanAudioOscillator.type = 'sine';
+            finalPanAudioOscillator.frequency.value = 0.05;
+            finalPanAudioDepthGain = audioContext.createGain();
+            finalPanAudioDepthGain.gain.value = 0;
             finalAmplifierNode = audioContext.createGain();
             finalAmplifierNode.gain.value = 1;
             mergerNode.connect(outputGainNode);
-            outputGainNode.connect(finalAmplifierNode);
+            outputGainNode.connect(finalOutputPanner);
+            outputGainNode.connect(finalPanAnalyser);
+            finalPanBaseOffsetSource.connect(finalOutputPanner.pan);
+            finalPanAudioOscillator.connect(finalPanAudioDepthGain);
+            finalPanAudioDepthGain.connect(finalOutputPanner.pan);
+            finalOutputPanner.connect(finalAmplifierNode);
             finalAmplifierNode.connect(audioContext.destination);
+            finalPanBaseOffsetSource.start();
+            finalPanAudioOscillator.start();
+            finalPanLfoStartTime = audioContext.currentTime;
             
             // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
@@ -7211,6 +7485,8 @@
             }
 
             updateEffects();
+            syncFinalPanControlDisplays();
+            updateFinalOutputPanning();
         }
 
         function getActiveFilterStages(nodes, slopeDb, enabled) {
@@ -7575,6 +7851,166 @@
             return delayTime;
         }
 
+        function getFinalPanAudioMode() {
+            const value = document.getElementById('finalPanAudioMode')?.value || 'hybrid';
+            return Object.prototype.hasOwnProperty.call(FINAL_PAN_AUDIO_MODE_LABELS, value) ? value : 'hybrid';
+        }
+
+        function getFinalPanAudioDivider() {
+            const numeric = Number(document.getElementById('finalPanAudioDivider')?.value || 16);
+            const safe = [1, 2, 4, 8, 16, 32, 64, 128].includes(numeric) ? numeric : 16;
+            return Math.max(1, safe);
+        }
+
+        function syncFinalPanControlDisplays() {
+            const lfoWaveformSelect = document.getElementById('finalPanLfoWaveform');
+            const lfoWaveformValue = document.getElementById('finalPanLfoWaveformValue');
+            if (lfoWaveformValue) {
+                lfoWaveformValue.textContent = lfoWaveformSelect?.selectedOptions?.[0]?.textContent || 'Sine';
+            }
+
+            const dividerValue = document.getElementById('finalPanAudioDividerValue');
+            if (dividerValue) {
+                dividerValue.textContent = document.getElementById('finalPanAudioDivider')?.selectedOptions?.[0]?.textContent || '/16';
+            }
+
+            const audioModeValue = document.getElementById('finalPanAudioModeValue');
+            if (audioModeValue) {
+                audioModeValue.textContent = FINAL_PAN_AUDIO_MODE_LABELS[getFinalPanAudioMode()] || 'Hybrid';
+            }
+
+            const lfoRateValue = document.getElementById('finalPanLfoRateValue');
+            if (lfoRateValue) {
+                const rate = clampInternalLfoBpmValue(document.getElementById('finalPanLfoRate')?.value || 90, 90);
+                lfoRateValue.textContent = `${rate} BPM`;
+            }
+        }
+
+        function readFinalPanAnalysis() {
+            if (!audioContext || !finalPanAnalyser || !finalPanFrequencyData || !finalPanTimeDomainData) {
+                return { targetFrequency: 0, rms: 0 };
+            }
+
+            finalPanAnalyser.getFloatFrequencyData(finalPanFrequencyData);
+            finalPanAnalyser.getFloatTimeDomainData(finalPanTimeDomainData);
+
+            let sumSquares = 0;
+            for (let index = 0; index < finalPanTimeDomainData.length; index += 1) {
+                const sample = finalPanTimeDomainData[index];
+                sumSquares += sample * sample;
+            }
+            const rms = Math.sqrt(sumSquares / Math.max(1, finalPanTimeDomainData.length));
+
+            const binHz = audioContext.sampleRate / Math.max(1, finalPanAnalyser.fftSize);
+            const minBin = Math.max(1, Math.floor(28 / binHz));
+            const maxBin = Math.min(finalPanFrequencyData.length - 1, Math.floor(5200 / binHz));
+            let peakMagnitude = 0;
+            let peakFrequency = 0;
+            let weightedFrequency = 0;
+            let totalMagnitude = 0;
+
+            for (let index = minBin; index <= maxBin; index += 1) {
+                const db = finalPanFrequencyData[index];
+                if (!Number.isFinite(db)) continue;
+                const magnitude = Math.pow(10, db / 20);
+                if (magnitude > peakMagnitude) {
+                    peakMagnitude = magnitude;
+                    peakFrequency = index * binHz;
+                }
+                weightedFrequency += (index * binHz) * magnitude;
+                totalMagnitude += magnitude;
+            }
+
+            const centroidFrequency = totalMagnitude > 0 ? weightedFrequency / totalMagnitude : peakFrequency;
+            const mode = getFinalPanAudioMode();
+            let targetFrequency = 0;
+            if (mode === 'peak') {
+                targetFrequency = peakFrequency;
+            } else if (mode === 'centroid') {
+                targetFrequency = centroidFrequency;
+            } else {
+                targetFrequency = (peakFrequency * 0.68) + (centroidFrequency * 0.32);
+            }
+
+            if (rms < 0.0035 || peakMagnitude < 0.00008) {
+                targetFrequency = 0;
+            }
+
+            return {
+                targetFrequency: Math.max(0, Math.min(6200, targetFrequency || 0)),
+                rms
+            };
+        }
+
+        function getFinalPanOrbitValue(elapsedSeconds) {
+            const a = Math.sin(elapsedSeconds * 0.31);
+            const b = Math.sin(elapsedSeconds * 0.13 + 1.7);
+            const c = Math.sin(elapsedSeconds * 0.047 + 0.6);
+            return Math.max(-1, Math.min(1, a * 0.58 + b * 0.29 + c * 0.13));
+        }
+
+        function updateFinalOutputPanning() {
+            syncFinalPanControlDisplays();
+            if (!audioContext || !finalOutputPanner || !finalPanBaseOffsetSource || !finalPanAudioOscillator || !finalPanAudioDepthGain) {
+                return;
+            }
+
+            const now = audioContext.currentTime;
+            const center = Math.max(-1, Math.min(1, (Number(document.getElementById('finalPanCenter')?.value) || 0) / 100));
+            const width = Math.max(0, Math.min(1, (Number(document.getElementById('finalPanWidth')?.value) || 0) / 100));
+            const lfoDepth = Math.max(0, Math.min(1, (Number(document.getElementById('finalPanLfoDepth')?.value) || 0) / 100));
+            const audioDepth = Math.max(0, Math.min(1, (Number(document.getElementById('finalPanAudioDepth')?.value) || 0) / 100));
+            const orbitDepth = Math.max(0, Math.min(1, (Number(document.getElementById('finalPanOrbit')?.value) || 0) / 100));
+            const gravity = Math.max(0, Math.min(1, (Number(document.getElementById('finalPanGravity')?.value) || 0) / 100));
+            const smoothing = Math.max(0, Math.min(1, (Number(document.getElementById('finalPanAudioSmoothing')?.value) || 0) / 100));
+            const lfoRateHz = clampInternalLfoBpmValue(document.getElementById('finalPanLfoRate')?.value || 90, 90) / 60;
+            const lfoWaveform = document.getElementById('finalPanLfoWaveform')?.value || 'sine';
+            const pulseWidth = Math.max(0.05, Math.min(0.95, (Number(document.getElementById('finalPanLfoPulseWidth')?.value) || 50) / 100));
+            const elapsed = Math.max(0, now - finalPanLfoStartTime);
+            const phase = elapsed * lfoRateHz - Math.floor(elapsed * lfoRateHz);
+            const lfoValue = evaluateLfoWaveform(lfoWaveform, phase, pulseWidth);
+            const orbitValue = getFinalPanOrbitValue(elapsed);
+            const analysis = readFinalPanAnalysis();
+            const trackingBlend = 0.08 + smoothing * 0.9;
+
+            finalPanTrackedFrequency = finalPanTrackedFrequency > 0
+                ? finalPanTrackedFrequency * trackingBlend + analysis.targetFrequency * (1 - trackingBlend)
+                : analysis.targetFrequency;
+            if (analysis.targetFrequency <= 0.01) {
+                finalPanTrackedFrequency *= 0.92;
+            }
+            if (analysis.targetFrequency <= 0.01 && finalPanTrackedFrequency < 0.02) {
+                finalPanTrackedFrequency = 0;
+            }
+            finalPanTrackedRms = finalPanTrackedRms * 0.72 + analysis.rms * 0.28;
+
+            const motionDivider = getFinalPanAudioDivider();
+            const rawMotionHz = finalPanTrackedFrequency > 0 ? finalPanTrackedFrequency / motionDivider : 0;
+            const safeMotionHz = Math.max(0.05, Math.min(180, rawMotionHz || 0.05));
+            smoothGainParam(finalPanAudioOscillator.frequency, safeMotionHz, 0.06);
+
+            const energy = Math.max(0, Math.min(1, (finalPanTrackedRms - 0.01) / 0.2));
+            const motionMask = 1 - gravity * energy * 0.85;
+            const motionBudget = Math.max(0, 1 - Math.abs(center)) * width * motionMask;
+            const baseComposite = Math.max(-1, Math.min(1, (lfoValue * lfoDepth * 0.72) + (orbitValue * orbitDepth * 0.48)));
+            const baseBudget = motionBudget * (1 - audioDepth * 0.35);
+            const audioBudget = motionBudget * audioDepth * 0.35;
+            const basePan = Math.max(-1, Math.min(1, center + baseComposite * baseBudget));
+
+            smoothGainParam(finalPanBaseOffsetSource.offset, basePan, 0.04);
+            smoothGainParam(finalPanAudioDepthGain.gain, rawMotionHz > 0.01 ? audioBudget : 0, 0.06);
+            finalPanTrackedMotionHz = rawMotionHz;
+
+            const detectedValue = document.getElementById('finalPanDetectedHzValue');
+            if (detectedValue) {
+                detectedValue.textContent = finalPanTrackedFrequency > 0.01 ? `${finalPanTrackedFrequency.toFixed(1)} Hz` : '-- Hz';
+            }
+            const motionValue = document.getElementById('finalPanMotionHzValue');
+            if (motionValue) {
+                motionValue.textContent = finalPanTrackedMotionHz > 0.01 ? `${finalPanTrackedMotionHz.toFixed(2)} Hz` : '0.00 Hz';
+            }
+        }
+
         function updateFinalMixEffects() {
             if (!audioContext || audioContext.state !== 'running') return;
             const now = audioContext.currentTime;
@@ -7755,6 +8191,7 @@
             }
 
             updateFinalMixEffects();
+            updateFinalOutputPanning();
         }
 
         // Real-time modulation loop for global parameters
@@ -8315,16 +8752,12 @@
             const mode = Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'cloud';
             const label = GRAIN_TIMING_MODE_LABELS[mode];
             const grainSelect = document.getElementById('grainTimingMode');
-            const performanceSelect = document.getElementById('performanceGrainTimingMode');
             if (grainSelect && grainSelect.value !== mode) grainSelect.value = mode;
-            if (performanceSelect && performanceSelect.value !== mode) performanceSelect.value = mode;
             document.querySelectorAll('[data-grain-mode-selector]').forEach((select) => {
                 if (select.value !== mode) select.value = mode;
             });
             const grainLabel = document.getElementById('grainTimingModeValue');
             if (grainLabel) grainLabel.textContent = label;
-            const performanceLabel = document.getElementById('performanceGrainTimingModeValue');
-            if (performanceLabel) performanceLabel.textContent = label;
             [
                 'mainWaveformGrainTimingModeValue',
                 'grainAWaveformGrainTimingModeValue',
@@ -9733,6 +10166,28 @@
             return Math.max(0, safeValue) / 100;
         }
 
+        function getModeScaledMainGrainSizeSeconds(grainMode, fallbackMs = 100) {
+            const modeProfile = getGrainModeProfile(grainMode);
+            const slider = document.getElementById('grainSize');
+            const sliderValue = Number(getModulatedValue('grainSize'));
+            const fallbackValue = Number.isFinite(Number(fallbackMs)) ? Number(fallbackMs) : 100;
+            const rawSliderValue = Number.isFinite(sliderValue) && sliderValue > 0 ? sliderValue : fallbackValue;
+            const sliderMin = Number(slider?.min ?? 10);
+            const sliderMax = Number(slider?.max ?? 500);
+            if (typeof mygrainUtils.resolveModeScaledGrainSize === 'function') {
+                return mygrainUtils.resolveModeScaledGrainSize({
+                    sliderValue: rawSliderValue,
+                    sliderMin,
+                    sliderMax,
+                    minSeconds: modeProfile.minGrainSize,
+                    maxSeconds: modeProfile.maxGrainSize,
+                    fallbackSeconds: Math.max(modeProfile.minGrainSize, Math.min(modeProfile.maxGrainSize, fallbackValue / 1000))
+                });
+            }
+            const fallbackSeconds = rawSliderValue / 1000;
+            return Math.max(modeProfile.minGrainSize, Math.min(modeProfile.maxGrainSize, fallbackSeconds));
+        }
+
         function playGrain(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
             const grainMode = options.grainMode || getGrainTimingMode();
@@ -9760,11 +10215,7 @@
             }
 
             // Params with LFO modulation - with safety defaults
-            const grainSizeRaw = getModulatedValue('grainSize');
-            const rawGrainSize = (typeof grainSizeRaw === 'number' && isFinite(grainSizeRaw) && grainSizeRaw > 0)
-                ? grainSizeRaw / 1000 
-                : 0.1; // 100ms default
-            const grainSize = Math.max(modeProfile.minGrainSize, Math.min(modeProfile.maxGrainSize, rawGrainSize));
+            const grainSize = getModeScaledMainGrainSizeSeconds(grainMode, 100);
             const minimumFadeSeconds = getFadeSecondsForDuration(grainSize);
             
             const attackRaw = getModulatedValue('attack');
@@ -11503,6 +11954,13 @@
                     if (lfo3Oscillator) {
                         lfo3Oscillator.frequency.value = rate / 60;
                     }
+                } else if (e.target.id === 'finalPanLfoRate') {
+                    const rate = clampInternalLfoBpmValue(e.target.value, 90);
+                    e.target.value = String(rate);
+                    const labelSpan = document.getElementById('finalPanLfoRateValue');
+                    if (labelSpan) {
+                        labelSpan.textContent = `${rate} BPM`;
+                    }
                 } else if (e.target.id === 'lfo3Depth') {
                     // Update LFO3 depth display and depth gain
                     const depth = parseFloat(e.target.value);
@@ -11602,6 +12060,13 @@
                     e.target.id === 'grainMainVolume' || e.target.id === 'grainSynthAVolume' ||
                     e.target.id === 'grainSynthBVolume' || e.target.id === 'grainMixerAmp') {
                     syncPerformanceSoundControls();
+                }
+                if (e.target.id.startsWith('finalPan')) {
+                    syncFinalPanControlDisplays();
+                    updateFinalOutputPanning();
+                }
+                if (ACTIVE_GRAIN_REALTIME_CONTROL_IDS.has(e.target.id) && audioContext && activeGrains.size > 0) {
+                    rescheduleActiveGrainsFromNow();
                 }
             });
             
@@ -11990,6 +12455,13 @@
                 const waveform = e.target.value;
                 lfo3Oscillator.type = getNativeOscillatorWaveform(waveform);
             }
+        });
+
+        ['finalPanLfoWaveform', 'finalPanAudioDivider', 'finalPanAudioMode'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('change', () => {
+                syncFinalPanControlDisplays();
+                updateFinalOutputPanning();
+            });
         });
 
         // --- Lock BPM Slider ---
@@ -12849,6 +13321,15 @@
             setSliderValue('finalReverbDecay', randomIntegerInRange(18, 92));
             setSliderValue('finalReverbLowpass', randomIntegerInRange(1800, 9800));
             setSliderValue('finalReverbMix', randomIntegerInRange(0, 54));
+            setSliderValue('finalPanCenter', randomIntegerInRange(-28, 28));
+            setSliderValue('finalPanWidth', randomIntegerInRange(58, 100));
+            setSliderValue('finalPanLfoRate', randomIntegerInRange(16, 420));
+            setSliderValue('finalPanLfoDepth', randomIntegerInRange(0, 56));
+            setSliderValue('finalPanLfoPulseWidth', randomIntegerInRange(18, 82));
+            setSliderValue('finalPanAudioDepth', randomIntegerInRange(0, 44));
+            setSliderValue('finalPanAudioSmoothing', randomIntegerInRange(36, 92));
+            setSliderValue('finalPanOrbit', randomIntegerInRange(0, 42));
+            setSliderValue('finalPanGravity', randomIntegerInRange(8, 64));
             setFinalReverbEnabled(maybe(0.64), { silent: true, skipSave: true });
             setSliderValue('volume', randomIntegerInRange(68, 100));
             setSliderValue('preFilterGain', randomIntegerInRange(-12, 3));
@@ -12856,6 +13337,9 @@
 
             setSelectValue('delayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
             setSelectValue('finalDelayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
+            setSelectValue('finalPanLfoWaveform', chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']));
+            setSelectValue('finalPanAudioDivider', chooseRandom(['4', '8', '16', '32', '64', '128']));
+            setSelectValue('finalPanAudioMode', chooseRandom(['peak', 'hybrid', 'hybrid', 'centroid']));
             setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
             setSelectValue('osc3Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
@@ -14681,6 +15165,15 @@
                 finalReverbDecay: 55,
                 finalReverbLowpass: 6400,
                 finalReverbMix: 0,
+                finalPanCenter: 0,
+                finalPanWidth: 100,
+                finalPanLfoRate: 90,
+                finalPanLfoDepth: 0,
+                finalPanLfoPulseWidth: 50,
+                finalPanAudioDepth: 0,
+                finalPanAudioSmoothing: 72,
+                finalPanOrbit: 0,
+                finalPanGravity: 30,
                 phaserRate: 30,
                 phaserDepth: 0,
                 tremoloRate: 120,
@@ -14792,6 +15285,9 @@
             setGrainTimingMode('cloud', { silent: true, skipSave: true, skipRestart: true });
             document.getElementById('grainSynthASource').value = 'all';
             document.getElementById('grainSynthBSource').value = 'all';
+            document.getElementById('finalPanLfoWaveform').value = 'sine';
+            document.getElementById('finalPanAudioDivider').value = '16';
+            document.getElementById('finalPanAudioMode').value = 'hybrid';
             document.getElementById('delayDivision').value = '1';
             document.getElementById('finalDelayDivision').value = '4';
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
@@ -14808,6 +15304,7 @@
             });
             syncOscRouteModeUI('random');
             syncOscSynthFilterControls();
+            syncFinalPanControlDisplays();
             setOscillatorOctave(1, 8);
             setOscillatorOctave(2, 16);
             setOscillatorOctave(3, 8);
@@ -15078,6 +15575,8 @@
             if (importedGranularModulationAmount !== undefined) {
                 setGranularModulationAmount(Number(importedGranularModulationAmount) * 100, { save: false });
             }
+            syncFinalPanControlDisplays();
+            updateFinalOutputPanning();
             
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
@@ -15796,6 +16295,8 @@
                     }
                 }
 
+                syncFinalPanControlDisplays();
+                updateFinalOutputPanning();
                 syncPerformanceControlState();
                 return true;
             } catch (e) {
@@ -15917,7 +16418,7 @@
             const stepDuration = (60 / Math.max(1, sequencerBPM)) / 4;
             const totalSteps = Math.ceil(durationSeconds / stepDuration);
             const sourceGainMap = getGranularSourceGainMap(sourceInfos, 1);
-            const grainSizeSeconds = Math.max(0.025, Math.min(0.22, Number(document.getElementById('grainSize')?.value || 100) / 1000));
+            const grainSizeSeconds = getModeScaledMainGrainSizeSeconds(getGrainTimingMode(), 100);
             const dryGrainLevel = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * 0.82 * dbToLinear(getGranularTrimDb());
 
             for (let stepIndex = 0; stepIndex < totalSteps; stepIndex++) {
@@ -16902,7 +17403,6 @@
         const performanceGeneratedTranspose = document.getElementById('performanceGeneratedTranspose');
         const performanceModAmount = document.getElementById('performanceModAmount');
         const performanceGrainModAmount = document.getElementById('performanceGrainModAmount');
-        const performanceGrainTimingMode = document.getElementById('performanceGrainTimingMode');
         const performanceGrainMainVolume = document.getElementById('performanceGrainMainVolume');
         const performanceGrainAVolume = document.getElementById('performanceGrainAVolume');
         const performanceGrainBVolume = document.getElementById('performanceGrainBVolume');
@@ -17455,10 +17955,6 @@
             setGrainTimingMode(event.target.value);
         });
 
-        performanceGrainTimingMode?.addEventListener('change', (event) => {
-            setGrainTimingMode(event.target.value);
-        });
-
         document.querySelectorAll('[data-grain-mode-selector]').forEach((select) => {
             select.addEventListener('change', (event) => {
                 setGrainTimingMode(event.target.value);
@@ -17704,6 +18200,7 @@
             });
         });
 
+        syncFinalPanControlDisplays();
         syncPerformanceControlState();
 
     </script>

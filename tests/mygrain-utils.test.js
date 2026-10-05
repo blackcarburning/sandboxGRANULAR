@@ -8,9 +8,11 @@ const {
     generateDrumLoopBlueprint,
     generateRhythmicStepBlueprint,
     pickWeighted,
+    resolveModeScaledGrainSize,
     recordingExtensionForMimeType,
     resolveLoopedPlayPosition,
     resolveSampleWindow,
+    scaleRangeValue,
     validatePreset
 } = require('../mygrain-utils.js');
 
@@ -85,6 +87,40 @@ test('resolveLoopedPlayPosition wraps held keyboard playback through the selecte
     assert.ok(Math.abs(firstLap - 0.9) < 1e-9);
     assert.ok(Math.abs(wrappedLap - 0.9) < 1e-9);
     assert.ok(Math.abs(pitchedWrap - 0.75) < 1e-9);
+});
+
+test('scaleRangeValue maps clamped slider travel into a target range', () => {
+    assert.equal(scaleRangeValue(10, { inMin: 10, inMax: 500, outMin: 0.14, outMax: 0.42 }), 0.14);
+    assert.equal(scaleRangeValue(500, { inMin: 10, inMax: 500, outMin: 0.14, outMax: 0.42 }), 0.42);
+    assert.ok(Math.abs(scaleRangeValue(255, { inMin: 10, inMax: 500, outMin: 0.14, outMax: 0.42 }) - 0.28) < 1e-9);
+    assert.equal(scaleRangeValue(-20, { inMin: 10, inMax: 500, outMin: 0.14, outMax: 0.42 }), 0.14);
+});
+
+test('resolveModeScaledGrainSize uses the full visible slider range for the current mode range', () => {
+    assert.equal(resolveModeScaledGrainSize({
+        sliderValue: 10,
+        sliderMin: 10,
+        sliderMax: 500,
+        minSeconds: 0.14,
+        maxSeconds: 0.42,
+        fallbackSeconds: 0.14
+    }), 0.14);
+    assert.equal(resolveModeScaledGrainSize({
+        sliderValue: 500,
+        sliderMin: 10,
+        sliderMax: 500,
+        minSeconds: 0.14,
+        maxSeconds: 0.42,
+        fallbackSeconds: 0.14
+    }), 0.42);
+    assert.ok(Math.abs(resolveModeScaledGrainSize({
+        sliderValue: 255,
+        sliderMin: 10,
+        sliderMax: 500,
+        minSeconds: 0.14,
+        maxSeconds: 0.42,
+        fallbackSeconds: 0.14
+    }) - 0.28) < 1e-9);
 });
 
 test('buildKeyboardGeometry creates contiguous white keys and inset black keys', () => {
