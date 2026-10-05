@@ -14123,15 +14123,33 @@
             container.style.touchAction = 'pan-y pinch-zoom';
         }
 
-        function enableDesktopWheelScroll(container) {
-            if (!container) return;
-            container.addEventListener('wheel', (event) => {
-                if (event.defaultPrevented || event.ctrlKey) {
-                    return;
+        function getNearestWheelScrollable(target, root) {
+            if (!target || !root) return null;
+            let node = target.nodeType === 1 ? target : target.parentElement;
+            while (node && node !== root) {
+                if (node instanceof HTMLElement) {
+                    const style = window.getComputedStyle(node);
+                    const canOverflow = /(auto|scroll|overlay)/.test(style.overflowY || '');
+                    const canScroll = node.scrollHeight > node.clientHeight + 1;
+                    if (canOverflow && canScroll) {
+                        return node;
+                    }
                 }
+                node = node.parentElement;
+            }
 
-                const canScroll = container.scrollHeight > container.clientHeight + 1;
-                if (!canScroll) {
+            const scrollingElement = document.scrollingElement || document.documentElement;
+            if (scrollingElement && scrollingElement.scrollHeight > scrollingElement.clientHeight + 1) {
+                return scrollingElement;
+            }
+            return null;
+        }
+
+        function installDesktopWheelBridge(root) {
+            if (!root || root.dataset.wheelBridgeInstalled === 'true') return;
+            root.dataset.wheelBridgeInstalled = 'true';
+            root.addEventListener('wheel', (event) => {
+                if (event.defaultPrevented || event.ctrlKey) {
                     return;
                 }
 
@@ -14142,28 +14160,30 @@
                     return;
                 }
 
-                const previousScrollTop = container.scrollTop;
-                const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-                container.scrollTop = Math.max(0, Math.min(maxScrollTop, previousScrollTop + dominantDelta));
+                const scrollTarget = getNearestWheelScrollable(event.target, root);
+                if (!scrollTarget) {
+                    return;
+                }
 
-                if (container.scrollTop !== previousScrollTop) {
+                const previousScrollTop = scrollTarget.scrollTop;
+                const maxScrollTop = Math.max(0, scrollTarget.scrollHeight - scrollTarget.clientHeight);
+                scrollTarget.scrollTop = Math.max(0, Math.min(maxScrollTop, previousScrollTop + dominantDelta));
+
+                if (scrollTarget.scrollTop !== previousScrollTop) {
                     event.preventDefault();
                 }
-            }, { passive: false });
+            }, { passive: false, capture: true });
         }
 
         // Prevent scrolling/moving in tab content areas
         document.querySelectorAll('.tab-content').forEach(preventScrollingOnContainer);
-        document.querySelectorAll('.tab-content').forEach(enableDesktopWheelScroll);
 
         // Prevent scrolling in controls-section container
         const controlsSection = document.querySelector('.controls-section');
         if (controlsSection) {
             preventScrollingOnContainer(controlsSection);
-            enableDesktopWheelScroll(controlsSection);
         }
-
-        document.querySelectorAll('.recording-section, .source-seed-group').forEach(enableDesktopWheelScroll);
+        installDesktopWheelBridge(document.querySelector('.synth-container') || document.body);
 
         document.getElementById('loadDemoBtn').addEventListener('click', async () => {
             try {
