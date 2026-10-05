@@ -403,6 +403,15 @@ test('daw export renders from time zero with generated dry stem', () => {
     assert.match(indexHtml, /setStatus\(`Exporting \$\{bars\} bar/);
 });
 
+test('export bars field stays editable until commit', () => {
+    assert.match(indexHtml, /function parseEditableExportBars\(value\)/);
+    assert.match(indexHtml, /function previewPerformanceExportBars\(value\)/);
+    assert.match(indexHtml, /if \(text === ''\) \{\s*return \{ bars: null, empty: true, valid: false \};\s*\}/);
+    assert.match(indexHtml, /performanceExportBars\?\.\s*addEventListener\('input', \(event\) => \{\s*previewPerformanceExportBars\(event\.target\.value\);/);
+    assert.match(indexHtml, /performanceExportBars\?\.\s*addEventListener\('change', \(event\) => \{\s*syncPerformanceExportBars\(event\.target\.value\);/);
+    assert.match(indexHtml, /performanceExportBars\?\.\s*addEventListener\('blur', \(event\) => \{\s*syncPerformanceExportBars\(event\.target\.value\);/);
+});
+
 test('oscillators can be disabled for granular-only playback', () => {
     assert.match(indexHtml, /id="performanceOscToggleBtn"/);
     assert.match(indexHtml, /let oscillatorsEnabled = true/);

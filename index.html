@@ -16830,6 +16830,43 @@
             return Math.max(1, Math.min(64, Math.round(numeric)));
         }
 
+        function parseEditableExportBars(value) {
+            const text = String(value ?? '').trim();
+            if (text === '') {
+                return { bars: null, empty: true, valid: false };
+            }
+
+            const numeric = Number.parseFloat(text);
+            if (!Number.isFinite(numeric)) {
+                return { bars: null, empty: false, valid: false };
+            }
+
+            return {
+                bars: Math.max(1, Math.min(64, Math.round(numeric))),
+                empty: false,
+                valid: true
+            };
+        }
+
+        function previewPerformanceExportBars(value) {
+            const parsed = parseEditableExportBars(value);
+            const label = document.getElementById('performanceExportBarsValue');
+            if (!label) return parsed;
+
+            if (parsed.empty) {
+                label.textContent = 'Export bars';
+                return parsed;
+            }
+
+            if (!parsed.valid) {
+                label.textContent = 'Invalid';
+                return parsed;
+            }
+
+            label.textContent = `${parsed.bars} bar${parsed.bars === 1 ? '' : 's'}`;
+            return parsed;
+        }
+
         function syncPerformanceExportBars(value = DEFAULT_EXPORT_BARS, options = {}) {
             const bars = clampExportBars(value);
             if (performanceExportBars) {
@@ -18678,10 +18715,14 @@
         document.getElementById('noiseMix')?.addEventListener('input', syncPerformanceControlState);
 
         performanceExportBars?.addEventListener('input', (event) => {
-            syncPerformanceExportBars(event.target.value);
+            previewPerformanceExportBars(event.target.value);
         });
 
         performanceExportBars?.addEventListener('change', (event) => {
+            syncPerformanceExportBars(event.target.value);
+        });
+
+        performanceExportBars?.addEventListener('blur', (event) => {
             syncPerformanceExportBars(event.target.value);
         });
 
