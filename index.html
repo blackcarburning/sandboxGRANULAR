@@ -3140,6 +3140,10 @@
                     <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
                     <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
                 </div>
+                <div class="performance-layer-switches" aria-label="Bastardloop transport controls">
+                    <button class="performance-btn" id="performanceBastardLoopPlayBtn">Play Bastardloop</button>
+                    <button class="performance-btn" id="performanceBastardLoopStopBtn">Stop Bastardloop</button>
+                </div>
             </div>
             <div class="performance-layer-switches-card" aria-label="Quick layer switches">
                 <div class="performance-layer-switches-copy">
@@ -3615,8 +3619,8 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
-                <button class="performance-btn" id="performanceSeqPlayBtn">Play</button>
-                <button class="performance-btn" id="performanceStopAllBtn">Stop</button>
+                <button class="performance-btn" id="performanceSeqPlayBtn">Loop Play</button>
+                <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
                 <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
                 <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
                 <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
@@ -5760,6 +5764,7 @@
         let arpClockMultiplierIndex = 4;
         let heldNotes = new Set();
         let restartPerformanceOnFocusReturn = false;
+        let restartBastardLoopOnFocusReturn = false;
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
         let engineInitialized = false;
         let engineStarting = false;
@@ -5961,6 +5966,8 @@
         let bastardLoopLevel = 0.6;
         let bastardLoopPitchOctaves = 0;
         let bastardLoopEnabled = true;
+        let bastardLoopPlaying = false;
+        let bastardLoopTransportStartTime = null;
         let bastardLoopSource = null;
         let bastardLoopGainNode = null;
         let bastardLoopGenerationInFlight = false;
@@ -9488,6 +9495,8 @@
             const label = document.getElementById('performanceBastardLoopLevelValue');
             const meta = document.getElementById('performanceBastardLoopMeta');
             const button = document.getElementById('performanceGenerateBastardLoopBtn');
+            const playButton = document.getElementById('performanceBastardLoopPlayBtn');
+            const stopButton = document.getElementById('performanceBastardLoopStopBtn');
             const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
 
             if (slider) slider.value = String(value);
@@ -9499,6 +9508,13 @@
                 button.textContent = bastardLoopGenerationInFlight
                     ? 'Building Bastardloop...'
                     : (bastardLoopBuffer ? 'Rebuild Bastardloop' : 'Generate Bastardloop');
+            }
+            if (playButton) {
+                playButton.disabled = bastardLoopGenerationInFlight || !bastardLoopBuffer || bastardLoopPlaying;
+                playButton.textContent = bastardLoopPlaying ? 'Bastardloop Playing' : 'Play Bastardloop';
+            }
+            if (stopButton) {
+                stopButton.disabled = bastardLoopGenerationInFlight || !bastardLoopPlaying;
             }
         }
 
@@ -9547,36 +9563,51 @@
 
             bastardLoopSource = null;
             bastardLoopGainNode = null;
+            if (!options.preserveTransportState) {
+                bastardLoopPlaying = false;
+                bastardLoopTransportStartTime = null;
+            }
+            if (!options.skipUi) {
+                syncBastardLoopUi();
+            }
         }
 
-        function startBastardLoop(startTime = null) {
-            if (!audioContext || !preFilterGainNode || !bastardLoopBuffer) return;
+        function startBastardLoop(startTime = null, options = {}) {
+            if (!audioContext || !preFilterGainNode || !bastardLoopBuffer) return false;
 
             const level = getBastardLoopLevelValue();
             if (level <= 0) {
-                stopBastardLoop();
-                return;
+                stopBastardLoop({ preserveTransportState: true, skipUi: true });
+                if (!options.skipUi) {
+                    syncBastardLoopUi();
+                }
+                return false;
             }
 
-            stopBastardLoop();
+            stopBastardLoop({ preserveTransportState: true, skipUi: true });
 
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
             const now = audioContext.currentTime;
-            const requestedStartTime = Number.isFinite(startTime) ? startTime : getTransportLoopOriginTime();
+            const requestedStartTime = Number.isFinite(startTime)
+                ? startTime
+                : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const playbackRate = getBastardLoopPlaybackRate();
             const loopDuration = Math.max(0.01, bastardLoopBuffer.duration);
             const cycleDuration = getBastardLoopCycleDuration(playbackRate);
             const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
             let offset = 0;
+            let transportOrigin = safeStartTime;
 
             if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
                 safeStartTime = requestedStartTime;
+                transportOrigin = requestedStartTime;
             } else if (Number.isFinite(requestedStartTime)) {
                 const elapsed = Math.max(0, now - requestedStartTime);
                 const cycleElapsed = cycleDuration > 0 ? elapsed % cycleDuration : 0;
                 offset = Math.min(loopDuration - 0.0005, cycleElapsed * playbackRate);
+                transportOrigin = requestedStartTime;
             }
 
             source.buffer = bastardLoopBuffer;
@@ -9602,6 +9633,12 @@
 
             bastardLoopSource = source;
             bastardLoopGainNode = gain;
+            bastardLoopPlaying = true;
+            bastardLoopTransportStartTime = transportOrigin;
+            if (!options.skipUi) {
+                syncBastardLoopUi();
+            }
+            return true;
         }
 
         function updateBastardLoopMix() {
@@ -9613,12 +9650,14 @@
                 bastardLoopGainNode.gain.linearRampToValueAtTime(getBastardLoopOutputGain(level), now + 0.03);
             }
 
-            if (sequencerPlaying && bastardLoopBuffer) {
+            if (bastardLoopPlaying && bastardLoopBuffer) {
                 if (level > 0 && !bastardLoopSource) {
-                    startBastardLoop();
+                    startBastardLoop(null, { skipUi: true });
                 } else if (level <= 0) {
-                    stopBastardLoop();
+                    stopBastardLoop({ preserveTransportState: true, skipUi: true });
                 }
+            } else if (!bastardLoopPlaying && bastardLoopSource) {
+                stopBastardLoop({ preserveTransportState: true, skipUi: true });
             }
             syncBastardLoopUi();
         }
@@ -9676,12 +9715,59 @@
             }
         }
 
+        function setBastardLoopPlaying(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+
+            if (!nextValue) {
+                stopBastardLoop({ preserveTransportState: false, skipUi: true });
+                syncPerformanceControlState();
+                if (!options.silent) {
+                    setStatus('Bastardloop stopped.');
+                }
+                if (!options.skipSave) {
+                    saveState();
+                }
+                return true;
+            }
+
+            if (!bastardLoopBuffer) {
+                syncPerformanceControlState();
+                if (!options.silent) {
+                    setStatus('Generate a bastardloop first.', 'error');
+                }
+                return false;
+            }
+
+            if (!audioContext || !preFilterGainNode) {
+                syncPerformanceControlState();
+                if (!options.silent) {
+                    setStatus('Start MYGRAIN before playing Bastardloop.', 'error');
+                }
+                return false;
+            }
+
+            const startTime = Number.isFinite(options.startTime)
+                ? options.startTime
+                : (Number.isFinite(getTransportLoopOriginTime()) ? getTransportLoopOriginTime() : getBufferedTransportStartTime());
+
+            bastardLoopTransportStartTime = startTime;
+            startBastardLoop(startTime, { skipUi: true });
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus('Bastardloop playing.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+            return true;
+        }
+
         function setBastardLoopPitchOctaves(value, options = {}) {
             const nextValue = clampBastardLoopPitchOctaves(value);
             bastardLoopPitchOctaves = nextValue;
             updateBastardLoopPitchLabel();
-            if (bastardLoopSource && bastardLoopBuffer) {
-                startBastardLoop();
+            if (bastardLoopPlaying && bastardLoopBuffer) {
+                startBastardLoop(null, { skipUi: true });
             } else {
                 syncBastardLoopTempo();
             }
@@ -11826,6 +11912,7 @@
         function panicAllNotes(options = {}) {
             stopSequencer();
             stopArpeggiatorPlayback();
+            stopBastardLoop({ preserveTransportState: false, skipUi: true });
             stopAllGrains();
             stopAllOscillators();
             heldNotes.clear();
@@ -11963,6 +12050,7 @@
 
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartArp = arpEnabled && holdEnabled;
+            const shouldRestartBastardLoop = bastardLoopPlaying;
             const restartTime = getBufferedTransportStartTime();
 
             if (shouldRestartSequencer) {
@@ -11970,6 +12058,9 @@
             }
             if (shouldRestartArp) {
                 stopArpeggiatorPlayback();
+            }
+            if (shouldRestartBastardLoop) {
+                stopBastardLoop({ preserveTransportState: true, skipUi: true });
             }
 
             lfoStartTime = restartTime;
@@ -11988,6 +12079,11 @@
                 transportLoopStartTime = restartTime;
             }
 
+            if (shouldRestartBastardLoop) {
+                bastardLoopTransportStartTime = restartTime;
+                startBastardLoop(restartTime, { skipUi: true });
+            }
+
             if (shouldRestartArp) {
                 startArpeggiatorPlayback(restartTime);
             }
@@ -12003,20 +12099,32 @@
         }
 
         function pausePerformanceForFocusLoss() {
-            if (restartPerformanceOnFocusReturn) return;
+            if (restartPerformanceOnFocusReturn || restartBastardLoopOnFocusReturn) return;
             restartPerformanceOnFocusReturn = Boolean(sequencerPlaying || activeKeyCount > 0);
+            restartBastardLoopOnFocusReturn = bastardLoopPlaying;
             if (restartPerformanceOnFocusReturn) {
                 stopLoopAndHeldKeys({ silent: true });
+            }
+            if (restartBastardLoopOnFocusReturn) {
+                stopBastardLoop({ preserveTransportState: true, skipUi: true });
             }
         }
 
         function resumePerformanceAfterFocusReturn() {
-            if (!restartPerformanceOnFocusReturn) return;
+            if (!restartPerformanceOnFocusReturn && !restartBastardLoopOnFocusReturn) return;
+            const shouldRestartPerformance = restartPerformanceOnFocusReturn;
+            const shouldRestartBastardLoop = restartBastardLoopOnFocusReturn;
             restartPerformanceOnFocusReturn = false;
+            restartBastardLoopOnFocusReturn = false;
             if (audioContext && audioContext.state === 'suspended') {
                 audioContext.resume().catch((error) => console.warn('Audio resume after focus failed:', error));
             }
-            playLoopAndHeldKeys({ silent: true });
+            if (shouldRestartPerformance) {
+                playLoopAndHeldKeys({ silent: true });
+            }
+            if (shouldRestartBastardLoop) {
+                startBastardLoop(null, { skipUi: true });
+            }
         }
 
         // --- Sequencer Functions ---
@@ -12048,7 +12156,6 @@
             sequencerNextStepTime = startAt;
             transportLoopStartTime = startAt;
             startGeneratedDryLoop(startAt);
-            startBastardLoop(startAt);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
             
@@ -12126,7 +12233,6 @@
             }
             
             stopGeneratedDryLoop();
-            stopBastardLoop();
             stopOscillatorsByRole('sequencer');
             
             // Stop only sequencer-owned grains so held keyboard notes can keep playing.
@@ -17684,10 +17790,12 @@
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const shouldRestartSequencer = sequencerPlaying;
+            const shouldRestartBastardLoop = bastardLoopPlaying;
             const restartTime = getBufferedTransportStartTime();
             const previousBuffer = bastardLoopBuffer;
             const previousMetadata = bastardLoopMetadata;
             const previousSourceBpm = bastardLoopSourceBpm;
+            const previousTransportStartTime = bastardLoopTransportStartTime;
             bastardLoopGenerationInFlight = true;
             syncBastardLoopUi();
             setStatus(`Building bastardloop from SAMPLEDROP at ${bpm} BPM…`);
@@ -17695,8 +17803,11 @@
             try {
                 if (shouldRestartSequencer) {
                     stopSequencer();
-                } else {
-                    stopBastardLoop();
+                }
+                if (shouldRestartBastardLoop) {
+                    stopBastardLoop({ preserveTransportState: true, skipUi: true });
+                } else if (!shouldRestartSequencer) {
+                    stopBastardLoop({ preserveTransportState: false, skipUi: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -17726,6 +17837,10 @@
                 if (shouldRestartSequencer) {
                     startSequencer(restartTime);
                 }
+                if (shouldRestartBastardLoop) {
+                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
+                    startBastardLoop(bastardLoopTransportStartTime, { skipUi: true });
+                }
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -17735,8 +17850,12 @@
                 bastardLoopBuffer = previousBuffer;
                 bastardLoopMetadata = previousMetadata;
                 bastardLoopSourceBpm = previousSourceBpm;
+                bastardLoopTransportStartTime = previousTransportStartTime;
                 if (shouldRestartSequencer && !sequencerPlaying) {
                     startSequencer(restartTime);
+                }
+                if (shouldRestartBastardLoop && previousBuffer) {
+                    startBastardLoop(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
                 }
                 throw error;
             } finally {
@@ -18186,6 +18305,8 @@
         const performanceHoldBtn = document.getElementById('performanceHoldBtn');
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceGenerateBastardLoopBtn = document.getElementById('performanceGenerateBastardLoopBtn');
+        const performanceBastardLoopPlayBtn = document.getElementById('performanceBastardLoopPlayBtn');
+        const performanceBastardLoopStopBtn = document.getElementById('performanceBastardLoopStopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
         const performanceGenerateFmDrumsBtn = document.getElementById('performanceGenerateFmDrumsBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
@@ -18542,7 +18663,13 @@
 
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
-                performanceSeqPlayBtn.textContent = 'Play';
+                performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Loop Playing' : 'Loop Play';
+                performanceSeqPlayBtn.disabled = sequencerPlaying || isArpeggiatorPlaying();
+            }
+
+            if (performanceStopAllBtn) {
+                performanceStopAllBtn.textContent = 'Loop Stop';
+                performanceStopAllBtn.disabled = !sequencerPlaying;
             }
 
             if (performanceOscToggleBtn) {
@@ -18676,6 +18803,14 @@
                 console.error(error);
                 setStatus(`Bastardloop generation failed: ${error.message}`, 'error');
             }
+        });
+
+        performanceBastardLoopPlayBtn?.addEventListener('click', () => {
+            setBastardLoopPlaying(true);
+        });
+
+        performanceBastardLoopStopBtn?.addEventListener('click', () => {
+            setBastardLoopPlaying(false);
         });
 
         performanceGenerateJunkBtn?.addEventListener('click', async () => {

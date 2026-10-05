@@ -104,6 +104,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceExportBars"/);
     assert.match(indexHtml, /id="performanceExportBtn"/);
     assert.match(indexHtml, /id="performanceGenerateBastardLoopBtn">Generate Bastardloop<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopPlayBtn">Play Bastardloop<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopStopBtn">Stop Bastardloop<\/button>/);
     assert.match(indexHtml, /id="performanceFxMuteBtn"/);
     assert.match(indexHtml, /id="performanceDryFilterBtn"/);
     assert.match(indexHtml, /id="performanceNoiseOffBtn"/);
@@ -441,8 +443,25 @@ test('bastardloop has octave pitch steps and resyncs its loop cycle when retuned
     assert.match(indexHtml, /const cycleDuration = getBastardLoopCycleDuration\(playbackRate\);/);
     assert.match(indexHtml, /const cycleElapsed = cycleDuration > 0 \? elapsed % cycleDuration : 0;/);
     assert.match(indexHtml, /function setBastardLoopPitchOctaves\(value, options = \{\}\)/);
-    assert.match(indexHtml, /if \(bastardLoopSource && bastardLoopBuffer\) \{\s*startBastardLoop\(\);\s*\} else \{\s*syncBastardLoopTempo\(\);\s*\}/);
+    assert.match(indexHtml, /if \(bastardLoopPlaying && bastardLoopBuffer\) \{\s*startBastardLoop\(null, \{ skipUi: true \}\);\s*\} else \{\s*syncBastardLoopTempo\(\);\s*\}/);
     assert.match(indexHtml, /performanceBastardLoopPitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoopPitchOctaves\(event\.target\.value\);/);
+});
+
+test('bastardloop has independent transport controls and is not owned by the sequencer stop path', () => {
+    assert.match(indexHtml, /let bastardLoopPlaying = false/);
+    assert.match(indexHtml, /let bastardLoopTransportStartTime = null/);
+    assert.match(indexHtml, /function setBastardLoopPlaying\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /performanceBastardLoopPlayBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(true\);/);
+    assert.match(indexHtml, /performanceBastardLoopStopBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(false\);/);
+    assert.match(indexHtml, /if \(bastardLoopPlaying && bastardLoopBuffer\) \{/);
+
+    const startSequencerBlock = indexHtml.match(/function startSequencer\(startTime = null\) \{[\s\S]*?\n        \}/);
+    assert.ok(startSequencerBlock, 'startSequencer block should exist');
+    assert.doesNotMatch(startSequencerBlock[0], /startBastardLoop\(startAt\);/);
+
+    const stopSequencerBlock = indexHtml.match(/function stopSequencer\(\) \{[\s\S]*?\n        \}/);
+    assert.ok(stopSequencerBlock, 'stopSequencer block should exist');
+    assert.doesNotMatch(stopSequencerBlock[0], /stopBastardLoop\(\);/);
 });
 
 test('tempo-locked keyboard pitch reads source buffers in the non-reversed direction', () => {
