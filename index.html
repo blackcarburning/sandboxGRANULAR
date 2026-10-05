@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-14-16-export-bars-remembered';
+            const cacheBuster = '2026-10-05-14-36-source-waveform-solo-tune';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -446,6 +446,61 @@
             background: rgba(0,0,0,0.3);
             color: var(--accent);
             font-size: 9px;
+        }
+
+        .source-waveform-control-grid {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .source-waveform-control-rows {
+            display: grid;
+            grid-template-columns: minmax(112px, 1fr) minmax(92px, 112px) minmax(150px, 1.4fr);
+            gap: 8px;
+            align-items: center;
+        }
+
+        .source-waveform-control-label {
+            min-width: 0;
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .source-waveform-solo-btn {
+            width: 100%;
+            min-height: 36px;
+            padding: 7px 8px;
+            border-radius: 6px;
+            font-size: 9px;
+            line-height: 1.1;
+            white-space: normal;
+        }
+
+        .source-waveform-solo-btn.active {
+            background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(255, 82, 99, 0.45);
+        }
+
+        .source-waveform-tune {
+            display: grid;
+            gap: 3px;
+            color: #aaa;
+            font-size: 8px;
+            text-transform: uppercase;
+        }
+
+        .source-waveform-tune input[type="range"] {
+            width: 100%;
+            min-width: 0;
         }
 
         .source-loop-lfo-controls {
@@ -2463,6 +2518,16 @@
             background: rgba(5, 8, 15, 0.4);
         }
 
+        .simplified-ui .source-waveform-control-grid {
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(5, 8, 15, 0.44);
+        }
+
+        .simplified-ui .source-waveform-control-rows {
+            grid-template-columns: minmax(102px, 1fr) minmax(86px, 0.8fr) minmax(132px, 1.25fr);
+        }
+
         .simplified-ui .status {
             padding: 10px 12px;
             border-radius: 14px;
@@ -2712,6 +2777,20 @@
                 padding: 8px 10px;
             }
 
+            .simplified-ui .source-waveform-control-rows {
+                grid-template-columns: minmax(0, 1fr) minmax(94px, 1fr);
+                gap: 7px;
+            }
+
+            .simplified-ui .source-waveform-control-label {
+                align-self: center;
+            }
+
+            .simplified-ui .source-waveform-solo-btn,
+            .simplified-ui .source-waveform-tune {
+                min-height: 38px;
+            }
+
             .simplified-ui .bpm-input-row {
                 grid-template-columns: 1fr;
             }
@@ -2748,6 +2827,10 @@
                 min-height: 38px;
                 font-size: 10px;
                 padding: 6px 8px;
+            }
+
+            .simplified-ui .source-waveform-control-rows {
+                grid-template-columns: minmax(100px, 1fr) minmax(82px, 0.8fr) minmax(124px, 1.2fr);
             }
 
             .simplified-ui .keyboard-section {
@@ -3482,6 +3565,45 @@
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Locators</button>
                         </div>
+                    </div>
+                </div>
+                <div class="source-waveform-control-grid" aria-label="Source waveform solo and tune controls">
+                    <div class="section-title">Source Waveform Solo + Tune</div>
+                    <div class="source-waveform-control-rows">
+                        <span class="source-waveform-control-label">Generated Loop</span>
+                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="generated" aria-pressed="false">Solo</button>
+                        <label class="source-waveform-tune" for="generatedSourceTune">
+                            Tune <span class="value" id="generatedSourceTuneValue">0st</span>
+                            <input type="range" id="generatedSourceTune" data-source-waveform-tune="generated" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="source-waveform-control-label">Mic Recording</span>
+                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="mic" aria-pressed="false">Solo</button>
+                        <label class="source-waveform-tune" for="micSourceTune">
+                            Tune <span class="value" id="micSourceTuneValue">0st</span>
+                            <input type="range" id="micSourceTune" data-source-waveform-tune="mic" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="source-waveform-control-label">Grain A Mic</span>
+                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="grainAMic" aria-pressed="false">Solo</button>
+                        <label class="source-waveform-tune" for="grainAMicSourceTune">
+                            Tune <span class="value" id="grainAMicSourceTuneValue">0st</span>
+                            <input type="range" id="grainAMicSourceTune" data-source-waveform-tune="grainAMic" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="source-waveform-control-label">Grain B Mic</span>
+                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="grainBMic" aria-pressed="false">Solo</button>
+                        <label class="source-waveform-tune" for="grainBMicSourceTune">
+                            Tune <span class="value" id="grainBMicSourceTuneValue">0st</span>
+                            <input type="range" id="grainBMicSourceTune" data-source-waveform-tune="grainBMic" min="-24" max="24" value="0" step="1">
+                        </label>
+
+                        <span class="source-waveform-control-label">Output Source</span>
+                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="output" aria-pressed="false">Solo</button>
+                        <label class="source-waveform-tune" for="outputSourceTune">
+                            Tune <span class="value" id="outputSourceTuneValue">0st</span>
+                            <input type="range" id="outputSourceTune" data-source-waveform-tune="output" min="-24" max="24" value="0" step="1">
+                        </label>
                     </div>
                 </div>
                 <div class="source-seed-group" aria-label="Huge drum sequencer generator">
@@ -5931,6 +6053,21 @@
         const SOURCE_LOOP_START_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.map((definition) => definition.startId);
         const SOURCE_LOOP_END_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.map((definition) => definition.endId);
         const SOURCE_LOOP_CONTROL_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.flatMap((definition) => [definition.startId, definition.endId]);
+        const SOURCE_WAVEFORM_KIND_LABELS = {
+            generated: 'Generated Loop',
+            mic: 'Mic Recording',
+            grainAMic: 'Grain A Mic',
+            grainBMic: 'Grain B Mic',
+            output: 'Output Source'
+        };
+        const SOURCE_TUNE_CONTROL_IDS = {
+            generated: 'generatedSourceTune',
+            mic: 'micSourceTune',
+            grainAMic: 'grainAMicSourceTune',
+            grainBMic: 'grainBMicSourceTune',
+            output: 'outputSourceTune'
+        };
+        let sourceWaveformSolo = 'none';
 
         SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
             Object.entries(definition.controls).forEach(([role, control]) => {
@@ -7797,6 +7934,70 @@
             return Boolean(generatedLoopBuffer || micAudioBuffer || outputSourceBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || audioBuffer);
         }
 
+        function normalizeSourceWaveformKind(kind) {
+            return Object.prototype.hasOwnProperty.call(SOURCE_WAVEFORM_KIND_LABELS, kind) ? kind : 'none';
+        }
+
+        function formatSourceTuneValue(value) {
+            const numeric = Math.round(Number(value) || 0);
+            return `${numeric > 0 ? '+' : ''}${numeric}st`;
+        }
+
+        function getSourceTuneSemitones(kind) {
+            const controlId = SOURCE_TUNE_CONTROL_IDS[kind];
+            const slider = controlId ? document.getElementById(controlId) : null;
+            const raw = Number(slider?.value ?? 0);
+            return Math.max(-24, Math.min(24, Number.isFinite(raw) ? raw : 0));
+        }
+
+        function syncSourceWaveformTuneLabels() {
+            Object.entries(SOURCE_TUNE_CONTROL_IDS).forEach(([kind, controlId]) => {
+                const slider = document.getElementById(controlId);
+                const label = document.getElementById(`${controlId}Value`);
+                if (!slider || !label) return;
+                const tune = getSourceTuneSemitones(kind);
+                slider.value = String(tune);
+                label.textContent = formatSourceTuneValue(tune);
+            });
+        }
+
+        function syncSourceWaveformSoloButtons() {
+            document.querySelectorAll('[data-source-waveform-solo]').forEach((button) => {
+                const kind = normalizeSourceWaveformKind(button.dataset.sourceWaveformSolo);
+                const active = sourceWaveformSolo === kind;
+                const label = SOURCE_WAVEFORM_KIND_LABELS[kind] || 'Source';
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                button.textContent = active ? `${label} Solo On` : 'Solo';
+            });
+        }
+
+        function setSourceWaveformSolo(kind, options = {}) {
+            const requested = normalizeSourceWaveformKind(kind);
+            sourceWaveformSolo = options.toggle && sourceWaveformSolo === requested ? 'none' : requested;
+            syncSourceWaveformSoloButtons();
+            if (audioContext && activeGrains.size > 0) {
+                rescheduleActiveGrainsFromNow();
+            }
+            if (!options.silent) {
+                const label = SOURCE_WAVEFORM_KIND_LABELS[sourceWaveformSolo];
+                setStatus(sourceWaveformSolo === 'none' ? 'All source waveforms active.' : `${label} soloed.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function applySourceWaveformSoloToGains(gains) {
+            if (sourceWaveformSolo === 'none') return gains;
+            gains.forEach((gain, source) => {
+                if (source.kind !== sourceWaveformSolo) {
+                    gains.set(source, 0);
+                }
+            });
+            return gains;
+        }
+
         function makeGranularSource(kind, bufferOverride = null) {
             const config = getSourceSlotConfig(kind);
             const buffer = bufferOverride || config.buffer();
@@ -7805,7 +8006,8 @@
                 kind,
                 buffer,
                 startId: config.startId,
-                endId: config.endId
+                endId: config.endId,
+                tuneSemitones: getSourceTuneSemitones(kind)
             };
         }
 
@@ -8501,18 +8703,18 @@
                 const otherGain = generatedSampleSolo ? 0 : availableGain * (1 - generatedMix) / otherSources.length;
                 generatedSources.forEach((source) => gains.set(source, generatedGain));
                 otherSources.forEach((source) => gains.set(source, otherGain));
-                return gains;
+                return applySourceWaveformSoloToGains(gains);
             }
 
             if (generatedSources.length > 0) {
                 const generatedGain = availableGain * generatedMix * generatedVolume / generatedSources.length;
                 generatedSources.forEach((source) => gains.set(source, generatedGain));
-                return gains;
+                return applySourceWaveformSoloToGains(gains);
             }
 
             const perSourceGain = availableGain / sources.length;
             sources.forEach((source) => gains.set(source, perSourceGain));
-            return gains;
+            return applySourceWaveformSoloToGains(gains);
         }
 
         function getLoopRange(startId, endId, options = {}) {
@@ -9575,6 +9777,8 @@
                 : getModulatedValue('position') / 100;
             const scheduleSourceVoice = (sourceInfo, voice) => {
                 if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
+                const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
+                const sourcePitchRate = Math.max(0.0625, Math.min(16, voice.rate * sourceTuneRatio));
                 const sourceAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0 ? voice.advanceRate : 1;
                 const sourceShape = getSourceGrainShape(sourceInfo, voice, {
                     attack,
@@ -9598,7 +9802,7 @@
                         startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
                         endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
                     };
-                const pitchShiftedBuffer = getTempoLockedPitchBuffer(sourceInfo.buffer, voice.rate);
+                const pitchShiftedBuffer = getTempoLockedPitchBuffer(sourceInfo.buffer, sourcePitchRate);
                 const trimmedBuffer = typeof mygrainUtils.trimAudioBufferToWindow === 'function'
                     ? mygrainUtils.trimAudioBufferToWindow(
                         pitchShiftedBuffer,
@@ -11102,6 +11306,8 @@
 
         addSourceLoopLfoControls();
         addSourceGrainEnvelopeControls();
+        syncSourceWaveformTuneLabels();
+        syncSourceWaveformSoloButtons();
 
         document.querySelectorAll('.trim-source-btn').forEach((button) => {
             button.addEventListener('click', async () => {
@@ -11110,6 +11316,21 @@
                 } catch (error) {
                     console.error(error);
                     setStatus(`Trim failed: ${error.message}`, 'error');
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-source-waveform-solo]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setSourceWaveformSolo(button.dataset.sourceWaveformSolo, { toggle: true });
+            });
+        });
+
+        document.querySelectorAll('[data-source-waveform-tune]').forEach((slider) => {
+            slider.addEventListener('input', () => {
+                syncSourceWaveformTuneLabels();
+                if (audioContext && activeGrains.size > 0) {
+                    rescheduleActiveGrainsFromNow();
                 }
             });
         });
@@ -11184,7 +11405,7 @@
                     if (tremoloLFO) {
                         tremoloLFO.frequency.setTargetAtTime(rate / 60, audioContext?.currentTime || 0, 0.01);
                     }
-                } else if (e.target.id === 'grainTune' || e.target.id === 'grainMainTune' || e.target.id === 'grainSynthATune' || e.target.id === 'grainSynthBTune') {
+                } else if (e.target.id === 'grainTune' || e.target.id === 'grainMainTune' || e.target.id === 'grainSynthATune' || e.target.id === 'grainSynthBTune' || e.target.dataset.sourceWaveformTune) {
                     // Update grain tune display with + for positive values
                     const labelSpan = document.getElementById('grainTuneValue');
                     const targetLabelSpan = document.getElementById(e.target.id + 'Value') || labelSpan;
@@ -14332,7 +14553,12 @@
                 oscSynthResonance: 0.7,
                 oscSynthResonanceLfoDepth: 100,
                 oscSynthDrive: 0,
-                fmDrumLevel: 100
+                fmDrumLevel: 100,
+                generatedSourceTune: 0,
+                micSourceTune: 0,
+                grainAMicSourceTune: 0,
+                grainBMicSourceTune: 0,
+                outputSourceTune: 0
             };
             const bpmResetIds = new Set(['delayBpm', 'lfoRate', 'lfo2Rate', 'lfo3Rate', 'seqBpm', 'globalBpmSlider']);
             applyGlobalBpm(defaults.delayBpm);
@@ -14364,6 +14590,7 @@
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             setGrainLayerSolo('none', { silent: true, skipSave: true });
+            setSourceWaveformSolo('none', { silent: true, skipSave: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             setOscillatorsEnabled(false, { silent: true, skipSave: true });
@@ -14428,6 +14655,7 @@
             
             syncPerformanceControlState();
             syncPerformanceExportBars(DEFAULT_EXPORT_BARS, { skipSave: true });
+            syncSourceWaveformTuneLabels();
             updateSourceMixGains();
             updateGeneratedDryLoopMix();
             saveState();
@@ -14497,6 +14725,7 @@
                 },
                 generatedSampleSolo: generatedSampleSolo,
                 grainLayerSolo: grainLayerSolo,
+                sourceWaveformSolo: sourceWaveformSolo,
                 samples: {
                     embedded: false,
                     note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
@@ -14639,6 +14868,8 @@
             }
             const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
             setGrainLayerSolo(importedGrainLayerSolo, { silent: true, skipSave: true });
+            const importedSourceWaveformSolo = safePreset.sourceWaveformSolo ?? preset.sourceWaveformSolo ?? 'none';
+            setSourceWaveformSolo(importedSourceWaveformSolo, { silent: true, skipSave: true });
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
             }
@@ -15054,6 +15285,7 @@
                     oscillatorsEnabled: oscillatorsEnabled,
                     generatedSampleSolo: generatedSampleSolo,
                     grainLayerSolo: grainLayerSolo,
+                    sourceWaveformSolo: sourceWaveformSolo,
                     tonalDrumsEnabled: tonalDrumsEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
@@ -15226,6 +15458,9 @@
                     }
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.sourceWaveformSolo !== undefined) {
+                        setSourceWaveformSolo(state.modes.sourceWaveformSolo, { silent: true, skipSave: true });
                     }
                     if (state.modes.generatedSourceLowNoiseMode !== undefined) {
                         setGeneratedSourceLowNoiseMode(state.modes.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
@@ -15516,7 +15751,9 @@
 
                     const source = ctx.createBufferSource();
                     const gain = ctx.createGain();
-                    const buffer = pitchShiftBufferByRatioKeepDuration(sourceInfo.buffer, playbackRate, ctx);
+                    const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
+                    const sourcePlaybackRate = Math.max(0.0625, Math.min(16, playbackRate * sourceTuneRatio));
+                    const buffer = pitchShiftBufferByRatioKeepDuration(sourceInfo.buffer, sourcePlaybackRate, ctx);
                     const loop = getLoopTimingForBuffer(sourceInfo.buffer, sourceInfo.startId, sourceInfo.endId);
                     const loopDuration = Math.max(0.01, loop.end - loop.start);
                     const position = (stepIndex % 16) / 16;
