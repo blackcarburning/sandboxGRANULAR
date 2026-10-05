@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-15-55-source-multisolo-audition';
+            const cacheBuster = '2026-10-05-16-12-source-tune-activation';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -7951,6 +7951,17 @@
             return Math.max(-24, Math.min(24, Number.isFinite(raw) ? raw : 0));
         }
 
+        function clearSourcePitchCache(kind = null) {
+            if (!tempoLockedPitchBufferCache) return;
+            const kinds = kind && normalizeSourceWaveformKind(kind) !== 'none'
+                ? [kind]
+                : Object.keys(SOURCE_TUNE_CONTROL_IDS);
+            kinds.forEach((sourceKind) => {
+                const buffer = getSourceBuffer(sourceKind);
+                if (buffer) tempoLockedPitchBufferCache.delete(buffer);
+            });
+        }
+
         function syncSourceWaveformTuneLabels() {
             Object.entries(SOURCE_TUNE_CONTROL_IDS).forEach(([kind, controlId]) => {
                 const slider = document.getElementById(controlId);
@@ -8080,6 +8091,39 @@
                 };
                 sourceWaveformSoloAuditionNodes.push({ source, gain });
             });
+        }
+
+        function restartActiveGrainStreamsFromNow() {
+            if (!audioContext || activeGrains.size === 0) return;
+            const restartAt = getBufferedTransportStartTime();
+            const streamSnapshots = Array.from(activeGrains.entries()).map(([streamId, grain]) => ({
+                streamId,
+                note: grain.note,
+                role: grain.role || 'keyboard',
+                velocity: Number.isFinite(Number(grain.velocity)) ? Number(grain.velocity) : 1,
+                continuousLoop: grain.continuousLoop !== false,
+                loopOriginTime: getTransportLoopOriginTime() ?? restartAt
+            }));
+
+            streamSnapshots.forEach(({ note, role, streamId }) => {
+                stopGrainStream(note, { role, streamId });
+            });
+            streamSnapshots.forEach(({ note, role, streamId, velocity, continuousLoop, loopOriginTime }) => {
+                startGrainStream(note, restartAt, velocity, {
+                    role,
+                    streamId,
+                    continuousLoop,
+                    streamStartTime: loopOriginTime
+                });
+            });
+        }
+
+        function handleSourceWaveformTuneChange(kind = null) {
+            clearSourcePitchCache(kind);
+            syncSourceWaveformTuneLabels();
+            syncSourceWaveformSoloAudition();
+            restartActiveGrainStreamsFromNow();
+            saveState();
         }
 
         function makeGranularSource(kind, bufferOverride = null) {
@@ -11413,11 +11457,7 @@
 
         document.querySelectorAll('[data-source-waveform-tune]').forEach((slider) => {
             slider.addEventListener('input', () => {
-                syncSourceWaveformTuneLabels();
-                syncSourceWaveformSoloAudition();
-                if (audioContext && activeGrains.size > 0) {
-                    rescheduleActiveGrainsFromNow();
-                }
+                handleSourceWaveformTuneChange(slider.dataset.sourceWaveformTune);
             });
         });
 
