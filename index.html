@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-11-39-grain-lfo-mode-controls';
+            const cacheBuster = '2026-10-05-12-20-reset-grain-solo-tune';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -508,6 +508,23 @@
         .source-grain-lfo input[type="range"] {
             flex: 1;
             min-width: 0;
+        }
+
+        .grain-layer-solo-btn {
+            justify-self: start;
+            width: auto;
+            min-width: 74px;
+            padding: 5px 8px;
+            font-size: 8px;
+            background: rgba(0, 212, 255, 0.16);
+            color: var(--accent);
+            border: 1px solid rgba(0, 212, 255, 0.28);
+        }
+
+        .grain-layer-solo-btn.active {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: #001016;
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.28);
         }
 
         .synth-fine-tune-lfo,
@@ -3284,6 +3301,7 @@
                 <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                 <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
+                <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
                 <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
@@ -3679,6 +3697,22 @@
                                 <span class="value" id="grainMainVolumeValue">100%</span>
                             </label>
                             <input type="range" id="grainMainVolume" min="0" max="150" value="100" step="1">
+                            <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="main">Solo Main</button>
+                        </div>
+                        <div class="control-group highlight">
+                            <label>
+                                <span class="param-name">Main Grain Tune</span>
+                                <div class="button-group">
+                                    <button class="lfo-toggle" data-param="grainMainTune" data-lfo="1">L1</button>
+                                    <button class="inv-toggle" data-param="grainMainTune" data-lfo="1">INV</button>
+                                    <button class="lfo-toggle" data-param="grainMainTune" data-lfo="2">L2</button>
+                                    <button class="inv-toggle" data-param="grainMainTune" data-lfo="2">INV</button>
+                                    <button class="lfo-toggle" data-param="grainMainTune" data-lfo="3">L3</button>
+                                    <button class="inv-toggle" data-param="grainMainTune" data-lfo="3">INV</button>
+                                </div>
+                                <span class="value" id="grainMainTuneValue">0st</span>
+                            </label>
+                            <input type="range" id="grainMainTune" min="-24" max="24" value="0" step="1">
                         </div>
                         <div class="control-group highlight">
                             <label>
@@ -3694,6 +3728,7 @@
                                 <span class="value" id="grainSynthAVolumeValue">100%</span>
                             </label>
                             <input type="range" id="grainSynthAVolume" min="0" max="150" value="100" step="1">
+                            <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="A">Solo A</button>
                         </div>
                         <div class="control-group highlight">
                             <label>
@@ -3709,6 +3744,7 @@
                                 <span class="value" id="grainSynthBVolumeValue">100%</span>
                             </label>
                             <input type="range" id="grainSynthBVolume" min="0" max="150" value="100" step="1">
+                            <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="B">Solo B</button>
                         </div>
                         <div class="control-group highlight">
                             <label>
@@ -5387,6 +5423,7 @@
         let generatedDryMix = 0.35; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
         let generatedSampleSolo = false;
+        let grainLayerSolo = 'none';
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
@@ -5462,6 +5499,7 @@
             release: 0.06,
             pitchVar: 0.08,
             grainTune: 0.08,
+            grainMainTune: 0.12,
             grainMainVolume: 0.28,
             grainSynthAVolume: 0.28,
             grainSynthBVolume: 0.28,
@@ -5501,6 +5539,7 @@
             'release',
             'pitchVar',
             'grainTune',
+            'grainMainTune',
             'grainMainVolume',
             'grainSynthAVolume',
             'grainSynthBVolume',
@@ -5608,6 +5647,7 @@
             release: { min: 12, max: 92 },
             pitchVar: { min: 0, max: 30 },
             grainTune: { values: [-12, -7, -5, 0, 5, 7, 12] },
+            grainMainTune: { values: [-12, -7, -5, 0, 5, 7, 12] },
             panSpread: { min: 22, max: 90 },
             lpfCutoff: { min: 950, max: 7600 },
             lpfQ: { min: 0.25, max: 1.6, decimals: 2 },
@@ -5776,6 +5816,7 @@
             release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
             grainTune: { min: -24, max: 24 },
+            grainMainTune: { min: -24, max: 24 },
             grainMainVolume: { min: 0, max: 150 },
             grainSynthAVolume: { min: 0, max: 150 },
             grainSynthBVolume: { min: 0, max: 150 },
@@ -5924,6 +5965,7 @@
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
             'outputLoopStart', 'outputLoopEnd',
             'pitchVar', 'grainTune',
+            'grainMainTune',
             'grainMainVolume', 'grainSynthAVolume', 'grainSynthBVolume', 'grainMixerAmp',
             'grainSynthAMix', 'grainSynthATune', 'grainSynthASize', 'grainSynthADensity', 'grainSynthASpread',
             'grainSynthBMix', 'grainSynthBTune', 'grainSynthBSize', 'grainSynthBDensity', 'grainSynthBSpread',
@@ -8358,6 +8400,41 @@
             }
         }
 
+        function normalizeGrainLayerSolo(value) {
+            return ['main', 'A', 'B'].includes(value) ? value : 'none';
+        }
+
+        function syncGrainLayerSoloButtons() {
+            document.querySelectorAll('[data-grain-layer-solo]').forEach((button) => {
+                const layer = normalizeGrainLayerSolo(button.dataset.grainLayerSolo);
+                const active = grainLayerSolo === layer;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                const label = layer === 'main' ? 'Main' : layer;
+                button.textContent = active ? `${label} Solo On` : `Solo ${label}`;
+            });
+        }
+
+        function setGrainLayerSolo(layer, options = {}) {
+            const requested = normalizeGrainLayerSolo(layer);
+            grainLayerSolo = options.toggle && grainLayerSolo === requested ? 'none' : requested;
+            syncGrainLayerSoloButtons();
+            if (audioContext && activeGrains.size > 0) {
+                rescheduleActiveGrainsFromNow();
+            }
+            if (!options.silent) {
+                setStatus(grainLayerSolo === 'none' ? 'All grain layers active.' : `${grainLayerSolo === 'main' ? 'Main' : `Grain ${grainLayerSolo}`} layer soloed.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function getGrainLayerSoloGain(layer) {
+            const normalized = normalizeGrainLayerSolo(layer);
+            return grainLayerSolo === 'none' || grainLayerSolo === normalized ? 1 : 0;
+        }
+
         function updateGeneratedDryLoopMix() {
             const mix = getGeneratedDryMixValue();
             if (generatedDryGainNode && audioContext) {
@@ -9363,18 +9440,23 @@
             
             // Calculate final rate with tuning
             const finalRate = rate * tuningMultiplier;
+            const grainMainTuneRaw = getModulatedValue('grainMainTune');
+            const grainMainTuneSemitones = (typeof grainMainTuneRaw === 'number' && isFinite(grainMainTuneRaw))
+                ? grainMainTuneRaw
+                : 0;
+            const mainLayerRate = finalRate * Math.pow(2, grainMainTuneSemitones / 12);
             
             // Validate final rate
-            if (!isFinite(finalRate) || finalRate <= 0) {
-                console.warn('Invalid final rate calculated:', finalRate, 'for note:', note);
+            if (!isFinite(finalRate) || finalRate <= 0 || !isFinite(mainLayerRate) || mainLayerRate <= 0) {
+                console.warn('Invalid grain rate calculated:', { finalRate, mainLayerRate, note });
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
                 return; // Exit early
             }
 
             const secondaryGrainVoices = getSecondaryGrainSynthVoices(finalRate);
-            const mainGrainVolume = getGrainLayerGain('grainMainVolume', 1);
-            const grainSynthAVolume = getGrainLayerGain('grainSynthAVolume', 1);
-            const grainSynthBVolume = getGrainLayerGain('grainSynthBVolume', 1);
+            const mainGrainVolume = getGrainLayerGain('grainMainVolume', 1) * getGrainLayerSoloGain('main');
+            const grainSynthAVolume = getGrainLayerGain('grainSynthAVolume', 1) * getGrainLayerSoloGain('A');
+            const grainSynthBVolume = getGrainLayerGain('grainSynthBVolume', 1) * getGrainLayerSoloGain('B');
             const grainMixerAmp = getGrainLayerGain('grainMixerAmp', 1);
 
             // Volume multiplier with validation
@@ -9540,7 +9622,7 @@
                 const baseGainMap = getGranularSourceGainMap(baseSources, 1 - noiseMix);
                 baseSources.forEach((sourceInfo) => {
                     scheduleSourceVoice(sourceInfo, {
-                        rate: finalRate,
+                        rate: mainLayerRate,
                         gain: (baseGainMap.get(sourceInfo) ?? 0) * mainGrainVolume,
                         positionPct: posSlider,
                         sizeSeconds: grainSize,
@@ -11066,7 +11148,7 @@
                     if (tremoloLFO) {
                         tremoloLFO.frequency.setTargetAtTime(rate / 60, audioContext?.currentTime || 0, 0.01);
                     }
-                } else if (e.target.id === 'grainTune' || e.target.id === 'grainSynthATune' || e.target.id === 'grainSynthBTune') {
+                } else if (e.target.id === 'grainTune' || e.target.id === 'grainMainTune' || e.target.id === 'grainSynthATune' || e.target.id === 'grainSynthBTune') {
                     // Update grain tune display with + for positive values
                     const labelSpan = document.getElementById('grainTuneValue');
                     const targetLabelSpan = document.getElementById(e.target.id + 'Value') || labelSpan;
@@ -12468,6 +12550,7 @@
                     ? randomIntegerInRange(2, Math.min(16, 5 + Math.round(profile.energy * 14)))
                     : randomIntegerInRange(4, Math.min(34, 8 + Math.round(profile.energy * 24))),
                 grainTune: [-12, -7, -5, 0, 0, 5, 7, 12][Math.floor(Math.random() * 8)],
+                grainMainTune: [-12, -7, -5, 0, 0, 5, 7, 12][Math.floor(Math.random() * 8)],
                 grainSynthAMix: randomIntegerInRange(10, Math.round(24 + profile.energy * 28)),
                 grainSynthATune: [-12, -7, -5, 0, 5, 7, 12, 19][Math.floor(Math.random() * 8)],
                 grainSynthASize: grainMode === 'cloud'
@@ -12750,6 +12833,7 @@
                 release: rand(Math.max(18, Math.round(grainSize * 0.5)), Math.max(36, Math.round(grainSize * 1.2))),
                 pitchVar: rand(4, 24),
                 grainTune: pick([-12, -7, -5, 0, 5, 7, 12]),
+                grainMainTune: pick([-12, -7, -5, 0, 5, 7, 12]),
                 grainSynthAMix: rand(12, Math.round(24 + profile.energy * 26)),
                 grainSynthATune: pick([-12, -7, -5, 0, 5, 7, 12, 19]),
                 grainSynthASize: rand(20, Math.max(44, Math.round(grainSize * 0.95))),
@@ -14119,17 +14203,18 @@
                 release: 50,
                 pitchVar: 0,
                 grainTune: 0,
-                grainMainVolume: 100,
-                grainSynthAVolume: 100,
-                grainSynthBVolume: 100,
-                grainMixerAmp: 100,
-                grainSynthAMix: 28,
-                grainSynthATune: 7,
+                grainMainTune: 0,
+                grainMainVolume: 50,
+                grainSynthAVolume: 50,
+                grainSynthBVolume: 50,
+                grainMixerAmp: 50,
+                grainSynthAMix: 50,
+                grainSynthATune: 0,
                 grainSynthASize: 55,
                 grainSynthADensity: 60,
                 grainSynthASpread: 72,
-                grainSynthBMix: 22,
-                grainSynthBTune: -12,
+                grainSynthBMix: 50,
+                grainSynthBTune: 0,
                 grainSynthBSize: 180,
                 grainSynthBDensity: 42,
                 grainSynthBSpread: 88,
@@ -14144,7 +14229,7 @@
                 filterEnvSustain: 50,
                 filterEnvRelease: 100,
                 noiseMix: 0,
-                reverb: 20,
+                reverb: 0,
                 distortion: 0,
                 finalDriveSoft: 0,
                 finalDriveHard: 0,
@@ -14167,27 +14252,27 @@
                 delayFeedback: 30,
                 delayMix: 0,
                 lfoRate: 120,
-                lfoDepth: 50,
+                lfoDepth: 0,
                 lfoPulseWidth: 50,
                 lfo2Rate: 120,
-                lfo2Depth: 50,
+                lfo2Depth: 0,
                 lfo2PulseWidth: 50,
                 lfo3Rate: 120,
-                lfo3Depth: 50,
+                lfo3Depth: 0,
                 lfo3PulseWidth: 50,
                 lfo3ToLfo1Mod: 0,
                 lfo3ToLfo2Mod: 0,
                 lfo1ToLfo3Mod: 0,
                 lfo2ToLfo3Mod: 0,
-                oscMix: 35,
+                oscMix: 0,
                 performanceGeneratedSourceMix: 100,
                 performanceSampleVolume: 100,
-                performanceGeneratedDryMix: 35,
+                performanceGeneratedDryMix: 0,
                 performanceGeneratedDryTrim: 0,
                 performanceGeneratedSwing: 0,
                 performanceGeneratedTranspose: 0,
-                performanceModAmount: 55,
-                performanceGrainModAmount: 75,
+                performanceModAmount: 0,
+                performanceGrainModAmount: 0,
                 osc1Semitone: 0,
                 osc1Detune: 0,
                 osc1DetuneLfoDepth: 100,
@@ -14248,8 +14333,10 @@
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
+            setGrainLayerSolo('none', { silent: true, skipSave: true });
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
+            setOscillatorsEnabled(false, { silent: true, skipSave: true });
             
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
@@ -14309,7 +14396,11 @@
                 drawWaveform();
             }
             
-            statusDiv.textContent = 'All parameters reset to defaults';
+            syncPerformanceControlState();
+            updateSourceMixGains();
+            updateGeneratedDryLoopMix();
+            saveState();
+            statusDiv.textContent = 'Reset patch: modulation off, only grain layers active at 50%.';
         });
 
         // Debug Button Event Listeners
@@ -14374,6 +14465,7 @@
                     oscSynthFilterType: document.getElementById('oscSynthFilterType')?.value || 'lowpass'
                 },
                 generatedSampleSolo: generatedSampleSolo,
+                grainLayerSolo: grainLayerSolo,
                 samples: {
                     embedded: false,
                     note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
@@ -14511,6 +14603,11 @@
             if (safePreset.tonalDrumsEnabled !== undefined) {
                 setTonalDrumsEnabled(safePreset.tonalDrumsEnabled, { silent: true, skipSave: true });
             }
+            if (safePreset.generatedSampleSolo !== undefined) {
+                setGeneratedSampleSolo(safePreset.generatedSampleSolo, { silent: true, skipSave: true });
+            }
+            const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
+            setGrainLayerSolo(importedGrainLayerSolo, { silent: true, skipSave: true });
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
             }
@@ -14925,6 +15022,7 @@
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     oscillatorsEnabled: oscillatorsEnabled,
                     generatedSampleSolo: generatedSampleSolo,
+                    grainLayerSolo: grainLayerSolo,
                     tonalDrumsEnabled: tonalDrumsEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
@@ -15094,6 +15192,9 @@
                     }
                     if (state.modes.generatedSampleSolo !== undefined) {
                         setGeneratedSampleSolo(state.modes.generatedSampleSolo, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainLayerSolo !== undefined) {
+                        setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
                     }
                     if (state.modes.generatedSourceLowNoiseMode !== undefined) {
                         setGeneratedSourceLowNoiseMode(state.modes.generatedSourceLowNoiseMode, { silent: true, skipSave: true });
@@ -16320,6 +16421,7 @@
         const performanceFinalFxPlacementBtn = document.getElementById('performanceFinalFxPlacementBtn');
         const performanceFinalFxPlacementLfoBtn = document.getElementById('performanceFinalFxPlacementLfoBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
+        const performanceResetPatchBtn = document.getElementById('performanceResetPatchBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
         const performanceSourceMix = document.getElementById('performanceSourceMix');
@@ -16674,6 +16776,8 @@
                 performanceSampleSoloBtn.setAttribute('aria-pressed', String(generatedSampleSolo));
             }
 
+            syncGrainLayerSoloButtons();
+
             if (performanceLowNoiseSourceBtn) {
                 performanceLowNoiseSourceBtn.classList.toggle('active', generatedSourceLowNoiseMode);
                 performanceLowNoiseSourceBtn.setAttribute('aria-pressed', String(generatedSourceLowNoiseMode));
@@ -16719,6 +16823,10 @@
 
         performanceRandomizeBtn?.addEventListener('click', () => {
             document.getElementById('randomizeBtn')?.click();
+        });
+
+        performanceResetPatchBtn?.addEventListener('click', () => {
+            document.getElementById('resetDefaultBtn')?.click();
         });
 
         performanceSynthPopupBtn?.addEventListener('click', () => {
@@ -16887,6 +16995,12 @@
         document.querySelectorAll('[data-grain-mode-selector]').forEach((select) => {
             select.addEventListener('change', (event) => {
                 setGrainTimingMode(event.target.value);
+            });
+        });
+
+        document.querySelectorAll('[data-grain-layer-solo]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setGrainLayerSolo(button.dataset.grainLayerSolo, { toggle: true });
             });
         });
 
