@@ -7,12 +7,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MYGRAIN">
+    <meta name="apple-mobile-web-app-title" content="MYGRAIN v2026.10.05.2">
     <link rel="icon" href="data:,">
-    <title>MYGRAIN</title>
+    <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-16-21-bpm-out-of-randomise';
+            const cacheBuster = '2026-10-05-20-45-build-v2026.10.05.2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -2198,6 +2198,27 @@
             text-transform: uppercase;
         }
 
+        .simplified-ui .build-badge {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.28);
+            border: 1px solid rgba(126, 246, 255, 0.28);
+            color: rgba(126, 246, 255, 0.94);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .build-badge strong {
+            color: #fff;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+        }
+
         .simplified-ui .performance-title {
             margin: 0;
             font-size: clamp(1.2rem, 2vw, 1.8rem);
@@ -3021,6 +3042,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
+        <div class="build-badge">Build <strong>v2026.10.05.2</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3033,6 +3055,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
+                    <div class="build-badge">Build <strong>v2026.10.05.2</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
