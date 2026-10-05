@@ -7144,13 +7144,13 @@
                         generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
                     }
                     if (shouldRestoreMic) {
-                        micAudioBuffer = restoredMicBuffer;
+                        micAudioBuffer = normalizeSourceBufferChannels('mic', restoredMicBuffer);
                     }
                     if (shouldRestoreGrainAMic) {
-                        grainSynthAMicBuffer = restoredGrainAMicBuffer;
+                        grainSynthAMicBuffer = normalizeSourceBufferChannels('grainAMic', restoredGrainAMicBuffer);
                     }
                     if (shouldRestoreGrainBMic) {
-                        grainSynthBMicBuffer = restoredGrainBMicBuffer;
+                        grainSynthBMicBuffer = normalizeSourceBufferChannels('grainBMic', restoredGrainBMicBuffer);
                     }
                     if (shouldRestoreOutput) {
                         outputSourceBuffer = restoredOutputBuffer;
@@ -8919,6 +8919,53 @@
             return cloned;
         }
 
+        function isMicDerivedSourceKind(kind) {
+            return kind === 'mic' || kind === 'grainAMic' || kind === 'grainBMic';
+        }
+
+        function collapseAudioBufferToCenteredMono(sourceBuffer) {
+            if (!audioContext || !sourceBuffer || sourceBuffer.numberOfChannels <= 1) {
+                return sourceBuffer;
+            }
+
+            const activeChannels = [];
+            for (let channel = 0; channel < sourceBuffer.numberOfChannels; channel++) {
+                const channelData = sourceBuffer.getChannelData(channel);
+                let peak = 0;
+                for (let i = 0; i < channelData.length; i++) {
+                    const sample = Math.abs(channelData[i]);
+                    if (sample > peak) peak = sample;
+                }
+                if (peak > 0.0005) {
+                    activeChannels.push(channelData);
+                }
+            }
+
+            const contributorChannels = activeChannels.length > 0
+                ? activeChannels
+                : [sourceBuffer.getChannelData(0)];
+            const monoBuffer = audioContext.createBuffer(1, sourceBuffer.length, sourceBuffer.sampleRate);
+            const monoData = monoBuffer.getChannelData(0);
+
+            for (let i = 0; i < monoData.length; i++) {
+                let sum = 0;
+                for (let channel = 0; channel < contributorChannels.length; channel++) {
+                    sum += contributorChannels[channel][i] || 0;
+                }
+                monoData[i] = sum / contributorChannels.length;
+            }
+
+            return monoBuffer;
+        }
+
+        function normalizeSourceBufferChannels(kind, sourceBuffer) {
+            if (!sourceBuffer) return sourceBuffer;
+            if (isMicDerivedSourceKind(kind)) {
+                return collapseAudioBufferToCenteredMono(sourceBuffer);
+            }
+            return sourceBuffer;
+        }
+
         function getBufferPeak(buffer) {
             let peak = 0;
             if (!buffer) return peak;
@@ -9654,14 +9701,15 @@
             sourceMutationSerial += 1;
             lastSourceWriteAt = Date.now();
             const config = getSourceSlotConfig(kind);
-            config.setBuffer(buffer);
+            const normalizedBuffer = normalizeSourceBufferChannels(kind, buffer);
+            config.setBuffer(normalizedBuffer);
             activeSourceKind = kind;
             syncLegacyAudioBuffer();
             resetSourceLoopPoints(kind);
             drawWaveforms();
             updateSourceAvailability();
             syncSourceWaveformSoloAudition();
-            setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
+            setStatus(`${sourceLabel} ready (${normalizedBuffer.duration.toFixed(2)}s, ${normalizedBuffer.numberOfChannels}ch @ ${normalizedBuffer.sampleRate} Hz).`);
         }
 
         function updateLoopLabels(kind) {
