@@ -3126,6 +3126,13 @@
                     <button class="performance-btn primary" id="performanceGenerateBastardLoopBtn">Generate Bastardloop</button>
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoopPitch">
+                        <span>Bastardloop Pitch</span>
+                        <span class="value" id="performanceBastardLoopPitchValue">0 oct</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopPitch" min="-2" max="2" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceBastardLoopLevel">
                         <span>Bastardloop Level</span>
                         <span class="value" id="performanceBastardLoopLevelValue">60%</span>
@@ -5952,6 +5959,7 @@
         let clickGuardMs = 8;
         let generatedDryThroughFilters = false;
         let bastardLoopLevel = 0.6;
+        let bastardLoopPitchOctaves = 0;
         let bastardLoopEnabled = true;
         let bastardLoopSource = null;
         let bastardLoopGainNode = null;
@@ -9418,10 +9426,47 @@
             return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.92;
         }
 
+        function clampBastardLoopPitchOctaves(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 0;
+            return Math.max(-2, Math.min(2, Math.round(numeric)));
+        }
+
+        function formatBastardLoopPitchOctaves(octaves) {
+            const clamped = clampBastardLoopPitchOctaves(octaves);
+            return `${clamped > 0 ? '+' : ''}${clamped} oct`;
+        }
+
+        function updateBastardLoopPitchLabel() {
+            const value = clampBastardLoopPitchOctaves(bastardLoopPitchOctaves);
+            const label = document.getElementById('performanceBastardLoopPitchValue');
+            if (label) label.textContent = formatBastardLoopPitchOctaves(value);
+            const slider = document.getElementById('performanceBastardLoopPitch');
+            if (slider && Number(slider.value) !== value) {
+                slider.value = String(value);
+            }
+        }
+
+        function getBastardLoopPitchOctaves() {
+            const slider = document.getElementById('performanceBastardLoopPitch');
+            bastardLoopPitchOctaves = clampBastardLoopPitchOctaves(slider?.value ?? bastardLoopPitchOctaves);
+            updateBastardLoopPitchLabel();
+            return bastardLoopPitchOctaves;
+        }
+
+        function getBastardLoopPitchRatio() {
+            return Math.pow(2, getBastardLoopPitchOctaves());
+        }
+
         function getBastardLoopPlaybackRate() {
             const sourceBpm = clampBpmValue(bastardLoopSourceBpm || sequencerBPM || 120);
             const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
-            return Math.max(0.25, Math.min(4, currentBpm / sourceBpm));
+            return Math.max(0.25, Math.min(4, (currentBpm / sourceBpm) * getBastardLoopPitchRatio()));
+        }
+
+        function getBastardLoopCycleDuration(playbackRate = getBastardLoopPlaybackRate()) {
+            const loopDuration = Math.max(0.01, bastardLoopBuffer?.duration || 0.01);
+            return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
 
         function describeBastardLoopMeta() {
@@ -9440,6 +9485,7 @@
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
+            updateBastardLoopPitchLabel();
             if (meta) meta.textContent = describeBastardLoopMeta();
             if (button) {
                 button.disabled = bastardLoopGenerationInFlight;
@@ -9513,7 +9559,8 @@
             const requestedStartTime = Number.isFinite(startTime) ? startTime : getTransportLoopOriginTime();
             const playbackRate = getBastardLoopPlaybackRate();
             const loopDuration = Math.max(0.01, bastardLoopBuffer.duration);
-            const fadeSeconds = getFadeSecondsForDuration(loopDuration);
+            const cycleDuration = getBastardLoopCycleDuration(playbackRate);
+            const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
             let offset = 0;
 
@@ -9521,7 +9568,8 @@
                 safeStartTime = requestedStartTime;
             } else if (Number.isFinite(requestedStartTime)) {
                 const elapsed = Math.max(0, now - requestedStartTime);
-                offset = (elapsed * playbackRate) % loopDuration;
+                const cycleElapsed = cycleDuration > 0 ? elapsed % cycleDuration : 0;
+                offset = Math.min(loopDuration - 0.0005, cycleElapsed * playbackRate);
             }
 
             source.buffer = bastardLoopBuffer;
@@ -9615,6 +9663,24 @@
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus(bastardLoopEnabled ? 'Bastardloop layer enabled.' : 'Bastardloop layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoopPitchOctaves(value, options = {}) {
+            const nextValue = clampBastardLoopPitchOctaves(value);
+            bastardLoopPitchOctaves = nextValue;
+            updateBastardLoopPitchLabel();
+            if (bastardLoopSource && bastardLoopBuffer) {
+                startBastardLoop();
+            } else {
+                syncBastardLoopTempo();
+            }
+            syncBastardLoopUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop pitch ${formatBastardLoopPitchOctaves(nextValue)}.`);
             }
             if (!options.skipSave) {
                 saveState();
@@ -12549,6 +12615,9 @@
                         let suffix = '';
                         if (e.target.id === 'performanceGeneratedTranspose') {
                             labelSpan.textContent = formatGeneratedLoopTranspose(e.target.value);
+                            return;
+                        } else if (e.target.id === 'performanceBastardLoopPitch') {
+                            labelSpan.textContent = formatBastardLoopPitchOctaves(e.target.value);
                             return;
                         } else if ([
                             'performanceGeneratedDryTrim',
@@ -15788,6 +15857,7 @@
                 performanceGeneratedSourceMix: 100,
                 performanceSampleVolume: 100,
                 performanceGeneratedDryMix: 0,
+                performanceBastardLoopPitch: 0,
                 performanceBastardLoopLevel: 60,
                 performanceGeneratedDryTrim: 0,
                 performanceGeneratedSwing: 0,
@@ -18126,6 +18196,7 @@
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceSampleVolume = document.getElementById('performanceSampleVolume');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
+        const performanceBastardLoopPitch = document.getElementById('performanceBastardLoopPitch');
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
@@ -18272,6 +18343,12 @@
                 const value = Math.round(getGeneratedDryMixValue({ applySoloOverride: false, applyLayerToggle: false }) * 100);
                 performanceGeneratedDryMix.value = String(value);
                 document.getElementById('performanceGeneratedDryMixValue').textContent = `${value}%`;
+            }
+
+            if (performanceBastardLoopPitch) {
+                const value = getBastardLoopPitchOctaves();
+                performanceBastardLoopPitch.value = String(value);
+                document.getElementById('performanceBastardLoopPitchValue').textContent = formatBastardLoopPitchOctaves(value);
             }
 
             if (performanceBastardLoopLevel) {
@@ -18690,6 +18767,10 @@
             bastardLoopLevel = value / 100;
             document.getElementById('performanceBastardLoopLevelValue').textContent = `${Math.round(value)}%`;
             updateBastardLoopMix();
+        });
+
+        performanceBastardLoopPitch?.addEventListener('input', (event) => {
+            setBastardLoopPitchOctaves(event.target.value);
         });
 
         bindPerformanceLinkedSlider(performanceGrainMainVolume, 'performanceGrainMainVolumeValue', 'grainMainVolume');

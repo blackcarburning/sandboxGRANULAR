@@ -430,6 +430,21 @@ test('performance layer switches can mute sample-drums, dry loop, and bastardloo
     assert.match(indexHtml, /bastardLoopEnabled: bastardLoopEnabled/);
 });
 
+test('bastardloop has octave pitch steps and resyncs its loop cycle when retuned', () => {
+    assert.match(indexHtml, /id="performanceBastardLoopPitch"/);
+    assert.match(indexHtml, /min="-2" max="2" value="0" step="1"/);
+    assert.match(indexHtml, /let bastardLoopPitchOctaves = 0/);
+    assert.match(indexHtml, /function clampBastardLoopPitchOctaves\(value\)/);
+    assert.match(indexHtml, /function getBastardLoopPitchRatio\(\)/);
+    assert.match(indexHtml, /function getBastardLoopCycleDuration\(playbackRate = getBastardLoopPlaybackRate\(\)\)/);
+    assert.match(indexHtml, /return Math\.max\(0\.25, Math\.min\(4, \(currentBpm \/ sourceBpm\) \* getBastardLoopPitchRatio\(\)\)\);/);
+    assert.match(indexHtml, /const cycleDuration = getBastardLoopCycleDuration\(playbackRate\);/);
+    assert.match(indexHtml, /const cycleElapsed = cycleDuration > 0 \? elapsed % cycleDuration : 0;/);
+    assert.match(indexHtml, /function setBastardLoopPitchOctaves\(value, options = \{\}\)/);
+    assert.match(indexHtml, /if \(bastardLoopSource && bastardLoopBuffer\) \{\s*startBastardLoop\(\);\s*\} else \{\s*syncBastardLoopTempo\(\);\s*\}/);
+    assert.match(indexHtml, /performanceBastardLoopPitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoopPitchOctaves\(event\.target\.value\);/);
+});
+
 test('oscillators can be disabled for granular-only playback', () => {
     assert.match(indexHtml, /id="performanceOscToggleBtn"/);
     assert.match(indexHtml, /let oscillatorsEnabled = true/);
