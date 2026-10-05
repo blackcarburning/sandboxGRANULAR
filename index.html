@@ -12,7 +12,7 @@
     <title>MYGRAIN</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-05-14-59-keyboard-pitch-direction';
+            const cacheBuster = '2026-10-05-15-55-source-multisolo-audition';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6067,7 +6067,8 @@
             grainBMic: 'grainBMicSourceTune',
             output: 'outputSourceTune'
         };
-        let sourceWaveformSolo = 'none';
+        let sourceWaveformSoloKinds = new Set();
+        let sourceWaveformSoloAuditionNodes = [];
 
         SOURCE_GRAIN_CONTROL_DEFINITIONS.forEach((definition) => {
             Object.entries(definition.controls).forEach(([role, control]) => {
@@ -7964,7 +7965,7 @@
         function syncSourceWaveformSoloButtons() {
             document.querySelectorAll('[data-source-waveform-solo]').forEach((button) => {
                 const kind = normalizeSourceWaveformKind(button.dataset.sourceWaveformSolo);
-                const active = sourceWaveformSolo === kind;
+                const active = sourceWaveformSoloKinds.has(kind);
                 const label = SOURCE_WAVEFORM_KIND_LABELS[kind] || 'Source';
                 button.classList.toggle('active', active);
                 button.setAttribute('aria-pressed', String(active));
@@ -7972,16 +7973,44 @@
             });
         }
 
+        function normalizeSourceWaveformSoloState(value) {
+            const values = Array.isArray(value) ? value : (value === 'none' || value === undefined || value === null ? [] : [value]);
+            return values
+                .map((kind) => normalizeSourceWaveformKind(kind))
+                .filter((kind) => kind !== 'none');
+        }
+
+        function getSourceWaveformSoloState() {
+            return Array.from(sourceWaveformSoloKinds);
+        }
+
+        function getSourceWaveformSoloLabel() {
+            const labels = getSourceWaveformSoloState().map((kind) => SOURCE_WAVEFORM_KIND_LABELS[kind] || kind);
+            if (labels.length === 0) return 'All source waveforms';
+            if (labels.length === 1) return labels[0];
+            return labels.join(' + ');
+        }
+
         function setSourceWaveformSolo(kind, options = {}) {
-            const requested = normalizeSourceWaveformKind(kind);
-            sourceWaveformSolo = options.toggle && sourceWaveformSolo === requested ? 'none' : requested;
+            if (Array.isArray(kind)) {
+                sourceWaveformSoloKinds = new Set(normalizeSourceWaveformSoloState(kind));
+            } else {
+                const requested = normalizeSourceWaveformKind(kind);
+                if (requested === 'none') {
+                    sourceWaveformSoloKinds.clear();
+                } else if (options.toggle && sourceWaveformSoloKinds.has(requested)) {
+                    sourceWaveformSoloKinds.delete(requested);
+                } else {
+                    sourceWaveformSoloKinds.add(requested);
+                }
+            }
             syncSourceWaveformSoloButtons();
+            syncSourceWaveformSoloAudition();
             if (audioContext && activeGrains.size > 0) {
                 rescheduleActiveGrainsFromNow();
             }
             if (!options.silent) {
-                const label = SOURCE_WAVEFORM_KIND_LABELS[sourceWaveformSolo];
-                setStatus(sourceWaveformSolo === 'none' ? 'All source waveforms active.' : `${label} soloed.`);
+                setStatus(sourceWaveformSoloKinds.size === 0 ? 'All source waveforms active.' : `${getSourceWaveformSoloLabel()} soloed through raw dry audition.`);
             }
             if (!options.skipSave) {
                 saveState();
@@ -7989,13 +8018,68 @@
         }
 
         function applySourceWaveformSoloToGains(gains) {
-            if (sourceWaveformSolo === 'none') return gains;
+            if (sourceWaveformSoloKinds.size === 0) return gains;
             gains.forEach((gain, source) => {
-                if (source.kind !== sourceWaveformSolo) {
+                if (!sourceWaveformSoloKinds.has(source.kind)) {
                     gains.set(source, 0);
                 }
             });
             return gains;
+        }
+
+        function stopSourceWaveformSoloAudition() {
+            sourceWaveformSoloAuditionNodes.forEach(({ source, gain }) => {
+                try {
+                    source.stop();
+                } catch (e) {
+                    console.debug('Source waveform solo audition already stopped:', e);
+                }
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (e) {}
+            });
+            sourceWaveformSoloAuditionNodes = [];
+        }
+
+        function syncSourceWaveformSoloAudition() {
+            stopSourceWaveformSoloAudition();
+            if (!audioContext || !masterGain || sourceWaveformSoloKinds.size === 0) return;
+
+            const sources = getAllGranularSources().filter((sourceInfo) => sourceWaveformSoloKinds.has(sourceInfo.kind));
+            if (sources.length === 0) return;
+
+            const now = audioContext.currentTime;
+            const perSourceGain = Math.min(0.8, 0.72 / Math.sqrt(Math.max(1, sources.length)));
+            sources.forEach((sourceInfo) => {
+                const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
+                const buffer = getTempoLockedPitchBuffer(sourceInfo.buffer, sourceTuneRatio);
+                const { startPct, endPct } = getLoopRange(sourceInfo.startId, sourceInfo.endId);
+                const offset = buffer.duration * startPct;
+                const loopEnd = Math.min(buffer.duration, Math.max(offset + 0.01, buffer.duration * endPct));
+                const fadeSeconds = getFadeSecondsForDuration(loopEnd - offset);
+                const source = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+
+                source.buffer = buffer;
+                source.loop = true;
+                source.loopStart = offset;
+                source.loopEnd = loopEnd;
+                source.playbackRate.value = 1;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(perSourceGain, now + fadeSeconds);
+                source.connect(gain);
+                gain.connect(masterGain);
+                source.start(now, offset);
+                source.onended = () => {
+                    try {
+                        source.disconnect();
+                        gain.disconnect();
+                    } catch (e) {}
+                    sourceWaveformSoloAuditionNodes = sourceWaveformSoloAuditionNodes.filter((node) => node.source !== source);
+                };
+                sourceWaveformSoloAuditionNodes.push({ source, gain });
+            });
         }
 
         function makeGranularSource(kind, bufferOverride = null) {
@@ -8460,13 +8544,6 @@
                 bufferCache.delete(oldestKey);
             }
             return shiftedBuffer;
-        }
-
-        function getTempoLockedSourceReadRatio(musicalPitchRatio = 1) {
-            const safePitchRatio = Number.isFinite(Number(musicalPitchRatio))
-                ? Math.max(0.0625, Math.min(16, Math.abs(Number(musicalPitchRatio))))
-                : 1;
-            return 1 / safePitchRatio;
         }
 
         function renderGeneratedLoopBufferWithTranspose(sourceBuffer = generatedLoopBaseBuffer) {
@@ -9097,6 +9174,7 @@
             resetSourceLoopPoints(kind);
             drawWaveforms();
             updateSourceAvailability();
+            syncSourceWaveformSoloAudition();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch @ ${buffer.sampleRate} Hz).`);
         }
 
@@ -9809,7 +9887,7 @@
                         startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
                         endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
                     };
-                const pitchShiftedBuffer = getTempoLockedPitchBuffer(sourceInfo.buffer, getTempoLockedSourceReadRatio(sourcePitchRate));
+                const pitchShiftedBuffer = getTempoLockedPitchBuffer(sourceInfo.buffer, sourcePitchRate);
                 const trimmedBuffer = typeof mygrainUtils.trimAudioBufferToWindow === 'function'
                     ? mygrainUtils.trimAudioBufferToWindow(
                         pitchShiftedBuffer,
@@ -11336,6 +11414,7 @@
         document.querySelectorAll('[data-source-waveform-tune]').forEach((slider) => {
             slider.addEventListener('input', () => {
                 syncSourceWaveformTuneLabels();
+                syncSourceWaveformSoloAudition();
                 if (audioContext && activeGrains.size > 0) {
                     rescheduleActiveGrainsFromNow();
                 }
@@ -11465,6 +11544,9 @@
                     updateEffects();
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
+                if (SOURCE_LOOP_CONTROL_IDS.includes(e.target.id)) {
+                    syncSourceWaveformSoloAudition();
+                }
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
                 if (e.target.id === 'oscMix' || e.target.id === 'lpfCutoff' || e.target.id === 'lpfQ' ||
                     e.target.id === 'hpfCutoff' || e.target.id === 'hpfQ' ||
@@ -14732,7 +14814,7 @@
                 },
                 generatedSampleSolo: generatedSampleSolo,
                 grainLayerSolo: grainLayerSolo,
-                sourceWaveformSolo: sourceWaveformSolo,
+                sourceWaveformSolo: getSourceWaveformSoloState(),
                 samples: {
                     embedded: false,
                     note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
@@ -15292,7 +15374,7 @@
                     oscillatorsEnabled: oscillatorsEnabled,
                     generatedSampleSolo: generatedSampleSolo,
                     grainLayerSolo: grainLayerSolo,
-                    sourceWaveformSolo: sourceWaveformSolo,
+                    sourceWaveformSolo: getSourceWaveformSoloState(),
                     tonalDrumsEnabled: tonalDrumsEnabled,
                     globalModulationAmount: getGlobalModulationAmountValue(),
                     granularModulationAmount: getGranularModulationAmountValue(),
@@ -15760,7 +15842,7 @@
                     const gain = ctx.createGain();
                     const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
                     const sourcePlaybackRate = Math.max(0.0625, Math.min(16, playbackRate * sourceTuneRatio));
-                    const buffer = pitchShiftBufferByRatioKeepDuration(sourceInfo.buffer, getTempoLockedSourceReadRatio(sourcePlaybackRate), ctx);
+                    const buffer = pitchShiftBufferByRatioKeepDuration(sourceInfo.buffer, sourcePlaybackRate, ctx);
                     const loop = getLoopTimingForBuffer(sourceInfo.buffer, sourceInfo.startId, sourceInfo.endId);
                     const loopDuration = Math.max(0.01, loop.end - loop.start);
                     const position = (stepIndex % 16) / 16;
