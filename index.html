@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-17-25-build-v2026.10.06.1';
+            const cacheBuster = '2026-10-06-22-30-build-v2026.10.06.3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -168,9 +168,54 @@
             gap: 6px;
         }
 
-        .sample-browser-controls input {
+        .sample-browser-controls {
+            align-items: flex-end;
+        }
+
+        .sample-browser-filter-group {
             flex: 1 1 260px;
-            min-width: 180px;
+            min-width: 0;
+            display: grid;
+            gap: 6px;
+        }
+
+        .sample-browser-filter-label {
+            color: rgba(214, 232, 255, 0.72);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .sample-browser-filter-input {
+            width: 100%;
+            min-width: 0;
+            min-height: 42px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(18, 24, 36, 0.96);
+            color: #f4fbff;
+            font-size: 16px;
+            line-height: 1.2;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .sample-browser-filter-input::placeholder {
+            color: rgba(214, 232, 255, 0.44);
+        }
+
+        .sample-browser-filter-input:focus {
+            outline: none;
+            border-color: rgba(0, 212, 255, 0.55);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.14);
+        }
+
+        .sample-browser-controls .performance-btn {
+            flex: 0 0 auto;
+            min-height: 42px;
         }
 
         .sample-browser-list {
@@ -212,11 +257,26 @@
         }
 
         @media (max-width: 640px) {
+            .sample-browser-shell {
+                gap: 10px;
+                padding: 14px;
+            }
+
             .sample-browser-controls,
             .sample-browser-card-head,
             .sample-browser-card-actions {
                 flex-direction: column;
                 align-items: stretch;
+            }
+
+            .sample-browser-filter-group {
+                width: 100%;
+            }
+
+            .sample-browser-filter-input {
+                min-height: 40px;
+                padding: 9px 12px;
+                border-radius: 12px;
             }
         }
 
@@ -5725,7 +5785,10 @@
                     <button class="performance-btn" id="dropboxSampleBrowserCloseBtn" type="button">Close</button>
                 </div>
                 <div class="sample-browser-controls">
-                    <input id="dropboxSampleBrowserFilter" type="search" placeholder="Filter samples">
+                    <div class="sample-browser-filter-group">
+                        <label class="sample-browser-filter-label" for="dropboxSampleBrowserFilter">Search Samples</label>
+                        <input class="sample-browser-filter-input" id="dropboxSampleBrowserFilter" type="search" placeholder="Filter samples" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
                     <button class="performance-btn" id="dropboxSampleBrowserRefreshBtn" type="button">Refresh</button>
                 </div>
                 <div class="sample-browser-status" id="dropboxSampleBrowserStatus">Choose a source and preview a sample.</div>
