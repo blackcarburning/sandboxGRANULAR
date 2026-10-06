@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-23-14-build-v2026.10.06.8';
+            const cacheBuster = '2026-10-06-23-27-build-v2026.10.06.9';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3355,7 +3355,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.06.8</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.06.9</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3368,7 +3368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.06.8</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.06.9</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -13490,6 +13490,25 @@
             });
         }
 
+        function retriggerActiveOscillatorVoices(options = {}) {
+            if (!audioContext || !activeOscVoices.size) return;
+            const restartTime = Math.max(audioContext.currentTime + getClickGuardSeconds(), audioContext.currentTime + 0.005);
+            const activeVoices = Array.from(activeOscVoices.entries()).map(([voiceId, voice]) => ({
+                voiceId,
+                note: voice.note,
+                role: voice.role,
+                velocity: Number.isFinite(voice.noteVelocity) ? voice.noteVelocity : 1
+            }));
+
+            activeVoices.forEach(({ voiceId, note, role }) => {
+                stopOscillatorNote(note, audioContext.currentTime, { role, voiceId, instant: true });
+            });
+
+            activeVoices.forEach(({ voiceId, note, role, velocity }) => {
+                playOscillatorNote(note, restartTime, velocity, { role, voiceId });
+            });
+        }
+
         function ensureSynthVoicePathAudible(options = {}) {
             const minOscMix = Number.isFinite(Number(options.minOscMix)) ? Number(options.minOscMix) : 0.35;
             if (options.forceOscillatorsEnabled === true && !oscillatorsEnabled) {
@@ -13767,8 +13786,9 @@
             const actualStopTime = Math.max(now, stopTime);
             
             // Apply release envelope for osc1
-            const release1 = Math.max(osc1Config.release / 1000, getClickGuardSeconds());
-            const release3 = Math.max(osc3Config.release / 1000, getClickGuardSeconds());
+            const instantRelease = options.instant === true;
+            const release1 = instantRelease ? getClickGuardSeconds() : Math.max(osc1Config.release / 1000, getClickGuardSeconds());
+            const release3 = instantRelease ? getClickGuardSeconds() : Math.max(osc3Config.release / 1000, getClickGuardSeconds());
             
             // Cancel from now, not from stopTime
             voice.osc1Gain.gain.cancelScheduledValues(now);
@@ -13788,7 +13808,7 @@
             console.log(`[OSC Debug] Stop Note: ${voice.note}, Now: ${now.toFixed(3)}, StopTime: ${stopTime.toFixed(3)}, Release: ${release1.toFixed(3)}s, CurrentGain: ${voice.osc1Gain.gain.value.toFixed(3)}`);
             
             // Apply release envelope for osc2
-            const release2 = Math.max(osc2Config.release / 1000, getClickGuardSeconds());
+            const release2 = instantRelease ? getClickGuardSeconds() : Math.max(osc2Config.release / 1000, getClickGuardSeconds());
             voice.osc3Gain.gain.cancelScheduledValues(now);
             voice.osc3Gain.gain.setValueAtTime(voice.osc3Gain.gain.value, now);
             if (actualStopTime > now) {
@@ -15178,27 +15198,31 @@
         document.getElementById('osc1Level').addEventListener('input', (e) => {
             osc1Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc1LevelValue').textContent = `${e.target.value}%`;
-            refreshActiveOscillatorLevels();
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc1Attack').addEventListener('input', (e) => {
             osc1Config.attack = parseFloat(e.target.value);
             document.getElementById('osc1AttackValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc1Decay').addEventListener('input', (e) => {
             osc1Config.decay = parseFloat(e.target.value);
             document.getElementById('osc1DecayValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc1Sustain').addEventListener('input', (e) => {
             osc1Config.sustain = parseFloat(e.target.value) / 100;
             document.getElementById('osc1SustainValue').textContent = `${e.target.value}%`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc1Release').addEventListener('input', (e) => {
             osc1Config.release = parseFloat(e.target.value);
             document.getElementById('osc1ReleaseValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         // Oscillator 2
@@ -15243,27 +15267,31 @@
         document.getElementById('osc2Level').addEventListener('input', (e) => {
             osc2Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc2LevelValue').textContent = `${e.target.value}%`;
-            refreshActiveOscillatorLevels();
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Attack').addEventListener('input', (e) => {
             osc2Config.attack = parseFloat(e.target.value);
             document.getElementById('osc2AttackValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Decay').addEventListener('input', (e) => {
             osc2Config.decay = parseFloat(e.target.value);
             document.getElementById('osc2DecayValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Sustain').addEventListener('input', (e) => {
             osc2Config.sustain = parseFloat(e.target.value) / 100;
             document.getElementById('osc2SustainValue').textContent = `${e.target.value}%`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc2Release').addEventListener('input', (e) => {
             osc2Config.release = parseFloat(e.target.value);
             document.getElementById('osc2ReleaseValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         // Oscillator 3
@@ -15309,27 +15337,31 @@
         document.getElementById('osc3Level').addEventListener('input', (e) => {
             osc3Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc3LevelValue').textContent = `${e.target.value}%`;
-            refreshActiveOscillatorLevels();
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Attack').addEventListener('input', (e) => {
             osc3Config.attack = parseFloat(e.target.value);
             document.getElementById('osc3AttackValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Decay').addEventListener('input', (e) => {
             osc3Config.decay = parseFloat(e.target.value);
             document.getElementById('osc3DecayValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Sustain').addEventListener('input', (e) => {
             osc3Config.sustain = parseFloat(e.target.value) / 100;
             document.getElementById('osc3SustainValue').textContent = `${e.target.value}%`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('osc3Release').addEventListener('input', (e) => {
             osc3Config.release = parseFloat(e.target.value);
             document.getElementById('osc3ReleaseValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
         });
 
         document.getElementById('oscSynthFilterType').addEventListener('change', syncOscSynthFilterControls);
