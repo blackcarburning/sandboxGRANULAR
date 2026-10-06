@@ -726,3 +726,29 @@ test('granular loop endpoints keep start manual while end remains lfo-routable f
     assert.match(indexHtml, /const rawStart = options\.modulated \? getModulatedValue\(startId\) : Number\(startSlider\?\.value \?\? 0\)/);
     assert.match(indexHtml, /getLoopRange\(sourceInfo\.startId, sourceInfo\.endId, \{ modulated: true \}\)/);
 });
+
+test('arpeggiator exposes up/down/updown/random mode control', () => {
+    assert.match(indexHtml, /id="arpModeBtn"/);
+    assert.match(indexHtml, /const ARP_MODE_OPTIONS = \[/);
+    assert.match(indexHtml, /value: 'up'/);
+    assert.match(indexHtml, /value: 'down'/);
+    assert.match(indexHtml, /value: 'updown'/);
+    assert.match(indexHtml, /value: 'random'/);
+    assert.match(indexHtml, /function normalizeArpMode\(value\)/);
+    assert.match(indexHtml, /function getNextArpeggiatorNote\(notes\)/);
+    assert.match(indexHtml, /document\.getElementById\('arpModeBtn'\)\.addEventListener\('click', \(\) => \{/);
+});
+
+test('dropbox sample layer can load a random source sample and join bastardloop transport', () => {
+    assert.match(indexHtml, /id="performanceDropboxSampleLoadBtn"/);
+    assert.match(indexHtml, /id="performanceDropboxSampleSource"/);
+    assert.match(indexHtml, /id="performanceDropboxSampleStretchToLoop"/);
+    assert.match(indexHtml, /id="performanceDropboxSampleLevel"/);
+    assert.match(indexHtml, /id="performanceDropboxSampleLayerBtn"/);
+    assert.match(indexHtml, /const DROPBOX_SAMPLE_SOURCE_API_URL = `\$\{BASTARD_LOOP_REPOSITORY_BASE_URL\}\/api\/source-sample`/);
+    assert.match(indexHtml, /async function loadDropboxSampleLayerFromSource\(\)/);
+    assert.match(indexHtml, /source: sourceKey/);
+    assert.match(indexHtml, /response\.headers\.get\('X-Mygrain-Source-Name'\)/);
+    assert.match(indexHtml, /function startDropboxSampleLayer\(startTime = null, options = \{\}\)/);
+    assert.match(indexHtml, /const startedSample = startDropboxSampleLayer\(resolvedStartTime, \{ skipUi: true \}\)/);
+});
