@@ -3198,6 +3198,12 @@
                     <input type="range" id="performanceBastardLoopPitch" min="-2" max="2" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label class="performance-checkbox-option" for="performanceBastardLoopPitchAffectsDuration">
+                        <input type="checkbox" id="performanceBastardLoopPitchAffectsDuration">
+                        <span>Don't Preserve Duration</span>
+                    </label>
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceBastardLoopLevel">
                         <span>Bastardloop Level</span>
                         <span class="value" id="performanceBastardLoopLevelValue">60%</span>
@@ -3256,6 +3262,12 @@
                     <input type="range" id="performanceBastardLoop2Pitch" min="-2" max="2" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label class="performance-checkbox-option" for="performanceBastardLoop2PitchAffectsDuration">
+                        <input type="checkbox" id="performanceBastardLoop2PitchAffectsDuration">
+                        <span>Don't Preserve Duration</span>
+                    </label>
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceBastardLoop2Level">
                         <span>Bastardloop B Level</span>
                         <span class="value" id="performanceBastardLoop2LevelValue">55%</span>
@@ -3308,6 +3320,12 @@
                         <span class="value" id="performanceBastardLoop3PitchValue">0 oct</span>
                     </label>
                     <input type="range" id="performanceBastardLoop3Pitch" min="-2" max="2" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label class="performance-checkbox-option" for="performanceBastardLoop3PitchAffectsDuration">
+                        <input type="checkbox" id="performanceBastardLoop3PitchAffectsDuration">
+                        <span>Don't Preserve Duration</span>
+                    </label>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoop3Level">
@@ -6165,13 +6183,16 @@
         let generatedDryThroughFilters = false;
         let bastardLoopLevel = 0.6;
         let bastardLoopPitchOctaves = 0;
+        let bastardLoopPitchAffectsDuration = false;
         let bastardLoopEnabled = true;
         let bastardLoop2Level = 0.55;
         let bastardLoop2PitchOctaves = 0;
+        let bastardLoop2PitchAffectsDuration = false;
         let bastardLoop2Enabled = true;
         let bastardLoop2Reverse = false;
         let bastardLoop3Level = 0.5;
         let bastardLoop3PitchOctaves = 0;
+        let bastardLoop3PitchAffectsDuration = false;
         let bastardLoop3Enabled = true;
         let bastardLoop3Reverse = false;
         let bastardLoopPlaying = false;
@@ -9876,22 +9897,88 @@
             return Math.pow(2, getBastardLoop3PitchOctaves());
         }
 
+        function getBastardLoopTempoRate(sourceBpm) {
+            const safeSourceBpm = clampBpmValue(sourceBpm || sequencerBPM || 120);
+            const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || safeSourceBpm);
+            return Math.max(0.25, Math.min(4, currentBpm / safeSourceBpm));
+        }
+
+        function getBastardLoopPlaybackBufferForMode(sourceBuffer, pitchRatio = 1, options = {}) {
+            if (!sourceBuffer) return null;
+            const preserveDuration = options.preserveDuration !== false;
+            const reversed = options.reversed === true;
+            const baseBuffer = preserveDuration
+                ? getTempoLockedPitchBuffer(sourceBuffer, pitchRatio)
+                : sourceBuffer;
+            return reversed ? getReversedAudioBuffer(baseBuffer) : baseBuffer;
+        }
+
+        function getBastardLoopPitchAffectsDuration() {
+            const checkbox = document.getElementById('performanceBastardLoopPitchAffectsDuration');
+            bastardLoopPitchAffectsDuration = Boolean(checkbox?.checked ?? bastardLoopPitchAffectsDuration);
+            return bastardLoopPitchAffectsDuration;
+        }
+
+        function getBastardLoop2PitchAffectsDuration() {
+            const checkbox = document.getElementById('performanceBastardLoop2PitchAffectsDuration');
+            bastardLoop2PitchAffectsDuration = Boolean(checkbox?.checked ?? bastardLoop2PitchAffectsDuration);
+            return bastardLoop2PitchAffectsDuration;
+        }
+
+        function getBastardLoop3PitchAffectsDuration() {
+            const checkbox = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
+            bastardLoop3PitchAffectsDuration = Boolean(checkbox?.checked ?? bastardLoop3PitchAffectsDuration);
+            return bastardLoop3PitchAffectsDuration;
+        }
+
+        function getBastardLoopPlaybackBuffer() {
+            return getBastardLoopPlaybackBufferForMode(
+                bastardLoopBuffer,
+                getBastardLoopPitchRatio(),
+                { preserveDuration: !getBastardLoopPitchAffectsDuration() }
+            );
+        }
+
+        function getBastardLoop2PlaybackBuffer() {
+            return getBastardLoopPlaybackBufferForMode(
+                bastardLoop2Buffer,
+                getBastardLoop2PitchRatio(),
+                {
+                    preserveDuration: !getBastardLoop2PitchAffectsDuration(),
+                    reversed: bastardLoop2Reverse
+                }
+            );
+        }
+
+        function getBastardLoop3PlaybackBuffer() {
+            return getBastardLoopPlaybackBufferForMode(
+                bastardLoop3Buffer,
+                getBastardLoop3PitchRatio(),
+                {
+                    preserveDuration: !getBastardLoop3PitchAffectsDuration(),
+                    reversed: bastardLoop3Reverse
+                }
+            );
+        }
+
         function getBastardLoopPlaybackRate() {
-            const sourceBpm = clampBpmValue(bastardLoopSourceBpm || sequencerBPM || 120);
-            const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
-            return Math.max(0.25, Math.min(4, (currentBpm / sourceBpm) * getBastardLoopPitchRatio()));
+            const tempoRate = getBastardLoopTempoRate(bastardLoopSourceBpm);
+            const pitchRate = getBastardLoopPitchAffectsDuration() ? getBastardLoopPitchRatio() : 1;
+            return Math.max(0.25, Math.min(4, tempoRate * pitchRate));
         }
 
         function getBastardLoopCycleDuration(playbackRate = getBastardLoopPlaybackRate()) {
-            const loopDuration = Math.max(0.01, bastardLoopBuffer?.duration || 0.01);
+            const playbackBuffer = getBastardLoopPlaybackBuffer();
+            const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
 
         function describeBastardLoopMeta() {
             if (bastardLoopGenerationInFlight) return 'Generating...';
             if (!bastardLoopBuffer) return 'Empty';
-            if (bastardLoopMetadata?.summary) return bastardLoopMetadata.summary;
-            return `${bastardLoopBuffer.duration.toFixed(2)}s · ready`;
+            const samplerTag = getBastardLoopPitchAffectsDuration() ? ' · sampler pitch' : '';
+            if (bastardLoopMetadata?.summary) return `${bastardLoopMetadata.summary}${samplerTag}`;
+            return `${bastardLoopBuffer.duration.toFixed(2)}s · ready${samplerTag}`;
         }
 
         function syncBastardLoopUi() {
@@ -9901,6 +9988,7 @@
             const button = document.getElementById('performanceGenerateBastardLoopBtn');
             const playButton = document.getElementById('performanceBastardLoopPlayBtn');
             const stopButton = document.getElementById('performanceBastardLoopStopBtn');
+            const durationCheckbox = document.getElementById('performanceBastardLoopPitchAffectsDuration');
             const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
             const anyBufferReady = Boolean(bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer);
             const anyGenerationInFlight = bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight;
@@ -9908,6 +9996,7 @@
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
             updateBastardLoopPitchLabel();
+            if (durationCheckbox) durationCheckbox.checked = getBastardLoopPitchAffectsDuration();
             if (meta) meta.textContent = describeBastardLoopMeta();
             if (button) {
                 button.disabled = bastardLoopGenerationInFlight;
@@ -9992,6 +10081,8 @@
 
             stopBastardLoop({ preserveTransportState: true, skipUi: true });
 
+            const playbackBuffer = getBastardLoopPlaybackBuffer();
+            if (!playbackBuffer) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
             const now = audioContext.currentTime;
@@ -9999,7 +10090,7 @@
                 ? startTime
                 : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const playbackRate = getBastardLoopPlaybackRate();
-            const loopDuration = Math.max(0.01, bastardLoopBuffer.duration);
+            const loopDuration = Math.max(0.01, playbackBuffer.duration);
             const cycleDuration = getBastardLoopCycleDuration(playbackRate);
             const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
@@ -10016,7 +10107,7 @@
                 transportOrigin = requestedStartTime;
             }
 
-            source.buffer = bastardLoopBuffer;
+            source.buffer = playbackBuffer;
             source.loop = true;
             source.loopStart = 0;
             source.loopEnd = loopDuration;
@@ -10085,13 +10176,13 @@
         }
 
         function getBastardLoop2PlaybackRate() {
-            const sourceBpm = clampBpmValue(bastardLoop2SourceBpm || sequencerBPM || 120);
-            const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
-            return Math.max(0.25, Math.min(4, (currentBpm / sourceBpm) * getBastardLoop2PitchRatio()));
+            const tempoRate = getBastardLoopTempoRate(bastardLoop2SourceBpm);
+            const pitchRate = getBastardLoop2PitchAffectsDuration() ? getBastardLoop2PitchRatio() : 1;
+            return Math.max(0.25, Math.min(4, tempoRate * pitchRate));
         }
 
         function getBastardLoop2CycleDuration(playbackRate = getBastardLoop2PlaybackRate()) {
-            const playbackBuffer = bastardLoop2Reverse ? getReversedAudioBuffer(bastardLoop2Buffer) : bastardLoop2Buffer;
+            const playbackBuffer = getBastardLoop2PlaybackBuffer();
             const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
@@ -10100,8 +10191,9 @@
             if (bastardLoop2GenerationInFlight) return 'Generating...';
             if (!bastardLoop2Buffer) return 'Empty';
             const reverseTag = bastardLoop2Reverse ? ' · reverse' : '';
-            if (bastardLoop2Metadata?.summary) return `${bastardLoop2Metadata.summary}${reverseTag}`;
-            return `${bastardLoop2Buffer.duration.toFixed(2)}s · ready${reverseTag}`;
+            const samplerTag = getBastardLoop2PitchAffectsDuration() ? ' · sampler pitch' : '';
+            if (bastardLoop2Metadata?.summary) return `${bastardLoop2Metadata.summary}${reverseTag}${samplerTag}`;
+            return `${bastardLoop2Buffer.duration.toFixed(2)}s · ready${reverseTag}${samplerTag}`;
         }
 
         function syncBastardLoop2Ui() {
@@ -10110,11 +10202,13 @@
             const meta = document.getElementById('performanceBastardLoop2Meta');
             const button = document.getElementById('performanceGenerateBastardLoop2Btn');
             const reverseButton = document.getElementById('performanceBastardLoop2ReverseBtn');
+            const durationCheckbox = document.getElementById('performanceBastardLoop2PitchAffectsDuration');
             const value = Math.round(getBastardLoop2LevelValue({ applyLayerToggle: false }) * 100);
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
             updateBastardLoop2PitchLabel();
+            if (durationCheckbox) durationCheckbox.checked = getBastardLoop2PitchAffectsDuration();
             if (meta) meta.textContent = describeBastardLoop2Meta();
             if (button) {
                 button.disabled = bastardLoop2GenerationInFlight;
@@ -10200,7 +10294,8 @@
 
             stopBastardLoop2({ skipUi: true });
 
-            const playbackBuffer = bastardLoop2Reverse ? getReversedAudioBuffer(bastardLoop2Buffer) : bastardLoop2Buffer;
+            const playbackBuffer = getBastardLoop2PlaybackBuffer();
+            if (!playbackBuffer) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
             const now = audioContext.currentTime;
@@ -10286,13 +10381,13 @@
         }
 
         function getBastardLoop3PlaybackRate() {
-            const sourceBpm = clampBpmValue(bastardLoop3SourceBpm || sequencerBPM || 120);
-            const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
-            return Math.max(0.25, Math.min(4, (currentBpm / sourceBpm) * getBastardLoop3PitchRatio()));
+            const tempoRate = getBastardLoopTempoRate(bastardLoop3SourceBpm);
+            const pitchRate = getBastardLoop3PitchAffectsDuration() ? getBastardLoop3PitchRatio() : 1;
+            return Math.max(0.25, Math.min(4, tempoRate * pitchRate));
         }
 
         function getBastardLoop3CycleDuration(playbackRate = getBastardLoop3PlaybackRate()) {
-            const playbackBuffer = bastardLoop3Reverse ? getReversedAudioBuffer(bastardLoop3Buffer) : bastardLoop3Buffer;
+            const playbackBuffer = getBastardLoop3PlaybackBuffer();
             const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
@@ -10301,8 +10396,9 @@
             if (bastardLoop3GenerationInFlight) return 'Generating...';
             if (!bastardLoop3Buffer) return 'Empty';
             const reverseTag = bastardLoop3Reverse ? ' · reverse' : '';
-            if (bastardLoop3Metadata?.summary) return `${bastardLoop3Metadata.summary}${reverseTag}`;
-            return `${bastardLoop3Buffer.duration.toFixed(2)}s · ready${reverseTag}`;
+            const samplerTag = getBastardLoop3PitchAffectsDuration() ? ' · sampler pitch' : '';
+            if (bastardLoop3Metadata?.summary) return `${bastardLoop3Metadata.summary}${reverseTag}${samplerTag}`;
+            return `${bastardLoop3Buffer.duration.toFixed(2)}s · ready${reverseTag}${samplerTag}`;
         }
 
         function syncBastardLoop3Ui() {
@@ -10311,11 +10407,13 @@
             const meta = document.getElementById('performanceBastardLoop3Meta');
             const button = document.getElementById('performanceGenerateBastardLoop3Btn');
             const reverseButton = document.getElementById('performanceBastardLoop3ReverseBtn');
+            const durationCheckbox = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
             const value = Math.round(getBastardLoop3LevelValue({ applyLayerToggle: false }) * 100);
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
             updateBastardLoop3PitchLabel();
+            if (durationCheckbox) durationCheckbox.checked = getBastardLoop3PitchAffectsDuration();
             if (meta) meta.textContent = describeBastardLoop3Meta();
             if (button) {
                 button.disabled = bastardLoop3GenerationInFlight;
@@ -10395,7 +10493,8 @@
 
             stopBastardLoop3({ skipUi: true });
 
-            const playbackBuffer = bastardLoop3Reverse ? getReversedAudioBuffer(bastardLoop3Buffer) : bastardLoop3Buffer;
+            const playbackBuffer = getBastardLoop3PlaybackBuffer();
+            if (!playbackBuffer) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
             const now = audioContext.currentTime;
@@ -10517,6 +10616,46 @@
             }
         }
 
+        function setBastardLoopPitchAffectsDuration(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            bastardLoopPitchAffectsDuration = nextValue;
+            if (bastardLoopPlaying && bastardLoopBuffer) {
+                startBastardLoop(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopUi();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(nextValue
+                    ? 'Bastardloop A sampler pitch mode enabled.'
+                    : 'Bastardloop A duration-preserved pitch enabled.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoop2PitchAffectsDuration(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            bastardLoop2PitchAffectsDuration = nextValue;
+            if (bastardLoopPlaying && bastardLoop2Buffer) {
+                startBastardLoop2(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoop2Ui();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(nextValue
+                    ? 'Bastardloop B sampler pitch mode enabled.'
+                    : 'Bastardloop B duration-preserved pitch enabled.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function setBastardLoop3Enabled(enabled, options = {}) {
             const nextValue = Boolean(enabled);
             if (bastardLoop3Enabled === nextValue) {
@@ -10528,6 +10667,26 @@
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus(bastardLoop3Enabled ? 'Bastardloop C layer enabled.' : 'Bastardloop C layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoop3PitchAffectsDuration(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            bastardLoop3PitchAffectsDuration = nextValue;
+            if (bastardLoopPlaying && bastardLoop3Buffer) {
+                startBastardLoop3(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoop3Ui();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(nextValue
+                    ? 'Bastardloop C sampler pitch mode enabled.'
+                    : 'Bastardloop C duration-preserved pitch enabled.');
             }
             if (!options.skipSave) {
                 saveState();
@@ -17060,6 +17219,9 @@
             setBastardLoopEnabled(true, { silent: true, skipSave: true });
             setBastardLoop2Enabled(true, { silent: true, skipSave: true });
             setBastardLoop3Enabled(true, { silent: true, skipSave: true });
+            setBastardLoopPitchAffectsDuration(false, { silent: true, skipSave: true });
+            setBastardLoop2PitchAffectsDuration(false, { silent: true, skipSave: true });
+            setBastardLoop3PitchAffectsDuration(false, { silent: true, skipSave: true });
             setBastardLoop2Reverse(false, { silent: true, skipSave: true });
             setBastardLoop3Reverse(false, { silent: true, skipSave: true });
             applyBastardLoopDivisionSelection(['1/16'], { save: false });
@@ -17187,9 +17349,12 @@
                 generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                 generatedDryLoopEnabled: generatedDryLoopEnabled,
                 bastardLoopEnabled: bastardLoopEnabled,
+                bastardLoopPitchAffectsDuration: bastardLoopPitchAffectsDuration,
                 bastardLoop2Enabled: bastardLoop2Enabled,
+                bastardLoop2PitchAffectsDuration: bastardLoop2PitchAffectsDuration,
                 bastardLoop2Reverse: bastardLoop2Reverse,
                 bastardLoop3Enabled: bastardLoop3Enabled,
+                bastardLoop3PitchAffectsDuration: bastardLoop3PitchAffectsDuration,
                 bastardLoop3Reverse: bastardLoop3Reverse,
                 tonalDrumsEnabled: tonalDrumsEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
@@ -17369,9 +17534,17 @@
             if (importedBastardLoopEnabled !== undefined) {
                 setBastardLoopEnabled(importedBastardLoopEnabled, { silent: true, skipSave: true });
             }
+            const importedBastardLoopPitchAffectsDuration = safePreset.bastardLoopPitchAffectsDuration ?? preset.bastardLoopPitchAffectsDuration;
+            if (importedBastardLoopPitchAffectsDuration !== undefined) {
+                setBastardLoopPitchAffectsDuration(importedBastardLoopPitchAffectsDuration, { silent: true, skipSave: true });
+            }
             const importedBastardLoop2Enabled = safePreset.bastardLoop2Enabled ?? preset.bastardLoop2Enabled;
             if (importedBastardLoop2Enabled !== undefined) {
                 setBastardLoop2Enabled(importedBastardLoop2Enabled, { silent: true, skipSave: true });
+            }
+            const importedBastardLoop2PitchAffectsDuration = safePreset.bastardLoop2PitchAffectsDuration ?? preset.bastardLoop2PitchAffectsDuration;
+            if (importedBastardLoop2PitchAffectsDuration !== undefined) {
+                setBastardLoop2PitchAffectsDuration(importedBastardLoop2PitchAffectsDuration, { silent: true, skipSave: true });
             }
             const importedBastardLoop2Reverse = safePreset.bastardLoop2Reverse ?? preset.bastardLoop2Reverse;
             if (importedBastardLoop2Reverse !== undefined) {
@@ -17380,6 +17553,10 @@
             const importedBastardLoop3Enabled = safePreset.bastardLoop3Enabled ?? preset.bastardLoop3Enabled;
             if (importedBastardLoop3Enabled !== undefined) {
                 setBastardLoop3Enabled(importedBastardLoop3Enabled, { silent: true, skipSave: true });
+            }
+            const importedBastardLoop3PitchAffectsDuration = safePreset.bastardLoop3PitchAffectsDuration ?? preset.bastardLoop3PitchAffectsDuration;
+            if (importedBastardLoop3PitchAffectsDuration !== undefined) {
+                setBastardLoop3PitchAffectsDuration(importedBastardLoop3PitchAffectsDuration, { silent: true, skipSave: true });
             }
             const importedBastardLoop3Reverse = safePreset.bastardLoop3Reverse ?? preset.bastardLoop3Reverse;
             if (importedBastardLoop3Reverse !== undefined) {
@@ -17812,11 +17989,14 @@
                     generatedDryLoopEnabled: generatedDryLoopEnabled,
                     bastardLoopEnabled: bastardLoopEnabled,
                     bastardLoopDivisions: getSelectedBastardLoopDivisions({ ensureDefault: false }),
+                    bastardLoopPitchAffectsDuration: bastardLoopPitchAffectsDuration,
                     bastardLoop2Enabled: bastardLoop2Enabled,
                     bastardLoop2Divisions: getSelectedBastardLoop2Divisions({ ensureDefault: false }),
+                    bastardLoop2PitchAffectsDuration: bastardLoop2PitchAffectsDuration,
                     bastardLoop2Reverse: bastardLoop2Reverse,
                     bastardLoop3Enabled: bastardLoop3Enabled,
                     bastardLoop3Divisions: getSelectedBastardLoop3Divisions({ ensureDefault: false }),
+                    bastardLoop3PitchAffectsDuration: bastardLoop3PitchAffectsDuration,
                     bastardLoop3Reverse: bastardLoop3Reverse,
                     grainLayerSolo: grainLayerSolo,
                     sourceWaveformSolo: getSourceWaveformSoloState(),
@@ -18000,11 +18180,17 @@
                     if (state.modes.bastardLoopDivisions !== undefined) {
                         applyBastardLoopDivisionSelection(state.modes.bastardLoopDivisions, { save: false });
                     }
+                    if (state.modes.bastardLoopPitchAffectsDuration !== undefined) {
+                        setBastardLoopPitchAffectsDuration(state.modes.bastardLoopPitchAffectsDuration, { silent: true, skipSave: true });
+                    }
                     if (state.modes.bastardLoop2Enabled !== undefined) {
                         setBastardLoop2Enabled(state.modes.bastardLoop2Enabled, { silent: true, skipSave: true });
                     }
                     if (state.modes.bastardLoop2Divisions !== undefined) {
                         applyBastardLoop2DivisionSelection(state.modes.bastardLoop2Divisions, { save: false });
+                    }
+                    if (state.modes.bastardLoop2PitchAffectsDuration !== undefined) {
+                        setBastardLoop2PitchAffectsDuration(state.modes.bastardLoop2PitchAffectsDuration, { silent: true, skipSave: true });
                     }
                     if (state.modes.bastardLoop2Reverse !== undefined) {
                         setBastardLoop2Reverse(state.modes.bastardLoop2Reverse, { silent: true, skipSave: true });
@@ -18014,6 +18200,9 @@
                     }
                     if (state.modes.bastardLoop3Divisions !== undefined) {
                         applyBastardLoop3DivisionSelection(state.modes.bastardLoop3Divisions, { save: false });
+                    }
+                    if (state.modes.bastardLoop3PitchAffectsDuration !== undefined) {
+                        setBastardLoop3PitchAffectsDuration(state.modes.bastardLoop3PitchAffectsDuration, { silent: true, skipSave: true });
                     }
                     if (state.modes.bastardLoop3Reverse !== undefined) {
                         setBastardLoop3Reverse(state.modes.bastardLoop3Reverse, { silent: true, skipSave: true });
@@ -19588,11 +19777,14 @@
         const performanceSampleVolume = document.getElementById('performanceSampleVolume');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
         const performanceBastardLoopPitch = document.getElementById('performanceBastardLoopPitch');
+        const performanceBastardLoopPitchAffectsDuration = document.getElementById('performanceBastardLoopPitchAffectsDuration');
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
         const performanceBastardLoop2Pitch = document.getElementById('performanceBastardLoop2Pitch');
+        const performanceBastardLoop2PitchAffectsDuration = document.getElementById('performanceBastardLoop2PitchAffectsDuration');
         const performanceBastardLoop2Level = document.getElementById('performanceBastardLoop2Level');
         const performanceBastardLoop2ReverseBtn = document.getElementById('performanceBastardLoop2ReverseBtn');
         const performanceBastardLoop3Pitch = document.getElementById('performanceBastardLoop3Pitch');
+        const performanceBastardLoop3PitchAffectsDuration = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
         const performanceBastardLoop3Level = document.getElementById('performanceBastardLoop3Level');
         const performanceBastardLoop3ReverseBtn = document.getElementById('performanceBastardLoop3ReverseBtn');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
@@ -20314,8 +20506,16 @@
             setBastardLoopPitchOctaves(event.target.value);
         });
 
+        performanceBastardLoopPitchAffectsDuration?.addEventListener('change', (event) => {
+            setBastardLoopPitchAffectsDuration(event.target.checked);
+        });
+
         performanceBastardLoop2Pitch?.addEventListener('input', (event) => {
             setBastardLoop2PitchOctaves(event.target.value);
+        });
+
+        performanceBastardLoop2PitchAffectsDuration?.addEventListener('change', (event) => {
+            setBastardLoop2PitchAffectsDuration(event.target.checked);
         });
 
         performanceBastardLoop2ReverseBtn?.addEventListener('click', () => {
@@ -20331,6 +20531,10 @@
 
         performanceBastardLoop3Pitch?.addEventListener('input', (event) => {
             setBastardLoop3PitchOctaves(event.target.value);
+        });
+
+        performanceBastardLoop3PitchAffectsDuration?.addEventListener('change', (event) => {
+            setBastardLoop3PitchAffectsDuration(event.target.checked);
         });
 
         performanceBastardLoop3ReverseBtn?.addEventListener('click', () => {

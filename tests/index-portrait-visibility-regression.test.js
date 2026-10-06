@@ -445,13 +445,36 @@ test('bastardloop has octave pitch steps and resyncs its loop cycle when retuned
     assert.match(indexHtml, /let bastardLoopPitchOctaves = 0/);
     assert.match(indexHtml, /function clampBastardLoopPitchOctaves\(value\)/);
     assert.match(indexHtml, /function getBastardLoopPitchRatio\(\)/);
+    assert.match(indexHtml, /function getBastardLoopTempoRate\(sourceBpm\)/);
     assert.match(indexHtml, /function getBastardLoopCycleDuration\(playbackRate = getBastardLoopPlaybackRate\(\)\)/);
-    assert.match(indexHtml, /return Math\.max\(0\.25, Math\.min\(4, \(currentBpm \/ sourceBpm\) \* getBastardLoopPitchRatio\(\)\)\);/);
+    assert.match(indexHtml, /const pitchRate = getBastardLoopPitchAffectsDuration\(\) \? getBastardLoopPitchRatio\(\) : 1;/);
     assert.match(indexHtml, /const cycleDuration = getBastardLoopCycleDuration\(playbackRate\);/);
     assert.match(indexHtml, /const cycleElapsed = cycleDuration > 0 \? elapsed % cycleDuration : 0;/);
     assert.match(indexHtml, /function setBastardLoopPitchOctaves\(value, options = \{\}\)/);
     assert.match(indexHtml, /if \(bastardLoopPlaying && bastardLoopBuffer\) \{\s*startBastardLoop\(null, \{ skipUi: true \}\);\s*\} else \{\s*syncAllBastardLoopTempos\(\);\s*\}/);
     assert.match(indexHtml, /performanceBastardLoopPitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoopPitchOctaves\(event\.target\.value\);/);
+});
+
+test('all bastardloop layers can switch between duration-preserved and sampler-style pitch', () => {
+    assert.match(indexHtml, /id="performanceBastardLoopPitchAffectsDuration"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2PitchAffectsDuration"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3PitchAffectsDuration"/);
+    assert.match(indexHtml, /let bastardLoopPitchAffectsDuration = false/);
+    assert.match(indexHtml, /let bastardLoop2PitchAffectsDuration = false/);
+    assert.match(indexHtml, /let bastardLoop3PitchAffectsDuration = false/);
+    assert.match(indexHtml, /function getBastardLoopPlaybackBufferForMode\(sourceBuffer, pitchRatio = 1, options = \{\}\)/);
+    assert.match(indexHtml, /function getBastardLoopPitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /function getBastardLoop2PitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /function getBastardLoop3PitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /function setBastardLoopPitchAffectsDuration\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop2PitchAffectsDuration\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop3PitchAffectsDuration\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /preserveDuration: !getBastardLoopPitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /preserveDuration: !getBastardLoop2PitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /preserveDuration: !getBastardLoop3PitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /performanceBastardLoopPitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoopPitchAffectsDuration\(event\.target\.checked\);/);
+    assert.match(indexHtml, /performanceBastardLoop2PitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoop2PitchAffectsDuration\(event\.target\.checked\);/);
+    assert.match(indexHtml, /performanceBastardLoop3PitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoop3PitchAffectsDuration\(event\.target\.checked\);/);
 });
 
 test('bastardloop has independent transport controls and is not owned by the sequencer stop path', () => {
@@ -493,6 +516,7 @@ test('second bastardloop layer uses SAMPLEDROP_2 and has its own pitch, level, r
     assert.match(indexHtml, /id="performanceBastard2DivisionSixteenth" value="1\/16" checked/);
     assert.match(indexHtml, /id="performanceBastard2DivisionThirtySecond" value="1\/32"/);
     assert.match(indexHtml, /id="performanceBastardLoop2Pitch" min="-2" max="2" value="0" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2PitchAffectsDuration"/);
     assert.match(indexHtml, /id="performanceBastardLoop2Level" min="0" max="100" value="55" step="1"/);
     assert.match(indexHtml, /id="performanceBastardLoop2ReverseBtn"/);
     assert.match(indexHtml, /id="performanceBastardLoop2ToggleBtn"/);
@@ -521,6 +545,7 @@ test('third bastardloop layer uses SPLICE_CLAW and has its own pitch, level, res
     assert.match(indexHtml, /id="performanceBastard3DivisionSixteenth" value="1\/16" checked/);
     assert.match(indexHtml, /id="performanceBastard3DivisionThirtySecond" value="1\/32"/);
     assert.match(indexHtml, /id="performanceBastardLoop3Pitch" min="-2" max="2" value="0" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3PitchAffectsDuration"/);
     assert.match(indexHtml, /id="performanceBastardLoop3Level" min="0" max="100" value="50" step="1"/);
     assert.match(indexHtml, /id="performanceBastardLoop3ReverseBtn"/);
     assert.match(indexHtml, /id="performanceBastardLoop3ToggleBtn"/);
