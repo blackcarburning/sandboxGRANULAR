@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-22-36-build-v2026.10.06.4';
+            const cacheBuster = '2026-10-06-22-42-build-v2026.10.06.5';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -9866,7 +9866,7 @@
             const safePitchRatio = Number.isFinite(Number(musicalPitchRatio))
                 ? Math.max(0.0625, Math.min(16, Math.abs(Number(musicalPitchRatio))))
                 : 1;
-            return 1 / safePitchRatio;
+            return safePitchRatio;
         }
 
         function getTempoLockedPitchBuffer(sourceBuffer, pitchRatio = 1) {
