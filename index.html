@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-07-00-29-build-v2026.10.07.2';
+            const cacheBuster = '2026-10-07-00-45-build-v2026.10.07.3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3355,7 +3355,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.07.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.07.3</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3368,7 +3368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.07.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.07.3</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -9726,19 +9726,25 @@
             return ((numeric % 1) + 1) % 1;
         }
 
-        function getSourceGrainShape(sourceInfo, voice, baseEnvelope) {
+        function getSourceGrainShape(sourceInfo, voice, baseEnvelope, modeProfile = getGrainModeProfile()) {
             const kind = sourceInfo?.kind || 'legacy';
             const positionOffset = getSourceGrainControlValue(kind, 'position', 0) / 100;
             const scale = getSourceGrainControlValue(kind, 'scale', 100) / 100;
             const attackScale = getSourceGrainControlValue(kind, 'attack', 100) / 100;
             const releaseScale = getSourceGrainControlValue(kind, 'release', 100) / 100;
             const minimumFade = baseEnvelope.minimumFadeSeconds || 0.001;
-            const sourceAttack = Math.max(minimumFade, baseEnvelope.attack * attackScale);
-            const sourceRelease = Math.max(minimumFade, baseEnvelope.release * releaseScale);
+            const cloudFadeScale = modeProfile?.mode === 'cloud'
+                ? Math.max(1, Number(modeProfile.sourceFadeScale) || 1)
+                : 1;
+            const cloudSizeScale = modeProfile?.mode === 'cloud'
+                ? Math.max(1, Number(modeProfile.sourceSizeScale) || 1)
+                : 1;
+            const sourceAttack = Math.max(minimumFade, baseEnvelope.attack * attackScale * cloudFadeScale);
+            const sourceRelease = Math.max(minimumFade, baseEnvelope.release * releaseScale * cloudFadeScale);
 
             return {
                 positionPct: wrapUnitInterval((Number(voice.positionPct) || 0) + positionOffset),
-                sizeSeconds: Math.max(0.01, Math.min(0.5, (Number(voice.sizeSeconds) || 0.1) * scale)),
+                sizeSeconds: Math.max(0.01, Math.min(0.7, (Number(voice.sizeSeconds) || 0.1) * scale * cloudSizeScale)),
                 sourceAttack,
                 sourceRelease
             };
@@ -9915,17 +9921,21 @@
             }
             return {
                 mode: 'cloud',
-                minGrainSize: 0.14,
-                maxGrainSize: 0.42,
-                minAttack: 0.04,
-                minRelease: 0.09,
-                releaseRatio: 0.68,
-                sprayScale: 0.28,
-                dryMixCap: 0.38,
-                intervalScale: 1.45,
-                jitterAmount: 0.42,
-                positionDriftMin: 0.035,
-                positionDriftMax: 0.26
+                minGrainSize: 0.2,
+                maxGrainSize: 0.58,
+                minAttack: 0.06,
+                minRelease: 0.16,
+                releaseRatio: 0.96,
+                sprayScale: 0.18,
+                dryMixCap: 0.24,
+                intervalScale: 1.9,
+                jitterAmount: 0.5,
+                positionDriftMin: 0.05,
+                positionDriftMax: 0.34,
+                continuousTravelRate: 0.18,
+                continuousTravelDrift: 0.08,
+                sourceSizeScale: 1.22,
+                sourceFadeScale: 1.28
             };
         }
 
@@ -12966,6 +12976,23 @@
             return wrapUnitInterval(base + slowDrift + slowerDrift + microDrift);
         }
 
+        function getCloudContinuousAdvanceRate(grainInfo, scheduledTime, modeProfile) {
+            const safeProfile = modeProfile || getGrainModeProfile('cloud');
+            if (safeProfile.mode !== 'cloud') return 1;
+            if (!grainInfo?.positionState) {
+                getSmoothedCloudPosition(grainInfo, 0, 0, scheduledTime, safeProfile);
+            }
+            const state = grainInfo?.positionState;
+            const elapsed = Math.max(0, (scheduledTime ?? audioContext.currentTime) - (state?.startTime ?? audioContext.currentTime));
+            const baseRate = Math.max(0.05, Number(safeProfile.continuousTravelRate) || 0.18);
+            const driftAmount = Math.max(0, Number(safeProfile.continuousTravelDrift) || 0.08);
+            const seedA = state?.seedA ?? 0;
+            const seedB = state?.seedB ?? 0;
+            const slowMotion = Math.sin((elapsed * 0.11) + seedA) * driftAmount;
+            const slowerMotion = Math.sin((elapsed * 0.043) + seedB) * driftAmount * 0.55;
+            return Math.max(0.04, baseRate + slowMotion + slowerMotion);
+        }
+
         function getSecondaryGrainSynthVoices(baseRate) {
             const voiceSpecs = [
                 {
@@ -13218,16 +13245,21 @@
             const posSlider = Number.isFinite(options.positionPct)
                 ? wrapUnitInterval(options.positionPct)
                 : getModulatedValue('position') / 100;
+            const sharedAdvanceRate = Number.isFinite(options.advanceRate) && options.advanceRate > 0
+                ? options.advanceRate
+                : 1;
             const scheduleSourceVoice = (sourceInfo, voice) => {
                 if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
                 const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
                 const sourcePitchRate = Math.max(0.0625, Math.min(16, voice.rate * sourceTuneRatio));
-                const sourceAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0 ? voice.advanceRate : 1;
+                const sourceAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0
+                    ? voice.advanceRate
+                    : sharedAdvanceRate;
                 const sourceShape = getSourceGrainShape(sourceInfo, voice, {
                     attack,
                     release,
                     minimumFadeSeconds
-                });
+                }, modeProfile);
                 const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
                 const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
                     ? mygrainUtils.resolveSampleWindow({
@@ -13568,12 +13600,16 @@
                     try {
                         const grainTime = getJitteredGrainScheduleTime(grainInfo.nextTime, intervalSeconds, modeProfile);
                         const positionPct = getSmoothedCloudPosition(grainInfo, basePosition, sprayValue, grainTime, modeProfile);
+                        const advanceRate = modeProfile.mode === 'cloud'
+                            ? getCloudContinuousAdvanceRate(grainInfo, grainTime, modeProfile)
+                            : 1;
                         playGrain(grainInfo.note, grainTime, grainInfo.velocity, {
                             role: grainInfo.role,
                             streamStartTime: grainInfo.loopOriginTime ?? grainInfo.startTime,
                             continuousLoop: grainInfo.continuousLoop,
                             grainMode: modeProfile.mode,
-                            positionPct
+                            positionPct,
+                            advanceRate
                         });
                     } catch (e) {
                         console.error('Error playing grain:', e);
