@@ -191,6 +191,19 @@ test('click guard applies minimum fades to grains, oscillators, dry loop, and au
     assert.match(indexHtml, /const fadeSeconds = getFadeSecondsForDuration\(duration\)/);
 });
 
+test('dropbox sample layer can browse and preview source samples before loading', () => {
+    assert.match(indexHtml, /id="performanceDropboxSampleBrowseBtn">Browse Samples<\/button>/);
+    assert.match(indexHtml, /id="dropboxSampleBrowserOverlay"/);
+    assert.match(indexHtml, /id="dropboxSampleBrowserList"/);
+    assert.match(indexHtml, /const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `\$\{BASTARD_LOOP_REPOSITORY_BASE_URL\}\/api\/source-files`/);
+    assert.match(indexHtml, /function buildDropboxSampleSourcePreviewUrl\(sourceKey, relativePath\)/);
+    assert.match(indexHtml, /function openDropboxSampleBrowser\(\)/);
+    assert.match(indexHtml, /function refreshDropboxSampleBrowser\(options = \{\}\)/);
+    assert.match(indexHtml, /audio\.controls = true/);
+    assert.match(indexHtml, /audio\.src = file\.previewUrl/);
+    assert.match(indexHtml, /performanceDropboxSampleBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(\);/);
+});
+
 test('mobile keyboard keeps the legacy two-octave layout while preserving widened touch targets', () => {
     const keyMatches = indexHtml.match(/class="key /g) || [];
     const whiteKeyMatches = indexHtml.match(/class="key white"/g) || [];

@@ -104,6 +104,122 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        .sample-browser-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483100;
+            display: none;
+            align-items: stretch;
+            justify-content: center;
+            padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        body.dropbox-sample-browser-open .sample-browser-overlay {
+            display: flex;
+        }
+
+        .sample-browser-shell {
+            width: min(860px, 100%);
+            max-height: calc(100dvh - 24px);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 22px;
+            background: rgba(7, 12, 19, 0.98);
+            border: 1px solid rgba(0, 212, 255, 0.34);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
+            overflow: hidden;
+        }
+
+        .sample-browser-head,
+        .sample-browser-controls,
+        .sample-browser-card-head,
+        .sample-browser-card-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sample-browser-head {
+            align-items: flex-start;
+        }
+
+        .sample-browser-copy h3,
+        .sample-browser-copy p,
+        .sample-browser-empty,
+        .sample-browser-status {
+            margin: 0;
+        }
+
+        .sample-browser-copy p,
+        .sample-browser-status,
+        .sample-browser-path {
+            color: rgba(214, 232, 255, 0.72);
+        }
+
+        .sample-browser-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sample-browser-controls input {
+            flex: 1 1 260px;
+            min-width: 180px;
+        }
+
+        .sample-browser-list {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            display: grid;
+            gap: 12px;
+            padding-right: 2px;
+        }
+
+        .sample-browser-card {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            background: rgba(14, 20, 32, 0.96);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sample-browser-name {
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .sample-browser-path {
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .sample-browser-card audio {
+            width: 100%;
+        }
+
+        .sample-browser-empty {
+            padding: 18px 0 8px;
+            color: rgba(214, 232, 255, 0.72);
+        }
+
+        @media (max-width: 640px) {
+            .sample-browser-controls,
+            .sample-browser-card-head,
+            .sample-browser-card-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
         /* Overlays for Orientation and Start */
         .overlay {
             position: fixed;
@@ -3344,6 +3460,7 @@
                         <p class="performance-feature-note">Load one random sample from `SAMPLEDROP`, `SAMPLEDROP_2`, or `SPLICE_CLAW`, then either drop it at the start of each Bastardloop bar or stretch it to fill the bar.</p>
                     </div>
                     <div class="performance-feature-actions">
+                        <button class="performance-btn" id="performanceDropboxSampleBrowseBtn">Browse Samples</button>
                         <button class="performance-btn primary" id="performanceDropboxSampleLoadBtn">Load Random Sample</button>
                     </div>
                 </div>
@@ -5598,6 +5715,24 @@
             </div>
         </div>
 
+        <div class="sample-browser-overlay" id="dropboxSampleBrowserOverlay" hidden aria-hidden="true">
+            <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="dropboxSampleBrowserTitle">
+                <div class="sample-browser-head">
+                    <div class="sample-browser-copy">
+                        <h3 id="dropboxSampleBrowserTitle">Dropbox Sample Browser</h3>
+                        <p id="dropboxSampleBrowserSubtitle">Preview and load one source sample into the Dropbox sample layer.</p>
+                    </div>
+                    <button class="performance-btn" id="dropboxSampleBrowserCloseBtn" type="button">Close</button>
+                </div>
+                <div class="sample-browser-controls">
+                    <input id="dropboxSampleBrowserFilter" type="search" placeholder="Filter samples">
+                    <button class="performance-btn" id="dropboxSampleBrowserRefreshBtn" type="button">Refresh</button>
+                </div>
+                <div class="sample-browser-status" id="dropboxSampleBrowserStatus">Choose a source and preview a sample.</div>
+                <div class="sample-browser-list" id="dropboxSampleBrowserList"></div>
+            </div>
+        </div>
+
     </div>
 
     <div id="debugPanel">
@@ -6268,6 +6403,8 @@
         let bastardLoop2GenerationInFlight = false;
         let bastardLoop3GenerationInFlight = false;
         let dropboxSampleLayerLoadInFlight = false;
+        let dropboxSampleBrowserFiles = [];
+        let dropboxSampleBrowserLoading = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -10120,6 +10257,7 @@
 
         function syncDropboxSampleLayerUi() {
             const button = document.getElementById('performanceDropboxSampleLoadBtn');
+            const browseButton = document.getElementById('performanceDropboxSampleBrowseBtn');
             const slider = document.getElementById('performanceDropboxSampleLevel');
             const label = document.getElementById('performanceDropboxSampleLevelValue');
             const meta = document.getElementById('performanceDropboxSampleMeta');
@@ -10131,6 +10269,9 @@
                 button.textContent = dropboxSampleLayerLoadInFlight
                     ? 'Loading Sample...'
                     : (dropboxSampleLayerRawBuffer ? 'Reload Random Sample' : 'Load Random Sample');
+            }
+            if (browseButton) {
+                browseButton.disabled = dropboxSampleLayerLoadInFlight;
             }
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
@@ -19554,6 +19695,7 @@
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
         const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
         const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
+        const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-files`;
         const DROPBOX_SAMPLE_SOURCE_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-sample`;
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
@@ -19596,6 +19738,207 @@
             }
         }
 
+        function buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath) {
+            const params = new URLSearchParams({
+                source: sourceKey,
+                path: relativePath
+            });
+            return `${DROPBOX_SAMPLE_SOURCE_API_URL}?${params.toString()}`;
+        }
+
+        async function loadDropboxSampleLayerFromResponse(response, fallback = {}) {
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Dropbox sample load failed with status ${response.status}`);
+            }
+
+            const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'sample.wav';
+            const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
+            const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || getDropboxSampleLayerSourceKey();
+            const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || fallback.sourceLabel || getDropboxSampleLayerSourceLabel(responseSourceKey);
+            const arrayBuffer = await response.arrayBuffer();
+            const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            await applyLoadedDropboxSampleLayerBuffer(decoded, {
+                sourceKey: responseSourceKey,
+                sourceLabel: responseSourceLabel,
+                fileName: sourceName,
+                relativePath,
+                summary: `${sourceName} · ${responseSourceLabel}`
+            });
+        }
+
+        function pauseDropboxSampleBrowserPreviewAudio() {
+            document.querySelectorAll('#dropboxSampleBrowserList audio').forEach((audio) => {
+                try {
+                    audio.pause();
+                } catch (error) {}
+            });
+        }
+
+        function setDropboxSampleBrowserStatus(message = '') {
+            const status = document.getElementById('dropboxSampleBrowserStatus');
+            if (status) status.textContent = message;
+        }
+
+        function renderDropboxSampleBrowserFiles() {
+            const list = document.getElementById('dropboxSampleBrowserList');
+            const filter = document.getElementById('dropboxSampleBrowserFilter');
+            if (!list) return;
+
+            const query = String(filter?.value || '').trim().toLowerCase();
+            const visibleFiles = dropboxSampleBrowserFiles.filter((file) => {
+                const haystack = `${file.name} ${file.relativePath}`.toLowerCase();
+                return !query || haystack.includes(query);
+            });
+            list.innerHTML = '';
+
+            if (!visibleFiles.length) {
+                const empty = document.createElement('div');
+                empty.className = 'sample-browser-empty';
+                empty.textContent = dropboxSampleBrowserLoading
+                    ? 'Loading samples…'
+                    : (dropboxSampleBrowserFiles.length ? 'No samples match that filter.' : 'No previewable source samples were found.');
+                list.appendChild(empty);
+                return;
+            }
+
+            visibleFiles.forEach((file) => {
+                const card = document.createElement('article');
+                card.className = 'sample-browser-card';
+
+                const head = document.createElement('div');
+                head.className = 'sample-browser-card-head';
+
+                const name = document.createElement('div');
+                name.className = 'sample-browser-name';
+                name.textContent = file.name;
+
+                const loadButton = document.createElement('button');
+                loadButton.className = 'performance-btn primary';
+                loadButton.type = 'button';
+                loadButton.textContent = 'Load Sample';
+
+                const path = document.createElement('div');
+                path.className = 'sample-browser-path';
+                path.textContent = file.relativePath;
+
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.preload = 'none';
+                audio.src = file.previewUrl;
+
+                const actions = document.createElement('div');
+                actions.className = 'sample-browser-card-actions';
+
+                const previewHint = document.createElement('div');
+                previewHint.className = 'sample-browser-path';
+                previewHint.textContent = file.sourceLabel || getDropboxSampleLayerSourceLabel(file.sourceKey);
+
+                loadButton.addEventListener('click', async () => {
+                    if (dropboxSampleLayerLoadInFlight) return;
+                    loadButton.disabled = true;
+                    setDropboxSampleBrowserStatus(`Loading ${file.name}…`);
+                    try {
+                        await loadDropboxSampleLayerFromSourceRelativePath(file.sourceKey, file.relativePath, file.name);
+                        closeDropboxSampleBrowser();
+                    } catch (error) {
+                        console.error(error);
+                        setDropboxSampleBrowserStatus(`Load failed: ${error.message}`);
+                        setStatus(`Dropbox sample load failed: ${error.message}`, 'error');
+                    } finally {
+                        loadButton.disabled = false;
+                    }
+                });
+
+                head.append(name, loadButton);
+                actions.append(previewHint);
+                card.append(head, path, audio, actions);
+                list.appendChild(card);
+            });
+        }
+
+        async function refreshDropboxSampleBrowser(options = {}) {
+            const sourceKey = getDropboxSampleLayerSourceKey();
+            const sourceLabel = getDropboxSampleLayerSourceLabel(sourceKey);
+            dropboxSampleBrowserLoading = true;
+            setDropboxSampleBrowserStatus(`Loading ${sourceLabel} preview list…`);
+            renderDropboxSampleBrowserFiles();
+
+            try {
+                const params = new URLSearchParams({ source: sourceKey });
+                if (options.forceRefresh) params.set('refresh', '1');
+                const response = await fetch(`${DROPBOX_SAMPLE_SOURCE_FILES_API_URL}?${params.toString()}`, {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Could not load sample list (${response.status})`);
+                }
+                dropboxSampleBrowserFiles = Array.isArray(payload.files) ? payload.files : [];
+                setDropboxSampleBrowserStatus(`${dropboxSampleBrowserFiles.length} sample${dropboxSampleBrowserFiles.length === 1 ? '' : 's'} from ${payload.sourceLabel || sourceLabel}.`);
+            } catch (error) {
+                dropboxSampleBrowserFiles = [];
+                setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
+            } finally {
+                dropboxSampleBrowserLoading = false;
+                renderDropboxSampleBrowserFiles();
+            }
+        }
+
+        function openDropboxSampleBrowser() {
+            const overlay = document.getElementById('dropboxSampleBrowserOverlay');
+            const filter = document.getElementById('dropboxSampleBrowserFilter');
+            if (!overlay) return;
+            overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('dropbox-sample-browser-open');
+            if (filter) filter.value = '';
+            dropboxSampleBrowserFiles = [];
+            renderDropboxSampleBrowserFiles();
+            refreshDropboxSampleBrowser().catch((error) => {
+                console.error(error);
+                setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
+            });
+        }
+
+        function closeDropboxSampleBrowser() {
+            const overlay = document.getElementById('dropboxSampleBrowserOverlay');
+            if (!overlay) return;
+            pauseDropboxSampleBrowserPreviewAudio();
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('dropbox-sample-browser-open');
+        }
+
+        async function loadDropboxSampleLayerFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading a Dropbox sample.');
+            }
+
+            const sourceLabel = getDropboxSampleLayerSourceLabel(sourceKey);
+            dropboxSampleLayerLoadInFlight = true;
+            syncDropboxSampleLayerUi();
+            setStatus(`Loading ${fileName || 'sample'} from ${sourceLabel}…`);
+
+            try {
+                const response = await fetch(buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath), {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                await loadDropboxSampleLayerFromResponse(response, {
+                    sourceKey,
+                    sourceLabel,
+                    fileName,
+                    relativePath
+                });
+            } finally {
+                dropboxSampleLayerLoadInFlight = false;
+                syncDropboxSampleLayerUi();
+                syncPerformanceControlState();
+            }
+        }
+
         async function loadDropboxSampleLayerFromSource() {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Dropbox sample.');
@@ -19619,25 +19962,7 @@
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
                     })
                 });
-
-                if (!response.ok) {
-                    const payload = await response.json().catch(() => ({}));
-                    throw new Error(payload.error || `Dropbox sample load failed with status ${response.status}`);
-                }
-
-                const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || 'sample.wav';
-                const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path'));
-                const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || sourceKey;
-                const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || sourceLabel;
-                const arrayBuffer = await response.arrayBuffer();
-                const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-                await applyLoadedDropboxSampleLayerBuffer(decoded, {
-                    sourceKey: responseSourceKey,
-                    sourceLabel: responseSourceLabel,
-                    fileName: sourceName,
-                    relativePath,
-                    summary: `${sourceName} · ${responseSourceLabel}`
-                });
+                await loadDropboxSampleLayerFromResponse(response, { sourceKey, sourceLabel });
             } finally {
                 dropboxSampleLayerLoadInFlight = false;
                 syncDropboxSampleLayerUi();
@@ -20390,10 +20715,15 @@
         const performanceBastardLoop3PitchAffectsDuration = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
         const performanceBastardLoop3Level = document.getElementById('performanceBastardLoop3Level');
         const performanceBastardLoop3ReverseBtn = document.getElementById('performanceBastardLoop3ReverseBtn');
+        const performanceDropboxSampleBrowseBtn = document.getElementById('performanceDropboxSampleBrowseBtn');
         const performanceDropboxSampleLoadBtn = document.getElementById('performanceDropboxSampleLoadBtn');
         const performanceDropboxSampleSource = document.getElementById('performanceDropboxSampleSource');
         const performanceDropboxSampleStretchToLoop = document.getElementById('performanceDropboxSampleStretchToLoop');
         const performanceDropboxSampleLevel = document.getElementById('performanceDropboxSampleLevel');
+        const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
+        const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
+        const dropboxSampleBrowserRefreshBtn = document.getElementById('dropboxSampleBrowserRefreshBtn');
+        const dropboxSampleBrowserFilter = document.getElementById('dropboxSampleBrowserFilter');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
         const performanceNoiseLevel = document.getElementById('performanceNoiseLevel');
@@ -21086,6 +21416,10 @@
         });
 
         document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && document.body.classList.contains('dropbox-sample-browser-open')) {
+                closeDropboxSampleBrowser();
+                return;
+            }
             if (event.key === 'Escape' && document.body.classList.contains('synth-popup-open')) {
                 closeSynthPopup();
             }
@@ -21170,9 +21504,19 @@
             }
         });
 
+        performanceDropboxSampleBrowseBtn?.addEventListener('click', () => {
+            openDropboxSampleBrowser();
+        });
+
         performanceDropboxSampleSource?.addEventListener('change', () => {
             saveState();
             syncDropboxSampleLayerUi();
+            if (!dropboxSampleBrowserOverlay?.hidden) {
+                refreshDropboxSampleBrowser().catch((error) => {
+                    console.error(error);
+                    setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
+                });
+            }
         });
 
         performanceDropboxSampleStretchToLoop?.addEventListener('change', (event) => {
@@ -21190,6 +21534,27 @@
             dropboxSampleLayerLevel = value / 100;
             document.getElementById('performanceDropboxSampleLevelValue').textContent = `${Math.round(value)}%`;
             updateDropboxSampleLayerMix();
+        });
+
+        dropboxSampleBrowserCloseBtn?.addEventListener('click', () => {
+            closeDropboxSampleBrowser();
+        });
+
+        dropboxSampleBrowserRefreshBtn?.addEventListener('click', () => {
+            refreshDropboxSampleBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+                setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
+            });
+        });
+
+        dropboxSampleBrowserFilter?.addEventListener('input', () => {
+            renderDropboxSampleBrowserFiles();
+        });
+
+        dropboxSampleBrowserOverlay?.addEventListener('click', (event) => {
+            if (event.target === dropboxSampleBrowserOverlay) {
+                closeDropboxSampleBrowser();
+            }
         });
 
         bindPerformanceLinkedSlider(performanceGrainMainVolume, 'performanceGrainMainVolumeValue', 'grainMainVolume');
