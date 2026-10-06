@@ -450,7 +450,7 @@ test('bastardloop has octave pitch steps and resyncs its loop cycle when retuned
     assert.match(indexHtml, /const cycleDuration = getBastardLoopCycleDuration\(playbackRate\);/);
     assert.match(indexHtml, /const cycleElapsed = cycleDuration > 0 \? elapsed % cycleDuration : 0;/);
     assert.match(indexHtml, /function setBastardLoopPitchOctaves\(value, options = \{\}\)/);
-    assert.match(indexHtml, /if \(bastardLoopPlaying && bastardLoopBuffer\) \{\s*startBastardLoop\(null, \{ skipUi: true \}\);\s*\} else \{\s*syncBastardLoopTempo\(\);\s*\}/);
+    assert.match(indexHtml, /if \(bastardLoopPlaying && bastardLoopBuffer\) \{\s*startBastardLoop\(null, \{ skipUi: true \}\);\s*\} else \{\s*syncAllBastardLoopTempos\(\);\s*\}/);
     assert.match(indexHtml, /performanceBastardLoopPitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoopPitchOctaves\(event\.target\.value\);/);
 });
 
@@ -484,36 +484,70 @@ test('bastardloop uses its own browser route and selectable note sizes', () => {
     assert.match(indexHtml, /body: JSON\.stringify\(\{[\s\S]*divisions[\s\S]*\}\)/);
 });
 
-test('second bastardloop layer has its own level, resolutions, mute, and reverse controls', () => {
+test('second bastardloop layer uses SAMPLEDROP_2 and has its own pitch, level, resolutions, mute, and reverse controls', () => {
     assert.match(indexHtml, /id="performanceGenerateBastardLoop2Btn">Generate Bastardloop B<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoop2BrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /SAMPLEDROP_2/);
     assert.match(indexHtml, /id="performanceBastard2DivisionQuarter" value="1\/4"/);
     assert.match(indexHtml, /id="performanceBastard2DivisionEighth" value="1\/8"/);
     assert.match(indexHtml, /id="performanceBastard2DivisionSixteenth" value="1\/16" checked/);
     assert.match(indexHtml, /id="performanceBastard2DivisionThirtySecond" value="1\/32"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2Pitch" min="-2" max="2" value="0" step="1"/);
     assert.match(indexHtml, /id="performanceBastardLoop2Level" min="0" max="100" value="55" step="1"/);
     assert.match(indexHtml, /id="performanceBastardLoop2ReverseBtn"/);
     assert.match(indexHtml, /id="performanceBastardLoop2ToggleBtn"/);
     assert.match(indexHtml, /let bastardLoop2Level = 0\.55/);
+    assert.match(indexHtml, /let bastardLoop2PitchOctaves = 0/);
     assert.match(indexHtml, /let bastardLoop2Enabled = true/);
     assert.match(indexHtml, /let bastardLoop2Reverse = false/);
     assert.match(indexHtml, /function getSelectedBastardLoop2Divisions\(options = \{\}\)/);
     assert.match(indexHtml, /function applyBastardLoop2DivisionSelection\(divisions, options = \{\}\)/);
     assert.match(indexHtml, /function setBastardLoop2Enabled\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /function setBastardLoop2Reverse\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop2PitchOctaves\(value, options = \{\}\)/);
     assert.match(indexHtml, /function getReversedAudioBuffer\(buffer\)/);
     assert.match(indexHtml, /performanceBastardLoop2ReverseBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop2Reverse\(!bastardLoop2Reverse\);/);
+    assert.match(indexHtml, /performanceBastardLoop2Pitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoop2PitchOctaves\(event\.target\.value\);/);
     assert.match(indexHtml, /performanceBastardLoop2ToggleBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop2Enabled\(!bastardLoop2Enabled\);/);
+    assert.match(indexHtml, /source: 'sampledrop2'/);
 });
 
-test('bastardloop transport can start both loop layers together', () => {
+test('third bastardloop layer uses SPLICE_CLAW and has its own pitch, level, resolutions, mute, and reverse controls', () => {
+    assert.match(indexHtml, /id="performanceGenerateBastardLoop3Btn">Generate Bastardloop C<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoop3BrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /SPLICE_CLAW/);
+    assert.match(indexHtml, /id="performanceBastard3DivisionQuarter" value="1\/4"/);
+    assert.match(indexHtml, /id="performanceBastard3DivisionEighth" value="1\/8"/);
+    assert.match(indexHtml, /id="performanceBastard3DivisionSixteenth" value="1\/16" checked/);
+    assert.match(indexHtml, /id="performanceBastard3DivisionThirtySecond" value="1\/32"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3Pitch" min="-2" max="2" value="0" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3Level" min="0" max="100" value="50" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3ReverseBtn"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3ToggleBtn"/);
+    assert.match(indexHtml, /let bastardLoop3Level = 0\.5/);
+    assert.match(indexHtml, /let bastardLoop3PitchOctaves = 0/);
+    assert.match(indexHtml, /let bastardLoop3Enabled = true/);
+    assert.match(indexHtml, /let bastardLoop3Reverse = false/);
+    assert.match(indexHtml, /function getSelectedBastardLoop3Divisions\(options = \{\}\)/);
+    assert.match(indexHtml, /function applyBastardLoop3DivisionSelection\(divisions, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop3Enabled\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop3Reverse\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoop3PitchOctaves\(value, options = \{\}\)/);
+    assert.match(indexHtml, /performanceBastardLoop3ReverseBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop3Reverse\(!bastardLoop3Reverse\);/);
+    assert.match(indexHtml, /performanceBastardLoop3Pitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoop3PitchOctaves\(event\.target\.value\);/);
+    assert.match(indexHtml, /performanceBastardLoop3ToggleBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop3Enabled\(!bastardLoop3Enabled\);/);
+    assert.match(indexHtml, /source: 'splice_claw'/);
+});
+
+test('bastardloop transport can start three loop layers together', () => {
     assert.match(indexHtml, /function stopAllBastardLoopLayers\(options = \{\}\)/);
     assert.match(indexHtml, /function startAllBastardLoopLayers\(startTime = null, options = \{\}\)/);
     assert.match(indexHtml, /const startedA = startBastardLoop\(resolvedStartTime, \{ skipUi: true \}\);/);
     assert.match(indexHtml, /const startedB = startBastardLoop2\(resolvedStartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /const startedC = startBastardLoop3\(resolvedStartTime, \{ skipUi: true \}\);/);
     assert.match(indexHtml, /performanceBastardLoopPlayBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(true\);/);
     assert.match(indexHtml, /performanceBastardLoopStopBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(false\);/);
-    assert.match(indexHtml, /if \(!bastardLoopBuffer && !bastardLoop2Buffer\) \{/);
+    assert.match(indexHtml, /if \(!bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer\) \{/);
 });
 
 test('tempo-locked keyboard pitch reads source buffers in the non-reversed direction', () => {

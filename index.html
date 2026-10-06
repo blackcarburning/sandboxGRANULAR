@@ -3215,7 +3215,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Alt Layer</div>
                         <h3 class="performance-feature-title">Bastardloop B</h3>
-                        <p class="performance-feature-note">Generate a second Bastardloop layer with its own resolutions, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                        <p class="performance-feature-note">Generate a second Bastardloop layer from `SAMPLEDROP_2`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoop2Btn">Generate Bastardloop B</button>
@@ -3249,6 +3249,13 @@
                     <button class="performance-btn" id="performanceBastardLoop2ReverseBtn" aria-pressed="false" title="Play Bastardloop B in reverse">Reverse Off</button>
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoop2Pitch">
+                        <span>Bastardloop B Pitch</span>
+                        <span class="value" id="performanceBastardLoop2PitchValue">0 oct</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoop2Pitch" min="-2" max="2" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceBastardLoop2Level">
                         <span>Bastardloop B Level</span>
                         <span class="value" id="performanceBastardLoop2LevelValue">55%</span>
@@ -3257,17 +3264,72 @@
                     <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop2Meta">Empty</div>
                 </div>
             </div>
+            <div class="performance-feature-card" aria-label="Bastardloop C controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Splice Layer</div>
+                        <h3 class="performance-feature-title">Bastardloop C</h3>
+                        <p class="performance-feature-note">Generate a third Bastardloop layer from `SPLICE_CLAW`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                    </div>
+                    <div class="performance-feature-actions">
+                        <button class="performance-btn primary" id="performanceGenerateBastardLoop3Btn">Generate Bastardloop C</button>
+                        <button class="performance-btn" id="performanceBastardLoop3BrowserBtn">Bastardloop Browser</button>
+                    </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>Bastardloop C Resolutions</span>
+                    </label>
+                    <div class="performance-checkbox-grid" role="group" aria-label="Bastardloop C note sizes">
+                        <label class="performance-checkbox-option" for="performanceBastard3DivisionQuarter">
+                            <input type="checkbox" id="performanceBastard3DivisionQuarter" value="1/4">
+                            <span>1/4</span>
+                        </label>
+                        <label class="performance-checkbox-option" for="performanceBastard3DivisionEighth">
+                            <input type="checkbox" id="performanceBastard3DivisionEighth" value="1/8">
+                            <span>1/8</span>
+                        </label>
+                        <label class="performance-checkbox-option" for="performanceBastard3DivisionSixteenth">
+                            <input type="checkbox" id="performanceBastard3DivisionSixteenth" value="1/16" checked>
+                            <span>1/16</span>
+                        </label>
+                        <label class="performance-checkbox-option" for="performanceBastard3DivisionThirtySecond">
+                            <input type="checkbox" id="performanceBastard3DivisionThirtySecond" value="1/32">
+                            <span>1/32</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="performance-layer-switches" aria-label="Bastardloop C direction controls">
+                    <button class="performance-btn" id="performanceBastardLoop3ReverseBtn" aria-pressed="false" title="Play Bastardloop C in reverse">Reverse Off</button>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoop3Pitch">
+                        <span>Bastardloop C Pitch</span>
+                        <span class="value" id="performanceBastardLoop3PitchValue">0 oct</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoop3Pitch" min="-2" max="2" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoop3Level">
+                        <span>Bastardloop C Level</span>
+                        <span class="value" id="performanceBastardLoop3LevelValue">50%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoop3Level" min="0" max="100" value="50" step="1">
+                    <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop3Meta">Empty</div>
+                </div>
+            </div>
             <div class="performance-layer-switches-card" aria-label="Quick layer switches">
                 <div class="performance-layer-switches-copy">
                     <div class="performance-chip">Quick Mutes</div>
                     <h3 class="performance-layer-switches-title">Layer Switches</h3>
-                    <p class="performance-layer-switches-note">Mute the generated sample or huge drums layer, the dry loop, or either Bastardloop layer without opening the mixer.</p>
+                    <p class="performance-layer-switches-note">Mute the generated sample or huge drums layer, the dry loop, or any Bastardloop layer without opening the mixer.</p>
                 </div>
                 <div class="performance-layer-switches">
                     <button class="performance-btn" id="performanceGeneratedLayerBtn" aria-pressed="true" title="Enable or mute the generated sample or huge drums granular layer">Sample/Drums On</button>
                     <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
                     <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop A layer">Bastardloop A On</button>
                     <button class="performance-btn" id="performanceBastardLoop2ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop B layer">Bastardloop B On</button>
+                    <button class="performance-btn" id="performanceBastardLoop3ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop C layer">Bastardloop C On</button>
                 </div>
             </div>
             <div class="performance-sound-controls" aria-label="Sound controls">
@@ -5829,6 +5891,9 @@
         let bastardLoop2Buffer = null;
         let bastardLoop2Metadata = null;
         let bastardLoop2SourceBpm = 120;
+        let bastardLoop3Buffer = null;
+        let bastardLoop3Metadata = null;
+        let bastardLoop3SourceBpm = 120;
         let sourceMutationSerial = 0;
         let lastSourceWriteAt = 0;
         let lastGeneratedSourceWriteAt = 0;
@@ -5867,6 +5932,12 @@
             { id: 'performanceBastard2DivisionEighth', value: '1/8' },
             { id: 'performanceBastard2DivisionSixteenth', value: '1/16' },
             { id: 'performanceBastard2DivisionThirtySecond', value: '1/32' }
+        ];
+        const BASTARD_LOOP_3_DIVISION_OPTIONS = [
+            { id: 'performanceBastard3DivisionQuarter', value: '1/4' },
+            { id: 'performanceBastard3DivisionEighth', value: '1/8' },
+            { id: 'performanceBastard3DivisionSixteenth', value: '1/16' },
+            { id: 'performanceBastard3DivisionThirtySecond', value: '1/32' }
         ];
         const mygrainUtils = window.MYGRAIN_UTILS || {};
         const reversedAudioBufferCache = new WeakMap();
@@ -6096,16 +6167,24 @@
         let bastardLoopPitchOctaves = 0;
         let bastardLoopEnabled = true;
         let bastardLoop2Level = 0.55;
+        let bastardLoop2PitchOctaves = 0;
         let bastardLoop2Enabled = true;
         let bastardLoop2Reverse = false;
+        let bastardLoop3Level = 0.5;
+        let bastardLoop3PitchOctaves = 0;
+        let bastardLoop3Enabled = true;
+        let bastardLoop3Reverse = false;
         let bastardLoopPlaying = false;
         let bastardLoopTransportStartTime = null;
         let bastardLoopSource = null;
         let bastardLoopGainNode = null;
         let bastardLoop2Source = null;
         let bastardLoop2GainNode = null;
+        let bastardLoop3Source = null;
+        let bastardLoop3GainNode = null;
         let bastardLoopGenerationInFlight = false;
         let bastardLoop2GenerationInFlight = false;
+        let bastardLoop3GenerationInFlight = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -7515,6 +7594,7 @@
                     const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
                     const restoredBastardLoopBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY);
                     const restoredBastardLoop2Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
+                    const restoredBastardLoop3Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
                     const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                     const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
@@ -7523,6 +7603,7 @@
                     const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
                     const shouldRestoreBastardLoop = restoredBastardLoopBuffer && restoreStillCurrent;
                     const shouldRestoreBastardLoop2 = restoredBastardLoop2Buffer && restoreStillCurrent;
+                    const shouldRestoreBastardLoop3 = restoredBastardLoop3Buffer && restoreStillCurrent;
                     if (shouldRestoreGenerated) {
                         generatedLoopBuffer = restoredGeneratedBuffer;
                         generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
@@ -7551,12 +7632,19 @@
                             summary: `${restoredBastardLoop2Buffer.duration.toFixed(2)}s · restored`
                         };
                     }
-                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2) {
+                    if (shouldRestoreBastardLoop3) {
+                        bastardLoop3Buffer = restoredBastardLoop3Buffer;
+                        bastardLoop3Metadata = {
+                            summary: `${restoredBastardLoop3Buffer.duration.toFixed(2)}s · restored`
+                        };
+                    }
+                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3) {
                         syncLegacyAudioBuffer();
                         drawWaveforms();
                         updateSourceAvailability();
                         syncBastardLoopUi();
                         syncBastardLoop2Ui();
+                        syncBastardLoop3Ui();
                         setStatus('Audio sources restored.');
                     }
                 }, 500);
@@ -9678,6 +9766,42 @@
             if (save) saveState();
         }
 
+        function getBastardLoop3DivisionInputs() {
+            return BASTARD_LOOP_3_DIVISION_OPTIONS
+                .map(({ id, value }) => ({ input: document.getElementById(id), value }))
+                .filter(({ input }) => input);
+        }
+
+        function getSelectedBastardLoop3Divisions(options = {}) {
+            const { ensureDefault = true } = options;
+            const selected = getBastardLoop3DivisionInputs()
+                .filter(({ input }) => input.checked)
+                .map(({ value }) => value);
+            if (selected.length || !ensureDefault) {
+                return selected;
+            }
+            const defaultInput = document.getElementById('performanceBastard3DivisionSixteenth');
+            if (defaultInput) {
+                defaultInput.checked = true;
+            }
+            return ['1/16'];
+        }
+
+        function applyBastardLoop3DivisionSelection(divisions, options = {}) {
+            const { save = true } = options;
+            const requested = new Set(Array.isArray(divisions) ? divisions.map(String) : []);
+            let selectedCount = 0;
+            getBastardLoop3DivisionInputs().forEach(({ input, value }) => {
+                input.checked = requested.has(value);
+                if (input.checked) selectedCount += 1;
+            });
+            if (selectedCount === 0) {
+                const defaultInput = document.getElementById('performanceBastard3DivisionSixteenth');
+                if (defaultInput) defaultInput.checked = true;
+            }
+            if (save) saveState();
+        }
+
         function clampBastardLoopPitchOctaves(value) {
             const numeric = Number(value);
             if (!Number.isFinite(numeric)) return 0;
@@ -9710,6 +9834,48 @@
             return Math.pow(2, getBastardLoopPitchOctaves());
         }
 
+        function updateBastardLoop2PitchLabel() {
+            const value = clampBastardLoopPitchOctaves(bastardLoop2PitchOctaves);
+            const label = document.getElementById('performanceBastardLoop2PitchValue');
+            if (label) label.textContent = formatBastardLoopPitchOctaves(value);
+            const slider = document.getElementById('performanceBastardLoop2Pitch');
+            if (slider && Number(slider.value) !== value) {
+                slider.value = String(value);
+            }
+        }
+
+        function getBastardLoop2PitchOctaves() {
+            const slider = document.getElementById('performanceBastardLoop2Pitch');
+            bastardLoop2PitchOctaves = clampBastardLoopPitchOctaves(slider?.value ?? bastardLoop2PitchOctaves);
+            updateBastardLoop2PitchLabel();
+            return bastardLoop2PitchOctaves;
+        }
+
+        function getBastardLoop2PitchRatio() {
+            return Math.pow(2, getBastardLoop2PitchOctaves());
+        }
+
+        function updateBastardLoop3PitchLabel() {
+            const value = clampBastardLoopPitchOctaves(bastardLoop3PitchOctaves);
+            const label = document.getElementById('performanceBastardLoop3PitchValue');
+            if (label) label.textContent = formatBastardLoopPitchOctaves(value);
+            const slider = document.getElementById('performanceBastardLoop3Pitch');
+            if (slider && Number(slider.value) !== value) {
+                slider.value = String(value);
+            }
+        }
+
+        function getBastardLoop3PitchOctaves() {
+            const slider = document.getElementById('performanceBastardLoop3Pitch');
+            bastardLoop3PitchOctaves = clampBastardLoopPitchOctaves(slider?.value ?? bastardLoop3PitchOctaves);
+            updateBastardLoop3PitchLabel();
+            return bastardLoop3PitchOctaves;
+        }
+
+        function getBastardLoop3PitchRatio() {
+            return Math.pow(2, getBastardLoop3PitchOctaves());
+        }
+
         function getBastardLoopPlaybackRate() {
             const sourceBpm = clampBpmValue(bastardLoopSourceBpm || sequencerBPM || 120);
             const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
@@ -9736,8 +9902,8 @@
             const playButton = document.getElementById('performanceBastardLoopPlayBtn');
             const stopButton = document.getElementById('performanceBastardLoopStopBtn');
             const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
-            const anyBufferReady = Boolean(bastardLoopBuffer || bastardLoop2Buffer);
-            const anyGenerationInFlight = bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight;
+            const anyBufferReady = Boolean(bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer);
+            const anyGenerationInFlight = bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight;
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
@@ -9901,6 +10067,8 @@
             }
             syncBastardLoopUi();
             syncBastardLoop2Ui();
+            syncBastardLoop3Ui();
+            syncBastardLoop2Ui();
         }
 
         function getBastardLoop2LevelValue(options = {}) {
@@ -9919,7 +10087,7 @@
         function getBastardLoop2PlaybackRate() {
             const sourceBpm = clampBpmValue(bastardLoop2SourceBpm || sequencerBPM || 120);
             const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
-            return Math.max(0.25, Math.min(4, currentBpm / sourceBpm));
+            return Math.max(0.25, Math.min(4, (currentBpm / sourceBpm) * getBastardLoop2PitchRatio()));
         }
 
         function getBastardLoop2CycleDuration(playbackRate = getBastardLoop2PlaybackRate()) {
@@ -9946,6 +10114,7 @@
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
+            updateBastardLoop2PitchLabel();
             if (meta) meta.textContent = describeBastardLoop2Meta();
             if (button) {
                 button.disabled = bastardLoop2GenerationInFlight;
@@ -9973,6 +10142,7 @@
         function syncAllBastardLoopTempos() {
             syncBastardLoopTempo();
             syncBastardLoop2Tempo();
+            syncBastardLoop3Tempo();
         }
 
         function stopBastardLoop2(options = {}) {
@@ -10102,9 +10272,205 @@
             syncBastardLoop2Ui();
         }
 
+        function getBastardLoop3LevelValue(options = {}) {
+            const slider = document.getElementById('performanceBastardLoop3Level');
+            const rawValue = Number(slider?.value ?? (bastardLoop3Level * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoop3Level = clamped / 100;
+            if (options.applyLayerToggle === false) return bastardLoop3Level;
+            return bastardLoop3Enabled ? bastardLoop3Level : 0;
+        }
+
+        function getBastardLoop3OutputGain(level = getBastardLoop3LevelValue()) {
+            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+        }
+
+        function getBastardLoop3PlaybackRate() {
+            const sourceBpm = clampBpmValue(bastardLoop3SourceBpm || sequencerBPM || 120);
+            const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || sourceBpm);
+            return Math.max(0.25, Math.min(4, (currentBpm / sourceBpm) * getBastardLoop3PitchRatio()));
+        }
+
+        function getBastardLoop3CycleDuration(playbackRate = getBastardLoop3PlaybackRate()) {
+            const playbackBuffer = bastardLoop3Reverse ? getReversedAudioBuffer(bastardLoop3Buffer) : bastardLoop3Buffer;
+            const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
+            return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
+        }
+
+        function describeBastardLoop3Meta() {
+            if (bastardLoop3GenerationInFlight) return 'Generating...';
+            if (!bastardLoop3Buffer) return 'Empty';
+            const reverseTag = bastardLoop3Reverse ? ' · reverse' : '';
+            if (bastardLoop3Metadata?.summary) return `${bastardLoop3Metadata.summary}${reverseTag}`;
+            return `${bastardLoop3Buffer.duration.toFixed(2)}s · ready${reverseTag}`;
+        }
+
+        function syncBastardLoop3Ui() {
+            const slider = document.getElementById('performanceBastardLoop3Level');
+            const label = document.getElementById('performanceBastardLoop3LevelValue');
+            const meta = document.getElementById('performanceBastardLoop3Meta');
+            const button = document.getElementById('performanceGenerateBastardLoop3Btn');
+            const reverseButton = document.getElementById('performanceBastardLoop3ReverseBtn');
+            const value = Math.round(getBastardLoop3LevelValue({ applyLayerToggle: false }) * 100);
+
+            if (slider) slider.value = String(value);
+            if (label) label.textContent = `${value}%`;
+            updateBastardLoop3PitchLabel();
+            if (meta) meta.textContent = describeBastardLoop3Meta();
+            if (button) {
+                button.disabled = bastardLoop3GenerationInFlight;
+                button.textContent = bastardLoop3GenerationInFlight
+                    ? 'Building Bastardloop C...'
+                    : (bastardLoop3Buffer ? 'Rebuild Bastardloop C' : 'Generate Bastardloop C');
+            }
+            if (reverseButton) {
+                reverseButton.classList.toggle('active', bastardLoop3Reverse);
+                reverseButton.textContent = bastardLoop3Reverse ? 'Reverse On' : 'Reverse Off';
+                reverseButton.setAttribute('aria-pressed', String(bastardLoop3Reverse));
+                reverseButton.disabled = bastardLoop3GenerationInFlight;
+            }
+        }
+
+        function syncBastardLoop3Tempo() {
+            if (!bastardLoop3Source || !audioContext) return;
+            const now = audioContext.currentTime;
+            const nextRate = getBastardLoop3PlaybackRate();
+            bastardLoop3Source.playbackRate.cancelScheduledValues(now);
+            bastardLoop3Source.playbackRate.setValueAtTime(bastardLoop3Source.playbackRate.value, now);
+            bastardLoop3Source.playbackRate.linearRampToValueAtTime(nextRate, now + 0.04);
+        }
+
+        function stopBastardLoop3(options = {}) {
+            if (bastardLoop3Source) {
+                const source = bastardLoop3Source;
+                const gain = bastardLoop3GainNode;
+                const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration((bastardLoop3Buffer?.duration || 0.02));
+                if (audioContext && fadeSeconds > 0 && gain) {
+                    const now = audioContext.currentTime;
+                    gain.gain.cancelScheduledValues(now);
+                    gain.gain.setValueAtTime(gain.gain.value, now);
+                    gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+                    try {
+                        source.stop(now + fadeSeconds + 0.005);
+                    } catch (error) {
+                        console.debug('Bastardloop C already stopped:', error);
+                    }
+                    setTimeout(() => {
+                        try {
+                            source.disconnect();
+                            gain.disconnect();
+                        } catch (error) {}
+                    }, (fadeSeconds * 1000) + 40);
+                } else {
+                    try {
+                        source.stop();
+                    } catch (error) {
+                        console.debug('Bastardloop C already stopped:', error);
+                    }
+                    try {
+                        source.disconnect();
+                        gain?.disconnect();
+                    } catch (error) {}
+                }
+            }
+
+            bastardLoop3Source = null;
+            bastardLoop3GainNode = null;
+            if (!options.skipUi) {
+                syncBastardLoop3Ui();
+            }
+        }
+
+        function startBastardLoop3(startTime = null, options = {}) {
+            if (!audioContext || !preFilterGainNode || !bastardLoop3Buffer) return false;
+
+            const level = getBastardLoop3LevelValue();
+            if (level <= 0) {
+                stopBastardLoop3({ skipUi: true });
+                if (!options.skipUi) {
+                    syncBastardLoop3Ui();
+                }
+                return false;
+            }
+
+            stopBastardLoop3({ skipUi: true });
+
+            const playbackBuffer = bastardLoop3Reverse ? getReversedAudioBuffer(bastardLoop3Buffer) : bastardLoop3Buffer;
+            const source = audioContext.createBufferSource();
+            const gain = audioContext.createGain();
+            const now = audioContext.currentTime;
+            const requestedStartTime = Number.isFinite(startTime)
+                ? startTime
+                : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
+            const playbackRate = getBastardLoop3PlaybackRate();
+            const loopDuration = Math.max(0.01, playbackBuffer.duration);
+            const cycleDuration = getBastardLoop3CycleDuration(playbackRate);
+            const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
+            let safeStartTime = now;
+            let offset = 0;
+
+            if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
+                safeStartTime = requestedStartTime;
+            } else if (Number.isFinite(requestedStartTime)) {
+                const elapsed = Math.max(0, now - requestedStartTime);
+                const cycleElapsed = cycleDuration > 0 ? elapsed % cycleDuration : 0;
+                offset = Math.min(loopDuration - 0.0005, cycleElapsed * playbackRate);
+            }
+
+            source.buffer = playbackBuffer;
+            source.loop = true;
+            source.loopStart = 0;
+            source.loopEnd = loopDuration;
+            source.playbackRate.value = playbackRate;
+
+            gain.gain.setValueAtTime(0, safeStartTime);
+            gain.gain.linearRampToValueAtTime(getBastardLoop3OutputGain(level), safeStartTime + fadeSeconds);
+            source.connect(gain);
+            gain.connect(preFilterGainNode);
+            source.start(safeStartTime, offset);
+            source.onended = () => {
+                if (source !== bastardLoop3Source) return;
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+                bastardLoop3Source = null;
+                bastardLoop3GainNode = null;
+            };
+
+            bastardLoop3Source = source;
+            bastardLoop3GainNode = gain;
+            if (!options.skipUi) {
+                syncBastardLoop3Ui();
+            }
+            return true;
+        }
+
+        function updateBastardLoop3Mix() {
+            const level = getBastardLoop3LevelValue();
+            if (bastardLoop3GainNode && audioContext) {
+                const now = audioContext.currentTime;
+                bastardLoop3GainNode.gain.cancelScheduledValues(now);
+                bastardLoop3GainNode.gain.setValueAtTime(bastardLoop3GainNode.gain.value, now);
+                bastardLoop3GainNode.gain.linearRampToValueAtTime(getBastardLoop3OutputGain(level), now + 0.03);
+            }
+
+            if (bastardLoopPlaying && bastardLoop3Buffer) {
+                if (level > 0 && !bastardLoop3Source) {
+                    startBastardLoop3(null, { skipUi: true });
+                } else if (level <= 0) {
+                    stopBastardLoop3({ skipUi: true });
+                }
+            } else if (!bastardLoopPlaying && bastardLoop3Source) {
+                stopBastardLoop3({ skipUi: true });
+            }
+            syncBastardLoop3Ui();
+        }
+
         function stopAllBastardLoopLayers(options = {}) {
             stopBastardLoop({ preserveTransportState: true, skipUi: true, fade: options.fade });
             stopBastardLoop2({ skipUi: true, fade: options.fade });
+            stopBastardLoop3({ skipUi: true, fade: options.fade });
             if (!options.preserveTransportState) {
                 bastardLoopPlaying = false;
                 bastardLoopTransportStartTime = null;
@@ -10112,6 +10478,7 @@
             if (!options.skipUi) {
                 syncBastardLoopUi();
                 syncBastardLoop2Ui();
+                syncBastardLoop3Ui();
             }
         }
 
@@ -10121,12 +10488,14 @@
                 : (Number.isFinite(getTransportLoopOriginTime()) ? getTransportLoopOriginTime() : getBufferedTransportStartTime());
             const startedA = startBastardLoop(resolvedStartTime, { skipUi: true });
             const startedB = startBastardLoop2(resolvedStartTime, { skipUi: true });
-            const anyStarted = Boolean(startedA || startedB);
+            const startedC = startBastardLoop3(resolvedStartTime, { skipUi: true });
+            const anyStarted = Boolean(startedA || startedB || startedC);
             bastardLoopPlaying = anyStarted;
             bastardLoopTransportStartTime = anyStarted ? resolvedStartTime : null;
             if (!options.skipUi) {
                 syncBastardLoopUi();
                 syncBastardLoop2Ui();
+                syncBastardLoop3Ui();
             }
             return anyStarted;
         }
@@ -10142,6 +10511,23 @@
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus(bastardLoop2Enabled ? 'Bastardloop B layer enabled.' : 'Bastardloop B layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoop3Enabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (bastardLoop3Enabled === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+            bastardLoop3Enabled = nextValue;
+            updateBastardLoop3Mix();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(bastardLoop3Enabled ? 'Bastardloop C layer enabled.' : 'Bastardloop C layer muted.');
             }
             if (!options.skipSave) {
                 saveState();
@@ -10169,6 +10555,63 @@
             }
         }
 
+        function setBastardLoop2PitchOctaves(value, options = {}) {
+            const nextValue = clampBastardLoopPitchOctaves(value);
+            bastardLoop2PitchOctaves = nextValue;
+            updateBastardLoop2PitchLabel();
+            if (bastardLoopPlaying && bastardLoop2Buffer) {
+                startBastardLoop2(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoop2Ui();
+            if (!options.silent) {
+                setStatus(`Bastardloop B pitch ${formatBastardLoopPitchOctaves(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoop3Reverse(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (bastardLoop3Reverse === nextValue) {
+                syncBastardLoop3Ui();
+                syncPerformanceControlState();
+                return;
+            }
+            bastardLoop3Reverse = nextValue;
+            if (bastardLoopPlaying && bastardLoop3Buffer) {
+                startBastardLoop3(null, { skipUi: true });
+            }
+            syncBastardLoop3Ui();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(bastardLoop3Reverse ? 'Bastardloop C reverse enabled.' : 'Bastardloop C reverse disabled.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoop3PitchOctaves(value, options = {}) {
+            const nextValue = clampBastardLoopPitchOctaves(value);
+            bastardLoop3PitchOctaves = nextValue;
+            updateBastardLoop3PitchLabel();
+            if (bastardLoopPlaying && bastardLoop3Buffer) {
+                startBastardLoop3(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoop3Ui();
+            if (!options.silent) {
+                setStatus(`Bastardloop C pitch ${formatBastardLoopPitchOctaves(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         async function applyLoadedBastardLoop2Buffer(buffer, sourceLabel, metadata = null) {
             if (!buffer) {
                 throw new Error('Decoded Bastardloop B buffer is empty.');
@@ -10189,6 +10632,29 @@
             }
             await saveAudioBufferToDB(bastardLoop2Buffer, BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
             syncBastardLoop2Ui();
+            setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s).`);
+        }
+
+        async function applyLoadedBastardLoop3Buffer(buffer, sourceLabel, metadata = null) {
+            if (!buffer) {
+                throw new Error('Decoded Bastardloop C buffer is empty.');
+            }
+            if (!Number.isFinite(buffer.duration) || buffer.duration <= 0.02) {
+                throw new Error('Bastardloop C audio is too short to use.');
+            }
+            if (buffer.duration > MAX_SAMPLE_DURATION_SECONDS) {
+                throw new Error(`Bastardloop C audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
+            }
+
+            bastardLoop3Buffer = buffer;
+            bastardLoop3Metadata = metadata || {
+                summary: `${buffer.duration.toFixed(2)}s · ready`
+            };
+            if (Number.isFinite(Number(metadata?.bpm))) {
+                bastardLoop3SourceBpm = clampBpmValue(metadata.bpm);
+            }
+            await saveAudioBufferToDB(bastardLoop3Buffer, BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
+            syncBastardLoop3Ui();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s).`);
         }
 
@@ -10260,7 +10726,7 @@
                 return true;
             }
 
-            if (!bastardLoopBuffer && !bastardLoop2Buffer) {
+            if (!bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer) {
                 syncPerformanceControlState();
                 if (!options.silent) {
                     setStatus('Generate a Bastardloop first.', 'error');
@@ -11017,6 +11483,8 @@
             bastardLoopMetadata = null;
             bastardLoop2Buffer = null;
             bastardLoop2Metadata = null;
+            bastardLoop3Buffer = null;
+            bastardLoop3Metadata = null;
             recordedChunks = [];
             drawWaveforms();
             setStatus('Buffer cleared.');
@@ -13271,7 +13739,7 @@
                         if (e.target.id === 'performanceGeneratedTranspose') {
                             labelSpan.textContent = formatGeneratedLoopTranspose(e.target.value);
                             return;
-                        } else if (e.target.id === 'performanceBastardLoopPitch') {
+                        } else if (['performanceBastardLoopPitch', 'performanceBastardLoop2Pitch', 'performanceBastardLoop3Pitch'].includes(e.target.id)) {
                             labelSpan.textContent = formatBastardLoopPitchOctaves(e.target.value);
                             return;
                         } else if ([
@@ -16514,7 +16982,10 @@
                 performanceGeneratedDryMix: 0,
                 performanceBastardLoopPitch: 0,
                 performanceBastardLoopLevel: 60,
+                performanceBastardLoop2Pitch: 0,
                 performanceBastardLoop2Level: 55,
+                performanceBastardLoop3Pitch: 0,
+                performanceBastardLoop3Level: 50,
                 performanceGeneratedDryTrim: 0,
                 performanceGeneratedSwing: 0,
                 performanceGeneratedTranspose: 0,
@@ -16587,6 +17058,13 @@
             setGeneratedSampleLayerEnabled(true, { silent: true, skipSave: true });
             setGeneratedDryLoopEnabled(true, { silent: true, skipSave: true });
             setBastardLoopEnabled(true, { silent: true, skipSave: true });
+            setBastardLoop2Enabled(true, { silent: true, skipSave: true });
+            setBastardLoop3Enabled(true, { silent: true, skipSave: true });
+            setBastardLoop2Reverse(false, { silent: true, skipSave: true });
+            setBastardLoop3Reverse(false, { silent: true, skipSave: true });
+            applyBastardLoopDivisionSelection(['1/16'], { save: false });
+            applyBastardLoop2DivisionSelection(['1/16'], { save: false });
+            applyBastardLoop3DivisionSelection(['1/16'], { save: false });
             setGeneratedSampleSolo(false, { silent: true, skipSave: true });
             setGrainLayerSolo('none', { silent: true, skipSave: true });
             setSourceWaveformSolo('none', { silent: true, skipSave: true });
@@ -16711,6 +17189,8 @@
                 bastardLoopEnabled: bastardLoopEnabled,
                 bastardLoop2Enabled: bastardLoop2Enabled,
                 bastardLoop2Reverse: bastardLoop2Reverse,
+                bastardLoop3Enabled: bastardLoop3Enabled,
+                bastardLoop3Reverse: bastardLoop3Reverse,
                 tonalDrumsEnabled: tonalDrumsEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
@@ -16744,9 +17224,10 @@
                     hasOutputSample: Boolean(outputSourceBuffer),
                     hasBastardLoop: Boolean(bastardLoopBuffer),
                     hasBastardLoop2: Boolean(bastardLoop2Buffer),
+                    hasBastardLoop3: Boolean(bastardLoop3Buffer),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -16895,6 +17376,14 @@
             const importedBastardLoop2Reverse = safePreset.bastardLoop2Reverse ?? preset.bastardLoop2Reverse;
             if (importedBastardLoop2Reverse !== undefined) {
                 setBastardLoop2Reverse(importedBastardLoop2Reverse, { silent: true, skipSave: true });
+            }
+            const importedBastardLoop3Enabled = safePreset.bastardLoop3Enabled ?? preset.bastardLoop3Enabled;
+            if (importedBastardLoop3Enabled !== undefined) {
+                setBastardLoop3Enabled(importedBastardLoop3Enabled, { silent: true, skipSave: true });
+            }
+            const importedBastardLoop3Reverse = safePreset.bastardLoop3Reverse ?? preset.bastardLoop3Reverse;
+            if (importedBastardLoop3Reverse !== undefined) {
+                setBastardLoop3Reverse(importedBastardLoop3Reverse, { silent: true, skipSave: true });
             }
             const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
             setGrainLayerSolo(importedGrainLayerSolo, { silent: true, skipSave: true });
@@ -17187,6 +17676,7 @@
         const OUTPUT_AUDIO_BUFFER_KEY = 'outputSourceBuffer';
         const BASTARD_LOOP_AUDIO_BUFFER_KEY = 'bastardLoopBuffer';
         const BASTARD_LOOP_2_AUDIO_BUFFER_KEY = 'bastardLoopBuffer2';
+        const BASTARD_LOOP_3_AUDIO_BUFFER_KEY = 'bastardLoopBuffer3';
 
         // Open IndexedDB
         function openAudioDB() {
@@ -17325,6 +17815,9 @@
                     bastardLoop2Enabled: bastardLoop2Enabled,
                     bastardLoop2Divisions: getSelectedBastardLoop2Divisions({ ensureDefault: false }),
                     bastardLoop2Reverse: bastardLoop2Reverse,
+                    bastardLoop3Enabled: bastardLoop3Enabled,
+                    bastardLoop3Divisions: getSelectedBastardLoop3Divisions({ ensureDefault: false }),
+                    bastardLoop3Reverse: bastardLoop3Reverse,
                     grainLayerSolo: grainLayerSolo,
                     sourceWaveformSolo: getSourceWaveformSoloState(),
                     tonalDrumsEnabled: tonalDrumsEnabled,
@@ -17515,6 +18008,15 @@
                     }
                     if (state.modes.bastardLoop2Reverse !== undefined) {
                         setBastardLoop2Reverse(state.modes.bastardLoop2Reverse, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoop3Enabled !== undefined) {
+                        setBastardLoop3Enabled(state.modes.bastardLoop3Enabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoop3Divisions !== undefined) {
+                        applyBastardLoop3DivisionSelection(state.modes.bastardLoop3Divisions, { save: false });
+                    }
+                    if (state.modes.bastardLoop3Reverse !== undefined) {
+                        setBastardLoop3Reverse(state.modes.bastardLoop3Reverse, { silent: true, skipSave: true });
                     }
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
@@ -18425,13 +18927,15 @@
                 if (shouldRestartSequencer && !sequencerPlaying) {
                     startSequencer(restartTime);
                 }
-                if (shouldRestartBastardLoop && previousBuffer) {
+                if (shouldRestartBastardLoop && (previousBuffer || bastardLoop2Buffer || bastardLoop3Buffer)) {
                     startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
                 }
                 throw error;
             } finally {
                 bastardLoopGenerationInFlight = false;
                 syncBastardLoopUi();
+                syncBastardLoop2Ui();
+                syncBastardLoop3Ui();
             }
         }
 
@@ -18451,7 +18955,7 @@
             bastardLoop2GenerationInFlight = true;
             syncBastardLoopUi();
             syncBastardLoop2Ui();
-            setStatus(`Building Bastardloop B from SAMPLEDROP at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`Building Bastardloop B from SAMPLEDROP_2 at ${bpm} BPM using ${divisions.join(', ')}…`);
 
             try {
                 if (shouldRestartSequencer) {
@@ -18472,7 +18976,8 @@
                     body: JSON.stringify({
                         bpm,
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-b`,
-                        divisions
+                        divisions,
+                        source: 'sampledrop2'
                     })
                 });
                 const payload = await response.json().catch(() => ({}));
@@ -18507,7 +19012,7 @@
                 if (shouldRestartSequencer && !sequencerPlaying) {
                     startSequencer(restartTime);
                 }
-                if (shouldRestartBastardLoop && (bastardLoopBuffer || previousBuffer)) {
+                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop3Buffer || previousBuffer)) {
                     startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
                 }
                 throw error;
@@ -18515,6 +19020,92 @@
                 bastardLoop2GenerationInFlight = false;
                 syncBastardLoopUi();
                 syncBastardLoop2Ui();
+            }
+        }
+
+        async function generateBastardLoop3WithPlaybackRestart() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before generating a bastardloop.');
+            }
+
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const divisions = getSelectedBastardLoop3Divisions();
+            const shouldRestartSequencer = sequencerPlaying;
+            const shouldRestartBastardLoop = bastardLoopPlaying;
+            const restartTime = getBufferedTransportStartTime();
+            const previousBuffer = bastardLoop3Buffer;
+            const previousMetadata = bastardLoop3Metadata;
+            const previousSourceBpm = bastardLoop3SourceBpm;
+            bastardLoop3GenerationInFlight = true;
+            syncBastardLoopUi();
+            syncBastardLoop2Ui();
+            syncBastardLoop3Ui();
+            setStatus(`Building Bastardloop C from SPLICE_CLAW at ${bpm} BPM using ${divisions.join(', ')}…`);
+
+            try {
+                if (shouldRestartSequencer) {
+                    stopSequencer();
+                }
+                if (shouldRestartBastardLoop) {
+                    stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
+                } else if (!shouldRestartSequencer) {
+                    stopBastardLoop3({ skipUi: true });
+                }
+
+                const response = await fetch(BASTARD_LOOP_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-c`,
+                        divisions,
+                        source: 'splice_claw'
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Bastardloop C build failed with status ${response.status}`);
+                }
+
+                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
+                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
+                if (!audioResponse.ok) {
+                    throw new Error(`Generated Bastardloop C fetch failed with status ${audioResponse.status}`);
+                }
+                const arrayBuffer = await audioResponse.arrayBuffer();
+                await applyLoadedBastardLoop3Buffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop C ${bpm} BPM`, payload);
+
+                if (shouldRestartSequencer) {
+                    startSequencer(restartTime);
+                }
+                if (shouldRestartBastardLoop) {
+                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
+                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
+                }
+
+                const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
+                setStatus(names
+                    ? `Bastardloop C ready from ${names}${payload.sampleNames.length > 4 ? '…' : ''}.`
+                    : 'Bastardloop C ready.');
+            } catch (error) {
+                bastardLoop3Buffer = previousBuffer;
+                bastardLoop3Metadata = previousMetadata;
+                bastardLoop3SourceBpm = previousSourceBpm;
+                if (shouldRestartSequencer && !sequencerPlaying) {
+                    startSequencer(restartTime);
+                }
+                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop2Buffer || previousBuffer)) {
+                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
+                }
+                throw error;
+            } finally {
+                bastardLoop3GenerationInFlight = false;
+                syncBastardLoopUi();
+                syncBastardLoop2Ui();
+                syncBastardLoop3Ui();
             }
         }
 
@@ -18964,8 +19555,10 @@
         const performanceGenerateLoopBtn = document.getElementById('performanceGenerateLoopBtn');
         const performanceGenerateBastardLoopBtn = document.getElementById('performanceGenerateBastardLoopBtn');
         const performanceGenerateBastardLoop2Btn = document.getElementById('performanceGenerateBastardLoop2Btn');
+        const performanceGenerateBastardLoop3Btn = document.getElementById('performanceGenerateBastardLoop3Btn');
         const performanceBastardLoopBrowserBtn = document.getElementById('performanceBastardLoopBrowserBtn');
         const performanceBastardLoop2BrowserBtn = document.getElementById('performanceBastardLoop2BrowserBtn');
+        const performanceBastardLoop3BrowserBtn = document.getElementById('performanceBastardLoop3BrowserBtn');
         const performanceBastardLoopPlayBtn = document.getElementById('performanceBastardLoopPlayBtn');
         const performanceBastardLoopStopBtn = document.getElementById('performanceBastardLoopStopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
@@ -18977,6 +19570,7 @@
         const performanceDryLoopLayerBtn = document.getElementById('performanceDryLoopLayerBtn');
         const performanceBastardLoopToggleBtn = document.getElementById('performanceBastardLoopToggleBtn');
         const performanceBastardLoop2ToggleBtn = document.getElementById('performanceBastardLoop2ToggleBtn');
+        const performanceBastardLoop3ToggleBtn = document.getElementById('performanceBastardLoop3ToggleBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
         const performanceTonalDrumsBtn = document.getElementById('performanceTonalDrumsBtn');
@@ -18995,8 +19589,12 @@
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
         const performanceBastardLoopPitch = document.getElementById('performanceBastardLoopPitch');
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
+        const performanceBastardLoop2Pitch = document.getElementById('performanceBastardLoop2Pitch');
         const performanceBastardLoop2Level = document.getElementById('performanceBastardLoop2Level');
         const performanceBastardLoop2ReverseBtn = document.getElementById('performanceBastardLoop2ReverseBtn');
+        const performanceBastardLoop3Pitch = document.getElementById('performanceBastardLoop3Pitch');
+        const performanceBastardLoop3Level = document.getElementById('performanceBastardLoop3Level');
+        const performanceBastardLoop3ReverseBtn = document.getElementById('performanceBastardLoop3ReverseBtn');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
         const performanceNoiseLevel = document.getElementById('performanceNoiseLevel');
@@ -19160,6 +19758,24 @@
                 const value = Math.round(getBastardLoop2LevelValue({ applyLayerToggle: false }) * 100);
                 performanceBastardLoop2Level.value = String(value);
                 document.getElementById('performanceBastardLoop2LevelValue').textContent = `${value}%`;
+            }
+
+            if (performanceBastardLoop2Pitch) {
+                const value = getBastardLoop2PitchOctaves();
+                performanceBastardLoop2Pitch.value = String(value);
+                document.getElementById('performanceBastardLoop2PitchValue').textContent = formatBastardLoopPitchOctaves(value);
+            }
+
+            if (performanceBastardLoop3Level) {
+                const value = Math.round(getBastardLoop3LevelValue({ applyLayerToggle: false }) * 100);
+                performanceBastardLoop3Level.value = String(value);
+                document.getElementById('performanceBastardLoop3LevelValue').textContent = `${value}%`;
+            }
+
+            if (performanceBastardLoop3Pitch) {
+                const value = getBastardLoop3PitchOctaves();
+                performanceBastardLoop3Pitch.value = String(value);
+                document.getElementById('performanceBastardLoop3PitchValue').textContent = formatBastardLoopPitchOctaves(value);
             }
 
             if (performanceGeneratedDryTrim) {
@@ -19395,6 +20011,12 @@
                 performanceBastardLoop2ToggleBtn.setAttribute('aria-pressed', String(bastardLoop2Enabled));
             }
 
+            if (performanceBastardLoop3ToggleBtn) {
+                performanceBastardLoop3ToggleBtn.classList.toggle('layer-muted', !bastardLoop3Enabled);
+                performanceBastardLoop3ToggleBtn.textContent = bastardLoop3Enabled ? 'Bastardloop C On' : 'Bastardloop C Off';
+                performanceBastardLoop3ToggleBtn.setAttribute('aria-pressed', String(bastardLoop3Enabled));
+            }
+
             syncGrainLayerSoloButtons();
 
             if (performanceLowNoiseSourceBtn) {
@@ -19500,6 +20122,21 @@
             openBastardLoopRepositoryBrowser();
         });
 
+        performanceGenerateBastardLoop3Btn?.addEventListener('click', async () => {
+            if (bastardLoop3GenerationInFlight) return;
+            showSettlePopup();
+            try {
+                await generateBastardLoop3WithPlaybackRestart();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Bastardloop C generation failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceBastardLoop3BrowserBtn?.addEventListener('click', () => {
+            openBastardLoopRepositoryBrowser();
+        });
+
         getBastardLoopDivisionInputs().forEach(({ input, value }) => {
             input.addEventListener('change', () => {
                 const selected = getSelectedBastardLoopDivisions({ ensureDefault: false });
@@ -19520,6 +20157,21 @@
                 const selected = getSelectedBastardLoop2Divisions({ ensureDefault: false });
                 if (!selected.length) {
                     const defaultInput = document.getElementById('performanceBastard2DivisionSixteenth');
+                    if (defaultInput && value !== '1/16') {
+                        defaultInput.checked = true;
+                    } else {
+                        input.checked = true;
+                    }
+                }
+                saveState();
+            });
+        });
+
+        getBastardLoop3DivisionInputs().forEach(({ input, value }) => {
+            input.addEventListener('change', () => {
+                const selected = getSelectedBastardLoop3Divisions({ ensureDefault: false });
+                if (!selected.length) {
+                    const defaultInput = document.getElementById('performanceBastard3DivisionSixteenth');
                     if (defaultInput && value !== '1/16') {
                         defaultInput.checked = true;
                     } else {
@@ -19594,6 +20246,10 @@
             setBastardLoop2Enabled(!bastardLoop2Enabled);
         });
 
+        performanceBastardLoop3ToggleBtn?.addEventListener('click', () => {
+            setBastardLoop3Enabled(!bastardLoop3Enabled);
+        });
+
         performanceSourceMix?.addEventListener('input', (event) => {
             setSliderValue('oscMix', event.target.value);
             syncPerformanceSoundControls();
@@ -19658,8 +20314,27 @@
             setBastardLoopPitchOctaves(event.target.value);
         });
 
+        performanceBastardLoop2Pitch?.addEventListener('input', (event) => {
+            setBastardLoop2PitchOctaves(event.target.value);
+        });
+
         performanceBastardLoop2ReverseBtn?.addEventListener('click', () => {
             setBastardLoop2Reverse(!bastardLoop2Reverse);
+        });
+
+        performanceBastardLoop3Level?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoop3Level = value / 100;
+            document.getElementById('performanceBastardLoop3LevelValue').textContent = `${Math.round(value)}%`;
+            updateBastardLoop3Mix();
+        });
+
+        performanceBastardLoop3Pitch?.addEventListener('input', (event) => {
+            setBastardLoop3PitchOctaves(event.target.value);
+        });
+
+        performanceBastardLoop3ReverseBtn?.addEventListener('click', () => {
+            setBastardLoop3Reverse(!bastardLoop3Reverse);
         });
 
         bindPerformanceLinkedSlider(performanceGrainMainVolume, 'performanceGrainMainVolumeValue', 'grainMainVolume');
