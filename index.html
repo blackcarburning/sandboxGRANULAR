@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-22-42-build-v2026.10.06.5';
+            const cacheBuster = '2026-10-06-22-57-build-v2026.10.06.6';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -2513,6 +2513,12 @@
             min-width: 164px;
         }
 
+        .simplified-ui .performance-mixer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
         .simplified-ui .performance-feature-meta {
             margin: 0;
             color: rgba(126, 246, 255, 0.86);
@@ -3201,6 +3207,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .simplified-ui .performance-mixer-grid {
+                grid-template-columns: 1fr;
+            }
+
             .simplified-ui .performance-layer-switches {
                 grid-template-columns: 1fr;
             }
@@ -3291,6 +3301,7 @@
 
             .simplified-ui .performance-actions,
             .simplified-ui .performance-sound-controls,
+            .simplified-ui .performance-mixer-grid,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
                 grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
@@ -3416,14 +3427,7 @@
                         <span>Don't Preserve Duration</span>
                     </label>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceBastardLoopLevel">
-                        <span>Bastardloop Level</span>
-                        <span class="value" id="performanceBastardLoopLevelValue">60%</span>
-                    </label>
-                    <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
-                    <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
-                </div>
+                <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
                 <div class="performance-layer-switches" aria-label="Bastardloop transport controls">
                     <button class="performance-btn" id="performanceBastardLoopPlayBtn">Play Bastardloops</button>
                     <button class="performance-btn" id="performanceBastardLoopStopBtn">Stop Bastardloops</button>
@@ -3480,14 +3484,7 @@
                         <span>Don't Preserve Duration</span>
                     </label>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceBastardLoop2Level">
-                        <span>Bastardloop B Level</span>
-                        <span class="value" id="performanceBastardLoop2LevelValue">55%</span>
-                    </label>
-                    <input type="range" id="performanceBastardLoop2Level" min="0" max="100" value="55" step="1">
-                    <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop2Meta">Empty</div>
-                </div>
+                <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop2Meta">Empty</div>
             </div>
             <div class="performance-feature-card" aria-label="Bastardloop C controls">
                 <div class="performance-feature-head">
@@ -3540,14 +3537,7 @@
                         <span>Don't Preserve Duration</span>
                     </label>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceBastardLoop3Level">
-                        <span>Bastardloop C Level</span>
-                        <span class="value" id="performanceBastardLoop3LevelValue">50%</span>
-                    </label>
-                    <input type="range" id="performanceBastardLoop3Level" min="0" max="100" value="50" step="1">
-                    <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop3Meta">Empty</div>
-                </div>
+                <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop3Meta">Empty</div>
             </div>
             <div class="performance-feature-card" aria-label="Dropbox sample layer controls">
                 <div class="performance-feature-head">
@@ -3577,14 +3567,7 @@
                         <span>Stretch To Loop</span>
                     </label>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceDropboxSampleLevel">
-                        <span>Dropbox Sample Level</span>
-                        <span class="value" id="performanceDropboxSampleLevelValue">45%</span>
-                    </label>
-                    <input type="range" id="performanceDropboxSampleLevel" min="0" max="100" value="45" step="1">
-                    <div class="performance-feature-meta source-waveform-meta" id="performanceDropboxSampleMeta">Empty</div>
-                </div>
+                <div class="performance-feature-meta source-waveform-meta" id="performanceDropboxSampleMeta">Empty</div>
             </div>
             <div class="performance-layer-switches-card" aria-label="Quick layer switches">
                 <div class="performance-layer-switches-copy">
@@ -3599,6 +3582,101 @@
                     <button class="performance-btn" id="performanceBastardLoop2ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop B layer">Bastardloop B On</button>
                     <button class="performance-btn" id="performanceBastardLoop3ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop C layer">Bastardloop C On</button>
                     <button class="performance-btn" id="performanceDropboxSampleLayerBtn" aria-pressed="true" title="Enable or mute the Dropbox sample loop layer">Dropbox Sample On</button>
+                </div>
+            </div>
+            <div class="performance-feature-card" aria-label="Mixer controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Mixer</div>
+                        <h3 class="performance-feature-title">Module Mixer</h3>
+                        <p class="performance-feature-note">Keep the module levels together in one place while the generators and browsers stay focused on source setup.</p>
+                    </div>
+                </div>
+                <div class="performance-mixer-grid" aria-label="Module volume controls">
+                    <div class="performance-sound-card">
+                        <label for="performanceOscVolume">
+                            <span>Osc Volume</span>
+                            <span class="value" id="performanceOscVolumeValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceOscVolume" min="0" max="100" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceSampleVolume">
+                            <span>Sample Vol</span>
+                            <span class="value" id="performanceSampleVolumeValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceSampleVolume" min="0" max="100" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGeneratedDryMix">
+                            <span>Loop Level</span>
+                            <span class="value" id="performanceGeneratedDryMixValue">35%</span>
+                        </label>
+                        <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="35" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceNoiseLevel">
+                            <span>Noise Level</span>
+                            <span class="value" id="performanceNoiseLevelValue">0%</span>
+                        </label>
+                        <input type="range" id="performanceNoiseLevel" min="0" max="20" value="0" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceDropboxSampleLevel">
+                            <span>Dropbox Sample</span>
+                            <span class="value" id="performanceDropboxSampleLevelValue">45%</span>
+                        </label>
+                        <input type="range" id="performanceDropboxSampleLevel" min="0" max="100" value="45" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceBastardLoopLevel">
+                            <span>Bastardloop A</span>
+                            <span class="value" id="performanceBastardLoopLevelValue">60%</span>
+                        </label>
+                        <input type="range" id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceBastardLoop2Level">
+                            <span>Bastardloop B</span>
+                            <span class="value" id="performanceBastardLoop2LevelValue">55%</span>
+                        </label>
+                        <input type="range" id="performanceBastardLoop2Level" min="0" max="100" value="55" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceBastardLoop3Level">
+                            <span>Bastardloop C</span>
+                            <span class="value" id="performanceBastardLoop3LevelValue">50%</span>
+                        </label>
+                        <input type="range" id="performanceBastardLoop3Level" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGrainMainVolume">
+                            <span>Main Grain</span>
+                            <span class="value" id="performanceGrainMainVolumeValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceGrainMainVolume" min="0" max="150" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGrainAVolume">
+                            <span>Grain A</span>
+                            <span class="value" id="performanceGrainAVolumeValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceGrainAVolume" min="0" max="150" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGrainBVolume">
+                            <span>Grain B</span>
+                            <span class="value" id="performanceGrainBVolumeValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceGrainBVolume" min="0" max="150" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGrainMixerAmp">
+                            <span>Grain Amp</span>
+                            <span class="value" id="performanceGrainMixerAmpValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceGrainMixerAmp" min="0" max="200" value="100" step="1">
+                    </div>
                 </div>
             </div>
             <div class="performance-sound-controls" aria-label="Sound controls">
@@ -3617,20 +3695,6 @@
                     <input type="range" id="performanceGeneratedSourceMix" min="0" max="100" value="100" step="1">
                 </div>
                 <div class="performance-sound-card">
-                    <label for="performanceSampleVolume">
-                        <span>Sample Vol</span>
-                        <span class="value" id="performanceSampleVolumeValue">100%</span>
-                    </label>
-                    <input type="range" id="performanceSampleVolume" min="0" max="100" value="100" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGeneratedDryMix">
-                        <span>Loop Level</span>
-                        <span class="value" id="performanceGeneratedDryMixValue">35%</span>
-                    </label>
-                    <input type="range" id="performanceGeneratedDryMix" min="0" max="100" value="35" step="1">
-                </div>
-                <div class="performance-sound-card">
                     <label for="performanceGeneratedDryTrim">
                         <span>Dry Trim</span>
                         <span class="value" id="performanceGeneratedDryTrimValue">0.0dB</span>
@@ -3643,13 +3707,6 @@
                         <span class="value" id="performanceGranularTrimValue">-3.0dB</span>
                     </label>
                     <input type="range" id="performanceGranularTrim" min="-24" max="6" value="-3" step="0.5">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceNoiseLevel">
-                        <span>Noise Level</span>
-                        <span class="value" id="performanceNoiseLevelValue">0%</span>
-                    </label>
-                    <input type="range" id="performanceNoiseLevel" min="0" max="20" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceGeneratedSwing">
@@ -3678,34 +3735,6 @@
                         <span class="value" id="performanceGrainModAmountValue">75%</span>
                     </label>
                     <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGrainMainVolume">
-                        <span>Main Grain</span>
-                        <span class="value" id="performanceGrainMainVolumeValue">100%</span>
-                    </label>
-                    <input type="range" id="performanceGrainMainVolume" min="0" max="150" value="100" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGrainAVolume">
-                        <span>Grain A</span>
-                        <span class="value" id="performanceGrainAVolumeValue">100%</span>
-                    </label>
-                    <input type="range" id="performanceGrainAVolume" min="0" max="150" value="100" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGrainBVolume">
-                        <span>Grain B</span>
-                        <span class="value" id="performanceGrainBVolumeValue">100%</span>
-                    </label>
-                    <input type="range" id="performanceGrainBVolume" min="0" max="150" value="100" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGrainMixerAmp">
-                        <span>Grain Amp</span>
-                        <span class="value" id="performanceGrainMixerAmpValue">100%</span>
-                    </label>
-                    <input type="range" id="performanceGrainMixerAmp" min="0" max="200" value="100" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceLpfCutoff">
@@ -9486,6 +9515,13 @@
             generatedSampleVolume = clamped / 100;
             if (options.applyLayerToggle === false) return generatedSampleVolume;
             return generatedSampleLayerEnabled ? generatedSampleVolume : 0;
+        }
+
+        function getOscModuleVolumeValue() {
+            const slider = document.getElementById('performanceOscVolume');
+            const rawValue = Number(slider?.value ?? 100);
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
+            return clamped / 100;
         }
 
         function getGeneratedDryMixValue(options = {}) {
@@ -15308,7 +15344,7 @@
         syncSynthLfoDepthLabels();
 
         function updateSourceMixGains() {
-            const oscLevel = generatedSampleSolo ? 0 : (oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM : 0);
+            const oscLevel = generatedSampleSolo ? 0 : (oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM * getOscModuleVolumeValue() : 0);
             const granularLevel = Math.sqrt(generatedSampleSolo ? 1 : (oscillatorsEnabled ? (1 - oscMix) : 1)) * MIX_HEADROOM * dbToLinear(getGranularTrimDb());
 
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
@@ -17855,6 +17891,7 @@
                 lfo1ToLfo3Mod: 0,
                 lfo2ToLfo3Mod: 0,
                 oscMix: 0,
+                performanceOscVolume: 100,
                 performanceGeneratedSourceMix: 100,
                 performanceSampleVolume: 100,
                 performanceGeneratedDryMix: 0,
@@ -20791,6 +20828,7 @@
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
         const performanceSourceMix = document.getElementById('performanceSourceMix');
+        const performanceOscVolume = document.getElementById('performanceOscVolume');
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceSampleVolume = document.getElementById('performanceSampleVolume');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
@@ -20941,6 +20979,12 @@
                 const sample = 100 - wave;
                 performanceSourceMix.value = String(wave);
                 document.getElementById('performanceSourceMixValue').textContent = `${sample}%/${wave}%`;
+            }
+
+            if (performanceOscVolume) {
+                const value = Math.round(getOscModuleVolumeValue() * 100);
+                performanceOscVolume.value = String(value);
+                document.getElementById('performanceOscVolumeValue').textContent = `${value}%`;
             }
 
             if (performanceGeneratedSourceMix) {
@@ -21483,6 +21527,14 @@
         performanceSourceMix?.addEventListener('input', (event) => {
             setSliderValue('oscMix', event.target.value);
             syncPerformanceSoundControls();
+        });
+
+        performanceOscVolume?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            event.target.value = String(value);
+            document.getElementById('performanceOscVolumeValue').textContent = `${Math.round(value)}%`;
+            updateSourceMixGains();
+            saveState();
         });
 
         performanceGeneratedSourceMix?.addEventListener('input', (event) => {
