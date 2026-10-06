@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-07-00-11-build-v2026.10.07.1';
+            const cacheBuster = '2026-10-07-00-29-build-v2026.10.07.2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3355,7 +3355,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.07.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.07.2</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3368,7 +3368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.07.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.07.2</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -5323,6 +5323,12 @@
                     <div id="oscSynthModuleAnchor"></div>
                     <div class="source-seed-group" aria-label="3-voice synth controls">
                         <div class="section-title">3-Voice Synth</div>
+                        <div class="control-group highlight" style="grid-column: span 2;">
+                            <label><span class="param-name">Synth Preset</span><span class="value" id="synthPresetValue">100 presets</span></label>
+                            <select id="synthPresetSelect">
+                                <option value="custom" selected>Custom</option>
+                            </select>
+                        </div>
 
                         <div class="control-group">
                             <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Oscillator 1</label>
@@ -5523,6 +5529,35 @@
                         <div class="control-group">
                             <label><span class="param-name">Release</span><span class="value" id="osc3ReleaseValue">420ms</span></label>
                             <input type="range" id="osc3Release" min="0" max="3000" value="420" step="1">
+                        </div>
+
+                        <div class="control-group">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Noise Oscillator</label>
+                            <label><span class="param-name">Type</span><span class="value" id="oscNoiseTypeValue">White</span></label>
+                            <select id="oscNoiseType">
+                                <option value="white" selected>White</option>
+                                <option value="pink">Pink</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Level</span><span class="value" id="oscNoiseLevelValue">0%</span></label>
+                            <input type="range" id="oscNoiseLevel" min="0" max="100" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Attack</span><span class="value" id="oscNoiseAttackValue">6ms</span></label>
+                            <input type="range" id="oscNoiseAttack" min="0" max="2000" value="6" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Decay</span><span class="value" id="oscNoiseDecayValue">120ms</span></label>
+                            <input type="range" id="oscNoiseDecay" min="0" max="2000" value="120" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Sustain</span><span class="value" id="oscNoiseSustainValue">0%</span></label>
+                            <input type="range" id="oscNoiseSustain" min="0" max="100" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Release</span><span class="value" id="oscNoiseReleaseValue">180ms</span></label>
+                            <input type="range" id="oscNoiseRelease" min="0" max="3000" value="180" step="1">
                         </div>
 
                         <div class="control-group highlight">
@@ -6499,8 +6534,17 @@
             sustain: 0.58,
             release: 420
         };
+        let oscNoiseConfig = {
+            type: 'white',
+            level: 0,
+            attack: 6,
+            decay: 120,
+            sustain: 0,
+            release: 180
+        };
         let oscRouteMode = 'random';
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
+        let applyingSynthPopupPreset = false;
         let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0.35; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
@@ -6562,6 +6606,184 @@
         let allLfosSquareForced = false;
         let allLfosSquarePreviousWaveforms = null;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
+        function buildSynthPopupPresets() {
+            const bassNames = [
+                'Anchor', 'Asphalt', 'Breaker', 'Carbon', 'Cinder', 'Current', 'Diesel', 'Dusk',
+                'Engine', 'Forge', 'Gravity', 'Harbor', 'Iron', 'Jet', 'Knuckle', 'Magnet',
+                'Monolith', 'Nightline', 'Piston', 'Quarry', 'Rail', 'Reactor', 'Rivet', 'Shadow',
+                'Slate', 'Strobe', 'Subline', 'Tarmac', 'Torque', 'Vault', 'Vector', 'Voltage',
+                'Wake', 'Yard'
+            ];
+            const stringNames = [
+                'Aether', 'Bloom', 'Canopy', 'Chorus', 'Cloudline', 'Contour', 'Drift', 'Ember',
+                'Feather', 'Frost', 'Glacier', 'Glow', 'Halo', 'Horizon', 'Iris', 'Lattice',
+                'Lumen', 'Mellow', 'Mist', 'Orbit', 'Petal', 'Prism', 'Ribbon', 'Shore',
+                'Silk', 'Skyline', 'Static', 'Thread', 'Velvet', 'Vesper', 'Vine', 'Vista', 'Wisp'
+            ];
+            const seqNames = [
+                'Arrow', 'Blink', 'Circuit', 'Click', 'Cutglass', 'Dart', 'Echo', 'Edge',
+                'Etch', 'Flare', 'Frame', 'Grid', 'Helix', 'Jolt', 'Latch', 'Matrix',
+                'Micro', 'Needle', 'Node', 'Pebble', 'Pixel', 'Pulse', 'Quartz', 'Quickstep',
+                'Razor', 'Shiver', 'Signal', 'Spark', 'Stitch', 'Switch', 'Tightrope', 'Tick', 'Tracer'
+            ];
+            const formatId = (prefix, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`;
+            const presets = [];
+
+            bassNames.forEach((name, index) => {
+                presets.push({
+                    id: formatId('bass', index),
+                    name: `Bass ${String(index + 1).padStart(2, '0')} · ${name}`,
+                    settings: {
+                        osc1Wave: ['sawtooth', 'square', 'sawtooth', 'triangle'][index % 4],
+                        osc2Wave: ['square', 'triangle', 'square', 'sawtooth'][index % 4],
+                        osc3Wave: ['triangle', 'sine', 'square', 'triangle'][index % 4],
+                        osc1Octave: index % 2 === 0 ? 16 : 8,
+                        osc2Octave: index % 3 === 0 ? 16 : 8,
+                        osc3Octave: index % 4 === 0 ? 32 : 16,
+                        osc1Semitone: 0,
+                        osc2Semitone: [0, 0, 7, -12][index % 4],
+                        osc3Semitone: [-12, -12, 0, 7][index % 4],
+                        osc1Detune: [-4, -2, 0, 2, 4][index % 5],
+                        osc2Detune: [0, 3, -3, 5, -5][index % 5],
+                        osc3Detune: [0, 0, -7, 7][index % 4],
+                        osc1Level: 68 + (index % 5) * 6,
+                        osc2Level: 34 + (index % 6) * 6,
+                        osc3Level: 18 + (index % 5) * 5,
+                        osc1Attack: 2 + (index % 4) * 5,
+                        osc2Attack: 2 + (index % 3) * 6,
+                        osc3Attack: 4 + (index % 4) * 7,
+                        osc1Decay: 120 + (index % 5) * 55,
+                        osc2Decay: 100 + (index % 5) * 50,
+                        osc3Decay: 150 + (index % 4) * 70,
+                        osc1Sustain: 42 + (index % 4) * 8,
+                        osc2Sustain: 18 + (index % 4) * 8,
+                        osc3Sustain: 8 + (index % 3) * 6,
+                        osc1Release: 160 + (index % 4) * 80,
+                        osc2Release: 140 + (index % 4) * 70,
+                        osc3Release: 180 + (index % 4) * 90,
+                        osc2Sync: index % 6 === 0 ? 'osc1' : 'off',
+                        osc3Sync: index % 7 === 0 ? 'osc2' : 'off',
+                        oscNoiseType: index % 3 === 0 ? 'pink' : 'white',
+                        oscNoiseLevel: index % 5 === 0 ? 10 : (index % 3 === 0 ? 6 : 0),
+                        oscNoiseAttack: 1 + (index % 3) * 3,
+                        oscNoiseDecay: 90 + (index % 4) * 40,
+                        oscNoiseSustain: index % 5 === 0 ? 8 : 0,
+                        oscNoiseRelease: 120 + (index % 4) * 60,
+                        oscSynthFilterType: 'lowpass',
+                        oscSynthCutoff: 520 + (index % 10) * 210,
+                        oscSynthResonance: Number((0.7 + (index % 6) * 0.25).toFixed(1)),
+                        oscSynthDrive: Number((0.4 + (index % 5) * 0.7).toFixed(1)),
+                        oscRouteMode: ['sub', 'blend', 'sub', 'metal'][index % 4],
+                        oscMix: 100
+                    }
+                });
+            });
+
+            stringNames.forEach((name, index) => {
+                presets.push({
+                    id: formatId('string', index),
+                    name: `String ${String(index + 1).padStart(2, '0')} · ${name}`,
+                    settings: {
+                        osc1Wave: ['sawtooth', 'triangle', 'sawtooth', 'square'][index % 4],
+                        osc2Wave: ['triangle', 'sawtooth', 'square', 'triangle'][index % 4],
+                        osc3Wave: ['sine', 'triangle', 'sine', 'square'][index % 4],
+                        osc1Octave: 8,
+                        osc2Octave: index % 4 === 0 ? 4 : 8,
+                        osc3Octave: index % 5 === 0 ? 16 : 8,
+                        osc1Semitone: 0,
+                        osc2Semitone: [0, 7, 12, 5][index % 4],
+                        osc3Semitone: [12, 7, 0, -12][index % 4],
+                        osc1Detune: [-5, -2, 0, 2, 5][index % 5],
+                        osc2Detune: [6, -6, 3, -3, 0][index % 5],
+                        osc3Detune: [0, 7, -7, 3][index % 4],
+                        osc1Level: 52 + (index % 6) * 5,
+                        osc2Level: 34 + (index % 5) * 6,
+                        osc3Level: 18 + (index % 4) * 5,
+                        osc1Attack: 80 + (index % 6) * 70,
+                        osc2Attack: 120 + (index % 5) * 90,
+                        osc3Attack: 160 + (index % 4) * 110,
+                        osc1Decay: 340 + (index % 6) * 90,
+                        osc2Decay: 380 + (index % 5) * 110,
+                        osc3Decay: 420 + (index % 4) * 120,
+                        osc1Sustain: 60 + (index % 4) * 8,
+                        osc2Sustain: 48 + (index % 4) * 8,
+                        osc3Sustain: 36 + (index % 4) * 8,
+                        osc1Release: 640 + (index % 6) * 160,
+                        osc2Release: 760 + (index % 5) * 170,
+                        osc3Release: 820 + (index % 4) * 190,
+                        osc2Sync: 'off',
+                        osc3Sync: index % 8 === 0 ? 'osc1' : 'off',
+                        oscNoiseType: index % 2 === 0 ? 'pink' : 'white',
+                        oscNoiseLevel: 4 + (index % 4) * 2,
+                        oscNoiseAttack: 90 + (index % 4) * 45,
+                        oscNoiseDecay: 280 + (index % 5) * 80,
+                        oscNoiseSustain: 8 + (index % 4) * 4,
+                        oscNoiseRelease: 320 + (index % 5) * 120,
+                        oscSynthFilterType: ['lowpass', 'bandpass', 'allpass'][index % 3],
+                        oscSynthCutoff: 2200 + (index % 10) * 950,
+                        oscSynthResonance: Number((0.6 + (index % 5) * 0.35).toFixed(1)),
+                        oscSynthDrive: Number((0.2 + (index % 4) * 0.5).toFixed(1)),
+                        oscRouteMode: ['wide', 'blend', 'wide', 'random'][index % 4],
+                        oscMix: 100
+                    }
+                });
+            });
+
+            seqNames.forEach((name, index) => {
+                presets.push({
+                    id: formatId('seq', index),
+                    name: `Seq ${String(index + 1).padStart(2, '0')} · ${name}`,
+                    settings: {
+                        osc1Wave: ['square', 'sawtooth', 'triangle', 'square'][index % 4],
+                        osc2Wave: ['square', 'triangle', 'sawtooth', 'square'][index % 4],
+                        osc3Wave: ['triangle', 'square', 'sine', 'triangle'][index % 4],
+                        osc1Octave: 8,
+                        osc2Octave: index % 3 === 0 ? 16 : 8,
+                        osc3Octave: index % 2 === 0 ? 8 : 4,
+                        osc1Semitone: [0, 0, 12, -12][index % 4],
+                        osc2Semitone: [7, 12, 0, -5][index % 4],
+                        osc3Semitone: [12, 19, 7, 0][index % 4],
+                        osc1Detune: [-8, -4, 0, 4, 8][index % 5],
+                        osc2Detune: [0, 9, -9, 4, -4][index % 5],
+                        osc3Detune: [0, 12, -12, 6][index % 4],
+                        osc1Level: 64 + (index % 5) * 5,
+                        osc2Level: 24 + (index % 5) * 6,
+                        osc3Level: 12 + (index % 4) * 4,
+                        osc1Attack: index % 3,
+                        osc2Attack: 1 + (index % 3) * 2,
+                        osc3Attack: 1 + (index % 4) * 2,
+                        osc1Decay: 48 + (index % 5) * 28,
+                        osc2Decay: 60 + (index % 5) * 32,
+                        osc3Decay: 72 + (index % 4) * 36,
+                        osc1Sustain: (index % 4) * 6,
+                        osc2Sustain: (index % 3) * 5,
+                        osc3Sustain: (index % 2) * 4,
+                        osc1Release: 40 + (index % 4) * 32,
+                        osc2Release: 44 + (index % 4) * 34,
+                        osc3Release: 50 + (index % 4) * 36,
+                        osc2Sync: index % 2 === 0 ? 'osc1' : 'off',
+                        osc3Sync: index % 3 === 0 ? 'osc2' : (index % 5 === 0 ? 'osc1' : 'off'),
+                        oscNoiseType: index % 2 === 0 ? 'white' : 'pink',
+                        oscNoiseLevel: 6 + (index % 4) * 4,
+                        oscNoiseAttack: index % 2,
+                        oscNoiseDecay: 34 + (index % 5) * 22,
+                        oscNoiseSustain: 0,
+                        oscNoiseRelease: 45 + (index % 4) * 22,
+                        oscSynthFilterType: ['bandpass', 'highpass', 'lowpass', 'notch'][index % 4],
+                        oscSynthCutoff: 1800 + (index % 10) * 760,
+                        oscSynthResonance: Number((0.9 + (index % 6) * 0.4).toFixed(1)),
+                        oscSynthDrive: Number((0.6 + (index % 5) * 0.8).toFixed(1)),
+                        oscRouteMode: ['metal', 'blend', 'wide', 'sub'][index % 4],
+                        oscMix: 100
+                    }
+                });
+            });
+
+            return presets.slice(0, 100);
+        }
+
+        const SYNTH_POPUP_PRESETS = buildSynthPopupPresets();
+        const SYNTH_POPUP_PRESET_MAP = new Map(SYNTH_POPUP_PRESETS.map((preset) => [preset.id, preset]));
         const MIX_HEADROOM = 0.9;
         const MAX_SAFE_FILTER_Q = 2.5;
         const DEFAULT_PERFORMANCE_CUTOFF = 2800;
@@ -6684,6 +6906,7 @@
             'lockBpmSlider',
             'globalBpmSlider',
             ...INTERNAL_BPM_CLOCK_RATE_IDS,
+            'finalPanCenter',
             'oscMix',
             'performanceSourceMix',
             'performanceGeneratedSourceMix',
@@ -6721,6 +6944,7 @@
         ]);
         const RANDOMIZE_SKIP_PARAMS = new Set([
             ...BPM_RANDOMIZE_PROTECTED_IDS,
+            'finalPanCenter',
             'oscMix',
             'generatedSourceMix',
             'generatedDryMix',
@@ -13462,6 +13686,7 @@
         }
 
         function refreshActiveOscillatorVoices() {
+            if (applyingSynthPopupPreset) return;
             activeOscVoices.forEach((voice) => {
                 const frequencies = getOscillatorVoiceFrequencies(voice.note);
                 configureOscillatorWaveAndPitch(voice.osc1, osc1Config, frequencies.osc1Frequency);
@@ -13471,6 +13696,7 @@
         }
 
         function refreshActiveOscillatorLevels() {
+            if (applyingSynthPopupPreset) return;
             if (!audioContext) return;
             const now = audioContext.currentTime;
             activeOscVoices.forEach((voice) => {
@@ -13479,7 +13705,8 @@
                 [
                     [voice.osc1Gain, osc1Config, routeMix.osc1],
                     [voice.osc2Gain, osc2Config, routeMix.osc2],
-                    [voice.osc3Gain, osc3Config, routeMix.osc3]
+                    [voice.osc3Gain, osc3Config, routeMix.osc3],
+                    [voice.noiseGain, oscNoiseConfig, 1]
                 ].forEach(([gainNode, config, multiplier]) => {
                     if (!gainNode || !gainNode.gain) return;
                     const target = config.level * velocity * (Number.isFinite(multiplier) ? multiplier : 1);
@@ -13491,6 +13718,7 @@
         }
 
         function retriggerActiveOscillatorVoices(options = {}) {
+            if (applyingSynthPopupPreset) return;
             if (!audioContext) return;
             const restartTime = Math.max(audioContext.currentTime + getClickGuardSeconds(), audioContext.currentTime + 0.005);
             if (!activeOscVoices.size) {
@@ -13559,6 +13787,102 @@
             oscRouteMode = resolvedMode;
             const label = document.getElementById('oscRouteModeValue');
             if (label) label.textContent = getOscRouteModeLabel(resolvedMode);
+        }
+
+        function syncOscNoiseTypeLabel(type = document.getElementById('oscNoiseType')?.value || oscNoiseConfig.type) {
+            const resolvedType = type === 'pink' ? 'pink' : 'white';
+            oscNoiseConfig.type = resolvedType;
+            const label = document.getElementById('oscNoiseTypeValue');
+            if (label) label.textContent = resolvedType === 'pink' ? 'Pink' : 'White';
+        }
+
+        function syncSynthPresetLabel(value = document.getElementById('synthPresetSelect')?.value || 'custom') {
+            const label = document.getElementById('synthPresetValue');
+            if (!label) return;
+            const preset = SYNTH_POPUP_PRESET_MAP.get(value);
+            if (preset) {
+                label.textContent = preset.name;
+            } else {
+                label.textContent = value === 'custom' ? 'Custom' : `${SYNTH_POPUP_PRESETS.length} presets`;
+            }
+        }
+
+        function setSynthPresetSelectValue(value = 'custom') {
+            const select = document.getElementById('synthPresetSelect');
+            if (!select) return;
+            select.value = SYNTH_POPUP_PRESET_MAP.has(value) ? value : 'custom';
+            syncSynthPresetLabel(select.value);
+        }
+
+        function markSynthPopupPresetCustom() {
+            if (applyingSynthPopupPreset) return;
+            setSynthPresetSelectValue('custom');
+        }
+
+        function populateSynthPresetSelect() {
+            const select = document.getElementById('synthPresetSelect');
+            if (!select) return;
+            const preservedValue = select.value || 'custom';
+            select.innerHTML = '';
+            select.appendChild(new Option('Custom', 'custom', false, false));
+            SYNTH_POPUP_PRESETS.forEach((preset) => {
+                select.appendChild(new Option(preset.name, preset.id, false, false));
+            });
+            setSynthPresetSelectValue(preservedValue);
+        }
+
+        function applySynthPopupPreset(presetId, options = {}) {
+            const preset = SYNTH_POPUP_PRESET_MAP.get(presetId);
+            if (!preset) {
+                setSynthPresetSelectValue('custom');
+                return;
+            }
+
+            const settings = preset.settings || {};
+            applyingSynthPopupPreset = true;
+            try {
+                ensureSynthVoicePathAudible({ forceOscillatorsEnabled: true, disableSampleSolo: true });
+                setOscillatorsEnabled(true, { silent: true, skipSave: true });
+
+                setSelectValue('osc1Wave', settings.osc1Wave || 'sawtooth');
+                setSelectValue('osc2Wave', settings.osc2Wave || 'square');
+                setSelectValue('osc3Wave', settings.osc3Wave || 'triangle');
+                setSelectValue('osc2Sync', settings.osc2Sync || 'off');
+                setSelectValue('osc3Sync', settings.osc3Sync || 'off');
+                setSelectValue('oscNoiseType', settings.oscNoiseType || 'white');
+                setSelectValue('oscSynthFilterType', settings.oscSynthFilterType || 'lowpass');
+                setSelectValue('oscRouteMode', settings.oscRouteMode || 'blend');
+
+                setOscillatorOctave(1, settings.osc1Octave ?? 8);
+                setOscillatorOctave(2, settings.osc2Octave ?? 16);
+                setOscillatorOctave(3, settings.osc3Octave ?? 8);
+
+                [
+                    'osc1Semitone', 'osc1Detune', 'osc1Level', 'osc1Attack', 'osc1Decay', 'osc1Sustain', 'osc1Release',
+                    'osc2Semitone', 'osc2Detune', 'osc2Level', 'osc2Attack', 'osc2Decay', 'osc2Sustain', 'osc2Release',
+                    'osc3Semitone', 'osc3Detune', 'osc3Level', 'osc3Attack', 'osc3Decay', 'osc3Sustain', 'osc3Release',
+                    'oscNoiseLevel', 'oscNoiseAttack', 'oscNoiseDecay', 'oscNoiseSustain', 'oscNoiseRelease',
+                    'oscSynthCutoff', 'oscSynthResonance', 'oscSynthDrive', 'oscMix'
+                ].forEach((id) => {
+                    if (Object.prototype.hasOwnProperty.call(settings, id)) {
+                        setSliderValue(id, settings[id]);
+                    }
+                });
+
+            } finally {
+                applyingSynthPopupPreset = false;
+            }
+
+            syncOscNoiseTypeLabel();
+            syncOscSynthFilterControls();
+            setSynthPresetSelectValue(preset.id);
+            refreshActiveOscillatorLevels();
+            retriggerActiveOscillatorVoices();
+            syncPerformanceControlState();
+            saveState();
+            if (!options.silent) {
+                setStatus(`Loaded synth preset: ${preset.name}.`);
+            }
         }
 
         function getOscSynthFilterTypeLabel(type) {
@@ -13669,6 +13993,8 @@
             let osc3Pan = null;
             let osc3ToneFilter = null;
             let osc3ModGain = null;
+            let noiseSource = null;
+            let noiseGain = null;
 
             if (routeMode === 'wide' && typeof audioContext.createStereoPanner === 'function') {
                 osc1Pan = audioContext.createStereoPanner();
@@ -13730,6 +14056,17 @@
 
             osc3Gain.connect(oscMixer);
 
+            if (oscNoiseConfig.level > 0.0001 && (whiteNoiseBuffer || pinkNoiseBuffer)) {
+                noiseSource = audioContext.createBufferSource();
+                noiseSource.buffer = oscNoiseConfig.type === 'pink' ? pinkNoiseBuffer : whiteNoiseBuffer;
+                noiseSource.loop = true;
+                noiseGain = audioContext.createGain();
+                noiseGain.gain.value = 0;
+                noiseSource.connect(noiseGain);
+                noiseGain.connect(oscMixer);
+                voiceNodes.push(noiseSource, noiseGain);
+            }
+
             // Connect to oscillator output gain node (then to synth filter chain)
             if (oscSynthDriveGain && oscSynthFilter) {
                 syncOscSynthFilterControls();
@@ -13742,6 +14079,9 @@
             osc1.start(startTime);
             osc2.start(startTime);
             osc3.start(startTime);
+            if (noiseSource) {
+                noiseSource.start(startTime);
+            }
 
             const now = audioContext.currentTime;
 
@@ -13764,6 +14104,9 @@
                 osc2: applyVoiceEnvelope(osc2Gain, osc2Config, routeMix.osc2),
                 osc3: applyVoiceEnvelope(osc3Gain, osc3Config, routeMix.osc3)
             };
+            if (noiseGain) {
+                envelopes.noise = applyVoiceEnvelope(noiseGain, oscNoiseConfig, 1);
+            }
 
             // Debug: Log envelope timing
             console.log(`[OSC Debug] Note: ${note}, Route: ${routeMode}, Now: ${now.toFixed(3)}, StartTime: ${startTime.toFixed(3)}, Attack: ${envelopes.osc1.attack.toFixed(3)}s, ${envelopes.osc2.attack.toFixed(3)}s, ${envelopes.osc3.attack.toFixed(3)}s`);
@@ -13776,6 +14119,7 @@
                 noteVelocity,
                 routeMix,
                 osc1, osc2, osc3, osc1Gain, osc2Gain, osc3Gain, oscMixer,
+                noiseSource, noiseGain,
                 osc1Pan, osc2Pan, osc3Pan,
                 osc3ToneFilter, osc3ModGain,
                 nodes: voiceNodes,
@@ -13801,6 +14145,7 @@
             const instantRelease = options.instant === true;
             const release1 = instantRelease ? getClickGuardSeconds() : Math.max(osc1Config.release / 1000, getClickGuardSeconds());
             const release3 = instantRelease ? getClickGuardSeconds() : Math.max(osc3Config.release / 1000, getClickGuardSeconds());
+            const releaseNoise = instantRelease ? getClickGuardSeconds() : Math.max(oscNoiseConfig.release / 1000, getClickGuardSeconds());
             
             // Cancel from now, not from stopTime
             voice.osc1Gain.gain.cancelScheduledValues(now);
@@ -13827,6 +14172,14 @@
                 voice.osc3Gain.gain.setValueAtTime(voice.osc3Gain.gain.value, actualStopTime);
             }
             voice.osc3Gain.gain.linearRampToValueAtTime(0, actualStopTime + release3);
+            if (voice.noiseGain?.gain) {
+                voice.noiseGain.gain.cancelScheduledValues(now);
+                voice.noiseGain.gain.setValueAtTime(voice.noiseGain.gain.value, now);
+                if (actualStopTime > now) {
+                    voice.noiseGain.gain.setValueAtTime(voice.noiseGain.gain.value, actualStopTime);
+                }
+                voice.noiseGain.gain.linearRampToValueAtTime(0, actualStopTime + releaseNoise);
+            }
             
             // Cancel from now, not from stopTime
             voice.osc2Gain.gain.cancelScheduledValues(now);
@@ -13843,10 +14196,17 @@
             voice.osc2Gain.gain.linearRampToValueAtTime(0, actualStopTime + release2);
             
             // Stop oscillators after release
-            const maxRelease = Math.max(release1, release2, release3);
+            const maxRelease = Math.max(release1, release2, release3, releaseNoise);
             voice.osc1.stop(actualStopTime + maxRelease);
             voice.osc2.stop(actualStopTime + maxRelease);
             voice.osc3.stop(actualStopTime + maxRelease);
+            if (voice.noiseSource) {
+                try {
+                    voice.noiseSource.stop(actualStopTime + maxRelease);
+                } catch (e) {
+                    console.debug('Noise source already stopped:', e);
+                }
+            }
             
             // Clean up - disconnect nodes after they stop (voice reference is still valid)
             setTimeout(() => {
@@ -15174,6 +15534,14 @@
         });
 
         // --- OSC Tab Controls ---
+        document.getElementById('synthPresetSelect').addEventListener('change', (e) => {
+            const presetId = e.target.value;
+            syncSynthPresetLabel(presetId);
+            if (presetId !== 'custom') {
+                applySynthPopupPreset(presetId);
+            }
+        });
+
         // Oscillator 1
         document.getElementById('osc1Wave').addEventListener('change', (e) => {
             osc1Config.waveform = e.target.value;
@@ -15376,6 +15744,41 @@
             retriggerActiveOscillatorVoices();
         });
 
+        document.getElementById('oscNoiseType').addEventListener('change', (e) => {
+            syncOscNoiseTypeLabel(e.target.value);
+            retriggerActiveOscillatorVoices();
+        });
+
+        document.getElementById('oscNoiseLevel').addEventListener('input', (e) => {
+            oscNoiseConfig.level = parseFloat(e.target.value) / 100;
+            document.getElementById('oscNoiseLevelValue').textContent = `${e.target.value}%`;
+            refreshActiveOscillatorLevels();
+        });
+
+        document.getElementById('oscNoiseAttack').addEventListener('input', (e) => {
+            oscNoiseConfig.attack = parseFloat(e.target.value);
+            document.getElementById('oscNoiseAttackValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
+        });
+
+        document.getElementById('oscNoiseDecay').addEventListener('input', (e) => {
+            oscNoiseConfig.decay = parseFloat(e.target.value);
+            document.getElementById('oscNoiseDecayValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
+        });
+
+        document.getElementById('oscNoiseSustain').addEventListener('input', (e) => {
+            oscNoiseConfig.sustain = parseFloat(e.target.value) / 100;
+            document.getElementById('oscNoiseSustainValue').textContent = `${e.target.value}%`;
+            retriggerActiveOscillatorVoices();
+        });
+
+        document.getElementById('oscNoiseRelease').addEventListener('input', (e) => {
+            oscNoiseConfig.release = parseFloat(e.target.value);
+            document.getElementById('oscNoiseReleaseValue').textContent = `${e.target.value}ms`;
+            retriggerActiveOscillatorVoices();
+        });
+
         document.getElementById('oscSynthFilterType').addEventListener('change', syncOscSynthFilterControls);
 
         document.getElementById('oscSynthCutoff').addEventListener('input', (e) => {
@@ -15407,7 +15810,18 @@
             syncOscRouteModeUI(e.target.value);
         });
         syncOscRouteModeUI();
+        syncOscNoiseTypeLabel();
         syncSynthLfoDepthLabels();
+        populateSynthPresetSelect();
+        const synthPopupModule = document.querySelector('.source-seed-group[aria-label="3-voice synth controls"]');
+        synthPopupModule?.querySelectorAll('input, select').forEach((control) => {
+            if (control.id === 'synthPresetSelect') return;
+            const eventName = control.matches('select') ? 'change' : 'input';
+            control.addEventListener(eventName, markSynthPopupPresetCustom);
+        });
+        synthPopupModule?.querySelectorAll('.slope-toggle[data-osc]').forEach((button) => {
+            button.addEventListener('click', markSynthPopupPresetCustom);
+        });
 
         function updateSourceMixGains() {
             const oscLevel = generatedSampleSolo ? 0 : (oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM * getOscModuleVolumeValue() : 0);
@@ -16029,7 +16443,6 @@
             setSliderValue('finalReverbDecay', randomIntegerInRange(18, 92));
             setSliderValue('finalReverbLowpass', randomIntegerInRange(1800, 9800));
             setSliderValue('finalReverbMix', randomIntegerInRange(0, 54));
-            setSliderValue('finalPanCenter', randomIntegerInRange(-28, 28));
             setSliderValue('finalPanWidth', randomIntegerInRange(58, 100));
             setSliderValue('finalPanLfoRate', randomIntegerInRange(16, 420));
             setSliderValue('finalPanLfoDepth', randomIntegerInRange(0, 56));
@@ -17997,6 +18410,11 @@
                 osc3Decay: 320,
                 osc3Sustain: 58,
                 osc3Release: 420,
+                oscNoiseLevel: 0,
+                oscNoiseAttack: 6,
+                oscNoiseDecay: 120,
+                oscNoiseSustain: 0,
+                oscNoiseRelease: 180,
                 oscSynthCutoff: 13500,
                 oscSynthCutoffLfoDepth: 100,
                 oscSynthResonance: 0.7,
@@ -18081,15 +18499,17 @@
             document.getElementById('osc3Wave').value = 'triangle';
             document.getElementById('osc2Sync').value = 'off';
             document.getElementById('osc3Sync').value = 'off';
+            document.getElementById('oscNoiseType').value = 'white';
             document.getElementById('performanceDropboxSampleSource').value = 'sampledrop';
             const dropboxStretchToggle = document.getElementById('performanceDropboxSampleStretchToLoop');
             if (dropboxStretchToggle) dropboxStretchToggle.checked = false;
             document.getElementById('oscSynthFilterType').value = 'lowpass';
             document.getElementById('hugeDrumKit').value = HUGE_DRUM_KITS[0].id;
             document.getElementById('hugeDrumKitValue').textContent = HUGE_DRUM_KITS[0].name;
-            ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync'].forEach((id) => {
+            ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync', 'oscNoiseType'].forEach((id) => {
                 document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
             });
+            setSynthPresetSelectValue('custom');
             syncOscRouteModeUI('random');
             syncOscSynthFilterControls();
             syncFinalPanControlDisplays();
@@ -18209,6 +18629,7 @@
                     osc3Wave: document.getElementById('osc3Wave')?.value || 'triangle',
                     osc2Sync: document.getElementById('osc2Sync')?.value || 'off',
                     osc3Sync: document.getElementById('osc3Sync')?.value || 'off',
+                    oscNoiseType: document.getElementById('oscNoiseType')?.value || 'white',
                     oscRouteMode: document.getElementById('oscRouteMode')?.value || 'random',
                     oscSynthFilterType: document.getElementById('oscSynthFilterType')?.value || 'lowpass'
                 },
@@ -18322,6 +18743,7 @@
                     }
                 });
             }
+            setSynthPresetSelectValue('custom');
             syncOscSynthFilterControls();
             syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
             const restoredHugeKit = HUGE_DRUM_KITS.find((kit) => kit.id === document.getElementById('hugeDrumKit')?.value) || HUGE_DRUM_KITS[0];
@@ -18969,9 +19391,10 @@
                         }
                     });
                 }
-                ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync'].forEach((id) => {
+                ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync', 'oscNoiseType'].forEach((id) => {
                     document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
                 });
+                syncSynthPresetLabel(document.getElementById('synthPresetSelect')?.value || 'custom');
                 syncGrainTimingModeControls();
                 syncOscSynthFilterControls();
                 syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
