@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-22-30-build-v2026.10.06.3';
+            const cacheBuster = '2026-10-06-22-36-build-v2026.10.06.4';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -173,7 +173,7 @@
         }
 
         .sample-browser-filter-group {
-            flex: 1 1 260px;
+            flex: 1 1 auto;
             min-width: 0;
             display: grid;
             gap: 6px;
@@ -262,10 +262,48 @@
                 padding: 14px;
             }
 
-            .sample-browser-controls,
             .sample-browser-card-head,
             .sample-browser-card-actions {
                 flex-direction: column;
+                align-items: stretch;
+            }
+
+            .sample-browser-controls {
+                flex-direction: row;
+                align-items: flex-end;
+                justify-content: flex-start;
+                gap: 8px;
+            }
+
+            .sample-browser-controls .performance-btn {
+                min-height: 40px;
+                min-width: 96px;
+                padding: 8px 12px;
+                font-size: 11px;
+                border-radius: 12px;
+                align-self: flex-end;
+            }
+
+            .sample-browser-filter-group {
+                flex: 1 1 auto;
+                width: auto;
+            }
+
+            .sample-browser-filter-input {
+                min-height: 40px;
+                padding: 9px 12px;
+                border-radius: 12px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .sample-browser-card-head,
+            .sample-browser-card-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .sample-browser-controls {
                 align-items: stretch;
             }
 
@@ -273,10 +311,9 @@
                 width: 100%;
             }
 
-            .sample-browser-filter-input {
-                min-height: 40px;
-                padding: 9px 12px;
-                border-radius: 12px;
+            .sample-browser-controls .performance-btn {
+                width: auto;
+                min-width: 0;
             }
         }
 
