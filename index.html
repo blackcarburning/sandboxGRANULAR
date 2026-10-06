@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-22-57-build-v2026.10.06.6';
+            const cacheBuster = '2026-10-06-23-05-build-v2026.10.06.7';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3429,7 +3429,7 @@
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
                 <div class="performance-layer-switches" aria-label="Bastardloop transport controls">
-                    <button class="performance-btn" id="performanceBastardLoopPlayBtn">Play Bastardloops</button>
+                    <button class="performance-btn" id="performanceBastardLoopPlayBtn" data-bastardloop-start="true">Start Bastardloops</button>
                     <button class="performance-btn" id="performanceBastardLoopStopBtn">Stop Bastardloops</button>
                 </div>
             </div>
@@ -3485,6 +3485,9 @@
                     </label>
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop2Meta">Empty</div>
+                <div class="performance-layer-switches" aria-label="Bastardloop B start controls">
+                    <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
+                </div>
             </div>
             <div class="performance-feature-card" aria-label="Bastardloop C controls">
                 <div class="performance-feature-head">
@@ -3538,6 +3541,9 @@
                     </label>
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop3Meta">Empty</div>
+                <div class="performance-layer-switches" aria-label="Bastardloop C start controls">
+                    <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
+                </div>
             </div>
             <div class="performance-feature-card" aria-label="Dropbox sample layer controls">
                 <div class="performance-feature-head">
@@ -4093,6 +4099,7 @@
                 <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
+                <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Loop Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
                 <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
@@ -10450,7 +10457,7 @@
             const label = document.getElementById('performanceBastardLoopLevelValue');
             const meta = document.getElementById('performanceBastardLoopMeta');
             const button = document.getElementById('performanceGenerateBastardLoopBtn');
-            const playButton = document.getElementById('performanceBastardLoopPlayBtn');
+            const playButtons = document.querySelectorAll('[data-bastardloop-start]');
             const stopButton = document.getElementById('performanceBastardLoopStopBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoopPitchAffectsDuration');
             const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
@@ -10468,10 +10475,10 @@
                     ? 'Building Bastardloop A...'
                     : (bastardLoopBuffer ? 'Rebuild Bastardloop A' : 'Generate Bastardloop A');
             }
-            if (playButton) {
+            playButtons.forEach((playButton) => {
                 playButton.disabled = anyGenerationInFlight || !anyBufferReady || bastardLoopPlaying;
-                playButton.textContent = bastardLoopPlaying ? 'Bastardloops Playing' : 'Play Bastardloops';
-            }
+                playButton.textContent = bastardLoopPlaying ? 'Bastardloops Playing' : 'Start Bastardloops';
+            });
             if (stopButton) {
                 stopButton.disabled = anyGenerationInFlight || !bastardLoopPlaying;
             }
@@ -21452,8 +21459,10 @@
             });
         });
 
-        performanceBastardLoopPlayBtn?.addEventListener('click', () => {
-            setBastardLoopPlaying(true);
+        document.querySelectorAll('[data-bastardloop-start]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setBastardLoopPlaying(true);
+            });
         });
 
         performanceBastardLoopStopBtn?.addEventListener('click', () => {
