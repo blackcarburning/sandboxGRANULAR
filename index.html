@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-23-27-build-v2026.10.06.9';
+            const cacheBuster = '2026-10-07-00-11-build-v2026.10.07.1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3355,7 +3355,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.06.9</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.07.1</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3368,7 +3368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.06.9</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.07.1</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -13491,8 +13491,20 @@
         }
 
         function retriggerActiveOscillatorVoices(options = {}) {
-            if (!audioContext || !activeOscVoices.size) return;
+            if (!audioContext) return;
             const restartTime = Math.max(audioContext.currentTime + getClickGuardSeconds(), audioContext.currentTime + 0.005);
+            if (!activeOscVoices.size) {
+                if (arpEnabled && holdEnabled && arpCurrentNote) {
+                    playOscillatorNote(arpCurrentNote, restartTime, 1, { role: 'arp' });
+                    return;
+                }
+                if (!arpEnabled && heldNotes.size > 0) {
+                    heldNotes.forEach((note) => {
+                        playOscillatorNote(note, restartTime, 1, { role: 'keyboard' });
+                    });
+                }
+                return;
+            }
             const activeVoices = Array.from(activeOscVoices.entries()).map(([voiceId, voice]) => ({
                 voiceId,
                 note: voice.note,
@@ -15198,7 +15210,7 @@
         document.getElementById('osc1Level').addEventListener('input', (e) => {
             osc1Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc1LevelValue').textContent = `${e.target.value}%`;
-            retriggerActiveOscillatorVoices();
+            refreshActiveOscillatorLevels();
         });
 
         document.getElementById('osc1Attack').addEventListener('input', (e) => {
@@ -15267,7 +15279,7 @@
         document.getElementById('osc2Level').addEventListener('input', (e) => {
             osc2Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc2LevelValue').textContent = `${e.target.value}%`;
-            retriggerActiveOscillatorVoices();
+            refreshActiveOscillatorLevels();
         });
 
         document.getElementById('osc2Attack').addEventListener('input', (e) => {
@@ -15337,7 +15349,7 @@
         document.getElementById('osc3Level').addEventListener('input', (e) => {
             osc3Config.level = parseFloat(e.target.value) / 100;
             document.getElementById('osc3LevelValue').textContent = `${e.target.value}%`;
-            retriggerActiveOscillatorVoices();
+            refreshActiveOscillatorLevels();
         });
 
         document.getElementById('osc3Attack').addEventListener('input', (e) => {
