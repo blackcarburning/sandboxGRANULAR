@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-06-23-05-build-v2026.10.06.7';
+            const cacheBuster = '2026-10-06-23-14-build-v2026.10.06.8';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -2513,7 +2513,8 @@
             min-width: 164px;
         }
 
-        .simplified-ui .performance-mixer-grid {
+        .simplified-ui .performance-mixer-grid,
+        .simplified-ui .performance-filter-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
@@ -3207,7 +3208,8 @@
                 grid-template-columns: 1fr;
             }
 
-            .simplified-ui .performance-mixer-grid {
+            .simplified-ui .performance-mixer-grid,
+            .simplified-ui .performance-filter-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -3302,6 +3304,7 @@
             .simplified-ui .performance-actions,
             .simplified-ui .performance-sound-controls,
             .simplified-ui .performance-mixer-grid,
+            .simplified-ui .performance-filter-grid,
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
                 grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
@@ -3352,7 +3355,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.05.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.06.8</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3365,7 +3368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.05.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.06.8</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -3685,6 +3688,123 @@
                     </div>
                 </div>
             </div>
+            <div class="performance-feature-card" aria-label="Filter controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Filter</div>
+                        <h3 class="performance-feature-title">Filter Section</h3>
+                        <p class="performance-feature-note">Keep the low-pass and high-pass controls together in one place, including cutoff, resonance, modulation, pole selection, and trim staging.</p>
+                    </div>
+                </div>
+                <div class="performance-filter-grid" aria-label="Filter controls">
+                    <div class="performance-sound-card">
+                        <label for="performanceLpfCutoff">
+                            <span>LP Cutoff</span>
+                            <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
+                        </label>
+                        <input type="range" id="performanceLpfCutoff" min="80" max="12000" value="2800" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceLpfResonance">
+                            <span>LP Res</span>
+                            <span class="value" id="performanceLpfResonanceValue">0.6</span>
+                        </label>
+                        <input type="range" id="performanceLpfResonance" min="0.1" max="2.5" value="0.6" step="0.1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceHpfCutoff">
+                            <span>HP Cutoff</span>
+                            <span class="value" id="performanceHpfCutoffValue">20Hz</span>
+                        </label>
+                        <input type="range" id="performanceHpfCutoff" min="20" max="5000" value="20" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceHpfResonance">
+                            <span>HP Res</span>
+                            <span class="value" id="performanceHpfResonanceValue">0.4</span>
+                        </label>
+                        <input type="range" id="performanceHpfResonance" min="0.1" max="2.5" value="0.4" step="0.1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label><span>LP Cutoff LFO</span></label>
+                        <div class="performance-filter-lfo-row" role="group" aria-label="Low-pass cutoff LFO controls">
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label><span>LP Res LFO</span></label>
+                        <div class="performance-filter-lfo-row" role="group" aria-label="Low-pass resonance LFO controls">
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label><span>HP Cutoff LFO</span></label>
+                        <div class="performance-filter-lfo-row" role="group" aria-label="High-pass cutoff LFO controls">
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label><span>HP Res LFO</span></label>
+                        <div class="performance-filter-lfo-row" role="group" aria-label="High-pass resonance LFO controls">
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
+                            <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="filterLfo1Depth">
+                            <span>LFO 1 Filter Depth</span>
+                            <span class="value" id="filterLfo1DepthValue">50%</span>
+                        </label>
+                        <input type="range" id="filterLfo1Depth" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="filterLfo2Depth">
+                            <span>LFO 2 Filter Depth</span>
+                            <span class="value" id="filterLfo2DepthValue">50%</span>
+                        </label>
+                        <input type="range" id="filterLfo2Depth" min="0" max="100" value="50" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label>
+                            <span>LP Filter</span>
+                            <span class="value" id="performanceLpfPolesValue">2P</span>
+                        </label>
+                        <div class="performance-pole-row three-up" role="group" aria-label="Low-pass filter controls">
+                            <button class="performance-filter-toggle active" data-performance-filter-power="lpf">On</button>
+                            <button class="performance-pole-toggle active" data-performance-filter="lpf" data-poles="2">2P</button>
+                            <button class="performance-pole-toggle" data-performance-filter="lpf" data-poles="4">4P</button>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label>
+                            <span>HP Filter</span>
+                            <span class="value" id="performanceHpfPolesValue">2P</span>
+                        </label>
+                        <div class="performance-pole-row three-up" role="group" aria-label="High-pass filter controls">
+                            <button class="performance-filter-toggle active" data-performance-filter-power="hpf">On</button>
+                            <button class="performance-pole-toggle active" data-performance-filter="hpf" data-poles="2">2P</button>
+                            <button class="performance-pole-toggle" data-performance-filter="hpf" data-poles="4">4P</button>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceInputTrim">
+                            <span>Filter In</span>
+                            <span class="value" id="performanceInputTrimValue">+0.0dB</span>
+                        </label>
+                        <input type="range" id="performanceInputTrim" min="-24" max="6" value="0" step="0.5">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performancePostFilterTrim">
+                            <span>Filter Out</span>
+                            <span class="value" id="performancePostFilterTrimValue">+0.0dB</span>
+                        </label>
+                        <input type="range" id="performancePostFilterTrim" min="-24" max="12" value="0" step="0.5">
+                    </div>
+                </div>
+            </div>
             <div class="performance-sound-controls" aria-label="Sound controls">
                 <div class="performance-sound-card">
                     <label for="performanceSourceMix">
@@ -3741,112 +3861,6 @@
                         <span class="value" id="performanceGrainModAmountValue">75%</span>
                     </label>
                     <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceLpfCutoff">
-                        <span>LP Cutoff</span>
-                        <span class="value" id="performanceLpfCutoffValue">2800Hz</span>
-                    </label>
-                    <input type="range" id="performanceLpfCutoff" min="80" max="12000" value="2800" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceLpfResonance">
-                        <span>LP Res</span>
-                        <span class="value" id="performanceLpfResonanceValue">0.6</span>
-                    </label>
-                    <input type="range" id="performanceLpfResonance" min="0.1" max="2.5" value="0.6" step="0.1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceHpfCutoff">
-                        <span>HP Cutoff</span>
-                        <span class="value" id="performanceHpfCutoffValue">20Hz</span>
-                    </label>
-                    <input type="range" id="performanceHpfCutoff" min="20" max="5000" value="20" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceHpfResonance">
-                        <span>HP Res</span>
-                        <span class="value" id="performanceHpfResonanceValue">0.4</span>
-                    </label>
-                    <input type="range" id="performanceHpfResonance" min="0.1" max="2.5" value="0.4" step="0.1">
-                </div>
-                <div class="performance-sound-card">
-                    <label><span>LP Cutoff LFO</span></label>
-                    <div class="performance-filter-lfo-row" role="group" aria-label="Low-pass cutoff LFO controls">
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfCutoff" data-lfo="1">L1</button>
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfCutoff" data-lfo="2">L2</button>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label><span>LP Res LFO</span></label>
-                    <div class="performance-filter-lfo-row" role="group" aria-label="Low-pass resonance LFO controls">
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfQ" data-lfo="1">L1</button>
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="lpfQ" data-lfo="2">L2</button>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label><span>HP Cutoff LFO</span></label>
-                    <div class="performance-filter-lfo-row" role="group" aria-label="High-pass cutoff LFO controls">
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfCutoff" data-lfo="1">L1</button>
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfCutoff" data-lfo="2">L2</button>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label><span>HP Res LFO</span></label>
-                    <div class="performance-filter-lfo-row" role="group" aria-label="High-pass resonance LFO controls">
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfQ" data-lfo="1">L1</button>
-                        <button class="lfo-toggle performance-filter-lfo-toggle" data-param="hpfQ" data-lfo="2">L2</button>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label for="filterLfo1Depth">
-                        <span>LFO 1 Filter Depth</span>
-                        <span class="value" id="filterLfo1DepthValue">50%</span>
-                    </label>
-                    <input type="range" id="filterLfo1Depth" min="0" max="100" value="50" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="filterLfo2Depth">
-                        <span>LFO 2 Filter Depth</span>
-                        <span class="value" id="filterLfo2DepthValue">50%</span>
-                    </label>
-                    <input type="range" id="filterLfo2Depth" min="0" max="100" value="50" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label>
-                        <span>LP Filter</span>
-                        <span class="value" id="performanceLpfPolesValue">2P</span>
-                    </label>
-                    <div class="performance-pole-row three-up" role="group" aria-label="Low-pass filter controls">
-                        <button class="performance-filter-toggle active" data-performance-filter-power="lpf">On</button>
-                        <button class="performance-pole-toggle active" data-performance-filter="lpf" data-poles="2">2P</button>
-                        <button class="performance-pole-toggle" data-performance-filter="lpf" data-poles="4">4P</button>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label>
-                        <span>HP Filter</span>
-                        <span class="value" id="performanceHpfPolesValue">2P</span>
-                    </label>
-                    <div class="performance-pole-row three-up" role="group" aria-label="High-pass filter controls">
-                        <button class="performance-filter-toggle active" data-performance-filter-power="hpf">On</button>
-                        <button class="performance-pole-toggle active" data-performance-filter="hpf" data-poles="2">2P</button>
-                        <button class="performance-pole-toggle" data-performance-filter="hpf" data-poles="4">4P</button>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceInputTrim">
-                        <span>Filter In</span>
-                        <span class="value" id="performanceInputTrimValue">+0.0dB</span>
-                    </label>
-                    <input type="range" id="performanceInputTrim" min="-24" max="6" value="0" step="0.5">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performancePostFilterTrim">
-                        <span>Filter Out</span>
-                        <span class="value" id="performancePostFilterTrimValue">+0.0dB</span>
-                    </label>
-                    <input type="range" id="performancePostFilterTrim" min="-24" max="12" value="0" step="0.5">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceMasterTrim">
@@ -10476,8 +10490,9 @@
                     : (bastardLoopBuffer ? 'Rebuild Bastardloop A' : 'Generate Bastardloop A');
             }
             playButtons.forEach((playButton) => {
-                playButton.disabled = anyGenerationInFlight || !anyBufferReady || bastardLoopPlaying;
-                playButton.textContent = bastardLoopPlaying ? 'Bastardloops Playing' : 'Start Bastardloops';
+                playButton.disabled = anyGenerationInFlight || !anyBufferReady;
+                playButton.textContent = bastardLoopPlaying ? 'Stop Bastardloops' : 'Start Bastardloops';
+                playButton.setAttribute('aria-pressed', bastardLoopPlaying ? 'true' : 'false');
             });
             if (stopButton) {
                 stopButton.disabled = anyGenerationInFlight || !bastardLoopPlaying;
@@ -21461,7 +21476,7 @@
 
         document.querySelectorAll('[data-bastardloop-start]').forEach((button) => {
             button.addEventListener('click', () => {
-                setBastardLoopPlaying(true);
+                setBastardLoopPlaying(!bastardLoopPlaying);
             });
         });
 
