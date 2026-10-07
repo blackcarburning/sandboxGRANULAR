@@ -986,12 +986,11 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /const subtleAmount = Math\.min\(1, safeAmount \/ 0\.4\);/);
     assert.match(indexHtml, /const effectAmount = safeAmount > 0\.4/);
     assert.match(indexHtml, /const effectDrive = 1 \+ \(subtleAmount \* 8\) \+ \(effectAmount \* 72\);/);
-    assert.match(indexHtml, /const makeupGain = Math\.max\(0\.32, 1 \+ \(subtleAmount \* 0\.18\) - \(effectAmount \* 0\.68\)\);/);
     assert.match(indexHtml, /threshold: safeAmount > 0\.001 \? -10 - \(subtleAmount \* 20\) - \(effectAmount \* 78\) : 0,/);
     assert.match(indexHtml, /ratio: 1 \+ \(subtleAmount \* 8\) \+ \(effectAmount \* 20\),/);
     assert.match(indexHtml, /release: getFinalCompressorReleaseSeconds\(\)/);
     assert.match(indexHtml, /drive: effectDrive,/);
-    assert.match(indexHtml, /makeup: makeupGain/);
+    assert.match(indexHtml, /makeup: 1/);
     assert.doesNotMatch(indexHtml, /function getFinalCompressorReductionFollowGain\(amount = 0\)/);
     assert.doesNotMatch(indexHtml, /const reductionDb = Math\.max\(0, -Number\(finalCompressorNode\.reduction\) \|\| 0\);/);
     assert.doesNotMatch(indexHtml, /const reductionWeight = 0\.18 \+ \(Math\.pow\(safeAmount, 0\.9\) \* 1\.45\);/);
