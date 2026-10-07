@@ -7025,6 +7025,8 @@
         let bastardLoop3GenerationInFlight = false;
         let dropboxSampleLayerLoadInFlight = false;
         let megaRandomizeInFlight = false;
+        let megaRandomAudioSuppressed = false;
+        let megaRandomSavedFinalAmplifierGain = 1;
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
@@ -16161,6 +16163,24 @@
             }
         }
 
+        function setMegaRandomAudioSuppressed(enabled) {
+            const nextValue = Boolean(enabled);
+            megaRandomAudioSuppressed = nextValue;
+            if (!finalAmplifierNode || !audioContext) return;
+            const now = audioContext.currentTime;
+            if (nextValue) {
+                megaRandomSavedFinalAmplifierGain = finalAmplifierNode.gain.value;
+                finalAmplifierNode.gain.cancelScheduledValues(now);
+                finalAmplifierNode.gain.setValueAtTime(finalAmplifierNode.gain.value, now);
+                finalAmplifierNode.gain.linearRampToValueAtTime(0, now + 0.01);
+                return;
+            }
+            const restoreGain = Number.isFinite(megaRandomSavedFinalAmplifierGain) ? megaRandomSavedFinalAmplifierGain : 1;
+            finalAmplifierNode.gain.cancelScheduledValues(now);
+            finalAmplifierNode.gain.setValueAtTime(finalAmplifierNode.gain.value, now);
+            finalAmplifierNode.gain.linearRampToValueAtTime(restoreGain, now + 0.02);
+        }
+
         function stopAllPerformancePlayback(options = {}) {
             const hadPlayback = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
             panicAllNotes({ preserveStatus: true });
@@ -18949,6 +18969,7 @@
             }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartDryLoop = Boolean(generatedDrySource);
+            const allowPlaybackRestart = !megaRandomizeInFlight;
             if (shouldRestartSequencer) {
                 stopSequencer();
             } else if (shouldRestartDryLoop) {
@@ -18958,13 +18979,16 @@
             if (options.refreshSequencerPattern) {
                 generateInterestingLoop({ profile: options.profile, blueprint: options.blueprint });
             }
-            if (shouldRestartSequencer) {
+            if (shouldRestartSequencer && allowPlaybackRestart) {
                 startSequencer();
-            } else if (shouldRestartDryLoop) {
+            } else if (shouldRestartDryLoop && allowPlaybackRestart) {
                 startGeneratedDryLoop();
             }
             syncPerformanceControlState();
-            return { restartedSequencer: shouldRestartSequencer, restartedDryLoop: shouldRestartDryLoop };
+            return {
+                restartedSequencer: shouldRestartSequencer && allowPlaybackRestart,
+                restartedDryLoop: shouldRestartDryLoop && allowPlaybackRestart
+            };
         }
 
         async function generatePerformanceLoop() {
@@ -20299,18 +20323,22 @@
                     blueprint: loopBlueprint,
                     sourceBlueprint
                 });
-                restartAllTransport({ silent: true });
-                if (arpEnabled) {
-                    stopSequencer();
-                } else {
-                    startSequencer();
+                if (!megaRandomizeInFlight) {
+                    restartAllTransport({ silent: true });
+                    if (arpEnabled) {
+                        stopSequencer();
+                    } else {
+                        startSequencer();
+                    }
                 }
                 setPerformanceGenerateButtonState('generated');
                 syncPerformanceControlState();
                 showSettlePopup('effects on, distortion off');
-                statusDiv.textContent = arpEnabled
-                    ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop stopped because arp is active.`
-                    : `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`;
+                statusDiv.textContent = megaRandomizeInFlight
+                    ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, playback held silent for Mega Random.`
+                    : (arpEnabled
+                        ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop stopped because arp is active.`
+                        : `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`);
                 return { generationProfile, randomizeState, audioReady: true };
             } catch (error) {
                 console.error(error);
@@ -20324,6 +20352,7 @@
             if (megaRandomizeInFlight) return;
             megaRandomizeInFlight = true;
             stopAllPerformancePlayback({ silent: true });
+            setMegaRandomAudioSuppressed(true);
             const performanceMegaRandomBtn = document.getElementById('performanceMegaRandomBtn');
             if (performanceMegaRandomBtn) {
                 performanceMegaRandomBtn.disabled = true;
@@ -20381,7 +20410,9 @@
                     setStatus(`Mega random ready at ${bpm} BPM.`);
                 }
             } finally {
+                stopAllPerformancePlayback({ silent: true });
                 hideSettlePopup();
+                setMegaRandomAudioSuppressed(false);
                 megaRandomizeInFlight = false;
                 if (performanceMegaRandomBtn) {
                     performanceMegaRandomBtn.disabled = false;

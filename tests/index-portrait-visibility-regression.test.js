@@ -815,13 +815,16 @@ test('mega random button warns and randomizes loops, dropbox sample, and drums t
     assert.match(indexHtml, /async function runPatchRandomization\(\)/);
     assert.match(indexHtml, /async function runMegaRandomization\(\)/);
     assert.match(indexHtml, /megaRandomizeInFlight = true;\s*stopAllPerformancePlayback\(\{ silent: true \}\);/);
+    assert.match(indexHtml, /setMegaRandomAudioSuppressed\(true\);/);
     assert.match(indexHtml, /showSettlePopup\('Mega Random is loading samples\. This can take a little while\.', \{ persistent: true \}\)/);
+    assert.match(indexHtml, /if \(!megaRandomizeInFlight\) \{\s*restartAllTransport\(\{ silent: true \}\);/);
     assert.match(indexHtml, /generateBastardLoopWithPlaybackRestart\(\)/);
     assert.match(indexHtml, /generateBastardLoop2WithPlaybackRestart\(\)/);
     assert.match(indexHtml, /generateBastardLoop3WithPlaybackRestart\(\)/);
     assert.match(indexHtml, /loadDropboxSampleLayerFromSource\(\)/);
     assert.match(indexHtml, /loadRandomDrumMachineSamples\(\)/);
     assert.match(indexHtml, /await waitForMegaRandomLoadsToSettle\(\)/);
+    assert.match(indexHtml, /stopAllPerformancePlayback\(\{ silent: true \}\);\s*hideSettlePopup\(\);\s*setMegaRandomAudioSuppressed\(false\);/);
     assert.match(indexHtml, /hideSettlePopup\(\);/);
     assert.match(indexHtml, /performanceMegaRandomBtn\?\.addEventListener\('click', async \(\) => \{/);
 });
