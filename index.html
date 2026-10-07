@@ -7029,7 +7029,9 @@
         let finalRingGain = null;
         let finalRingOscillator = null;
         let finalRingDepthGain = null;
+        let finalCompressorDriveGain = null;
         let finalCompressorNode = null;
+        let finalCompressorMakeupGain = null;
         let finalSidechainGain = null;
         let finalCompressorSidechainSource = 'off';
         let finalSidechainKickEvents = [];
@@ -9224,12 +9226,16 @@
             finalPanAudioOscillator.frequency.value = 0.05;
             finalPanAudioDepthGain = audioContext.createGain();
             finalPanAudioDepthGain.gain.value = 0;
+            finalCompressorDriveGain = audioContext.createGain();
+            finalCompressorDriveGain.gain.value = 1;
             finalCompressorNode = audioContext.createDynamicsCompressor();
             finalCompressorNode.threshold.value = 0;
             finalCompressorNode.knee.value = 0;
             finalCompressorNode.ratio.value = 1;
             finalCompressorNode.attack.value = 0.02;
             finalCompressorNode.release.value = 0.26;
+            finalCompressorMakeupGain = audioContext.createGain();
+            finalCompressorMakeupGain.gain.value = 1;
             finalSidechainGain = audioContext.createGain();
             finalSidechainGain.gain.value = 1;
             finalAmplifierNode = audioContext.createGain();
@@ -9240,8 +9246,10 @@
             finalPanBaseOffsetSource.connect(finalOutputPanner.pan);
             finalPanAudioOscillator.connect(finalPanAudioDepthGain);
             finalPanAudioDepthGain.connect(finalOutputPanner.pan);
-            finalOutputPanner.connect(finalCompressorNode);
-            finalCompressorNode.connect(finalSidechainGain);
+            finalOutputPanner.connect(finalCompressorDriveGain);
+            finalCompressorDriveGain.connect(finalCompressorNode);
+            finalCompressorNode.connect(finalCompressorMakeupGain);
+            finalCompressorMakeupGain.connect(finalSidechainGain);
             finalSidechainGain.connect(finalAmplifierNode);
             finalAmplifierNode.connect(audioContext.destination);
             finalPanBaseOffsetSource.start();
@@ -9848,12 +9856,17 @@
 
         function getFinalCompressorSettings(amount = 0) {
             const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
+            const intensity = Math.pow(safeAmount, 0.74);
+            const effectDrive = 1 + Math.pow(safeAmount, 1.18) * 17;
+            const makeupGain = 1 + Math.pow(safeAmount, 0.92) * 1.35;
             return {
-                threshold: safeAmount > 0.001 ? -8 - (safeAmount * 46) : 0,
-                knee: safeAmount > 0.001 ? Math.max(0, 10 - (safeAmount * 10)) : 0,
-                ratio: 1 + (safeAmount * 39),
-                attack: Math.max(0.0008, 0.012 - (safeAmount * 0.011)),
-                release: getFinalCompressorReleaseSeconds()
+                threshold: safeAmount > 0.001 ? -5 - (intensity * 55) : 0,
+                knee: safeAmount > 0.001 ? Math.max(0, 14 - (Math.pow(safeAmount, 1.08) * 14)) : 0,
+                ratio: 1 + (intensity * 19),
+                attack: Math.max(0.00025, 0.02 - (Math.pow(safeAmount, 0.9) * 0.0196)),
+                release: getFinalCompressorReleaseSeconds(),
+                drive: effectDrive,
+                makeup: makeupGain
             };
         }
 
@@ -10178,11 +10191,13 @@
 
             const compressorAmount = fxMuted ? 0 : getFinalCompressorAmount();
             const compressorSettings = getFinalCompressorSettings(compressorAmount);
+            smoothRamp(finalCompressorDriveGain?.gain, compressorSettings.drive);
             smoothRamp(finalCompressorNode?.threshold, compressorSettings.threshold);
             smoothRamp(finalCompressorNode?.knee, compressorSettings.knee);
             smoothRamp(finalCompressorNode?.ratio, compressorSettings.ratio);
             smoothRamp(finalCompressorNode?.attack, compressorSettings.attack);
             smoothRamp(finalCompressorNode?.release, compressorSettings.release);
+            smoothRamp(finalCompressorMakeupGain?.gain, compressorSettings.makeup);
 
             const sidechainAmount = fxMuted ? 0 : getFinalCompressorSidechainAmount();
             const detector = sidechainAmount > 0.001 ? getFinalCompressorSidechainDetector(now) : 0;
