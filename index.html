@@ -6735,6 +6735,7 @@
         let restartPerformanceOnFocusReturn = false;
         let restartBastardLoopOnFocusReturn = false;
         let restartDrumMachineOnFocusReturn = false;
+        let foregroundAudioRecoveryPromise = null;
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
         let engineInitialized = false;
         let engineStarting = false;
@@ -7887,6 +7888,101 @@
             return ctx;
         }
 
+        function rebuildContextBoundAudioState() {
+            clearSourcePitchCache();
+
+            if (generatedLoopBaseBuffer) {
+                generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(generatedLoopBaseBuffer);
+                generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
+            } else if (generatedLoopBuffer) {
+                generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(generatedLoopBuffer);
+                generatedLoopBuffer = renderGeneratedLoopBufferWithTranspose(generatedLoopBaseBuffer);
+            }
+
+            if (dropboxSampleLayerRawBuffer) {
+                rerenderDropboxSampleLayerFromRaw({ skipUi: true });
+            }
+
+            syncLegacyAudioBuffer();
+            drawWaveforms();
+            updateSourceAvailability();
+            syncBastardLoopUi();
+            syncBastardLoop2Ui();
+            syncBastardLoop3Ui();
+            syncDropboxSampleLayerUi();
+            syncDrumMachineUi();
+            syncPerformanceControlState();
+            updateKeyboardGeometry();
+        }
+
+        async function rebuildAudioEngineGraph(options = {}) {
+            stopModulationLoop();
+            panicAllNotes({ preserveStatus: true });
+            stopMicCapture();
+
+            if (audioContext && audioContext.state !== 'closed') {
+                try {
+                    await audioContext.close();
+                } catch (error) {
+                    console.warn('Failed to close existing audio context during rebuild:', error);
+                }
+            }
+
+            await createAudioContextInstance();
+            lfoStartTime = audioContext.currentTime;
+            lfo2StartTime = audioContext.currentTime;
+            lfo3StartTime = audioContext.currentTime;
+            await setupEffects();
+            startModulationLoop();
+            engineInitialized = true;
+
+            const currentBpm = document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120;
+            applyGlobalBpm(currentBpm);
+            rebuildContextBoundAudioState();
+
+            if (!options.silent) {
+                setStatus('Audio engine restored.');
+            }
+        }
+
+        async function ensureForegroundAudioReady(options = {}) {
+            if (document.hidden || engineStarting || !engineInitialized) {
+                return false;
+            }
+            if (foregroundAudioRecoveryPromise) {
+                return foregroundAudioRecoveryPromise;
+            }
+
+            foregroundAudioRecoveryPromise = (async () => {
+                const needsGraphRebuild = !audioContext || audioContext.state === 'closed' || !isAudioGraphReady();
+
+                if (!needsGraphRebuild && audioContext.state !== 'running') {
+                    try {
+                        await audioContext.resume();
+                    } catch (error) {
+                        console.warn('Audio resume after focus failed:', error);
+                    }
+                }
+
+                if (!audioContext || audioContext.state !== 'running' || !isAudioGraphReady()) {
+                    setAudioStatus('Reawakening audio engine…', 'error');
+                    await rebuildAudioEngineGraph({ silent: true });
+                    setAudioStatus(`Audio running · ${audioContext.sampleRate} Hz`, 'info');
+                    if (!options.silent) {
+                        setStatus('MYGRAIN audio reawakened after the page returned.');
+                    }
+                    return true;
+                }
+
+                syncPerformanceControlState();
+                return false;
+            })().finally(() => {
+                foregroundAudioRecoveryPromise = null;
+            });
+
+            return foregroundAudioRecoveryPromise;
+        }
+
         function stopGrainScheduler() {
             if (grainSchedulerTimerId) {
                 clearTimeout(grainSchedulerTimerId);
@@ -8580,6 +8676,10 @@
             }
 
             if (engineInitialized) {
+                if (!audioContext || audioContext.state === 'closed' || !isAudioGraphReady()) {
+                    setStatus('Reawakening MYGRAIN audio…');
+                    await rebuildAudioEngineGraph({ silent: true });
+                }
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
                 setStatus('MYGRAIN ready.');
@@ -9790,7 +9890,10 @@
                 setAudioStatus('Audio paused while the page is hidden.');
             } else {
                 updateKeyboardGeometry();
-                resumePerformanceAfterFocusReturn();
+                resumePerformanceAfterFocusReturn().catch((error) => {
+                    console.warn('Audio recovery after visibility return failed:', error);
+                    setAudioStatus('Audio needs restarting. Tap Start MYGRAIN or Reset Engine.', 'error');
+                });
                 if (audioContext) {
                     setAudioStatus(`Audio ${audioContext.state}`);
                 }
@@ -9802,7 +9905,18 @@
         });
 
         window.addEventListener('focus', () => {
-            resumePerformanceAfterFocusReturn();
+            resumePerformanceAfterFocusReturn().catch((error) => {
+                console.warn('Audio recovery after focus failed:', error);
+                setAudioStatus('Audio needs restarting. Tap Start MYGRAIN or Reset Engine.', 'error');
+            });
+        });
+
+        window.addEventListener('pageshow', () => {
+            updateKeyboardGeometry();
+            resumePerformanceAfterFocusReturn().catch((error) => {
+                console.warn('Audio recovery after page show failed:', error);
+                setAudioStatus('Audio needs restarting. Tap Start MYGRAIN or Reset Engine.', 'error');
+            });
         });
 
         // --- Recording ---
@@ -16139,17 +16253,19 @@
             }
         }
 
-        function resumePerformanceAfterFocusReturn() {
-            if (!restartPerformanceOnFocusReturn && !restartBastardLoopOnFocusReturn && !restartDrumMachineOnFocusReturn) return;
+        async function resumePerformanceAfterFocusReturn() {
+            const shouldRestartAnything = restartPerformanceOnFocusReturn || restartBastardLoopOnFocusReturn || restartDrumMachineOnFocusReturn;
+            if (!shouldRestartAnything) {
+                await ensureForegroundAudioReady({ silent: true });
+                return;
+            }
             const shouldRestartPerformance = restartPerformanceOnFocusReturn;
             const shouldRestartBastardLoop = restartBastardLoopOnFocusReturn;
             const shouldRestartDrumMachine = restartDrumMachineOnFocusReturn;
             restartPerformanceOnFocusReturn = false;
             restartBastardLoopOnFocusReturn = false;
             restartDrumMachineOnFocusReturn = false;
-            if (audioContext && audioContext.state === 'suspended') {
-                audioContext.resume().catch((error) => console.warn('Audio resume after focus failed:', error));
-            }
+            await ensureForegroundAudioReady({ silent: true });
             if (shouldRestartPerformance) {
                 playLoopAndHeldKeys({ silent: true });
             }
@@ -19898,28 +20014,11 @@
 
         // Reset Engine Routine - extracted for reuse
         async function resetEngineRoutine() {
-            if (!audioContext) {
+            if (!audioContext && !engineInitialized) {
                 return;
             }
-            
-            // Stop modulation loop before closing context
-            stopModulationLoop();
-            panicAllNotes({ preserveStatus: true });
-            stopMicCapture();
-            
-            // Close existing context
-            await audioContext.close();
-            await createAudioContextInstance();
-            
-            lfoStartTime = audioContext.currentTime;
-            lfo2StartTime = audioContext.currentTime;
-            lfo3StartTime = audioContext.currentTime;
-            
-            // Reinitialize effects
-            await setupEffects();
-            startModulationLoop();
-            engineInitialized = true;
-            updateKeyboardGeometry();
+
+            await rebuildAudioEngineGraph({ silent: true });
         }
 
         // Reset Engine Button

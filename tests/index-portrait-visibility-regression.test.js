@@ -63,6 +63,20 @@ test('shared BPM controls allow 1 BPM and restore remembered tempo into the live
     assert.match(indexHtml, /restoreRememberedBpmFromStorage\(\{ applySharedClock: true \}\);/);
 });
 
+test('focus return can rebuild the audio engine without a full reload', () => {
+    assert.match(indexHtml, /let foregroundAudioRecoveryPromise = null;/);
+    assert.match(indexHtml, /function rebuildContextBoundAudioState\(\)/);
+    assert.match(indexHtml, /async function rebuildAudioEngineGraph\(options = \{\}\)/);
+    assert.match(indexHtml, /async function ensureForegroundAudioReady\(options = \{\}\)/);
+    assert.match(indexHtml, /await rebuildAudioEngineGraph\(\{ silent: true \}\);/);
+    assert.match(indexHtml, /async function resumePerformanceAfterFocusReturn\(\)/);
+    assert.match(indexHtml, /await ensureForegroundAudioReady\(\{ silent: true \}\);/);
+    assert.match(indexHtml, /document\.addEventListener\('visibilitychange', \(\) => \{[\s\S]*resumePerformanceAfterFocusReturn\(\)\.catch/);
+    assert.match(indexHtml, /window\.addEventListener\('focus', \(\) => \{[\s\S]*resumePerformanceAfterFocusReturn\(\)\.catch/);
+    assert.match(indexHtml, /window\.addEventListener\('pageshow', \(\) => \{[\s\S]*resumePerformanceAfterFocusReturn\(\)\.catch/);
+    assert.match(indexHtml, /if \(!audioContext \|\| audioContext\.state === 'closed' \|\| !isAudioGraphReady\(\)\) \{[\s\S]*await rebuildAudioEngineGraph\(\{ silent: true \}\);/);
+});
+
 test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceSourceMix"/);
     assert.match(indexHtml, />Granular\/Osc</);
