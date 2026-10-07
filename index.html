@@ -8831,7 +8831,7 @@
         }
 
         function clampPostFilterQ(value) {
-            return Math.max(0.1, Math.min(0.85, clampFilterQ(value)));
+            return clampFilterQ(value);
         }
 
         function getSafeFilterQ(value) {

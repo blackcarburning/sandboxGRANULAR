@@ -135,6 +135,7 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceLpfResonance"/);
     assert.match(indexHtml, /id="performanceHpfCutoff"/);
     assert.match(indexHtml, /id="performanceHpfResonance"/);
+    assert.match(indexHtml, /function clampPostFilterQ\(value\)\s*\{\s*return clampFilterQ\(value\);\s*\}/);
     assert.match(indexHtml, /setSliderValue\('hpfCutoff', event\.target\.value\)/);
     assert.match(indexHtml, /setSliderValue\('hpfQ', value\)/);
     assert.match(indexHtml, /data-performance-filter-power="lpf"/);
