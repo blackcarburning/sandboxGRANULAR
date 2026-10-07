@@ -4365,6 +4365,7 @@
                 <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                 <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
+                <button class="performance-btn" id="performanceMegaRandomBtn">Mega Random</button>
                 <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
                 <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
                 <button class="performance-btn" id="performanceDrumMachineMainOpenBtn">Open Drum Machine</button>
@@ -6990,6 +6991,7 @@
         let bastardLoop2GenerationInFlight = false;
         let bastardLoop3GenerationInFlight = false;
         let dropboxSampleLayerLoadInFlight = false;
+        let megaRandomizeInFlight = false;
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
@@ -18058,6 +18060,23 @@
             return Math.random() < probability;
         }
 
+        function chooseRandomSubset(values, options = {}) {
+            const source = Array.isArray(values) ? values.slice() : [];
+            if (!source.length) return [];
+            const minimum = Math.max(0, Math.min(source.length, Number(options.minimum) || 0));
+            const maximum = Math.max(minimum, Math.min(source.length, Number(options.maximum) || source.length));
+            const targetSize = minimum === maximum
+                ? minimum
+                : randomIntegerInRange(minimum, maximum);
+            const pool = source.slice();
+            const selected = [];
+            while (pool.length && selected.length < targetSize) {
+                const index = Math.floor(Math.random() * pool.length);
+                selected.push(pool.splice(index, 1)[0]);
+            }
+            return selected;
+        }
+
         function randomizeLfoDepths(options = {}) {
             const energy = Math.max(0.35, Math.min(1, Number(options.energy ?? 0.7) || 0.7));
             Object.entries(RANDOMIZE_LFO_DEPTH_RANGES).forEach(([id, range]) => {
@@ -19894,9 +19913,59 @@
             setStatus('Engine reset successfully.');
         });
 
-        // Randomize Button
-        document.getElementById('randomizeBtn').addEventListener('click', async () => {
-            showSettlePopup();
+        function randomizeMegaBastardLoopSettings() {
+            const divisionPool = ['1/4', '1/8', '1/16', '1/32'];
+            applyBastardLoopDivisionSelection(chooseRandomSubset(divisionPool, { minimum: 1, maximum: 3 }), { save: false });
+            applyBastardLoop2DivisionSelection(chooseRandomSubset(divisionPool, { minimum: 1, maximum: 3 }), { save: false });
+            applyBastardLoop3DivisionSelection(chooseRandomSubset(divisionPool, { minimum: 1, maximum: 3 }), { save: false });
+
+            setBastardLoopEnabled(true, { silent: true, skipSave: true });
+            setBastardLoop2Enabled(true, { silent: true, skipSave: true });
+            setBastardLoop3Enabled(true, { silent: true, skipSave: true });
+
+            setBastardLoopPitchOctaves(chooseRandom([-2, -1, 0, 0, 1, 2]), { silent: true, skipSave: true });
+            setBastardLoop2PitchOctaves(chooseRandom([-2, -1, 0, 0, 1, 2]), { silent: true, skipSave: true });
+            setBastardLoop3PitchOctaves(chooseRandom([-2, -1, 0, 0, 1, 2]), { silent: true, skipSave: true });
+
+            setBastardLoopPitchAffectsDuration(maybe(0.45), { silent: true, skipSave: true });
+            setBastardLoop2PitchAffectsDuration(maybe(0.45), { silent: true, skipSave: true });
+            setBastardLoop3PitchAffectsDuration(maybe(0.45), { silent: true, skipSave: true });
+            setBastardLoop2Reverse(maybe(0.5), { silent: true, skipSave: true });
+            setBastardLoop3Reverse(maybe(0.5), { silent: true, skipSave: true });
+
+            setSliderValue('performanceBastardLoopLevel', randomIntegerInRange(24, 92));
+            setSliderValue('performanceBastardLoop2Level', randomIntegerInRange(24, 92));
+            setSliderValue('performanceBastardLoop3Level', randomIntegerInRange(24, 92));
+        }
+
+        function randomizeMegaDropboxSampleLayerSettings() {
+            setDropboxSampleLayerEnabled(true, { silent: true, skipSave: true });
+            setSelectValue('performanceDropboxSampleSource', chooseRandom(['sampledrop', 'sampledrop2', 'splice_claw']));
+            const stretchToggle = document.getElementById('performanceDropboxSampleStretchToLoop');
+            if (stretchToggle) {
+                stretchToggle.checked = maybe(0.55);
+                stretchToggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            setSliderValue('performanceDropboxSampleLevel', randomIntegerInRange(20, 88));
+        }
+
+        function randomizeMegaDrumMachineSettings() {
+            setDrumMachineEnabled(true, { silent: true, skipSave: true });
+            setSliderValue('performanceDrumMachineLevel', randomIntegerInRange(24, 90));
+            setDrumMachineKickPitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
+            setDrumMachineSnarePitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
+            setDrumMachineHatTuneSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
+            setSliderValue('drumMachineKickLevel', randomIntegerInRange(28, 100));
+            setSliderValue('drumMachineSnareLevel', randomIntegerInRange(28, 100));
+            setSliderValue('drumMachineHatLevel', randomIntegerInRange(20, 100));
+            setSliderValue('drumMachineSnareDistortion', randomIntegerInRange(0, 72));
+            setSliderValue('drumMachineHatAccentAmount', randomIntegerInRange(18, 88));
+            drumMachineHatTimingMode = chooseRandom(['straight', 'dotted', 'triplet']);
+            syncDrumMachineUi();
+            syncPerformanceControlState();
+        }
+
+        async function runPatchRandomization() {
             const bpmSnapshot = snapshotRandomizeBpmState();
             const randomizeGrainMode = chooseRandom(['cloud', 'cloud', 'cloud', 'rhythmic', 'drum']);
             setGrainTimingMode(randomizeGrainMode, { silent: true, skipSave: true, skipRestart: true });
@@ -19948,7 +20017,7 @@
                 statusDiv.textContent = arpEnabled
                     ? `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample with the loop stopped.`
                     : `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
-                return;
+                return { generationProfile, randomizeState, audioReady: false };
             }
 
             setPerformanceGenerateButtonState('generating');
@@ -19971,10 +20040,87 @@
                 statusDiv.textContent = arpEnabled
                     ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop stopped because arp is active.`
                     : `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`;
+                return { generationProfile, randomizeState, audioReady: true };
             } catch (error) {
                 console.error(error);
                 setPerformanceGenerateButtonState('idle');
                 statusDiv.textContent = `Patch randomized, but loop generation failed: ${error.message}`;
+                throw error;
+            }
+        }
+
+        async function runMegaRandomization() {
+            if (megaRandomizeInFlight) return;
+            megaRandomizeInFlight = true;
+            const performanceMegaRandomBtn = document.getElementById('performanceMegaRandomBtn');
+            if (performanceMegaRandomBtn) {
+                performanceMegaRandomBtn.disabled = true;
+                performanceMegaRandomBtn.textContent = 'Mega Random...';
+            }
+            showSettlePopup('mega random takes a little while');
+            setStatus('Mega randomizing patch, bastardloops, Dropbox sample, and drums…');
+
+            const failures = [];
+            let patchResult = null;
+
+            try {
+                try {
+                    patchResult = await runPatchRandomization();
+                } catch (error) {
+                    failures.push(`patch: ${error.message}`);
+                }
+
+                randomizeMegaBastardLoopSettings();
+                randomizeMegaDropboxSampleLayerSettings();
+                randomizeMegaDrumMachineSettings();
+
+                if (!audioContext) {
+                    const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+                    setStatus(`Mega random patch set at ${bpm} BPM. Start MYGRAIN to build the Bastardloops, Dropbox sample, and drums.`);
+                    saveState();
+                    return;
+                }
+
+                const megaTasks = [
+                    { label: 'Bastardloop A', run: () => generateBastardLoopWithPlaybackRestart() },
+                    { label: 'Bastardloop B', run: () => generateBastardLoop2WithPlaybackRestart() },
+                    { label: 'Bastardloop C', run: () => generateBastardLoop3WithPlaybackRestart() },
+                    { label: 'Dropbox sample', run: () => loadDropboxSampleLayerFromSource() },
+                    { label: 'Drum machine', run: () => loadRandomDrumMachineSamples() }
+                ];
+
+                for (const task of megaTasks) {
+                    try {
+                        await task.run();
+                    } catch (error) {
+                        console.error(error);
+                        failures.push(`${task.label}: ${error.message}`);
+                    }
+                }
+
+                saveState();
+                const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+                if (failures.length > 0) {
+                    setStatus(`Mega random ready at ${bpm} BPM with warnings: ${failures.join(' | ')}`, 'error');
+                } else {
+                    setStatus(`Mega random ready at ${bpm} BPM.`);
+                }
+            } finally {
+                megaRandomizeInFlight = false;
+                if (performanceMegaRandomBtn) {
+                    performanceMegaRandomBtn.disabled = false;
+                    performanceMegaRandomBtn.textContent = 'Mega Random';
+                }
+            }
+        }
+
+        // Randomize Button
+        document.getElementById('randomizeBtn').addEventListener('click', async () => {
+            showSettlePopup();
+            try {
+                await runPatchRandomization();
+            } catch (error) {
+                console.error(error);
             }
         });
 
@@ -23146,6 +23292,7 @@
         const performanceFinalFxPlacementBtn = document.getElementById('performanceFinalFxPlacementBtn');
         const performanceFinalFxPlacementLfoBtn = document.getElementById('performanceFinalFxPlacementLfoBtn');
         const performanceRandomizeBtn = document.getElementById('performanceRandomizeBtn');
+        const performanceMegaRandomBtn = document.getElementById('performanceMegaRandomBtn');
         const performanceResetPatchBtn = document.getElementById('performanceResetPatchBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
@@ -23698,6 +23845,15 @@
 
         performanceRandomizeBtn?.addEventListener('click', () => {
             document.getElementById('randomizeBtn')?.click();
+        });
+
+        performanceMegaRandomBtn?.addEventListener('click', async () => {
+            try {
+                await runMegaRandomization();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Mega random failed: ${error.message}`, 'error');
+            }
         });
 
         performanceResetPatchBtn?.addEventListener('click', () => {
