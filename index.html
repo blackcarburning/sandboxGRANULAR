@@ -22396,11 +22396,75 @@
             const durationSeconds = (60 / bpm) * 4 * bars;
             const wasSequencerPlaying = sequencerPlaying;
             const wasArpPlaying = isArpeggiatorPlaying();
+            const wasBastardLoopPlaying = bastardLoopPlaying;
+            const wasDrumMachinePlaying = drumMachinePlaying;
+            const wasBastardLoopALive = Boolean(bastardLoopSource);
+            const wasBastardLoopBLive = Boolean(bastardLoop2Source);
+            const wasBastardLoopCLive = Boolean(bastardLoop3Source);
+            const wasDropboxSampleLayerLive = Boolean(dropboxSampleLayerSource);
+            const shouldRestartFreshPlayback = wasSequencerPlaying || wasArpPlaying || wasBastardLoopPlaying || wasDrumMachinePlaying;
             const captureSeconds = durationSeconds + 0.35;
             const recordingPromise = recordLiveOutputBuffer(captureSeconds);
             try {
-                if (wasSequencerPlaying || wasArpPlaying) {
-                    restartAllTransport({ silent: true });
+                if (shouldRestartFreshPlayback) {
+                    const restartTime = getBufferedTransportStartTime();
+
+                    if (wasSequencerPlaying) {
+                        stopSequencer();
+                    }
+                    if (wasArpPlaying) {
+                        stopArpeggiatorPlayback();
+                    }
+                    if (wasBastardLoopPlaying) {
+                        stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
+                    }
+                    if (wasDrumMachinePlaying) {
+                        stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
+                    }
+
+                    lfoStartTime = restartTime;
+                    lfo2StartTime = restartTime;
+                    lfo3StartTime = restartTime;
+                    finalFxPlacementLfoStartTime = restartTime;
+                    finalFxPlacementLfoLastPhase = null;
+                    restartInternalEffectOscillators(restartTime);
+                    if (finalFxPlacementLfoEnabled) {
+                        updateFinalFxPlacementLfo(true);
+                    }
+
+                    if (wasSequencerPlaying) {
+                        startSequencer(restartTime);
+                    } else if (wasArpPlaying) {
+                        transportLoopStartTime = restartTime;
+                    }
+
+                    if (wasBastardLoopPlaying) {
+                        bastardLoopTransportStartTime = restartTime;
+                        if (wasBastardLoopALive) {
+                            startBastardLoop(restartTime, { skipUi: true });
+                        }
+                        if (wasBastardLoopBLive) {
+                            startBastardLoop2(restartTime, { skipUi: true });
+                        }
+                        if (wasBastardLoopCLive) {
+                            startBastardLoop3(restartTime, { skipUi: true });
+                        }
+                        if (wasDropboxSampleLayerLive) {
+                            startDropboxSampleLayer(restartTime, { skipUi: true });
+                        }
+                    }
+
+                    if (wasDrumMachinePlaying) {
+                        drumMachineTransportStartTime = restartTime;
+                        startDrumMachine(restartTime, { skipUi: true, silent: true });
+                    }
+
+                    if (wasArpPlaying) {
+                        startArpeggiatorPlayback(restartTime);
+                    }
+
+                    updateEffects();
+                    syncPerformanceControlState();
                 } else {
                     startSequencer();
                     if (arpEnabled && holdEnabled) {
@@ -22419,7 +22483,7 @@
                     blob: new Blob([audioBufferToWav24bit(exportMix)], { type: 'audio/wav' }),
                 };
             } finally {
-                if (!wasSequencerPlaying && !wasArpPlaying) {
+                if (!shouldRestartFreshPlayback) {
                     stopSequencer();
                     stopArpeggiatorPlayback({ restoreHeldPlayback: true });
                 }

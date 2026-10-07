@@ -825,6 +825,20 @@ test('mega random button warns and randomizes loops, dropbox sample, and drums t
     assert.match(indexHtml, /performanceMegaRandomBtn\?\.addEventListener\('click', async \(\) => \{/);
 });
 
+test('repo export restarts only the live loop layers instead of broad transport restart', () => {
+    assert.match(indexHtml, /async function renderDawReadyBarsExport\(\)/);
+    assert.match(indexHtml, /const wasBastardLoopALive = Boolean\(bastardLoopSource\)/);
+    assert.match(indexHtml, /const wasBastardLoopBLive = Boolean\(bastardLoop2Source\)/);
+    assert.match(indexHtml, /const wasBastardLoopCLive = Boolean\(bastardLoop3Source\)/);
+    assert.match(indexHtml, /const wasDropboxSampleLayerLive = Boolean\(dropboxSampleLayerSource\)/);
+    assert.match(indexHtml, /const shouldRestartFreshPlayback = wasSequencerPlaying \|\| wasArpPlaying \|\| wasBastardLoopPlaying \|\| wasDrumMachinePlaying/);
+    assert.match(indexHtml, /if \(wasBastardLoopALive\) \{\s*startBastardLoop\(restartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /if \(wasBastardLoopBLive\) \{\s*startBastardLoop2\(restartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /if \(wasBastardLoopCLive\) \{\s*startBastardLoop3\(restartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /if \(wasDropboxSampleLayerLive\) \{\s*startDropboxSampleLayer\(restartTime, \{ skipUi: true \}\);/);
+    assert.doesNotMatch(indexHtml, /async function renderDawReadyBarsExport\(\)[\s\S]*restartAllTransport\(\{ silent: true \}\)/);
+});
+
 test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup controls', () => {
     assert.match(indexHtml, /\.sample-browser-overlay\s*\{[\s\S]*z-index:\s*2147483300;/);
     assert.match(indexHtml, /\.drum-machine-overlay\s*\{[\s\S]*z-index:\s*2147483200;/);
