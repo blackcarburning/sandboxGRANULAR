@@ -107,7 +107,7 @@
         .sample-browser-overlay {
             position: fixed;
             inset: 0;
-            z-index: 2147483100;
+            z-index: 2147483300;
             display: none;
             align-items: stretch;
             justify-content: center;
@@ -123,6 +123,7 @@
 
         .sample-browser-shell {
             width: min(860px, 100%);
+            max-width: 100%;
             max-height: calc(100dvh - 24px);
             display: flex;
             flex-direction: column;
@@ -133,6 +134,7 @@
             border: 1px solid rgba(0, 212, 255, 0.34);
             box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
             overflow: hidden;
+            overflow-x: hidden;
         }
 
         .sample-browser-head,
@@ -143,6 +145,7 @@
             gap: 10px;
             align-items: center;
             justify-content: space-between;
+            min-width: 0;
         }
 
         .sample-browser-head {
@@ -166,10 +169,12 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0;
         }
 
         .sample-browser-controls {
             align-items: flex-end;
+            min-width: 0;
         }
 
         .sample-browser-filter-group {
@@ -221,6 +226,7 @@
         .sample-browser-list {
             flex: 1 1 auto;
             min-height: 0;
+            min-width: 0;
             overflow-y: auto;
             display: grid;
             gap: 12px;
@@ -235,6 +241,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-width: 0;
         }
 
         .sample-browser-name {
@@ -275,6 +282,7 @@
 
         .drum-machine-shell {
             width: min(860px, 100%);
+            max-width: 100%;
             max-height: calc(100dvh - 24px);
             display: flex;
             flex-direction: column;
@@ -285,6 +293,7 @@
             border: 1px solid rgba(0, 212, 255, 0.34);
             box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
             overflow: hidden;
+            overflow-x: hidden;
         }
 
         .drum-machine-head,
@@ -295,6 +304,7 @@
             gap: 10px;
             align-items: center;
             justify-content: space-between;
+            min-width: 0;
         }
 
         .drum-machine-head {
@@ -329,6 +339,7 @@
         .drum-machine-layout {
             flex: 1 1 auto;
             min-height: 0;
+            min-width: 0;
             overflow-y: auto;
             display: grid;
             gap: 12px;
@@ -344,6 +355,7 @@
             padding: 14px;
             display: grid;
             gap: 10px;
+            min-width: 0;
         }
 
         .drum-machine-step-grid {
@@ -410,19 +422,20 @@
             }
 
             .sample-browser-controls {
-                flex-direction: row;
-                align-items: flex-end;
+                flex-direction: column;
+                align-items: stretch;
                 justify-content: flex-start;
                 gap: 8px;
             }
 
             .sample-browser-controls .performance-btn {
                 min-height: 40px;
-                min-width: 96px;
+                min-width: 0;
+                width: 100%;
                 padding: 8px 12px;
                 font-size: 11px;
                 border-radius: 12px;
-                align-self: flex-end;
+                align-self: stretch;
             }
 
             .sample-browser-filter-group {

@@ -767,6 +767,9 @@ test('dropbox sample layer can load a random source sample and join bastardloop 
 });
 
 test('drum machine exposes synced kick and snare sequencing with popup controls', () => {
+    assert.match(indexHtml, /\.sample-browser-overlay\s*\{[\s\S]*z-index:\s*2147483300;/);
+    assert.match(indexHtml, /\.drum-machine-overlay\s*\{[\s\S]*z-index:\s*2147483200;/);
+    assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.sample-browser-controls\s*\{[\s\S]*flex-direction:\s*column;[\s\S]*align-items:\s*stretch;/);
     assert.match(indexHtml, /id="performanceDrumMachineOpenBtn">Open Drum Machine<\/button>/);
     assert.match(indexHtml, /id="performanceDrumMachineRandomBtn">Random Drums<\/button>/);
     assert.match(indexHtml, /id="performanceDrumMachineSamplesOnlyBtn">Random Samples<\/button>/);
