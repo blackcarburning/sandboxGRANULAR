@@ -833,6 +833,11 @@ test('main panel exposes a dedicated red stop-all control beside restart all', (
     assert.match(indexHtml, /performanceMainStopAllBtn\?\.addEventListener\('click', \(\) => \{\s*stopAllPerformancePlayback\(\);/);
 });
 
+test('randomize controls use the green action styling', () => {
+    assert.match(indexHtml, /\.simplified-ui #performanceRandomizeBtn,[\s\S]*#performanceMegaRandomBtn,[\s\S]*#performanceDrumMachineRandomBtn,[\s\S]*#performanceDrumMachineSamplesOnlyBtn,[\s\S]*#drumMachineRandomizeBtn,[\s\S]*#drumMachineSamplesOnlyBtn \{/);
+    assert.match(indexHtml, /background: linear-gradient\(135deg, #98ff9f 0%, #38d96b 52%, #0db44a 100%\);/);
+});
+
 test('repo export restarts only the live loop layers instead of broad transport restart', () => {
     assert.match(indexHtml, /async function renderDawReadyBarsExport\(\)/);
     assert.match(indexHtml, /const wasBastardLoopALive = Boolean\(bastardLoopSource\)/);
