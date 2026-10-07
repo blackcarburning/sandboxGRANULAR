@@ -3726,6 +3726,13 @@
                         <span>Don't Preserve Duration</span>
                     </label>
                 </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopFilterCutoff">
+                        <span>LP Filter 48 dB</span>
+                        <span class="value" id="performanceBastardLoopFilterCutoffValue">18kHz</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopFilterCutoff" min="300" max="18000" value="18000" step="10">
+                </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopMeta">Empty</div>
                 <div class="performance-layer-switches" aria-label="Bastardloop transport controls">
                     <button class="performance-btn" id="performanceBastardLoopPlayBtn" data-bastardloop-start="true">Start Bastardloops</button>
@@ -3783,6 +3790,13 @@
                         <span>Don't Preserve Duration</span>
                     </label>
                 </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoop2FilterCutoff">
+                        <span>LP Filter 48 dB</span>
+                        <span class="value" id="performanceBastardLoop2FilterCutoffValue">18kHz</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoop2FilterCutoff" min="300" max="18000" value="18000" step="10">
+                </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop2Meta">Empty</div>
                 <div class="performance-layer-switches" aria-label="Bastardloop B start controls">
                     <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
@@ -3838,6 +3852,13 @@
                         <input type="checkbox" id="performanceBastardLoop3PitchAffectsDuration">
                         <span>Don't Preserve Duration</span>
                     </label>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoop3FilterCutoff">
+                        <span>LP Filter 48 dB</span>
+                        <span class="value" id="performanceBastardLoop3FilterCutoffValue">18kHz</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoop3FilterCutoff" min="300" max="18000" value="18000" step="10">
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoop3Meta">Empty</div>
                 <div class="performance-layer-switches" aria-label="Bastardloop C start controls">
@@ -7167,15 +7188,18 @@
         let clickGuardMs = 8;
         let generatedDryThroughFilters = false;
         let bastardLoopLevel = 0.6;
+        let bastardLoopFilterCutoff = 18000;
         let bastardLoopPitchOctaves = 0;
         let bastardLoopPitchAffectsDuration = false;
         let bastardLoopEnabled = true;
         let bastardLoop2Level = 0.55;
+        let bastardLoop2FilterCutoff = 18000;
         let bastardLoop2PitchOctaves = 0;
         let bastardLoop2PitchAffectsDuration = false;
         let bastardLoop2Enabled = true;
         let bastardLoop2Reverse = false;
         let bastardLoop3Level = 0.5;
+        let bastardLoop3FilterCutoff = 18000;
         let bastardLoop3PitchOctaves = 0;
         let bastardLoop3PitchAffectsDuration = false;
         let bastardLoop3Enabled = true;
@@ -7205,10 +7229,13 @@
         let bastardLoopTransportStartTime = null;
         let bastardLoopSource = null;
         let bastardLoopGainNode = null;
+        let bastardLoopFilterNodes = [];
         let bastardLoop2Source = null;
         let bastardLoop2GainNode = null;
+        let bastardLoop2FilterNodes = [];
         let bastardLoop3Source = null;
         let bastardLoop3GainNode = null;
+        let bastardLoop3FilterNodes = [];
         let dropboxSampleLayerSource = null;
         let dropboxSampleLayerGainNode = null;
         let bastardLoopGenerationInFlight = false;
@@ -8869,6 +8896,61 @@
             const numeric = Number(dbValue);
             const safeValue = Number.isFinite(numeric) ? numeric : 0;
             return `${safeValue > 0 ? '+' : ''}${safeValue.toFixed(1)}dB`;
+        }
+
+        function formatFrequencyHz(hzValue) {
+            const numeric = Number(hzValue);
+            const safeValue = Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+            if (safeValue >= 10000) {
+                return `${Math.round(safeValue / 1000)}kHz`;
+            }
+            if (safeValue >= 1000) {
+                return `${(safeValue / 1000).toFixed(1)}kHz`;
+            }
+            return `${Math.round(safeValue)}Hz`;
+        }
+
+        function createBastardLoopLowpassFilters(cutoffHz) {
+            if (!audioContext) return [];
+            const safeCutoff = clampBastardLoopFilterCutoff(cutoffHz);
+            return Array.from({ length: 4 }, () => {
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.Q.value = 0.707;
+                filter.frequency.value = safeCutoff;
+                return filter;
+            });
+        }
+
+        function connectBastardLoopFilterChain(sourceNode, filterNodes, destinationNode) {
+            let chainTail = sourceNode;
+            filterNodes.forEach((filterNode) => {
+                chainTail.connect(filterNode);
+                chainTail = filterNode;
+            });
+            chainTail.connect(destinationNode);
+        }
+
+        function disconnectBastardLoopFilterChain(filterNodes) {
+            filterNodes.forEach((filterNode) => {
+                try {
+                    filterNode.disconnect();
+                } catch (error) {}
+            });
+        }
+
+        function smoothBastardLoopFilterCutoff(filterNodes, cutoffHz, rampTime = 0.04) {
+            const safeCutoff = clampBastardLoopFilterCutoff(cutoffHz);
+            filterNodes.forEach((filterNode) => {
+                if (!audioContext || audioContext.state !== 'running') {
+                    filterNode.frequency.value = safeCutoff;
+                    return;
+                }
+                const now = audioContext.currentTime;
+                filterNode.frequency.cancelScheduledValues(now);
+                filterNode.frequency.setValueAtTime(filterNode.frequency.value, now);
+                filterNode.frequency.linearRampToValueAtTime(safeCutoff, now + rampTime);
+            });
         }
 
         function smoothGainParam(audioParam, targetValue, rampTime = 0.05) {
@@ -11275,6 +11357,30 @@
             return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.92;
         }
 
+        function clampBastardLoopFilterCutoff(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 18000;
+            return Math.max(300, Math.min(18000, Math.round(numeric)));
+        }
+
+        function getBastardLoopFilterCutoff() {
+            const slider = document.getElementById('performanceBastardLoopFilterCutoff');
+            bastardLoopFilterCutoff = clampBastardLoopFilterCutoff(slider?.value ?? bastardLoopFilterCutoff);
+            return bastardLoopFilterCutoff;
+        }
+
+        function getBastardLoop2FilterCutoff() {
+            const slider = document.getElementById('performanceBastardLoop2FilterCutoff');
+            bastardLoop2FilterCutoff = clampBastardLoopFilterCutoff(slider?.value ?? bastardLoop2FilterCutoff);
+            return bastardLoop2FilterCutoff;
+        }
+
+        function getBastardLoop3FilterCutoff() {
+            const slider = document.getElementById('performanceBastardLoop3FilterCutoff');
+            bastardLoop3FilterCutoff = clampBastardLoopFilterCutoff(slider?.value ?? bastardLoop3FilterCutoff);
+            return bastardLoop3FilterCutoff;
+        }
+
         function getBastardLoopDivisionInputs() {
             return BASTARD_LOOP_DIVISION_OPTIONS
                 .map(({ id, value }) => ({ input: document.getElementById(id), value }))
@@ -11765,17 +11871,22 @@
         function syncBastardLoopUi() {
             const slider = document.getElementById('performanceBastardLoopLevel');
             const label = document.getElementById('performanceBastardLoopLevelValue');
+            const filterSlider = document.getElementById('performanceBastardLoopFilterCutoff');
+            const filterLabel = document.getElementById('performanceBastardLoopFilterCutoffValue');
             const meta = document.getElementById('performanceBastardLoopMeta');
             const button = document.getElementById('performanceGenerateBastardLoopBtn');
             const playButtons = document.querySelectorAll('[data-bastardloop-start]');
             const stopButton = document.getElementById('performanceBastardLoopStopBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoopPitchAffectsDuration');
             const value = Math.round(getBastardLoopLevelValue({ applyLayerToggle: false }) * 100);
+            const filterCutoff = getBastardLoopFilterCutoff();
             const anyBufferReady = Boolean(bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer);
             const anyGenerationInFlight = bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight;
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
+            if (filterSlider) filterSlider.value = String(filterCutoff);
+            if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoff);
             updateBastardLoopPitchLabel();
             if (durationCheckbox) durationCheckbox.checked = getBastardLoopPitchAffectsDuration();
             if (meta) meta.textContent = describeBastardLoopMeta();
@@ -11808,6 +11919,7 @@
             if (bastardLoopSource) {
                 const source = bastardLoopSource;
                 const gain = bastardLoopGainNode;
+                const filters = bastardLoopFilterNodes;
                 const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration(bastardLoopBuffer?.duration || 0.02);
                 if (audioContext && fadeSeconds > 0 && gain) {
                     const now = audioContext.currentTime;
@@ -11823,6 +11935,7 @@
                         try {
                             source.disconnect();
                             gain.disconnect();
+                            disconnectBastardLoopFilterChain(filters);
                         } catch (error) {}
                     }, (fadeSeconds * 1000) + 40);
                 } else {
@@ -11834,12 +11947,14 @@
                     try {
                         source.disconnect();
                         gain?.disconnect();
+                        disconnectBastardLoopFilterChain(filters);
                     } catch (error) {}
                 }
             }
 
             bastardLoopSource = null;
             bastardLoopGainNode = null;
+            bastardLoopFilterNodes = [];
             if (!options.preserveTransportState) {
                 bastardLoopPlaying = false;
                 bastardLoopTransportStartTime = null;
@@ -11867,6 +11982,7 @@
             if (!playbackBuffer) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
+            const filters = createBastardLoopLowpassFilters(getBastardLoopFilterCutoff());
             const now = audioContext.currentTime;
             const requestedStartTime = Number.isFinite(startTime)
                 ? startTime
@@ -11898,20 +12014,25 @@
             gain.gain.setValueAtTime(0, safeStartTime);
             gain.gain.linearRampToValueAtTime(getBastardLoopOutputGain(level), safeStartTime + fadeSeconds);
             source.connect(gain);
-            gain.connect(preFilterGainNode);
+            connectBastardLoopFilterChain(gain, filters, preFilterGainNode);
             source.start(safeStartTime, offset);
             source.onended = () => {
                 if (source !== bastardLoopSource) return;
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
                 bastardLoopSource = null;
                 bastardLoopGainNode = null;
+                if (bastardLoopFilterNodes === filters) {
+                    bastardLoopFilterNodes = [];
+                }
             };
 
             bastardLoopSource = source;
             bastardLoopGainNode = gain;
+            bastardLoopFilterNodes = filters;
             bastardLoopPlaying = true;
             bastardLoopTransportStartTime = transportOrigin;
             if (!options.skipUi) {
@@ -11927,6 +12048,9 @@
                 bastardLoopGainNode.gain.cancelScheduledValues(now);
                 bastardLoopGainNode.gain.setValueAtTime(bastardLoopGainNode.gain.value, now);
                 bastardLoopGainNode.gain.linearRampToValueAtTime(getBastardLoopOutputGain(level), now + 0.03);
+            }
+            if (bastardLoopFilterNodes.length) {
+                smoothBastardLoopFilterCutoff(bastardLoopFilterNodes, getBastardLoopFilterCutoff());
             }
 
             if (bastardLoopPlaying && bastardLoopBuffer) {
@@ -11987,14 +12111,19 @@
         function syncBastardLoop2Ui() {
             const slider = document.getElementById('performanceBastardLoop2Level');
             const label = document.getElementById('performanceBastardLoop2LevelValue');
+            const filterSlider = document.getElementById('performanceBastardLoop2FilterCutoff');
+            const filterLabel = document.getElementById('performanceBastardLoop2FilterCutoffValue');
             const meta = document.getElementById('performanceBastardLoop2Meta');
             const button = document.getElementById('performanceGenerateBastardLoop2Btn');
             const reverseButton = document.getElementById('performanceBastardLoop2ReverseBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoop2PitchAffectsDuration');
             const value = Math.round(getBastardLoop2LevelValue({ applyLayerToggle: false }) * 100);
+            const filterCutoff = getBastardLoop2FilterCutoff();
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
+            if (filterSlider) filterSlider.value = String(filterCutoff);
+            if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoff);
             updateBastardLoop2PitchLabel();
             if (durationCheckbox) durationCheckbox.checked = getBastardLoop2PitchAffectsDuration();
             if (meta) meta.textContent = describeBastardLoop2Meta();
@@ -12032,6 +12161,7 @@
             if (bastardLoop2Source) {
                 const source = bastardLoop2Source;
                 const gain = bastardLoop2GainNode;
+                const filters = bastardLoop2FilterNodes;
                 const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration((bastardLoop2Buffer?.duration || 0.02));
                 if (audioContext && fadeSeconds > 0 && gain) {
                     const now = audioContext.currentTime;
@@ -12047,6 +12177,7 @@
                         try {
                             source.disconnect();
                             gain.disconnect();
+                            disconnectBastardLoopFilterChain(filters);
                         } catch (error) {}
                     }, (fadeSeconds * 1000) + 40);
                 } else {
@@ -12058,12 +12189,14 @@
                     try {
                         source.disconnect();
                         gain?.disconnect();
+                        disconnectBastardLoopFilterChain(filters);
                     } catch (error) {}
                 }
             }
 
             bastardLoop2Source = null;
             bastardLoop2GainNode = null;
+            bastardLoop2FilterNodes = [];
             if (!options.skipUi) {
                 syncBastardLoop2Ui();
             }
@@ -12087,6 +12220,7 @@
             if (!playbackBuffer) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
+            const filters = createBastardLoopLowpassFilters(getBastardLoop2FilterCutoff());
             const now = audioContext.currentTime;
             const requestedStartTime = Number.isFinite(startTime)
                 ? startTime
@@ -12115,20 +12249,25 @@
             gain.gain.setValueAtTime(0, safeStartTime);
             gain.gain.linearRampToValueAtTime(getBastardLoop2OutputGain(level), safeStartTime + fadeSeconds);
             source.connect(gain);
-            gain.connect(preFilterGainNode);
+            connectBastardLoopFilterChain(gain, filters, preFilterGainNode);
             source.start(safeStartTime, offset);
             source.onended = () => {
                 if (source !== bastardLoop2Source) return;
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
                 bastardLoop2Source = null;
                 bastardLoop2GainNode = null;
+                if (bastardLoop2FilterNodes === filters) {
+                    bastardLoop2FilterNodes = [];
+                }
             };
 
             bastardLoop2Source = source;
             bastardLoop2GainNode = gain;
+            bastardLoop2FilterNodes = filters;
             if (!options.skipUi) {
                 syncBastardLoop2Ui();
             }
@@ -12142,6 +12281,9 @@
                 bastardLoop2GainNode.gain.cancelScheduledValues(now);
                 bastardLoop2GainNode.gain.setValueAtTime(bastardLoop2GainNode.gain.value, now);
                 bastardLoop2GainNode.gain.linearRampToValueAtTime(getBastardLoop2OutputGain(level), now + 0.03);
+            }
+            if (bastardLoop2FilterNodes.length) {
+                smoothBastardLoopFilterCutoff(bastardLoop2FilterNodes, getBastardLoop2FilterCutoff());
             }
 
             if (bastardLoopPlaying && bastardLoop2Buffer) {
@@ -12199,14 +12341,19 @@
         function syncBastardLoop3Ui() {
             const slider = document.getElementById('performanceBastardLoop3Level');
             const label = document.getElementById('performanceBastardLoop3LevelValue');
+            const filterSlider = document.getElementById('performanceBastardLoop3FilterCutoff');
+            const filterLabel = document.getElementById('performanceBastardLoop3FilterCutoffValue');
             const meta = document.getElementById('performanceBastardLoop3Meta');
             const button = document.getElementById('performanceGenerateBastardLoop3Btn');
             const reverseButton = document.getElementById('performanceBastardLoop3ReverseBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
             const value = Math.round(getBastardLoop3LevelValue({ applyLayerToggle: false }) * 100);
+            const filterCutoff = getBastardLoop3FilterCutoff();
 
             if (slider) slider.value = String(value);
             if (label) label.textContent = `${value}%`;
+            if (filterSlider) filterSlider.value = String(filterCutoff);
+            if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoff);
             updateBastardLoop3PitchLabel();
             if (durationCheckbox) durationCheckbox.checked = getBastardLoop3PitchAffectsDuration();
             if (meta) meta.textContent = describeBastardLoop3Meta();
@@ -12237,6 +12384,7 @@
             if (bastardLoop3Source) {
                 const source = bastardLoop3Source;
                 const gain = bastardLoop3GainNode;
+                const filters = bastardLoop3FilterNodes;
                 const fadeSeconds = options.fade === false ? 0 : getFadeSecondsForDuration((bastardLoop3Buffer?.duration || 0.02));
                 if (audioContext && fadeSeconds > 0 && gain) {
                     const now = audioContext.currentTime;
@@ -12252,6 +12400,7 @@
                         try {
                             source.disconnect();
                             gain.disconnect();
+                            disconnectBastardLoopFilterChain(filters);
                         } catch (error) {}
                     }, (fadeSeconds * 1000) + 40);
                 } else {
@@ -12263,12 +12412,14 @@
                     try {
                         source.disconnect();
                         gain?.disconnect();
+                        disconnectBastardLoopFilterChain(filters);
                     } catch (error) {}
                 }
             }
 
             bastardLoop3Source = null;
             bastardLoop3GainNode = null;
+            bastardLoop3FilterNodes = [];
             if (!options.skipUi) {
                 syncBastardLoop3Ui();
             }
@@ -12292,6 +12443,7 @@
             if (!playbackBuffer) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
+            const filters = createBastardLoopLowpassFilters(getBastardLoop3FilterCutoff());
             const now = audioContext.currentTime;
             const requestedStartTime = Number.isFinite(startTime)
                 ? startTime
@@ -12320,20 +12472,25 @@
             gain.gain.setValueAtTime(0, safeStartTime);
             gain.gain.linearRampToValueAtTime(getBastardLoop3OutputGain(level), safeStartTime + fadeSeconds);
             source.connect(gain);
-            gain.connect(preFilterGainNode);
+            connectBastardLoopFilterChain(gain, filters, preFilterGainNode);
             source.start(safeStartTime, offset);
             source.onended = () => {
                 if (source !== bastardLoop3Source) return;
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
                 bastardLoop3Source = null;
                 bastardLoop3GainNode = null;
+                if (bastardLoop3FilterNodes === filters) {
+                    bastardLoop3FilterNodes = [];
+                }
             };
 
             bastardLoop3Source = source;
             bastardLoop3GainNode = gain;
+            bastardLoop3FilterNodes = filters;
             if (!options.skipUi) {
                 syncBastardLoop3Ui();
             }
@@ -12347,6 +12504,9 @@
                 bastardLoop3GainNode.gain.cancelScheduledValues(now);
                 bastardLoop3GainNode.gain.setValueAtTime(bastardLoop3GainNode.gain.value, now);
                 bastardLoop3GainNode.gain.linearRampToValueAtTime(getBastardLoop3OutputGain(level), now + 0.03);
+            }
+            if (bastardLoop3FilterNodes.length) {
+                smoothBastardLoopFilterCutoff(bastardLoop3FilterNodes, getBastardLoop3FilterCutoff());
             }
 
             if (bastardLoopPlaying && bastardLoop3Buffer) {
@@ -24049,13 +24209,16 @@
         const performanceBastardLoopPitch = document.getElementById('performanceBastardLoopPitch');
         const performanceBastardLoopPitchAffectsDuration = document.getElementById('performanceBastardLoopPitchAffectsDuration');
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
+        const performanceBastardLoopFilterCutoff = document.getElementById('performanceBastardLoopFilterCutoff');
         const performanceBastardLoop2Pitch = document.getElementById('performanceBastardLoop2Pitch');
         const performanceBastardLoop2PitchAffectsDuration = document.getElementById('performanceBastardLoop2PitchAffectsDuration');
         const performanceBastardLoop2Level = document.getElementById('performanceBastardLoop2Level');
+        const performanceBastardLoop2FilterCutoff = document.getElementById('performanceBastardLoop2FilterCutoff');
         const performanceBastardLoop2ReverseBtn = document.getElementById('performanceBastardLoop2ReverseBtn');
         const performanceBastardLoop3Pitch = document.getElementById('performanceBastardLoop3Pitch');
         const performanceBastardLoop3PitchAffectsDuration = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
         const performanceBastardLoop3Level = document.getElementById('performanceBastardLoop3Level');
+        const performanceBastardLoop3FilterCutoff = document.getElementById('performanceBastardLoop3FilterCutoff');
         const performanceBastardLoop3ReverseBtn = document.getElementById('performanceBastardLoop3ReverseBtn');
         const performanceDropboxSampleBrowseBtn = document.getElementById('performanceDropboxSampleBrowseBtn');
         const performanceDropboxSampleLoadBtn = document.getElementById('performanceDropboxSampleLoadBtn');
@@ -24877,11 +25040,27 @@
             updateBastardLoopMix();
         });
 
+        performanceBastardLoopFilterCutoff?.addEventListener('input', (event) => {
+            bastardLoopFilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
+            document.getElementById('performanceBastardLoopFilterCutoffValue').textContent = formatFrequencyHz(bastardLoopFilterCutoff);
+            if (bastardLoopFilterNodes.length) {
+                smoothBastardLoopFilterCutoff(bastardLoopFilterNodes, bastardLoopFilterCutoff);
+            }
+        });
+
         performanceBastardLoop2Level?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             bastardLoop2Level = value / 100;
             document.getElementById('performanceBastardLoop2LevelValue').textContent = `${Math.round(value)}%`;
             updateBastardLoop2Mix();
+        });
+
+        performanceBastardLoop2FilterCutoff?.addEventListener('input', (event) => {
+            bastardLoop2FilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
+            document.getElementById('performanceBastardLoop2FilterCutoffValue').textContent = formatFrequencyHz(bastardLoop2FilterCutoff);
+            if (bastardLoop2FilterNodes.length) {
+                smoothBastardLoopFilterCutoff(bastardLoop2FilterNodes, bastardLoop2FilterCutoff);
+            }
         });
 
         performanceBastardLoopPitch?.addEventListener('input', (event) => {
@@ -24909,6 +25088,14 @@
             bastardLoop3Level = value / 100;
             document.getElementById('performanceBastardLoop3LevelValue').textContent = `${Math.round(value)}%`;
             updateBastardLoop3Mix();
+        });
+
+        performanceBastardLoop3FilterCutoff?.addEventListener('input', (event) => {
+            bastardLoop3FilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
+            document.getElementById('performanceBastardLoop3FilterCutoffValue').textContent = formatFrequencyHz(bastardLoop3FilterCutoff);
+            if (bastardLoop3FilterNodes.length) {
+                smoothBastardLoopFilterCutoff(bastardLoop3FilterNodes, bastardLoop3FilterCutoff);
+            }
         });
 
         performanceBastardLoop3Pitch?.addEventListener('input', (event) => {

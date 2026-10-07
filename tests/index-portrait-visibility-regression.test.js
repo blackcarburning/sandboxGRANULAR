@@ -117,6 +117,7 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceGeneratedDryMix"/);
     assert.match(indexHtml, />Gen Dry</);
     assert.match(indexHtml, /id="performanceBastardLoopLevel" min="0" max="100" value="60" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoopFilterCutoff" min="300" max="18000" value="18000" step="10"/);
     assert.match(indexHtml, />Bastardloop</);
     assert.match(indexHtml, /id="performanceBastardLoopMeta">Empty<\/div>/);
     assert.match(indexHtml, /id="performanceGeneratedDryTrim" min="-24" max="6" value="-6"/);
@@ -177,11 +178,15 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /function setFxMuted\(muted, options = \{\}\)/);
     assert.match(indexHtml, /function setGeneratedDryThroughFilters\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /async function generateBastardLoopWithPlaybackRestart\(\)/);
+    assert.match(indexHtml, /function createBastardLoopLowpassFilters\(cutoffHz\)/);
+    assert.match(indexHtml, /Array\.from\(\{ length: 4 \}, \(\) => \{/);
+    assert.match(indexHtml, /filter\.type = 'lowpass';/);
     assert.match(indexHtml, /function startBastardLoop\(startTime = null\)/);
     assert.match(indexHtml, /function updateBastardLoopMix\(\)/);
     assert.match(indexHtml, /const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-bastardloops'/);
     assert.match(indexHtml, /body: JSON\.stringify\(\{[\s\S]*divisions[\s\S]*\}\)/);
     assert.match(indexHtml, /performanceBastardLoopLevel\?\.addEventListener\('input'/);
+    assert.match(indexHtml, /performanceBastardLoopFilterCutoff\?\.addEventListener\('input'/);
     assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
     assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
@@ -590,6 +595,7 @@ test('second bastardloop layer uses SAMPLEDROP_2 and has its own pitch, level, r
     assert.match(indexHtml, /id="performanceBastardLoop2Pitch" min="-2" max="2" value="0" step="1"/);
     assert.match(indexHtml, /id="performanceBastardLoop2PitchAffectsDuration"/);
     assert.match(indexHtml, /id="performanceBastardLoop2Level" min="0" max="100" value="55" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop2FilterCutoff" min="300" max="18000" value="18000" step="10"/);
     assert.match(indexHtml, /id="performanceBastardLoop2ReverseBtn"/);
     assert.match(indexHtml, /id="performanceBastardLoop2ToggleBtn"/);
     assert.match(indexHtml, /let bastardLoop2Level = 0\.55/);
@@ -619,6 +625,7 @@ test('third bastardloop layer uses SPLICE_CLAW and has its own pitch, level, res
     assert.match(indexHtml, /id="performanceBastardLoop3Pitch" min="-2" max="2" value="0" step="1"/);
     assert.match(indexHtml, /id="performanceBastardLoop3PitchAffectsDuration"/);
     assert.match(indexHtml, /id="performanceBastardLoop3Level" min="0" max="100" value="50" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoop3FilterCutoff" min="300" max="18000" value="18000" step="10"/);
     assert.match(indexHtml, /id="performanceBastardLoop3ReverseBtn"/);
     assert.match(indexHtml, /id="performanceBastardLoop3ToggleBtn"/);
     assert.match(indexHtml, /let bastardLoop3Level = 0\.5/);
