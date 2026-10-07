@@ -9872,13 +9872,13 @@
             const effectAmount = safeAmount > 0.4
                 ? Math.pow((safeAmount - 0.4) / 0.6, 1.16)
                 : 0;
-            const effectDrive = 1 + (subtleAmount * 6) + (effectAmount * 38);
-            const makeupGain = 1 + (subtleAmount * 0.85) + (effectAmount * 4.1);
+            const effectDrive = 1 + (subtleAmount * 8) + (effectAmount * 72);
+            const makeupGain = Math.max(0.32, 1 + (subtleAmount * 0.18) - (effectAmount * 0.68));
             return {
-                threshold: safeAmount > 0.001 ? -8 - (subtleAmount * 16) - (effectAmount * 66) : 0,
-                knee: safeAmount > 0.001 ? Math.max(0, 18 - (subtleAmount * 7) - (effectAmount * 11)) : 0,
-                ratio: 1 + (subtleAmount * 6) + (effectAmount * 13),
-                attack: Math.max(0.00008, 0.018 - (subtleAmount * 0.009) - (effectAmount * 0.0085)),
+                threshold: safeAmount > 0.001 ? -10 - (subtleAmount * 20) - (effectAmount * 78) : 0,
+                knee: safeAmount > 0.001 ? Math.max(0, 16 - (subtleAmount * 7) - (effectAmount * 12)) : 0,
+                ratio: 1 + (subtleAmount * 8) + (effectAmount * 20),
+                attack: Math.max(0.00005, 0.016 - (subtleAmount * 0.008) - (effectAmount * 0.0075)),
                 release: getFinalCompressorReleaseSeconds(),
                 drive: effectDrive,
                 makeup: makeupGain
