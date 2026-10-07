@@ -9868,14 +9868,17 @@
 
         function getFinalCompressorSettings(amount = 0) {
             const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
-            const intensity = Math.pow(safeAmount, 0.74);
-            const effectDrive = 1 + Math.pow(safeAmount, 1.18) * 17;
-            const makeupGain = 1 + Math.pow(safeAmount, 0.92) * 1.35;
+            const subtleAmount = Math.min(1, safeAmount / 0.4);
+            const effectAmount = safeAmount > 0.4
+                ? Math.pow((safeAmount - 0.4) / 0.6, 1.16)
+                : 0;
+            const effectDrive = 1 + (subtleAmount * 6) + (effectAmount * 38);
+            const makeupGain = 1 + (subtleAmount * 0.85) + (effectAmount * 4.1);
             return {
-                threshold: safeAmount > 0.001 ? -5 - (intensity * 55) : 0,
-                knee: safeAmount > 0.001 ? Math.max(0, 14 - (Math.pow(safeAmount, 1.08) * 14)) : 0,
-                ratio: 1 + (intensity * 19),
-                attack: Math.max(0.00025, 0.02 - (Math.pow(safeAmount, 0.9) * 0.0196)),
+                threshold: safeAmount > 0.001 ? -8 - (subtleAmount * 16) - (effectAmount * 66) : 0,
+                knee: safeAmount > 0.001 ? Math.max(0, 18 - (subtleAmount * 7) - (effectAmount * 11)) : 0,
+                ratio: 1 + (subtleAmount * 6) + (effectAmount * 13),
+                attack: Math.max(0.00008, 0.018 - (subtleAmount * 0.009) - (effectAmount * 0.0085)),
                 release: getFinalCompressorReleaseSeconds(),
                 drive: effectDrive,
                 makeup: makeupGain

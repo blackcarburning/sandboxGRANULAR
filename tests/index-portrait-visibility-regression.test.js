@@ -969,11 +969,12 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /finalKickBypassPanner\.connect\(finalAmplifierNode\);/);
     assert.match(indexHtml, /function getFinalCompressorReleaseSeconds\(\)/);
     assert.match(indexHtml, /function getFinalCompressorSettings\(amount = 0\)/);
-    assert.match(indexHtml, /const intensity = Math\.pow\(safeAmount, 0\.74\);/);
-    assert.match(indexHtml, /const effectDrive = 1 \+ Math\.pow\(safeAmount, 1\.18\) \* 17;/);
-    assert.match(indexHtml, /const makeupGain = 1 \+ Math\.pow\(safeAmount, 0\.92\) \* 1\.35;/);
-    assert.match(indexHtml, /threshold: safeAmount > 0\.001 \? -5 - \(intensity \* 55\) : 0,/);
-    assert.match(indexHtml, /ratio: 1 \+ \(intensity \* 19\),/);
+    assert.match(indexHtml, /const subtleAmount = Math\.min\(1, safeAmount \/ 0\.4\);/);
+    assert.match(indexHtml, /const effectAmount = safeAmount > 0\.4/);
+    assert.match(indexHtml, /const effectDrive = 1 \+ \(subtleAmount \* 6\) \+ \(effectAmount \* 38\);/);
+    assert.match(indexHtml, /const makeupGain = 1 \+ \(subtleAmount \* 0\.85\) \+ \(effectAmount \* 4\.1\);/);
+    assert.match(indexHtml, /threshold: safeAmount > 0\.001 \? -8 - \(subtleAmount \* 16\) - \(effectAmount \* 66\) : 0,/);
+    assert.match(indexHtml, /ratio: 1 \+ \(subtleAmount \* 6\) \+ \(effectAmount \* 13\),/);
     assert.match(indexHtml, /release: getFinalCompressorReleaseSeconds\(\)/);
     assert.match(indexHtml, /drive: effectDrive,/);
     assert.match(indexHtml, /makeup: makeupGain/);
