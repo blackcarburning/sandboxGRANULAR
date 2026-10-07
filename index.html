@@ -4444,6 +4444,26 @@
                     <input type="range" id="finalDriveCrush" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="finalCompressorAmount">
+                        <span>Bus Comp</span>
+                        <span class="value" id="finalCompressorAmountValue">0%</span>
+                    </label>
+                    <input type="range" id="finalCompressorAmount" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceFinalSidechainBtn">
+                        <span>Sidechain Key</span>
+                    </label>
+                    <button class="performance-btn" type="button" id="performanceFinalSidechainBtn">SC Off</button>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalSidechainAmount">
+                        <span>SC Amount</span>
+                        <span class="value" id="finalSidechainAmountValue">0%</span>
+                    </label>
+                    <input type="range" id="finalSidechainAmount" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="finalDelayDepth">
                         <span>Delay Mix</span>
                         <span class="value" id="finalDelayDepthValue">0%</span>
@@ -6860,6 +6880,11 @@
             snare: 'samples_snares',
             hat: 'samples_hats'
         };
+        const FINAL_COMPRESSOR_SIDECHAIN_OPTIONS = [
+            { value: 'off', label: 'SC Off', status: 'Final sidechain off.' },
+            { value: 'lfo1', label: 'SC LFO1', status: 'Final sidechain keyed to LFO 1.' },
+            { value: 'kick', label: 'SC Kick', status: 'Final sidechain keyed to the drum kick.' }
+        ];
         const DRUM_MACHINE_HAT_TIMING_LABELS = {
             straight: 'Straight Hats',
             dotted: 'Dotted Hats',
@@ -6949,6 +6974,10 @@
         let finalRingGain = null;
         let finalRingOscillator = null;
         let finalRingDepthGain = null;
+        let finalCompressorNode = null;
+        let finalSidechainGain = null;
+        let finalCompressorSidechainSource = 'off';
+        let finalSidechainKickEvents = [];
         let finalDelayNode = null;
         let finalDelayFeedbackGain = null;
         let finalDelayFeedbackHighpass = null;
@@ -9078,6 +9107,14 @@
             finalPanAudioOscillator.frequency.value = 0.05;
             finalPanAudioDepthGain = audioContext.createGain();
             finalPanAudioDepthGain.gain.value = 0;
+            finalCompressorNode = audioContext.createDynamicsCompressor();
+            finalCompressorNode.threshold.value = 0;
+            finalCompressorNode.knee.value = 0;
+            finalCompressorNode.ratio.value = 1;
+            finalCompressorNode.attack.value = 0.02;
+            finalCompressorNode.release.value = 0.12;
+            finalSidechainGain = audioContext.createGain();
+            finalSidechainGain.gain.value = 1;
             finalAmplifierNode = audioContext.createGain();
             finalAmplifierNode.gain.value = 1;
             mergerNode.connect(outputGainNode);
@@ -9086,7 +9123,9 @@
             finalPanBaseOffsetSource.connect(finalOutputPanner.pan);
             finalPanAudioOscillator.connect(finalPanAudioDepthGain);
             finalPanAudioDepthGain.connect(finalOutputPanner.pan);
-            finalOutputPanner.connect(finalAmplifierNode);
+            finalOutputPanner.connect(finalCompressorNode);
+            finalCompressorNode.connect(finalSidechainGain);
+            finalSidechainGain.connect(finalAmplifierNode);
             finalAmplifierNode.connect(audioContext.destination);
             finalPanBaseOffsetSource.start();
             finalPanAudioOscillator.start();
@@ -9681,6 +9720,100 @@
             return Math.max(1, safe);
         }
 
+        function normalizeFinalCompressorSidechainSource(value) {
+            return FINAL_COMPRESSOR_SIDECHAIN_OPTIONS.some((option) => option.value === value) ? value : 'off';
+        }
+
+        function getFinalCompressorSettings(amount = 0) {
+            const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
+            return {
+                threshold: safeAmount > 0.001 ? -10 - (safeAmount * 28) : 0,
+                knee: safeAmount * 24,
+                ratio: 1 + (safeAmount * 11),
+                attack: Math.max(0.003, 0.018 - (safeAmount * 0.015)),
+                release: 0.09 + (safeAmount * 0.26)
+            };
+        }
+
+        function getFinalCompressorSidechainAmount() {
+            return getSliderPercent('finalSidechainAmount');
+        }
+
+        function getFinalCompressorAmount() {
+            return getSliderPercent('finalCompressorAmount');
+        }
+
+        function pruneFinalSidechainKickEvents(now = audioContext?.currentTime || 0) {
+            finalSidechainKickEvents = finalSidechainKickEvents.filter((event) => Number.isFinite(event?.time) && event.time >= now - 1);
+        }
+
+        function registerFinalSidechainKickTrigger(scheduledTime, intensity = 1) {
+            if (!Number.isFinite(scheduledTime)) return;
+            finalSidechainKickEvents.push({
+                time: scheduledTime,
+                intensity: Math.max(0, Math.min(1, Number(intensity) || 0))
+            });
+            pruneFinalSidechainKickEvents((audioContext?.currentTime || scheduledTime) - 0.05);
+        }
+
+        function getFinalKickSidechainDetector(now = audioContext?.currentTime || 0) {
+            pruneFinalSidechainKickEvents(now);
+            const attack = 0.008;
+            const release = 0.26;
+            let detector = 0;
+            finalSidechainKickEvents.forEach((event) => {
+                const elapsed = now - event.time;
+                if (elapsed < 0 || elapsed > attack + release) return;
+                const envelope = elapsed <= attack
+                    ? (elapsed / attack)
+                    : Math.max(0, 1 - ((elapsed - attack) / release));
+                detector = Math.max(detector, envelope * event.intensity);
+            });
+            return detector;
+        }
+
+        function getFinalCompressorSidechainDetector(now = audioContext?.currentTime || 0) {
+            const source = normalizeFinalCompressorSidechainSource(finalCompressorSidechainSource);
+            if (source === 'lfo1') {
+                return Math.max(0, getLFOValue1Raw());
+            }
+            if (source === 'kick') {
+                return getFinalKickSidechainDetector(now);
+            }
+            return 0;
+        }
+
+        function syncFinalCompressorSidechainButton() {
+            const button = document.getElementById('performanceFinalSidechainBtn');
+            if (!button) return;
+            const option = FINAL_COMPRESSOR_SIDECHAIN_OPTIONS.find((entry) => entry.value === normalizeFinalCompressorSidechainSource(finalCompressorSidechainSource))
+                || FINAL_COMPRESSOR_SIDECHAIN_OPTIONS[0];
+            button.classList.toggle('active', option.value !== 'off');
+            button.textContent = option.label;
+            button.setAttribute('aria-pressed', String(option.value !== 'off'));
+        }
+
+        function setFinalCompressorSidechainSource(value, options = {}) {
+            finalCompressorSidechainSource = normalizeFinalCompressorSidechainSource(value);
+            syncFinalCompressorSidechainButton();
+            updateEffects();
+            if (!options.silent) {
+                const option = FINAL_COMPRESSOR_SIDECHAIN_OPTIONS.find((entry) => entry.value === finalCompressorSidechainSource) || FINAL_COMPRESSOR_SIDECHAIN_OPTIONS[0];
+                setStatus(option.status);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function cycleFinalCompressorSidechainSource(options = {}) {
+            const currentIndex = FINAL_COMPRESSOR_SIDECHAIN_OPTIONS.findIndex((option) => option.value === normalizeFinalCompressorSidechainSource(finalCompressorSidechainSource));
+            const nextIndex = currentIndex >= 0
+                ? (currentIndex + 1) % FINAL_COMPRESSOR_SIDECHAIN_OPTIONS.length
+                : 0;
+            setFinalCompressorSidechainSource(FINAL_COMPRESSOR_SIDECHAIN_OPTIONS[nextIndex].value, options);
+        }
+
         function syncFinalPanControlDisplays() {
             const lfoWaveformSelect = document.getElementById('finalPanLfoWaveform');
             const lfoWaveformValue = document.getElementById('finalPanLfoWaveformValue');
@@ -9901,6 +10034,21 @@
             updateFinalReverbImpulse(reverbSize, reverbDecay);
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
             smoothRamp(finalReverbWetGain?.gain, reverbMix * 0.72);
+
+            const compressorAmount = fxMuted ? 0 : getFinalCompressorAmount();
+            const compressorSettings = getFinalCompressorSettings(compressorAmount);
+            smoothRamp(finalCompressorNode?.threshold, compressorSettings.threshold);
+            smoothRamp(finalCompressorNode?.knee, compressorSettings.knee);
+            smoothRamp(finalCompressorNode?.ratio, compressorSettings.ratio);
+            smoothRamp(finalCompressorNode?.attack, compressorSettings.attack);
+            smoothRamp(finalCompressorNode?.release, compressorSettings.release);
+
+            const sidechainAmount = fxMuted ? 0 : getFinalCompressorSidechainAmount();
+            const detector = sidechainAmount > 0.001 ? getFinalCompressorSidechainDetector(now) : 0;
+            const duckGain = detector > 0.001
+                ? Math.max(0.18, 1 - (detector * sidechainAmount * 0.82))
+                : 1;
+            smoothRamp(finalSidechainGain?.gain, duckGain);
         }
 
         function createNoiseBuffers() {
@@ -13085,8 +13233,12 @@
                 const stepIndex = drumMachineCurrentStep;
                 const scheduledTime = drumMachineNextStepTime;
                 if (drumMachineKickPattern[stepIndex] && drumMachineKickBuffer) {
+                    const kickLevel = getDrumMachineKickLevelValue();
+                    if (kickLevel > 0.0001) {
+                        registerFinalSidechainKickTrigger(scheduledTime, kickLevel);
+                    }
                     playDrumMachineHit(drumMachineKickBuffer, scheduledTime, getDrumMachineKickPitchRatio(), {
-                        level: getDrumMachineKickLevelValue()
+                        level: kickLevel
                     });
                 }
                 if (drumMachineSnarePattern[stepIndex] && drumMachineSnareBuffer) {
@@ -13171,6 +13323,7 @@
             if (!options.preserveTransportState) {
                 drumMachineTransportStartTime = null;
             }
+            finalSidechainKickEvents = [];
             stopDrumMachineVoices({ fade: options.fade });
             renderDrumMachineStepGrid('kick');
             renderDrumMachineStepGrid('snare');
@@ -17243,6 +17396,7 @@
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
                     e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix' ||
                     e.target.id.startsWith('finalDrive') ||
+                    e.target.id === 'finalCompressorAmount' || e.target.id === 'finalSidechainAmount' ||
                     e.target.id === 'finalDelayDepth' || e.target.id === 'finalRingDepth' ||
                     e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' ||
                     e.target.id === 'finalReverbLowpass' || e.target.id === 'finalReverbMix') {
@@ -20643,6 +20797,8 @@
                 finalDriveHard: 0,
                 finalDriveFold: 0,
                 finalDriveCrush: 0,
+                finalCompressorAmount: 0,
+                finalSidechainAmount: 0,
                 finalDelayDepth: 0,
                 finalDelayFeedback: 30,
                 finalRingDepth: 0,
@@ -20764,6 +20920,7 @@
             setFilterPoles('hpf', 2);
             setFxMuted(false, { silent: true });
             setFinalReverbEnabled(false, { silent: true, skipSave: true });
+            setFinalCompressorSidechainSource('off', { silent: true, skipSave: true });
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(false, { silent: true });
             setGeneratedSampleLayerEnabled(true, { silent: true, skipSave: true });
@@ -20905,6 +21062,7 @@
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
                 finalReverbEnabled: finalReverbEnabled,
+                finalCompressorSidechainSource: finalCompressorSidechainSource,
                 finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
                 finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
                 generatedDryThroughFilters: generatedDryThroughFilters,
@@ -21212,6 +21370,9 @@
             setSourceWaveformSolo(importedSourceWaveformSolo, { silent: true, skipSave: true });
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
+            }
+            if (safePreset.finalCompressorSidechainSource !== undefined) {
+                setFinalCompressorSidechainSource(safePreset.finalCompressorSidechainSource, { silent: true, skipSave: true });
             }
             if (safePreset.finalFxPlacementLfoDivision) {
                 const placementLfoDivision = document.getElementById('finalFxPlacementLfoDivision');
@@ -21635,6 +21796,7 @@
                     bpmLocked: bpmLocked,
                     fxMuted: fxMuted,
                     finalReverbEnabled: finalReverbEnabled,
+                    finalCompressorSidechainSource: finalCompressorSidechainSource,
                     finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
@@ -21836,6 +21998,9 @@
                     }
                     if (state.modes.finalReverbEnabled !== undefined) {
                         setFinalReverbEnabled(state.modes.finalReverbEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.finalCompressorSidechainSource !== undefined) {
+                        setFinalCompressorSidechainSource(state.modes.finalCompressorSidechainSource, { silent: true, skipSave: true });
                     }
                     if (state.modes.finalFxPlacementLfoEnabled !== undefined) {
                         setFinalFxPlacementLfoEnabled(state.modes.finalFxPlacementLfoEnabled, { silent: true, skipSave: true });
@@ -22342,6 +22507,8 @@
             const output = ctx.createGain();
             const muted = Boolean(fxMuted);
             const postFilterFx = finalFxPlacement !== 'pre';
+            const compressorAmount = muted ? 0 : getFinalCompressorAmount();
+            const compressorSettings = getFinalCompressorSettings(compressorAmount);
 
             const distortionNodes = ['soft', 'hard', 'fold', 'crush'].map((type, index) => {
                 const node = ctx.createWaveShaper();
@@ -22394,6 +22561,12 @@
             reverbLowpass.frequency.value = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             const reverbWetGain = ctx.createGain();
             reverbWetGain.gain.value = reverbMix * 0.72;
+            const compressorNode = ctx.createDynamicsCompressor();
+            compressorNode.threshold.value = compressorSettings.threshold;
+            compressorNode.knee.value = compressorSettings.knee;
+            compressorNode.ratio.value = compressorSettings.ratio;
+            compressorNode.attack.value = compressorSettings.attack;
+            compressorNode.release.value = compressorSettings.release;
 
             input.connect(distortionNodes[0]);
             for (let index = 0; index < distortionNodes.length - 1; index += 1) {
@@ -22414,7 +22587,8 @@
             reverbNode.connect(reverbLowpass);
             reverbLowpass.connect(reverbWetGain);
             reverbWetGain.connect(output);
-            output.connect(finalDestination);
+            output.connect(compressorNode);
+            compressorNode.connect(finalDestination);
 
             return input;
         }
@@ -23913,6 +24087,7 @@
         const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceFinalReverbBtn = document.getElementById('performanceFinalReverbBtn');
+        const performanceFinalSidechainBtn = document.getElementById('performanceFinalSidechainBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         const performanceSynthPopupBtn = document.getElementById('performanceSynthPopupBtn');
         const oscPopupCloseBtn = document.getElementById('oscPopupCloseBtn');
@@ -23926,6 +24101,9 @@
             'finalDriveHard',
             'finalDriveFold',
             'finalDriveCrush',
+            'finalCompressorAmount',
+            'performanceFinalSidechainBtn',
+            'finalSidechainAmount',
             'finalDelayDepth',
             'finalDelayFeedback',
             'finalDelayDivision',
@@ -24355,6 +24533,7 @@
                 performanceFinalReverbBtn.setAttribute('aria-pressed', String(finalReverbEnabled));
             }
 
+            syncFinalCompressorSidechainButton();
             syncFinalFxPlacementButton();
             syncFinalFxPlacementLfoButton();
 
@@ -25004,6 +25183,10 @@
 
         performanceFinalReverbBtn?.addEventListener('click', () => {
             setFinalReverbEnabled(!finalReverbEnabled);
+        });
+
+        performanceFinalSidechainBtn?.addEventListener('click', () => {
+            cycleFinalCompressorSidechainSource();
         });
 
         performanceFinalFxPlacementBtn?.addEventListener('click', () => {

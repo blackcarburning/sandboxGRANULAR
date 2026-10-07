@@ -911,6 +911,30 @@ test('mix and trim card exposes an analyser-driven output vu meter', () => {
     assert.match(indexHtml, /updatePerformanceVuMeter\(finalPanTrackedRms\);/);
 });
 
+test('final effects expose a master compressor with lfo1 or kick sidechain routing', () => {
+    assert.match(indexHtml, /id="finalCompressorAmount" min="0" max="100" value="0" step="1"/);
+    assert.match(indexHtml, /id="performanceFinalSidechainBtn">SC Off<\/button>/);
+    assert.match(indexHtml, /id="finalSidechainAmount" min="0" max="100" value="0" step="1"/);
+    assert.match(indexHtml, /const FINAL_COMPRESSOR_SIDECHAIN_OPTIONS = \[/);
+    assert.match(indexHtml, /value: 'off', label: 'SC Off'/);
+    assert.match(indexHtml, /value: 'lfo1', label: 'SC LFO1'/);
+    assert.match(indexHtml, /value: 'kick', label: 'SC Kick'/);
+    assert.match(indexHtml, /let finalCompressorNode = null;/);
+    assert.match(indexHtml, /let finalSidechainGain = null;/);
+    assert.match(indexHtml, /let finalCompressorSidechainSource = 'off';/);
+    assert.match(indexHtml, /finalCompressorNode = audioContext\.createDynamicsCompressor\(\);/);
+    assert.match(indexHtml, /finalOutputPanner\.connect\(finalCompressorNode\);/);
+    assert.match(indexHtml, /finalCompressorNode\.connect\(finalSidechainGain\);/);
+    assert.match(indexHtml, /finalSidechainGain\.connect\(finalAmplifierNode\);/);
+    assert.match(indexHtml, /function getFinalCompressorSettings\(amount = 0\)/);
+    assert.match(indexHtml, /function getFinalCompressorSidechainDetector\(now = audioContext\?\.currentTime \|\| 0\)/);
+    assert.match(indexHtml, /registerFinalSidechainKickTrigger\(scheduledTime, kickLevel\);/);
+    assert.match(indexHtml, /smoothRamp\(finalCompressorNode\?\.threshold, compressorSettings\.threshold\);/);
+    assert.match(indexHtml, /smoothRamp\(finalSidechainGain\?\.gain, duckGain\);/);
+    assert.match(indexHtml, /performanceFinalSidechainBtn\?\.addEventListener\('click', \(\) => \{\s*cycleFinalCompressorSidechainSource\(\);/);
+    assert.match(indexHtml, /finalCompressorSidechainSource: finalCompressorSidechainSource/);
+});
+
 test('repo export restarts only the live loop layers instead of broad transport restart', () => {
     assert.match(indexHtml, /async function renderDawReadyBarsExport\(\)/);
     assert.match(indexHtml, /const wasBastardLoopALive = Boolean\(bastardLoopSource\)/);
