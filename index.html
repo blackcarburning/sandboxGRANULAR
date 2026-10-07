@@ -3580,8 +3580,8 @@
                         <span class="value" id="globalBpmValue">120 BPM</span>
                     </label>
                     <div class="bpm-input-row">
-                        <input type="range" id="globalBpmSlider" min="40" max="300" value="120" step="1">
-                        <input type="number" id="globalBpmNumber" min="40" max="300" value="120" step="1" inputmode="numeric">
+                        <input type="range" id="globalBpmSlider" min="1" max="300" value="120" step="1">
+                        <input type="number" id="globalBpmNumber" min="1" max="300" value="120" step="1" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -5231,7 +5231,7 @@
                             <span class="param-name">BPM</span>
                             <span class="value" id="delayBpmValue">120</span>
                         </label>
-                        <input type="range" id="delayBpm" min="40" max="300" value="120" step="1">
+                        <input type="range" id="delayBpm" min="1" max="300" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -5297,7 +5297,7 @@
                             </div>
                             <span class="value" id="phaserRateValue">30 BPM</span>
                         </label>
-                        <input type="range" id="phaserRate" min="10" max="1200" value="30" step="1">
+                        <input type="range" id="phaserRate" min="1" max="1200" value="30" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -5323,7 +5323,7 @@
                             </div>
                             <span class="value" id="tremoloRateValue">120 BPM</span>
                         </label>
-                        <input type="range" id="tremoloRate" min="10" max="1200" value="120" step="1">
+                        <input type="range" id="tremoloRate" min="1" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -5369,7 +5369,7 @@
                             </div>
                             <span class="value" id="lfo3RateValue">120 BPM</span>
                         </label>
-                        <input type="range" id="lfo3Rate" min="10" max="1200" value="120" step="1">
+                        <input type="range" id="lfo3Rate" min="1" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -5470,7 +5470,7 @@
                     </div>
                     <div class="control-group">
                         <label><span>Rate</span><button class="mode-toggle" id="lfoModeToggle">BPM</button><span class="value" id="lfoRateValue">120 BPM</span></label>
-                        <input type="range" id="lfoRate" min="10" max="1200" value="120" step="1">
+                        <input type="range" id="lfoRate" min="1" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfoDepthValue">50%</span></label>
@@ -5497,7 +5497,7 @@
                     </div>
                     <div class="control-group">
                         <label><span>Rate</span><button class="mode-toggle" id="lfo2ModeToggle">BPM</button><span class="value" id="lfo2RateValue">120 BPM</span></label>
-                        <input type="range" id="lfo2Rate" min="10" max="1200" value="120" step="1">
+                        <input type="range" id="lfo2Rate" min="1" max="1200" value="120" step="1">
                     </div>
                     <div class="control-group">
                         <label><span>Depth</span><span class="value" id="lfo2DepthValue">50%</span></label>
@@ -5864,7 +5864,7 @@
                         <label>
                             <span class="param-name">BPM</span>
                         </label>
-                        <input type="number" id="seqBpm" min="20" max="300" value="120" step="1" style="width: 100%; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 4px; color: var(--accent); font-size: 12px; text-align: center;">
+                        <input type="number" id="seqBpm" min="1" max="300" value="120" step="1" style="width: 100%; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 4px; color: var(--accent); font-size: 12px; text-align: center;">
                     </div>
 
                     <div class="control-group">
@@ -6036,7 +6036,7 @@
                         <span>LFO Rate</span>
                         <span class="value" id="finalPanLfoRateValue">90 BPM</span>
                     </label>
-                    <input type="range" id="finalPanLfoRate" min="10" max="1200" value="90" step="1">
+                    <input type="range" id="finalPanLfoRate" min="1" max="1200" value="90" step="1">
                 </div>
                 <div class="performance-sound-card final-pan-card">
                     <label for="finalPanLfoDepth">
@@ -7231,7 +7231,7 @@
             { ratio: 6, label: '4xD' },
             { ratio: 2.6666667, label: '4xT' }
         ];
-        const INTERNAL_LFO_BPM_MIN = 10;
+        const INTERNAL_LFO_BPM_MIN = 1;
         const INTERNAL_LFO_BPM_MAX = 1200;
         const BPM_CLOCK_GRAIN_DIVISIONS = [0.5, 1, 2, 4, 8, 16];
         const RANDOMIZE_LFO_DEPTH_RANGES = {
@@ -7945,7 +7945,7 @@
             keyboard.style.minWidth = `${whiteWidth * whiteKeyCount}px`;
         }
 
-        const GLOBAL_BPM_MIN = 40;
+        const GLOBAL_BPM_MIN = 1;
         const GLOBAL_BPM_MAX = 300;
         let syncingGlobalBpm = false;
 
@@ -17723,17 +17723,14 @@
 
         // --- SEQ Tab Controls ---
         document.getElementById('seqBpm').addEventListener('input', (e) => {
-            const value = parseInt(e.target.value);
-            if (value >= 20 && value <= 300) {
-                sequencerBPM = value;
-                syncGlobalBpmControls(value);
-            }
+            const value = clampBpmValue(e.target.value);
+            sequencerBPM = value;
+            syncGlobalBpmControls(value);
         });
 
         // Also handle change event for when user types and presses enter
         document.getElementById('seqBpm').addEventListener('change', (e) => {
-            let value = parseInt(e.target.value);
-            value = Math.max(20, Math.min(300, value)); // Clamp
+            let value = clampBpmValue(e.target.value);
             e.target.value = value;
             sequencerBPM = value;
             syncGlobalBpmControls(value);
@@ -24728,7 +24725,7 @@
             });
         });
 
-        restoreRememberedBpmFromStorage();
+        restoreRememberedBpmFromStorage({ applySharedClock: true });
         verifyTempoLockedPitchDirection();
         syncFinalPanControlDisplays();
         syncPerformanceControlState();

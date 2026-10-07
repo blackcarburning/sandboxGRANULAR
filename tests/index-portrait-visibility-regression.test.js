@@ -51,6 +51,18 @@ test('generate and randomize actions show a two second settle popup', () => {
     assert.match(indexHtml, /performanceGenerateLoopBtn\?\.addEventListener\('click', async \(\) => \{[\s\S]*showSettlePopup\(\);[\s\S]*setPerformanceGenerateButtonState\('generating'\)/);
 });
 
+test('shared BPM controls allow 1 BPM and restore remembered tempo into the live clock', () => {
+    assert.match(indexHtml, /id="globalBpmSlider" min="1" max="300" value="120" step="1"/);
+    assert.match(indexHtml, /id="globalBpmNumber" min="1" max="300" value="120" step="1"/);
+    assert.match(indexHtml, /id="seqBpm" min="1" max="300" value="120" step="1"/);
+    assert.match(indexHtml, /id="delayBpm" min="1" max="300" value="120" step="1"/);
+    assert.match(indexHtml, /const GLOBAL_BPM_MIN = 1;/);
+    assert.match(indexHtml, /const INTERNAL_LFO_BPM_MIN = 1;/);
+    assert.match(indexHtml, /document\.getElementById\('seqBpm'\)\.addEventListener\('input', \(e\) => \{[\s\S]*const value = clampBpmValue\(e\.target\.value\);[\s\S]*syncGlobalBpmControls\(value\);[\s\S]*\}\);/);
+    assert.match(indexHtml, /document\.getElementById\('seqBpm'\)\.addEventListener\('change', \(e\) => \{[\s\S]*let value = clampBpmValue\(e\.target\.value\);[\s\S]*e\.target\.value = value;[\s\S]*syncGlobalBpmControls\(value\);[\s\S]*\}\);/);
+    assert.match(indexHtml, /restoreRememberedBpmFromStorage\(\{ applySharedClock: true \}\);/);
+});
+
 test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceSourceMix"/);
     assert.match(indexHtml, />Granular\/Osc</);
