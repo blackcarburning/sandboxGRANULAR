@@ -4506,13 +4506,6 @@
                     <input type="range" id="finalCompressorRelease" min="20" max="1000" value="260" step="1">
                 </div>
                 <div class="performance-sound-card">
-                    <label for="finalCompressorMakeup">
-                        <span>Makeup Gain</span>
-                        <span class="value" id="finalCompressorMakeupValue">100%</span>
-                    </label>
-                    <input type="range" id="finalCompressorMakeup" min="0" max="200" value="100" step="1">
-                </div>
-                <div class="performance-sound-card">
                     <label for="performanceFinalSidechainBtn">
                         <span>Sidechain Key</span>
                     </label>
@@ -7040,7 +7033,6 @@
         let finalRingDepthGain = null;
         let finalCompressorDriveGain = null;
         let finalCompressorNode = null;
-        let finalCompressorMakeupGain = null;
         let finalSidechainGain = null;
         let finalCompressorSidechainSource = 'off';
         let finalSidechainKickEvents = [];
@@ -9244,8 +9236,6 @@
             finalCompressorNode.ratio.value = 1;
             finalCompressorNode.attack.value = 0.02;
             finalCompressorNode.release.value = 0.26;
-            finalCompressorMakeupGain = audioContext.createGain();
-            finalCompressorMakeupGain.gain.value = 1;
             finalSidechainGain = audioContext.createGain();
             finalSidechainGain.gain.value = 1;
             finalAmplifierNode = audioContext.createGain();
@@ -9264,8 +9254,7 @@
             finalPanAudioDepthGain.connect(finalKickBypassPanner.pan);
             finalOutputPanner.connect(finalCompressorDriveGain);
             finalCompressorDriveGain.connect(finalCompressorNode);
-            finalCompressorNode.connect(finalCompressorMakeupGain);
-            finalCompressorMakeupGain.connect(finalSidechainGain);
+            finalCompressorNode.connect(finalSidechainGain);
             finalSidechainGain.connect(finalAmplifierNode);
             finalKickBypassMasterGain.connect(finalKickBypassPanner);
             finalKickBypassPanner.connect(finalPanAnalyser);
@@ -9873,11 +9862,6 @@
             return milliseconds / 1000;
         }
 
-        function getFinalCompressorManualMakeupGain() {
-            const percent = Math.max(0, Math.min(200, Number(document.getElementById('finalCompressorMakeup')?.value) || 100));
-            return percent / 100;
-        }
-
         function getFinalCompressorSettings(amount = 0) {
             const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
             const subtleAmount = Math.min(1, safeAmount / 0.4);
@@ -9891,8 +9875,7 @@
                 ratio: 1 + (subtleAmount * 8) + (effectAmount * 20),
                 attack: Math.max(0.00005, 0.016 - (subtleAmount * 0.008) - (effectAmount * 0.0075)),
                 release: getFinalCompressorReleaseSeconds(),
-                drive: effectDrive,
-                makeup: 1
+                drive: effectDrive
             };
         }
 
@@ -10227,7 +10210,6 @@
             smoothRamp(finalCompressorNode?.ratio, compressorSettings.ratio);
             smoothRamp(finalCompressorNode?.attack, compressorSettings.attack);
             smoothRamp(finalCompressorNode?.release, compressorSettings.release);
-            smoothRamp(finalCompressorMakeupGain?.gain, compressorSettings.makeup * getFinalCompressorManualMakeupGain());
 
             const sidechainAmount = fxMuted ? 0 : getFinalCompressorSidechainAmount();
             const detector = sidechainAmount > 0.001 ? getFinalCompressorSidechainDetector(now) : 0;
@@ -17744,7 +17726,7 @@
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
                     e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix' ||
                     e.target.id.startsWith('finalDrive') ||
-                    e.target.id === 'finalCompressorAmount' || e.target.id === 'finalCompressorRelease' || e.target.id === 'finalCompressorMakeup' || e.target.id === 'finalSidechainAmount' ||
+                    e.target.id === 'finalCompressorAmount' || e.target.id === 'finalCompressorRelease' || e.target.id === 'finalSidechainAmount' ||
                     e.target.id === 'finalDelayDepth' || e.target.id === 'finalRingDepth' ||
                     e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' ||
                     e.target.id === 'finalReverbLowpass' || e.target.id === 'finalReverbMix') {
@@ -21154,7 +21136,6 @@
                 finalDriveCrush: 0,
                 finalCompressorAmount: 0,
                 finalCompressorRelease: 260,
-                finalCompressorMakeup: 100,
                 finalSidechainAmount: 0,
                 finalDelayDepth: 0,
                 finalDelayFeedback: 30,
@@ -24479,7 +24460,6 @@
             'finalDriveCrush',
             'finalCompressorAmount',
             'finalCompressorRelease',
-            'finalCompressorMakeup',
             'performanceFinalSidechainBtn',
             'finalSidechainAmount',
             'finalDelayDepth',
