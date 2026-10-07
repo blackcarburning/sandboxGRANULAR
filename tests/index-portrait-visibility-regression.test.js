@@ -947,6 +947,8 @@ test('mix and trim card exposes an analyser-driven output vu meter', () => {
 test('final effects expose a master compressor with lfo1 or kick sidechain routing', () => {
     assert.match(indexHtml, /id="finalCompressorAmount" min="0" max="100" value="0" step="1"/);
     assert.match(indexHtml, /id="finalCompressorRelease" min="20" max="1000" value="260" step="1"/);
+    assert.match(indexHtml, /id="finalCompressorMakeup" min="0" max="200" value="100" step="1"/);
+    assert.match(indexHtml, /id="finalCompressorMakeupValue">100%<\/span>/);
     assert.match(indexHtml, /id="performanceFinalSidechainBtn">SC Off<\/button>/);
     assert.match(indexHtml, /id="finalSidechainAmount" min="0" max="100" value="0" step="1"/);
     assert.match(indexHtml, /const FINAL_COMPRESSOR_SIDECHAIN_OPTIONS = \[/);
@@ -956,7 +958,7 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /let finalCompressorNode = null;/);
     assert.match(indexHtml, /let finalCompressorDriveGain = null;/);
     assert.match(indexHtml, /let finalCompressorMakeupGain = null;/);
-    assert.match(indexHtml, /let finalCompressorReductionGain = null;/);
+    assert.doesNotMatch(indexHtml, /let finalCompressorReductionGain = null;/);
     assert.match(indexHtml, /let finalKickBypassMasterGain = null;/);
     assert.match(indexHtml, /let finalKickBypassPanner = null;/);
     assert.match(indexHtml, /let finalSidechainGain = null;/);
@@ -964,18 +966,22 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /finalCompressorDriveGain = audioContext\.createGain\(\);/);
     assert.match(indexHtml, /finalCompressorNode = audioContext\.createDynamicsCompressor\(\);/);
     assert.match(indexHtml, /finalCompressorMakeupGain = audioContext\.createGain\(\);/);
-    assert.match(indexHtml, /finalCompressorReductionGain = audioContext\.createGain\(\);/);
+    assert.doesNotMatch(indexHtml, /finalCompressorReductionGain = audioContext\.createGain\(\);/);
     assert.match(indexHtml, /finalKickBypassMasterGain = audioContext\.createGain\(\);/);
     assert.match(indexHtml, /finalKickBypassPanner = audioContext\.createStereoPanner\(\);/);
     assert.match(indexHtml, /finalOutputPanner\.connect\(finalCompressorDriveGain\);/);
     assert.match(indexHtml, /finalCompressorDriveGain\.connect\(finalCompressorNode\);/);
     assert.match(indexHtml, /finalCompressorNode\.connect\(finalCompressorMakeupGain\);/);
-    assert.match(indexHtml, /finalCompressorMakeupGain\.connect\(finalCompressorReductionGain\);/);
-    assert.match(indexHtml, /finalCompressorReductionGain\.connect\(finalSidechainGain\);/);
+    assert.match(indexHtml, /finalCompressorMakeupGain\.connect\(finalSidechainGain\);/);
+    assert.doesNotMatch(indexHtml, /finalCompressorMakeupGain\.connect\(finalCompressorReductionGain\);/);
+    assert.doesNotMatch(indexHtml, /finalCompressorReductionGain\.connect\(finalSidechainGain\);/);
     assert.match(indexHtml, /finalSidechainGain\.connect\(finalAmplifierNode\);/);
     assert.match(indexHtml, /finalKickBypassMasterGain\.connect\(finalKickBypassPanner\);/);
     assert.match(indexHtml, /finalKickBypassPanner\.connect\(finalAmplifierNode\);/);
     assert.match(indexHtml, /function getFinalCompressorReleaseSeconds\(\)/);
+    assert.match(indexHtml, /function getFinalCompressorManualMakeupGain\(\)/);
+    assert.match(indexHtml, /const percent = Math\.max\(0, Math\.min\(200, Number\(document\.getElementById\('finalCompressorMakeup'\)\?\.value\) \|\| 100\)\);/);
+    assert.match(indexHtml, /return percent \/ 100;/);
     assert.match(indexHtml, /function getFinalCompressorSettings\(amount = 0\)/);
     assert.match(indexHtml, /const subtleAmount = Math\.min\(1, safeAmount \/ 0\.4\);/);
     assert.match(indexHtml, /const effectAmount = safeAmount > 0\.4/);
@@ -986,9 +992,9 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /release: getFinalCompressorReleaseSeconds\(\)/);
     assert.match(indexHtml, /drive: effectDrive,/);
     assert.match(indexHtml, /makeup: makeupGain/);
-    assert.match(indexHtml, /function getFinalCompressorReductionFollowGain\(amount = 0\)/);
-    assert.match(indexHtml, /const reductionDb = Math\.max\(0, -Number\(finalCompressorNode\.reduction\) \|\| 0\);/);
-    assert.match(indexHtml, /const reductionWeight = 0\.18 \+ \(Math\.pow\(safeAmount, 0\.9\) \* 1\.45\);/);
+    assert.doesNotMatch(indexHtml, /function getFinalCompressorReductionFollowGain\(amount = 0\)/);
+    assert.doesNotMatch(indexHtml, /const reductionDb = Math\.max\(0, -Number\(finalCompressorNode\.reduction\) \|\| 0\);/);
+    assert.doesNotMatch(indexHtml, /const reductionWeight = 0\.18 \+ \(Math\.pow\(safeAmount, 0\.9\) \* 1\.45\);/);
     assert.match(indexHtml, /function getFinalCompressorSidechainDetector\(now = audioContext\?\.currentTime \|\| 0\)/);
     assert.match(indexHtml, /function shouldRouteKickAroundFinalCompressor\(\)/);
     assert.match(indexHtml, /registerFinalSidechainKickTrigger\(scheduledTime, kickLevel\);/);
@@ -996,13 +1002,15 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /const release = getFinalCompressorReleaseSeconds\(\);/);
     assert.match(indexHtml, /smoothRamp\(finalCompressorDriveGain\?\.gain, compressorSettings\.drive\);/);
     assert.match(indexHtml, /smoothRamp\(finalCompressorNode\?\.threshold, compressorSettings\.threshold\);/);
-    assert.match(indexHtml, /smoothRamp\(finalCompressorMakeupGain\?\.gain, compressorSettings\.makeup\);/);
-    assert.match(indexHtml, /smoothRamp\(finalCompressorReductionGain\?\.gain, getFinalCompressorReductionFollowGain\(compressorAmount\)\);/);
+    assert.match(indexHtml, /smoothRamp\(finalCompressorMakeupGain\?\.gain, compressorSettings\.makeup \* getFinalCompressorManualMakeupGain\(\)\);/);
+    assert.doesNotMatch(indexHtml, /smoothRamp\(finalCompressorReductionGain\?\.gain, getFinalCompressorReductionFollowGain\(compressorAmount\)\);/);
     assert.match(indexHtml, /smoothRamp\(finalKickBypassMasterGain\.gain, postBusGain\);/);
     assert.match(indexHtml, /Math\.max\(0, 1 - \(Math\.pow\(detector, 0\.62\) \* sidechainAmount \* 1\.32\)\)/);
     assert.match(indexHtml, /smoothRamp\(finalSidechainGain\?\.gain, duckGain\);/);
     assert.match(indexHtml, /performanceFinalSidechainBtn\?\.addEventListener\('click', \(\) => \{\s*cycleFinalCompressorSidechainSource\(\);/);
     assert.match(indexHtml, /finalCompressorSidechainSource: finalCompressorSidechainSource/);
+    assert.match(indexHtml, /'finalCompressorMakeup',/);
+    assert.match(indexHtml, /finalCompressorMakeup: 100,/);
 });
 
 test('repo export restarts only the live loop layers instead of broad transport restart', () => {
