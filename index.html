@@ -2956,6 +2956,55 @@
             white-space: nowrap;
         }
 
+        .simplified-ui .performance-vu-card {
+            align-content: start;
+        }
+
+        .simplified-ui .performance-vu-shell {
+            position: relative;
+            overflow: hidden;
+            min-height: 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background:
+                linear-gradient(90deg, rgba(126, 255, 178, 0.18) 0%, rgba(255, 215, 113, 0.14) 72%, rgba(255, 116, 145, 0.16) 100%),
+                rgba(0, 0, 0, 0.4);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .simplified-ui .performance-vu-fill {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #55f3a2 0%, #96ff83 48%, #ffe06f 78%, #ff6a8b 100%);
+            box-shadow: 0 0 14px rgba(126, 255, 178, 0.26);
+            transition: width 70ms linear;
+        }
+
+        .simplified-ui .performance-vu-peak {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            left: 0%;
+            width: 2px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
+            transition: left 110ms linear;
+        }
+
+        .simplified-ui .performance-vu-scale {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: rgba(230, 240, 255, 0.52);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
         .simplified-ui .performance-lfo-rate-row {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -4268,6 +4317,29 @@
                             <span class="value" id="performanceMasterTrimValue">-3.0dB</span>
                         </label>
                         <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
+                    </div>
+                    <div class="performance-sound-card performance-vu-card">
+                        <label for="performanceOutputVuShell">
+                            <span>Output VU</span>
+                            <span class="value" id="performanceOutputVuValue">-inf dB</span>
+                        </label>
+                        <div
+                            class="performance-vu-shell"
+                            id="performanceOutputVuShell"
+                            role="meter"
+                            aria-label="Output level meter"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="0"
+                            aria-valuetext="silent"
+                        >
+                            <div class="performance-vu-fill" id="performanceOutputVuFill"></div>
+                            <div class="performance-vu-peak" id="performanceOutputVuPeak"></div>
+                        </div>
+                        <div class="performance-vu-scale" aria-hidden="true">
+                            <span>Silent</span>
+                            <span>0 dB</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -6866,6 +6938,8 @@
         let finalPanTrackedFrequency = 0;
         let finalPanTrackedMotionHz = 0;
         let finalPanTrackedRms = 0;
+        let performanceVuLevel = 0;
+        let performanceVuPeakLevel = 0;
         let finalPanLfoStartTime = 0;
         let distortionNode = null;
         let finalFxInput = null;
@@ -9687,6 +9761,28 @@
             };
         }
 
+        function updatePerformanceVuMeter(rms = 0) {
+            if (!performanceOutputVuShell || !performanceOutputVuFill || !performanceOutputVuPeak || !performanceOutputVuValue) return;
+
+            const safeRms = audioContext && audioContext.state === 'running' && Number.isFinite(rms) ? Math.max(0, rms) : 0;
+            const db = safeRms > 0.00001 ? (20 * Math.log10(safeRms)) : Number.NEGATIVE_INFINITY;
+            const normalized = Number.isFinite(db)
+                ? Math.max(0, Math.min(1, (db + 60) / 60))
+                : 0;
+            const smoothing = normalized > performanceVuLevel ? 0.58 : 0.18;
+            performanceVuLevel += (normalized - performanceVuLevel) * smoothing;
+            performanceVuPeakLevel = Math.max(normalized, performanceVuPeakLevel - 0.022);
+
+            const levelPercent = Math.max(0, Math.min(100, performanceVuLevel * 100));
+            const peakPercent = Math.max(0, Math.min(100, performanceVuPeakLevel * 100));
+
+            performanceOutputVuFill.style.width = `${levelPercent.toFixed(1)}%`;
+            performanceOutputVuPeak.style.left = `${peakPercent.toFixed(1)}%`;
+            performanceOutputVuShell.setAttribute('aria-valuenow', String(Math.round(levelPercent)));
+            performanceOutputVuShell.setAttribute('aria-valuetext', Number.isFinite(db) ? `${db.toFixed(1)} dB` : 'silent');
+            performanceOutputVuValue.textContent = Number.isFinite(db) ? `${db.toFixed(1)} dB` : '-inf dB';
+        }
+
         function getFinalPanOrbitValue(elapsedSeconds) {
             const a = Math.sin(elapsedSeconds * 0.31);
             const b = Math.sin(elapsedSeconds * 0.13 + 1.7);
@@ -9697,6 +9793,7 @@
         function updateFinalOutputPanning() {
             syncFinalPanControlDisplays();
             if (!audioContext || !finalOutputPanner || !finalPanBaseOffsetSource || !finalPanAudioOscillator || !finalPanAudioDepthGain) {
+                updatePerformanceVuMeter(0);
                 return;
             }
 
@@ -9728,6 +9825,7 @@
                 finalPanTrackedFrequency = 0;
             }
             finalPanTrackedRms = finalPanTrackedRms * 0.72 + analysis.rms * 0.28;
+            updatePerformanceVuMeter(finalPanTrackedRms);
 
             const motionDivider = getFinalPanAudioDivider();
             const rawMotionHz = finalPanTrackedFrequency > 0 ? finalPanTrackedFrequency / motionDivider : 0;
@@ -23798,6 +23896,10 @@
         const performanceInputTrim = document.getElementById('performanceInputTrim');
         const performancePostFilterTrim = document.getElementById('performancePostFilterTrim');
         const performanceMasterTrim = document.getElementById('performanceMasterTrim');
+        const performanceOutputVuShell = document.getElementById('performanceOutputVuShell');
+        const performanceOutputVuFill = document.getElementById('performanceOutputVuFill');
+        const performanceOutputVuPeak = document.getElementById('performanceOutputVuPeak');
+        const performanceOutputVuValue = document.getElementById('performanceOutputVuValue');
         const performanceClickGuard = document.getElementById('performanceClickGuard');
         const performanceOctaveDownBtn = document.getElementById('performanceOctaveDownBtn');
         const performanceOctaveUpBtn = document.getElementById('performanceOctaveUpBtn');

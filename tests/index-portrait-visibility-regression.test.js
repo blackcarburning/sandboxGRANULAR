@@ -895,6 +895,22 @@ test('randomize controls use the green action styling', () => {
     assert.match(indexHtml, /background: linear-gradient\(135deg, #98ff9f 0%, #38d96b 52%, #0db44a 100%\);/);
 });
 
+test('mix and trim card exposes an analyser-driven output vu meter', () => {
+    assert.match(indexHtml, /class="performance-sound-card performance-vu-card"/);
+    assert.match(indexHtml, /id="performanceOutputVuShell"/);
+    assert.match(indexHtml, /id="performanceOutputVuFill"/);
+    assert.match(indexHtml, /id="performanceOutputVuPeak"/);
+    assert.match(indexHtml, /id="performanceOutputVuValue">-inf dB<\/span>/);
+    assert.match(indexHtml, /\.simplified-ui \.performance-vu-shell \{/);
+    assert.match(indexHtml, /\.simplified-ui \.performance-vu-fill \{/);
+    assert.match(indexHtml, /\.simplified-ui \.performance-vu-peak \{/);
+    assert.match(indexHtml, /function updatePerformanceVuMeter\(rms = 0\)/);
+    assert.match(indexHtml, /const db = safeRms > 0\.00001 \? \(20 \* Math\.log10\(safeRms\)\) : Number\.NEGATIVE_INFINITY;/);
+    assert.match(indexHtml, /performanceOutputVuFill\.style\.width = `\$\{levelPercent\.toFixed\(1\)\}%`;/);
+    assert.match(indexHtml, /performanceOutputVuPeak\.style\.left = `\$\{peakPercent\.toFixed\(1\)\}%`;/);
+    assert.match(indexHtml, /updatePerformanceVuMeter\(finalPanTrackedRms\);/);
+});
+
 test('repo export restarts only the live loop layers instead of broad transport restart', () => {
     assert.match(indexHtml, /async function renderDawReadyBarsExport\(\)/);
     assert.match(indexHtml, /const wasBastardLoopALive = Boolean\(bastardLoopSource\)/);
