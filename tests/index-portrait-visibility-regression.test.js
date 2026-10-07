@@ -480,7 +480,7 @@ test('generate source restarts active loop playback after replacing the source',
 test('randomize patch automatically generates a new performance loop', () => {
     assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{/);
     assert.match(indexHtml, /function applyRandomizeFinalCompressorDefaults\(\)/);
-    assert.match(indexHtml, /setSliderValue\('finalCompressorAmount', 50\);/);
+    assert.match(indexHtml, /setSliderValue\('finalCompressorAmount', 0\);/);
     assert.match(indexHtml, /setSliderValue\('finalSidechainAmount', 0\);/);
     assert.match(indexHtml, /setFinalCompressorSidechainSource\('off', \{ silent: true, skipSave: true \}\);/);
     assert.match(indexHtml, /async function runPatchRandomization\(\) \{\s*applyRandomizeFinalCompressorDefaults\(\);/);
