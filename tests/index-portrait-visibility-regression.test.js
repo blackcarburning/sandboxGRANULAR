@@ -839,6 +839,20 @@ test('repo export restarts only the live loop layers instead of broad transport 
     assert.doesNotMatch(indexHtml, /async function renderDawReadyBarsExport\(\)[\s\S]*restartAllTransport\(\{ silent: true \}\)/);
 });
 
+test('bastardloops resolve loop length from musical duration instead of raw tail length', () => {
+    assert.match(indexHtml, /function getLoopBarDurationSeconds\(sourceBpm = null\)/);
+    assert.match(indexHtml, /function resolveLoopDurationSeconds\(bufferDurationSeconds, options = \{\}\)/);
+    assert.match(indexHtml, /durationSeconds: Number\(metadata\?\.durationSeconds\) \|\| buffer\.duration/);
+    assert.match(indexHtml, /bastardLoopSourceBpm: bastardLoopSourceBpm/);
+    assert.match(indexHtml, /bastardLoop2SourceBpm: bastardLoop2SourceBpm/);
+    assert.match(indexHtml, /bastardLoop3SourceBpm: bastardLoop3SourceBpm/);
+    assert.match(indexHtml, /dropboxSampleLayerSourceBpm: dropboxSampleLayerSourceBpm/);
+    assert.match(indexHtml, /const loopDuration = getResolvedBastardLoopDuration\(playbackBuffer\);/);
+    assert.match(indexHtml, /const loopDuration = getResolvedBastardLoop2Duration\(playbackBuffer\);/);
+    assert.match(indexHtml, /const loopDuration = getResolvedBastardLoop3Duration\(playbackBuffer\);/);
+    assert.match(indexHtml, /const loopDuration = getResolvedDropboxSampleLayerDuration\(dropboxSampleLayerBuffer\);/);
+});
+
 test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup controls', () => {
     assert.match(indexHtml, /\.sample-browser-overlay\s*\{[\s\S]*z-index:\s*2147483300;/);
     assert.match(indexHtml, /\.drum-machine-overlay\s*\{[\s\S]*z-index:\s*2147483200;/);

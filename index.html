@@ -8773,25 +8773,33 @@
                     if (shouldRestoreBastardLoop) {
                         bastardLoopBuffer = restoredBastardLoopBuffer;
                         bastardLoopMetadata = {
-                            summary: `${restoredBastardLoopBuffer.duration.toFixed(2)}s · restored`
+                            summary: `${restoredBastardLoopBuffer.duration.toFixed(2)}s · restored`,
+                            durationSeconds: restoredBastardLoopBuffer.duration,
+                            bpm: bastardLoopSourceBpm
                         };
                     }
                     if (shouldRestoreBastardLoop2) {
                         bastardLoop2Buffer = restoredBastardLoop2Buffer;
                         bastardLoop2Metadata = {
-                            summary: `${restoredBastardLoop2Buffer.duration.toFixed(2)}s · restored`
+                            summary: `${restoredBastardLoop2Buffer.duration.toFixed(2)}s · restored`,
+                            durationSeconds: restoredBastardLoop2Buffer.duration,
+                            bpm: bastardLoop2SourceBpm
                         };
                     }
                     if (shouldRestoreBastardLoop3) {
                         bastardLoop3Buffer = restoredBastardLoop3Buffer;
                         bastardLoop3Metadata = {
-                            summary: `${restoredBastardLoop3Buffer.duration.toFixed(2)}s · restored`
+                            summary: `${restoredBastardLoop3Buffer.duration.toFixed(2)}s · restored`,
+                            durationSeconds: restoredBastardLoop3Buffer.duration,
+                            bpm: bastardLoop3SourceBpm
                         };
                     }
                     if (shouldRestoreDropboxSampleLayer) {
                         dropboxSampleLayerRawBuffer = restoredDropboxSampleLayerBuffer;
                         dropboxSampleLayerMetadata = {
-                            summary: `${restoredDropboxSampleLayerBuffer.duration.toFixed(2)}s source · restored`
+                            summary: `${restoredDropboxSampleLayerBuffer.duration.toFixed(2)}s source · restored`,
+                            durationSeconds: restoredDropboxSampleLayerBuffer.duration,
+                            bpm: dropboxSampleLayerSourceBpm
                         };
                         rerenderDropboxSampleLayerFromRaw({ skipUi: true });
                     }
@@ -11110,6 +11118,30 @@
             return Math.max(0.25, Math.min(4, currentBpm / safeSourceBpm));
         }
 
+        function getLoopBarDurationSeconds(sourceBpm = null) {
+            const bpmValue = clampBpmValue(sourceBpm || document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            return (60 / bpmValue) * 4;
+        }
+
+        function resolveLoopDurationSeconds(bufferDurationSeconds, options = {}) {
+            const safeBufferDuration = Math.max(0.01, Number(bufferDurationSeconds) || 0.01);
+            const metadataDuration = Number(options.metadata?.durationSeconds);
+            const sourceBpm = Number(options.sourceBpm);
+            let expectedDuration = null;
+
+            if (Number.isFinite(metadataDuration) && metadataDuration > 0.01) {
+                expectedDuration = metadataDuration;
+            } else if (Number.isFinite(sourceBpm) && sourceBpm > 0) {
+                expectedDuration = getLoopBarDurationSeconds(sourceBpm);
+            }
+
+            if (!Number.isFinite(expectedDuration) || expectedDuration <= 0.01) {
+                return safeBufferDuration;
+            }
+
+            return Math.max(0.01, Math.min(safeBufferDuration, expectedDuration));
+        }
+
         function getBastardLoopPlaybackBufferForMode(sourceBuffer, pitchRatio = 1, options = {}) {
             if (!sourceBuffer) return null;
             const preserveDuration = options.preserveDuration !== false;
@@ -11239,8 +11271,7 @@
         }
 
         function getDropboxSampleLayerBarDuration(sourceBpm = null) {
-            const bpmValue = clampBpmValue(sourceBpm || document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-            return (60 / bpmValue) * 4;
+            return getLoopBarDurationSeconds(sourceBpm);
         }
 
         function renderDropboxSampleLayerBuffer() {
@@ -11296,8 +11327,15 @@
             return getBastardLoopTempoRate(dropboxSampleLayerSourceBpm);
         }
 
+        function getResolvedDropboxSampleLayerDuration(playbackBuffer = dropboxSampleLayerBuffer) {
+            return resolveLoopDurationSeconds(playbackBuffer?.duration || 0.01, {
+                metadata: { durationSeconds: getDropboxSampleLayerBarDuration(dropboxSampleLayerSourceBpm) },
+                sourceBpm: dropboxSampleLayerSourceBpm
+            });
+        }
+
         function getDropboxSampleLayerCycleDuration(playbackRate = getDropboxSampleLayerPlaybackRate()) {
-            const loopDuration = Math.max(0.01, dropboxSampleLayerBuffer?.duration || 0.01);
+            const loopDuration = getResolvedDropboxSampleLayerDuration(dropboxSampleLayerBuffer);
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
 
@@ -11359,9 +11397,15 @@
             return Math.max(0.25, Math.min(4, tempoRate * pitchRate));
         }
 
+        function getResolvedBastardLoopDuration(playbackBuffer = getBastardLoopPlaybackBuffer()) {
+            return resolveLoopDurationSeconds(playbackBuffer?.duration || 0.01, {
+                metadata: bastardLoopMetadata,
+                sourceBpm: bastardLoopSourceBpm
+            });
+        }
+
         function getBastardLoopCycleDuration(playbackRate = getBastardLoopPlaybackRate()) {
-            const playbackBuffer = getBastardLoopPlaybackBuffer();
-            const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
+            const loopDuration = getResolvedBastardLoopDuration();
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
 
@@ -11483,7 +11527,7 @@
                 ? startTime
                 : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const playbackRate = getBastardLoopPlaybackRate();
-            const loopDuration = Math.max(0.01, playbackBuffer.duration);
+            const loopDuration = getResolvedBastardLoopDuration(playbackBuffer);
             const cycleDuration = getBastardLoopCycleDuration(playbackRate);
             const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
@@ -11574,9 +11618,15 @@
             return Math.max(0.25, Math.min(4, tempoRate * pitchRate));
         }
 
+        function getResolvedBastardLoop2Duration(playbackBuffer = getBastardLoop2PlaybackBuffer()) {
+            return resolveLoopDurationSeconds(playbackBuffer?.duration || 0.01, {
+                metadata: bastardLoop2Metadata,
+                sourceBpm: bastardLoop2SourceBpm
+            });
+        }
+
         function getBastardLoop2CycleDuration(playbackRate = getBastardLoop2PlaybackRate()) {
-            const playbackBuffer = getBastardLoop2PlaybackBuffer();
-            const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
+            const loopDuration = getResolvedBastardLoop2Duration();
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
 
@@ -11697,7 +11747,7 @@
                 ? startTime
                 : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const playbackRate = getBastardLoop2PlaybackRate();
-            const loopDuration = Math.max(0.01, playbackBuffer.duration);
+            const loopDuration = getResolvedBastardLoop2Duration(playbackBuffer);
             const cycleDuration = getBastardLoop2CycleDuration(playbackRate);
             const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
@@ -11780,9 +11830,15 @@
             return Math.max(0.25, Math.min(4, tempoRate * pitchRate));
         }
 
+        function getResolvedBastardLoop3Duration(playbackBuffer = getBastardLoop3PlaybackBuffer()) {
+            return resolveLoopDurationSeconds(playbackBuffer?.duration || 0.01, {
+                metadata: bastardLoop3Metadata,
+                sourceBpm: bastardLoop3SourceBpm
+            });
+        }
+
         function getBastardLoop3CycleDuration(playbackRate = getBastardLoop3PlaybackRate()) {
-            const playbackBuffer = getBastardLoop3PlaybackBuffer();
-            const loopDuration = Math.max(0.01, playbackBuffer?.duration || 0.01);
+            const loopDuration = getResolvedBastardLoop3Duration();
             return Math.max(0.01, loopDuration / Math.max(0.001, playbackRate));
         }
 
@@ -11896,7 +11952,7 @@
                 ? startTime
                 : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const playbackRate = getBastardLoop3PlaybackRate();
-            const loopDuration = Math.max(0.01, playbackBuffer.duration);
+            const loopDuration = getResolvedBastardLoop3Duration(playbackBuffer);
             const cycleDuration = getBastardLoop3CycleDuration(playbackRate);
             const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
@@ -12031,7 +12087,7 @@
                 ? startTime
                 : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const playbackRate = getDropboxSampleLayerPlaybackRate();
-            const loopDuration = Math.max(0.01, dropboxSampleLayerBuffer.duration);
+            const loopDuration = getResolvedDropboxSampleLayerDuration(dropboxSampleLayerBuffer);
             const cycleDuration = getDropboxSampleLayerCycleDuration(playbackRate);
             const fadeSeconds = getFadeSecondsForDuration(cycleDuration);
             let safeStartTime = now;
@@ -12129,6 +12185,8 @@
                 sourceLabel: metadata.sourceLabel || getDropboxSampleLayerSourceLabel(metadata.sourceKey),
                 fileName: metadata.fileName || metadata.filename || 'sample',
                 relativePath: metadata.relativePath || '',
+                durationSeconds: Number(metadata.durationSeconds) || getDropboxSampleLayerBarDuration(),
+                bpm: Number(metadata.bpm) || dropboxSampleLayerSourceBpm,
                 summary: metadata.summary || `${metadata.fileName || metadata.filename || 'sample'} · ${metadata.sourceLabel || getDropboxSampleLayerSourceLabel(metadata.sourceKey)}`
             };
             rerenderDropboxSampleLayerFromRaw({ skipUi: true });
@@ -13413,13 +13471,16 @@
                 throw new Error(`Bastardloop B audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
             }
 
-            bastardLoop2Buffer = buffer;
-            bastardLoop2Metadata = metadata || {
-                summary: `${buffer.duration.toFixed(2)}s · ready`
-            };
             if (Number.isFinite(Number(metadata?.bpm))) {
                 bastardLoop2SourceBpm = clampBpmValue(metadata.bpm);
             }
+            bastardLoop2Buffer = buffer;
+            bastardLoop2Metadata = {
+                ...(metadata || {}),
+                summary: metadata?.summary || `${buffer.duration.toFixed(2)}s · ready`,
+                durationSeconds: Number(metadata?.durationSeconds) || buffer.duration,
+                bpm: Number(metadata?.bpm) || bastardLoop2SourceBpm
+            };
             await saveAudioBufferToDB(bastardLoop2Buffer, BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
             syncBastardLoop2Ui();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s).`);
@@ -13436,13 +13497,16 @@
                 throw new Error(`Bastardloop C audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
             }
 
-            bastardLoop3Buffer = buffer;
-            bastardLoop3Metadata = metadata || {
-                summary: `${buffer.duration.toFixed(2)}s · ready`
-            };
             if (Number.isFinite(Number(metadata?.bpm))) {
                 bastardLoop3SourceBpm = clampBpmValue(metadata.bpm);
             }
+            bastardLoop3Buffer = buffer;
+            bastardLoop3Metadata = {
+                ...(metadata || {}),
+                summary: metadata?.summary || `${buffer.duration.toFixed(2)}s · ready`,
+                durationSeconds: Number(metadata?.durationSeconds) || buffer.duration,
+                bpm: Number(metadata?.bpm) || bastardLoop3SourceBpm
+            };
             await saveAudioBufferToDB(bastardLoop3Buffer, BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
             syncBastardLoop3Ui();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s).`);
@@ -13583,13 +13647,16 @@
                 throw new Error(`Bastardloop audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
             }
 
-            bastardLoopBuffer = buffer;
-            bastardLoopMetadata = metadata || {
-                summary: `${buffer.duration.toFixed(2)}s · ready`
-            };
             if (Number.isFinite(Number(metadata?.bpm))) {
                 bastardLoopSourceBpm = clampBpmValue(metadata.bpm);
             }
+            bastardLoopBuffer = buffer;
+            bastardLoopMetadata = {
+                ...(metadata || {}),
+                summary: metadata?.summary || `${buffer.duration.toFixed(2)}s · ready`,
+                durationSeconds: Number(metadata?.durationSeconds) || buffer.duration,
+                bpm: Number(metadata?.bpm) || bastardLoopSourceBpm
+            };
             await saveAudioBufferToDB(bastardLoopBuffer, BASTARD_LOOP_AUDIO_BUFFER_KEY);
             syncBastardLoopUi();
             setStatus(`${sourceLabel} ready (${buffer.duration.toFixed(2)}s).`);
@@ -21360,17 +21427,21 @@
                     generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                     generatedDryLoopEnabled: generatedDryLoopEnabled,
                     bastardLoopEnabled: bastardLoopEnabled,
+                    bastardLoopSourceBpm: bastardLoopSourceBpm,
                     bastardLoopDivisions: getSelectedBastardLoopDivisions({ ensureDefault: false }),
                     bastardLoopPitchAffectsDuration: bastardLoopPitchAffectsDuration,
                     bastardLoop2Enabled: bastardLoop2Enabled,
+                    bastardLoop2SourceBpm: bastardLoop2SourceBpm,
                     bastardLoop2Divisions: getSelectedBastardLoop2Divisions({ ensureDefault: false }),
                     bastardLoop2PitchAffectsDuration: bastardLoop2PitchAffectsDuration,
                     bastardLoop2Reverse: bastardLoop2Reverse,
                     bastardLoop3Enabled: bastardLoop3Enabled,
+                    bastardLoop3SourceBpm: bastardLoop3SourceBpm,
                     bastardLoop3Divisions: getSelectedBastardLoop3Divisions({ ensureDefault: false }),
                     bastardLoop3PitchAffectsDuration: bastardLoop3PitchAffectsDuration,
                     bastardLoop3Reverse: bastardLoop3Reverse,
                     dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
+                    dropboxSampleLayerSourceBpm: dropboxSampleLayerSourceBpm,
                     dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
                     drumMachineEnabled: drumMachineEnabled,
                     drumMachineKickPattern: drumMachineKickPattern.slice(),
@@ -21571,6 +21642,9 @@
                     if (state.modes.bastardLoopEnabled !== undefined) {
                         setBastardLoopEnabled(state.modes.bastardLoopEnabled, { silent: true, skipSave: true });
                     }
+                    if (state.modes.bastardLoopSourceBpm !== undefined) {
+                        bastardLoopSourceBpm = clampBpmValue(state.modes.bastardLoopSourceBpm, bastardLoopSourceBpm);
+                    }
                     if (state.modes.bastardLoopDivisions !== undefined) {
                         applyBastardLoopDivisionSelection(state.modes.bastardLoopDivisions, { save: false });
                     }
@@ -21579,6 +21653,9 @@
                     }
                     if (state.modes.bastardLoop2Enabled !== undefined) {
                         setBastardLoop2Enabled(state.modes.bastardLoop2Enabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoop2SourceBpm !== undefined) {
+                        bastardLoop2SourceBpm = clampBpmValue(state.modes.bastardLoop2SourceBpm, bastardLoop2SourceBpm);
                     }
                     if (state.modes.bastardLoop2Divisions !== undefined) {
                         applyBastardLoop2DivisionSelection(state.modes.bastardLoop2Divisions, { save: false });
@@ -21592,6 +21669,9 @@
                     if (state.modes.bastardLoop3Enabled !== undefined) {
                         setBastardLoop3Enabled(state.modes.bastardLoop3Enabled, { silent: true, skipSave: true });
                     }
+                    if (state.modes.bastardLoop3SourceBpm !== undefined) {
+                        bastardLoop3SourceBpm = clampBpmValue(state.modes.bastardLoop3SourceBpm, bastardLoop3SourceBpm);
+                    }
                     if (state.modes.bastardLoop3Divisions !== undefined) {
                         applyBastardLoop3DivisionSelection(state.modes.bastardLoop3Divisions, { save: false });
                     }
@@ -21603,6 +21683,9 @@
                     }
                     if (state.modes.dropboxSampleLayerEnabled !== undefined) {
                         setDropboxSampleLayerEnabled(state.modes.dropboxSampleLayerEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.dropboxSampleLayerSourceBpm !== undefined) {
+                        dropboxSampleLayerSourceBpm = clampBpmValue(state.modes.dropboxSampleLayerSourceBpm, dropboxSampleLayerSourceBpm);
                     }
                     if (state.modes.dropboxSampleLayerStretchToLoop !== undefined) {
                         dropboxSampleLayerStretchToLoop = Boolean(state.modes.dropboxSampleLayerStretchToLoop);
