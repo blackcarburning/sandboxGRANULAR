@@ -7034,6 +7034,7 @@
         let finalCompressorDriveGain = null;
         let finalCompressorNode = null;
         let finalCompressorMakeupGain = null;
+        let finalCompressorReductionGain = null;
         let finalSidechainGain = null;
         let finalCompressorSidechainSource = 'off';
         let finalSidechainKickEvents = [];
@@ -9239,6 +9240,8 @@
             finalCompressorNode.release.value = 0.26;
             finalCompressorMakeupGain = audioContext.createGain();
             finalCompressorMakeupGain.gain.value = 1;
+            finalCompressorReductionGain = audioContext.createGain();
+            finalCompressorReductionGain.gain.value = 1;
             finalSidechainGain = audioContext.createGain();
             finalSidechainGain.gain.value = 1;
             finalAmplifierNode = audioContext.createGain();
@@ -9258,7 +9261,8 @@
             finalOutputPanner.connect(finalCompressorDriveGain);
             finalCompressorDriveGain.connect(finalCompressorNode);
             finalCompressorNode.connect(finalCompressorMakeupGain);
-            finalCompressorMakeupGain.connect(finalSidechainGain);
+            finalCompressorMakeupGain.connect(finalCompressorReductionGain);
+            finalCompressorReductionGain.connect(finalSidechainGain);
             finalSidechainGain.connect(finalAmplifierNode);
             finalKickBypassMasterGain.connect(finalKickBypassPanner);
             finalKickBypassPanner.connect(finalPanAnalyser);
@@ -9885,6 +9889,16 @@
             };
         }
 
+        function getFinalCompressorReductionFollowGain(amount = 0) {
+            const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
+            if (!finalCompressorNode || safeAmount <= 0.001) return 1;
+            const reductionDb = Math.max(0, -Number(finalCompressorNode.reduction) || 0);
+            if (reductionDb <= 0.001) return 1;
+            const reductionWeight = 0.18 + (Math.pow(safeAmount, 0.9) * 1.45);
+            const effectiveReductionDb = reductionDb * reductionWeight;
+            return Math.max(0.03, Math.pow(10, -effectiveReductionDb / 20));
+        }
+
         function getFinalCompressorSidechainAmount() {
             return getSliderPercent('finalSidechainAmount');
         }
@@ -10217,6 +10231,7 @@
             smoothRamp(finalCompressorNode?.attack, compressorSettings.attack);
             smoothRamp(finalCompressorNode?.release, compressorSettings.release);
             smoothRamp(finalCompressorMakeupGain?.gain, compressorSettings.makeup);
+            smoothRamp(finalCompressorReductionGain?.gain, getFinalCompressorReductionFollowGain(compressorAmount));
 
             const sidechainAmount = fxMuted ? 0 : getFinalCompressorSidechainAmount();
             const detector = sidechainAmount > 0.001 ? getFinalCompressorSidechainDetector(now) : 0;
