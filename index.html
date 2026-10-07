@@ -10404,12 +10404,13 @@
             const cloudSizeScale = modeProfile?.mode === 'cloud'
                 ? Math.max(1, Number(modeProfile.sourceSizeScale) || 1)
                 : 1;
+            const maxSourceSizeSeconds = modeProfile?.mode === 'cloud' ? 1.1 : 0.7;
             const sourceAttack = Math.max(minimumFade, baseEnvelope.attack * attackScale * cloudFadeScale);
             const sourceRelease = Math.max(minimumFade, baseEnvelope.release * releaseScale * cloudFadeScale);
 
             return {
                 positionPct: wrapUnitInterval((Number(voice.positionPct) || 0) + positionOffset),
-                sizeSeconds: Math.max(0.01, Math.min(0.7, (Number(voice.sizeSeconds) || 0.1) * scale * cloudSizeScale)),
+                sizeSeconds: Math.max(0.01, Math.min(maxSourceSizeSeconds, (Number(voice.sizeSeconds) || 0.1) * scale * cloudSizeScale)),
                 sourceAttack,
                 sourceRelease
             };
@@ -10586,21 +10587,21 @@
             }
             return {
                 mode: 'cloud',
-                minGrainSize: 0.2,
-                maxGrainSize: 0.58,
-                minAttack: 0.06,
-                minRelease: 0.16,
-                releaseRatio: 0.96,
-                sprayScale: 0.18,
-                dryMixCap: 0.24,
-                intervalScale: 1.9,
-                jitterAmount: 0.5,
-                positionDriftMin: 0.05,
-                positionDriftMax: 0.34,
-                continuousTravelRate: 0.18,
-                continuousTravelDrift: 0.08,
-                sourceSizeScale: 1.22,
-                sourceFadeScale: 1.28
+                minGrainSize: 0.24,
+                maxGrainSize: 0.72,
+                minAttack: 0.035,
+                minRelease: 0.32,
+                releaseRatio: 1.45,
+                sprayScale: 0.24,
+                dryMixCap: 0.18,
+                intervalScale: 3.4,
+                jitterAmount: 0.18,
+                positionDriftMin: 0.09,
+                positionDriftMax: 0.46,
+                continuousTravelRate: 0.24,
+                continuousTravelDrift: 0.14,
+                sourceSizeScale: 1.55,
+                sourceFadeScale: 1.9
             };
         }
 
@@ -14828,9 +14829,12 @@
             const slowDrift = Math.sin((elapsed * 0.17) + state.seedA) * driftRange;
             const slowerDrift = Math.sin((elapsed * 0.071) + state.seedB) * driftRange * 0.65;
             const microDrift = modeProfile.mode === 'cloud'
-                ? Math.sin((elapsed * 0.41) + state.seedA + state.seedB) * 0.012
+                ? Math.sin((elapsed * 0.41) + state.seedA + state.seedB) * Math.min(0.028, driftRange * 0.16)
                 : 0;
-            return wrapUnitInterval(base + slowDrift + slowerDrift + microDrift);
+            const bloomDrift = modeProfile.mode === 'cloud'
+                ? Math.sin((elapsed * 0.23) + (state.seedA * 0.7) + state.seedB) * Math.min(0.032, driftRange * 0.22)
+                : 0;
+            return wrapUnitInterval(base + slowDrift + slowerDrift + microDrift + bloomDrift);
         }
 
         function getCloudContinuousAdvanceRate(grainInfo, scheduledTime, modeProfile) {
@@ -14847,7 +14851,8 @@
             const seedB = state?.seedB ?? 0;
             const slowMotion = Math.sin((elapsed * 0.11) + seedA) * driftAmount;
             const slowerMotion = Math.sin((elapsed * 0.043) + seedB) * driftAmount * 0.55;
-            return Math.max(0.04, baseRate + slowMotion + slowerMotion);
+            const bloomMotion = Math.sin((elapsed * 0.19) + (seedA * 0.6) + (seedB * 0.4)) * driftAmount * 0.28;
+            return Math.max(0.035, baseRate + slowMotion + slowerMotion + bloomMotion);
         }
 
         function getSecondaryGrainSynthVoices(baseRate) {
@@ -18361,7 +18366,9 @@
             const density = Math.max(1, Number(densityValue ?? getModulatedValue('density')) || 1);
             const effectiveDensity = Math.max(1, density * (modeProfile.intervalScale || 1));
             const interval = 1 / effectiveDensity;
-            return Math.max(0.018, Math.min(0.22, interval));
+            const minInterval = modeProfile?.mode === 'cloud' ? 0.012 : 0.018;
+            const maxInterval = modeProfile?.mode === 'cloud' ? 0.14 : 0.22;
+            return Math.max(minInterval, Math.min(maxInterval, interval));
         }
 
         function getGrainSchedulerIntervalSeconds(densityValue, modeProfile) {

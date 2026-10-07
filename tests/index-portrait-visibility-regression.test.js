@@ -795,6 +795,25 @@ test('cloud grain mode loops against the real source window instead of tiny trim
     assert.match(indexHtml, /source\.loopEnd = Math\.max\(source\.loopStart \+ 0\.001, sampleWindow\.endTime\);/);
 });
 
+test('cloud grain mode is tuned for smoother ethereal overlap and motion', () => {
+    assert.match(indexHtml, /minGrainSize: 0\.24/);
+    assert.match(indexHtml, /maxGrainSize: 0\.72/);
+    assert.match(indexHtml, /minRelease: 0\.32/);
+    assert.match(indexHtml, /releaseRatio: 1\.45/);
+    assert.match(indexHtml, /intervalScale: 3\.4/);
+    assert.match(indexHtml, /jitterAmount: 0\.18/);
+    assert.match(indexHtml, /positionDriftMin: 0\.09/);
+    assert.match(indexHtml, /positionDriftMax: 0\.46/);
+    assert.match(indexHtml, /continuousTravelRate: 0\.24/);
+    assert.match(indexHtml, /continuousTravelDrift: 0\.14/);
+    assert.match(indexHtml, /sourceSizeScale: 1\.55/);
+    assert.match(indexHtml, /sourceFadeScale: 1\.9/);
+    assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud' \? 1\.1 : 0\.7;/);
+    assert.match(indexHtml, /const maxInterval = modeProfile\?\.mode === 'cloud' \? 0\.14 : 0\.22;/);
+    assert.match(indexHtml, /const bloomDrift = modeProfile\.mode === 'cloud'/);
+    assert.match(indexHtml, /const bloomMotion = Math\.sin\(\(elapsed \* 0\.19\)/);
+});
+
 test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {
     assert.doesNotMatch(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="generatedLoopEnd" data-lfo="2"/);
