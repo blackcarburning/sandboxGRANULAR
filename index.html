@@ -2568,8 +2568,7 @@
         }
 
         .simplified-ui .performance-controls,
-        .simplified-ui .recording-section,
-        .simplified-ui .keyboard-section {
+        .simplified-ui .recording-section {
             border: 1px solid rgba(255, 255, 255, 0.08);
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
             box-shadow: 0 18px 34px rgba(0, 0, 0, 0.26);
@@ -2714,6 +2713,10 @@
 
         .simplified-ui .performance-feature-card .performance-btn {
             min-width: 164px;
+        }
+
+        .simplified-ui .performance-keyboard-card {
+            justify-items: center;
         }
 
         .simplified-ui .performance-mixer-grid,
@@ -3250,20 +3253,26 @@
             right: auto !important;
             top: auto !important;
             bottom: max(6px, env(safe-area-inset-bottom)) !important;
-            width: 100%;
+            width: min(100%, 760px);
+            max-width: 760px;
             min-height: clamp(170px, 34svh, 260px);
             height: auto;
             flex: none;
             order: 2;
-            padding: 14px;
+            margin: 0 auto;
+            padding: 12px 10px 6px;
             gap: 10px;
             align-items: stretch;
-            border-radius: 22px;
+            border-radius: 18px;
             z-index: 20;
             overflow: visible;
             overscroll-behavior-x: contain;
             -webkit-overflow-scrolling: touch;
             touch-action: pan-x;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(5, 8, 15, 0.42);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(10px);
         }
 
         .simplified-ui .keyboard {
@@ -3272,8 +3281,8 @@
             grid-row: 1;
             justify-self: center;
             justify-content: center;
-            width: 75% !important;
-            min-width: 75%;
+            width: min(100%, 580px) !important;
+            min-width: 0;
             height: var(--keyboard-key-height);
             min-height: var(--keyboard-key-height);
             align-self: stretch;
@@ -3514,7 +3523,9 @@
             .simplified-ui .keyboard-section {
                 --keyboard-key-height: 164px;
                 min-height: 232px;
-                padding: 8px;
+                width: 100%;
+                max-width: 100%;
+                padding: 10px 8px 6px;
                 order: 1;
             }
         }
@@ -3560,7 +3571,9 @@
                 min-height: 148px;
                 height: auto;
                 order: 1;
-                border-radius: 8px 8px 0 0;
+                width: 100%;
+                max-width: 100%;
+                border-radius: 14px;
             }
 
             .simplified-ui .performance-controls {
@@ -4110,6 +4123,55 @@
                     <button class="performance-btn" id="performancePanicBtn">Panic</button>
                 </div>
             </div>
+            <div class="performance-feature-card performance-export-card" aria-label="Export controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Export</div>
+                        <h3 class="performance-feature-title">Export Length</h3>
+                        <p class="performance-feature-note">Keep the final render bar count directly under the main performance actions so export setup is easy to spot without digging through the mix controls.</p>
+                    </div>
+                </div>
+                <div class="performance-sound-controls" aria-label="Export controls">
+                    <div class="performance-sound-card">
+                        <label for="performanceExportBars">
+                            <span>Export Bars</span>
+                            <span class="value" id="performanceExportBarsValue">2 bars</span>
+                        </label>
+                        <input type="number" id="performanceExportBars" min="1" max="64" value="2" step="1" inputmode="numeric">
+                    </div>
+                </div>
+            </div>
+            <div class="performance-feature-card performance-keyboard-card" aria-label="Keyboard controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Keyboard</div>
+                        <h3 class="performance-feature-title">Play Surface</h3>
+                        <p class="performance-feature-note">Keep the live keyboard, hold, arp, octave, and transport-ready play controls inside a cleaner card with some breathing room on phone screens.</p>
+                    </div>
+                </div>
+                <div class="keyboard-section">
+                    <div class="octave-controls">
+                        <button class="octave-btn" id="octaveUpBtn">+</button>
+                        <div class="octave-display" id="octaveDisplay">Oct: 0</div>
+                        <button class="octave-btn" id="octaveDownBtn">-</button>
+                    </div>
+                    <div class="volume-bias-container">
+                        <label>Vol Bias</label>
+                        <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
+                        <div style="font-size: 8px; color: #666;">
+                            <div>Treble</div>
+                            <div style="margin-top: 40px;">Bass</div>
+                        </div>
+                    </div>
+                    <button class="hold-btn" id="holdBtn">Hold</button>
+                    <button class="hold-btn" id="arpBtn">Arp</button>
+                    <button class="arp-clock-btn" id="arpClockMultiplierBtn" title="Arpeggiator clock multiplier">Mul 1x</button>
+                    <button class="arp-clock-btn" id="arpModeBtn" title="Arpeggiator direction mode">Arp Up</button>
+                    <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
+                    <div class="keyboard" id="keyboardContainer">
+                    </div>
+                </div>
+            </div>
             <div class="performance-feature-card" aria-label="Grain controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
@@ -4206,13 +4268,6 @@
                             <span class="value" id="performanceMasterTrimValue">-3.0dB</span>
                         </label>
                         <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
-                    </div>
-                    <div class="performance-sound-card">
-                        <label for="performanceExportBars">
-                            <span>Export Bars</span>
-                            <span class="value" id="performanceExportBarsValue">2 bars</span>
-                        </label>
-                        <input type="number" id="performanceExportBars" min="1" max="64" value="2" step="1" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -4402,28 +4457,6 @@
                         <button class="performance-octave-btn" id="performanceOctaveDownBtn">-</button>
                         <button class="performance-octave-btn" id="performanceOctaveUpBtn">+</button>
                     </div>
-                </div>
-            </div>
-            <div class="keyboard-section">
-                <div class="octave-controls">
-                    <button class="octave-btn" id="octaveUpBtn">+</button>
-                    <div class="octave-display" id="octaveDisplay">Oct: 0</div>
-                    <button class="octave-btn" id="octaveDownBtn">-</button>
-                </div>
-                <div class="volume-bias-container">
-                    <label>Vol Bias</label>
-                    <input type="range" id="volumeBiasSlider" min="-100" max="100" value="0" step="1" orient="vertical">
-                    <div style="font-size: 8px; color: #666;">
-                        <div>Treble</div>
-                        <div style="margin-top: 40px;">Bass</div>
-                    </div>
-                </div>
-                <button class="hold-btn" id="holdBtn">Hold</button>
-                <button class="hold-btn" id="arpBtn">Arp</button>
-                <button class="arp-clock-btn" id="arpClockMultiplierBtn" title="Arpeggiator clock multiplier">Mul 1x</button>
-                <button class="arp-clock-btn" id="arpModeBtn" title="Arpeggiator direction mode">Arp Up</button>
-                <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
-                <div class="keyboard" id="keyboardContainer">
                 </div>
             </div>
             <div class="performance-feature-card internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">

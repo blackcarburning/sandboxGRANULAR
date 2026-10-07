@@ -25,10 +25,10 @@ test('stale orientation-overlay css selectors are removed', () => {
     );
 });
 
-test('keyboard is not nested inside the hidden simplified controls panel', () => {
+test('keyboard lives in its own simplified feature card instead of a loose edge-to-edge block', () => {
     assert.ok(
-        /<\/div>\s*<\/div>\s*<div class="keyboard-section">/i.test(indexHtml),
-        'keyboard should be a direct mobile performance section, outside .controls-section/.top-section'
+        /class="performance-feature-card performance-keyboard-card" aria-label="Keyboard controls"[\s\S]*<div class="keyboard-section">/i.test(indexHtml),
+        'keyboard should sit inside its own simplified feature card'
     );
 });
 
@@ -57,6 +57,10 @@ test('main panel actions stay two-up on phone and restart all starts the full ri
 test('simplified performance controls are grouped into labelled cards', () => {
     assert.match(indexHtml, /class="performance-feature-card performance-actions-card" aria-label="Main panel controls"/);
     assert.match(indexHtml, />Performance Actions<\/h3>/);
+    assert.match(indexHtml, /class="performance-feature-card performance-export-card" aria-label="Export controls"/);
+    assert.match(indexHtml, />Export Length<\/h3>/);
+    assert.match(indexHtml, /class="performance-feature-card performance-keyboard-card" aria-label="Keyboard controls"/);
+    assert.match(indexHtml, />Play Surface<\/h3>/);
     assert.match(indexHtml, />Grain Controls<\/h3>/);
     assert.match(indexHtml, />Mix & Trim<\/h3>/);
     assert.match(indexHtml, />LFO & Motion<\/h3>/);
