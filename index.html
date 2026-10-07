@@ -10593,7 +10593,7 @@
                 minRelease: 0.32,
                 releaseRatio: 1.45,
                 sprayScale: 0.24,
-                dryMixCap: 0.18,
+                dryMixCap: 0.26,
                 intervalScale: 3.4,
                 jitterAmount: 0.18,
                 positionDriftMin: 0.09,
@@ -10601,7 +10601,8 @@
                 continuousTravelRate: 0.24,
                 continuousTravelDrift: 0.14,
                 sourceSizeScale: 1.55,
-                sourceFadeScale: 1.9
+                sourceFadeScale: 1.9,
+                sourceGainScale: 1.22
             };
         }
 
@@ -15156,6 +15157,8 @@
                 const source = audioContext.createBufferSource();
                 const sampleGain = audioContext.createGain();
                 const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
+                const sourceGainScale = Math.max(0.25, Number(modeProfile.sourceGainScale) || 1);
+                const targetGain = Math.max(0, Math.min(1.35, voice.gain * sourceGainScale));
                 const playPosition = options.continuousLoop
                     ? resolveContinuousLoopPosition(sampleWindow, sourceShape.positionPct, now, options.streamStartTime, sourceAdvanceRate)
                     : sampleWindow.playPosition;
@@ -15193,9 +15196,9 @@
 
                 const sourceSustain = Math.max(sampleWindow.grainSizeSeconds - sourceShape.sourceAttack, 0.001);
                 const totalDuration = sourceShape.sourceAttack + sourceSustain + sourceShape.sourceRelease;
-                applyEqualPowerGainRamp(sampleGain.gain, 0, voice.gain, now, sourceShape.sourceAttack);
-                sampleGain.gain.setValueAtTime(voice.gain, now + sourceShape.sourceAttack + sourceSustain);
-                applyEqualPowerGainRamp(sampleGain.gain, voice.gain, 0, now + sourceShape.sourceAttack + sourceSustain, sourceShape.sourceRelease);
+                applyEqualPowerGainRamp(sampleGain.gain, 0, targetGain, now, sourceShape.sourceAttack);
+                sampleGain.gain.setValueAtTime(targetGain, now + sourceShape.sourceAttack + sourceSustain);
+                applyEqualPowerGainRamp(sampleGain.gain, targetGain, 0, now + sourceShape.sourceAttack + sourceSustain, sourceShape.sourceRelease);
                 maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, totalDuration);
                 source.start(now, Math.max(0, Math.min((playbackBuffer?.duration ?? 0) - 0.0005, playbackOffset)));
                 source.stop(now + totalDuration);

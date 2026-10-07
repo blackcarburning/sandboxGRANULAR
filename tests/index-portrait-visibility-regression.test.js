@@ -800,6 +800,7 @@ test('cloud grain mode is tuned for smoother ethereal overlap and motion', () =>
     assert.match(indexHtml, /maxGrainSize: 0\.72/);
     assert.match(indexHtml, /minRelease: 0\.32/);
     assert.match(indexHtml, /releaseRatio: 1\.45/);
+    assert.match(indexHtml, /dryMixCap: 0\.26/);
     assert.match(indexHtml, /intervalScale: 3\.4/);
     assert.match(indexHtml, /jitterAmount: 0\.18/);
     assert.match(indexHtml, /positionDriftMin: 0\.09/);
@@ -808,8 +809,11 @@ test('cloud grain mode is tuned for smoother ethereal overlap and motion', () =>
     assert.match(indexHtml, /continuousTravelDrift: 0\.14/);
     assert.match(indexHtml, /sourceSizeScale: 1\.55/);
     assert.match(indexHtml, /sourceFadeScale: 1\.9/);
+    assert.match(indexHtml, /sourceGainScale: 1\.22/);
     assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud' \? 1\.1 : 0\.7;/);
     assert.match(indexHtml, /const maxInterval = modeProfile\?\.mode === 'cloud' \? 0\.14 : 0\.22;/);
+    assert.match(indexHtml, /const sourceGainScale = Math\.max\(0\.25, Number\(modeProfile\.sourceGainScale\) \|\| 1\);/);
+    assert.match(indexHtml, /const targetGain = Math\.max\(0, Math\.min\(1\.35, voice\.gain \* sourceGainScale\)\);/);
     assert.match(indexHtml, /const bloomDrift = modeProfile\.mode === 'cloud'/);
     assert.match(indexHtml, /const bloomMotion = Math\.sin\(\(elapsed \* 0\.19\)/);
 });
