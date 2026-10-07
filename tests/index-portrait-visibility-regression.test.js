@@ -814,6 +814,7 @@ test('mega random button warns and randomizes loops, dropbox sample, and drums t
     assert.match(indexHtml, /async function waitForMegaRandomLoadsToSettle\(options = \{\}\)/);
     assert.match(indexHtml, /async function runPatchRandomization\(\)/);
     assert.match(indexHtml, /async function runMegaRandomization\(\)/);
+    assert.match(indexHtml, /megaRandomizeInFlight = true;\s*stopAllPerformancePlayback\(\{ silent: true \}\);/);
     assert.match(indexHtml, /showSettlePopup\('Mega Random is loading samples\. This can take a little while\.', \{ persistent: true \}\)/);
     assert.match(indexHtml, /generateBastardLoopWithPlaybackRestart\(\)/);
     assert.match(indexHtml, /generateBastardLoop2WithPlaybackRestart\(\)/);

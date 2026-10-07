@@ -20323,6 +20323,7 @@
         async function runMegaRandomization() {
             if (megaRandomizeInFlight) return;
             megaRandomizeInFlight = true;
+            stopAllPerformancePlayback({ silent: true });
             const performanceMegaRandomBtn = document.getElementById('performanceMegaRandomBtn');
             if (performanceMegaRandomBtn) {
                 performanceMegaRandomBtn.disabled = true;
