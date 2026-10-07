@@ -885,6 +885,24 @@ test('dropbox sample layer can load a random source sample and join bastardloop 
     assert.match(indexHtml, /const startedSample = startDropboxSampleLayer\(resolvedStartTime, \{ skipUi: true \}\)/);
 });
 
+test('sample browser exposes repo-backed comments and like love reactions', () => {
+    assert.match(indexHtml, /const DROPBOX_SAMPLE_SOURCE_FEEDBACK_API_URL = `\$\{BASTARD_LOOP_REPOSITORY_BASE_URL\}\/api\/source-file-feedback`/);
+    assert.match(indexHtml, /function normalizeDropboxSampleBrowserFeedback\(feedback = \{\}, file = \{\}\)/);
+    assert.match(indexHtml, /function ensureDropboxSampleBrowserFeedbackDraft\(file\)/);
+    assert.match(indexHtml, /async function saveDropboxSampleBrowserFeedback\(file, controls, options = \{\}\)/);
+    assert.match(indexHtml, /feedbackLabel\.textContent = 'Repo Notes';/);
+    assert.match(indexHtml, /textarea\.className = 'sample-browser-feedback-textarea';/);
+    assert.match(indexHtml, /textarea\.placeholder = 'Add a permanent comment for this sample…';/);
+    assert.match(indexHtml, /likeButton\.textContent = 'Like';/);
+    assert.match(indexHtml, /loveButton\.textContent = 'Love';/);
+    assert.match(indexHtml, /saveButton\.textContent = 'Save Notes';/);
+    assert.match(indexHtml, /source: file\.sourceKey,/);
+    assert.match(indexHtml, /path: file\.relativePath,/);
+    assert.match(indexHtml, /reaction: draft\.reaction/);
+    assert.match(indexHtml, /comment: draft\.comment/);
+    assert.match(indexHtml, /Saved note for \$\{file\.name\}\./);
+});
+
 test('mega random button warns and randomizes loops, dropbox sample, and drums together', () => {
     assert.match(indexHtml, /id="performanceMegaRandomBtn">Mega Random<\/button>/);
     assert.match(indexHtml, /let settlePopupPersistent = false;/);
