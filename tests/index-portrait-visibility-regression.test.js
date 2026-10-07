@@ -785,6 +785,16 @@ test('grain scheduling and generated loops are BPM-grid rhythmic and bright agai
     assert.match(indexHtml, /voice = Math\.tanh\(\(wash \+ \(\(metallicA \* metallicB\) \+ metallicC \* 0\.42\) \* event\.metallic \+ transient \* 0\.6\) \* event\.drive\) \* basicEnv/);
 });
 
+test('cloud grain mode loops against the real source window instead of tiny trimmed grain slices', () => {
+    assert.match(indexHtml, /const useContinuousSourceLoop = Boolean\(/);
+    assert.match(indexHtml, /options\.continuousLoop[\s\S]*modeProfile\.mode === 'cloud'/);
+    assert.match(indexHtml, /const playbackBuffer = useContinuousSourceLoop \? pitchShiftedBuffer : trimmedBuffer;/);
+    assert.match(indexHtml, /source\.buffer = playbackBuffer;/);
+    assert.match(indexHtml, /source\.loop = useContinuousSourceLoop;/);
+    assert.match(indexHtml, /source\.loopStart = Math\.max\(0, sampleWindow\.startTime\);/);
+    assert.match(indexHtml, /source\.loopEnd = Math\.max\(source\.loopStart \+ 0\.001, sampleWindow\.endTime\);/);
+});
+
 test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {
     assert.doesNotMatch(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="generatedLoopEnd" data-lfo="2"/);
