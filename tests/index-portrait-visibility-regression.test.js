@@ -1066,7 +1066,7 @@ test('repo export restarts only the live loop layers instead of broad transport 
     assert.match(indexHtml, /const recordingPromise = recordLiveOutputBuffer\(captureSeconds, \{ captureStartTime \}\);/);
     assert.match(indexHtml, /const \{ audioBuffer: fullMix, captureStartTime: actualCaptureStartTime \} = await recordingPromise;/);
     assert.match(indexHtml, /const exactStart = Math\.max\(0, restartTime - actualCaptureStartTime\);/);
-    assert.match(indexHtml, /const exactDuration = Math\.max\(0\.01, durationSeconds \+ EXPORT_RENDER_TAIL_SECONDS\);/);
+    assert.match(indexHtml, /const exactDuration = Math\.max\(0\.01, durationSeconds\);/);
     assert.match(indexHtml, /const exportMix = sliceAudioBuffer\(fullMix, exactStart, exactDuration\);/);
     assert.doesNotMatch(indexHtml, /const trimmedStart = Math\.max\(0, findAudioBufferStart\(fullMix\) - 0\.01\);/);
     assert.match(indexHtml, /if \(wasBastardLoopALive\) \{\s*startBastardLoop\(restartTime, \{ skipUi: true \}\);/);

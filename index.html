@@ -23404,7 +23404,7 @@
 
                 const { audioBuffer: fullMix, captureStartTime: actualCaptureStartTime } = await recordingPromise;
                 const exactStart = Math.max(0, restartTime - actualCaptureStartTime);
-                const exactDuration = Math.max(0.01, durationSeconds + EXPORT_RENDER_TAIL_SECONDS);
+                const exactDuration = Math.max(0.01, durationSeconds);
                 const exportMix = sliceAudioBuffer(fullMix, exactStart, exactDuration);
                 const filename = createBpmWavFilename(bpm);
                 return {
