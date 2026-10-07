@@ -1051,11 +1051,24 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
 
 test('repo export restarts only the live loop layers instead of broad transport restart', () => {
     assert.match(indexHtml, /async function renderDawReadyBarsExport\(\)/);
+    assert.match(indexHtml, /const EXPORT_RENDER_LEAD_IN_SECONDS = 0\.18;/);
+    assert.match(indexHtml, /const EXPORT_RENDER_TAIL_SECONDS = 0\.06;/);
+    assert.match(indexHtml, /const EXPORT_RENDER_SETTLE_MS = 90;/);
     assert.match(indexHtml, /const wasBastardLoopALive = Boolean\(bastardLoopSource\)/);
     assert.match(indexHtml, /const wasBastardLoopBLive = Boolean\(bastardLoop2Source\)/);
     assert.match(indexHtml, /const wasBastardLoopCLive = Boolean\(bastardLoop3Source\)/);
     assert.match(indexHtml, /const wasDropboxSampleLayerLive = Boolean\(dropboxSampleLayerSource\)/);
     assert.match(indexHtml, /const shouldRestartFreshPlayback = wasSequencerPlaying \|\| wasArpPlaying \|\| wasBastardLoopPlaying \|\| wasDrumMachinePlaying/);
+    assert.match(indexHtml, /await delayMs\(EXPORT_RENDER_SETTLE_MS\);/);
+    assert.match(indexHtml, /const captureStartTime = audioContext\.currentTime;/);
+    assert.match(indexHtml, /const restartTime = getBufferedTransportStartTime\(captureStartTime \+ EXPORT_RENDER_LEAD_IN_SECONDS\);/);
+    assert.match(indexHtml, /const captureSeconds = \(restartTime - captureStartTime\) \+ durationSeconds \+ EXPORT_RENDER_TAIL_SECONDS \+ 0\.1;/);
+    assert.match(indexHtml, /const recordingPromise = recordLiveOutputBuffer\(captureSeconds, \{ captureStartTime \}\);/);
+    assert.match(indexHtml, /const \{ audioBuffer: fullMix, captureStartTime: actualCaptureStartTime \} = await recordingPromise;/);
+    assert.match(indexHtml, /const exactStart = Math\.max\(0, restartTime - actualCaptureStartTime\);/);
+    assert.match(indexHtml, /const exactDuration = Math\.max\(0\.01, durationSeconds \+ EXPORT_RENDER_TAIL_SECONDS\);/);
+    assert.match(indexHtml, /const exportMix = sliceAudioBuffer\(fullMix, exactStart, exactDuration\);/);
+    assert.doesNotMatch(indexHtml, /const trimmedStart = Math\.max\(0, findAudioBufferStart\(fullMix\) - 0\.01\);/);
     assert.match(indexHtml, /if \(wasBastardLoopALive\) \{\s*startBastardLoop\(restartTime, \{ skipUi: true \}\);/);
     assert.match(indexHtml, /if \(wasBastardLoopBLive\) \{\s*startBastardLoop2\(restartTime, \{ skipUi: true \}\);/);
     assert.match(indexHtml, /if \(wasBastardLoopCLive\) \{\s*startBastardLoop3\(restartTime, \{ skipUi: true \}\);/);

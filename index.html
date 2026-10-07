@@ -7282,6 +7282,9 @@
         let transportLoopStartTime = null;
         let generatedDryLoopStartTime = null;
         const TRANSPORT_START_BUFFER_SECONDS = 0.08;
+        const EXPORT_RENDER_LEAD_IN_SECONDS = 0.18;
+        const EXPORT_RENDER_TAIL_SECONDS = 0.06;
+        const EXPORT_RENDER_SETTLE_MS = 90;
         let globalModulationAmount = 0.55;
         let granularModulationAmount = 0.75;
         let generatedDryTrimDb = 0;
@@ -8354,6 +8357,10 @@
             }
 
             const supported = [
+                'audio/webm;codecs=pcm',
+                'audio/webm;codecs=wav',
+                'audio/wav',
+                'audio/wave',
                 'audio/webm;codecs=opus',
                 'audio/webm',
                 'audio/ogg;codecs=opus',
@@ -23188,7 +23195,7 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        async function recordLiveOutputBuffer(durationSeconds) {
+        async function recordLiveOutputBuffer(durationSeconds, options = {}) {
             if (!audioContext || !finalAmplifierNode) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
@@ -23203,6 +23210,9 @@
             const destination = audioContext.createMediaStreamDestination();
             const chunks = [];
             const mimeType = chooseRecordingMimeType();
+            const captureStartTime = Number.isFinite(options.captureStartTime)
+                ? Number(options.captureStartTime)
+                : audioContext.currentTime;
             const recorder = mimeType
                 ? new MediaRecorder(destination.stream, { mimeType })
                 : new MediaRecorder(destination.stream);
@@ -23240,7 +23250,10 @@
                         const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
                         const arrayBuffer = await blob.arrayBuffer();
                         const rendered = await audioContext.decodeAudioData(arrayBuffer);
-                        resolve(rendered);
+                        resolve({
+                            audioBuffer: rendered,
+                            captureStartTime
+                        });
                     } catch (error) {
                         reject(error);
                     }
@@ -23313,12 +23326,8 @@
             const wasBastardLoopCLive = Boolean(bastardLoop3Source);
             const wasDropboxSampleLayerLive = Boolean(dropboxSampleLayerSource);
             const shouldRestartFreshPlayback = wasSequencerPlaying || wasArpPlaying || wasBastardLoopPlaying || wasDrumMachinePlaying;
-            const captureSeconds = durationSeconds + 0.35;
-            const recordingPromise = recordLiveOutputBuffer(captureSeconds);
             try {
                 if (shouldRestartFreshPlayback) {
-                    const restartTime = getBufferedTransportStartTime();
-
                     if (wasSequencerPlaying) {
                         stopSequencer();
                     }
@@ -23331,17 +23340,28 @@
                     if (wasDrumMachinePlaying) {
                         stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                     }
+                }
 
-                    lfoStartTime = restartTime;
-                    lfo2StartTime = restartTime;
-                    lfo3StartTime = restartTime;
-                    finalFxPlacementLfoStartTime = restartTime;
-                    finalFxPlacementLfoLastPhase = null;
-                    restartInternalEffectOscillators(restartTime);
-                    if (finalFxPlacementLfoEnabled) {
-                        updateFinalFxPlacementLfo(true);
-                    }
+                updateEffects();
+                syncPerformanceControlState();
+                await delayMs(EXPORT_RENDER_SETTLE_MS);
 
+                const captureStartTime = audioContext.currentTime;
+                const restartTime = getBufferedTransportStartTime(captureStartTime + EXPORT_RENDER_LEAD_IN_SECONDS);
+                const captureSeconds = (restartTime - captureStartTime) + durationSeconds + EXPORT_RENDER_TAIL_SECONDS + 0.1;
+                const recordingPromise = recordLiveOutputBuffer(captureSeconds, { captureStartTime });
+
+                lfoStartTime = restartTime;
+                lfo2StartTime = restartTime;
+                lfo3StartTime = restartTime;
+                finalFxPlacementLfoStartTime = restartTime;
+                finalFxPlacementLfoLastPhase = null;
+                restartInternalEffectOscillators(restartTime);
+                if (finalFxPlacementLfoEnabled) {
+                    updateFinalFxPlacementLfo(true);
+                }
+
+                if (shouldRestartFreshPlayback) {
                     if (wasSequencerPlaying) {
                         startSequencer(restartTime);
                     } else if (wasArpPlaying) {
@@ -23372,19 +23392,20 @@
                     if (wasArpPlaying) {
                         startArpeggiatorPlayback(restartTime);
                     }
-
-                    updateEffects();
-                    syncPerformanceControlState();
                 } else {
-                    startSequencer();
+                    startSequencer(restartTime);
                     if (arpEnabled && holdEnabled) {
-                        startArpeggiatorPlayback();
+                        startArpeggiatorPlayback(restartTime);
                     }
                 }
 
-                const fullMix = await recordingPromise;
-                const trimmedStart = Math.max(0, findAudioBufferStart(fullMix) - 0.01);
-                const exportMix = sliceAudioBuffer(fullMix, trimmedStart, durationSeconds);
+                updateEffects();
+                syncPerformanceControlState();
+
+                const { audioBuffer: fullMix, captureStartTime: actualCaptureStartTime } = await recordingPromise;
+                const exactStart = Math.max(0, restartTime - actualCaptureStartTime);
+                const exactDuration = Math.max(0.01, durationSeconds + EXPORT_RENDER_TAIL_SECONDS);
+                const exportMix = sliceAudioBuffer(fullMix, exactStart, exactDuration);
                 const filename = createBpmWavFilename(bpm);
                 return {
                     bars,
