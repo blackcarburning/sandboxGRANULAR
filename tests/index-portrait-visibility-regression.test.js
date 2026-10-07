@@ -54,6 +54,22 @@ test('main panel actions stay two-up on phone and restart all starts the full ri
     assert.match(indexHtml, /if \(shouldStartDrumMachine\) \{[\s\S]*startDrumMachine\(restartTime, \{ skipUi: true, silent: true \}\);/);
 });
 
+test('simplified performance controls are grouped into labelled cards', () => {
+    assert.match(indexHtml, /class="performance-feature-card performance-actions-card" aria-label="Main panel controls"/);
+    assert.match(indexHtml, />Performance Actions<\/h3>/);
+    assert.match(indexHtml, />Grain Controls<\/h3>/);
+    assert.match(indexHtml, />Mix & Trim<\/h3>/);
+    assert.match(indexHtml, />LFO & Motion<\/h3>/);
+    assert.match(indexHtml, /class="performance-feature-card internal-effects-panel" id="internalEffectsPanel"/);
+});
+
+test('final shimmer branch is removed from the simplified output chain', () => {
+    assert.doesNotMatch(indexHtml, /finalShimmerDepth/);
+    assert.doesNotMatch(indexHtml, /createFinalShimmerImpulse/);
+    assert.doesNotMatch(indexHtml, /finalShimmerNode/);
+    assert.doesNotMatch(indexHtml, /Delay and shimmer/);
+});
+
 test('generate and randomize actions show a two second settle popup', () => {
     assert.match(indexHtml, /id="settlePopup"[\s\S]*>let it settle<\/div>/);
     assert.match(indexHtml, /function showSettlePopup\(\)/);

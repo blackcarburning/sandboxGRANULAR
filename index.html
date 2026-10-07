@@ -4066,70 +4066,228 @@
                     </div>
                 </div>
             </div>
-            <div class="performance-sound-controls" aria-label="Sound controls">
-                <div class="performance-sound-card">
-                    <label for="performanceSourceMix">
-                        <span>Granular/Osc</span>
-                        <span class="value" id="performanceSourceMixValue">50/50</span>
-                    </label>
-                    <input type="range" id="performanceSourceMix" min="0" max="100" value="35" step="1">
+            <div class="performance-feature-card performance-actions-card" aria-label="Main panel controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Main Panel</div>
+                        <h3 class="performance-feature-title">Performance Actions</h3>
+                        <p class="performance-feature-note">Keep transport, generation, browser, patch, and safety actions together in one place without changing the existing shortcuts or engine wiring.</p>
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGeneratedSourceMix">
-                        <span>Gen Loop Mix</span>
-                        <span class="value" id="performanceGeneratedSourceMixValue">100%</span>
-                    </label>
-                    <input type="range" id="performanceGeneratedSourceMix" min="0" max="100" value="100" step="1">
+                <div class="performance-actions">
+                    <button class="performance-btn" id="performanceHoldBtn">Hold</button>
+                    <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
+                    <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
+                    <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
+                    <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
+                    <button class="performance-btn" id="performanceDrumMachineMainStartBtn">Start Drums</button>
+                    <button class="performance-btn" id="performanceDrumMachineMainStopBtn">Stop Drums</button>
+                    <button class="performance-btn" id="performanceSeqPlayBtn">Loop Play</button>
+                    <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
+                    <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
+                    <button class="performance-btn" id="performanceMainStopAllBtn">Stop All</button>
+                    <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
+                    <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
+                    <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
+                    <button class="performance-btn" id="performanceTonalDrumsBtn">Tonal Drums Off</button>
+                    <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
+                    <button class="performance-btn" id="performanceFinalReverbBtn">Reverb Off</button>
+                    <button class="performance-btn" id="performanceFinalFxPlacementBtn">FX Post Filter</button>
+                    <button class="performance-btn" id="performanceFinalFxPlacementLfoBtn">FX LFO Off</button>
+                    <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
+                    <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
+                    <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
+                    <button class="performance-btn" id="performanceRepoExportBtn">Export Final Mix to Repo</button>
+                    <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
+                    <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
+                    <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
+                    <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
+                    <button class="performance-btn" id="performanceMegaRandomBtn">Mega Random</button>
+                    <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
+                    <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
+                    <button class="performance-btn" id="performanceDrumMachineMainOpenBtn">Open Drum Machine</button>
+                    <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
+                    <button class="performance-btn" id="performancePanicBtn">Panic</button>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGeneratedDryTrim">
-                        <span>Dry Trim</span>
-                        <span class="value" id="performanceGeneratedDryTrimValue">0.0dB</span>
-                    </label>
-                    <input type="range" id="performanceGeneratedDryTrim" min="-24" max="6" value="0" step="0.5">
+            </div>
+            <div class="performance-feature-card" aria-label="Grain controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Grain</div>
+                        <h3 class="performance-feature-title">Grain Controls</h3>
+                        <p class="performance-feature-note">Keep the generated-loop motion, modulation depth, pulse width, and anti-click timing together without changing the current routing.</p>
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGranularTrim">
-                        <span>Grain Trim</span>
-                        <span class="value" id="performanceGranularTrimValue">-3.0dB</span>
-                    </label>
-                    <input type="range" id="performanceGranularTrim" min="-24" max="6" value="-3" step="0.5">
+                <div class="performance-sound-controls" aria-label="Grain controls">
+                    <div class="performance-sound-card">
+                        <label for="performanceGeneratedSwing">
+                            <span>Gen Swing</span>
+                            <span class="value" id="performanceGeneratedSwingValue">0%</span>
+                        </label>
+                        <input type="range" id="performanceGeneratedSwing" min="0" max="60" value="0" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGeneratedTranspose">
+                            <span>Loop Transpose</span>
+                            <span class="value" id="performanceGeneratedTransposeValue">0 oct</span>
+                        </label>
+                        <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceModAmount">
+                            <span>Mod Amount</span>
+                            <span class="value" id="performanceModAmountValue">55%</span>
+                        </label>
+                        <input type="range" id="performanceModAmount" min="0" max="100" value="55" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGrainModAmount">
+                            <span>Grain Mod</span>
+                            <span class="value" id="performanceGrainModAmountValue">75%</span>
+                        </label>
+                        <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performancePulseWidth">
+                            <span>Pulse Width</span>
+                            <span class="value" id="performancePulseWidthValue">50%</span>
+                        </label>
+                        <input type="range" id="performancePulseWidth" min="5" max="95" value="50" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceClickGuard">
+                            <span>Click Guard</span>
+                            <span class="value" id="performanceClickGuardValue">8ms</span>
+                        </label>
+                        <input type="range" id="performanceClickGuard" min="1" max="30" value="8" step="1">
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGeneratedSwing">
-                        <span>Gen Swing</span>
-                        <span class="value" id="performanceGeneratedSwingValue">0%</span>
-                    </label>
-                    <input type="range" id="performanceGeneratedSwing" min="0" max="60" value="0" step="1">
+            </div>
+            <div class="performance-feature-card" aria-label="Mix controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Mix</div>
+                        <h3 class="performance-feature-title">Mix & Trim</h3>
+                        <p class="performance-feature-note">Group the source blend and trim staging here so the master balance stays easy to find while the dedicated mixer handles per-layer levels.</p>
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGeneratedTranspose">
-                        <span>Loop Transpose</span>
-                        <span class="value" id="performanceGeneratedTransposeValue">0 oct</span>
-                    </label>
-                    <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
+                <div class="performance-sound-controls" aria-label="Mix and trim controls">
+                    <div class="performance-sound-card">
+                        <label for="performanceSourceMix">
+                            <span>Granular/Osc</span>
+                            <span class="value" id="performanceSourceMixValue">50/50</span>
+                        </label>
+                        <input type="range" id="performanceSourceMix" min="0" max="100" value="35" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGeneratedSourceMix">
+                            <span>Gen Loop Mix</span>
+                            <span class="value" id="performanceGeneratedSourceMixValue">100%</span>
+                        </label>
+                        <input type="range" id="performanceGeneratedSourceMix" min="0" max="100" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGeneratedDryTrim">
+                            <span>Dry Trim</span>
+                            <span class="value" id="performanceGeneratedDryTrimValue">0.0dB</span>
+                        </label>
+                        <input type="range" id="performanceGeneratedDryTrim" min="-24" max="6" value="0" step="0.5">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceGranularTrim">
+                            <span>Grain Trim</span>
+                            <span class="value" id="performanceGranularTrimValue">-3.0dB</span>
+                        </label>
+                        <input type="range" id="performanceGranularTrim" min="-24" max="6" value="-3" step="0.5">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceMasterTrim">
+                            <span>Master Trim</span>
+                            <span class="value" id="performanceMasterTrimValue">-3.0dB</span>
+                        </label>
+                        <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceExportBars">
+                            <span>Export Bars</span>
+                            <span class="value" id="performanceExportBarsValue">2 bars</span>
+                        </label>
+                        <input type="number" id="performanceExportBars" min="1" max="64" value="2" step="1" inputmode="numeric">
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceModAmount">
-                        <span>Mod Amount</span>
-                        <span class="value" id="performanceModAmountValue">55%</span>
-                    </label>
-                    <input type="range" id="performanceModAmount" min="0" max="100" value="55" step="1">
+            </div>
+            <div class="performance-feature-card" aria-label="LFO controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">LFO</div>
+                        <h3 class="performance-feature-title">LFO & Motion</h3>
+                        <p class="performance-feature-note">Keep the master LFO waveform and rate multipliers grouped together so motion setup is separated from the generators and mixer.</p>
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceGrainModAmount">
-                        <span>Grain Mod</span>
-                        <span class="value" id="performanceGrainModAmountValue">75%</span>
-                    </label>
-                    <input type="range" id="performanceGrainModAmount" min="0" max="100" value="75" step="1">
+                <div class="performance-sound-controls" aria-label="LFO controls">
+                    <div class="performance-sound-card">
+                        <label for="performanceLfoWaveform">
+                            <span>LFO Wave</span>
+                        </label>
+                        <select id="performanceLfoWaveform" class="performance-select">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="sawtooth">Saw</option>
+                            <option value="ramp">Ramp</option>
+                            <option value="square">Square</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="stepped">Stepped</option>
+                        </select>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label>
+                            <span>LFO 1 Rate</span>
+                            <span class="value" id="performanceLfo1RateValue">1x</span>
+                        </label>
+                        <div class="performance-lfo-rate-row" role="radiogroup" aria-label="LFO 1 rate multiplier">
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.25">1/4</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.375">1/4D</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.1666667">1/4T</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.5">1/2</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.75">1/2D</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.3333333">1/2T</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="1" checked>1x</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="1.5">1xD</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="0.6666667">1xT</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="2">2x</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="3">2xD</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="1.3333333">2xT</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="4">4x</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="6">4xD</label>
+                            <label><input type="radio" name="performanceLfo1Rate" value="2.6666667">4xT</label>
+                        </div>
+                    </div>
+                    <div class="performance-sound-card">
+                        <label>
+                            <span>LFO 2 Rate</span>
+                            <span class="value" id="performanceLfo2RateValue">1x</span>
+                        </label>
+                        <div class="performance-lfo-rate-row" role="radiogroup" aria-label="LFO 2 rate multiplier">
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.25">1/4</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.375">1/4D</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.1666667">1/4T</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.5">1/2</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.75">1/2D</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.3333333">1/2T</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="1" checked>1x</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="1.5">1xD</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="0.6666667">1xT</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="2">2x</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="3">2xD</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="1.3333333">2xT</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="4">4x</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="6">4xD</label>
+                            <label><input type="radio" name="performanceLfo2Rate" value="2.6666667">4xT</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceMasterTrim">
-                        <span>Master Trim</span>
-                        <span class="value" id="performanceMasterTrimValue">-3.0dB</span>
-                    </label>
-                    <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
-                </div>
+            </div>
+            <div class="performance-sound-controls" aria-label="Internal effect staging" hidden>
                 <div class="performance-sound-card">
                     <label for="finalDriveSoft">
                         <span>Soft Drive</span>
@@ -4157,13 +4315,6 @@
                         <span class="value" id="finalDriveCrushValue">0%</span>
                     </label>
                     <input type="range" id="finalDriveCrush" min="0" max="100" value="0" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="finalShimmerDepth">
-                        <span>Shimmer Verb</span>
-                        <span class="value" id="finalShimmerDepthValue">0%</span>
-                    </label>
-                    <input type="range" id="finalShimmerDepth" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalDelayDepth">
@@ -4242,13 +4393,6 @@
                     </label>
                     <input type="range" id="finalReverbMix" min="0" max="100" value="0" step="1">
                 </div>
-                <div class="performance-sound-card">
-                    <label for="performanceClickGuard">
-                        <span>Click Guard</span>
-                        <span class="value" id="performanceClickGuardValue">8ms</span>
-                    </label>
-                    <input type="range" id="performanceClickGuard" min="1" max="30" value="8" step="1">
-                </div>
                 <div class="performance-sound-card performance-octave-card">
                     <label>
                         <span>Octave</span>
@@ -4258,80 +4402,6 @@
                         <button class="performance-octave-btn" id="performanceOctaveDownBtn">-</button>
                         <button class="performance-octave-btn" id="performanceOctaveUpBtn">+</button>
                     </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceLfoWaveform">
-                        <span>LFO Wave</span>
-                    </label>
-                    <select id="performanceLfoWaveform" class="performance-select">
-                        <option value="sine">Sine</option>
-                        <option value="triangle">Triangle</option>
-                        <option value="sawtooth">Saw</option>
-                        <option value="ramp">Ramp</option>
-                        <option value="square">Square</option>
-                        <option value="pulse">Pulse</option>
-                        <option value="stepped">Stepped</option>
-                    </select>
-                </div>
-                <div class="performance-sound-card">
-                    <label>
-                        <span>LFO 1 Rate</span>
-                        <span class="value" id="performanceLfo1RateValue">1x</span>
-                    </label>
-                    <div class="performance-lfo-rate-row" role="radiogroup" aria-label="LFO 1 rate multiplier">
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.25">1/4</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.375">1/4D</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.1666667">1/4T</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.5">1/2</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.75">1/2D</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.3333333">1/2T</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="1" checked>1x</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="1.5">1xD</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="0.6666667">1xT</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="2">2x</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="3">2xD</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="1.3333333">2xT</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="4">4x</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="6">4xD</label>
-                        <label><input type="radio" name="performanceLfo1Rate" value="2.6666667">4xT</label>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label>
-                        <span>LFO 2 Rate</span>
-                        <span class="value" id="performanceLfo2RateValue">1x</span>
-                    </label>
-                    <div class="performance-lfo-rate-row" role="radiogroup" aria-label="LFO 2 rate multiplier">
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.25">1/4</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.375">1/4D</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.1666667">1/4T</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.5">1/2</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.75">1/2D</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.3333333">1/2T</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="1" checked>1x</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="1.5">1xD</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="0.6666667">1xT</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="2">2x</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="3">2xD</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="1.3333333">2xT</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="4">4x</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="6">4xD</label>
-                        <label><input type="radio" name="performanceLfo2Rate" value="2.6666667">4xT</label>
-                    </div>
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performancePulseWidth">
-                        <span>Pulse Width</span>
-                        <span class="value" id="performancePulseWidthValue">50%</span>
-                    </label>
-                    <input type="range" id="performancePulseWidth" min="5" max="95" value="50" step="1">
-                </div>
-                <div class="performance-sound-card">
-                    <label for="performanceExportBars">
-                        <span>Export Bars</span>
-                        <span class="value" id="performanceExportBarsValue">2 bars</span>
-                    </label>
-                    <input type="number" id="performanceExportBars" min="1" max="64" value="2" step="1" inputmode="numeric">
                 </div>
             </div>
             <div class="keyboard-section">
@@ -4356,7 +4426,7 @@
                 <div class="keyboard" id="keyboardContainer">
                 </div>
             </div>
-            <div class="internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">
+            <div class="performance-feature-card internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">
                 <div class="internal-effects-header">
                     <span class="performance-chip">Internal Effects</span>
                     <h3 class="internal-effects-title">Internal Effects</h3>
@@ -4368,41 +4438,6 @@
                     <p class="internal-effects-note">Delay and reverb controls that sit behind the FX on/off toggle.</p>
                 </div>
                 <div class="internal-effects-grid" id="internalFxMutedGrid"></div>
-            </div>
-            <div class="performance-actions">
-                <button class="performance-btn" id="performanceHoldBtn">Hold</button>
-                <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
-                <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
-                <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
-                <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
-                <button class="performance-btn" id="performanceDrumMachineMainStartBtn">Start Drums</button>
-                <button class="performance-btn" id="performanceDrumMachineMainStopBtn">Stop Drums</button>
-                <button class="performance-btn" id="performanceSeqPlayBtn">Loop Play</button>
-                <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
-                <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
-                <button class="performance-btn" id="performanceMainStopAllBtn">Stop All</button>
-                <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
-                <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
-                <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
-                <button class="performance-btn" id="performanceTonalDrumsBtn">Tonal Drums Off</button>
-                <button class="performance-btn" id="performanceFxMuteBtn">FX On</button>
-                <button class="performance-btn" id="performanceFinalReverbBtn">Reverb Off</button>
-                <button class="performance-btn" id="performanceFinalFxPlacementBtn">FX Post Filter</button>
-                <button class="performance-btn" id="performanceFinalFxPlacementLfoBtn">FX LFO Off</button>
-                <button class="performance-btn" id="performanceDryFilterBtn">Dry Filter Off</button>
-                <button class="performance-btn" id="performanceLfoSquareBtn">All LFO Square</button>
-                <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
-                <button class="performance-btn" id="performanceRepoExportBtn">Export Final Mix to Repo</button>
-                <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
-                <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
-                <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
-                <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
-                <button class="performance-btn" id="performanceMegaRandomBtn">Mega Random</button>
-                <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
-                <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
-                <button class="performance-btn" id="performanceDrumMachineMainOpenBtn">Open Drum Machine</button>
-                <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
-                <button class="performance-btn" id="performancePanicBtn">Panic</button>
             </div>
         </div>
         <div class="top-section">
@@ -6813,9 +6848,6 @@
         let finalDelayFeedbackLowpass = null;
         let finalDelayWetGain = null;
         let finalDelayDryGain = null;
-        let finalShimmerNode = null;
-        let finalShimmerTone = null;
-        let finalShimmerWetGain = null;
         let finalReverbNode = null;
         let finalReverbLowpass = null;
         let finalReverbWetGain = null;
@@ -8993,13 +9025,6 @@
             finalDelayDryGain = audioContext.createGain();
             finalDelayDryGain.gain.value = 1;
 
-            finalShimmerNode = audioContext.createConvolver();
-            finalShimmerNode.buffer = createFinalShimmerImpulse();
-            finalShimmerTone = audioContext.createBiquadFilter();
-            finalShimmerTone.type = 'highpass';
-            finalShimmerTone.frequency.value = 3200;
-            finalShimmerWetGain = audioContext.createGain();
-            finalShimmerWetGain.gain.value = 0;
             finalReverbNode = audioContext.createConvolver();
             finalReverbLowpass = audioContext.createBiquadFilter();
             finalReverbLowpass.type = 'lowpass';
@@ -9019,7 +9044,6 @@
             finalDistortionTrim.connect(finalRingGain);
             finalRingGain.connect(finalDelayDryGain);
             finalRingGain.connect(finalDelayNode);
-            finalRingGain.connect(finalShimmerTone);
             finalRingGain.connect(finalReverbNode);
             finalDelayDryGain.connect(finalFxOutput);
             finalDelayNode.connect(finalDelayWetGain);
@@ -9028,9 +9052,6 @@
             finalDelayFeedbackHighpass.connect(finalDelayFeedbackLowpass);
             finalDelayFeedbackLowpass.connect(finalDelayNode);
             finalDelayWetGain.connect(finalFxOutput);
-            finalShimmerTone.connect(finalShimmerNode);
-            finalShimmerNode.connect(finalShimmerWetGain);
-            finalShimmerWetGain.connect(finalFxOutput);
             finalReverbNode.connect(finalReverbLowpass);
             finalReverbLowpass.connect(finalReverbWetGain);
             finalReverbWetGain.connect(finalFxOutput);
@@ -9473,23 +9494,6 @@
             return curve;
         }
 
-        function createFinalShimmerImpulse() {
-            const sampleRate = audioContext.sampleRate;
-            const length = Math.round(sampleRate * 3.2);
-            const impulse = audioContext.createBuffer(2, length, sampleRate);
-            for (let channel = 0; channel < 2; channel++) {
-                const data = impulse.getChannelData(channel);
-                for (let i = 0; i < length; i++) {
-                    const t = i / sampleRate;
-                    const decay = Math.pow(1 - (i / length), 2.2);
-                    const shimmer = Math.sin(2 * Math.PI * (880 + channel * 37) * t) * 0.16;
-                    const air = Math.sin(2 * Math.PI * (1760 + channel * 53) * t) * 0.08;
-                    data[i] = ((Math.random() * 2 - 1) * 0.72 + shimmer + air) * decay;
-                }
-            }
-            return impulse;
-        }
-
         function createFinalReverbImpulse(sizeAmount, decayAmount) {
             const sampleRate = audioContext.sampleRate;
             const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
@@ -9758,10 +9762,6 @@
             smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 2400 - delayFeedback * 900 : 5200 - delayFeedback * 2600);
             smoothRamp(finalDelayWetGain?.gain, Math.sin(delayMix * Math.PI / 2) * wetCap);
             smoothRamp(finalDelayDryGain?.gain, 1 - (delayMix * (postFilterFx ? 0.08 : 0.12)));
-
-            const shimmerDepth = fxMuted ? 0 : getSliderPercent('finalShimmerDepth');
-            smoothRamp(finalShimmerTone?.frequency, 2600 + shimmerDepth * 6200);
-            smoothRamp(finalShimmerWetGain?.gain, shimmerDepth * (postFilterFx ? 0.2 : 0.58));
 
             const reverbSize = getSliderPercent('finalReverbSize');
             const reverbDecay = getSliderPercent('finalReverbDecay');
@@ -17088,7 +17088,7 @@
                     e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
                     e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix' ||
-                    e.target.id.startsWith('finalDrive') || e.target.id === 'finalShimmerDepth' ||
+                    e.target.id.startsWith('finalDrive') ||
                     e.target.id === 'finalDelayDepth' || e.target.id === 'finalRingDepth' ||
                     e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' ||
                     e.target.id === 'finalReverbLowpass' || e.target.id === 'finalReverbMix') {
@@ -17923,7 +17923,7 @@
             }
             syncPerformanceControlState();
             if (!options.silent) {
-                setStatus(fxMuted ? 'Delay and shimmer muted.' : 'Delay and shimmer enabled.');
+                setStatus(fxMuted ? 'Final FX muted.' : 'Final FX enabled.');
             }
         }
 
@@ -18443,7 +18443,6 @@
             setSliderValue('finalDriveHard', 0);
             setSliderValue('finalDriveFold', 0);
             setSliderValue('finalDriveCrush', 0);
-            setSliderValue('finalShimmerDepth', randomIntegerInRange(0, 45));
             setSliderValue('finalDelayDepth', randomIntegerInRange(0, 48));
             setSliderValue('finalDelayFeedback', randomIntegerInRange(10, 68));
             setSliderValue('finalRingDepth', randomIntegerInRange(0, 36));
@@ -20488,7 +20487,6 @@
                 finalDriveHard: 0,
                 finalDriveFold: 0,
                 finalDriveCrush: 0,
-                finalShimmerDepth: 0,
                 finalDelayDepth: 0,
                 finalDelayFeedback: 30,
                 finalRingDepth: 0,
@@ -22230,15 +22228,6 @@
             const delayDryGain = ctx.createGain();
             delayDryGain.gain.value = 1 - (delayMix * (postFilterFx ? 0.08 : 0.12));
 
-            const shimmerDepth = muted ? 0 : getSliderPercent('finalShimmerDepth');
-            const shimmerNode = ctx.createConvolver();
-            shimmerNode.buffer = createFinalShimmerImpulse();
-            const shimmerTone = ctx.createBiquadFilter();
-            shimmerTone.type = 'highpass';
-            shimmerTone.frequency.value = 2600 + shimmerDepth * 6200;
-            const shimmerWetGain = ctx.createGain();
-            shimmerWetGain.gain.value = shimmerDepth * (postFilterFx ? 0.2 : 0.58);
-
             const reverbSize = getSliderPercent('finalReverbSize');
             const reverbDecay = getSliderPercent('finalReverbDecay');
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
@@ -22258,7 +22247,6 @@
             distortionTrim.connect(ringGain);
             ringGain.connect(delayDryGain);
             ringGain.connect(delayNode);
-            ringGain.connect(shimmerTone);
             ringGain.connect(reverbNode);
             delayDryGain.connect(output);
             delayNode.connect(delayWetGain);
@@ -22267,9 +22255,6 @@
             delayFeedbackHighpass.connect(delayFeedbackLowpass);
             delayFeedbackLowpass.connect(delayNode);
             delayWetGain.connect(output);
-            shimmerTone.connect(shimmerNode);
-            shimmerNode.connect(shimmerWetGain);
-            shimmerWetGain.connect(output);
             reverbNode.connect(reverbLowpass);
             reverbLowpass.connect(reverbWetGain);
             reverbWetGain.connect(output);
@@ -23781,7 +23766,6 @@
             'finalDriveHard',
             'finalDriveFold',
             'finalDriveCrush',
-            'finalShimmerDepth',
             'finalDelayDepth',
             'finalDelayFeedback',
             'finalDelayDivision',
