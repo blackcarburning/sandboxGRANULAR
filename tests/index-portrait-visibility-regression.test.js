@@ -165,6 +165,7 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="performanceExportBtn"/);
     assert.match(indexHtml, /id="performanceGenerateBastardLoopBtn">Generate Bastardloop<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoopBrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopSoloBtn" aria-pressed="false">Solo Off<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoopPlayBtn">Play Bastardloop<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoopStopBtn">Stop Bastardloop<\/button>/);
     assert.match(indexHtml, /id="performanceBastardDivisionQuarter" value="1\/4"/);
@@ -181,12 +182,16 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /function createBastardLoopLowpassFilters\(cutoffHz\)/);
     assert.match(indexHtml, /Array\.from\(\{ length: 4 \}, \(\) => \{/);
     assert.match(indexHtml, /filter\.type = 'lowpass';/);
+    assert.match(indexHtml, /function normalizeLoopLayerSolo\(value\)/);
+    assert.match(indexHtml, /function setLoopLayerSolo\(layer, options = \{\}\)/);
+    assert.match(indexHtml, /function getLoopLayerSoloGain\(layer\)/);
     assert.match(indexHtml, /function startBastardLoop\(startTime = null\)/);
     assert.match(indexHtml, /function updateBastardLoopMix\(\)/);
     assert.match(indexHtml, /const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-bastardloops'/);
     assert.match(indexHtml, /body: JSON\.stringify\(\{[\s\S]*divisions[\s\S]*\}\)/);
     assert.match(indexHtml, /performanceBastardLoopLevel\?\.addEventListener\('input'/);
     assert.match(indexHtml, /performanceBastardLoopFilterCutoff\?\.addEventListener\('input'/);
+    assert.match(indexHtml, /performanceBastardLoopSoloBtn\?\.addEventListener\('click', \(\) => \{\s*setLoopLayerSolo\('bastarda', \{ toggle: true \}\);/);
     assert.match(indexHtml, /const reverbAmt = fxMuted \? 0 : getModulatedValue\('reverb'\) \/ 100/);
     assert.match(indexHtml, /const mix = fxMuted \? 0 : getModulatedValue\('delayMix'\) \/ 100/);
     assert.match(indexHtml, /id="oscMix" min="0" max="100" value="35"/);
@@ -587,6 +592,7 @@ test('bastardloop uses its own browser route and selectable note sizes', () => {
 test('second bastardloop layer uses SAMPLEDROP_2 and has its own pitch, level, resolutions, mute, and reverse controls', () => {
     assert.match(indexHtml, /id="performanceGenerateBastardLoop2Btn">Generate Bastardloop B<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoop2BrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoop2SoloBtn" aria-pressed="false">Solo Off<\/button>/);
     assert.match(indexHtml, /SAMPLEDROP_2/);
     assert.match(indexHtml, /id="performanceBastard2DivisionQuarter" value="1\/4"/);
     assert.match(indexHtml, /id="performanceBastard2DivisionEighth" value="1\/8"/);
@@ -610,6 +616,7 @@ test('second bastardloop layer uses SAMPLEDROP_2 and has its own pitch, level, r
     assert.match(indexHtml, /function getReversedAudioBuffer\(buffer\)/);
     assert.match(indexHtml, /performanceBastardLoop2ReverseBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop2Reverse\(!bastardLoop2Reverse\);/);
     assert.match(indexHtml, /performanceBastardLoop2Pitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoop2PitchOctaves\(event\.target\.value\);/);
+    assert.match(indexHtml, /performanceBastardLoop2SoloBtn\?\.addEventListener\('click', \(\) => \{\s*setLoopLayerSolo\('bastardb', \{ toggle: true \}\);/);
     assert.match(indexHtml, /performanceBastardLoop2ToggleBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop2Enabled\(!bastardLoop2Enabled\);/);
     assert.match(indexHtml, /source: 'sampledrop2'/);
 });
@@ -617,6 +624,7 @@ test('second bastardloop layer uses SAMPLEDROP_2 and has its own pitch, level, r
 test('third bastardloop layer uses SPLICE_CLAW and has its own pitch, level, resolutions, mute, and reverse controls', () => {
     assert.match(indexHtml, /id="performanceGenerateBastardLoop3Btn">Generate Bastardloop C<\/button>/);
     assert.match(indexHtml, /id="performanceBastardLoop3BrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoop3SoloBtn" aria-pressed="false">Solo Off<\/button>/);
     assert.match(indexHtml, /SPLICE_CLAW/);
     assert.match(indexHtml, /id="performanceBastard3DivisionQuarter" value="1\/4"/);
     assert.match(indexHtml, /id="performanceBastard3DivisionEighth" value="1\/8"/);
@@ -639,8 +647,15 @@ test('third bastardloop layer uses SPLICE_CLAW and has its own pitch, level, res
     assert.match(indexHtml, /function setBastardLoop3PitchOctaves\(value, options = \{\}\)/);
     assert.match(indexHtml, /performanceBastardLoop3ReverseBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop3Reverse\(!bastardLoop3Reverse\);/);
     assert.match(indexHtml, /performanceBastardLoop3Pitch\?\.addEventListener\('input', \(event\) => \{\s*setBastardLoop3PitchOctaves\(event\.target\.value\);/);
+    assert.match(indexHtml, /performanceBastardLoop3SoloBtn\?\.addEventListener\('click', \(\) => \{\s*setLoopLayerSolo\('bastardc', \{ toggle: true \}\);/);
     assert.match(indexHtml, /performanceBastardLoop3ToggleBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoop3Enabled\(!bastardLoop3Enabled\);/);
     assert.match(indexHtml, /source: 'splice_claw'/);
+});
+
+test('dropbox sample layer card has a solo button tied to the shared loop-layer solo state', () => {
+    assert.match(indexHtml, /id="performanceDropboxSampleSoloBtn" aria-pressed="false">Solo Off<\/button>/);
+    assert.match(indexHtml, /performanceDropboxSampleSoloBtn\?\.addEventListener\('click', \(\) => \{\s*setLoopLayerSolo\('dropbox', \{ toggle: true \}\);/);
+    assert.match(indexHtml, /return dropboxSampleLayerEnabled \? dropboxSampleLayerLevel \* getLoopLayerSoloGain\('dropbox'\) : 0;/);
 });
 
 test('bastardloop transport can start three loop layers together', () => {

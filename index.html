@@ -3688,6 +3688,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopBtn">Generate Bastardloop A</button>
                         <button class="performance-btn" id="performanceBastardLoopBrowserBtn">Bastardloop Browser</button>
+                        <button class="performance-btn" id="performanceBastardLoopSoloBtn" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
@@ -3749,6 +3750,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoop2Btn">Generate Bastardloop B</button>
                         <button class="performance-btn" id="performanceBastardLoop2BrowserBtn">Bastardloop Browser</button>
+                        <button class="performance-btn" id="performanceBastardLoop2SoloBtn" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
@@ -3812,6 +3814,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoop3Btn">Generate Bastardloop C</button>
                         <button class="performance-btn" id="performanceBastardLoop3BrowserBtn">Bastardloop Browser</button>
+                        <button class="performance-btn" id="performanceBastardLoop3SoloBtn" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
@@ -3894,6 +3897,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn" id="performanceDropboxSampleBrowseBtn">Browse Samples</button>
                         <button class="performance-btn primary" id="performanceDropboxSampleLoadBtn">Load Random Sample</button>
+                        <button class="performance-btn" id="performanceDropboxSampleSoloBtn" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
@@ -7192,6 +7196,7 @@
         let bastardLoopPitchOctaves = 0;
         let bastardLoopPitchAffectsDuration = false;
         let bastardLoopEnabled = true;
+        let loopLayerSolo = 'none';
         let bastardLoop2Level = 0.55;
         let bastardLoop2FilterCutoff = 18000;
         let bastardLoop2PitchOctaves = 0;
@@ -11350,11 +11355,62 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             bastardLoopLevel = clamped / 100;
             if (options.applyLayerToggle === false) return bastardLoopLevel;
-            return bastardLoopEnabled ? bastardLoopLevel : 0;
+            return bastardLoopEnabled ? bastardLoopLevel * getLoopLayerSoloGain('bastarda') : 0;
         }
 
         function getBastardLoopOutputGain(level = getBastardLoopLevelValue()) {
             return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.92;
+        }
+
+        function normalizeLoopLayerSolo(value) {
+            const normalized = String(value || 'none').trim().toLowerCase();
+            return ['none', 'bastarda', 'bastardb', 'bastardc', 'dropbox'].includes(normalized) ? normalized : 'none';
+        }
+
+        function syncLoopLayerSoloButtons() {
+            const buttonConfigs = [
+                { id: 'performanceBastardLoopSoloBtn', key: 'bastarda', label: 'Bastardloop A' },
+                { id: 'performanceBastardLoop2SoloBtn', key: 'bastardb', label: 'Bastardloop B' },
+                { id: 'performanceBastardLoop3SoloBtn', key: 'bastardc', label: 'Bastardloop C' },
+                { id: 'performanceDropboxSampleSoloBtn', key: 'dropbox', label: 'Dropbox Sample' }
+            ];
+            buttonConfigs.forEach(({ id, key, label }) => {
+                const button = document.getElementById(id);
+                if (!button) return;
+                const active = loopLayerSolo === key;
+                button.classList.toggle('active', active);
+                button.textContent = active ? 'Solo On' : 'Solo Off';
+                button.setAttribute('aria-pressed', String(active));
+                button.title = active ? `${label} soloed.` : `Solo ${label}.`;
+            });
+        }
+
+        function setLoopLayerSolo(layer, options = {}) {
+            const requested = normalizeLoopLayerSolo(layer);
+            loopLayerSolo = options.toggle && loopLayerSolo === requested ? 'none' : requested;
+            syncLoopLayerSoloButtons();
+            updateBastardLoopMix();
+            updateBastardLoop2Mix();
+            updateBastardLoop3Mix();
+            updateDropboxSampleLayerMix();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                const labels = {
+                    bastarda: 'Bastardloop A',
+                    bastardb: 'Bastardloop B',
+                    bastardc: 'Bastardloop C',
+                    dropbox: 'Dropbox sample'
+                };
+                setStatus(loopLayerSolo === 'none' ? 'All loop layers active.' : `${labels[loopLayerSolo] || 'Loop layer'} soloed.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function getLoopLayerSoloGain(layer) {
+            const normalized = normalizeLoopLayerSolo(layer);
+            return loopLayerSolo === 'none' || loopLayerSolo === normalized ? 1 : 0;
         }
 
         function clampBastardLoopFilterCutoff(value) {
@@ -11767,7 +11823,7 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             dropboxSampleLayerLevel = clamped / 100;
             if (options.applyLayerToggle === false) return dropboxSampleLayerLevel;
-            return dropboxSampleLayerEnabled ? dropboxSampleLayerLevel : 0;
+            return dropboxSampleLayerEnabled ? dropboxSampleLayerLevel * getLoopLayerSoloGain('dropbox') : 0;
         }
 
         function getDropboxSampleLayerOutputGain(level = getDropboxSampleLayerLevelValue()) {
@@ -12074,7 +12130,7 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             bastardLoop2Level = clamped / 100;
             if (options.applyLayerToggle === false) return bastardLoop2Level;
-            return bastardLoop2Enabled ? bastardLoop2Level : 0;
+            return bastardLoop2Enabled ? bastardLoop2Level * getLoopLayerSoloGain('bastardb') : 0;
         }
 
         function getBastardLoop2OutputGain(level = getBastardLoop2LevelValue()) {
@@ -12304,7 +12360,7 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             bastardLoop3Level = clamped / 100;
             if (options.applyLayerToggle === false) return bastardLoop3Level;
-            return bastardLoop3Enabled ? bastardLoop3Level : 0;
+            return bastardLoop3Enabled ? bastardLoop3Level * getLoopLayerSoloGain('bastardc') : 0;
         }
 
         function getBastardLoop3OutputGain(level = getBastardLoop3LevelValue()) {
@@ -21131,6 +21187,7 @@
             setBastardLoop2Enabled(true, { silent: true, skipSave: true });
             setBastardLoop3Enabled(true, { silent: true, skipSave: true });
             setDropboxSampleLayerEnabled(true, { silent: true, skipSave: true });
+            setLoopLayerSolo('none', { silent: true, skipSave: true });
             setBastardLoopPitchAffectsDuration(false, { silent: true, skipSave: true });
             setBastardLoop2PitchAffectsDuration(false, { silent: true, skipSave: true });
             setBastardLoop3PitchAffectsDuration(false, { silent: true, skipSave: true });
@@ -21272,6 +21329,7 @@
                 generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                 generatedDryLoopEnabled: generatedDryLoopEnabled,
                 bastardLoopEnabled: bastardLoopEnabled,
+                loopLayerSolo: loopLayerSolo,
                 bastardLoopPitchAffectsDuration: bastardLoopPitchAffectsDuration,
                 bastardLoop2Enabled: bastardLoop2Enabled,
                 bastardLoop2PitchAffectsDuration: bastardLoop2PitchAffectsDuration,
@@ -21483,6 +21541,8 @@
             if (importedBastardLoopEnabled !== undefined) {
                 setBastardLoopEnabled(importedBastardLoopEnabled, { silent: true, skipSave: true });
             }
+            const importedLoopLayerSolo = safePreset.loopLayerSolo ?? preset.loopLayerSolo ?? 'none';
+            setLoopLayerSolo(importedLoopLayerSolo, { silent: true, skipSave: true });
             const importedBastardLoopPitchAffectsDuration = safePreset.bastardLoopPitchAffectsDuration ?? preset.bastardLoopPitchAffectsDuration;
             if (importedBastardLoopPitchAffectsDuration !== undefined) {
                 setBastardLoopPitchAffectsDuration(importedBastardLoopPitchAffectsDuration, { silent: true, skipSave: true });
@@ -22007,6 +22067,7 @@
                     generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                     generatedDryLoopEnabled: generatedDryLoopEnabled,
                     bastardLoopEnabled: bastardLoopEnabled,
+                    loopLayerSolo: loopLayerSolo,
                     bastardLoopSourceBpm: bastardLoopSourceBpm,
                     bastardLoopDivisions: getSelectedBastardLoopDivisions({ ensureDefault: false }),
                     bastardLoopPitchAffectsDuration: bastardLoopPitchAffectsDuration,
@@ -22224,6 +22285,9 @@
                     }
                     if (state.modes.bastardLoopEnabled !== undefined) {
                         setBastardLoopEnabled(state.modes.bastardLoopEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.loopLayerSolo !== undefined) {
+                        setLoopLayerSolo(state.modes.loopLayerSolo, { silent: true, skipSave: true });
                     }
                     if (state.modes.bastardLoopSourceBpm !== undefined) {
                         bastardLoopSourceBpm = clampBpmValue(state.modes.bastardLoopSourceBpm, bastardLoopSourceBpm);
@@ -24210,18 +24274,22 @@
         const performanceBastardLoopPitchAffectsDuration = document.getElementById('performanceBastardLoopPitchAffectsDuration');
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
         const performanceBastardLoopFilterCutoff = document.getElementById('performanceBastardLoopFilterCutoff');
+        const performanceBastardLoopSoloBtn = document.getElementById('performanceBastardLoopSoloBtn');
         const performanceBastardLoop2Pitch = document.getElementById('performanceBastardLoop2Pitch');
         const performanceBastardLoop2PitchAffectsDuration = document.getElementById('performanceBastardLoop2PitchAffectsDuration');
         const performanceBastardLoop2Level = document.getElementById('performanceBastardLoop2Level');
         const performanceBastardLoop2FilterCutoff = document.getElementById('performanceBastardLoop2FilterCutoff');
+        const performanceBastardLoop2SoloBtn = document.getElementById('performanceBastardLoop2SoloBtn');
         const performanceBastardLoop2ReverseBtn = document.getElementById('performanceBastardLoop2ReverseBtn');
         const performanceBastardLoop3Pitch = document.getElementById('performanceBastardLoop3Pitch');
         const performanceBastardLoop3PitchAffectsDuration = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
         const performanceBastardLoop3Level = document.getElementById('performanceBastardLoop3Level');
         const performanceBastardLoop3FilterCutoff = document.getElementById('performanceBastardLoop3FilterCutoff');
+        const performanceBastardLoop3SoloBtn = document.getElementById('performanceBastardLoop3SoloBtn');
         const performanceBastardLoop3ReverseBtn = document.getElementById('performanceBastardLoop3ReverseBtn');
         const performanceDropboxSampleBrowseBtn = document.getElementById('performanceDropboxSampleBrowseBtn');
         const performanceDropboxSampleLoadBtn = document.getElementById('performanceDropboxSampleLoadBtn');
+        const performanceDropboxSampleSoloBtn = document.getElementById('performanceDropboxSampleSoloBtn');
         const performanceDropboxSampleSource = document.getElementById('performanceDropboxSampleSource');
         const performanceDropboxSampleStretchToLoop = document.getElementById('performanceDropboxSampleStretchToLoop');
         const performanceDropboxSampleLevel = document.getElementById('performanceDropboxSampleLevel');
@@ -24680,6 +24748,8 @@
                 performanceSampleSoloBtn.setAttribute('aria-pressed', String(generatedSampleSolo));
             }
 
+            syncLoopLayerSoloButtons();
+
             if (performanceGeneratedLayerBtn) {
                 performanceGeneratedLayerBtn.classList.toggle('layer-muted', !generatedSampleLayerEnabled);
                 performanceGeneratedLayerBtn.textContent = generatedSampleLayerEnabled ? 'Sample/Drums On' : 'Sample/Drums Off';
@@ -25048,6 +25118,10 @@
             }
         });
 
+        performanceBastardLoopSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastarda', { toggle: true });
+        });
+
         performanceBastardLoop2Level?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             bastardLoop2Level = value / 100;
@@ -25061,6 +25135,10 @@
             if (bastardLoop2FilterNodes.length) {
                 smoothBastardLoopFilterCutoff(bastardLoop2FilterNodes, bastardLoop2FilterCutoff);
             }
+        });
+
+        performanceBastardLoop2SoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardb', { toggle: true });
         });
 
         performanceBastardLoopPitch?.addEventListener('input', (event) => {
@@ -25098,6 +25176,10 @@
             }
         });
 
+        performanceBastardLoop3SoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardc', { toggle: true });
+        });
+
         performanceBastardLoop3Pitch?.addEventListener('input', (event) => {
             setBastardLoop3PitchOctaves(event.target.value);
         });
@@ -25123,6 +25205,10 @@
 
         performanceDropboxSampleBrowseBtn?.addEventListener('click', () => {
             openDropboxSampleBrowser();
+        });
+
+        performanceDropboxSampleSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('dropbox', { toggle: true });
         });
 
         performanceDropboxSampleSource?.addEventListener('change', () => {
