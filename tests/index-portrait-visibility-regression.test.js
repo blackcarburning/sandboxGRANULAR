@@ -901,13 +901,18 @@ test('mix and trim card exposes an analyser-driven output vu meter', () => {
     assert.match(indexHtml, /id="performanceOutputVuFill"/);
     assert.match(indexHtml, /id="performanceOutputVuPeak"/);
     assert.match(indexHtml, /id="performanceOutputVuValue">-inf dB<\/span>/);
+    assert.match(indexHtml, /id="performanceMixerVuShell"/);
+    assert.match(indexHtml, /id="performanceMixerVuFill"/);
+    assert.match(indexHtml, /id="performanceMixerVuPeak"/);
+    assert.match(indexHtml, /id="performanceMixerVuValue">-inf dB<\/span>/);
     assert.match(indexHtml, /\.simplified-ui \.performance-vu-shell \{/);
     assert.match(indexHtml, /\.simplified-ui \.performance-vu-fill \{/);
     assert.match(indexHtml, /\.simplified-ui \.performance-vu-peak \{/);
+    assert.match(indexHtml, /function updatePerformanceVuDisplay\(shell, fill, peak, value, levelPercent, peakPercent, db\)/);
     assert.match(indexHtml, /function updatePerformanceVuMeter\(rms = 0\)/);
     assert.match(indexHtml, /const db = safeRms > 0\.00001 \? \(20 \* Math\.log10\(safeRms\)\) : Number\.NEGATIVE_INFINITY;/);
-    assert.match(indexHtml, /performanceOutputVuFill\.style\.width = `\$\{levelPercent\.toFixed\(1\)\}%`;/);
-    assert.match(indexHtml, /performanceOutputVuPeak\.style\.left = `\$\{peakPercent\.toFixed\(1\)\}%`;/);
+    assert.match(indexHtml, /updatePerformanceVuDisplay\(\s*performanceOutputVuShell,/);
+    assert.match(indexHtml, /updatePerformanceVuDisplay\(\s*performanceMixerVuShell,/);
     assert.match(indexHtml, /updatePerformanceVuMeter\(finalPanTrackedRms\);/);
 });
 

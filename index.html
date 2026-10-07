@@ -3960,6 +3960,29 @@
                         </label>
                         <input type="range" id="performanceDrumMachineLevel" min="0" max="100" value="55" step="1">
                     </div>
+                    <div class="performance-sound-card performance-vu-card">
+                        <label for="performanceMixerVuShell">
+                            <span>Output VU</span>
+                            <span class="value" id="performanceMixerVuValue">-inf dB</span>
+                        </label>
+                        <div
+                            class="performance-vu-shell"
+                            id="performanceMixerVuShell"
+                            role="meter"
+                            aria-label="Module mixer output level meter"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="0"
+                            aria-valuetext="silent"
+                        >
+                            <div class="performance-vu-fill" id="performanceMixerVuFill"></div>
+                            <div class="performance-vu-peak" id="performanceMixerVuPeak"></div>
+                        </div>
+                        <div class="performance-vu-scale" aria-hidden="true">
+                            <span>Silent</span>
+                            <span>0 dB</span>
+                        </div>
+                    </div>
                     <div class="performance-sound-card">
                         <label for="performanceBastardLoopLevel">
                             <span>Bastardloop A</span>
@@ -9894,9 +9917,16 @@
             };
         }
 
-        function updatePerformanceVuMeter(rms = 0) {
-            if (!performanceOutputVuShell || !performanceOutputVuFill || !performanceOutputVuPeak || !performanceOutputVuValue) return;
+        function updatePerformanceVuDisplay(shell, fill, peak, value, levelPercent, peakPercent, db) {
+            if (!shell || !fill || !peak || !value) return;
+            fill.style.width = `${levelPercent.toFixed(1)}%`;
+            peak.style.left = `${peakPercent.toFixed(1)}%`;
+            shell.setAttribute('aria-valuenow', String(Math.round(levelPercent)));
+            shell.setAttribute('aria-valuetext', Number.isFinite(db) ? `${db.toFixed(1)} dB` : 'silent');
+            value.textContent = Number.isFinite(db) ? `${db.toFixed(1)} dB` : '-inf dB';
+        }
 
+        function updatePerformanceVuMeter(rms = 0) {
             const safeRms = audioContext && audioContext.state === 'running' && Number.isFinite(rms) ? Math.max(0, rms) : 0;
             const db = safeRms > 0.00001 ? (20 * Math.log10(safeRms)) : Number.NEGATIVE_INFINITY;
             const normalized = Number.isFinite(db)
@@ -9908,12 +9938,24 @@
 
             const levelPercent = Math.max(0, Math.min(100, performanceVuLevel * 100));
             const peakPercent = Math.max(0, Math.min(100, performanceVuPeakLevel * 100));
-
-            performanceOutputVuFill.style.width = `${levelPercent.toFixed(1)}%`;
-            performanceOutputVuPeak.style.left = `${peakPercent.toFixed(1)}%`;
-            performanceOutputVuShell.setAttribute('aria-valuenow', String(Math.round(levelPercent)));
-            performanceOutputVuShell.setAttribute('aria-valuetext', Number.isFinite(db) ? `${db.toFixed(1)} dB` : 'silent');
-            performanceOutputVuValue.textContent = Number.isFinite(db) ? `${db.toFixed(1)} dB` : '-inf dB';
+            updatePerformanceVuDisplay(
+                performanceOutputVuShell,
+                performanceOutputVuFill,
+                performanceOutputVuPeak,
+                performanceOutputVuValue,
+                levelPercent,
+                peakPercent,
+                db
+            );
+            updatePerformanceVuDisplay(
+                performanceMixerVuShell,
+                performanceMixerVuFill,
+                performanceMixerVuPeak,
+                performanceMixerVuValue,
+                levelPercent,
+                peakPercent,
+                db
+            );
         }
 
         function getFinalPanOrbitValue(elapsedSeconds) {
@@ -24074,6 +24116,10 @@
         const performanceOutputVuFill = document.getElementById('performanceOutputVuFill');
         const performanceOutputVuPeak = document.getElementById('performanceOutputVuPeak');
         const performanceOutputVuValue = document.getElementById('performanceOutputVuValue');
+        const performanceMixerVuShell = document.getElementById('performanceMixerVuShell');
+        const performanceMixerVuFill = document.getElementById('performanceMixerVuFill');
+        const performanceMixerVuPeak = document.getElementById('performanceMixerVuPeak');
+        const performanceMixerVuValue = document.getElementById('performanceMixerVuValue');
         const performanceClickGuard = document.getElementById('performanceClickGuard');
         const performanceOctaveDownBtn = document.getElementById('performanceOctaveDownBtn');
         const performanceOctaveUpBtn = document.getElementById('performanceOctaveUpBtn');
