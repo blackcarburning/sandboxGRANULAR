@@ -20906,7 +20906,14 @@
             }
         }
 
+        function applyRandomizeFinalCompressorDefaults() {
+            setSliderValue('finalCompressorAmount', 50);
+            setSliderValue('finalSidechainAmount', 0);
+            setFinalCompressorSidechainSource('off', { silent: true, skipSave: true });
+        }
+
         async function runPatchRandomization() {
+            applyRandomizeFinalCompressorDefaults();
             const bpmSnapshot = snapshotRandomizeBpmState();
             const randomizeGrainMode = chooseRandom(['cloud', 'cloud', 'cloud', 'rhythmic', 'drum']);
             setGrainTimingMode(randomizeGrainMode, { silent: true, skipSave: true, skipRestart: true });

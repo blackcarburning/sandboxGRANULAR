@@ -479,6 +479,11 @@ test('generate source restarts active loop playback after replacing the source',
 
 test('randomize patch automatically generates a new performance loop', () => {
     assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{/);
+    assert.match(indexHtml, /function applyRandomizeFinalCompressorDefaults\(\)/);
+    assert.match(indexHtml, /setSliderValue\('finalCompressorAmount', 50\);/);
+    assert.match(indexHtml, /setSliderValue\('finalSidechainAmount', 0\);/);
+    assert.match(indexHtml, /setFinalCompressorSidechainSource\('off', \{ silent: true, skipSave: true \}\);/);
+    assert.match(indexHtml, /async function runPatchRandomization\(\) \{\s*applyRandomizeFinalCompressorDefaults\(\);/);
     assert.match(indexHtml, /setPerformanceGenerateButtonState\('generating'\);[\s\S]*await generateSourceWithPlaybackRestart\(\{[\s\S]*refreshSequencerPattern: true,[\s\S]*profile: generationProfile,[\s\S]*blueprint: loopBlueprint[\s\S]*\}\);[\s\S]*setPerformanceGenerateButtonState\('generated'\);/);
     assert.match(indexHtml, /Patch randomized and new loop generated; source loop points and mix balances kept\./);
     assert.match(indexHtml, /Patch randomized; start MYGRAIN to generate the source loop\./);
