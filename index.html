@@ -7790,6 +7790,7 @@
         const audioStatusDiv = document.getElementById('audioStatus');
         const settlePopup = document.getElementById('settlePopup');
         let settlePopupTimer = null;
+        let settlePopupPersistent = false;
 
         function setStatus(message, state = 'info') {
             if (!statusDiv) return;
@@ -7797,15 +7798,37 @@
             statusDiv.dataset.state = state;
         }
 
-        function showSettlePopup(message = 'let it settle') {
+        function hideSettlePopup() {
             if (!settlePopup) return;
             if (settlePopupTimer) {
                 clearTimeout(settlePopupTimer);
+                settlePopupTimer = null;
+            }
+            settlePopupPersistent = false;
+            settlePopup.classList.remove('visible');
+            settlePopup.setAttribute('aria-hidden', 'true');
+        }
+
+        function showSettlePopup(message = 'let it settle', options = {}) {
+            if (!settlePopup) return;
+            if (settlePopupTimer) {
+                clearTimeout(settlePopupTimer);
+                settlePopupTimer = null;
+            }
+            if (settlePopupPersistent && !options.persistent && !options.force) {
+                return;
             }
 
             settlePopup.textContent = message;
             settlePopup.classList.add('visible');
             settlePopup.setAttribute('aria-hidden', 'false');
+
+            if (options.persistent) {
+                settlePopupPersistent = true;
+                return;
+            }
+
+            settlePopupPersistent = false;
 
             settlePopupTimer = setTimeout(() => {
                 settlePopup.classList.remove('visible');
@@ -20080,7 +20103,7 @@
                 performanceMegaRandomBtn.disabled = true;
                 performanceMegaRandomBtn.textContent = 'Mega Random...';
             }
-            showSettlePopup('mega random takes a little while');
+            showSettlePopup('Mega Random is loading samples. This can take a little while.', { persistent: true });
             setStatus('Mega randomizing patch, bastardloops, Dropbox sample, and drums…');
 
             const failures = [];
@@ -20132,6 +20155,7 @@
                     setStatus(`Mega random ready at ${bpm} BPM.`);
                 }
             } finally {
+                hideSettlePopup();
                 megaRandomizeInFlight = false;
                 if (performanceMegaRandomBtn) {
                     performanceMegaRandomBtn.disabled = false;

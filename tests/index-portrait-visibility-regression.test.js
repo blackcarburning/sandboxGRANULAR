@@ -768,19 +768,22 @@ test('dropbox sample layer can load a random source sample and join bastardloop 
 
 test('mega random button warns and randomizes loops, dropbox sample, and drums together', () => {
     assert.match(indexHtml, /id="performanceMegaRandomBtn">Mega Random<\/button>/);
+    assert.match(indexHtml, /let settlePopupPersistent = false;/);
+    assert.match(indexHtml, /function hideSettlePopup\(\)/);
     assert.match(indexHtml, /function randomizeMegaBastardLoopSettings\(\)/);
     assert.match(indexHtml, /function randomizeMegaDropboxSampleLayerSettings\(\)/);
     assert.match(indexHtml, /function randomizeMegaDrumMachineSettings\(\)/);
     assert.match(indexHtml, /async function waitForMegaRandomLoadsToSettle\(options = \{\}\)/);
     assert.match(indexHtml, /async function runPatchRandomization\(\)/);
     assert.match(indexHtml, /async function runMegaRandomization\(\)/);
-    assert.match(indexHtml, /showSettlePopup\('mega random takes a little while'\)/);
+    assert.match(indexHtml, /showSettlePopup\('Mega Random is loading samples\. This can take a little while\.', \{ persistent: true \}\)/);
     assert.match(indexHtml, /generateBastardLoopWithPlaybackRestart\(\)/);
     assert.match(indexHtml, /generateBastardLoop2WithPlaybackRestart\(\)/);
     assert.match(indexHtml, /generateBastardLoop3WithPlaybackRestart\(\)/);
     assert.match(indexHtml, /loadDropboxSampleLayerFromSource\(\)/);
     assert.match(indexHtml, /loadRandomDrumMachineSamples\(\)/);
     assert.match(indexHtml, /await waitForMegaRandomLoadsToSettle\(\)/);
+    assert.match(indexHtml, /hideSettlePopup\(\);/);
     assert.match(indexHtml, /performanceMegaRandomBtn\?\.addEventListener\('click', async \(\) => \{/);
 });
 
