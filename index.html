@@ -11892,6 +11892,48 @@
             }
         }
 
+        function buildRandomDrumMachinePattern(track, options = {}) {
+            const hasBuffer = track === 'snare' ? Boolean(drumMachineSnareBuffer) : Boolean(drumMachineKickBuffer);
+            if (!hasBuffer && !options.force) {
+                return Array.from({ length: 16 }, () => false);
+            }
+
+            const chance = (probability) => Math.random() < probability;
+            if (track === 'snare') {
+                const pattern = Array.from({ length: 16 }, () => false);
+                pattern[4] = true;
+                pattern[12] = true;
+                if (chance(0.32)) pattern[15] = true;
+                if (chance(0.24)) pattern[7] = true;
+                if (chance(0.18)) pattern[10] = true;
+                if (chance(0.16)) pattern[2] = true;
+                if (chance(0.12)) pattern[6] = true;
+                return pattern;
+            }
+
+            const pattern = Array.from({ length: 16 }, () => false);
+            pattern[0] = true;
+            pattern[8] = true;
+            if (chance(0.78)) pattern[4] = true;
+            if (chance(0.62)) pattern[12] = true;
+            if (chance(0.34)) pattern[2] = true;
+            if (chance(0.28)) pattern[6] = true;
+            if (chance(0.24)) pattern[10] = true;
+            if (chance(0.2)) pattern[14] = true;
+            if (chance(0.14)) pattern[15] = true;
+            return pattern;
+        }
+
+        function randomizeDrumMachinePatterns(options = {}) {
+            const kickPattern = buildRandomDrumMachinePattern('kick', { force: options.forceKick });
+            const snarePattern = buildRandomDrumMachinePattern('snare', { force: options.forceSnare });
+            setDrumMachinePattern('kick', kickPattern, { skipSave: true });
+            setDrumMachinePattern('snare', snarePattern, { skipSave: true });
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function toggleDrumMachineStep(track, index) {
             const pattern = getDrumMachinePattern(track).slice();
             if (index < 0 || index >= pattern.length) return;
@@ -12276,6 +12318,8 @@
             setStatus('Loading random kick and snare…');
 
             try {
+                const hadKickBuffer = Boolean(drumMachineKickBuffer);
+                const hadSnareBuffer = Boolean(drumMachineSnareBuffer);
                 const [kickResult, snareResult] = await Promise.allSettled([
                     loadDrumMachineSample('kick'),
                     loadDrumMachineSample('snare')
@@ -12283,16 +12327,19 @@
                 const failures = [kickResult, snareResult]
                     .filter((result) => result.status === 'rejected')
                     .map((result) => result.reason?.message || String(result.reason));
+                const kickAvailable = kickResult.status === 'fulfilled' || hadKickBuffer || Boolean(drumMachineKickBuffer);
+                const snareAvailable = snareResult.status === 'fulfilled' || hadSnareBuffer || Boolean(drumMachineSnareBuffer);
 
-                if (failures.length === 2) {
+                if (!kickAvailable && !snareAvailable) {
                     throw new Error(failures.join(' | '));
                 }
 
+                randomizeDrumMachinePatterns();
                 syncDrumMachineUi();
                 if (failures.length === 1) {
-                    setStatus(`Drums updated with one warning: ${failures[0]}`, 'error');
+                    setStatus(`Beat ready: ${describeDrumMachineSummary()}. Warning: ${failures[0]}`, 'error');
                 } else {
-                    setStatus(`Drums ready: ${describeDrumMachineSummary()}.`);
+                    setStatus(`Beat ready: ${describeDrumMachineSummary()}.`);
                 }
             } finally {
                 drumMachineLoadInFlight = false;

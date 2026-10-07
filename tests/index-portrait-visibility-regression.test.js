@@ -787,3 +787,14 @@ test('drum machine exposes synced kick and snare sequencing with popup controls'
     assert.match(indexHtml, /function getSharedLoopTransportOriginTime\(\)/);
     assert.match(indexHtml, /performanceDrumMachineOpenBtn\?\.addEventListener\('click', \(\) => \{\s*openDrumMachineOverlay\(\);/);
 });
+
+test('random drums also generates a playable beat pattern', () => {
+    assert.match(indexHtml, /function buildRandomDrumMachinePattern\(track, options = \{\}\)/);
+    assert.match(indexHtml, /function randomizeDrumMachinePatterns\(options = \{\}\)/);
+    assert.match(indexHtml, /pattern\[0\] = true;/);
+    assert.match(indexHtml, /pattern\[8\] = true;/);
+    assert.match(indexHtml, /pattern\[4\] = true;/);
+    assert.match(indexHtml, /pattern\[12\] = true;/);
+    assert.match(indexHtml, /randomizeDrumMachinePatterns\(\);/);
+    assert.match(indexHtml, /setStatus\(`Beat ready: \$\{describeDrumMachineSummary\(\)\}\./);
+});
