@@ -42,6 +42,18 @@ test('mobile performance controls expose loop generation and playback', () => {
     assert.match(indexHtml, /await generateSourceWithPlaybackRestart\(\{ refreshSequencerPattern: true \}\);/);
 });
 
+test('main panel actions stay two-up on phone and restart all starts the full rig', () => {
+    assert.match(indexHtml, /\.simplified-ui \.performance-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.simplified-ui \.performance-actions \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    assert.match(indexHtml, /function restartAllTransport\(options = \{\}\) \{/);
+    assert.match(indexHtml, /restartInternalEffectOscillators\(restartTime\);/);
+    assert.match(indexHtml, /const shouldStartBastardLoop = Boolean\([\s\S]*dropboxSampleLayerBuffer[\s\S]*\);/);
+    assert.match(indexHtml, /const shouldStartDrumMachine = Boolean\([\s\S]*drumMachineKickPattern\.some\(Boolean\)[\s\S]*drumMachineHatPattern\.some\(Boolean\)[\s\S]*\);/);
+    assert.match(indexHtml, /if \(shouldStartSequencer\) \{[\s\S]*startSequencer\(restartTime\);/);
+    assert.match(indexHtml, /if \(shouldStartBastardLoop\) \{[\s\S]*startAllBastardLoopLayers\(restartTime, \{ skipUi: true, silent: true \}\);/);
+    assert.match(indexHtml, /if \(shouldStartDrumMachine\) \{[\s\S]*startDrumMachine\(restartTime, \{ skipUi: true, silent: true \}\);/);
+});
+
 test('generate and randomize actions show a two second settle popup', () => {
     assert.match(indexHtml, /id="settlePopup"[\s\S]*>let it settle<\/div>/);
     assert.match(indexHtml, /function showSettlePopup\(\)/);

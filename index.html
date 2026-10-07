@@ -3063,7 +3063,12 @@
             text-align: center;
         }
 
-        .simplified-ui .performance-actions,
+        .simplified-ui .performance-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
         .simplified-ui .source-seed-buttons,
         .simplified-ui .source-secondary-buttons {
             display: grid;
@@ -3430,7 +3435,10 @@
                 flex-direction: column;
             }
 
-            .simplified-ui .performance-actions,
+            .simplified-ui .performance-actions {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .simplified-ui .source-seed-buttons,
             .simplified-ui .source-secondary-buttons {
                 grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -3504,7 +3512,11 @@
                 padding: 12px;
             }
 
-            .simplified-ui .performance-actions,
+            .simplified-ui .performance-actions {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
             .simplified-ui .performance-sound-controls,
             .simplified-ui .performance-mixer-grid,
             .simplified-ui .performance-filter-grid,
@@ -16183,6 +16195,18 @@
             const shouldRestartArp = arpEnabled && holdEnabled;
             const shouldRestartBastardLoop = bastardLoopPlaying;
             const shouldRestartDrumMachine = drumMachinePlaying;
+            const shouldStartSequencer = !shouldRestartArp;
+            const shouldStartBastardLoop = Boolean(
+                bastardLoopBuffer ||
+                bastardLoop2Buffer ||
+                bastardLoop3Buffer ||
+                dropboxSampleLayerBuffer
+            );
+            const shouldStartDrumMachine = Boolean(
+                drumMachineKickPattern.some(Boolean) ||
+                drumMachineSnarePattern.some(Boolean) ||
+                drumMachineHatPattern.some(Boolean)
+            );
             const restartTime = getBufferedTransportStartTime();
 
             if (shouldRestartSequencer) {
@@ -16208,30 +16232,38 @@
                 updateFinalFxPlacementLfo(true);
             }
 
-            if (shouldRestartSequencer) {
+            let startedSequencer = false;
+            let startedArp = false;
+            let startedBastardLoop = false;
+            let startedDrumMachine = false;
+
+            if (shouldStartSequencer) {
                 startSequencer(restartTime);
+                startedSequencer = sequencerPlaying;
             } else if (shouldRestartArp) {
                 transportLoopStartTime = restartTime;
             }
 
-            if (shouldRestartBastardLoop) {
+            if (shouldStartBastardLoop) {
                 bastardLoopTransportStartTime = restartTime;
-                startAllBastardLoopLayers(restartTime, { skipUi: true });
+                startedBastardLoop = startAllBastardLoopLayers(restartTime, { skipUi: true, silent: true });
             }
-            if (shouldRestartDrumMachine) {
+            if (shouldStartDrumMachine) {
                 drumMachineTransportStartTime = restartTime;
-                startDrumMachine(restartTime, { skipUi: true, silent: true });
+                startedDrumMachine = startDrumMachine(restartTime, { skipUi: true, silent: true });
             }
 
             if (shouldRestartArp) {
                 startArpeggiatorPlayback(restartTime);
+                startedArp = isArpeggiatorPlaying();
             }
 
             updateEffects();
             syncPerformanceControlState();
             if (!options.silent) {
-                setStatus(shouldRestartSequencer || shouldRestartArp || shouldRestartDrumMachine
-                    ? 'Restarted loop, arp, drums, and LFO phases from the start.'
+                const startedAnything = startedSequencer || startedArp || startedBastardLoop || startedDrumMachine;
+                setStatus(startedAnything
+                    ? 'Restarted loop, bastardloops, drums, and LFO phases from the start.'
                     : 'Restarted LFO phases from the start.');
             }
             return true;
