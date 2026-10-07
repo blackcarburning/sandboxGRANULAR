@@ -825,6 +825,14 @@ test('mega random button warns and randomizes loops, dropbox sample, and drums t
     assert.match(indexHtml, /performanceMegaRandomBtn\?\.addEventListener\('click', async \(\) => \{/);
 });
 
+test('main panel exposes a dedicated red stop-all control beside restart all', () => {
+    assert.match(indexHtml, /\.simplified-ui #performanceMainStopAllBtn \{/);
+    assert.match(indexHtml, /id="performanceRestartAllBtn">Restart All<\/button>\s*<button class="performance-btn" id="performanceMainStopAllBtn">Stop All<\/button>/);
+    assert.match(indexHtml, /const performanceMainStopAllBtn = document.getElementById\('performanceMainStopAllBtn'\);/);
+    assert.match(indexHtml, /function stopAllPerformancePlayback\(options = \{\}\)/);
+    assert.match(indexHtml, /performanceMainStopAllBtn\?\.addEventListener\('click', \(\) => \{\s*stopAllPerformancePlayback\(\);/);
+});
+
 test('repo export restarts only the live loop layers instead of broad transport restart', () => {
     assert.match(indexHtml, /async function renderDawReadyBarsExport\(\)/);
     assert.match(indexHtml, /const wasBastardLoopALive = Boolean\(bastardLoopSource\)/);
