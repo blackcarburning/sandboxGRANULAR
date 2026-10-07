@@ -4499,6 +4499,13 @@
                     <input type="range" id="finalCompressorAmount" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="finalCompressorRelease">
+                        <span>Comp Release</span>
+                        <span class="value" id="finalCompressorReleaseValue">260ms</span>
+                    </label>
+                    <input type="range" id="finalCompressorRelease" min="20" max="1000" value="260" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceFinalSidechainBtn">
                         <span>Sidechain Key</span>
                     </label>
@@ -9222,7 +9229,7 @@
             finalCompressorNode.knee.value = 0;
             finalCompressorNode.ratio.value = 1;
             finalCompressorNode.attack.value = 0.02;
-            finalCompressorNode.release.value = 0.12;
+            finalCompressorNode.release.value = 0.26;
             finalSidechainGain = audioContext.createGain();
             finalSidechainGain.gain.value = 1;
             finalAmplifierNode = audioContext.createGain();
@@ -9834,14 +9841,19 @@
             return FINAL_COMPRESSOR_SIDECHAIN_OPTIONS.some((option) => option.value === value) ? value : 'off';
         }
 
+        function getFinalCompressorReleaseSeconds() {
+            const milliseconds = Math.max(20, Math.min(1000, Number(document.getElementById('finalCompressorRelease')?.value) || 260));
+            return milliseconds / 1000;
+        }
+
         function getFinalCompressorSettings(amount = 0) {
             const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
             return {
-                threshold: safeAmount > 0.001 ? -10 - (safeAmount * 28) : 0,
-                knee: safeAmount * 24,
-                ratio: 1 + (safeAmount * 11),
-                attack: Math.max(0.003, 0.018 - (safeAmount * 0.015)),
-                release: 0.09 + (safeAmount * 0.26)
+                threshold: safeAmount > 0.001 ? -8 - (safeAmount * 46) : 0,
+                knee: safeAmount > 0.001 ? Math.max(0, 10 - (safeAmount * 10)) : 0,
+                ratio: 1 + (safeAmount * 39),
+                attack: Math.max(0.0008, 0.012 - (safeAmount * 0.011)),
+                release: getFinalCompressorReleaseSeconds()
             };
         }
 
@@ -9868,8 +9880,8 @@
 
         function getFinalKickSidechainDetector(now = audioContext?.currentTime || 0) {
             pruneFinalSidechainKickEvents(now);
-            const attack = 0.008;
-            const release = 0.26;
+            const attack = 0.004;
+            const release = getFinalCompressorReleaseSeconds();
             let detector = 0;
             finalSidechainKickEvents.forEach((event) => {
                 const elapsed = now - event.time;
@@ -10175,7 +10187,7 @@
             const sidechainAmount = fxMuted ? 0 : getFinalCompressorSidechainAmount();
             const detector = sidechainAmount > 0.001 ? getFinalCompressorSidechainDetector(now) : 0;
             const duckGain = detector > 0.001
-                ? Math.max(0.18, 1 - (detector * sidechainAmount * 0.82))
+                ? Math.max(0, 1 - (Math.pow(detector, 0.62) * sidechainAmount * 1.32))
                 : 1;
             smoothRamp(finalSidechainGain?.gain, duckGain);
         }
@@ -17654,7 +17666,7 @@
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
                     e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix' ||
                     e.target.id.startsWith('finalDrive') ||
-                    e.target.id === 'finalCompressorAmount' || e.target.id === 'finalSidechainAmount' ||
+                    e.target.id === 'finalCompressorAmount' || e.target.id === 'finalCompressorRelease' || e.target.id === 'finalSidechainAmount' ||
                     e.target.id === 'finalDelayDepth' || e.target.id === 'finalRingDepth' ||
                     e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' ||
                     e.target.id === 'finalReverbLowpass' || e.target.id === 'finalReverbMix') {
@@ -21056,6 +21068,7 @@
                 finalDriveFold: 0,
                 finalDriveCrush: 0,
                 finalCompressorAmount: 0,
+                finalCompressorRelease: 260,
                 finalSidechainAmount: 0,
                 finalDelayDepth: 0,
                 finalDelayFeedback: 30,
@@ -24379,6 +24392,7 @@
             'finalDriveFold',
             'finalDriveCrush',
             'finalCompressorAmount',
+            'finalCompressorRelease',
             'performanceFinalSidechainBtn',
             'finalSidechainAmount',
             'finalDelayDepth',

@@ -941,6 +941,7 @@ test('mix and trim card exposes an analyser-driven output vu meter', () => {
 
 test('final effects expose a master compressor with lfo1 or kick sidechain routing', () => {
     assert.match(indexHtml, /id="finalCompressorAmount" min="0" max="100" value="0" step="1"/);
+    assert.match(indexHtml, /id="finalCompressorRelease" min="20" max="1000" value="260" step="1"/);
     assert.match(indexHtml, /id="performanceFinalSidechainBtn">SC Off<\/button>/);
     assert.match(indexHtml, /id="finalSidechainAmount" min="0" max="100" value="0" step="1"/);
     assert.match(indexHtml, /const FINAL_COMPRESSOR_SIDECHAIN_OPTIONS = \[/);
@@ -954,10 +955,16 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /finalOutputPanner\.connect\(finalCompressorNode\);/);
     assert.match(indexHtml, /finalCompressorNode\.connect\(finalSidechainGain\);/);
     assert.match(indexHtml, /finalSidechainGain\.connect\(finalAmplifierNode\);/);
+    assert.match(indexHtml, /function getFinalCompressorReleaseSeconds\(\)/);
     assert.match(indexHtml, /function getFinalCompressorSettings\(amount = 0\)/);
+    assert.match(indexHtml, /threshold: safeAmount > 0\.001 \? -8 - \(safeAmount \* 46\) : 0,/);
+    assert.match(indexHtml, /ratio: 1 \+ \(safeAmount \* 39\),/);
+    assert.match(indexHtml, /release: getFinalCompressorReleaseSeconds\(\)/);
     assert.match(indexHtml, /function getFinalCompressorSidechainDetector\(now = audioContext\?\.currentTime \|\| 0\)/);
     assert.match(indexHtml, /registerFinalSidechainKickTrigger\(scheduledTime, kickLevel\);/);
+    assert.match(indexHtml, /const release = getFinalCompressorReleaseSeconds\(\);/);
     assert.match(indexHtml, /smoothRamp\(finalCompressorNode\?\.threshold, compressorSettings\.threshold\);/);
+    assert.match(indexHtml, /Math\.max\(0, 1 - \(Math\.pow\(detector, 0\.62\) \* sidechainAmount \* 1\.32\)\)/);
     assert.match(indexHtml, /smoothRamp\(finalSidechainGain\?\.gain, duckGain\);/);
     assert.match(indexHtml, /performanceFinalSidechainBtn\?\.addEventListener\('click', \(\) => \{\s*cycleFinalCompressorSidechainSource\(\);/);
     assert.match(indexHtml, /finalCompressorSidechainSource: finalCompressorSidechainSource/);
