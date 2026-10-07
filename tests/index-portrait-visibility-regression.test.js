@@ -766,7 +766,7 @@ test('dropbox sample layer can load a random source sample and join bastardloop 
     assert.match(indexHtml, /const startedSample = startDropboxSampleLayer\(resolvedStartTime, \{ skipUi: true \}\)/);
 });
 
-test('drum machine exposes synced kick and snare sequencing with popup controls', () => {
+test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup controls', () => {
     assert.match(indexHtml, /\.sample-browser-overlay\s*\{[\s\S]*z-index:\s*2147483300;/);
     assert.match(indexHtml, /\.drum-machine-overlay\s*\{[\s\S]*z-index:\s*2147483200;/);
     assert.match(indexHtml, /@media \(max-width: 640px\) \{[\s\S]*\.sample-browser-controls\s*\{[\s\S]*flex-direction:\s*column;[\s\S]*align-items:\s*stretch;/);
@@ -783,8 +783,12 @@ test('drum machine exposes synced kick and snare sequencing with popup controls'
     assert.match(indexHtml, /id="drumMachineSnareBrowseBtn" type="button">Browse Snares<\/button>/);
     assert.match(indexHtml, /id="drumMachineKickGrid"/);
     assert.match(indexHtml, /id="drumMachineSnareGrid"/);
+    assert.match(indexHtml, /id="drumMachineHatGrid"/);
     assert.match(indexHtml, /id="drumMachineKickPitch" min="-12" max="12" value="0" step="1"/);
     assert.match(indexHtml, /id="drumMachineSnarePitch" min="-12" max="12" value="0" step="1"/);
+    assert.match(indexHtml, /id="drumMachineHatTune" min="-12" max="12" value="0" step="1"/);
+    assert.match(indexHtml, /id="drumMachineHatAccentAmount" min="0" max="100" value="35" step="1"/);
+    assert.match(indexHtml, /id="drumMachineHatTimingModeBtn" type="button">Straight Hats<\/button>/);
     assert.match(indexHtml, /id="drumMachineKickLevel" min="0" max="100" value="100" step="1"/);
     assert.match(indexHtml, /id="drumMachineSnareLevel" min="0" max="100" value="100" step="1"/);
     assert.match(indexHtml, /id="drumMachineSnareDistortion" min="0" max="100" value="0" step="1"/);
@@ -799,17 +803,26 @@ test('drum machine exposes synced kick and snare sequencing with popup controls'
     assert.match(indexHtml, /function getDrumMachineKickLevelValue\(\)/);
     assert.match(indexHtml, /function getDrumMachineSnareLevelValue\(\)/);
     assert.match(indexHtml, /function getDrumMachineSnareDistortionAmount\(\)/);
+    assert.match(indexHtml, /function getDrumMachineHatAccentAmount\(\)/);
+    assert.match(indexHtml, /function cycleDrumMachineHatTimingMode\(options = \{\}\)/);
     assert.match(indexHtml, /function playDrumMachineHit\(buffer, scheduledTime, pitchRatio = 1, options = \{\}\)/);
+    assert.match(indexHtml, /function playDrumMachineHatHit\(scheduledTime, options = \{\}\)/);
     assert.match(indexHtml, /shaper\.curve = makeDistortionCurve\(distortionAmount\)/);
+    assert.match(indexHtml, /Double tap = 1\/32 ratchet/);
+    assert.match(indexHtml, /stepButton\.classList\.toggle\('ratchet', ratchet\)/);
     assert.match(indexHtml, /function getSharedLoopTransportOriginTime\(\)/);
     assert.match(indexHtml, /performanceDrumMachineOpenBtn\?\.addEventListener\('click', \(\) => \{\s*openDrumMachineOverlay\(\);/);
     assert.match(indexHtml, /drumMachineKickBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineKick\);/);
     assert.match(indexHtml, /drumMachineSnareBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineSnare\);/);
+    assert.match(indexHtml, /drumMachineHatTimingModeBtn\?\.addEventListener\('click', \(\) => \{\s*cycleDrumMachineHatTimingMode\(\);/);
 });
 
 test('random drums also generates a playable beat pattern', () => {
     assert.match(indexHtml, /function buildRandomDrumMachinePattern\(track, options = \{\}\)/);
     assert.match(indexHtml, /function randomizeDrumMachinePatterns\(options = \{\}\)/);
+    assert.match(indexHtml, /const hatPattern = buildRandomDrumMachinePattern\('hat', \{ force: true \}\);/);
+    assert.match(indexHtml, /drumMachineHatAccentPattern = accentPattern;/);
+    assert.match(indexHtml, /drumMachineHatRatchetPattern = ratchetPattern;/);
     assert.match(indexHtml, /function loadDrumMachineSampleSet\(options = \{\}\)/);
     assert.match(indexHtml, /pattern\[0\] = true;/);
     assert.match(indexHtml, /pattern\[8\] = true;/);
