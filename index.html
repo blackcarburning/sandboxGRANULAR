@@ -19965,6 +19965,29 @@
             syncPerformanceControlState();
         }
 
+        async function waitForMegaRandomLoadsToSettle(options = {}) {
+            const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 90000);
+            const pollMs = Math.max(20, Number(options.pollMs) || 60);
+            const startedAt = performance.now();
+
+            while (true) {
+                const patchGenerating = Boolean(performanceGenerateLoopBtn?.classList.contains('generating'));
+                const sampleWorkInFlight = patchGenerating
+                    || bastardLoopGenerationInFlight
+                    || bastardLoop2GenerationInFlight
+                    || bastardLoop3GenerationInFlight
+                    || dropboxSampleLayerLoadInFlight
+                    || drumMachineLoadInFlight;
+                if (!sampleWorkInFlight) {
+                    return;
+                }
+                if ((performance.now() - startedAt) >= timeoutMs) {
+                    throw new Error('Timed out waiting for mega random samples to finish loading.');
+                }
+                await new Promise((resolve) => setTimeout(resolve, pollMs));
+            }
+        }
+
         async function runPatchRandomization() {
             const bpmSnapshot = snapshotRandomizeBpmState();
             const randomizeGrainMode = chooseRandom(['cloud', 'cloud', 'cloud', 'rhythmic', 'drum']);
@@ -20066,6 +20089,7 @@
             try {
                 try {
                     patchResult = await runPatchRandomization();
+                    await waitForMegaRandomLoadsToSettle();
                 } catch (error) {
                     failures.push(`patch: ${error.message}`);
                 }
@@ -20092,12 +20116,14 @@
                 for (const task of megaTasks) {
                     try {
                         await task.run();
+                        await waitForMegaRandomLoadsToSettle();
                     } catch (error) {
                         console.error(error);
                         failures.push(`${task.label}: ${error.message}`);
                     }
                 }
 
+                await waitForMegaRandomLoadsToSettle();
                 saveState();
                 const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
                 if (failures.length > 0) {

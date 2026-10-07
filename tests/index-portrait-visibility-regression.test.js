@@ -771,6 +771,7 @@ test('mega random button warns and randomizes loops, dropbox sample, and drums t
     assert.match(indexHtml, /function randomizeMegaBastardLoopSettings\(\)/);
     assert.match(indexHtml, /function randomizeMegaDropboxSampleLayerSettings\(\)/);
     assert.match(indexHtml, /function randomizeMegaDrumMachineSettings\(\)/);
+    assert.match(indexHtml, /async function waitForMegaRandomLoadsToSettle\(options = \{\}\)/);
     assert.match(indexHtml, /async function runPatchRandomization\(\)/);
     assert.match(indexHtml, /async function runMegaRandomization\(\)/);
     assert.match(indexHtml, /showSettlePopup\('mega random takes a little while'\)/);
@@ -779,6 +780,7 @@ test('mega random button warns and randomizes loops, dropbox sample, and drums t
     assert.match(indexHtml, /generateBastardLoop3WithPlaybackRestart\(\)/);
     assert.match(indexHtml, /loadDropboxSampleLayerFromSource\(\)/);
     assert.match(indexHtml, /loadRandomDrumMachineSamples\(\)/);
+    assert.match(indexHtml, /await waitForMegaRandomLoadsToSettle\(\)/);
     assert.match(indexHtml, /performanceMegaRandomBtn\?\.addEventListener\('click', async \(\) => \{/);
 });
 
