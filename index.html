@@ -6250,6 +6250,13 @@
                             <input type="range" id="drumMachineHatTune" min="-12" max="12" value="0" step="1">
                         </div>
                         <div class="performance-sound-card">
+                            <label for="drumMachineHatLevel">
+                                <span>Hat Level</span>
+                                <span class="value" id="drumMachineHatLevelValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineHatLevel" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="performance-sound-card">
                             <label for="drumMachineHatAccentAmount">
                                 <span>Accent Amount</span>
                                 <span class="value" id="drumMachineHatAccentAmountValue">35%</span>
@@ -6960,6 +6967,7 @@
         let drumMachineHatTuneSemitones = 0;
         let drumMachineKickTrackLevel = 1;
         let drumMachineSnareTrackLevel = 1;
+        let drumMachineHatTrackLevel = 1;
         let drumMachineSnareDriveAmount = 0;
         let drumMachineHatAccentAmount = 0.35;
         let drumMachineKickPattern = Array.from({ length: 16 }, (_, index) => index === 0 || index === 8);
@@ -12074,6 +12082,14 @@
             return drumMachineSnareDriveAmount;
         }
 
+        function getDrumMachineHatLevelValue() {
+            const slider = document.getElementById('drumMachineHatLevel');
+            const rawValue = Number(slider?.value ?? (drumMachineHatTrackLevel * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
+            drumMachineHatTrackLevel = clamped / 100;
+            return drumMachineHatTrackLevel;
+        }
+
         function getDrumMachineLevelValue(options = {}) {
             const slider = document.getElementById('performanceDrumMachineLevel');
             const rawValue = Number(slider?.value ?? (drumMachineLevel * 100));
@@ -12385,6 +12401,7 @@
             const hatValue = getDrumMachineHatTuneSemitones();
             const kickLevel = Math.round(getDrumMachineKickLevelValue() * 100);
             const snareLevel = Math.round(getDrumMachineSnareLevelValue() * 100);
+            const hatLevel = Math.round(getDrumMachineHatLevelValue() * 100);
             const snareDistortion = Math.round(getDrumMachineSnareDistortionAmount() * 100);
             const hatAccentAmount = Math.round(getDrumMachineHatAccentAmount() * 100);
             const kickLabel = document.getElementById('drumMachineKickPitchValue');
@@ -12392,11 +12409,13 @@
             const hatLabel = document.getElementById('drumMachineHatTuneValue');
             const kickLevelLabel = document.getElementById('drumMachineKickLevelValue');
             const snareLevelLabel = document.getElementById('drumMachineSnareLevelValue');
+            const hatLevelLabel = document.getElementById('drumMachineHatLevelValue');
             const snareDistortionLabel = document.getElementById('drumMachineSnareDistortionValue');
             const hatAccentAmountLabel = document.getElementById('drumMachineHatAccentAmountValue');
             const hatTuneSlider = document.getElementById('drumMachineHatTune');
             const kickLevelSlider = document.getElementById('drumMachineKickLevel');
             const snareLevelSlider = document.getElementById('drumMachineSnareLevel');
+            const hatLevelSlider = document.getElementById('drumMachineHatLevel');
             const snareDistortionSlider = document.getElementById('drumMachineSnareDistortion');
             const hatAccentSlider = document.getElementById('drumMachineHatAccentAmount');
             if (kickLabel) kickLabel.textContent = formatDrumMachinePitchSemitones(kickValue);
@@ -12404,11 +12423,13 @@
             if (hatLabel) hatLabel.textContent = formatDrumMachinePitchSemitones(hatValue);
             if (kickLevelLabel) kickLevelLabel.textContent = `${kickLevel}%`;
             if (snareLevelLabel) snareLevelLabel.textContent = `${snareLevel}%`;
+            if (hatLevelLabel) hatLevelLabel.textContent = `${hatLevel}%`;
             if (snareDistortionLabel) snareDistortionLabel.textContent = `${snareDistortion}%`;
             if (hatAccentAmountLabel) hatAccentAmountLabel.textContent = `${hatAccentAmount}%`;
             if (hatTuneSlider) hatTuneSlider.value = String(hatValue);
             if (kickLevelSlider) kickLevelSlider.value = String(kickLevel);
             if (snareLevelSlider) snareLevelSlider.value = String(snareLevel);
+            if (hatLevelSlider) hatLevelSlider.value = String(hatLevel);
             if (snareDistortionSlider) snareDistortionSlider.value = String(snareDistortion);
             if (hatAccentSlider) hatAccentSlider.value = String(hatAccentAmount);
         }
@@ -12531,10 +12552,11 @@
         function playDrumMachineHatHit(scheduledTime, options = {}) {
             const accentAmount = getDrumMachineHatAccentAmount();
             const accentBoost = options.accent ? accentAmount : 0;
+            const trackLevel = getDrumMachineHatLevelValue();
             if (drumMachineHatBuffer) {
                 const baseLevel = options.ratchet ? 0.22 : 0.3;
                 return playDrumMachineHit(drumMachineHatBuffer, scheduledTime, getDrumMachineHatPitchRatio(), {
-                    level: Math.min(1, baseLevel + (accentBoost * 0.5))
+                    level: Math.min(1, (baseLevel + (accentBoost * 0.5)) * trackLevel)
                 });
             }
             if (!audioContext) return false;
@@ -12550,7 +12572,7 @@
             const baseFrequency = 7200 * pitchRatio;
             const duration = options.ratchet ? 0.038 : 0.055;
             const fadeSeconds = 0.003;
-            const startLevel = 0.18 + (accentBoost * 0.28);
+            const startLevel = (0.18 + (accentBoost * 0.28)) * trackLevel;
             const endTime = scheduledTime + duration;
 
             source.buffer = noiseBuffer;
@@ -23174,6 +23196,7 @@
         const drumMachineSnareLevel = document.getElementById('drumMachineSnareLevel');
         const drumMachineSnareDistortion = document.getElementById('drumMachineSnareDistortion');
         const drumMachineHatTune = document.getElementById('drumMachineHatTune');
+        const drumMachineHatLevel = document.getElementById('drumMachineHatLevel');
         const drumMachineHatAccentAmountSlider = document.getElementById('drumMachineHatAccentAmount');
         const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
         const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
@@ -24156,6 +24179,13 @@
 
         drumMachineHatTune?.addEventListener('input', (event) => {
             setDrumMachineHatTuneSemitones(event.target.value);
+        });
+
+        drumMachineHatLevel?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            drumMachineHatTrackLevel = value / 100;
+            document.getElementById('drumMachineHatLevelValue').textContent = `${Math.round(value)}%`;
+            saveState();
         });
 
         drumMachineHatAccentAmountSlider?.addEventListener('input', (event) => {

@@ -792,6 +792,7 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /id="drumMachineHatTimingModeBtn" type="button">Straight Hats<\/button>/);
     assert.match(indexHtml, /id="drumMachineKickLevel" min="0" max="100" value="100" step="1"/);
     assert.match(indexHtml, /id="drumMachineSnareLevel" min="0" max="100" value="100" step="1"/);
+    assert.match(indexHtml, /id="drumMachineHatLevel" min="0" max="100" value="100" step="1"/);
     assert.match(indexHtml, /id="drumMachineSnareDistortion" min="0" max="100" value="0" step="1"/);
     assert.match(indexHtml, /const DRUM_MACHINE_SOURCE_KEYS = \{/);
     assert.match(indexHtml, /kick: 'samples_kicks'/);
@@ -804,6 +805,7 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /function scheduleDrumMachine\(\)/);
     assert.match(indexHtml, /function getDrumMachineKickLevelValue\(\)/);
     assert.match(indexHtml, /function getDrumMachineSnareLevelValue\(\)/);
+    assert.match(indexHtml, /function getDrumMachineHatLevelValue\(\)/);
     assert.match(indexHtml, /function getDrumMachineSnareDistortionAmount\(\)/);
     assert.match(indexHtml, /function getDrumMachineHatAccentAmount\(\)/);
     assert.match(indexHtml, /function cycleDrumMachineHatTimingMode\(options = \{\}\)/);
