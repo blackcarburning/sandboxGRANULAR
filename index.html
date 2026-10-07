@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-07-08-03-build-v2026.10.07.4';
+            const cacheBuster = '2026-10-07-08-07-build-v2026.10.07.5';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3355,7 +3355,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.07.4</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.07.5</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3368,7 +3368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.07.4</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.07.5</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -10157,7 +10157,22 @@
             const safePitchRatio = Number.isFinite(Number(musicalPitchRatio))
                 ? Math.max(0.0625, Math.min(16, Math.abs(Number(musicalPitchRatio))))
                 : 1;
-            return 1 / safePitchRatio;
+            // pitchShiftBufferByRatioKeepDuration() reads further through the source buffer as the ratio grows,
+            // so higher keyboard notes must map to larger ratios here. Inverting this flips the keyboard.
+            return safePitchRatio;
+        }
+
+        function verifyTempoLockedPitchDirection() {
+            const lowRatio = getTempoLockedSourceReadRatio(0.5);
+            const centerRatio = getTempoLockedSourceReadRatio(1);
+            const highRatio = getTempoLockedSourceReadRatio(2);
+            if (!(lowRatio < centerRatio && centerRatio < highRatio)) {
+                console.error('Tempo-locked keyboard pitch direction invariant failed.', {
+                    lowRatio,
+                    centerRatio,
+                    highRatio
+                });
+            }
         }
 
         function getTempoLockedPitchBuffer(sourceBuffer, pitchRatio = 1) {
@@ -22527,6 +22542,7 @@
         });
 
         restoreRememberedBpmFromStorage();
+        verifyTempoLockedPitchDirection();
         syncFinalPanControlDisplays();
         syncPerformanceControlState();
 
