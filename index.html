@@ -325,6 +325,15 @@
             min-width: 0;
         }
 
+        .drum-machine-track-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
         .drum-machine-copy p,
         .drum-machine-status,
         .drum-machine-track-copy p,
@@ -446,7 +455,8 @@
 
             .drum-machine-head,
             .drum-machine-toolbar,
-            .drum-machine-track-head {
+            .drum-machine-track-head,
+            .drum-machine-track-actions {
                 flex-direction: column;
                 align-items: stretch;
             }
@@ -3746,7 +3756,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Drums</div>
                         <h3 class="performance-feature-title">Kick / Snare / Hi-Hat Drum Machine</h3>
-                        <p class="performance-feature-note">Randomly load a kick from `SAMPLES_KICKS` and a snare from `SAMPLES_SNARES`, add procedural hats, then place them on a synced 16-step grid in a dedicated popup sequencer.</p>
+                        <p class="performance-feature-note">Randomly load a kick from `SAMPLES_KICKS`, a snare from `SAMPLES_SNARES`, and a hat from `SAMPLES_HATS`, then place them on a synced 16-step grid in a dedicated popup sequencer.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceDrumMachineRandomBtn">Random Drums</button>
@@ -6146,7 +6156,7 @@
                 <div class="drum-machine-head">
                     <div class="drum-machine-copy">
                         <h3 id="drumMachineTitle">Kick / Snare / Hi-Hat Drum Machine</h3>
-                        <p id="drumMachineSubtitle">Randomize kick and snare samples, add procedural hats, and place them on a synced 16-step grid.</p>
+                        <p id="drumMachineSubtitle">Randomize kick, snare, and hi-hat samples, then place them on a synced 16-step grid.</p>
                     </div>
                     <button class="performance-btn" id="drumMachineCloseBtn" type="button">Close</button>
                 </div>
@@ -6155,7 +6165,7 @@
                     <button class="performance-btn" id="drumMachineSamplesOnlyBtn" type="button">Random Samples</button>
                     <button class="performance-btn" id="drumMachinePlayBtn" type="button">Start Drums</button>
                     <button class="performance-btn" id="drumMachineStopBtn" type="button">Stop Drums</button>
-                    <div class="drum-machine-status" id="drumMachineStatus">Kick empty · Snare empty</div>
+                    <div class="drum-machine-status" id="drumMachineStatus">Kick empty · Snare empty · Synth hats · Hats empty</div>
                 </div>
                 <div class="drum-machine-layout">
                     <article class="drum-machine-track-card" aria-label="Kick track">
@@ -6225,9 +6235,12 @@
                         <div class="drum-machine-track-head">
                             <div class="drum-machine-track-copy">
                                 <div class="performance-chip">Hi-Hat</div>
-                                <p id="drumMachineHatMeta">Source: Synth hat · Straight timing</p>
+                                <p id="drumMachineHatMeta">Source: SAMPLES_HATS · Synth fallback · Straight timing</p>
                             </div>
-                            <button class="performance-btn" id="drumMachineHatTimingModeBtn" type="button">Straight Hats</button>
+                            <div class="drum-machine-track-actions">
+                                <button class="performance-btn" id="drumMachineHatBrowseBtn" type="button">Browse Hats</button>
+                                <button class="performance-btn" id="drumMachineHatTimingModeBtn" type="button">Straight Hats</button>
+                            </div>
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineHatTune">
@@ -6659,11 +6672,13 @@
             sampledrop2: 'SAMPLEDROP_2',
             splice_claw: 'SPLICE_CLAW',
             samples_kicks: 'SAMPLES_KICKS',
-            samples_snares: 'SAMPLES_SNARES'
+            samples_snares: 'SAMPLES_SNARES',
+            samples_hats: 'SAMPLES_HATS'
         };
         const DRUM_MACHINE_SOURCE_KEYS = {
             kick: 'samples_kicks',
-            snare: 'samples_snares'
+            snare: 'samples_snares',
+            hat: 'samples_hats'
         };
         const DRUM_MACHINE_HAT_TIMING_LABELS = {
             straight: 'Straight Hats',
@@ -6673,7 +6688,8 @@
         const SAMPLE_BROWSER_TARGETS = {
             dropboxSampleLayer: 'dropboxSampleLayer',
             drumMachineKick: 'drumMachineKick',
-            drumMachineSnare: 'drumMachineSnare'
+            drumMachineSnare: 'drumMachineSnare',
+            drumMachineHat: 'drumMachineHat'
         };
         const ARP_MODE_OPTIONS = [
             { value: 'up', label: 'Up' },
@@ -6971,8 +6987,10 @@
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
         let drumMachineKickBuffer = null;
         let drumMachineSnareBuffer = null;
+        let drumMachineHatBuffer = null;
         let drumMachineKickMetadata = null;
         let drumMachineSnareMetadata = null;
+        let drumMachineHatMetadata = null;
         let drumMachineBusGainNode = null;
         let drumMachineActiveVoices = new Set();
         let drumMachineNextStepTime = 0;
@@ -8577,6 +8595,7 @@
                     const restoredDropboxSampleLayerBuffer = await loadAudioBufferFromDB(DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY);
                     const restoredDrumMachineKickBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
                     const restoredDrumMachineSnareBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
+                    const restoredDrumMachineHatBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY);
                     const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                     const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
@@ -8589,6 +8608,7 @@
                     const shouldRestoreDropboxSampleLayer = restoredDropboxSampleLayerBuffer && restoreStillCurrent;
                     const shouldRestoreDrumMachineKick = restoredDrumMachineKickBuffer && restoreStillCurrent;
                     const shouldRestoreDrumMachineSnare = restoredDrumMachineSnareBuffer && restoreStillCurrent;
+                    const shouldRestoreDrumMachineHat = restoredDrumMachineHatBuffer && restoreStillCurrent;
                     if (shouldRestoreGenerated) {
                         generatedLoopBuffer = restoredGeneratedBuffer;
                         generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
@@ -8652,7 +8672,18 @@
                             };
                         }
                     }
-                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare) {
+                    if (shouldRestoreDrumMachineHat) {
+                        drumMachineHatBuffer = restoredDrumMachineHatBuffer;
+                        if (!drumMachineHatMetadata?.fileName) {
+                            drumMachineHatMetadata = {
+                                sourceKey: DRUM_MACHINE_SOURCE_KEYS.hat,
+                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.hat],
+                                fileName: 'restored-hat.wav',
+                                relativePath: ''
+                            };
+                        }
+                    }
+                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare || shouldRestoreDrumMachineHat) {
                         syncLegacyAudioBuffer();
                         drawWaveforms();
                         updateSourceAvailability();
@@ -10990,7 +11021,12 @@
 
         function getDrumMachineSourceLabel(kind) {
             const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
-            return BASTARD_LOOP_SOURCE_LABELS[sourceKey] || (kind === 'kick' ? 'SAMPLES_KICKS' : 'SAMPLES_SNARES');
+            if (BASTARD_LOOP_SOURCE_LABELS[sourceKey]) {
+                return BASTARD_LOOP_SOURCE_LABELS[sourceKey];
+            }
+            if (kind === 'kick') return 'SAMPLES_KICKS';
+            if (kind === 'snare') return 'SAMPLES_SNARES';
+            return 'SAMPLES_HATS';
         }
 
         function getSampleBrowserTargetConfig(target = dropboxSampleBrowserTarget) {
@@ -11014,6 +11050,17 @@
                     sourceLabel: getDrumMachineSourceLabel('snare'),
                     loadButtonLabel: 'Load Snare',
                     loadingLabel: 'Loading snares...'
+                };
+            }
+            if (target === SAMPLE_BROWSER_TARGETS.drumMachineHat) {
+                return {
+                    target,
+                    title: 'Hat Browser',
+                    subtitle: 'Preview and load one hi-hat sample into the drum machine.',
+                    sourceKey: DRUM_MACHINE_SOURCE_KEYS.hat,
+                    sourceLabel: getDrumMachineSourceLabel('hat'),
+                    loadButtonLabel: 'Load Hat',
+                    loadingLabel: 'Loading hats...'
                 };
             }
             const sourceKey = getDropboxSampleLayerSourceKey();
@@ -12070,11 +12117,16 @@
         }
 
         function describeDrumMachineTrackMetadata(kind) {
+            const metadata = kind === 'kick'
+                ? drumMachineKickMetadata
+                : (kind === 'snare' ? drumMachineSnareMetadata : drumMachineHatMetadata);
+            const sourceLabel = getDrumMachineSourceLabel(kind);
             if (kind === 'hat') {
-                return `Source: Synth hat · ${formatDrumMachineHatTimingMode(getDrumMachineHatTimingMode())}`;
+                if (!metadata?.fileName) {
+                    return `Source: ${sourceLabel} · Synth fallback · ${formatDrumMachineHatTimingMode(getDrumMachineHatTimingMode())}`;
+                }
+                return `Source: ${sourceLabel} · ${metadata.fileName} · ${formatDrumMachineHatTimingMode(getDrumMachineHatTimingMode())}`;
             }
-            const metadata = kind === 'kick' ? drumMachineKickMetadata : drumMachineSnareMetadata;
-            const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS[kind]] || (kind === 'kick' ? 'SAMPLES_KICKS' : 'SAMPLES_SNARES');
             if (!metadata?.fileName) {
                 return `Source: ${sourceLabel} · Empty`;
             }
@@ -12085,7 +12137,8 @@
             const kickName = drumMachineKickMetadata?.fileName || 'Kick empty';
             const snareName = drumMachineSnareMetadata?.fileName || 'Snare empty';
             const hatCount = drumMachineHatPattern.filter(Boolean).length;
-            const hatSummary = hatCount ? `${hatCount} hats` : 'Hats empty';
+            const hatSample = drumMachineHatMetadata?.fileName || 'Synth hats';
+            const hatSummary = hatCount ? `${hatSample} · ${hatCount} hats` : `${hatSample} · Hats empty`;
             return `${kickName} · ${snareName} · ${hatSummary}`;
         }
 
@@ -12390,7 +12443,8 @@
             ];
             const browserButtons = [
                 document.getElementById('drumMachineKickBrowseBtn'),
-                document.getElementById('drumMachineSnareBrowseBtn')
+                document.getElementById('drumMachineSnareBrowseBtn'),
+                document.getElementById('drumMachineHatBrowseBtn')
             ];
 
             if (mixerSlider) mixerSlider.value = String(level);
@@ -12475,6 +12529,14 @@
         }
 
         function playDrumMachineHatHit(scheduledTime, options = {}) {
+            const accentAmount = getDrumMachineHatAccentAmount();
+            const accentBoost = options.accent ? accentAmount : 0;
+            if (drumMachineHatBuffer) {
+                const baseLevel = options.ratchet ? 0.22 : 0.3;
+                return playDrumMachineHit(drumMachineHatBuffer, scheduledTime, getDrumMachineHatPitchRatio(), {
+                    level: Math.min(1, baseLevel + (accentBoost * 0.5))
+                });
+            }
             if (!audioContext) return false;
             const bus = ensureDrumMachineBus();
             const noiseBuffer = ensureDrumMachineHatNoiseBuffer();
@@ -12484,8 +12546,6 @@
             const highpass = audioContext.createBiquadFilter();
             const bandpass = audioContext.createBiquadFilter();
             const gain = audioContext.createGain();
-            const accentAmount = getDrumMachineHatAccentAmount();
-            const accentBoost = options.accent ? accentAmount : 0;
             const pitchRatio = Math.max(0.5, Math.min(2, getDrumMachineHatPitchRatio()));
             const baseFrequency = 7200 * pitchRatio;
             const duration = options.ratchet ? 0.038 : 0.055;
@@ -12794,6 +12854,10 @@
                 drumMachineSnareBuffer = buffer;
                 drumMachineSnareMetadata = resolvedMetadata;
                 await saveAudioBufferToDB(buffer, DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
+            } else if (kind === 'hat') {
+                drumMachineHatBuffer = buffer;
+                drumMachineHatMetadata = resolvedMetadata;
+                await saveAudioBufferToDB(buffer, DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY);
             } else {
                 drumMachineKickBuffer = buffer;
                 drumMachineKickMetadata = resolvedMetadata;
@@ -12873,7 +12937,7 @@
                     fileName: sourceName,
                     relativePath: responseRelativePath
                 });
-                setStatus(`${kind === 'kick' ? 'Kick' : 'Snare'} sample loaded: ${sourceName}.`);
+                setStatus(`${kind === 'kick' ? 'Kick' : (kind === 'snare' ? 'Snare' : 'Hat')} sample loaded: ${sourceName}.`);
             } finally {
                 drumMachineLoadInFlight = false;
                 syncDrumMachineUi();
@@ -12886,22 +12950,25 @@
             drumMachineLoadInFlight = true;
             syncDrumMachineUi();
             const randomizePattern = options.randomizePattern !== false;
-            setStatus(randomizePattern ? 'Loading random kick and snare…' : 'Loading random kick and snare samples…');
+            setStatus(randomizePattern ? 'Loading random kick, snare, and hat…' : 'Loading random kick, snare, and hat samples…');
 
             try {
                 const hadKickBuffer = Boolean(drumMachineKickBuffer);
                 const hadSnareBuffer = Boolean(drumMachineSnareBuffer);
-                const [kickResult, snareResult] = await Promise.allSettled([
+                const hadHatBuffer = Boolean(drumMachineHatBuffer);
+                const [kickResult, snareResult, hatResult] = await Promise.allSettled([
                     loadDrumMachineSample('kick'),
-                    loadDrumMachineSample('snare')
+                    loadDrumMachineSample('snare'),
+                    loadDrumMachineSample('hat')
                 ]);
-                const failures = [kickResult, snareResult]
+                const failures = [kickResult, snareResult, hatResult]
                     .filter((result) => result.status === 'rejected')
                     .map((result) => result.reason?.message || String(result.reason));
                 const kickAvailable = kickResult.status === 'fulfilled' || hadKickBuffer || Boolean(drumMachineKickBuffer);
                 const snareAvailable = snareResult.status === 'fulfilled' || hadSnareBuffer || Boolean(drumMachineSnareBuffer);
+                const hatAvailable = hatResult.status === 'fulfilled' || hadHatBuffer || Boolean(drumMachineHatBuffer) || drumMachineHatPattern.some(Boolean);
 
-                if (!kickAvailable && !snareAvailable) {
+                if (!kickAvailable && !snareAvailable && !hatAvailable) {
                     throw new Error(failures.join(' | '));
                 }
 
@@ -12912,8 +12979,8 @@
                 const successMessage = randomizePattern
                     ? `Beat ready: ${describeDrumMachineSummary()}.`
                     : `Drum samples ready: ${describeDrumMachineSummary()}. Pattern kept.`;
-                if (failures.length === 1) {
-                    setStatus(`${successMessage} Warning: ${failures[0]}`, 'error');
+                if (failures.length > 0) {
+                    setStatus(`${successMessage} Warning: ${failures.join(' | ')}`, 'error');
                 } else {
                     setStatus(successMessage);
                 }
@@ -20239,6 +20306,9 @@
                 drumMachineSnareSourceKey: drumMachineSnareMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
                 drumMachineSnareFileName: drumMachineSnareMetadata?.fileName || '',
                 drumMachineSnareRelativePath: drumMachineSnareMetadata?.relativePath || '',
+                drumMachineHatSourceKey: drumMachineHatMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.hat,
+                drumMachineHatFileName: drumMachineHatMetadata?.fileName || '',
+                drumMachineHatRelativePath: drumMachineHatMetadata?.relativePath || '',
                 tonalDrumsEnabled: tonalDrumsEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
@@ -20277,10 +20347,11 @@
                     hasDropboxSampleLayer: Boolean(dropboxSampleLayerRawBuffer),
                     hasDrumMachineKick: Boolean(drumMachineKickBuffer),
                     hasDrumMachineSnare: Boolean(drumMachineSnareBuffer),
+                    hasDrumMachineHat: Boolean(drumMachineHatBuffer),
                     hasDrumMachineHats: drumMachineHatPattern.some(Boolean),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || drumMachineHatBuffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -20498,6 +20569,12 @@
                 sourceLabel: BASTARD_LOOP_SOURCE_LABELS[safePreset.drumMachineSnareSourceKey ?? preset.drumMachineSnareSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.snare] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
                 fileName: safePreset.drumMachineSnareFileName ?? preset.drumMachineSnareFileName ?? '',
                 relativePath: safePreset.drumMachineSnareRelativePath ?? preset.drumMachineSnareRelativePath ?? ''
+            };
+            drumMachineHatMetadata = {
+                sourceKey: safePreset.drumMachineHatSourceKey ?? preset.drumMachineHatSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.hat,
+                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[safePreset.drumMachineHatSourceKey ?? preset.drumMachineHatSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.hat] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.hat],
+                fileName: safePreset.drumMachineHatFileName ?? preset.drumMachineHatFileName ?? '',
+                relativePath: safePreset.drumMachineHatRelativePath ?? preset.drumMachineHatRelativePath ?? ''
             };
             syncDrumMachineUi();
             const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
@@ -20801,6 +20878,7 @@
         const DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY = 'dropboxSampleLayerBuffer';
         const DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY = 'drumMachineKickBuffer';
         const DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY = 'drumMachineSnareBuffer';
+        const DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY = 'drumMachineHatBuffer';
 
         // Open IndexedDB
         function openAudioDB() {
@@ -20961,6 +21039,9 @@
                     drumMachineSnareSourceKey: drumMachineSnareMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
                     drumMachineSnareFileName: drumMachineSnareMetadata?.fileName || '',
                     drumMachineSnareRelativePath: drumMachineSnareMetadata?.relativePath || '',
+                    drumMachineHatSourceKey: drumMachineHatMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.hat,
+                    drumMachineHatFileName: drumMachineHatMetadata?.fileName || '',
+                    drumMachineHatRelativePath: drumMachineHatMetadata?.relativePath || '',
                     grainLayerSolo: grainLayerSolo,
                     sourceWaveformSolo: getSourceWaveformSoloState(),
                     tonalDrumsEnabled: tonalDrumsEnabled,
@@ -21210,6 +21291,12 @@
                         sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes.drumMachineSnareSourceKey || DRUM_MACHINE_SOURCE_KEYS.snare] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
                         fileName: state.modes.drumMachineSnareFileName || '',
                         relativePath: state.modes.drumMachineSnareRelativePath || ''
+                    };
+                    drumMachineHatMetadata = {
+                        sourceKey: state.modes.drumMachineHatSourceKey || DRUM_MACHINE_SOURCE_KEYS.hat,
+                        sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes.drumMachineHatSourceKey || DRUM_MACHINE_SOURCE_KEYS.hat] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.hat],
+                        fileName: state.modes.drumMachineHatFileName || '',
+                        relativePath: state.modes.drumMachineHatRelativePath || ''
                     };
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
@@ -22172,6 +22259,8 @@
                             await loadDrumMachineSampleFromSourceRelativePath('kick', file.sourceKey, file.relativePath, file.name);
                         } else if (config.target === SAMPLE_BROWSER_TARGETS.drumMachineSnare) {
                             await loadDrumMachineSampleFromSourceRelativePath('snare', file.sourceKey, file.relativePath, file.name);
+                        } else if (config.target === SAMPLE_BROWSER_TARGETS.drumMachineHat) {
+                            await loadDrumMachineSampleFromSourceRelativePath('hat', file.sourceKey, file.relativePath, file.name);
                         } else {
                             await loadDropboxSampleLayerFromSourceRelativePath(file.sourceKey, file.relativePath, file.name);
                         }
@@ -23077,6 +23166,7 @@
         const drumMachineStopBtn = document.getElementById('drumMachineStopBtn');
         const drumMachineKickBrowseBtn = document.getElementById('drumMachineKickBrowseBtn');
         const drumMachineSnareBrowseBtn = document.getElementById('drumMachineSnareBrowseBtn');
+        const drumMachineHatBrowseBtn = document.getElementById('drumMachineHatBrowseBtn');
         const drumMachineHatTimingModeBtn = document.getElementById('drumMachineHatTimingModeBtn');
         const drumMachineKickPitch = document.getElementById('drumMachineKickPitch');
         const drumMachineKickLevel = document.getElementById('drumMachineKickLevel');
@@ -24025,6 +24115,10 @@
 
         drumMachineSnareBrowseBtn?.addEventListener('click', () => {
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineSnare);
+        });
+
+        drumMachineHatBrowseBtn?.addEventListener('click', () => {
+            openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineHat);
         });
 
         drumMachineHatTimingModeBtn?.addEventListener('click', () => {

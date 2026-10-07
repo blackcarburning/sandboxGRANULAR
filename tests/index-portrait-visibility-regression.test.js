@@ -781,6 +781,7 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /id="drumMachineSamplesOnlyBtn" type="button">Random Samples<\/button>/);
     assert.match(indexHtml, /id="drumMachineKickBrowseBtn" type="button">Browse Kicks<\/button>/);
     assert.match(indexHtml, /id="drumMachineSnareBrowseBtn" type="button">Browse Snares<\/button>/);
+    assert.match(indexHtml, /id="drumMachineHatBrowseBtn" type="button">Browse Hats<\/button>/);
     assert.match(indexHtml, /id="drumMachineKickGrid"/);
     assert.match(indexHtml, /id="drumMachineSnareGrid"/);
     assert.match(indexHtml, /id="drumMachineHatGrid"/);
@@ -795,6 +796,7 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /const DRUM_MACHINE_SOURCE_KEYS = \{/);
     assert.match(indexHtml, /kick: 'samples_kicks'/);
     assert.match(indexHtml, /snare: 'samples_snares'/);
+    assert.match(indexHtml, /hat: 'samples_hats'/);
     assert.match(indexHtml, /function loadRandomDrumMachineSamples\(\)/);
     assert.match(indexHtml, /function loadRandomDrumMachineSamplesOnly\(\)/);
     assert.match(indexHtml, /function loadDrumMachineSampleFromSourceRelativePath\(kind, sourceKey, relativePath, fileName = ''\)/);
@@ -807,6 +809,7 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /function cycleDrumMachineHatTimingMode\(options = \{\}\)/);
     assert.match(indexHtml, /function playDrumMachineHit\(buffer, scheduledTime, pitchRatio = 1, options = \{\}\)/);
     assert.match(indexHtml, /function playDrumMachineHatHit\(scheduledTime, options = \{\}\)/);
+    assert.match(indexHtml, /if \(drumMachineHatBuffer\) \{/);
     assert.match(indexHtml, /shaper\.curve = makeDistortionCurve\(distortionAmount\)/);
     assert.match(indexHtml, /Double tap = 1\/32 ratchet/);
     assert.match(indexHtml, /stepButton\.classList\.toggle\('ratchet', ratchet\)/);
@@ -814,6 +817,7 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /performanceDrumMachineOpenBtn\?\.addEventListener\('click', \(\) => \{\s*openDrumMachineOverlay\(\);/);
     assert.match(indexHtml, /drumMachineKickBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineKick\);/);
     assert.match(indexHtml, /drumMachineSnareBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineSnare\);/);
+    assert.match(indexHtml, /drumMachineHatBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineHat\);/);
     assert.match(indexHtml, /drumMachineHatTimingModeBtn\?\.addEventListener\('click', \(\) => \{\s*cycleDrumMachineHatTimingMode\(\);/);
 });
 
