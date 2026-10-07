@@ -7006,6 +7006,8 @@
         let outputGainNode = null;  // Final output gain for click-free graph transitions
         let finalOutputPanner = null; // Master output panner after the stereo merge
         let finalAmplifierNode = null; // Absolute final audible/export output
+        let finalKickBypassMasterGain = null; // Master-trim matched bypass for SC-kick drum hits
+        let finalKickBypassPanner = null; // Mirrors master pan for SC-kick bypass hits
         let lfo3Oscillator = null;  // Audio-rate oscillator for LFO3
         let lfo3DepthGain = null;   // Controls modulation depth
         let lfo3Inverter = null;    // Inverts LFO3 for right channel
@@ -7269,6 +7271,7 @@
         let drumMachineSnareMetadata = null;
         let drumMachineHatMetadata = null;
         let drumMachineBusGainNode = null;
+        let drumMachineKickBypassGainNode = null;
         let drumMachineActiveVoices = new Set();
         let drumMachineNextStepTime = 0;
         let drumMachineCurrentStep = 0;
@@ -9240,17 +9243,26 @@
             finalSidechainGain.gain.value = 1;
             finalAmplifierNode = audioContext.createGain();
             finalAmplifierNode.gain.value = 1;
+            finalKickBypassMasterGain = audioContext.createGain();
+            finalKickBypassMasterGain.gain.value = 1;
+            finalKickBypassPanner = audioContext.createStereoPanner();
+            finalKickBypassPanner.pan.value = 0;
             mergerNode.connect(outputGainNode);
             outputGainNode.connect(finalOutputPanner);
             outputGainNode.connect(finalPanAnalyser);
             finalPanBaseOffsetSource.connect(finalOutputPanner.pan);
+            finalPanBaseOffsetSource.connect(finalKickBypassPanner.pan);
             finalPanAudioOscillator.connect(finalPanAudioDepthGain);
             finalPanAudioDepthGain.connect(finalOutputPanner.pan);
+            finalPanAudioDepthGain.connect(finalKickBypassPanner.pan);
             finalOutputPanner.connect(finalCompressorDriveGain);
             finalCompressorDriveGain.connect(finalCompressorNode);
             finalCompressorNode.connect(finalCompressorMakeupGain);
             finalCompressorMakeupGain.connect(finalSidechainGain);
             finalSidechainGain.connect(finalAmplifierNode);
+            finalKickBypassMasterGain.connect(finalKickBypassPanner);
+            finalKickBypassPanner.connect(finalPanAnalyser);
+            finalKickBypassPanner.connect(finalAmplifierNode);
             finalAmplifierNode.connect(audioContext.destination);
             finalPanBaseOffsetSource.start();
             finalPanAudioOscillator.start();
@@ -9918,6 +9930,10 @@
             return 0;
         }
 
+        function shouldRouteKickAroundFinalCompressor() {
+            return normalizeFinalCompressorSidechainSource(finalCompressorSidechainSource) === 'kick';
+        }
+
         function syncFinalCompressorSidechainButton() {
             const button = document.getElementById('performanceFinalSidechainBtn');
             if (!button) return;
@@ -10254,6 +10270,7 @@
             const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
             const placementSwitchDuck = getFinalFxPlacementSwitchDuck(now);
+            const postBusGain = Math.min(1, volAmt) * placementSwitchDuck;
             
             // Dry/Wet gains
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.28));
@@ -10261,6 +10278,9 @@
             
             // Master and output gain
             smoothRamp(masterGain.gain, Math.min(1, volAmt));
+            if (finalKickBypassMasterGain) {
+                smoothRamp(finalKickBypassMasterGain.gain, postBusGain);
+            }
             if (outputGainNode) {
                 smoothRamp(outputGainNode.gain, placementSwitchDuck);
             }
@@ -12920,13 +12940,39 @@
             return drumMachineBusGainNode;
         }
 
+        function ensureDrumMachineKickBypassBus() {
+            if (!audioContext || !finalKickBypassMasterGain) return null;
+            if (drumMachineKickBypassGainNode) {
+                if (drumMachineKickBypassGainNode.connectedTo !== finalKickBypassMasterGain) {
+                    try {
+                        drumMachineKickBypassGainNode.disconnect();
+                    } catch (error) {}
+                    drumMachineKickBypassGainNode.connect(finalKickBypassMasterGain);
+                    drumMachineKickBypassGainNode.connectedTo = finalKickBypassMasterGain;
+                }
+                return drumMachineKickBypassGainNode;
+            }
+            const gain = audioContext.createGain();
+            gain.gain.value = getDrumMachineOutputGain();
+            gain.connect(finalKickBypassMasterGain);
+            gain.connectedTo = finalKickBypassMasterGain;
+            drumMachineKickBypassGainNode = gain;
+            return drumMachineKickBypassGainNode;
+        }
+
         function updateDrumMachineMix() {
-            const bus = ensureDrumMachineBus();
-            if (!bus || !audioContext) return;
+            const mainBus = ensureDrumMachineBus();
+            const kickBypassBus = (drumMachineKickBypassGainNode || shouldRouteKickAroundFinalCompressor())
+                ? ensureDrumMachineKickBypassBus()
+                : null;
+            if (!mainBus || !audioContext) return;
             const now = audioContext.currentTime;
-            bus.gain.cancelScheduledValues(now);
-            bus.gain.setValueAtTime(bus.gain.value, now);
-            bus.gain.linearRampToValueAtTime(getDrumMachineOutputGain(), now + 0.03);
+            const targetGain = getDrumMachineOutputGain();
+            [mainBus, kickBypassBus].filter(Boolean).forEach((bus) => {
+                bus.gain.cancelScheduledValues(now);
+                bus.gain.setValueAtTime(bus.gain.value, now);
+                bus.gain.linearRampToValueAtTime(targetGain, now + 0.03);
+            });
         }
 
         function describeDrumMachineTrackMetadata(kind) {
@@ -13408,7 +13454,9 @@
 
         function playDrumMachineHit(buffer, scheduledTime, pitchRatio = 1, options = {}) {
             if (!audioContext || !buffer) return false;
-            const bus = ensureDrumMachineBus();
+            const bus = options.bypassFinalCompressor
+                ? (ensureDrumMachineKickBypassBus() || ensureDrumMachineBus())
+                : ensureDrumMachineBus();
             if (!bus) return false;
 
             const source = audioContext.createBufferSource();
@@ -13523,7 +13571,8 @@
                         registerFinalSidechainKickTrigger(scheduledTime, kickLevel);
                     }
                     playDrumMachineHit(drumMachineKickBuffer, scheduledTime, getDrumMachineKickPitchRatio(), {
-                        level: kickLevel
+                        level: kickLevel,
+                        bypassFinalCompressor: shouldRouteKickAroundFinalCompressor()
                     });
                 }
                 if (drumMachineSnarePattern[stepIndex] && drumMachineSnareBuffer) {
