@@ -117,7 +117,8 @@
             -webkit-backdrop-filter: blur(10px);
         }
 
-        body.dropbox-sample-browser-open .sample-browser-overlay {
+        body.dropbox-sample-browser-open .sample-browser-overlay,
+        body.wav-repository-browser-open .sample-browser-overlay {
             display: flex;
         }
 
@@ -6464,6 +6465,27 @@
             </div>
         </div>
 
+        <div class="sample-browser-overlay" id="wavRepositoryBrowserOverlay" hidden aria-hidden="true">
+            <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="wavRepositoryBrowserTitle">
+                <div class="sample-browser-head">
+                    <div class="sample-browser-copy">
+                        <h3 id="wavRepositoryBrowserTitle">WAV Repository Browser</h3>
+                        <p id="wavRepositoryBrowserSubtitle">Preview saved WAVs and keep permanent notes in the repository.</p>
+                    </div>
+                    <button class="performance-btn" id="wavRepositoryBrowserCloseBtn" type="button">Close</button>
+                </div>
+                <div class="sample-browser-controls">
+                    <div class="sample-browser-filter-group">
+                        <label class="sample-browser-filter-label" for="wavRepositoryBrowserFilter">Search WAVs</label>
+                        <input class="sample-browser-filter-input" id="wavRepositoryBrowserFilter" type="search" placeholder="Filter saved WAVs" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <button class="performance-btn" id="wavRepositoryBrowserRefreshBtn" type="button">Refresh</button>
+                </div>
+                <div class="sample-browser-status" id="wavRepositoryBrowserStatus">Browse and annotate saved WAVs.</div>
+                <div class="sample-browser-list" id="wavRepositoryBrowserList"></div>
+            </div>
+        </div>
+
         <div class="drum-machine-overlay" id="drumMachineOverlay" hidden aria-hidden="true">
             <div class="drum-machine-shell" role="dialog" aria-modal="true" aria-labelledby="drumMachineTitle">
                 <div class="drum-machine-head">
@@ -7325,6 +7347,8 @@
         let megaRandomizeInFlight = false;
         let megaRandomAudioSuppressed = false;
         let megaRandomSavedFinalAmplifierGain = 1;
+        let wavRepositoryBrowserFiles = [];
+        let wavRepositoryBrowserLoading = false;
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
@@ -23395,6 +23419,8 @@
         }
 
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
+        const WAV_REPOSITORY_LIST_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/list`;
+        const WAV_REPOSITORY_FEEDBACK_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/file-feedback`;
         const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
         const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
         const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-files`;
@@ -24180,8 +24206,356 @@
             }
         }
 
+        function pauseWavRepositoryBrowserPreviewAudio() {
+            document.querySelectorAll('#wavRepositoryBrowserList audio').forEach((audio) => {
+                try {
+                    audio.pause();
+                } catch (error) {}
+            });
+        }
+
+        function setWavRepositoryBrowserStatus(message = '') {
+            const status = document.getElementById('wavRepositoryBrowserStatus');
+            if (status) status.textContent = message;
+        }
+
+        function formatWavRepositoryFileMeta(file = {}) {
+            const parts = [];
+            const size = Number(file.size);
+            if (Number.isFinite(size) && size > 0) {
+                if (size >= 1024 * 1024) {
+                    parts.push(`${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`);
+                } else if (size >= 1024) {
+                    parts.push(`${Math.max(1, Math.round(size / 1024))} KB`);
+                } else {
+                    parts.push(`${size} B`);
+                }
+            }
+            const modified = Number(file.modified);
+            if (Number.isFinite(modified) && modified > 0) {
+                const date = new Date(modified * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    parts.push(date.toLocaleString());
+                }
+            }
+            return parts.join(' · ') || 'Saved WAV';
+        }
+
+        function normalizeWavRepositoryBrowserFeedback(feedback = {}, file = {}) {
+            const comment = String(feedback?.comment ?? '').replace(/\r\n?/g, '\n').slice(0, 2000);
+            const reaction = ['like', 'love'].includes(String(feedback?.reaction || '').toLowerCase())
+                ? String(feedback.reaction).toLowerCase()
+                : '';
+            return {
+                routeBase: String(feedback?.routeBase || '/mygrain-wavs').trim(),
+                fileName: String(feedback?.fileName || file.name || '').trim(),
+                comment,
+                reaction,
+                updatedAt: String(feedback?.updatedAt || '').trim()
+            };
+        }
+
+        function ensureWavRepositoryBrowserFeedbackDraft(file) {
+            file.feedback = normalizeWavRepositoryBrowserFeedback(file.feedback, file);
+            if (!file.feedbackDraft) {
+                file.feedbackDraft = {
+                    comment: file.feedback.comment,
+                    reaction: file.feedback.reaction
+                };
+            } else {
+                file.feedbackDraft = {
+                    comment: String(file.feedbackDraft.comment ?? file.feedback.comment).replace(/\r\n?/g, '\n').slice(0, 2000),
+                    reaction: ['like', 'love'].includes(String(file.feedbackDraft.reaction || '').toLowerCase())
+                        ? String(file.feedbackDraft.reaction).toLowerCase()
+                        : ''
+                };
+            }
+            return file.feedbackDraft;
+        }
+
+        function isWavRepositoryBrowserFeedbackDirty(file) {
+            const saved = normalizeWavRepositoryBrowserFeedback(file.feedback, file);
+            const draft = ensureWavRepositoryBrowserFeedbackDraft(file);
+            return saved.comment !== draft.comment || saved.reaction !== draft.reaction;
+        }
+
+        function getWavRepositoryBrowserFeedbackStatusText(file, saving = false) {
+            if (saving) return 'Saving to repo…';
+            if (isWavRepositoryBrowserFeedbackDirty(file)) return 'Unsaved changes.';
+            if (file.feedback?.updatedAt) return `Saved to repo · ${file.feedback.updatedAt}`;
+            return 'No notes saved yet.';
+        }
+
+        function syncWavRepositoryBrowserFeedbackUi(file, controls, options = {}) {
+            const draft = ensureWavRepositoryBrowserFeedbackDraft(file);
+            const { textarea, likeButton, loveButton, saveButton, status } = controls;
+            if (textarea && textarea.value !== draft.comment) textarea.value = draft.comment;
+            if (likeButton) likeButton.classList.toggle('active', draft.reaction === 'like');
+            if (loveButton) loveButton.classList.toggle('active', draft.reaction === 'love');
+            if (saveButton) saveButton.disabled = Boolean(options.saving) || !isWavRepositoryBrowserFeedbackDirty(file);
+            if (status) status.textContent = options.error || getWavRepositoryBrowserFeedbackStatusText(file, options.saving);
+        }
+
+        async function saveWavRepositoryBrowserFeedback(file, controls) {
+            const draft = ensureWavRepositoryBrowserFeedbackDraft(file);
+            syncWavRepositoryBrowserFeedbackUi(file, controls, { saving: true });
+            try {
+                const response = await fetch(WAV_REPOSITORY_FEEDBACK_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        comment: draft.comment,
+                        reaction: draft.reaction
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Could not save WAV note (${response.status})`);
+                }
+                file.feedback = normalizeWavRepositoryBrowserFeedback(payload.feedback, file);
+                file.feedbackDraft = {
+                    comment: file.feedback.comment,
+                    reaction: file.feedback.reaction
+                };
+                syncWavRepositoryBrowserFeedbackUi(file, controls);
+                setWavRepositoryBrowserStatus(`Saved note for ${file.name}.`);
+            } catch (error) {
+                syncWavRepositoryBrowserFeedbackUi(file, controls, { error: `Save failed: ${error.message}` });
+                throw error;
+            }
+        }
+
+        function renderWavRepositoryBrowserFiles() {
+            const list = document.getElementById('wavRepositoryBrowserList');
+            const filter = document.getElementById('wavRepositoryBrowserFilter');
+            if (!list) return;
+
+            const query = String(filter?.value || '').trim().toLowerCase();
+            const visibleFiles = wavRepositoryBrowserFiles.filter((file) => {
+                const haystack = `${file.name}`.toLowerCase();
+                return !query || haystack.includes(query);
+            });
+            list.innerHTML = '';
+
+            if (!visibleFiles.length) {
+                const empty = document.createElement('div');
+                empty.className = 'sample-browser-empty';
+                empty.textContent = wavRepositoryBrowserLoading
+                    ? 'Loading saved WAVs…'
+                    : (wavRepositoryBrowserFiles.length ? 'No WAVs match that filter.' : 'No saved WAVs were found.');
+                list.appendChild(empty);
+                return;
+            }
+
+            visibleFiles.forEach((file) => {
+                const card = document.createElement('article');
+                card.className = 'sample-browser-card';
+
+                const head = document.createElement('div');
+                head.className = 'sample-browser-card-head';
+
+                const name = document.createElement('div');
+                name.className = 'sample-browser-name';
+                name.textContent = file.name;
+
+                const openButton = document.createElement('button');
+                openButton.className = 'performance-btn';
+                openButton.type = 'button';
+                openButton.textContent = 'Open WAV';
+
+                const meta = document.createElement('div');
+                meta.className = 'sample-browser-path';
+                meta.textContent = formatWavRepositoryFileMeta(file);
+
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.preload = 'none';
+                audio.src = file.url;
+
+                const actions = document.createElement('div');
+                actions.className = 'sample-browser-card-actions';
+
+                const repositoryHint = document.createElement('div');
+                repositoryHint.className = 'sample-browser-path';
+                repositoryHint.textContent = 'Stored in MYGRAIN WAV Repository';
+
+                const feedback = document.createElement('div');
+                feedback.className = 'sample-browser-feedback';
+
+                const feedbackLabel = document.createElement('div');
+                feedbackLabel.className = 'sample-browser-feedback-label';
+                feedbackLabel.textContent = 'Repo Notes';
+
+                const textarea = document.createElement('textarea');
+                textarea.className = 'sample-browser-feedback-textarea';
+                textarea.placeholder = 'Add a permanent comment for this WAV…';
+                textarea.maxLength = 2000;
+
+                const feedbackRow = document.createElement('div');
+                feedbackRow.className = 'sample-browser-feedback-row';
+
+                const feedbackActions = document.createElement('div');
+                feedbackActions.className = 'sample-browser-feedback-actions';
+
+                const likeButton = document.createElement('button');
+                likeButton.className = 'performance-btn sample-browser-feedback-btn';
+                likeButton.type = 'button';
+                likeButton.dataset.reaction = 'like';
+                likeButton.textContent = 'Like';
+
+                const loveButton = document.createElement('button');
+                loveButton.className = 'performance-btn sample-browser-feedback-btn';
+                loveButton.type = 'button';
+                loveButton.dataset.reaction = 'love';
+                loveButton.textContent = 'Love';
+
+                const saveButton = document.createElement('button');
+                saveButton.className = 'performance-btn primary';
+                saveButton.type = 'button';
+                saveButton.textContent = 'Save Notes';
+
+                const feedbackStatus = document.createElement('div');
+                feedbackStatus.className = 'sample-browser-feedback-status';
+
+                const feedbackControls = {
+                    textarea,
+                    likeButton,
+                    loveButton,
+                    saveButton,
+                    status: feedbackStatus
+                };
+
+                ensureWavRepositoryBrowserFeedbackDraft(file);
+                syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
+
+                textarea.addEventListener('input', () => {
+                    const draft = ensureWavRepositoryBrowserFeedbackDraft(file);
+                    draft.comment = textarea.value.replace(/\r\n?/g, '\n').slice(0, 2000);
+                    if (textarea.value !== draft.comment) textarea.value = draft.comment;
+                    syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
+                });
+
+                textarea.addEventListener('keydown', async (event) => {
+                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                        event.preventDefault();
+                        try {
+                            await saveWavRepositoryBrowserFeedback(file, feedbackControls);
+                        } catch (error) {
+                            console.error(error);
+                            setStatus(`WAV note save failed: ${error.message}`, 'error');
+                        }
+                    }
+                });
+
+                likeButton.addEventListener('click', async () => {
+                    const draft = ensureWavRepositoryBrowserFeedbackDraft(file);
+                    draft.reaction = draft.reaction === 'like' ? '' : 'like';
+                    syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
+                    try {
+                        await saveWavRepositoryBrowserFeedback(file, feedbackControls);
+                    } catch (error) {
+                        console.error(error);
+                        setStatus(`WAV reaction save failed: ${error.message}`, 'error');
+                    }
+                });
+
+                loveButton.addEventListener('click', async () => {
+                    const draft = ensureWavRepositoryBrowserFeedbackDraft(file);
+                    draft.reaction = draft.reaction === 'love' ? '' : 'love';
+                    syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
+                    try {
+                        await saveWavRepositoryBrowserFeedback(file, feedbackControls);
+                    } catch (error) {
+                        console.error(error);
+                        setStatus(`WAV reaction save failed: ${error.message}`, 'error');
+                    }
+                });
+
+                saveButton.addEventListener('click', async () => {
+                    try {
+                        await saveWavRepositoryBrowserFeedback(file, feedbackControls);
+                    } catch (error) {
+                        console.error(error);
+                        setStatus(`WAV note save failed: ${error.message}`, 'error');
+                    }
+                });
+
+                openButton.addEventListener('click', () => {
+                    window.open(file.url, '_blank', 'noopener');
+                });
+
+                feedbackActions.append(likeButton, loveButton, saveButton);
+                feedbackRow.append(feedbackActions, feedbackStatus);
+                feedback.append(feedbackLabel, textarea, feedbackRow);
+                head.append(name, openButton);
+                actions.append(repositoryHint);
+                card.append(head, meta, audio, actions, feedback);
+                list.appendChild(card);
+            });
+        }
+
+        async function refreshWavRepositoryBrowser(options = {}) {
+            wavRepositoryBrowserLoading = true;
+            setWavRepositoryBrowserStatus('Loading saved WAVs…');
+            renderWavRepositoryBrowserFiles();
+
+            try {
+                const url = options.forceRefresh
+                    ? `${WAV_REPOSITORY_LIST_API_URL}?refresh=1`
+                    : WAV_REPOSITORY_LIST_API_URL;
+                const response = await fetch(url, {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Could not load WAV list (${response.status})`);
+                }
+                wavRepositoryBrowserFiles = Array.isArray(payload.files)
+                    ? payload.files.map((file) => ({
+                        ...file,
+                        feedback: normalizeWavRepositoryBrowserFeedback(file.feedback, file),
+                        feedbackDraft: null
+                    }))
+                    : [];
+                setWavRepositoryBrowserStatus(`${wavRepositoryBrowserFiles.length} saved WAV${wavRepositoryBrowserFiles.length === 1 ? '' : 's'} in the repository.`);
+            } catch (error) {
+                wavRepositoryBrowserFiles = [];
+                setWavRepositoryBrowserStatus(`WAV list failed: ${error.message}`);
+            } finally {
+                wavRepositoryBrowserLoading = false;
+                renderWavRepositoryBrowserFiles();
+            }
+        }
+
         function openWavRepositoryBrowser() {
-            window.open(`${WAV_REPOSITORY_BASE_URL}/`, '_blank', 'noopener');
+            const overlay = document.getElementById('wavRepositoryBrowserOverlay');
+            const filter = document.getElementById('wavRepositoryBrowserFilter');
+            if (!overlay) return;
+            overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('wav-repository-browser-open');
+            if (filter) filter.value = '';
+            wavRepositoryBrowserFiles = [];
+            renderWavRepositoryBrowserFiles();
+            refreshWavRepositoryBrowser().catch((error) => {
+                console.error(error);
+                setWavRepositoryBrowserStatus(`WAV list failed: ${error.message}`);
+            });
+        }
+
+        function closeWavRepositoryBrowser() {
+            const overlay = document.getElementById('wavRepositoryBrowserOverlay');
+            if (!overlay) return;
+            pauseWavRepositoryBrowserPreviewAudio();
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('wav-repository-browser-open');
         }
 
         function openBastardLoopRepositoryBrowser() {
@@ -24683,6 +25057,10 @@
         const drumMachineHatTune = document.getElementById('drumMachineHatTune');
         const drumMachineHatLevel = document.getElementById('drumMachineHatLevel');
         const drumMachineHatAccentAmountSlider = document.getElementById('drumMachineHatAccentAmount');
+        const wavRepositoryBrowserOverlay = document.getElementById('wavRepositoryBrowserOverlay');
+        const wavRepositoryBrowserCloseBtn = document.getElementById('wavRepositoryBrowserCloseBtn');
+        const wavRepositoryBrowserRefreshBtn = document.getElementById('wavRepositoryBrowserRefreshBtn');
+        const wavRepositoryBrowserFilter = document.getElementById('wavRepositoryBrowserFilter');
         const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
         const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
         const dropboxSampleBrowserRefreshBtn = document.getElementById('dropboxSampleBrowserRefreshBtn');
@@ -25438,6 +25816,10 @@
         });
 
         document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && document.body.classList.contains('wav-repository-browser-open')) {
+                closeWavRepositoryBrowser();
+                return;
+            }
             if (event.key === 'Escape' && document.body.classList.contains('dropbox-sample-browser-open')) {
                 closeDropboxSampleBrowser();
                 return;
@@ -25747,6 +26129,27 @@
             drumMachineHatAccentAmount = value / 100;
             document.getElementById('drumMachineHatAccentAmountValue').textContent = `${Math.round(value)}%`;
             saveState();
+        });
+
+        wavRepositoryBrowserCloseBtn?.addEventListener('click', () => {
+            closeWavRepositoryBrowser();
+        });
+
+        wavRepositoryBrowserRefreshBtn?.addEventListener('click', () => {
+            refreshWavRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+                setWavRepositoryBrowserStatus(`WAV list failed: ${error.message}`);
+            });
+        });
+
+        wavRepositoryBrowserFilter?.addEventListener('input', () => {
+            renderWavRepositoryBrowserFiles();
+        });
+
+        wavRepositoryBrowserOverlay?.addEventListener('click', (event) => {
+            if (event.target === wavRepositoryBrowserOverlay) {
+                closeWavRepositoryBrowser();
+            }
         });
 
         dropboxSampleBrowserCloseBtn?.addEventListener('click', () => {

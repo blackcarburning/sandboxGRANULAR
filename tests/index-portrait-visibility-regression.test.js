@@ -903,6 +903,21 @@ test('sample browser exposes repo-backed comments and like love reactions', () =
     assert.match(indexHtml, /Saved note for \$\{file\.name\}\./);
 });
 
+test('existing wav browser exposes repo-backed comments and like love reactions for saved wavs', () => {
+    assert.match(indexHtml, /id="wavRepositoryBrowserOverlay"/);
+    assert.match(indexHtml, /id="wavRepositoryBrowserList"/);
+    assert.match(indexHtml, /const WAV_REPOSITORY_LIST_API_URL = `\$\{WAV_REPOSITORY_BASE_URL\}\/api\/list`/);
+    assert.match(indexHtml, /const WAV_REPOSITORY_FEEDBACK_API_URL = `\$\{WAV_REPOSITORY_BASE_URL\}\/api\/file-feedback`/);
+    assert.match(indexHtml, /function normalizeWavRepositoryBrowserFeedback\(feedback = \{\}, file = \{\}\)/);
+    assert.match(indexHtml, /async function saveWavRepositoryBrowserFeedback\(file, controls\)/);
+    assert.match(indexHtml, /textarea\.placeholder = 'Add a permanent comment for this WAV…';/);
+    assert.match(indexHtml, /openButton\.textContent = 'Open WAV';/);
+    assert.match(indexHtml, /filename: file\.name,/);
+    assert.match(indexHtml, /setWavRepositoryBrowserStatus\(`Saved note for \$\{file\.name\}\.`\);/);
+    assert.match(indexHtml, /function openWavRepositoryBrowser\(\)/);
+    assert.doesNotMatch(indexHtml, /window\.open\(`\$\{WAV_REPOSITORY_BASE_URL\}\/`, '_blank', 'noopener'\);/);
+});
+
 test('mega random button warns and randomizes loops, dropbox sample, and drums together', () => {
     assert.match(indexHtml, /id="performanceMegaRandomBtn">Mega Random<\/button>/);
     assert.match(indexHtml, /let settlePopupPersistent = false;/);
