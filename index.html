@@ -9887,6 +9887,19 @@
             return getSliderPercent('finalCompressorAmount');
         }
 
+        function shouldIdleBypassFinalBusCompressor() {
+            return !(
+                sequencerPlaying ||
+                isArpeggiatorPlaying() ||
+                bastardLoopPlaying ||
+                drumMachinePlaying ||
+                activeKeyCount > 0 ||
+                activeGrains.size > 0 ||
+                sourceWaveformSoloKinds.size > 0 ||
+                (Array.isArray(auditionSources) && auditionSources.length > 0)
+            );
+        }
+
         function pruneFinalSidechainKickEvents(now = audioContext?.currentTime || 0) {
             finalSidechainKickEvents = finalSidechainKickEvents.filter((event) => Number.isFinite(event?.time) && event.time >= now - 1);
         }
@@ -10202,16 +10215,17 @@
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
             smoothRamp(finalReverbWetGain?.gain, reverbMix * 0.72);
 
-            const compressorAmount = fxMuted ? 0 : getFinalCompressorAmount();
+            const compressorIdleBypass = shouldIdleBypassFinalBusCompressor();
+            const compressorAmount = fxMuted || compressorIdleBypass ? 0 : getFinalCompressorAmount();
             const compressorSettings = getFinalCompressorSettings(compressorAmount);
-            smoothRamp(finalCompressorDriveGain?.gain, compressorSettings.drive);
+            smoothRamp(finalCompressorDriveGain?.gain, compressorIdleBypass ? 0 : compressorSettings.drive);
             smoothRamp(finalCompressorNode?.threshold, compressorSettings.threshold);
             smoothRamp(finalCompressorNode?.knee, compressorSettings.knee);
             smoothRamp(finalCompressorNode?.ratio, compressorSettings.ratio);
             smoothRamp(finalCompressorNode?.attack, compressorSettings.attack);
             smoothRamp(finalCompressorNode?.release, compressorSettings.release);
 
-            const sidechainAmount = fxMuted ? 0 : getFinalCompressorSidechainAmount();
+            const sidechainAmount = fxMuted || compressorIdleBypass ? 0 : getFinalCompressorSidechainAmount();
             const detector = sidechainAmount > 0.001 ? getFinalCompressorSidechainDetector(now) : 0;
             const duckGain = detector > 0.001
                 ? Math.max(0, 1 - (Math.pow(detector, 0.62) * sidechainAmount * 1.32))

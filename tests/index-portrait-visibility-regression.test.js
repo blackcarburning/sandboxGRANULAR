@@ -983,6 +983,10 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /const subtleAmount = Math\.min\(1, safeAmount \/ 0\.4\);/);
     assert.match(indexHtml, /const effectAmount = safeAmount > 0\.4/);
     assert.match(indexHtml, /const effectDrive = 1 \+ \(subtleAmount \* 8\) \+ \(effectAmount \* 72\);/);
+    assert.match(indexHtml, /function shouldIdleBypassFinalBusCompressor\(\)/);
+    assert.match(indexHtml, /activeGrains\.size > 0/);
+    assert.match(indexHtml, /sourceWaveformSoloKinds\.size > 0/);
+    assert.match(indexHtml, /\(Array\.isArray\(auditionSources\) && auditionSources\.length > 0\)/);
     assert.match(indexHtml, /threshold: safeAmount > 0\.001 \? -10 - \(subtleAmount \* 20\) - \(effectAmount \* 78\) : 0,/);
     assert.match(indexHtml, /ratio: 1 \+ \(subtleAmount \* 8\) \+ \(effectAmount \* 20\),/);
     assert.match(indexHtml, /release: getFinalCompressorReleaseSeconds\(\)/);
@@ -996,11 +1000,14 @@ test('final effects expose a master compressor with lfo1 or kick sidechain routi
     assert.match(indexHtml, /registerFinalSidechainKickTrigger\(scheduledTime, kickLevel\);/);
     assert.match(indexHtml, /bypassFinalCompressor: shouldRouteKickAroundFinalCompressor\(\)/);
     assert.match(indexHtml, /const release = getFinalCompressorReleaseSeconds\(\);/);
-    assert.match(indexHtml, /smoothRamp\(finalCompressorDriveGain\?\.gain, compressorSettings\.drive\);/);
+    assert.match(indexHtml, /const compressorIdleBypass = shouldIdleBypassFinalBusCompressor\(\);/);
+    assert.match(indexHtml, /const compressorAmount = fxMuted \|\| compressorIdleBypass \? 0 : getFinalCompressorAmount\(\);/);
+    assert.match(indexHtml, /smoothRamp\(finalCompressorDriveGain\?\.gain, compressorIdleBypass \? 0 : compressorSettings\.drive\);/);
     assert.match(indexHtml, /smoothRamp\(finalCompressorNode\?\.threshold, compressorSettings\.threshold\);/);
     assert.doesNotMatch(indexHtml, /smoothRamp\(finalCompressorMakeupGain\?\.gain/);
     assert.doesNotMatch(indexHtml, /smoothRamp\(finalCompressorReductionGain\?\.gain, getFinalCompressorReductionFollowGain\(compressorAmount\)\);/);
     assert.match(indexHtml, /smoothRamp\(finalKickBypassMasterGain\.gain, postBusGain\);/);
+    assert.match(indexHtml, /const sidechainAmount = fxMuted \|\| compressorIdleBypass \? 0 : getFinalCompressorSidechainAmount\(\);/);
     assert.match(indexHtml, /Math\.max\(0, 1 - \(Math\.pow\(detector, 0\.62\) \* sidechainAmount \* 1\.32\)\)/);
     assert.match(indexHtml, /smoothRamp\(finalSidechainGain\?\.gain, duckGain\);/);
     assert.match(indexHtml, /performanceFinalSidechainBtn\?\.addEventListener\('click', \(\) => \{\s*cycleFinalCompressorSidechainSource\(\);/);
