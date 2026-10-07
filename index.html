@@ -3707,6 +3707,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceDrumMachineRandomBtn">Random Drums</button>
+                        <button class="performance-btn" id="performanceDrumMachineSamplesOnlyBtn">Random Samples</button>
                         <button class="performance-btn" id="performanceDrumMachineOpenBtn">Open Drum Machine</button>
                     </div>
                 </div>
@@ -6108,6 +6109,7 @@
                 </div>
                 <div class="drum-machine-toolbar">
                     <button class="performance-btn primary" id="drumMachineRandomizeBtn" type="button">Random Drums</button>
+                    <button class="performance-btn" id="drumMachineSamplesOnlyBtn" type="button">Random Samples</button>
                     <button class="performance-btn" id="drumMachinePlayBtn" type="button">Start Drums</button>
                     <button class="performance-btn" id="drumMachineStopBtn" type="button">Stop Drums</button>
                     <div class="drum-machine-status" id="drumMachineStatus">Kick empty · Snare empty</div>
@@ -6119,6 +6121,7 @@
                                 <div class="performance-chip">Kick</div>
                                 <p id="drumMachineKickMeta">Source: SAMPLES_KICKS · Empty</p>
                             </div>
+                            <button class="performance-btn" id="drumMachineKickBrowseBtn" type="button">Browse Kicks</button>
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineKickPitch">
@@ -6146,6 +6149,7 @@
                                 <div class="performance-chip">Snare</div>
                                 <p id="drumMachineSnareMeta">Source: SAMPLES_SNARES · Empty</p>
                             </div>
+                            <button class="performance-btn" id="drumMachineSnareBrowseBtn" type="button">Browse Snares</button>
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineSnarePitch">
@@ -6590,6 +6594,11 @@
             kick: 'samples_kicks',
             snare: 'samples_snares'
         };
+        const SAMPLE_BROWSER_TARGETS = {
+            dropboxSampleLayer: 'dropboxSampleLayer',
+            drumMachineKick: 'drumMachineKick',
+            drumMachineSnare: 'drumMachineSnare'
+        };
         const ARP_MODE_OPTIONS = [
             { value: 'up', label: 'Up' },
             { value: 'down', label: 'Down' },
@@ -6877,6 +6886,7 @@
         let dropboxSampleLayerLoadInFlight = false;
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
+        let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
         let drumMachineKickBuffer = null;
         let drumMachineSnareBuffer = null;
         let drumMachineKickMetadata = null;
@@ -10892,6 +10902,46 @@
             return BASTARD_LOOP_SOURCE_LABELS[sourceKey] || BASTARD_LOOP_SOURCE_LABELS.sampledrop;
         }
 
+        function getDrumMachineSourceLabel(kind) {
+            const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
+            return BASTARD_LOOP_SOURCE_LABELS[sourceKey] || (kind === 'kick' ? 'SAMPLES_KICKS' : 'SAMPLES_SNARES');
+        }
+
+        function getSampleBrowserTargetConfig(target = dropboxSampleBrowserTarget) {
+            if (target === SAMPLE_BROWSER_TARGETS.drumMachineKick) {
+                return {
+                    target,
+                    title: 'Kick Browser',
+                    subtitle: 'Preview and load one kick sample into the drum machine.',
+                    sourceKey: DRUM_MACHINE_SOURCE_KEYS.kick,
+                    sourceLabel: getDrumMachineSourceLabel('kick'),
+                    loadButtonLabel: 'Load Kick',
+                    loadingLabel: 'Loading kicks...'
+                };
+            }
+            if (target === SAMPLE_BROWSER_TARGETS.drumMachineSnare) {
+                return {
+                    target,
+                    title: 'Snare Browser',
+                    subtitle: 'Preview and load one snare sample into the drum machine.',
+                    sourceKey: DRUM_MACHINE_SOURCE_KEYS.snare,
+                    sourceLabel: getDrumMachineSourceLabel('snare'),
+                    loadButtonLabel: 'Load Snare',
+                    loadingLabel: 'Loading snares...'
+                };
+            }
+            const sourceKey = getDropboxSampleLayerSourceKey();
+            return {
+                target: SAMPLE_BROWSER_TARGETS.dropboxSampleLayer,
+                title: 'Dropbox Sample Browser',
+                subtitle: 'Preview and load one source sample into the Dropbox sample layer.',
+                sourceKey,
+                sourceLabel: getDropboxSampleLayerSourceLabel(sourceKey),
+                loadButtonLabel: 'Load Sample',
+                loadingLabel: 'Loading samples...'
+            };
+        }
+
         function getDropboxSampleLayerStretchToLoop() {
             return Boolean(dropboxSampleLayerStretchToLoop);
         }
@@ -12063,6 +12113,14 @@
                 document.getElementById('performanceDrumMachineRandomBtn'),
                 document.getElementById('drumMachineRandomizeBtn')
             ];
+            const sampleOnlyButtons = [
+                document.getElementById('performanceDrumMachineSamplesOnlyBtn'),
+                document.getElementById('drumMachineSamplesOnlyBtn')
+            ];
+            const browserButtons = [
+                document.getElementById('drumMachineKickBrowseBtn'),
+                document.getElementById('drumMachineSnareBrowseBtn')
+            ];
 
             if (mixerSlider) mixerSlider.value = String(level);
             if (mixerLabel) mixerLabel.textContent = `${level}%`;
@@ -12075,6 +12133,17 @@
                 if (!button) return;
                 button.disabled = drumMachineLoadInFlight;
                 button.textContent = drumMachineLoadInFlight ? 'Loading Drums...' : 'Random Drums';
+            });
+
+            sampleOnlyButtons.forEach((button) => {
+                if (!button) return;
+                button.disabled = drumMachineLoadInFlight;
+                button.textContent = drumMachineLoadInFlight ? 'Loading Samples...' : 'Random Samples';
+            });
+
+            browserButtons.forEach((button) => {
+                if (!button) return;
+                button.disabled = drumMachineLoadInFlight;
             });
 
             [cardStartBtn, mainStartBtn, popupPlayBtn].forEach((button) => {
@@ -12397,11 +12466,53 @@
             });
         }
 
-        async function loadRandomDrumMachineSamples() {
+        async function loadDrumMachineSampleFromSourceRelativePath(kind, sourceKey, relativePath, fileName = '') {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading drum samples.');
+            }
+
+            const resolvedSourceKey = sourceKey || DRUM_MACHINE_SOURCE_KEYS[kind];
+            const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[resolvedSourceKey] || getDrumMachineSourceLabel(kind);
+            drumMachineLoadInFlight = true;
+            syncDrumMachineUi();
+            setStatus(`Loading ${fileName || `${kind} sample`} from ${sourceLabel}…`);
+
+            try {
+                const response = await fetch(buildDropboxSampleSourcePreviewUrl(resolvedSourceKey, relativePath), {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => ({}));
+                    throw new Error(payload.error || `${kind} load failed with status ${response.status}`);
+                }
+
+                const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fileName || `${kind}.wav`;
+                const responseRelativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || relativePath || '';
+                const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || resolvedSourceKey;
+                const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || sourceLabel;
+                const arrayBuffer = await response.arrayBuffer();
+                const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                await applyLoadedDrumMachineSampleBuffer(kind, decoded, {
+                    sourceKey: responseSourceKey,
+                    sourceLabel: responseSourceLabel,
+                    fileName: sourceName,
+                    relativePath: responseRelativePath
+                });
+                setStatus(`${kind === 'kick' ? 'Kick' : 'Snare'} sample loaded: ${sourceName}.`);
+            } finally {
+                drumMachineLoadInFlight = false;
+                syncDrumMachineUi();
+                syncPerformanceControlState();
+            }
+        }
+
+        async function loadDrumMachineSampleSet(options = {}) {
             if (drumMachineLoadInFlight) return;
             drumMachineLoadInFlight = true;
             syncDrumMachineUi();
-            setStatus('Loading random kick and snare…');
+            const randomizePattern = options.randomizePattern !== false;
+            setStatus(randomizePattern ? 'Loading random kick and snare…' : 'Loading random kick and snare samples…');
 
             try {
                 const hadKickBuffer = Boolean(drumMachineKickBuffer);
@@ -12420,18 +12531,31 @@
                     throw new Error(failures.join(' | '));
                 }
 
-                randomizeDrumMachinePatterns();
+                if (randomizePattern) {
+                    randomizeDrumMachinePatterns();
+                }
                 syncDrumMachineUi();
+                const successMessage = randomizePattern
+                    ? `Beat ready: ${describeDrumMachineSummary()}.`
+                    : `Drum samples ready: ${describeDrumMachineSummary()}. Pattern kept.`;
                 if (failures.length === 1) {
-                    setStatus(`Beat ready: ${describeDrumMachineSummary()}. Warning: ${failures[0]}`, 'error');
+                    setStatus(`${successMessage} Warning: ${failures[0]}`, 'error');
                 } else {
-                    setStatus(`Beat ready: ${describeDrumMachineSummary()}.`);
+                    setStatus(successMessage);
                 }
             } finally {
                 drumMachineLoadInFlight = false;
                 syncDrumMachineUi();
                 syncPerformanceControlState();
             }
+        }
+
+        async function loadRandomDrumMachineSamples() {
+            await loadDrumMachineSampleSet({ randomizePattern: true });
+        }
+
+        async function loadRandomDrumMachineSamplesOnly() {
+            await loadDrumMachineSampleSet({ randomizePattern: false });
         }
 
         function openDrumMachineOverlay() {
@@ -21580,10 +21704,19 @@
             if (status) status.textContent = message;
         }
 
+        function syncDropboxSampleBrowserTargetUi() {
+            const title = document.getElementById('dropboxSampleBrowserTitle');
+            const subtitle = document.getElementById('dropboxSampleBrowserSubtitle');
+            const config = getSampleBrowserTargetConfig();
+            if (title) title.textContent = config.title;
+            if (subtitle) subtitle.textContent = config.subtitle;
+        }
+
         function renderDropboxSampleBrowserFiles() {
             const list = document.getElementById('dropboxSampleBrowserList');
             const filter = document.getElementById('dropboxSampleBrowserFilter');
             if (!list) return;
+            const config = getSampleBrowserTargetConfig();
 
             const query = String(filter?.value || '').trim().toLowerCase();
             const visibleFiles = dropboxSampleBrowserFiles.filter((file) => {
@@ -21616,7 +21749,7 @@
                 const loadButton = document.createElement('button');
                 loadButton.className = 'performance-btn primary';
                 loadButton.type = 'button';
-                loadButton.textContent = 'Load Sample';
+                loadButton.textContent = config.loadButtonLabel;
 
                 const path = document.createElement('div');
                 path.className = 'sample-browser-path';
@@ -21632,19 +21765,25 @@
 
                 const previewHint = document.createElement('div');
                 previewHint.className = 'sample-browser-path';
-                previewHint.textContent = file.sourceLabel || getDropboxSampleLayerSourceLabel(file.sourceKey);
+                previewHint.textContent = file.sourceLabel || config.sourceLabel;
 
                 loadButton.addEventListener('click', async () => {
-                    if (dropboxSampleLayerLoadInFlight) return;
+                    if (dropboxSampleLayerLoadInFlight || drumMachineLoadInFlight) return;
                     loadButton.disabled = true;
                     setDropboxSampleBrowserStatus(`Loading ${file.name}…`);
                     try {
-                        await loadDropboxSampleLayerFromSourceRelativePath(file.sourceKey, file.relativePath, file.name);
+                        if (config.target === SAMPLE_BROWSER_TARGETS.drumMachineKick) {
+                            await loadDrumMachineSampleFromSourceRelativePath('kick', file.sourceKey, file.relativePath, file.name);
+                        } else if (config.target === SAMPLE_BROWSER_TARGETS.drumMachineSnare) {
+                            await loadDrumMachineSampleFromSourceRelativePath('snare', file.sourceKey, file.relativePath, file.name);
+                        } else {
+                            await loadDropboxSampleLayerFromSourceRelativePath(file.sourceKey, file.relativePath, file.name);
+                        }
                         closeDropboxSampleBrowser();
                     } catch (error) {
                         console.error(error);
                         setDropboxSampleBrowserStatus(`Load failed: ${error.message}`);
-                        setStatus(`Dropbox sample load failed: ${error.message}`, 'error');
+                        setStatus(`${config.target === SAMPLE_BROWSER_TARGETS.dropboxSampleLayer ? 'Dropbox sample' : 'Drum sample'} load failed: ${error.message}`, 'error');
                     } finally {
                         loadButton.disabled = false;
                     }
@@ -21658,8 +21797,9 @@
         }
 
         async function refreshDropboxSampleBrowser(options = {}) {
-            const sourceKey = getDropboxSampleLayerSourceKey();
-            const sourceLabel = getDropboxSampleLayerSourceLabel(sourceKey);
+            const config = getSampleBrowserTargetConfig();
+            const sourceKey = config.sourceKey;
+            const sourceLabel = config.sourceLabel;
             dropboxSampleBrowserLoading = true;
             setDropboxSampleBrowserStatus(`Loading ${sourceLabel} preview list…`);
             renderDropboxSampleBrowserFiles();
@@ -21686,15 +21826,17 @@
             }
         }
 
-        function openDropboxSampleBrowser() {
+        function openDropboxSampleBrowser(target = SAMPLE_BROWSER_TARGETS.dropboxSampleLayer) {
             const overlay = document.getElementById('dropboxSampleBrowserOverlay');
             const filter = document.getElementById('dropboxSampleBrowserFilter');
             if (!overlay) return;
+            dropboxSampleBrowserTarget = target;
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('dropbox-sample-browser-open');
             if (filter) filter.value = '';
             dropboxSampleBrowserFiles = [];
+            syncDropboxSampleBrowserTargetUi();
             renderDropboxSampleBrowserFiles();
             refreshDropboxSampleBrowser().catch((error) => {
                 console.error(error);
@@ -22522,6 +22664,7 @@
         const performanceDropboxSampleStretchToLoop = document.getElementById('performanceDropboxSampleStretchToLoop');
         const performanceDropboxSampleLevel = document.getElementById('performanceDropboxSampleLevel');
         const performanceDrumMachineRandomBtn = document.getElementById('performanceDrumMachineRandomBtn');
+        const performanceDrumMachineSamplesOnlyBtn = document.getElementById('performanceDrumMachineSamplesOnlyBtn');
         const performanceDrumMachineOpenBtn = document.getElementById('performanceDrumMachineOpenBtn');
         const performanceDrumMachineStartBtn = document.getElementById('performanceDrumMachineStartBtn');
         const performanceDrumMachineStopBtn = document.getElementById('performanceDrumMachineStopBtn');
@@ -22533,8 +22676,11 @@
         const drumMachineOverlay = document.getElementById('drumMachineOverlay');
         const drumMachineCloseBtn = document.getElementById('drumMachineCloseBtn');
         const drumMachineRandomizeBtn = document.getElementById('drumMachineRandomizeBtn');
+        const drumMachineSamplesOnlyBtn = document.getElementById('drumMachineSamplesOnlyBtn');
         const drumMachinePlayBtn = document.getElementById('drumMachinePlayBtn');
         const drumMachineStopBtn = document.getElementById('drumMachineStopBtn');
+        const drumMachineKickBrowseBtn = document.getElementById('drumMachineKickBrowseBtn');
+        const drumMachineSnareBrowseBtn = document.getElementById('drumMachineSnareBrowseBtn');
         const drumMachineKickPitch = document.getElementById('drumMachineKickPitch');
         const drumMachineKickLevel = document.getElementById('drumMachineKickLevel');
         const drumMachineSnarePitch = document.getElementById('drumMachineSnarePitch');
@@ -23399,6 +23545,15 @@
             }
         });
 
+        performanceDrumMachineSamplesOnlyBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomDrumMachineSamplesOnly();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum sample load failed: ${error.message}`, 'error');
+            }
+        });
+
         performanceDrumMachineOpenBtn?.addEventListener('click', () => {
             openDrumMachineOverlay();
         });
@@ -23444,6 +23599,15 @@
             }
         });
 
+        drumMachineSamplesOnlyBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomDrumMachineSamplesOnly();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum sample load failed: ${error.message}`, 'error');
+            }
+        });
+
         drumMachinePlayBtn?.addEventListener('click', () => {
             startDrumMachine();
         });
@@ -23454,6 +23618,14 @@
 
         drumMachineCloseBtn?.addEventListener('click', () => {
             closeDrumMachineOverlay();
+        });
+
+        drumMachineKickBrowseBtn?.addEventListener('click', () => {
+            openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineKick);
+        });
+
+        drumMachineSnareBrowseBtn?.addEventListener('click', () => {
+            openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineSnare);
         });
 
         drumMachineKickPitch?.addEventListener('input', (event) => {

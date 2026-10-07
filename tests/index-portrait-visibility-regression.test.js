@@ -197,7 +197,7 @@ test('dropbox sample layer can browse and preview source samples before loading'
     assert.match(indexHtml, /id="dropboxSampleBrowserList"/);
     assert.match(indexHtml, /const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `\$\{BASTARD_LOOP_REPOSITORY_BASE_URL\}\/api\/source-files`/);
     assert.match(indexHtml, /function buildDropboxSampleSourcePreviewUrl\(sourceKey, relativePath\)/);
-    assert.match(indexHtml, /function openDropboxSampleBrowser\(\)/);
+    assert.match(indexHtml, /function openDropboxSampleBrowser\(target = SAMPLE_BROWSER_TARGETS\.dropboxSampleLayer\)/);
     assert.match(indexHtml, /function refreshDropboxSampleBrowser\(options = \{\}\)/);
     assert.match(indexHtml, /audio\.controls = true/);
     assert.match(indexHtml, /audio\.src = file\.previewUrl/);
@@ -769,11 +769,15 @@ test('dropbox sample layer can load a random source sample and join bastardloop 
 test('drum machine exposes synced kick and snare sequencing with popup controls', () => {
     assert.match(indexHtml, /id="performanceDrumMachineOpenBtn">Open Drum Machine<\/button>/);
     assert.match(indexHtml, /id="performanceDrumMachineRandomBtn">Random Drums<\/button>/);
+    assert.match(indexHtml, /id="performanceDrumMachineSamplesOnlyBtn">Random Samples<\/button>/);
     assert.match(indexHtml, /id="performanceDrumMachineStartBtn">Start Drums<\/button>/);
     assert.match(indexHtml, /id="performanceDrumMachineMainStartBtn">Start Drums<\/button>/);
     assert.match(indexHtml, /id="performanceDrumMachineLayerBtn"/);
     assert.match(indexHtml, /id="performanceDrumMachineLevel"/);
     assert.match(indexHtml, /id="drumMachineOverlay"/);
+    assert.match(indexHtml, /id="drumMachineSamplesOnlyBtn" type="button">Random Samples<\/button>/);
+    assert.match(indexHtml, /id="drumMachineKickBrowseBtn" type="button">Browse Kicks<\/button>/);
+    assert.match(indexHtml, /id="drumMachineSnareBrowseBtn" type="button">Browse Snares<\/button>/);
     assert.match(indexHtml, /id="drumMachineKickGrid"/);
     assert.match(indexHtml, /id="drumMachineSnareGrid"/);
     assert.match(indexHtml, /id="drumMachineKickPitch" min="-12" max="12" value="0" step="1"/);
@@ -785,6 +789,8 @@ test('drum machine exposes synced kick and snare sequencing with popup controls'
     assert.match(indexHtml, /kick: 'samples_kicks'/);
     assert.match(indexHtml, /snare: 'samples_snares'/);
     assert.match(indexHtml, /function loadRandomDrumMachineSamples\(\)/);
+    assert.match(indexHtml, /function loadRandomDrumMachineSamplesOnly\(\)/);
+    assert.match(indexHtml, /function loadDrumMachineSampleFromSourceRelativePath\(kind, sourceKey, relativePath, fileName = ''\)/);
     assert.match(indexHtml, /function startDrumMachine\(startTime = null, options = \{\}\)/);
     assert.match(indexHtml, /function scheduleDrumMachine\(\)/);
     assert.match(indexHtml, /function getDrumMachineKickLevelValue\(\)/);
@@ -794,15 +800,18 @@ test('drum machine exposes synced kick and snare sequencing with popup controls'
     assert.match(indexHtml, /shaper\.curve = makeDistortionCurve\(distortionAmount\)/);
     assert.match(indexHtml, /function getSharedLoopTransportOriginTime\(\)/);
     assert.match(indexHtml, /performanceDrumMachineOpenBtn\?\.addEventListener\('click', \(\) => \{\s*openDrumMachineOverlay\(\);/);
+    assert.match(indexHtml, /drumMachineKickBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineKick\);/);
+    assert.match(indexHtml, /drumMachineSnareBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineSnare\);/);
 });
 
 test('random drums also generates a playable beat pattern', () => {
     assert.match(indexHtml, /function buildRandomDrumMachinePattern\(track, options = \{\}\)/);
     assert.match(indexHtml, /function randomizeDrumMachinePatterns\(options = \{\}\)/);
+    assert.match(indexHtml, /function loadDrumMachineSampleSet\(options = \{\}\)/);
     assert.match(indexHtml, /pattern\[0\] = true;/);
     assert.match(indexHtml, /pattern\[8\] = true;/);
     assert.match(indexHtml, /pattern\[4\] = true;/);
     assert.match(indexHtml, /pattern\[12\] = true;/);
     assert.match(indexHtml, /randomizeDrumMachinePatterns\(\);/);
-    assert.match(indexHtml, /setStatus\(`Beat ready: \$\{describeDrumMachineSummary\(\)\}\./);
+    assert.match(indexHtml, /const successMessage = randomizePattern[\s\S]*`Beat ready: \$\{describeDrumMachineSummary\(\)\}\.`[\s\S]*`Drum samples ready: \$\{describeDrumMachineSummary\(\)\}\. Pattern kept\.`/);
 });
