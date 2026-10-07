@@ -256,14 +256,155 @@
             color: rgba(214, 232, 255, 0.72);
         }
 
+        .drum-machine-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483200;
+            display: none;
+            align-items: stretch;
+            justify-content: center;
+            padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        body.drum-machine-open .drum-machine-overlay {
+            display: flex;
+        }
+
+        .drum-machine-shell {
+            width: min(860px, 100%);
+            max-height: calc(100dvh - 24px);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 22px;
+            background: rgba(7, 12, 19, 0.98);
+            border: 1px solid rgba(0, 212, 255, 0.34);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.56);
+            overflow: hidden;
+        }
+
+        .drum-machine-head,
+        .drum-machine-toolbar,
+        .drum-machine-track-head,
+        .drum-machine-track-meta {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .drum-machine-head {
+            align-items: flex-start;
+        }
+
+        .drum-machine-copy h3,
+        .drum-machine-copy p,
+        .drum-machine-status,
+        .drum-machine-track-copy p {
+            margin: 0;
+        }
+
+        .drum-machine-copy,
+        .drum-machine-track-copy {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .drum-machine-copy p,
+        .drum-machine-status,
+        .drum-machine-track-copy p,
+        .drum-machine-track-meta {
+            color: rgba(214, 232, 255, 0.72);
+        }
+
+        .drum-machine-toolbar {
+            flex-wrap: wrap;
+        }
+
+        .drum-machine-layout {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            display: grid;
+            gap: 12px;
+            padding-right: 2px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .drum-machine-track-card {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            background: rgba(14, 20, 32, 0.96);
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .drum-machine-step-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .drum-machine-step-btn {
+            min-height: 50px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(0, 0, 0, 0.28);
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .drum-machine-step-btn.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.28), rgba(0, 168, 204, 0.22));
+            border-color: rgba(126, 246, 255, 0.64);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(126, 246, 255, 0.14), 0 10px 22px rgba(0, 0, 0, 0.24);
+        }
+
+        .drum-machine-step-btn.current {
+            transform: translateY(-1px);
+            box-shadow: 0 0 0 2px rgba(255, 198, 81, 0.66), 0 12px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .drum-machine-step-btn:active {
+            transform: scale(0.98);
+        }
+
+        .drum-machine-status {
+            min-height: 1.2em;
+            font-size: 0.84rem;
+        }
+
         @media (max-width: 640px) {
             .sample-browser-shell {
                 gap: 10px;
                 padding: 14px;
             }
 
+            .drum-machine-shell {
+                gap: 10px;
+                padding: 14px;
+            }
+
             .sample-browser-card-head,
             .sample-browser-card-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .drum-machine-head,
+            .drum-machine-toolbar,
+            .drum-machine-track-head {
                 flex-direction: column;
                 align-items: stretch;
             }
@@ -293,6 +434,15 @@
                 min-height: 40px;
                 padding: 9px 12px;
                 border-radius: 12px;
+            }
+
+            .drum-machine-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .drum-machine-step-btn {
+                min-height: 44px;
+                font-size: 0.78rem;
             }
         }
 
@@ -3548,6 +3698,24 @@
                     <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
                 </div>
             </div>
+            <div class="performance-feature-card" aria-label="Drum machine controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Drums</div>
+                        <h3 class="performance-feature-title">Kick / Snare Drum Machine</h3>
+                        <p class="performance-feature-note">Randomly load a kick from `SAMPLES_KICKS` and a snare from `SAMPLES_SNARES`, then place them on a synced 16-step grid in a dedicated popup sequencer.</p>
+                    </div>
+                    <div class="performance-feature-actions">
+                        <button class="performance-btn primary" id="performanceDrumMachineRandomBtn">Random Drums</button>
+                        <button class="performance-btn" id="performanceDrumMachineOpenBtn">Open Drum Machine</button>
+                    </div>
+                </div>
+                <div class="performance-feature-meta source-waveform-meta" id="performanceDrumMachineMeta">Kick empty · Snare empty</div>
+                <div class="performance-layer-switches" aria-label="Drum machine transport controls">
+                    <button class="performance-btn" id="performanceDrumMachineStartBtn">Start Drums</button>
+                    <button class="performance-btn" id="performanceDrumMachineStopBtn">Stop Drums</button>
+                </div>
+            </div>
             <div class="performance-feature-card" aria-label="Dropbox sample layer controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
@@ -3591,6 +3759,7 @@
                     <button class="performance-btn" id="performanceBastardLoop2ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop B layer">Bastardloop B On</button>
                     <button class="performance-btn" id="performanceBastardLoop3ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop C layer">Bastardloop C On</button>
                     <button class="performance-btn" id="performanceDropboxSampleLayerBtn" aria-pressed="true" title="Enable or mute the Dropbox sample loop layer">Dropbox Sample On</button>
+                    <button class="performance-btn" id="performanceDrumMachineLayerBtn" aria-pressed="true" title="Enable or mute the drum machine layer">Drum Machine On</button>
                 </div>
             </div>
             <div class="performance-feature-card" aria-label="Mixer controls">
@@ -3636,6 +3805,13 @@
                             <span class="value" id="performanceDropboxSampleLevelValue">45%</span>
                         </label>
                         <input type="range" id="performanceDropboxSampleLevel" min="0" max="100" value="45" step="1">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceDrumMachineLevel">
+                            <span>Drum Machine</span>
+                            <span class="value" id="performanceDrumMachineLevelValue">55%</span>
+                        </label>
+                        <input type="range" id="performanceDrumMachineLevel" min="0" max="100" value="55" step="1">
                     </div>
                     <div class="performance-sound-card">
                         <label for="performanceBastardLoopLevel">
@@ -4114,6 +4290,8 @@
                 <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                 <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
                 <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
+                <button class="performance-btn" id="performanceDrumMachineMainStartBtn">Start Drums</button>
+                <button class="performance-btn" id="performanceDrumMachineMainStopBtn">Stop Drums</button>
                 <button class="performance-btn" id="performanceSeqPlayBtn">Loop Play</button>
                 <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
                 <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
@@ -4135,6 +4313,7 @@
                 <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                 <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
                 <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
+                <button class="performance-btn" id="performanceDrumMachineMainOpenBtn">Open Drum Machine</button>
                 <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                 <button class="performance-btn" id="performancePanicBtn">Panic</button>
             </div>
@@ -5918,6 +6097,66 @@
             </div>
         </div>
 
+        <div class="drum-machine-overlay" id="drumMachineOverlay" hidden aria-hidden="true">
+            <div class="drum-machine-shell" role="dialog" aria-modal="true" aria-labelledby="drumMachineTitle">
+                <div class="drum-machine-head">
+                    <div class="drum-machine-copy">
+                        <h3 id="drumMachineTitle">Kick / Snare Drum Machine</h3>
+                        <p id="drumMachineSubtitle">Randomize a kick and snare, set their pitches, and place them on a synced 16-step grid.</p>
+                    </div>
+                    <button class="performance-btn" id="drumMachineCloseBtn" type="button">Close</button>
+                </div>
+                <div class="drum-machine-toolbar">
+                    <button class="performance-btn primary" id="drumMachineRandomizeBtn" type="button">Random Drums</button>
+                    <button class="performance-btn" id="drumMachinePlayBtn" type="button">Start Drums</button>
+                    <button class="performance-btn" id="drumMachineStopBtn" type="button">Stop Drums</button>
+                    <div class="drum-machine-status" id="drumMachineStatus">Kick empty · Snare empty</div>
+                </div>
+                <div class="drum-machine-layout">
+                    <article class="drum-machine-track-card" aria-label="Kick track">
+                        <div class="drum-machine-track-head">
+                            <div class="drum-machine-track-copy">
+                                <div class="performance-chip">Kick</div>
+                                <p id="drumMachineKickMeta">Source: SAMPLES_KICKS · Empty</p>
+                            </div>
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineKickPitch">
+                                <span>Kick Pitch</span>
+                                <span class="value" id="drumMachineKickPitchValue">0 st</span>
+                            </label>
+                            <input type="range" id="drumMachineKickPitch" min="-12" max="12" value="0" step="1">
+                        </div>
+                        <div class="drum-machine-track-meta">
+                            <span>Steps</span>
+                            <span>Tap to toggle</span>
+                        </div>
+                        <div class="drum-machine-step-grid" id="drumMachineKickGrid" role="group" aria-label="Kick 16 step grid"></div>
+                    </article>
+                    <article class="drum-machine-track-card" aria-label="Snare track">
+                        <div class="drum-machine-track-head">
+                            <div class="drum-machine-track-copy">
+                                <div class="performance-chip">Snare</div>
+                                <p id="drumMachineSnareMeta">Source: SAMPLES_SNARES · Empty</p>
+                            </div>
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineSnarePitch">
+                                <span>Snare Pitch</span>
+                                <span class="value" id="drumMachineSnarePitchValue">0 st</span>
+                            </label>
+                            <input type="range" id="drumMachineSnarePitch" min="-12" max="12" value="0" step="1">
+                        </div>
+                        <div class="drum-machine-track-meta">
+                            <span>Steps</span>
+                            <span>Tap to toggle</span>
+                        </div>
+                        <div class="drum-machine-step-grid" id="drumMachineSnareGrid" role="group" aria-label="Snare 16 step grid"></div>
+                    </article>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <div id="debugPanel">
@@ -6322,7 +6561,13 @@
         const BASTARD_LOOP_SOURCE_LABELS = {
             sampledrop: 'SAMPLEDROP',
             sampledrop2: 'SAMPLEDROP_2',
-            splice_claw: 'SPLICE_CLAW'
+            splice_claw: 'SPLICE_CLAW',
+            samples_kicks: 'SAMPLES_KICKS',
+            samples_snares: 'SAMPLES_SNARES'
+        };
+        const DRUM_MACHINE_SOURCE_KEYS = {
+            kick: 'samples_kicks',
+            snare: 'samples_snares'
         };
         const ARP_MODE_OPTIONS = [
             { value: 'up', label: 'Up' },
@@ -6359,6 +6604,7 @@
         let heldNotes = new Set();
         let restartPerformanceOnFocusReturn = false;
         let restartBastardLoopOnFocusReturn = false;
+        let restartDrumMachineOnFocusReturn = false;
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
         let engineInitialized = false;
         let engineStarting = false;
@@ -6583,6 +6829,14 @@
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
+        let drumMachineLevel = 0.55;
+        let drumMachineEnabled = true;
+        let drumMachinePlaying = false;
+        let drumMachineTransportStartTime = null;
+        let drumMachineKickPitchSemitones = 0;
+        let drumMachineSnarePitchSemitones = 0;
+        let drumMachineKickPattern = Array.from({ length: 16 }, (_, index) => index === 0 || index === 8);
+        let drumMachineSnarePattern = Array.from({ length: 16 }, (_, index) => index === 4 || index === 12);
         let bastardLoopPlaying = false;
         let bastardLoopTransportStartTime = null;
         let bastardLoopSource = null;
@@ -6599,6 +6853,17 @@
         let dropboxSampleLayerLoadInFlight = false;
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
+        let drumMachineKickBuffer = null;
+        let drumMachineSnareBuffer = null;
+        let drumMachineKickMetadata = null;
+        let drumMachineSnareMetadata = null;
+        let drumMachineBusGainNode = null;
+        let drumMachineActiveVoices = new Set();
+        let drumMachineNextStepTime = 0;
+        let drumMachineCurrentStep = 0;
+        let drumMachineTimerId = null;
+        let drumMachineCurrentVisualStep = -1;
+        let drumMachineLoadInFlight = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -8190,6 +8455,8 @@
                     const restoredBastardLoop2Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
                     const restoredBastardLoop3Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
                     const restoredDropboxSampleLayerBuffer = await loadAudioBufferFromDB(DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY);
+                    const restoredDrumMachineKickBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
+                    const restoredDrumMachineSnareBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
                     const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                     const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
@@ -8200,6 +8467,8 @@
                     const shouldRestoreBastardLoop2 = restoredBastardLoop2Buffer && restoreStillCurrent;
                     const shouldRestoreBastardLoop3 = restoredBastardLoop3Buffer && restoreStillCurrent;
                     const shouldRestoreDropboxSampleLayer = restoredDropboxSampleLayerBuffer && restoreStillCurrent;
+                    const shouldRestoreDrumMachineKick = restoredDrumMachineKickBuffer && restoreStillCurrent;
+                    const shouldRestoreDrumMachineSnare = restoredDrumMachineSnareBuffer && restoreStillCurrent;
                     if (shouldRestoreGenerated) {
                         generatedLoopBuffer = restoredGeneratedBuffer;
                         generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
@@ -8241,7 +8510,29 @@
                         };
                         rerenderDropboxSampleLayerFromRaw({ skipUi: true });
                     }
-                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreDropboxSampleLayer) {
+                    if (shouldRestoreDrumMachineKick) {
+                        drumMachineKickBuffer = restoredDrumMachineKickBuffer;
+                        if (!drumMachineKickMetadata?.fileName) {
+                            drumMachineKickMetadata = {
+                                sourceKey: DRUM_MACHINE_SOURCE_KEYS.kick,
+                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
+                                fileName: 'restored-kick.wav',
+                                relativePath: ''
+                            };
+                        }
+                    }
+                    if (shouldRestoreDrumMachineSnare) {
+                        drumMachineSnareBuffer = restoredDrumMachineSnareBuffer;
+                        if (!drumMachineSnareMetadata?.fileName) {
+                            drumMachineSnareMetadata = {
+                                sourceKey: DRUM_MACHINE_SOURCE_KEYS.snare,
+                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
+                                fileName: 'restored-snare.wav',
+                                relativePath: ''
+                            };
+                        }
+                    }
+                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare) {
                         syncLegacyAudioBuffer();
                         drawWaveforms();
                         updateSourceAvailability();
@@ -8249,6 +8540,7 @@
                         syncBastardLoop2Ui();
                         syncBastardLoop3Ui();
                         syncDropboxSampleLayerUi();
+                        syncDrumMachineUi();
                         setStatus('Audio sources restored.');
                     }
                 }, 500);
@@ -11479,6 +11771,557 @@
             setStatus(`${dropboxSampleLayerMetadata.fileName} ready in the Dropbox sample layer.`);
         }
 
+        function getSharedLoopTransportOriginTime() {
+            if (!audioContext) return null;
+            if (Number.isFinite(transportLoopStartTime)) return transportLoopStartTime;
+            if (Number.isFinite(generatedDryLoopStartTime)) return generatedDryLoopStartTime;
+            if (Number.isFinite(bastardLoopTransportStartTime)) return bastardLoopTransportStartTime;
+            if (Number.isFinite(drumMachineTransportStartTime)) return drumMachineTransportStartTime;
+            return null;
+        }
+
+        function clampDrumMachinePitchSemitones(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 0;
+            return Math.max(-12, Math.min(12, Math.round(numeric)));
+        }
+
+        function formatDrumMachinePitchSemitones(value) {
+            const semitones = clampDrumMachinePitchSemitones(value);
+            return `${semitones > 0 ? '+' : ''}${semitones} st`;
+        }
+
+        function getDrumMachineKickPitchSemitones() {
+            const slider = document.getElementById('drumMachineKickPitch');
+            drumMachineKickPitchSemitones = clampDrumMachinePitchSemitones(slider?.value ?? drumMachineKickPitchSemitones);
+            return drumMachineKickPitchSemitones;
+        }
+
+        function getDrumMachineSnarePitchSemitones() {
+            const slider = document.getElementById('drumMachineSnarePitch');
+            drumMachineSnarePitchSemitones = clampDrumMachinePitchSemitones(slider?.value ?? drumMachineSnarePitchSemitones);
+            return drumMachineSnarePitchSemitones;
+        }
+
+        function getDrumMachineKickPitchRatio() {
+            return Math.pow(2, getDrumMachineKickPitchSemitones() / 12);
+        }
+
+        function getDrumMachineSnarePitchRatio() {
+            return Math.pow(2, getDrumMachineSnarePitchSemitones() / 12);
+        }
+
+        function getDrumMachineLevelValue(options = {}) {
+            const slider = document.getElementById('performanceDrumMachineLevel');
+            const rawValue = Number(slider?.value ?? (drumMachineLevel * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            drumMachineLevel = clamped / 100;
+            if (options.applyLayerToggle === false) return drumMachineLevel;
+            return drumMachineEnabled ? drumMachineLevel : 0;
+        }
+
+        function getDrumMachineOutputGain(level = getDrumMachineLevelValue()) {
+            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.9;
+        }
+
+        function ensureDrumMachineBus() {
+            if (!audioContext || !preFilterGainNode) return null;
+            if (drumMachineBusGainNode) {
+                if (drumMachineBusGainNode.connectedTo !== preFilterGainNode) {
+                    try {
+                        drumMachineBusGainNode.disconnect();
+                    } catch (error) {}
+                    drumMachineBusGainNode.connect(preFilterGainNode);
+                    drumMachineBusGainNode.connectedTo = preFilterGainNode;
+                }
+                return drumMachineBusGainNode;
+            }
+            const gain = audioContext.createGain();
+            gain.gain.value = getDrumMachineOutputGain();
+            gain.connect(preFilterGainNode);
+            gain.connectedTo = preFilterGainNode;
+            drumMachineBusGainNode = gain;
+            return drumMachineBusGainNode;
+        }
+
+        function updateDrumMachineMix() {
+            const bus = ensureDrumMachineBus();
+            if (!bus || !audioContext) return;
+            const now = audioContext.currentTime;
+            bus.gain.cancelScheduledValues(now);
+            bus.gain.setValueAtTime(bus.gain.value, now);
+            bus.gain.linearRampToValueAtTime(getDrumMachineOutputGain(), now + 0.03);
+        }
+
+        function describeDrumMachineTrackMetadata(kind) {
+            const metadata = kind === 'kick' ? drumMachineKickMetadata : drumMachineSnareMetadata;
+            const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS[kind]] || (kind === 'kick' ? 'SAMPLES_KICKS' : 'SAMPLES_SNARES');
+            if (!metadata?.fileName) {
+                return `Source: ${sourceLabel} · Empty`;
+            }
+            return `Source: ${sourceLabel} · ${metadata.fileName}`;
+        }
+
+        function describeDrumMachineSummary() {
+            const kickName = drumMachineKickMetadata?.fileName || 'Kick empty';
+            const snareName = drumMachineSnareMetadata?.fileName || 'Snare empty';
+            return `${kickName} · ${snareName}`;
+        }
+
+        function setDrumMachineStatus(message = '') {
+            const status = document.getElementById('drumMachineStatus');
+            if (status) {
+                status.textContent = message || describeDrumMachineSummary();
+            }
+        }
+
+        function getDrumMachinePattern(track) {
+            return track === 'snare' ? drumMachineSnarePattern : drumMachineKickPattern;
+        }
+
+        function setDrumMachinePattern(track, nextPattern, options = {}) {
+            const normalized = Array.from({ length: 16 }, (_, index) => Boolean(nextPattern?.[index]));
+            if (track === 'snare') {
+                drumMachineSnarePattern = normalized;
+            } else {
+                drumMachineKickPattern = normalized;
+            }
+            renderDrumMachineStepGrid(track);
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function toggleDrumMachineStep(track, index) {
+            const pattern = getDrumMachinePattern(track).slice();
+            if (index < 0 || index >= pattern.length) return;
+            pattern[index] = !pattern[index];
+            setDrumMachinePattern(track, pattern);
+        }
+
+        function renderDrumMachineStepGrid(track) {
+            const container = document.getElementById(track === 'snare' ? 'drumMachineSnareGrid' : 'drumMachineKickGrid');
+            if (!container) return;
+            const pattern = getDrumMachinePattern(track);
+
+            if (!container.childElementCount) {
+                for (let index = 0; index < 16; index += 1) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'drum-machine-step-btn';
+                    button.dataset.track = track;
+                    button.dataset.stepIndex = String(index);
+                    button.addEventListener('click', () => {
+                        toggleDrumMachineStep(track, index);
+                    });
+                    container.appendChild(button);
+                }
+            }
+
+            Array.from(container.children).forEach((button, index) => {
+                const active = Boolean(pattern[index]);
+                button.textContent = String(index + 1).padStart(2, '0');
+                button.classList.toggle('active', active);
+                button.classList.toggle('current', drumMachinePlaying && drumMachineCurrentVisualStep === index);
+                button.setAttribute('aria-pressed', String(active));
+                button.title = `${track === 'kick' ? 'Kick' : 'Snare'} step ${index + 1}${active ? ' on' : ' off'}`;
+            });
+        }
+
+        function syncDrumMachinePitchLabels() {
+            const kickValue = getDrumMachineKickPitchSemitones();
+            const snareValue = getDrumMachineSnarePitchSemitones();
+            const kickLabel = document.getElementById('drumMachineKickPitchValue');
+            const snareLabel = document.getElementById('drumMachineSnarePitchValue');
+            if (kickLabel) kickLabel.textContent = formatDrumMachinePitchSemitones(kickValue);
+            if (snareLabel) snareLabel.textContent = formatDrumMachinePitchSemitones(snareValue);
+        }
+
+        function syncDrumMachineUi() {
+            syncDrumMachinePitchLabels();
+            renderDrumMachineStepGrid('kick');
+            renderDrumMachineStepGrid('snare');
+
+            const level = Math.round(getDrumMachineLevelValue({ applyLayerToggle: false }) * 100);
+            const mixerSlider = document.getElementById('performanceDrumMachineLevel');
+            const mixerLabel = document.getElementById('performanceDrumMachineLevelValue');
+            const cardMeta = document.getElementById('performanceDrumMachineMeta');
+            const kickMeta = document.getElementById('drumMachineKickMeta');
+            const snareMeta = document.getElementById('drumMachineSnareMeta');
+            const cardStartBtn = document.getElementById('performanceDrumMachineStartBtn');
+            const cardStopBtn = document.getElementById('performanceDrumMachineStopBtn');
+            const mainStartBtn = document.getElementById('performanceDrumMachineMainStartBtn');
+            const mainStopBtn = document.getElementById('performanceDrumMachineMainStopBtn');
+            const popupPlayBtn = document.getElementById('drumMachinePlayBtn');
+            const popupStopBtn = document.getElementById('drumMachineStopBtn');
+            const randomButtons = [
+                document.getElementById('performanceDrumMachineRandomBtn'),
+                document.getElementById('drumMachineRandomizeBtn')
+            ];
+
+            if (mixerSlider) mixerSlider.value = String(level);
+            if (mixerLabel) mixerLabel.textContent = `${level}%`;
+            if (cardMeta) cardMeta.textContent = describeDrumMachineSummary();
+            if (kickMeta) kickMeta.textContent = describeDrumMachineTrackMetadata('kick');
+            if (snareMeta) snareMeta.textContent = describeDrumMachineTrackMetadata('snare');
+            setDrumMachineStatus(describeDrumMachineSummary());
+
+            randomButtons.forEach((button) => {
+                if (!button) return;
+                button.disabled = drumMachineLoadInFlight;
+                button.textContent = drumMachineLoadInFlight ? 'Loading Drums...' : 'Random Drums';
+            });
+
+            [cardStartBtn, mainStartBtn, popupPlayBtn].forEach((button) => {
+                if (!button) return;
+                button.disabled = drumMachinePlaying || drumMachineLoadInFlight;
+                button.textContent = drumMachinePlaying ? 'Drums Playing' : 'Start Drums';
+            });
+
+            [cardStopBtn, mainStopBtn, popupStopBtn].forEach((button) => {
+                if (!button) return;
+                button.disabled = !drumMachinePlaying;
+                button.textContent = 'Stop Drums';
+            });
+        }
+
+        function getDrumMachineStepDuration() {
+            return (60 / Math.max(1, sequencerBPM || 120)) / 4;
+        }
+
+        function stopDrumMachineVoices(options = {}) {
+            const voices = Array.from(drumMachineActiveVoices);
+            drumMachineActiveVoices.clear();
+            voices.forEach(({ source, gain }) => {
+                try {
+                    const fadeSeconds = options.fade === false ? 0 : Math.max(0.005, getClickGuardSeconds());
+                    if (audioContext && fadeSeconds > 0 && gain) {
+                        const now = audioContext.currentTime;
+                        gain.gain.cancelScheduledValues(now);
+                        gain.gain.setValueAtTime(gain.gain.value, now);
+                        gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+                        source.stop(now + fadeSeconds + 0.01);
+                    } else {
+                        source.stop();
+                    }
+                } catch (error) {}
+                try {
+                    source.disconnect();
+                    gain?.disconnect();
+                } catch (error) {}
+            });
+        }
+
+        function playDrumMachineHit(buffer, scheduledTime, pitchRatio = 1) {
+            if (!audioContext || !buffer) return false;
+            const bus = ensureDrumMachineBus();
+            if (!bus) return false;
+
+            const source = audioContext.createBufferSource();
+            const gain = audioContext.createGain();
+            const rate = Math.max(0.25, Math.min(4, Number(pitchRatio) || 1));
+            const duration = Math.max(0.02, buffer.duration / rate);
+            const fadeSeconds = Math.min(0.02, Math.max(0.003, getFadeSecondsForDuration(duration)));
+            const releaseTime = Math.max(scheduledTime + fadeSeconds, scheduledTime + duration - fadeSeconds);
+
+            source.buffer = buffer;
+            source.playbackRate.value = rate;
+            gain.gain.setValueAtTime(0, scheduledTime);
+            gain.gain.linearRampToValueAtTime(1, scheduledTime + fadeSeconds);
+            gain.gain.setValueAtTime(1, releaseTime);
+            gain.gain.linearRampToValueAtTime(0.0001, Math.max(releaseTime + fadeSeconds, scheduledTime + duration));
+            source.connect(gain);
+            gain.connect(bus);
+
+            const voice = { source, gain };
+            drumMachineActiveVoices.add(voice);
+            source.onended = () => {
+                drumMachineActiveVoices.delete(voice);
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+            };
+
+            source.start(scheduledTime);
+            source.stop(Math.max(scheduledTime + duration + fadeSeconds + 0.01, scheduledTime + 0.03));
+            return true;
+        }
+
+        function alignDrumMachineToTransport(originTime) {
+            const stepDuration = getDrumMachineStepDuration();
+            const now = audioContext?.currentTime || 0;
+            if (!Number.isFinite(originTime) || originTime > now) {
+                drumMachineCurrentStep = 0;
+                drumMachineNextStepTime = Number.isFinite(originTime) ? originTime : getBufferedTransportStartTime();
+                return;
+            }
+
+            const elapsed = Math.max(0, now - originTime);
+            const stepsElapsed = Math.max(0, Math.ceil(((elapsed - 0.002) / stepDuration)));
+            drumMachineCurrentStep = stepsElapsed % 16;
+            drumMachineNextStepTime = originTime + (stepsElapsed * stepDuration);
+            if (drumMachineNextStepTime < now - 0.002) {
+                drumMachineNextStepTime += stepDuration;
+                drumMachineCurrentStep = (drumMachineCurrentStep + 1) % 16;
+            }
+        }
+
+        function scheduleDrumMachineVisualStep(stepIndex, scheduledTime) {
+            if (!audioContext) return;
+            const delayMs = Math.max(0, (scheduledTime - audioContext.currentTime) * 1000);
+            setTimeout(() => {
+                if (!drumMachinePlaying) return;
+                drumMachineCurrentVisualStep = stepIndex;
+                renderDrumMachineStepGrid('kick');
+                renderDrumMachineStepGrid('snare');
+            }, delayMs);
+        }
+
+        function scheduleDrumMachine() {
+            if (!drumMachinePlaying || !audioContext) return;
+
+            const stepDuration = getDrumMachineStepDuration();
+            while (drumMachineNextStepTime < audioContext.currentTime + SCHEDULE_AHEAD_TIME) {
+                const stepIndex = drumMachineCurrentStep;
+                const scheduledTime = drumMachineNextStepTime;
+                if (drumMachineKickPattern[stepIndex] && drumMachineKickBuffer) {
+                    playDrumMachineHit(drumMachineKickBuffer, scheduledTime, getDrumMachineKickPitchRatio());
+                }
+                if (drumMachineSnarePattern[stepIndex] && drumMachineSnareBuffer) {
+                    playDrumMachineHit(drumMachineSnareBuffer, scheduledTime, getDrumMachineSnarePitchRatio());
+                }
+                scheduleDrumMachineVisualStep(stepIndex, scheduledTime);
+                drumMachineNextStepTime += stepDuration;
+                drumMachineCurrentStep = (drumMachineCurrentStep + 1) % 16;
+            }
+
+            if (drumMachinePlaying) {
+                if (drumMachineTimerId) clearTimeout(drumMachineTimerId);
+                drumMachineTimerId = setTimeout(scheduleDrumMachine, SCHEDULER_INTERVAL);
+            }
+        }
+
+        function setDrumMachineEnabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (drumMachineEnabled === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+            drumMachineEnabled = nextValue;
+            updateDrumMachineMix();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(drumMachineEnabled ? 'Drum machine layer enabled.' : 'Drum machine layer muted.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function startDrumMachine(startTime = null, options = {}) {
+            if (!audioContext || !preFilterGainNode) {
+                syncPerformanceControlState();
+                if (!options.silent) {
+                    setStatus('Start MYGRAIN before playing drums.', 'error');
+                }
+                return false;
+            }
+
+            if (!drumMachineKickBuffer && !drumMachineSnareBuffer) {
+                syncPerformanceControlState();
+                if (!options.silent) {
+                    setStatus('Load random drums first.', 'error');
+                }
+                return false;
+            }
+
+            const resolvedStartTime = Number.isFinite(startTime)
+                ? startTime
+                : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
+
+            drumMachinePlaying = true;
+            drumMachineTransportStartTime = resolvedStartTime;
+            drumMachineCurrentVisualStep = -1;
+            updateDrumMachineMix();
+            alignDrumMachineToTransport(resolvedStartTime);
+            scheduleDrumMachine();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus('Drum machine playing.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+            return true;
+        }
+
+        function stopDrumMachine(options = {}) {
+            if (drumMachineTimerId) {
+                clearTimeout(drumMachineTimerId);
+                drumMachineTimerId = null;
+            }
+            drumMachinePlaying = false;
+            drumMachineCurrentVisualStep = -1;
+            if (!options.preserveTransportState) {
+                drumMachineTransportStartTime = null;
+            }
+            stopDrumMachineVoices({ fade: options.fade });
+            renderDrumMachineStepGrid('kick');
+            renderDrumMachineStepGrid('snare');
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus('Drum machine stopped.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+            return true;
+        }
+
+        function setDrumMachineKickPitchSemitones(value, options = {}) {
+            drumMachineKickPitchSemitones = clampDrumMachinePitchSemitones(value);
+            syncDrumMachineUi();
+            if (!options.silent) {
+                setStatus(`Kick pitch ${formatDrumMachinePitchSemitones(drumMachineKickPitchSemitones)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setDrumMachineSnarePitchSemitones(value, options = {}) {
+            drumMachineSnarePitchSemitones = clampDrumMachinePitchSemitones(value);
+            syncDrumMachineUi();
+            if (!options.silent) {
+                setStatus(`Snare pitch ${formatDrumMachinePitchSemitones(drumMachineSnarePitchSemitones)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        async function applyLoadedDrumMachineSampleBuffer(kind, buffer, metadata = {}) {
+            if (!buffer) {
+                throw new Error(`Decoded ${kind} buffer is empty.`);
+            }
+            if (!Number.isFinite(buffer.duration) || buffer.duration <= 0.005) {
+                throw new Error(`${kind[0].toUpperCase()}${kind.slice(1)} audio is too short to use.`);
+            }
+            if (buffer.duration > MAX_SAMPLE_DURATION_SECONDS) {
+                throw new Error(`${kind[0].toUpperCase()}${kind.slice(1)} audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
+            }
+
+            const resolvedMetadata = {
+                sourceKey: metadata.sourceKey || DRUM_MACHINE_SOURCE_KEYS[kind],
+                sourceLabel: metadata.sourceLabel || (BASTARD_LOOP_SOURCE_LABELS[metadata.sourceKey] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS[kind]]),
+                fileName: metadata.fileName || metadata.filename || `${kind}.wav`,
+                relativePath: metadata.relativePath || ''
+            };
+
+            if (kind === 'snare') {
+                drumMachineSnareBuffer = buffer;
+                drumMachineSnareMetadata = resolvedMetadata;
+                await saveAudioBufferToDB(buffer, DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
+            } else {
+                drumMachineKickBuffer = buffer;
+                drumMachineKickMetadata = resolvedMetadata;
+                await saveAudioBufferToDB(buffer, DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
+            }
+
+            syncDrumMachineUi();
+        }
+
+        async function loadDrumMachineSample(kind) {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading drum samples.');
+            }
+
+            const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
+            const response = await fetch(DROPBOX_SAMPLE_SOURCE_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source: sourceKey,
+                    seed: `${Date.now()}-${kind}-${Math.random().toString(36).slice(2, 8)}`
+                })
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `${kind} load failed with status ${response.status}`);
+            }
+
+            const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || `${kind}.wav`;
+            const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || '';
+            const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || sourceKey;
+            const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || sourceKey;
+            const arrayBuffer = await response.arrayBuffer();
+            const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            await applyLoadedDrumMachineSampleBuffer(kind, decoded, {
+                sourceKey: responseSourceKey,
+                sourceLabel: responseSourceLabel,
+                fileName: sourceName,
+                relativePath
+            });
+        }
+
+        async function loadRandomDrumMachineSamples() {
+            if (drumMachineLoadInFlight) return;
+            drumMachineLoadInFlight = true;
+            syncDrumMachineUi();
+            setStatus('Loading random kick and snare…');
+
+            try {
+                const [kickResult, snareResult] = await Promise.allSettled([
+                    loadDrumMachineSample('kick'),
+                    loadDrumMachineSample('snare')
+                ]);
+                const failures = [kickResult, snareResult]
+                    .filter((result) => result.status === 'rejected')
+                    .map((result) => result.reason?.message || String(result.reason));
+
+                if (failures.length === 2) {
+                    throw new Error(failures.join(' | '));
+                }
+
+                syncDrumMachineUi();
+                if (failures.length === 1) {
+                    setStatus(`Drums updated with one warning: ${failures[0]}`, 'error');
+                } else {
+                    setStatus(`Drums ready: ${describeDrumMachineSummary()}.`);
+                }
+            } finally {
+                drumMachineLoadInFlight = false;
+                syncDrumMachineUi();
+                syncPerformanceControlState();
+            }
+        }
+
+        function openDrumMachineOverlay() {
+            const overlay = document.getElementById('drumMachineOverlay');
+            if (!overlay) return;
+            overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('drum-machine-open');
+            syncDrumMachineUi();
+            requestAnimationFrame(() => {
+                const focusTarget = document.getElementById('drumMachineRandomizeBtn') || document.getElementById('drumMachineCloseBtn');
+                focusTarget?.focus();
+            });
+        }
+
+        function closeDrumMachineOverlay() {
+            const overlay = document.getElementById('drumMachineOverlay');
+            if (!overlay) return;
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('drum-machine-open');
+        }
+
         function stopAllBastardLoopLayers(options = {}) {
             stopBastardLoop({ preserveTransportState: true, skipUi: true, fade: options.fade });
             stopBastardLoop2({ skipUi: true, fade: options.fade });
@@ -11499,7 +12342,7 @@
         function startAllBastardLoopLayers(startTime = null, options = {}) {
             const resolvedStartTime = Number.isFinite(startTime)
                 ? startTime
-                : (Number.isFinite(getTransportLoopOriginTime()) ? getTransportLoopOriginTime() : getBufferedTransportStartTime());
+                : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
             const startedA = startBastardLoop(resolvedStartTime, { skipUi: true });
             const startedB = startBastardLoop2(resolvedStartTime, { skipUi: true });
             const startedC = startBastardLoop3(resolvedStartTime, { skipUi: true });
@@ -11820,7 +12663,7 @@
 
             const startTime = Number.isFinite(options.startTime)
                 ? options.startTime
-                : (Number.isFinite(getTransportLoopOriginTime()) ? getTransportLoopOriginTime() : getBufferedTransportStartTime());
+                : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
 
             bastardLoopTransportStartTime = startTime;
             const started = startAllBastardLoopLayers(startTime, { skipUi: true });
@@ -14341,6 +15184,7 @@
             stopSequencer();
             stopArpeggiatorPlayback();
             stopAllBastardLoopLayers({ preserveTransportState: false, skipUi: true });
+            stopDrumMachine({ preserveTransportState: false, skipUi: true, silent: true });
             stopAllGrains();
             stopAllOscillators();
             heldNotes.clear();
@@ -14479,6 +15323,7 @@
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartArp = arpEnabled && holdEnabled;
             const shouldRestartBastardLoop = bastardLoopPlaying;
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const restartTime = getBufferedTransportStartTime();
 
             if (shouldRestartSequencer) {
@@ -14489,6 +15334,9 @@
             }
             if (shouldRestartBastardLoop) {
                 stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
+            }
+            if (shouldRestartDrumMachine) {
+                stopDrumMachine({ preserveTransportState: true, skipUi: true });
             }
 
             lfoStartTime = restartTime;
@@ -14511,6 +15359,10 @@
                 bastardLoopTransportStartTime = restartTime;
                 startAllBastardLoopLayers(restartTime, { skipUi: true });
             }
+            if (shouldRestartDrumMachine) {
+                drumMachineTransportStartTime = restartTime;
+                startDrumMachine(restartTime, { skipUi: true, silent: true });
+            }
 
             if (shouldRestartArp) {
                 startArpeggiatorPlayback(restartTime);
@@ -14519,31 +15371,37 @@
             updateEffects();
             syncPerformanceControlState();
             if (!options.silent) {
-                setStatus(shouldRestartSequencer || shouldRestartArp
-                    ? 'Restarted loop, arp, and LFO phases from the start.'
+                setStatus(shouldRestartSequencer || shouldRestartArp || shouldRestartDrumMachine
+                    ? 'Restarted loop, arp, drums, and LFO phases from the start.'
                     : 'Restarted LFO phases from the start.');
             }
             return true;
         }
 
         function pausePerformanceForFocusLoss() {
-            if (restartPerformanceOnFocusReturn || restartBastardLoopOnFocusReturn) return;
+            if (restartPerformanceOnFocusReturn || restartBastardLoopOnFocusReturn || restartDrumMachineOnFocusReturn) return;
             restartPerformanceOnFocusReturn = Boolean(sequencerPlaying || activeKeyCount > 0);
             restartBastardLoopOnFocusReturn = bastardLoopPlaying;
+            restartDrumMachineOnFocusReturn = drumMachinePlaying;
             if (restartPerformanceOnFocusReturn) {
                 stopLoopAndHeldKeys({ silent: true });
             }
             if (restartBastardLoopOnFocusReturn) {
                 stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
             }
+            if (restartDrumMachineOnFocusReturn) {
+                stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
+            }
         }
 
         function resumePerformanceAfterFocusReturn() {
-            if (!restartPerformanceOnFocusReturn && !restartBastardLoopOnFocusReturn) return;
+            if (!restartPerformanceOnFocusReturn && !restartBastardLoopOnFocusReturn && !restartDrumMachineOnFocusReturn) return;
             const shouldRestartPerformance = restartPerformanceOnFocusReturn;
             const shouldRestartBastardLoop = restartBastardLoopOnFocusReturn;
+            const shouldRestartDrumMachine = restartDrumMachineOnFocusReturn;
             restartPerformanceOnFocusReturn = false;
             restartBastardLoopOnFocusReturn = false;
+            restartDrumMachineOnFocusReturn = false;
             if (audioContext && audioContext.state === 'suspended') {
                 audioContext.resume().catch((error) => console.warn('Audio resume after focus failed:', error));
             }
@@ -14552,6 +15410,9 @@
             }
             if (shouldRestartBastardLoop) {
                 startAllBastardLoopLayers(null, { skipUi: true });
+            }
+            if (shouldRestartDrumMachine) {
+                startDrumMachine(null, { skipUi: true, silent: true });
             }
         }
 
@@ -14578,11 +15439,35 @@
             }
             
             sequencerPlaying = true;
-            sequencerCurrentStep = 0;
             const now = audioContext.currentTime;
-            const startAt = Number.isFinite(startTime) ? Math.max(now, startTime) : getBufferedTransportStartTime();
-            sequencerNextStepTime = startAt;
-            transportLoopStartTime = startAt;
+            const stepDuration = (60 / sequencerBPM) / 4;
+            const sharedOrigin = Number.isFinite(startTime)
+                ? Math.max(now, startTime)
+                : getSharedLoopTransportOriginTime();
+            let startAt = getBufferedTransportStartTime();
+
+            if (Number.isFinite(sharedOrigin)) {
+                transportLoopStartTime = sharedOrigin;
+                startAt = sharedOrigin;
+                if (sharedOrigin > now) {
+                    sequencerCurrentStep = 0;
+                    sequencerNextStepTime = sharedOrigin;
+                } else {
+                    const elapsed = Math.max(0, now - sharedOrigin);
+                    const stepsElapsed = Math.max(0, Math.ceil((elapsed - 0.002) / stepDuration));
+                    sequencerCurrentStep = stepsElapsed % 16;
+                    sequencerNextStepTime = sharedOrigin + (stepsElapsed * stepDuration);
+                    if (sequencerNextStepTime < now - 0.002) {
+                        sequencerNextStepTime += stepDuration;
+                        sequencerCurrentStep = (sequencerCurrentStep + 1) % 16;
+                    }
+                }
+            } else {
+                sequencerCurrentStep = 0;
+                sequencerNextStepTime = startAt;
+                transportLoopStartTime = startAt;
+            }
+
             startGeneratedDryLoop(startAt);
             
             document.getElementById('seqPlayBtn').classList.add('playing');
@@ -18710,6 +19595,15 @@
                 dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
                 dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
                 dropboxSampleSourceKey: getDropboxSampleLayerSourceKey(),
+                drumMachineEnabled: drumMachineEnabled,
+                drumMachineKickPattern: drumMachineKickPattern.slice(),
+                drumMachineSnarePattern: drumMachineSnarePattern.slice(),
+                drumMachineKickSourceKey: drumMachineKickMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.kick,
+                drumMachineKickFileName: drumMachineKickMetadata?.fileName || '',
+                drumMachineKickRelativePath: drumMachineKickMetadata?.relativePath || '',
+                drumMachineSnareSourceKey: drumMachineSnareMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
+                drumMachineSnareFileName: drumMachineSnareMetadata?.fileName || '',
+                drumMachineSnareRelativePath: drumMachineSnareMetadata?.relativePath || '',
                 tonalDrumsEnabled: tonalDrumsEnabled,
                 globalModulationAmount: getGlobalModulationAmountValue(),
                 granularModulationAmount: getGranularModulationAmountValue(),
@@ -18746,9 +19640,11 @@
                     hasBastardLoop2: Boolean(bastardLoop2Buffer),
                     hasBastardLoop3: Boolean(bastardLoop3Buffer),
                     hasDropboxSampleLayer: Boolean(dropboxSampleLayerRawBuffer),
+                    hasDrumMachineKick: Boolean(drumMachineKickBuffer),
+                    hasDrumMachineSnare: Boolean(drumMachineSnareBuffer),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || dropboxSampleLayerRawBuffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -18936,6 +19832,31 @@
                 rerenderDropboxSampleLayerFromRaw({ skipUi: true });
             }
             syncDropboxSampleLayerUi();
+            const importedDrumMachineEnabled = safePreset.drumMachineEnabled ?? preset.drumMachineEnabled;
+            if (importedDrumMachineEnabled !== undefined) {
+                setDrumMachineEnabled(importedDrumMachineEnabled, { silent: true, skipSave: true });
+            }
+            const importedDrumMachineKickPattern = safePreset.drumMachineKickPattern ?? preset.drumMachineKickPattern;
+            if (importedDrumMachineKickPattern !== undefined) {
+                setDrumMachinePattern('kick', importedDrumMachineKickPattern, { skipSave: true });
+            }
+            const importedDrumMachineSnarePattern = safePreset.drumMachineSnarePattern ?? preset.drumMachineSnarePattern;
+            if (importedDrumMachineSnarePattern !== undefined) {
+                setDrumMachinePattern('snare', importedDrumMachineSnarePattern, { skipSave: true });
+            }
+            drumMachineKickMetadata = {
+                sourceKey: safePreset.drumMachineKickSourceKey ?? preset.drumMachineKickSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.kick,
+                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[safePreset.drumMachineKickSourceKey ?? preset.drumMachineKickSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.kick] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
+                fileName: safePreset.drumMachineKickFileName ?? preset.drumMachineKickFileName ?? '',
+                relativePath: safePreset.drumMachineKickRelativePath ?? preset.drumMachineKickRelativePath ?? ''
+            };
+            drumMachineSnareMetadata = {
+                sourceKey: safePreset.drumMachineSnareSourceKey ?? preset.drumMachineSnareSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.snare,
+                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[safePreset.drumMachineSnareSourceKey ?? preset.drumMachineSnareSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.snare] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
+                fileName: safePreset.drumMachineSnareFileName ?? preset.drumMachineSnareFileName ?? '',
+                relativePath: safePreset.drumMachineSnareRelativePath ?? preset.drumMachineSnareRelativePath ?? ''
+            };
+            syncDrumMachineUi();
             const importedGrainLayerSolo = safePreset.grainLayerSolo ?? preset.grainLayerSolo ?? 'none';
             setGrainLayerSolo(importedGrainLayerSolo, { silent: true, skipSave: true });
             const importedSourceWaveformSolo = safePreset.sourceWaveformSolo ?? preset.sourceWaveformSolo ?? 'none';
@@ -19235,6 +20156,8 @@
         const BASTARD_LOOP_2_AUDIO_BUFFER_KEY = 'bastardLoopBuffer2';
         const BASTARD_LOOP_3_AUDIO_BUFFER_KEY = 'bastardLoopBuffer3';
         const DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY = 'dropboxSampleLayerBuffer';
+        const DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY = 'drumMachineKickBuffer';
+        const DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY = 'drumMachineSnareBuffer';
 
         // Open IndexedDB
         function openAudioDB() {
@@ -19382,6 +20305,15 @@
                     bastardLoop3Reverse: bastardLoop3Reverse,
                     dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
                     dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
+                    drumMachineEnabled: drumMachineEnabled,
+                    drumMachineKickPattern: drumMachineKickPattern.slice(),
+                    drumMachineSnarePattern: drumMachineSnarePattern.slice(),
+                    drumMachineKickSourceKey: drumMachineKickMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.kick,
+                    drumMachineKickFileName: drumMachineKickMetadata?.fileName || '',
+                    drumMachineKickRelativePath: drumMachineKickMetadata?.relativePath || '',
+                    drumMachineSnareSourceKey: drumMachineSnareMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
+                    drumMachineSnareFileName: drumMachineSnareMetadata?.fileName || '',
+                    drumMachineSnareRelativePath: drumMachineSnareMetadata?.relativePath || '',
                     grainLayerSolo: grainLayerSolo,
                     sourceWaveformSolo: getSourceWaveformSoloState(),
                     tonalDrumsEnabled: tonalDrumsEnabled,
@@ -19605,6 +20537,27 @@
                             dropboxStretchToggle.checked = dropboxSampleLayerStretchToLoop;
                         }
                     }
+                    if (state.modes.drumMachineEnabled !== undefined) {
+                        setDrumMachineEnabled(state.modes.drumMachineEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.drumMachineKickPattern !== undefined) {
+                        setDrumMachinePattern('kick', state.modes.drumMachineKickPattern, { skipSave: true });
+                    }
+                    if (state.modes.drumMachineSnarePattern !== undefined) {
+                        setDrumMachinePattern('snare', state.modes.drumMachineSnarePattern, { skipSave: true });
+                    }
+                    drumMachineKickMetadata = {
+                        sourceKey: state.modes.drumMachineKickSourceKey || DRUM_MACHINE_SOURCE_KEYS.kick,
+                        sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes.drumMachineKickSourceKey || DRUM_MACHINE_SOURCE_KEYS.kick] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
+                        fileName: state.modes.drumMachineKickFileName || '',
+                        relativePath: state.modes.drumMachineKickRelativePath || ''
+                    };
+                    drumMachineSnareMetadata = {
+                        sourceKey: state.modes.drumMachineSnareSourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
+                        sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes.drumMachineSnareSourceKey || DRUM_MACHINE_SOURCE_KEYS.snare] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
+                        fileName: state.modes.drumMachineSnareFileName || '',
+                        relativePath: state.modes.drumMachineSnareRelativePath || ''
+                    };
                     if (state.modes.grainLayerSolo !== undefined) {
                         setGrainLayerSolo(state.modes.grainLayerSolo, { silent: true, skipSave: true });
                     }
@@ -21435,6 +22388,22 @@
         const performanceDropboxSampleSource = document.getElementById('performanceDropboxSampleSource');
         const performanceDropboxSampleStretchToLoop = document.getElementById('performanceDropboxSampleStretchToLoop');
         const performanceDropboxSampleLevel = document.getElementById('performanceDropboxSampleLevel');
+        const performanceDrumMachineRandomBtn = document.getElementById('performanceDrumMachineRandomBtn');
+        const performanceDrumMachineOpenBtn = document.getElementById('performanceDrumMachineOpenBtn');
+        const performanceDrumMachineStartBtn = document.getElementById('performanceDrumMachineStartBtn');
+        const performanceDrumMachineStopBtn = document.getElementById('performanceDrumMachineStopBtn');
+        const performanceDrumMachineMainOpenBtn = document.getElementById('performanceDrumMachineMainOpenBtn');
+        const performanceDrumMachineMainStartBtn = document.getElementById('performanceDrumMachineMainStartBtn');
+        const performanceDrumMachineMainStopBtn = document.getElementById('performanceDrumMachineMainStopBtn');
+        const performanceDrumMachineLevel = document.getElementById('performanceDrumMachineLevel');
+        const performanceDrumMachineLayerBtn = document.getElementById('performanceDrumMachineLayerBtn');
+        const drumMachineOverlay = document.getElementById('drumMachineOverlay');
+        const drumMachineCloseBtn = document.getElementById('drumMachineCloseBtn');
+        const drumMachineRandomizeBtn = document.getElementById('drumMachineRandomizeBtn');
+        const drumMachinePlayBtn = document.getElementById('drumMachinePlayBtn');
+        const drumMachineStopBtn = document.getElementById('drumMachineStopBtn');
+        const drumMachineKickPitch = document.getElementById('drumMachineKickPitch');
+        const drumMachineSnarePitch = document.getElementById('drumMachineSnarePitch');
         const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
         const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
         const dropboxSampleBrowserRefreshBtn = document.getElementById('dropboxSampleBrowserRefreshBtn');
@@ -21628,6 +22597,12 @@
                 document.getElementById('performanceBastardLoop3PitchValue').textContent = formatBastardLoopPitchOctaves(value);
             }
 
+            if (performanceDrumMachineLevel) {
+                const value = Math.round(getDrumMachineLevelValue({ applyLayerToggle: false }) * 100);
+                performanceDrumMachineLevel.value = String(value);
+                document.getElementById('performanceDrumMachineLevelValue').textContent = `${value}%`;
+            }
+
             if (performanceGeneratedDryTrim) {
                 const value = getGeneratedDryTrimDb();
                 performanceGeneratedDryTrim.value = String(value);
@@ -21736,6 +22711,7 @@
 
             syncFilterPoleControls();
             syncBastardLoopUi();
+            syncDrumMachineUi();
         }
 
         function setPerformanceGenerateButtonState(state) {
@@ -21788,6 +22764,7 @@
 
             syncBastardLoopUi();
             syncDropboxSampleLayerUi();
+            syncDrumMachineUi();
 
             if (performanceRecordBtn) {
                 const recText = document.getElementById('outputRecText')?.textContent || '';
@@ -21872,6 +22849,12 @@
                 performanceDropboxSampleLayerBtn.classList.toggle('layer-muted', !dropboxSampleLayerEnabled);
                 performanceDropboxSampleLayerBtn.textContent = dropboxSampleLayerEnabled ? 'Dropbox Sample On' : 'Dropbox Sample Off';
                 performanceDropboxSampleLayerBtn.setAttribute('aria-pressed', String(dropboxSampleLayerEnabled));
+            }
+
+            if (performanceDrumMachineLayerBtn) {
+                performanceDrumMachineLayerBtn.classList.toggle('layer-muted', !drumMachineEnabled);
+                performanceDrumMachineLayerBtn.textContent = drumMachineEnabled ? 'Drum Machine On' : 'Drum Machine Off';
+                performanceDrumMachineLayerBtn.setAttribute('aria-pressed', String(drumMachineEnabled));
             }
 
             syncGrainLayerSoloButtons();
@@ -22151,6 +23134,10 @@
                 closeDropboxSampleBrowser();
                 return;
             }
+            if (event.key === 'Escape' && document.body.classList.contains('drum-machine-open')) {
+                closeDrumMachineOverlay();
+                return;
+            }
             if (event.key === 'Escape' && document.body.classList.contains('synth-popup-open')) {
                 closeSynthPopup();
             }
@@ -22267,6 +23254,80 @@
             updateDropboxSampleLayerMix();
         });
 
+        performanceDrumMachineRandomBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomDrumMachineSamples();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum load failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceDrumMachineOpenBtn?.addEventListener('click', () => {
+            openDrumMachineOverlay();
+        });
+
+        performanceDrumMachineMainOpenBtn?.addEventListener('click', () => {
+            openDrumMachineOverlay();
+        });
+
+        performanceDrumMachineStartBtn?.addEventListener('click', () => {
+            startDrumMachine();
+        });
+
+        performanceDrumMachineMainStartBtn?.addEventListener('click', () => {
+            startDrumMachine();
+        });
+
+        performanceDrumMachineStopBtn?.addEventListener('click', () => {
+            stopDrumMachine();
+        });
+
+        performanceDrumMachineMainStopBtn?.addEventListener('click', () => {
+            stopDrumMachine();
+        });
+
+        performanceDrumMachineLayerBtn?.addEventListener('click', () => {
+            setDrumMachineEnabled(!drumMachineEnabled);
+        });
+
+        performanceDrumMachineLevel?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            drumMachineLevel = value / 100;
+            document.getElementById('performanceDrumMachineLevelValue').textContent = `${Math.round(value)}%`;
+            updateDrumMachineMix();
+            saveState();
+        });
+
+        drumMachineRandomizeBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomDrumMachineSamples();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum load failed: ${error.message}`, 'error');
+            }
+        });
+
+        drumMachinePlayBtn?.addEventListener('click', () => {
+            startDrumMachine();
+        });
+
+        drumMachineStopBtn?.addEventListener('click', () => {
+            stopDrumMachine();
+        });
+
+        drumMachineCloseBtn?.addEventListener('click', () => {
+            closeDrumMachineOverlay();
+        });
+
+        drumMachineKickPitch?.addEventListener('input', (event) => {
+            setDrumMachineKickPitchSemitones(event.target.value);
+        });
+
+        drumMachineSnarePitch?.addEventListener('input', (event) => {
+            setDrumMachineSnarePitchSemitones(event.target.value);
+        });
+
         dropboxSampleBrowserCloseBtn?.addEventListener('click', () => {
             closeDropboxSampleBrowser();
         });
@@ -22285,6 +23346,12 @@
         dropboxSampleBrowserOverlay?.addEventListener('click', (event) => {
             if (event.target === dropboxSampleBrowserOverlay) {
                 closeDropboxSampleBrowser();
+            }
+        });
+
+        drumMachineOverlay?.addEventListener('click', (event) => {
+            if (event.target === drumMachineOverlay) {
+                closeDrumMachineOverlay();
             }
         });
 
