@@ -905,14 +905,50 @@ test('granular restore and arp stay on the rebuilt synth path', () => {
     assert.doesNotMatch(indexHtml, /arp:cloud/);
 });
 
-test('output source grains expose a dedicated volume control in the shared source path', () => {
+test('all source grain engines expose dedicated volume controls in the shared source path', () => {
+    assert.match(indexHtml, /level: \{ id: 'generatedGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 \}/);
+    assert.match(indexHtml, /level: \{ id: 'micGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 \}/);
+    assert.match(indexHtml, /level: \{ id: 'grainAMicGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 \}/);
+    assert.match(indexHtml, /level: \{ id: 'grainBMicGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 \}/);
     assert.match(indexHtml, /level: \{ id: 'outputGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 \}/);
+    assert.match(indexHtml, /const SOURCE_GRAIN_LEVEL_CONTROL_IDS = new Set\(/);
     assert.match(indexHtml, /function getGranularSourceLevelMultiplier\(sourceInfo\)/);
     assert.match(indexHtml, /const levelPercent = getSourceGrainControlValue\(kind, 'level', 100\);/);
     assert.match(indexHtml, /return Math\.max\(0, Math\.min\(2, levelPercent \/ 100\)\);/);
     assert.match(indexHtml, /role === 'level'\s*\?\s*\{ min: 70, max: 130 \}/);
     assert.match(indexHtml, /const setSourceGain = \(source, gainAmount\) => \{\s*gains\.set\(source, Math\.max\(0, gainAmount \* getGranularSourceLevelMultiplier\(source\)\)\);\s*\};/);
     assert.match(indexHtml, /Math\.min\(1, perSourceGain \* getGranularSourceLevelMultiplier\(sourceInfo\)\)/);
+    assert.match(indexHtml, /if \(SOURCE_GRAIN_LEVEL_CONTROL_IDS\.has\(e\.target\.id\)\) \{\s*syncSourceWaveformSoloAudition\(\);/);
+});
+
+test('granular layer sliders expose lfo routing for start size pitch envelope blend and level controls', () => {
+    assert.match(indexHtml, /const GRANULAR_LAYER_LFO_TARGET_IDS = \[/);
+    assert.match(indexHtml, /grainMainStart: 0\.1,/);
+    assert.match(indexHtml, /grainMainBlend: 0\.18,/);
+    assert.match(indexHtml, /grainSynthAAttack: 0\.05,/);
+    assert.match(indexHtml, /grainSynthBRelease: 0\.06,/);
+    assert.match(indexHtml, /'grainMainStart'/);
+    assert.match(indexHtml, /'grainSize'/);
+    assert.match(indexHtml, /'grainMainTune'/);
+    assert.match(indexHtml, /'grainMainDecay'/);
+    assert.match(indexHtml, /'grainMainBlend'/);
+    assert.match(indexHtml, /'grainSynthAStart'/);
+    assert.match(indexHtml, /'grainSynthASize'/);
+    assert.match(indexHtml, /'grainSynthATune'/);
+    assert.match(indexHtml, /'grainSynthAAttack'/);
+    assert.match(indexHtml, /'grainSynthADecay'/);
+    assert.match(indexHtml, /'grainSynthARelease'/);
+    assert.match(indexHtml, /'grainSynthBStart'/);
+    assert.match(indexHtml, /'grainSynthBSize'/);
+    assert.match(indexHtml, /'grainSynthBTune'/);
+    assert.match(indexHtml, /'grainSynthBAttack'/);
+    assert.match(indexHtml, /'grainSynthBDecay'/);
+    assert.match(indexHtml, /'grainSynthBRelease'/);
+    assert.match(indexHtml, /'grainMixerAmp'/);
+    assert.match(indexHtml, /function addGranularLayerLfoControls\(\)/);
+    assert.match(indexHtml, /sliderLine\.setAttribute\('data-granular-layer-lfo', paramId\);/);
+    assert.match(indexHtml, /sliderLine\.append\(slider, createSourceGrainLfoButtons\(paramId\)\);/);
+    assert.match(indexHtml, /addGranularLayerLfoControls\(\);/);
 });
 
 test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {

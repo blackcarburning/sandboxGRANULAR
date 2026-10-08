@@ -7518,6 +7518,9 @@
             generatedLoopEnd: 0.12,
             micLoopEnd: 0.12,
             grainSize: 0.14,
+            grainMainStart: 0.1,
+            grainMainDecay: 0.08,
+            grainMainBlend: 0.18,
             density: 0.08,
             position: 0.1,
             spray: 0.1,
@@ -7530,14 +7533,22 @@
             grainSynthAVolume: 0.28,
             grainSynthBVolume: 0.28,
             grainMixerAmp: 0.22,
+            grainSynthAStart: 0.1,
             grainSynthAMix: 0.18,
             grainSynthATune: 0.12,
             grainSynthASize: 0.16,
+            grainSynthAAttack: 0.05,
+            grainSynthADecay: 0.08,
+            grainSynthARelease: 0.06,
             grainSynthADensity: 0.18,
             grainSynthASpread: 0.16,
+            grainSynthBStart: 0.1,
             grainSynthBMix: 0.18,
             grainSynthBTune: 0.12,
             grainSynthBSize: 0.16,
+            grainSynthBAttack: 0.05,
+            grainSynthBDecay: 0.08,
+            grainSynthBRelease: 0.06,
             grainSynthBDensity: 0.18,
             grainSynthBSpread: 0.16
         };
@@ -7558,6 +7569,9 @@
             'generatedLoopEnd',
             'micLoopEnd',
             'grainSize',
+            'grainMainStart',
+            'grainMainDecay',
+            'grainMainBlend',
             'density',
             'position',
             'spray',
@@ -7570,14 +7584,22 @@
             'grainSynthAVolume',
             'grainSynthBVolume',
             'grainMixerAmp',
+            'grainSynthAStart',
             'grainSynthAMix',
             'grainSynthATune',
             'grainSynthASize',
+            'grainSynthAAttack',
+            'grainSynthADecay',
+            'grainSynthARelease',
             'grainSynthADensity',
             'grainSynthASpread',
+            'grainSynthBStart',
             'grainSynthBMix',
             'grainSynthBTune',
             'grainSynthBSize',
+            'grainSynthBAttack',
+            'grainSynthBDecay',
+            'grainSynthBRelease',
             'grainSynthBDensity',
             'grainSynthBSpread'
         ]);
@@ -7914,6 +7936,7 @@
                 controls: {
                     position: { id: 'generatedGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
                     scale: { id: 'generatedGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    level: { id: 'generatedGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
                     attack: { id: 'generatedGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
                     release: { id: 'generatedGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
                 }
@@ -7924,6 +7947,7 @@
                 controls: {
                     position: { id: 'micGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
                     scale: { id: 'micGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    level: { id: 'micGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
                     attack: { id: 'micGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
                     release: { id: 'micGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
                 }
@@ -7934,6 +7958,7 @@
                 controls: {
                     position: { id: 'grainAMicGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
                     scale: { id: 'grainAMicGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    level: { id: 'grainAMicGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
                     attack: { id: 'grainAMicGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
                     release: { id: 'grainAMicGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
                 }
@@ -7944,6 +7969,7 @@
                 controls: {
                     position: { id: 'grainBMicGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
                     scale: { id: 'grainBMicGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    level: { id: 'grainBMicGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
                     attack: { id: 'grainBMicGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
                     release: { id: 'grainBMicGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
                 }
@@ -7964,6 +7990,9 @@
             SOURCE_GRAIN_CONTROL_DEFINITIONS.map((definition) => [definition.kind, definition.controls])
         );
         const SOURCE_GRAIN_CONTROL_IDS = SOURCE_GRAIN_CONTROL_DEFINITIONS.flatMap((definition) => Object.values(definition.controls).map((control) => control.id));
+        const SOURCE_GRAIN_LEVEL_CONTROL_IDS = new Set(
+            SOURCE_GRAIN_CONTROL_DEFINITIONS.flatMap((definition) => definition.controls.level ? [definition.controls.level.id] : [])
+        );
         const SOURCE_LOOP_CONTROL_DEFINITIONS = [
             { kind: 'generated', label: 'Generated', startId: 'generatedLoopStart', endId: 'generatedLoopEnd' },
             { kind: 'mic', label: 'Mic', startId: 'micLoopStart', endId: 'micLoopEnd' },
@@ -8018,6 +8047,33 @@
             'panSpread',
             ...SOURCE_GRAIN_CONTROL_IDS
         ]);
+        const GRANULAR_LAYER_LFO_TARGET_IDS = [
+            'grainMainStart',
+            'grainSize',
+            'grainMainTune',
+            'attack',
+            'grainMainDecay',
+            'release',
+            'grainMainBlend',
+            'grainMainVolume',
+            'grainSynthAStart',
+            'grainSynthASize',
+            'grainSynthATune',
+            'grainSynthAAttack',
+            'grainSynthADecay',
+            'grainSynthARelease',
+            'grainSynthAMix',
+            'grainSynthAVolume',
+            'grainSynthBStart',
+            'grainSynthBSize',
+            'grainSynthBTune',
+            'grainSynthBAttack',
+            'grainSynthBDecay',
+            'grainSynthBRelease',
+            'grainSynthBMix',
+            'grainSynthBVolume',
+            'grainMixerAmp'
+        ];
         let sourceWaveformSoloKinds = new Set();
         let sourceWaveformSoloAuditionNodes = [];
 
@@ -17509,6 +17565,21 @@
             });
         }
 
+        function addGranularLayerLfoControls() {
+            GRANULAR_LAYER_LFO_TARGET_IDS.forEach((paramId) => {
+                const slider = document.getElementById(paramId);
+                const row = slider?.closest('.control-group');
+                if (!slider || !row || slider.closest('.source-grain-lfo')) return;
+                if (row.querySelector(`.lfo-toggle[data-param="${paramId}"]`)) return;
+
+                const sliderLine = document.createElement('div');
+                sliderLine.className = 'source-grain-lfo';
+                sliderLine.setAttribute('data-granular-layer-lfo', paramId);
+                slider.parentNode.insertBefore(sliderLine, slider);
+                sliderLine.append(slider, createSourceGrainLfoButtons(paramId));
+            });
+        }
+
         async function trimSourceBufferToLocators(kind) {
             const config = getSourceSlotConfig(kind);
             const buffer = config.buffer();
@@ -17545,6 +17616,7 @@
 
         addSourceLoopLfoControls();
         addSourceGrainEnvelopeControls();
+        addGranularLayerLfoControls();
         syncSourceWaveformTuneLabels();
         syncSourceWaveformSoloButtons();
 
@@ -17710,6 +17782,9 @@
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
                 if (SOURCE_LOOP_CONTROL_IDS.includes(e.target.id)) {
+                    syncSourceWaveformSoloAudition();
+                }
+                if (SOURCE_GRAIN_LEVEL_CONTROL_IDS.has(e.target.id)) {
                     syncSourceWaveformSoloAudition();
                 }
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
