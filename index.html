@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-21-45-build-v2026.10.08.14';
+            const cacheBuster = '2026-10-08-21-50-build-v2026.10.08.15';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3947,7 +3947,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.14</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.15</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3960,7 +3960,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.14</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.15</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -26588,6 +26588,11 @@
                 openButton.type = 'button';
                 openButton.textContent = 'Open WAV';
 
+                const downloadButton = document.createElement('button');
+                downloadButton.className = 'performance-btn';
+                downloadButton.type = 'button';
+                downloadButton.textContent = 'Download WAV';
+
                 const meta = document.createElement('div');
                 meta.className = 'sample-browser-path';
                 meta.textContent = formatWavRepositoryFileMeta(file);
@@ -26709,11 +26714,39 @@
                     window.open(file.url, '_blank', 'noopener');
                 });
 
+                downloadButton.addEventListener('click', async () => {
+                    const originalLabel = downloadButton.textContent;
+                    downloadButton.disabled = true;
+                    downloadButton.textContent = 'Preparing...';
+                    try {
+                        const response = await fetch(file.url, {
+                            mode: 'cors',
+                            cache: 'no-store'
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Download failed (${response.status})`);
+                        }
+                        const blob = await response.blob();
+                        await saveAudioFiles([{
+                            blob,
+                            filename: file.name || 'mygrain-recording.wav'
+                        }], 'MYGRAIN WAV Repository');
+                        setWavRepositoryBrowserStatus(`Download ready: ${file.name}.`);
+                    } catch (error) {
+                        console.error(error);
+                        setWavRepositoryBrowserStatus(`Download failed: ${error.message}`);
+                        setStatus(`WAV download failed: ${error.message}`, 'error');
+                    } finally {
+                        downloadButton.disabled = false;
+                        downloadButton.textContent = originalLabel;
+                    }
+                });
+
                 feedbackActions.append(likeButton, loveButton, saveButton);
                 feedbackRow.append(feedbackActions, feedbackStatus);
                 feedback.append(feedbackLabel, textarea, feedbackRow);
                 head.append(name, openButton);
-                actions.append(repositoryHint);
+                actions.append(repositoryHint, downloadButton);
                 card.append(head, meta, audio, actions, feedback);
                 list.appendChild(card);
             });
