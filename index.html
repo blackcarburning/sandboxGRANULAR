@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-19-34-build-v2026.10.08.4';
+            const cacheBuster = '2026-10-08-19-38-build-v2026.10.08.5';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3854,7 +3854,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.4</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.5</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3867,7 +3867,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.4</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.5</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -5186,8 +5186,9 @@
                             <input type="range" id="outputLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="outputLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
-                        <div class="source-seed-buttons">
+                        <div class="source-seed-buttons source-seed-buttons-stack">
                             <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Selection</button>
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="output" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
                 </div>
@@ -8519,7 +8520,7 @@
             grainBMic: 'Grain B Mic',
             output: 'Output Source'
         };
-        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample', 'grainAMic', 'grainBMic']);
+        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample', 'grainAMic', 'grainBMic', 'output']);
         const SOURCE_TUNE_CONTROL_IDS = {
             generated: 'generatedSourceTune',
             mic: 'micSourceTune',
