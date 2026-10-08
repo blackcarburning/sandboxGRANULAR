@@ -839,6 +839,7 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainMainDecay"/);
     assert.match(indexHtml, /id="release"/);
     assert.match(indexHtml, /id="grainMainBlend"/);
+    assert.match(indexHtml, /id="grainMainSmoothing"/);
     assert.match(indexHtml, /id="grainMainWidth"/);
     assert.match(indexHtml, /id="grainMainVolume"/);
     assert.match(indexHtml, /id="grainSynthASource"/);
@@ -850,6 +851,7 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainSynthADecay"/);
     assert.match(indexHtml, /id="grainSynthARelease"/);
     assert.match(indexHtml, /id="grainSynthAMix"/);
+    assert.match(indexHtml, /id="grainSynthASmoothing"/);
     assert.match(indexHtml, /id="grainSynthAWidth"/);
     assert.match(indexHtml, /id="grainSynthAVolume"/);
     assert.match(indexHtml, /id="grainSynthBSource"/);
@@ -861,6 +863,7 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainSynthBDecay"/);
     assert.match(indexHtml, /id="grainSynthBRelease"/);
     assert.match(indexHtml, /id="grainSynthBMix"/);
+    assert.match(indexHtml, /id="grainSynthBSmoothing"/);
     assert.match(indexHtml, /id="grainSynthBWidth"/);
     assert.match(indexHtml, /id="grainSynthBVolume"/);
     assert.match(indexHtml, /id="grainMixerAmp"/);
@@ -874,14 +877,34 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.doesNotMatch(indexHtml, /id="performanceGrainPlaybackSpeed"/);
 });
 
+test('mobile performance surface exposes granular tune width and smoothing controls', () => {
+    assert.match(indexHtml, />Granular Layer Quick Controls<\/h3>/);
+    assert.match(indexHtml, /id="performanceGrainMainTune"/);
+    assert.match(indexHtml, /id="performanceGrainMainFineTune"/);
+    assert.match(indexHtml, /id="performanceGrainMainWidth"/);
+    assert.match(indexHtml, /id="performanceGrainMainSmoothing"/);
+    assert.match(indexHtml, /id="performanceGrainATune"/);
+    assert.match(indexHtml, /id="performanceGrainAFineTune"/);
+    assert.match(indexHtml, /id="performanceGrainAWidth"/);
+    assert.match(indexHtml, /id="performanceGrainASmoothing"/);
+    assert.match(indexHtml, /id="performanceGrainBTune"/);
+    assert.match(indexHtml, /id="performanceGrainBFineTune"/);
+    assert.match(indexHtml, /id="performanceGrainBWidth"/);
+    assert.match(indexHtml, /id="performanceGrainBSmoothing"/);
+    assert.match(indexHtml, /function syncPerformanceGrainQuickControls\(\)/);
+});
+
 test('granular engine plays raw sample buffers with per-layer pitch start and envelope scanning', () => {
     assert.match(indexHtml, /const GRANULAR_LAYER_DEFINITIONS = \[/);
     assert.match(indexHtml, /sourceId: 'grainMainSource'/);
     assert.match(indexHtml, /sourceId: 'grainSynthASource'/);
     assert.match(indexHtml, /sourceId: 'grainSynthBSource'/);
     assert.match(indexHtml, /fineTuneId: 'grainMainFineTune'/);
+    assert.match(indexHtml, /smoothingId: 'grainMainSmoothing'/);
     assert.match(indexHtml, /fineTuneId: 'grainSynthAFineTune'/);
+    assert.match(indexHtml, /smoothingId: 'grainSynthASmoothing'/);
     assert.match(indexHtml, /fineTuneId: 'grainSynthBFineTune'/);
+    assert.match(indexHtml, /smoothingId: 'grainSynthBSmoothing'/);
     assert.match(indexHtml, /widthId: 'grainMainWidth'/);
     assert.match(indexHtml, /widthId: 'grainSynthAWidth'/);
     assert.match(indexHtml, /widthId: 'grainSynthBWidth'/);
@@ -894,8 +917,11 @@ test('granular engine plays raw sample buffers with per-layer pitch start and en
     assert.match(indexHtml, /const coarseTuneSemitones = Number\(getModulatedValue\(definition\.pitchId\)\) \|\| 0;/);
     assert.match(indexHtml, /const fineTuneCents = Number\(getModulatedValue\(definition\.fineTuneId\)\) \|\| 0;/);
     assert.match(indexHtml, /const pitchSemitones = coarseTuneSemitones \+ \(fineTuneCents \/ 100\);/);
+    assert.match(indexHtml, /const smoothing = Math\.max\(0, Math\.min\(1, \(Number\(getModulatedValue\(definition\.smoothingId\)\) \|\| 0\) \/ 100\)\);/);
     assert.match(indexHtml, /const width = Math\.max\(0, Math\.min\(1, \(Number\(getModulatedValue\(definition\.widthId\)\) \|\| 0\) \/ 100\)\);/);
     assert.match(indexHtml, /pitchRatio = Math\.max\(0\.0625, Math\.min\(16, \(noteFreq \/ baseFrequency\) \* Math\.pow\(2, pitchSemitones \/ 12\)\)\)/);
+    assert.match(indexHtml, /intervalSeconds: getGranularLayerIntervalSeconds\(sizeSeconds, blend, smoothing\),/);
+    assert.match(indexHtml, /jitterSeconds: getGranularLayerJitterSeconds\(sizeSeconds, blend, smoothing\)/);
     assert.match(indexHtml, /function resolveGranularLayerSampleWindow\(sourceInfo, layer, scheduledTime, streamStartTime, modeProfile = getGrainModeProfile\(\)\)/);
     assert.match(indexHtml, /const sourceDuration = Math\.max\(0\.001, Math\.min\(loopDuration, sourceShape\.sizeSeconds \* playbackRate\)\);/);
     assert.match(indexHtml, /const scanOffset = maxOffsetSpan > 0 && streamStartTime !== undefined && streamStartTime !== null/);
@@ -943,12 +969,15 @@ test('granular layer sliders expose lfo routing for start size pitch envelope bl
     assert.match(indexHtml, /grainMainStart: 0\.1,/);
     assert.match(indexHtml, /grainMainFineTune: 0\.08,/);
     assert.match(indexHtml, /grainMainBlend: 0\.18,/);
+    assert.match(indexHtml, /grainMainSmoothing: 0\.18,/);
     assert.match(indexHtml, /grainMainWidth: 0\.18,/);
     assert.match(indexHtml, /grainSynthAAttack: 0\.05,/);
     assert.match(indexHtml, /grainSynthAFineTune: 0\.08,/);
+    assert.match(indexHtml, /grainSynthASmoothing: 0\.16,/);
     assert.match(indexHtml, /grainSynthAWidth: 0\.18,/);
     assert.match(indexHtml, /grainSynthBRelease: 0\.06,/);
     assert.match(indexHtml, /grainSynthBFineTune: 0\.08,/);
+    assert.match(indexHtml, /grainSynthBSmoothing: 0\.16,/);
     assert.match(indexHtml, /grainSynthBWidth: 0\.18/);
     assert.match(indexHtml, /'grainMainStart'/);
     assert.match(indexHtml, /'grainSize'/);
@@ -956,11 +985,13 @@ test('granular layer sliders expose lfo routing for start size pitch envelope bl
     assert.match(indexHtml, /'grainMainFineTune'/);
     assert.match(indexHtml, /'grainMainDecay'/);
     assert.match(indexHtml, /'grainMainBlend'/);
+    assert.match(indexHtml, /'grainMainSmoothing'/);
     assert.match(indexHtml, /'grainMainWidth'/);
     assert.match(indexHtml, /'grainSynthAStart'/);
     assert.match(indexHtml, /'grainSynthASize'/);
     assert.match(indexHtml, /'grainSynthATune'/);
     assert.match(indexHtml, /'grainSynthAFineTune'/);
+    assert.match(indexHtml, /'grainSynthASmoothing'/);
     assert.match(indexHtml, /'grainSynthAAttack'/);
     assert.match(indexHtml, /'grainSynthADecay'/);
     assert.match(indexHtml, /'grainSynthARelease'/);
@@ -969,6 +1000,7 @@ test('granular layer sliders expose lfo routing for start size pitch envelope bl
     assert.match(indexHtml, /'grainSynthBSize'/);
     assert.match(indexHtml, /'grainSynthBTune'/);
     assert.match(indexHtml, /'grainSynthBFineTune'/);
+    assert.match(indexHtml, /'grainSynthBSmoothing'/);
     assert.match(indexHtml, /'grainSynthBAttack'/);
     assert.match(indexHtml, /'grainSynthBDecay'/);
     assert.match(indexHtml, /'grainSynthBRelease'/);
@@ -997,6 +1029,18 @@ test('panic reset rebuilds the audio engine and grain note release tails stay mu
     assert.match(indexHtml, /grainInfo\.releaseEndTime = now \+ releaseSeconds;/);
     assert.match(indexHtml, /const remainingRatio = Math\.max\(0, Math\.min\(1, \(releaseEndTime - grainInfo\.nextTime\) \/ releaseDuration\)\);/);
     assert.match(indexHtml, /grainVelocity = Math\.max\(0, \(grainInfo\.releaseVelocity \?\? grainInfo\.velocity\) \* Math\.pow\(remainingRatio, 1\.35\)\);/);
+});
+
+test('granular live control refresh and keyboard interaction paths stay resilient', () => {
+    assert.match(indexHtml, /let pendingGranularRefreshFrame = null;/);
+    assert.match(indexHtml, /async function ensureAudioReadyForKeyInteraction\(\)/);
+    assert.match(indexHtml, /const duplicateInputSuppressMs = 180;/);
+    assert.match(indexHtml, /if \(isKeyPressed && !holdEnabled && !heldNotes\.has\(note\)\) \{\s*releaseKey\(pointerId\);\s*\}/);
+    assert.match(indexHtml, /if \(pendingGranularRefreshFrame !== null\) return;/);
+    assert.match(indexHtml, /pendingGranularRefreshFrame = requestAnimationFrame\(\(\) => \{/);
+    assert.match(indexHtml, /const refreshLeadTime = Math\.max\(0\.008, Math\.min\(0\.03, Math\.max\(getClickGuardSeconds\(\) \* 0\.5, 0\.012\)\)\);/);
+    assert.match(indexHtml, /console\.warn\('Max grain nodes reached, rebuilding audio engine to recover granular playback'\);/);
+    assert.match(indexHtml, /resetEngineRoutine\(\{ reason: 'panic', silent: true \}\)\.catch\(\(\) => \{\}\);/);
 });
 
 test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {
