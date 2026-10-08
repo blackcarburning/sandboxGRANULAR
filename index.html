@@ -11351,6 +11351,63 @@
             return ((numeric % 1) + 1) % 1;
         }
 
+        function findNearestZeroCrossingOffset(buffer, targetOffsetSeconds, options = {}) {
+            if (!buffer || typeof buffer.getChannelData !== 'function') {
+                return Math.max(0, Number(targetOffsetSeconds) || 0);
+            }
+            const channelData = buffer.getChannelData(0);
+            if (!channelData || channelData.length < 3) {
+                return Math.max(0, Math.min(buffer.duration || 0, Number(targetOffsetSeconds) || 0));
+            }
+
+            const sampleRate = Math.max(1, Number(buffer.sampleRate) || 44100);
+            const bufferDuration = Math.max(0, Number(buffer.duration) || (channelData.length / sampleRate));
+            const minSeconds = Math.max(0, Math.min(bufferDuration, Number(options.minSeconds) || 0));
+            const maxSeconds = Math.max(
+                minSeconds,
+                Math.min(bufferDuration, Number.isFinite(Number(options.maxSeconds)) ? Number(options.maxSeconds) : bufferDuration)
+            );
+            const targetSeconds = Math.max(minSeconds, Math.min(maxSeconds, Number(targetOffsetSeconds) || 0));
+            const searchWindowSeconds = Math.max(
+                0.001,
+                Math.min(0.012, Number.isFinite(Number(options.searchWindowSeconds)) ? Number(options.searchWindowSeconds) : 0.004)
+            );
+
+            const minFrame = Math.max(1, Math.min(channelData.length - 2, Math.round(minSeconds * sampleRate)));
+            const maxFrame = Math.max(minFrame + 1, Math.min(channelData.length - 2, Math.round(maxSeconds * sampleRate)));
+            const targetFrame = Math.max(minFrame, Math.min(maxFrame, Math.round(targetSeconds * sampleRate)));
+            const searchFrames = Math.max(4, Math.round(searchWindowSeconds * sampleRate));
+            const startFrame = Math.max(minFrame, targetFrame - searchFrames);
+            const endFrame = Math.min(maxFrame, targetFrame + searchFrames);
+
+            let bestFrame = targetFrame;
+            let bestScore = Number.POSITIVE_INFINITY;
+
+            for (let frame = startFrame; frame <= endFrame; frame += 1) {
+                const previous = channelData[frame - 1];
+                const current = channelData[frame];
+                const next = channelData[frame + 1];
+                const crossesZero = (
+                    (previous <= 0 && current >= 0) ||
+                    (previous >= 0 && current <= 0) ||
+                    (current <= 0 && next >= 0) ||
+                    (current >= 0 && next <= 0)
+                );
+                const localAmplitude = Math.abs(previous) + (Math.abs(current) * 1.4) + Math.abs(next);
+                const distancePenalty = Math.abs(frame - targetFrame) / (searchFrames + 1);
+                const score = (crossesZero ? 0 : 2) + localAmplitude + distancePenalty;
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestFrame = frame;
+                }
+                if (crossesZero && localAmplitude < 0.0005 && distancePenalty < 0.08) {
+                    break;
+                }
+            }
+
+            return bestFrame / sampleRate;
+        }
+
         function getSourceGrainShape(sourceInfo, voice, baseEnvelope, modeProfile = getGrainModeProfile()) {
             const kind = sourceInfo?.kind || 'legacy';
             const positionOffset = getSourceGrainControlValue(kind, 'position', 0) / 100;
@@ -16097,16 +16154,24 @@
             const jitterOffset = maxOffsetSpan > 0
                 ? (Math.random() * 2 - 1) * Math.min(maxOffsetSpan * 0.5, Math.max(0, layer.jitterSeconds) * playbackRate)
                 : 0;
-            const playOffset = Math.max(
+            const rawPlayOffset = Math.max(
                 loopStart,
                 Math.min(loopStart + maxOffsetSpan, loopStart + baseOffset + scanOffset + jitterOffset)
             );
+            const playOffset = findNearestZeroCrossingOffset(sourceInfo.buffer, rawPlayOffset, {
+                minSeconds: loopStart,
+                maxSeconds: loopStart + maxOffsetSpan,
+                searchWindowSeconds: Math.min(0.012, Math.max(0.002, minimumFadeSeconds * (1.15 + (layer.smoothing * 0.65))))
+            });
+            const remainingLoopDuration = Math.max(0.001, loopEnd - playOffset);
+            const adjustedSourceDuration = Math.max(0.001, Math.min(sourceDuration, remainingLoopDuration));
+            const adjustedGrainDuration = Math.max(minimumFadeSeconds * 2, adjustedSourceDuration / playbackRate);
 
             return {
                 playbackRate,
                 playOffset,
-                sourceDuration,
-                grainDuration,
+                sourceDuration: adjustedSourceDuration,
+                grainDuration: adjustedGrainDuration,
                 attackSeconds: sourceShape.sourceAttack,
                 releaseSeconds: sourceShape.sourceRelease
             };
@@ -18437,11 +18502,11 @@
                 }
 
                 const now = audioContext.currentTime;
-                const refreshLeadTime = Math.max(0.008, Math.min(0.03, Math.max(getClickGuardSeconds() * 0.5, 0.012)));
+                const refreshFloor = now + Math.max(0.01, Math.min(0.05, getClickGuardSeconds() * 1.25));
                 activeGrains.forEach((grainInfo) => {
                     if (!grainInfo || grainInfo.releasing) return;
                     const scheduledNextTime = Number.isFinite(grainInfo.nextTime) ? grainInfo.nextTime : now;
-                    grainInfo.nextTime = Math.max(now, Math.min(scheduledNextTime, now + refreshLeadTime));
+                    grainInfo.nextTime = scheduledNextTime < now ? refreshFloor : scheduledNextTime;
                 });
 
                 if (!grainSchedulerTimerId) {

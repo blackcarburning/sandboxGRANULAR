@@ -942,6 +942,9 @@ test('granular engine plays raw sample buffers with per-layer pitch start and en
     assert.match(indexHtml, /const sourceDuration = Math\.max\(0\.001, Math\.min\(loopDuration, sourceShape\.sizeSeconds \* playbackRate\)\);/);
     assert.match(indexHtml, /const scanOffset = maxOffsetSpan > 0 && streamStartTime !== undefined && streamStartTime !== null/);
     assert.match(indexHtml, /const jitterOffset = maxOffsetSpan > 0/);
+    assert.match(indexHtml, /function findNearestZeroCrossingOffset\(buffer, targetOffsetSeconds, options = \{\}\)/);
+    assert.match(indexHtml, /const playOffset = findNearestZeroCrossingOffset\(sourceInfo\.buffer, rawPlayOffset, \{/);
+    assert.match(indexHtml, /const adjustedGrainDuration = Math\.max\(minimumFadeSeconds \* 2, adjustedSourceDuration \/ playbackRate\);/);
     assert.match(indexHtml, /function playGrain\(note, scheduledTime = null, velocity = 1, options = \{\}\)/);
     assert.match(indexHtml, /const weightedPanBias = layer\.panBias \* \(0\.2 \+ \(width \* 0\.8\)\);/);
     assert.match(indexHtml, /source\.buffer = sourceInfo\.buffer;/);
@@ -1054,7 +1057,8 @@ test('granular live control refresh and keyboard interaction paths stay resilien
     assert.match(indexHtml, /if \(isKeyPressed && !holdEnabled && !heldNotes\.has\(note\)\) \{\s*releaseKey\(pointerId\);\s*\}/);
     assert.match(indexHtml, /if \(pendingGranularRefreshFrame !== null\) return;/);
     assert.match(indexHtml, /pendingGranularRefreshFrame = requestAnimationFrame\(\(\) => \{/);
-    assert.match(indexHtml, /const refreshLeadTime = Math\.max\(0\.008, Math\.min\(0\.03, Math\.max\(getClickGuardSeconds\(\) \* 0\.5, 0\.012\)\)\);/);
+    assert.match(indexHtml, /const refreshFloor = now \+ Math\.max\(0\.01, Math\.min\(0\.05, getClickGuardSeconds\(\) \* 1\.25\)\);/);
+    assert.match(indexHtml, /grainInfo\.nextTime = scheduledNextTime < now \? refreshFloor : scheduledNextTime;/);
     assert.match(indexHtml, /console\.warn\('Max grain nodes reached, rebuilding audio engine to recover granular playback'\);/);
     assert.match(indexHtml, /resetEngineRoutine\(\{ reason: 'panic', silent: true \}\)\.catch\(\(\) => \{\}\);/);
 });
