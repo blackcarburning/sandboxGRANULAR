@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-22-24-build-v2026.10.08.19';
+            const cacheBuster = '2026-10-08-22-29-build-v2026.10.08.20';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -131,7 +131,8 @@
         }
 
         body.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,
-        body.wav-repository-browser-open #wavRepositoryBrowserOverlay {
+        body.wav-repository-browser-open #wavRepositoryBrowserOverlay,
+        body.performance-take-browser-open #performanceTakeBrowserOverlay {
             display: flex;
         }
 
@@ -341,6 +342,32 @@
             color: rgba(214, 232, 255, 0.72);
             font-size: 12px;
             overflow-wrap: anywhere;
+        }
+
+        .take-browser-select-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+            color: rgba(214, 232, 255, 0.84);
+            font-size: 0.92rem;
+        }
+
+        .take-browser-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            flex: 0 0 auto;
+        }
+
+        .take-browser-meta {
+            color: rgba(214, 232, 255, 0.72);
+            font-size: 0.84rem;
+            line-height: 1.4;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .sample-browser-empty {
@@ -3988,7 +4015,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.19</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.20</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4001,7 +4028,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.19</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.20</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -6890,6 +6917,23 @@
                 <div class="sample-browser-status" id="wavRepositoryBrowserStatus">Browse and annotate saved WAVs.</div>
                 <div class="sample-browser-list" id="wavRepositoryBrowserList"></div>
                 <input id="wavRepositoryBrowserUploadInput" type="file" accept=".wav,audio/wav" multiple hidden>
+            </div>
+        </div>
+
+        <div class="sample-browser-overlay" id="performanceTakeBrowserOverlay" hidden aria-hidden="true">
+            <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="performanceTakeBrowserTitle">
+                <div class="sample-browser-head">
+                    <div class="sample-browser-copy">
+                        <h3 id="performanceTakeBrowserTitle">Take Browser</h3>
+                        <p id="performanceTakeBrowserSubtitle">Preview takes, rename them, and choose which ones to upload.</p>
+                    </div>
+                    <button class="performance-btn" id="performanceTakeBrowserCloseBtn" type="button">Close</button>
+                </div>
+                <div class="sample-browser-controls">
+                    <button class="performance-btn primary" id="performanceTakeBrowserUploadBtn" type="button">Upload Selected</button>
+                </div>
+                <div class="sample-browser-status" id="performanceTakeBrowserStatus">Capture a take from the main panel to see it here.</div>
+                <div class="sample-browser-list" id="performanceTakeBrowserList"></div>
             </div>
         </div>
 
@@ -25273,6 +25317,14 @@
             return slotData ? `Take ${slotIndex + 1} ★` : `Take ${slotIndex + 1}`;
         }
 
+        function ensurePerformanceTakePreviewUrl(slotData) {
+            if (!slotData?.blob) return '';
+            if (!slotData.previewUrl) {
+                slotData.previewUrl = URL.createObjectURL(slotData.blob);
+            }
+            return slotData.previewUrl;
+        }
+
         function syncPerformanceTakeButtons() {
             const takeButtons = [
                 performanceTakeSlot1Btn,
@@ -25296,6 +25348,133 @@
                     ? `Uploading ${takeCount} Take${takeCount === 1 ? '' : 's'}...`
                     : `Upload Takes${takeCount ? ` (${takeCount})` : ''}`;
             }
+        }
+
+        function setPerformanceTakeBrowserStatus(message = '') {
+            if (performanceTakeBrowserStatus) {
+                performanceTakeBrowserStatus.textContent = message;
+            }
+        }
+
+        function renderPerformanceTakeBrowser() {
+            if (!performanceTakeBrowserList) return;
+            performanceTakeBrowserList.innerHTML = '';
+            const populatedSlots = performanceTakeSlots
+                .map((slot, index) => ({ slot, index }))
+                .filter(({ slot }) => Boolean(slot?.blob));
+
+            if (!populatedSlots.length) {
+                const empty = document.createElement('div');
+                empty.className = 'sample-browser-empty';
+                empty.textContent = 'No takes stored yet. Use the Take buttons in the main panel first.';
+                performanceTakeBrowserList.appendChild(empty);
+                setPerformanceTakeBrowserStatus('Capture a take from the main panel to see it here.');
+                if (performanceTakeBrowserUploadBtn) performanceTakeBrowserUploadBtn.disabled = true;
+                return;
+            }
+
+            populatedSlots.forEach(({ slot, index }) => {
+                if (!slot.draftName) {
+                    slot.draftName = String(slot.filename || `take-${index + 1}`).replace(/\.wav$/i, '');
+                }
+                if (typeof slot.selectedForUpload !== 'boolean') {
+                    slot.selectedForUpload = true;
+                }
+
+                const card = document.createElement('article');
+                card.className = 'sample-browser-card';
+
+                const head = document.createElement('div');
+                head.className = 'sample-browser-card-head';
+
+                const name = document.createElement('div');
+                name.className = 'sample-browser-name';
+                name.textContent = `Take ${index + 1}`;
+
+                const meta = document.createElement('div');
+                meta.className = 'take-browser-meta';
+                meta.textContent = `${slot.bpm || 120} BPM · ${slot.bars || DEFAULT_EXPORT_BARS} bar${Number(slot.bars) === 1 ? '' : 's'} · ${slot.capturedAt ? slot.capturedAt.toLocaleString() : 'stored'}`;
+
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.preload = 'metadata';
+                audio.src = ensurePerformanceTakePreviewUrl(slot);
+
+                const renameGroup = document.createElement('div');
+                renameGroup.className = 'sample-browser-filter-group';
+
+                const renameLabel = document.createElement('label');
+                renameLabel.className = 'sample-browser-filter-label';
+                renameLabel.textContent = 'Take Name';
+                renameLabel.setAttribute('for', `performanceTakeName${index}`);
+
+                const renameInput = document.createElement('input');
+                renameInput.className = 'sample-browser-filter-input';
+                renameInput.id = `performanceTakeName${index}`;
+                renameInput.type = 'text';
+                renameInput.value = slot.draftName;
+                renameInput.placeholder = `take-${index + 1}`;
+                renameInput.autocapitalize = 'off';
+                renameInput.autocomplete = 'off';
+                renameInput.autocorrect = 'off';
+                renameInput.spellcheck = false;
+
+                const selectRow = document.createElement('label');
+                selectRow.className = 'take-browser-select-row';
+
+                const selectText = document.createElement('span');
+                selectText.textContent = 'Upload this take';
+
+                const selectCheckbox = document.createElement('input');
+                selectCheckbox.className = 'take-browser-checkbox';
+                selectCheckbox.type = 'checkbox';
+                selectCheckbox.checked = Boolean(slot.selectedForUpload);
+
+                renameInput.addEventListener('input', () => {
+                    slot.draftName = renameInput.value.replace(/\r\n?/g, '\n').slice(0, 120);
+                });
+
+                selectCheckbox.addEventListener('change', () => {
+                    slot.selectedForUpload = selectCheckbox.checked;
+                    renderPerformanceTakeBrowser();
+                });
+
+                renameGroup.append(renameLabel, renameInput);
+                selectRow.append(selectText, selectCheckbox);
+                head.append(name);
+                card.append(head, meta, audio, renameGroup, selectRow);
+                performanceTakeBrowserList.appendChild(card);
+            });
+
+            const selectedCount = performanceTakeSlots.filter((slot) => slot?.blob && slot.selectedForUpload !== false).length;
+            const totalCount = populatedSlots.length;
+            setPerformanceTakeBrowserStatus(`${selectedCount} of ${totalCount} take${totalCount === 1 ? '' : 's'} selected for upload.`);
+            if (performanceTakeBrowserUploadBtn) {
+                performanceTakeBrowserUploadBtn.disabled = performanceTakeUploadInFlight || selectedCount === 0;
+                performanceTakeBrowserUploadBtn.textContent = performanceTakeUploadInFlight
+                    ? `Uploading ${selectedCount} Take${selectedCount === 1 ? '' : 's'}...`
+                    : `Upload Selected${selectedCount ? ` (${selectedCount})` : ''}`;
+            }
+        }
+
+        function openPerformanceTakeBrowser() {
+            if (!performanceTakeBrowserOverlay) return;
+            performanceTakeBrowserOverlay.hidden = false;
+            performanceTakeBrowserOverlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('performance-take-browser-open');
+            renderPerformanceTakeBrowser();
+        }
+
+        function closePerformanceTakeBrowser() {
+            if (!performanceTakeBrowserOverlay) return;
+            performanceTakeBrowserOverlay.hidden = true;
+            performanceTakeBrowserOverlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('performance-take-browser-open');
+            performanceTakeBrowserList?.querySelectorAll('audio').forEach((audio) => {
+                try {
+                    audio.pause();
+                } catch (error) {}
+            });
         }
 
         function delayMs(ms) {
@@ -26551,14 +26730,25 @@
             setStatus(`Capturing Take ${slotIndex + 1}...`);
             try {
                 const exportData = await renderDawReadyBarsExport();
+                const previousSlot = performanceTakeSlots[slotIndex];
+                const previousDraftName = previousSlot?.draftName || '';
+                const previousSelection = previousSlot?.selectedForUpload;
+                if (previousSlot?.previewUrl) {
+                    try {
+                        URL.revokeObjectURL(previousSlot.previewUrl);
+                    } catch (error) {}
+                }
                 performanceTakeSlots[slotIndex] = {
                     blob: exportData.blob,
                     filename: exportData.filename,
                     bpm: exportData.bpm,
                     bars: exportData.bars,
-                    capturedAt: new Date()
+                    capturedAt: new Date(),
+                    draftName: previousDraftName || exportData.filename.replace(/\.wav$/i, ''),
+                    selectedForUpload: typeof previousSelection === 'boolean' ? previousSelection : true
                 };
                 setStatus(`Stored Take ${slotIndex + 1}. Press Upload Takes when you're ready.`);
+                renderPerformanceTakeBrowser();
             } finally {
                 performanceTakeCaptureInFlight = false;
                 syncPerformanceTakeButtons();
@@ -26569,19 +26759,21 @@
         async function uploadPerformanceTakesToRepository() {
             const populatedSlots = performanceTakeSlots
                 .map((slot, index) => ({ slot, index }))
-                .filter(({ slot }) => Boolean(slot?.blob));
+                .filter(({ slot }) => Boolean(slot?.blob) && slot.selectedForUpload !== false);
             if (!populatedSlots.length) {
-                setStatus('No takes stored yet.', 'error');
+                setStatus('No takes selected for upload yet.', 'error');
+                renderPerformanceTakeBrowser();
                 return;
             }
             if (performanceTakeCaptureInFlight || performanceTakeUploadInFlight) return;
             performanceTakeUploadInFlight = true;
             syncPerformanceTakeButtons();
             syncPerformanceControlState();
+            renderPerformanceTakeBrowser();
             try {
                 setStatus(`Uploading ${populatedSlots.length} take${populatedSlots.length === 1 ? '' : 's'} to the WAV repository...`);
                 for (const { slot, index } of populatedSlots) {
-                    const filename = buildTakeUploadFilename(index, slot);
+                    const filename = sanitizeWavRepositoryFilename(slot.draftName || buildTakeUploadFilename(index, slot), `mygrain-take-${index + 1}`);
                     await uploadWavToRepository(slot.blob, filename);
                 }
                 setStatus(`Uploaded ${populatedSlots.length} take${populatedSlots.length === 1 ? '' : 's'} to the WAV repository.`);
@@ -26590,6 +26782,7 @@
                 performanceTakeUploadInFlight = false;
                 syncPerformanceTakeButtons();
                 syncPerformanceControlState();
+                renderPerformanceTakeBrowser();
             }
         }
 
@@ -27534,6 +27727,11 @@
         const wavRepositoryBrowserUploadInput = document.getElementById('wavRepositoryBrowserUploadInput');
         const wavRepositoryBrowserRefreshBtn = document.getElementById('wavRepositoryBrowserRefreshBtn');
         const wavRepositoryBrowserFilter = document.getElementById('wavRepositoryBrowserFilter');
+        const performanceTakeBrowserOverlay = document.getElementById('performanceTakeBrowserOverlay');
+        const performanceTakeBrowserCloseBtn = document.getElementById('performanceTakeBrowserCloseBtn');
+        const performanceTakeBrowserUploadBtn = document.getElementById('performanceTakeBrowserUploadBtn');
+        const performanceTakeBrowserStatus = document.getElementById('performanceTakeBrowserStatus');
+        const performanceTakeBrowserList = document.getElementById('performanceTakeBrowserList');
         const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
         const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
         const dropboxSampleBrowserRefreshBtn = document.getElementById('dropboxSampleBrowserRefreshBtn');
@@ -29164,13 +29362,21 @@
             }
         });
 
-        performanceUploadTakesBtn?.addEventListener('click', async () => {
+        performanceUploadTakesBtn?.addEventListener('click', () => {
+            openPerformanceTakeBrowser();
+        });
+
+        performanceTakeBrowserUploadBtn?.addEventListener('click', async () => {
             try {
                 await uploadPerformanceTakesToRepository();
             } catch (error) {
                 console.error(error);
                 setStatus(`Take upload failed: ${error.message}`, 'error');
             }
+        });
+
+        performanceTakeBrowserCloseBtn?.addEventListener('click', () => {
+            closePerformanceTakeBrowser();
         });
 
         performanceExportPatchBtn?.addEventListener('click', () => {
