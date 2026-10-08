@@ -4180,12 +4180,12 @@
                     </div>
                 </div>
             </div>
-            <div class="performance-feature-card" aria-label="Granular layer quick controls">
+            <div class="performance-feature-card" id="performanceGrainQuickControlsCard" aria-label="Granular layer quick controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Grains</div>
                         <h3 class="performance-feature-title">Granular Layer Quick Controls</h3>
-                        <p class="performance-feature-note">Keep the grain tuning, stereo width, and new smoothing controls visible on iPhone without reopening the hidden desktop grain tab.</p>
+                        <p class="performance-feature-note">Keep the grain tuning, stereo width, smoothing, and core LFO depth controls visible on iPhone without reopening the hidden desktop grain tab.</p>
                     </div>
                 </div>
                 <div class="performance-grain-layer-grid" aria-label="Granular layer quick controls">
@@ -4294,6 +4294,35 @@
                                     <span class="value" id="performanceGrainBSmoothingValue">56%</span>
                                 </label>
                                 <input type="range" id="performanceGrainBSmoothing" min="0" max="100" value="56" step="1">
+                            </div>
+                        </div>
+                    </section>
+                    <section class="performance-grain-layer-group" aria-label="Granular LFO depth quick controls">
+                        <div class="performance-grain-layer-head">
+                            <strong>LFO Depth</strong>
+                            <span>Global motion</span>
+                        </div>
+                        <div class="performance-grain-layer-controls">
+                            <div class="performance-sound-card">
+                                <label for="performanceLfo1Depth">
+                                    <span>LFO 1 Depth</span>
+                                    <span class="value" id="performanceLfo1DepthValue">50%</span>
+                                </label>
+                                <input type="range" id="performanceLfo1Depth" min="0" max="100" value="50" step="1">
+                            </div>
+                            <div class="performance-sound-card">
+                                <label for="performanceLfo2Depth">
+                                    <span>LFO 2 Depth</span>
+                                    <span class="value" id="performanceLfo2DepthValue">50%</span>
+                                </label>
+                                <input type="range" id="performanceLfo2Depth" min="0" max="100" value="50" step="1">
+                            </div>
+                            <div class="performance-sound-card">
+                                <label for="performanceLfo3Depth">
+                                    <span>LFO 3 Depth</span>
+                                    <span class="value" id="performanceLfo3DepthValue">50%</span>
+                                </label>
+                                <input type="range" id="performanceLfo3Depth" min="0" max="100" value="50" step="1">
                             </div>
                         </div>
                     </section>
@@ -4508,7 +4537,7 @@
                     </div>
                 </div>
             </div>
-            <div class="performance-feature-card" aria-label="Grain controls">
+            <div class="performance-feature-card" id="performanceGrainControlsCard" aria-label="Grain controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Granular Layers</div>
@@ -17891,14 +17920,20 @@
             const sourceValueId = lfoNum === 1 ? 'lfoDepthValue' : 'lfo2DepthValue';
             const filterId = lfoNum === 1 ? 'filterLfo1Depth' : 'filterLfo2Depth';
             const filterValueId = lfoNum === 1 ? 'filterLfo1DepthValue' : 'filterLfo2DepthValue';
+            const performanceId = lfoNum === 1 ? 'performanceLfo1Depth' : 'performanceLfo2Depth';
+            const performanceValueId = lfoNum === 1 ? 'performanceLfo1DepthValue' : 'performanceLfo2DepthValue';
             const sourceSlider = document.getElementById(sourceId);
             const filterSlider = document.getElementById(filterId);
+            const performanceSlider = document.getElementById(performanceId);
             const sourceValue = document.getElementById(sourceValueId);
             const filterValue = document.getElementById(filterValueId);
+            const performanceValue = document.getElementById(performanceValueId);
             if (sourceSlider && sourceSlider.value !== safeValue) sourceSlider.value = safeValue;
             if (filterSlider && filterSlider.value !== safeValue) filterSlider.value = safeValue;
+            if (performanceSlider && performanceSlider.value !== safeValue) performanceSlider.value = safeValue;
             if (sourceValue) sourceValue.textContent = safeValue + '%';
             if (filterValue) filterValue.textContent = safeValue + '%';
+            if (performanceValue) performanceValue.textContent = safeValue + '%';
         }
 
         function createSourceGrainLfoButtons(paramId) {
@@ -18238,6 +18273,7 @@
                 if (e.target.id.includes('lpf') || e.target.id.includes('hpf')) updateEffects();
                 if (e.target.id === 'oscMix' || e.target.id === 'lpfCutoff' || e.target.id === 'lpfQ' ||
                     e.target.id === 'hpfCutoff' || e.target.id === 'hpfQ' ||
+                    e.target.id === 'lfoDepth' || e.target.id === 'lfo2Depth' || e.target.id === 'lfo3Depth' ||
                     e.target.id === 'grainMainVolume' || e.target.id === 'grainSynthAVolume' ||
                     e.target.id === 'grainSynthBVolume' || e.target.id === 'grainMixerAmp') {
                     syncPerformanceSoundControls();
@@ -21746,13 +21782,13 @@
                 delayFeedback: 30,
                 delayMix: 0,
                 lfoRate: 120,
-                lfoDepth: 0,
+                lfoDepth: 50,
                 lfoPulseWidth: 50,
                 lfo2Rate: 120,
-                lfo2Depth: 0,
+                lfo2Depth: 50,
                 lfo2PulseWidth: 50,
                 lfo3Rate: 120,
-                lfo3Depth: 0,
+                lfo3Depth: 50,
                 lfo3PulseWidth: 50,
                 lfo3ToLfo1Mod: 0,
                 lfo3ToLfo2Mod: 0,
@@ -25618,6 +25654,9 @@
         const performanceGrainBFineTune = document.getElementById('performanceGrainBFineTune');
         const performanceGrainBWidth = document.getElementById('performanceGrainBWidth');
         const performanceGrainBSmoothing = document.getElementById('performanceGrainBSmoothing');
+        const performanceLfo1Depth = document.getElementById('performanceLfo1Depth');
+        const performanceLfo2Depth = document.getElementById('performanceLfo2Depth');
+        const performanceLfo3Depth = document.getElementById('performanceLfo3Depth');
         const performanceLpfCutoff = document.getElementById('performanceLpfCutoff');
         const performanceLpfResonance = document.getElementById('performanceLpfResonance');
         const performanceHpfCutoff = document.getElementById('performanceHpfCutoff');
@@ -25703,6 +25742,15 @@
 
         mountInternalEffectsPanel();
 
+        function mountPerformanceGrainQuickControlsCard() {
+            const grainControlsCard = document.getElementById('performanceGrainControlsCard');
+            const grainQuickControlsCard = document.getElementById('performanceGrainQuickControlsCard');
+            if (!grainControlsCard || !grainQuickControlsCard) return;
+            grainControlsCard.insertAdjacentElement('afterend', grainQuickControlsCard);
+        }
+
+        mountPerformanceGrainQuickControlsCard();
+
         function formatSignedControlValue(value, suffix) {
             const rounded = Math.round(Number(value) || 0);
             return `${rounded > 0 ? '+' : ''}${rounded}${suffix}`;
@@ -25760,7 +25808,10 @@
                 ['grainSynthBTune', performanceGrainBTune, 'performanceGrainBTuneValue', (value) => formatSignedControlValue(value, 'st')],
                 ['grainSynthBFineTune', performanceGrainBFineTune, 'performanceGrainBFineTuneValue', (value) => formatSignedControlValue(value, 'c')],
                 ['grainSynthBWidth', performanceGrainBWidth, 'performanceGrainBWidthValue', formatPerformancePercent],
-                ['grainSynthBSmoothing', performanceGrainBSmoothing, 'performanceGrainBSmoothingValue', formatPerformancePercent]
+                ['grainSynthBSmoothing', performanceGrainBSmoothing, 'performanceGrainBSmoothingValue', formatPerformancePercent],
+                ['lfoDepth', performanceLfo1Depth, 'performanceLfo1DepthValue', formatPerformancePercent],
+                ['lfo2Depth', performanceLfo2Depth, 'performanceLfo2DepthValue', formatPerformancePercent],
+                ['lfo3Depth', performanceLfo3Depth, 'performanceLfo3DepthValue', formatPerformancePercent]
             ].forEach(([sourceId, slider, valueId, formatter]) => {
                 syncPerformanceLinkedSlider(sourceId, slider, valueId, { formatter });
             });
@@ -26787,6 +26838,9 @@
         });
         bindPerformanceLinkedSlider(performanceGrainBWidth, 'performanceGrainBWidthValue', 'grainSynthBWidth');
         bindPerformanceLinkedSlider(performanceGrainBSmoothing, 'performanceGrainBSmoothingValue', 'grainSynthBSmoothing');
+        bindPerformanceLinkedSlider(performanceLfo1Depth, 'performanceLfo1DepthValue', 'lfoDepth');
+        bindPerformanceLinkedSlider(performanceLfo2Depth, 'performanceLfo2DepthValue', 'lfo2Depth');
+        bindPerformanceLinkedSlider(performanceLfo3Depth, 'performanceLfo3DepthValue', 'lfo3Depth');
 
         performanceGeneratedDryTrim?.addEventListener('input', (event) => {
             generatedDryTrimDb = getDbControlValue('performanceGeneratedDryTrim', 0, -24, 6);

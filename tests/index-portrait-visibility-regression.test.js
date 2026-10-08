@@ -877,8 +877,10 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.doesNotMatch(indexHtml, /id="performanceGrainPlaybackSpeed"/);
 });
 
-test('mobile performance surface exposes granular tune width and smoothing controls', () => {
+test('mobile performance surface exposes granular tune width smoothing and lfo depth controls', () => {
     assert.match(indexHtml, />Granular Layer Quick Controls<\/h3>/);
+    assert.match(indexHtml, /id="performanceGrainQuickControlsCard"/);
+    assert.match(indexHtml, /id="performanceGrainControlsCard"/);
     assert.match(indexHtml, /id="performanceGrainMainTune"/);
     assert.match(indexHtml, /id="performanceGrainMainFineTune"/);
     assert.match(indexHtml, /id="performanceGrainMainWidth"/);
@@ -891,7 +893,21 @@ test('mobile performance surface exposes granular tune width and smoothing contr
     assert.match(indexHtml, /id="performanceGrainBFineTune"/);
     assert.match(indexHtml, /id="performanceGrainBWidth"/);
     assert.match(indexHtml, /id="performanceGrainBSmoothing"/);
+    assert.match(indexHtml, /id="performanceLfo1Depth"/);
+    assert.match(indexHtml, /id="performanceLfo2Depth"/);
+    assert.match(indexHtml, /id="performanceLfo3Depth"/);
+    assert.match(indexHtml, /function mountPerformanceGrainQuickControlsCard\(\)/);
+    assert.match(indexHtml, /grainControlsCard\.insertAdjacentElement\('afterend', grainQuickControlsCard\);/);
     assert.match(indexHtml, /function syncPerformanceGrainQuickControls\(\)/);
+    assert.match(indexHtml, /'performanceLfo1DepthValue'/);
+    assert.match(indexHtml, /'performanceLfo2DepthValue'/);
+    assert.match(indexHtml, /'performanceLfo3DepthValue'/);
+    assert.match(indexHtml, /bindPerformanceLinkedSlider\(performanceLfo1Depth, 'performanceLfo1DepthValue', 'lfoDepth'\);/);
+    assert.match(indexHtml, /bindPerformanceLinkedSlider\(performanceLfo2Depth, 'performanceLfo2DepthValue', 'lfo2Depth'\);/);
+    assert.match(indexHtml, /bindPerformanceLinkedSlider\(performanceLfo3Depth, 'performanceLfo3DepthValue', 'lfo3Depth'\);/);
+    assert.match(indexHtml, /lfoDepth: 50,/);
+    assert.match(indexHtml, /lfo2Depth: 50,/);
+    assert.match(indexHtml, /lfo3Depth: 50,/);
 });
 
 test('granular engine plays raw sample buffers with per-layer pitch start and envelope scanning', () => {
