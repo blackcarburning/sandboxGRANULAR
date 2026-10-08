@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-21-06-build-v2026.10.08.11';
+            const cacheBuster = '2026-10-08-21-31-build-v2026.10.08.12';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3941,7 +3941,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.11</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.12</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3954,7 +3954,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.11</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.12</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -10096,27 +10096,30 @@
                     }
                     if (shouldRestoreBastardLoop) {
                         bastardLoopBuffer = restoredBastardLoopBuffer;
-                        bastardLoopMetadata = {
-                            summary: `${restoredBastardLoopBuffer.duration.toFixed(2)}s · restored`,
-                            durationSeconds: restoredBastardLoopBuffer.duration,
-                            bpm: bastardLoopSourceBpm
-                        };
+                        bastardLoopMetadata = restoreBastardLoopMetadata(
+                            state.bastardLoopTrace?.A,
+                            restoredBastardLoopBuffer.duration,
+                            bastardLoopSourceBpm,
+                            'SAMPLEDROP'
+                        );
                     }
                     if (shouldRestoreBastardLoop2) {
                         bastardLoop2Buffer = restoredBastardLoop2Buffer;
-                        bastardLoop2Metadata = {
-                            summary: `${restoredBastardLoop2Buffer.duration.toFixed(2)}s · restored`,
-                            durationSeconds: restoredBastardLoop2Buffer.duration,
-                            bpm: bastardLoop2SourceBpm
-                        };
+                        bastardLoop2Metadata = restoreBastardLoopMetadata(
+                            state.bastardLoopTrace?.B,
+                            restoredBastardLoop2Buffer.duration,
+                            bastardLoop2SourceBpm,
+                            'SAMPLEDROP_2'
+                        );
                     }
                     if (shouldRestoreBastardLoop3) {
                         bastardLoop3Buffer = restoredBastardLoop3Buffer;
-                        bastardLoop3Metadata = {
-                            summary: `${restoredBastardLoop3Buffer.duration.toFixed(2)}s · restored`,
-                            durationSeconds: restoredBastardLoop3Buffer.duration,
-                            bpm: bastardLoop3SourceBpm
-                        };
+                        bastardLoop3Metadata = restoreBastardLoopMetadata(
+                            state.bastardLoopTrace?.C,
+                            restoredBastardLoop3Buffer.duration,
+                            bastardLoop3SourceBpm,
+                            'SPLICE_CLAW'
+                        );
                     }
                     if (shouldRestoreDropboxSampleLayer) {
                         dropboxSampleLayerRawBuffer = restoredDropboxSampleLayerBuffer;
@@ -12881,6 +12884,46 @@
                 previousSolo
             });
             return true;
+        }
+
+        function snapshotBastardLoopMetadata(metadata, fallbackSourceLabel = '') {
+            if (!metadata || typeof metadata !== 'object') return null;
+            return {
+                summary: String(metadata.summary || '').trim(),
+                durationSeconds: Number(metadata.durationSeconds) || 0,
+                bpm: Number(metadata.bpm) || 0,
+                sourceKey: String(metadata.sourceKey || '').trim(),
+                sourceLabel: String(metadata.sourceLabel || fallbackSourceLabel || '').trim(),
+                sampleNames: Array.isArray(metadata.sampleNames)
+                    ? metadata.sampleNames.map((name) => String(name || '').trim()).filter(Boolean).slice(0, 64)
+                    : []
+            };
+        }
+
+        function restoreBastardLoopMetadata(savedMetadata, fallbackDurationSeconds, fallbackBpm, fallbackSourceLabel = '') {
+            const snapshot = snapshotBastardLoopMetadata(savedMetadata, fallbackSourceLabel);
+            if (snapshot) {
+                if (!snapshot.summary) {
+                    snapshot.summary = `${fallbackDurationSeconds.toFixed(2)}s · restored`;
+                }
+                if (!(snapshot.durationSeconds > 0)) {
+                    snapshot.durationSeconds = fallbackDurationSeconds;
+                }
+                if (!(snapshot.bpm > 0)) {
+                    snapshot.bpm = fallbackBpm;
+                }
+                if (!snapshot.sourceLabel) {
+                    snapshot.sourceLabel = fallbackSourceLabel;
+                }
+                return snapshot;
+            }
+            return {
+                summary: `${fallbackDurationSeconds.toFixed(2)}s · restored`,
+                durationSeconds: fallbackDurationSeconds,
+                bpm: fallbackBpm,
+                sourceLabel: fallbackSourceLabel,
+                sampleNames: []
+            };
         }
 
         function getLoopLayerSoloGain(layer) {
@@ -24049,6 +24092,11 @@
                     osc2: osc2Config.octave,
                     osc3: osc3Config.octave
                 },
+                bastardLoopTrace: {
+                    A: snapshotBastardLoopMetadata(bastardLoopMetadata, 'SAMPLEDROP'),
+                    B: snapshotBastardLoopMetadata(bastardLoop2Metadata, 'SAMPLEDROP_2'),
+                    C: snapshotBastardLoopMetadata(bastardLoop3Metadata, 'SPLICE_CLAW')
+                },
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 volumeBias: keyboardVolumeBias,
                 performanceExportBars: performanceExportBars ? clampExportBars(performanceExportBars.value) : DEFAULT_EXPORT_BARS,
@@ -25957,6 +26005,7 @@
                 setStatus(names
                     ? `Bastardloop ready from ${names}${payload.sampleNames.length > 4 ? '…' : ''}.`
                     : 'Bastardloop ready.');
+                saveState();
             } catch (error) {
                 appendBastardLoopTrace('A', 'build-error', { error: error.message });
                 bastardLoopBuffer = previousBuffer;
@@ -26053,6 +26102,7 @@
                 setStatus(names
                     ? `Bastardloop B ready from ${names}${payload.sampleNames.length > 4 ? '…' : ''}.`
                     : 'Bastardloop B ready.');
+                saveState();
             } catch (error) {
                 appendBastardLoopTrace('B', 'build-error', { error: error.message });
                 bastardLoop2Buffer = previousBuffer;
@@ -26148,6 +26198,7 @@
                 setStatus(names
                     ? `Bastardloop C ready from ${names}${payload.sampleNames.length > 4 ? '…' : ''}.`
                     : 'Bastardloop C ready.');
+                saveState();
             } catch (error) {
                 appendBastardLoopTrace('C', 'build-error', { error: error.message });
                 bastardLoop3Buffer = previousBuffer;
