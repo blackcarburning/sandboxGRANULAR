@@ -839,6 +839,7 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /body\.granular-sampler-mode \.source-waveform-control-grid \{/);
     assert.doesNotMatch(indexHtml, /body\.granular-sampler-mode \.source-loop-controls,/);
     assert.doesNotMatch(indexHtml, /body\.granular-sampler-mode \.trim-source-btn \{/);
+    assert.doesNotMatch(indexHtml, /id="auditionBtn"/);
     assert.match(indexHtml, /data-tab="grain">Grain<\/button>/);
     assert.match(indexHtml, />Granular Layer Controls<\/h3>/);
     assert.match(indexHtml, /<span>Main Grain<\/span>/);
@@ -889,14 +890,17 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainMainSampleWaveformCanvas"/);
     assert.match(indexHtml, /id="grainMainSampleLoopStart"/);
     assert.match(indexHtml, /id="grainMainSampleLoopEnd"/);
+    assert.match(indexHtml, /data-source-card-audition="grainMainSample"/);
     assert.match(indexHtml, /data-source-kind="grainMainSample">Trim to Selection<\/button>/);
     assert.match(indexHtml, /id="grainASampleWaveformCanvas"/);
     assert.match(indexHtml, /id="grainASampleLoopStart"/);
     assert.match(indexHtml, /id="grainASampleLoopEnd"/);
+    assert.match(indexHtml, /data-source-card-audition="grainASample"/);
     assert.match(indexHtml, /data-source-kind="grainASample">Trim to Selection<\/button>/);
     assert.match(indexHtml, /id="grainBSampleWaveformCanvas"/);
     assert.match(indexHtml, /id="grainBSampleLoopStart"/);
     assert.match(indexHtml, /id="grainBSampleLoopEnd"/);
+    assert.match(indexHtml, /data-source-card-audition="grainBSample"/);
     assert.match(indexHtml, /data-source-kind="grainBSample">Trim to Selection<\/button>/);
     assert.match(indexHtml, /id="grainMixerAmp"/);
     assert.match(indexHtml, /<select id="mainWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
@@ -907,6 +911,19 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.doesNotMatch(indexHtml, />String Grain Controls<\/h3>/);
     assert.doesNotMatch(indexHtml, /id="grainPlaybackSpeed"/);
     assert.doesNotMatch(indexHtml, /id="performanceGrainPlaybackSpeed"/);
+});
+
+test('grain sample waveform cards can audition raw previews individually', () => {
+    assert.match(indexHtml, /const SOURCE_CARD_AUDITION_KINDS = new Set\(\['grainMainSample', 'grainASample', 'grainBSample'\]\);/);
+    assert.match(indexHtml, /function syncSourceCardAuditionButtons\(\)/);
+    assert.match(indexHtml, /function stopSourceCardAudition\(options = \{\}\)/);
+    assert.match(indexHtml, /async function auditionSourceCard\(kind, options = \{\}\)/);
+    assert.match(indexHtml, /document\.querySelectorAll\('\[data-source-card-audition\]'\)\.forEach\(\(button\) => \{/);
+    assert.match(indexHtml, /await auditionSourceCard\(button\.dataset\.sourceCardAudition\);/);
+    assert.match(indexHtml, /audioReady = await ensureAudioReadyForKeyInteraction\(\);/);
+    assert.match(indexHtml, /const boundedLoopEnd = Math\.min\(buffer\.duration, Math\.max\(offset \+ 0\.01, buffer\.duration \* endPct\)\);/);
+    assert.match(indexHtml, /source\.start\(now, offset, duration\);/);
+    assert.match(indexHtml, /button\.textContent = active \? 'Stop' : 'Audition';/);
 });
 
 test('mobile performance surface exposes granular tune width smoothing and lfo depth controls', () => {

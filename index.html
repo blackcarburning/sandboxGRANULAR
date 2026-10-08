@@ -1939,12 +1939,6 @@
                 height: 50px;
             }
 
-            .recording-section #auditionBtn {
-                padding: 4px;
-                font-size: 8px;
-                margin-top: 3px;
-            }
-
             .status {
                 font-size: 7px;
             }
@@ -3373,11 +3367,6 @@
         .simplified-ui .status-stack {
             display: grid;
             gap: 10px;
-        }
-
-        .simplified-ui #auditionBtn {
-            grid-column: 1 / -1;
-            margin-top: 0 !important;
         }
 
         .simplified-ui .source-waveform-canvas {
@@ -4940,7 +4929,6 @@
                     </div>
                 </div>
                 <div class="source-secondary-buttons legacy-grain-source-tools">
-                    <button id="auditionBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%); color: #000; font-weight: bold;" disabled>Audition Sources</button>
                     <button id="normalizeBtn" disabled>Normalize</button>
                     <button id="clearBtn">Clear</button>
                 </div>
@@ -4998,6 +4986,7 @@
                             <input type="range" id="grainMainSampleLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
                         <div class="source-seed-buttons">
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
                             <button type="button" class="trim-source-btn" data-source-kind="grainMainSample">Trim to Selection</button>
                         </div>
                     </div>
@@ -5072,6 +5061,7 @@
                             <input type="range" id="grainASampleLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
                         <div class="source-seed-buttons">
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainASample" aria-pressed="false" disabled>Audition</button>
                             <button type="button" class="trim-source-btn" data-source-kind="grainASample">Trim to Selection</button>
                         </div>
                     </div>
@@ -5117,6 +5107,7 @@
                             <input type="range" id="grainBSampleLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
                         <div class="source-seed-buttons">
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainBSample" aria-pressed="false" disabled>Audition</button>
                             <button type="button" class="trim-source-btn" data-source-kind="grainBSample">Trim to Selection</button>
                         </div>
                     </div>
@@ -8461,6 +8452,7 @@
             grainBMic: 'Grain B Mic',
             output: 'Output Source'
         };
+        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample']);
         const SOURCE_TUNE_CONTROL_IDS = {
             generated: 'generatedSourceTune',
             mic: 'micSourceTune',
@@ -8704,6 +8696,8 @@
 
         function rebuildContextBoundAudioState() {
             clearSourcePitchCache();
+            auditionSources = [];
+            activeSourceCardAuditionKind = 'none';
 
             if (generatedLoopBaseBuffer) {
                 generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(generatedLoopBaseBuffer);
@@ -8720,6 +8714,7 @@
             syncLegacyAudioBuffer();
             drawWaveforms();
             updateSourceAvailability();
+            syncSourceCardAuditionButtons();
             syncBastardLoopUi();
             syncBastardLoop2Ui();
             syncBastardLoop3Ui();
@@ -11271,6 +11266,18 @@
             });
         }
 
+        function syncSourceCardAuditionButtons() {
+            document.querySelectorAll('[data-source-card-audition]').forEach((button) => {
+                const kind = normalizeSourceWaveformKind(button.dataset.sourceCardAudition);
+                const hasBuffer = kind !== 'none' && Boolean(getSourceBuffer(kind));
+                const active = activeSourceCardAuditionKind === kind && auditionSources.length > 0;
+                button.disabled = !hasBuffer;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                button.textContent = active ? 'Stop' : 'Audition';
+            });
+        }
+
         function normalizeSourceWaveformSoloState(value) {
             const values = Array.isArray(value) ? value : (value === 'none' || value === undefined || value === null ? [] : [value]);
             return values
@@ -11330,6 +11337,27 @@
             sourceWaveformSoloAuditionNodes = [];
         }
 
+        function stopSourceCardAudition(options = {}) {
+            auditionSources.forEach(({ source, gain }) => {
+                try {
+                    source.stop();
+                } catch (error) {
+                    console.debug('Source card audition already stopped:', error);
+                }
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+            });
+            auditionSources = [];
+            if (!options.preserveKind) {
+                activeSourceCardAuditionKind = 'none';
+            }
+            if (!options.skipSync) {
+                syncSourceCardAuditionButtons();
+            }
+        }
+
         function syncSourceWaveformSoloAudition() {
             stopSourceWaveformSoloAudition();
             if (!audioContext || !masterGain || sourceWaveformSoloKinds.size === 0) return;
@@ -11370,6 +11398,91 @@
                 };
                 sourceWaveformSoloAuditionNodes.push({ source, gain });
             });
+        }
+
+        async function auditionSourceCard(kind, options = {}) {
+            const requestedKind = normalizeSourceWaveformKind(kind);
+            if (!SOURCE_CARD_AUDITION_KINDS.has(requestedKind)) return false;
+
+            const config = getSourceSlotConfig(requestedKind);
+            const buffer = config.buffer();
+            if (!buffer) {
+                stopSourceCardAudition();
+                if (!options.silent) {
+                    setStatus(`${definitionLabelForSourceKind(requestedKind)} is empty.`, 'error');
+                }
+                return false;
+            }
+
+            const wasActive = activeSourceCardAuditionKind === requestedKind && auditionSources.length > 0;
+            stopSourceCardAudition({ skipSync: true });
+            if (options.toggle !== false && wasActive) {
+                syncSourceCardAuditionButtons();
+                if (!options.silent && !options.preserveStatus) {
+                    setStatus(`${definitionLabelForSourceKind(requestedKind)} audition stopped.`);
+                }
+                return false;
+            }
+
+            let audioReady = false;
+            try {
+                audioReady = await ensureAudioReadyForKeyInteraction();
+            } catch (error) {
+                console.warn('Source card audition key-style recovery failed:', error);
+            }
+
+            if (!audioReady) {
+                try {
+                    await ensureForegroundAudioReady({ silent: true });
+                } catch (error) {
+                    console.warn('Source card audition foreground recovery failed:', error);
+                }
+            }
+
+            if (!audioContext || audioContext.state !== 'running' || !masterGain) {
+                syncSourceCardAuditionButtons();
+                if (!options.silent) {
+                    setStatus('Start MYGRAIN before auditioning a grain source.', 'error');
+                }
+                return false;
+            }
+
+            const { startPct, endPct } = getLoopRange(config.startId, config.endId);
+            const now = audioContext.currentTime;
+            const offset = buffer.duration * startPct;
+            const boundedLoopEnd = Math.min(buffer.duration, Math.max(offset + 0.01, buffer.duration * endPct));
+            const duration = Math.max(0.05, boundedLoopEnd - offset);
+            const fadeSeconds = getFadeSecondsForDuration(duration);
+            const source = audioContext.createBufferSource();
+            const gain = audioContext.createGain();
+
+            activeSourceCardAuditionKind = requestedKind;
+            source.buffer = buffer;
+            source.playbackRate.value = 1;
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(0.85, now + fadeSeconds);
+            gain.gain.setValueAtTime(0.85, now + Math.max(fadeSeconds, duration - fadeSeconds));
+            gain.gain.linearRampToValueAtTime(0.0001, now + duration);
+            source.connect(gain);
+            gain.connect(masterGain);
+            source.start(now, offset, duration);
+            source.onended = () => {
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+                auditionSources = auditionSources.filter((node) => node.source !== source);
+                if (auditionSources.length === 0 && activeSourceCardAuditionKind === requestedKind) {
+                    activeSourceCardAuditionKind = 'none';
+                }
+                syncSourceCardAuditionButtons();
+            };
+            auditionSources = [{ source, gain, kind: requestedKind }];
+            syncSourceCardAuditionButtons();
+            if (!options.silent && !options.preserveStatus) {
+                setStatus(`Auditioning ${definitionLabelForSourceKind(requestedKind)}.`);
+            }
+            return true;
         }
 
         function restartActiveGrainStreamsFromNow() {
@@ -15865,7 +15978,6 @@
             syncLegacyAudioBuffer();
             const hasSources = hasGranularSource();
             normalizeBtn.disabled = !hasSources;
-            document.getElementById('auditionBtn').disabled = !hasSources;
             SOURCE_LOOP_CONTROL_DEFINITIONS.forEach(({ kind }) => {
                 const config = getSourceSlotConfig(kind);
                 const meta = document.getElementById(config.metaId);
@@ -15874,6 +15986,7 @@
                     meta.textContent = buffer ? `${buffer.duration.toFixed(2)}s` : 'Empty';
                 }
             });
+            syncSourceCardAuditionButtons();
             syncBastardLoopUi();
         }
 
@@ -15987,8 +16100,11 @@
                 scheduleActiveGrains();
             }
 
-            if (auditionSources?.length > 0) {
-                document.getElementById('auditionBtn')?.click();
+            if (activeSourceCardAuditionKind === kind && auditionSources.length > 0) {
+                auditionSourceCard(kind, { toggle: false, silent: true, preserveStatus: true }).catch((error) => {
+                    console.error(error);
+                    setStatus(`Audition failed: ${error.message}`, 'error');
+                });
             }
         }
 
@@ -16032,52 +16148,8 @@
             stopAllGrains();
         });
 
-        // --- Audition Button ---
         let auditionSources = [];
-        document.getElementById('auditionBtn').addEventListener('click', () => {
-            if (!hasGranularSource() || !audioContext) return;
-            
-            // Stop any currently playing audition
-            auditionSources.forEach((source) => {
-                try {
-                    source.stop();
-                } catch (e) {
-                    console.debug('Audition source already stopped:', e);
-                }
-            });
-            auditionSources = [];
-
-            const sources = getAllGranularSources();
-            const sourceGainMap = getGranularSourceGainMap(sources, 1);
-            sources.forEach((sourceInfo) => {
-                const source = audioContext.createBufferSource();
-                const gain = audioContext.createGain();
-                const { startPct, endPct } = getLoopRange(sourceInfo.startId, sourceInfo.endId);
-                const offset = sourceInfo.buffer.duration * startPct;
-                const duration = Math.max(0.05, sourceInfo.buffer.duration * (endPct - startPct));
-                const fadeSeconds = getFadeSecondsForDuration(duration);
-                const level = sourceGainMap.get(sourceInfo) ?? 0;
-
-                source.buffer = sourceInfo.buffer;
-                gain.gain.setValueAtTime(0, audioContext.currentTime);
-                gain.gain.linearRampToValueAtTime(level, audioContext.currentTime + fadeSeconds);
-                gain.gain.setValueAtTime(level, audioContext.currentTime + Math.max(fadeSeconds, duration - fadeSeconds));
-                gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
-                source.connect(gain);
-                gain.connect(masterGain);
-                source.start(0, offset, duration);
-                source.onended = () => {
-                    try {
-                        source.disconnect();
-                        gain.disconnect();
-                    } catch (e) {}
-                    auditionSources = auditionSources.filter((item) => item !== source);
-                };
-                auditionSources.push(source);
-            });
-
-            setStatus('Auditioning the selected granular source regions.');
-        });
+        let activeSourceCardAuditionKind = 'none';
 
         function stopMicCapture() {
             if (micStream) {
@@ -17649,6 +17721,7 @@
             stopArpeggiatorPlayback();
             stopAllBastardLoopLayers({ preserveTransportState: false, skipUi: true });
             stopDrumMachine({ preserveTransportState: false, skipUi: true, silent: true });
+            stopSourceCardAudition({ preserveKind: false, skipSync: false });
             stopAllGrains();
             stopAllOscillators({ instant: options.immediate === true });
             heldNotes.clear();
@@ -18495,6 +18568,7 @@
         addGranularLayerLfoControls();
         syncSourceWaveformTuneLabels();
         syncSourceWaveformSoloButtons();
+        syncSourceCardAuditionButtons();
 
         document.querySelectorAll('.trim-source-btn').forEach((button) => {
             button.addEventListener('click', async () => {
@@ -18503,6 +18577,17 @@
                 } catch (error) {
                     console.error(error);
                     setStatus(`Trim failed: ${error.message}`, 'error');
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-source-card-audition]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                try {
+                    await auditionSourceCard(button.dataset.sourceCardAudition);
+                } catch (error) {
+                    console.error(error);
+                    setStatus(`Audition failed: ${error.message}`, 'error');
                 }
             });
         });
