@@ -61,7 +61,7 @@ test('simplified performance controls are grouped into labelled cards', () => {
     assert.match(indexHtml, />Export Length<\/h3>/);
     assert.match(indexHtml, /class="performance-feature-card performance-keyboard-card" aria-label="Keyboard controls"/);
     assert.match(indexHtml, />Play Surface<\/h3>/);
-    assert.match(indexHtml, />String Grain Controls<\/h3>/);
+    assert.match(indexHtml, />Granular Layer Controls<\/h3>/);
     assert.match(indexHtml, />Mix & Trim<\/h3>/);
     assert.match(indexHtml, />LFO & Motion<\/h3>/);
     assert.match(indexHtml, /class="performance-feature-card internal-effects-panel" id="internalEffectsPanel"/);
@@ -408,7 +408,10 @@ test('granular engine routes generated and mic buffers as separate sources', () 
     assert.match(indexHtml, /let generatedLoopBuffer = null/);
     assert.match(indexHtml, /let generatedLoopBaseBuffer = null/);
     assert.match(indexHtml, /let micAudioBuffer = null/);
-    assert.match(indexHtml, /function getAvailableGranularSources\(\)/);
+    assert.match(indexHtml, /function getAvailableGranularSources\(options = \{\}\)/);
+    assert.match(indexHtml, /makeGranularSource\('grainAMic'\)/);
+    assert.match(indexHtml, /makeGranularSource\('grainBMic'\)/);
+    assert.match(indexHtml, /makeGranularSource\('output'\)/);
     assert.match(indexHtml, /let generatedSourceMix = 1/);
     assert.match(indexHtml, /function getGranularSourceGainMap\(sources, availableGain = 1\)/);
     assert.match(indexHtml, /let generatedDryMix = 0/);
@@ -816,67 +819,90 @@ test('grain scheduling and generated loops are BPM-grid rhythmic and bright agai
     assert.match(indexHtml, /voice = Math\.tanh\(\(wash \+ \(\(metallicA \* metallicB\) \+ metallicC \* 0\.42\) \* event\.metallic \+ transient \* 0\.6\) \* event\.drive\) \* basicEnv/);
 });
 
-test('cloud grain mode loops against the real source window instead of tiny trimmed grain slices', () => {
-    assert.match(indexHtml, /const useContinuousSourceLoop = Boolean\(/);
-    assert.match(indexHtml, /options\.continuousLoop[\s\S]*modeProfile\.mode === 'cloud'/);
-    assert.match(indexHtml, /const playbackBuffer = useContinuousSourceLoop \? pitchShiftedBuffer : trimmedBuffer;/);
-    assert.match(indexHtml, /source\.buffer = playbackBuffer;/);
-    assert.match(indexHtml, /source\.loop = useContinuousSourceLoop;/);
-    assert.match(indexHtml, /source\.loopStart = Math\.max\(0, sampleWindow\.startTime\);/);
-    assert.match(indexHtml, /source\.loopEnd = Math\.max\(source\.loopStart \+ 0\.001, sampleWindow\.endTime\);/);
+test('granular UI presents three direct sample layers instead of the discarded string mode', () => {
+    assert.match(indexHtml, /<body class="simplified-ui granular-sampler-mode">/);
+    assert.match(indexHtml, /body\.granular-sampler-mode \.source-grain-mode-control,/);
+    assert.match(indexHtml, /body\.granular-sampler-mode \.source-loop-controls,/);
+    assert.match(indexHtml, /body\.granular-sampler-mode \.source-waveform-control-grid,/);
+    assert.match(indexHtml, /body\.granular-sampler-mode \.trim-source-btn \{/);
+    assert.match(indexHtml, /data-tab="grain">Grain<\/button>/);
+    assert.match(indexHtml, />Granular Layer Controls<\/h3>/);
+    assert.match(indexHtml, /<span>Main Grain<\/span>/);
+    assert.match(indexHtml, /<span>Grain A<\/span>/);
+    assert.match(indexHtml, /<span>Grain B<\/span>/);
+    assert.match(indexHtml, /id="grainMainSource"/);
+    assert.match(indexHtml, /id="grainMainStart"/);
+    assert.match(indexHtml, /id="grainSize"/);
+    assert.match(indexHtml, /id="grainMainTune"/);
+    assert.match(indexHtml, /id="attack"/);
+    assert.match(indexHtml, /id="grainMainDecay"/);
+    assert.match(indexHtml, /id="release"/);
+    assert.match(indexHtml, /id="grainMainBlend"/);
+    assert.match(indexHtml, /id="grainMainVolume"/);
+    assert.match(indexHtml, /id="grainSynthASource"/);
+    assert.match(indexHtml, /id="grainSynthAStart"/);
+    assert.match(indexHtml, /id="grainSynthASize"/);
+    assert.match(indexHtml, /id="grainSynthATune"/);
+    assert.match(indexHtml, /id="grainSynthAAttack"/);
+    assert.match(indexHtml, /id="grainSynthADecay"/);
+    assert.match(indexHtml, /id="grainSynthARelease"/);
+    assert.match(indexHtml, /id="grainSynthAMix"/);
+    assert.match(indexHtml, /id="grainSynthAVolume"/);
+    assert.match(indexHtml, /id="grainSynthBSource"/);
+    assert.match(indexHtml, /id="grainSynthBStart"/);
+    assert.match(indexHtml, /id="grainSynthBSize"/);
+    assert.match(indexHtml, /id="grainSynthBTune"/);
+    assert.match(indexHtml, /id="grainSynthBAttack"/);
+    assert.match(indexHtml, /id="grainSynthBDecay"/);
+    assert.match(indexHtml, /id="grainSynthBRelease"/);
+    assert.match(indexHtml, /id="grainSynthBMix"/);
+    assert.match(indexHtml, /id="grainSynthBVolume"/);
+    assert.match(indexHtml, /id="grainMixerAmp"/);
+    assert.match(indexHtml, /<select id="mainWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
+    assert.match(indexHtml, /<select id="grainAWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
+    assert.match(indexHtml, /<select id="grainBWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
+    assert.doesNotMatch(indexHtml, /granular-oscillator-mode/);
+    assert.doesNotMatch(indexHtml, /data-tab="grain">Strings<\/button>/);
+    assert.doesNotMatch(indexHtml, />String Grain Controls<\/h3>/);
+    assert.doesNotMatch(indexHtml, /id="grainPlaybackSpeed"/);
+    assert.doesNotMatch(indexHtml, /id="performanceGrainPlaybackSpeed"/);
 });
 
-test('cloud grain mode is tuned for smoother string-like overlap and motion', () => {
-    assert.match(indexHtml, /minGrainSize: 0\.16/);
-    assert.match(indexHtml, /maxGrainSize: 0\.42/);
-    assert.match(indexHtml, /minAttack: 0\.045/);
-    assert.match(indexHtml, /minRelease: 0\.24/);
-    assert.match(indexHtml, /releaseRatio: 1\.55/);
-    assert.match(indexHtml, /dryMixCap: 0\.28/);
-    assert.match(indexHtml, /intervalScale: 2\.7/);
-    assert.match(indexHtml, /jitterAmount: 0\.035/);
-    assert.match(indexHtml, /positionDriftMin: 0\.005/);
-    assert.match(indexHtml, /positionDriftMax: 0\.04/);
-    assert.match(indexHtml, /continuousTravelRate: 1\.45/);
-    assert.match(indexHtml, /continuousTravelDrift: 0\.06/);
-    assert.match(indexHtml, /sourceSizeScale: 0\.62/);
-    assert.match(indexHtml, /sourceFadeScale: 1\.05/);
-    assert.match(indexHtml, /sourceGainScale: 0\.96/);
-    assert.match(indexHtml, /maxSourceSizeSeconds: 0\.42/);
-    assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud'[\s\S]*Number\(modeProfile\.maxSourceSizeSeconds\) \|\| 0\.85[\s\S]*: 0\.7;/);
-    assert.match(indexHtml, /const maxInterval = modeProfile\?\.mode === 'cloud' \? 0\.14 : 0\.22;/);
-    assert.match(indexHtml, /const sourceGainScale = Math\.max\(0\.25, Number\(modeProfile\.sourceGainScale\) \|\| 1\);/);
-    assert.match(indexHtml, /const targetGain = Math\.max\(0, Math\.min\(1\.35, voice\.gain \* sourceGainScale\)\);/);
-    assert.match(indexHtml, /const bloomDrift = modeProfile\.mode === 'cloud'/);
-    assert.match(indexHtml, /const bloomMotion = Math\.sin\(\(elapsed \* 0\.19\)/);
+test('granular engine plays raw sample buffers with per-layer pitch start and envelope scanning', () => {
+    assert.match(indexHtml, /const GRANULAR_LAYER_DEFINITIONS = \[/);
+    assert.match(indexHtml, /sourceId: 'grainMainSource'/);
+    assert.match(indexHtml, /sourceId: 'grainSynthASource'/);
+    assert.match(indexHtml, /sourceId: 'grainSynthBSource'/);
+    assert.match(indexHtml, /function normalizeGranularLayerSourceMode\(value, options = \{\}\)/);
+    assert.match(indexHtml, /grainamic: 'grainAMic'/);
+    assert.match(indexHtml, /grainbmic: 'grainBMic'/);
+    assert.match(indexHtml, /warm: 'generated'/);
+    assert.match(indexHtml, /air: layer === 'B' \? 'grainBMic' : 'grainAMic'/);
+    assert.match(indexHtml, /function getGranularLayerSettings\(noteFreq, velocity = 1\)/);
+    assert.match(indexHtml, /pitchRatio = Math\.max\(0\.0625, Math\.min\(16, \(noteFreq \/ baseFrequency\) \* Math\.pow\(2, pitchSemitones \/ 12\)\)\)/);
+    assert.match(indexHtml, /function resolveGranularLayerSampleWindow\(sourceInfo, layer, scheduledTime, streamStartTime, modeProfile = getGrainModeProfile\(\)\)/);
+    assert.match(indexHtml, /const sourceDuration = Math\.max\(0\.001, Math\.min\(loopDuration, sourceShape\.sizeSeconds \* playbackRate\)\);/);
+    assert.match(indexHtml, /const scanOffset = maxOffsetSpan > 0 && streamStartTime !== undefined && streamStartTime !== null/);
+    assert.match(indexHtml, /const jitterOffset = maxOffsetSpan > 0/);
+    assert.match(indexHtml, /function playGrain\(note, scheduledTime = null, velocity = 1, options = \{\}\)/);
+    assert.match(indexHtml, /source\.buffer = sourceInfo\.buffer;/);
+    assert.match(indexHtml, /source\.playbackRate\.value = sampleWindow\.playbackRate;/);
+    assert.match(indexHtml, /applyEqualPowerGainRamp\(sampleGain\.gain, 0\.0001, sourcePeakGain, now, Math\.max\(0\.001, attackEnd - now\)\);/);
+    assert.doesNotMatch(indexHtml, /makeGranularStringSource/);
+    assert.doesNotMatch(indexHtml, /getGranularStringMainSources/);
 });
 
-test('granular rewrite presents string-grain voices instead of legacy loop-editing controls', () => {
-    assert.match(indexHtml, /<body class="simplified-ui granular-oscillator-mode">/);
-    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-grain-source-tools/);
-    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-grain-source-browser/);
-    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-source-waveform-mixer/);
-    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-grain-window-control/);
-    assert.match(indexHtml, /data-tab="grain">Strings<\/button>/);
-    assert.match(indexHtml, />String Grain Controls<\/h3>/);
-    assert.match(indexHtml, />String Layer Mixer</);
-    assert.match(indexHtml, />Main String Volume</);
-    assert.match(indexHtml, />Main String Tune</);
-    assert.match(indexHtml, />String A Volume</);
-    assert.match(indexHtml, />String B Volume</);
-    assert.match(indexHtml, />String Bus Amp</);
-    assert.match(indexHtml, /function getAvailableGranularSources\(options = \{\}\) \{[\s\S]*return getGranularStringMainSources\(\);[\s\S]*return \[makeGranularStringSource\(mode\)\]\.filter\(Boolean\);/);
-    assert.match(indexHtml, /function canPlayGrains\(\) \{\s*return Boolean\(audioContext && granularOutputGain\);\s*\}/);
-    assert.match(indexHtml, /return safePitchRatio;/);
-});
-
-test('grain playback speed control is exposed in both grain UIs and defaults to natural scan speed', () => {
-    assert.match(indexHtml, /id="grainPlaybackSpeed" min="25" max="400" value="100" step="1"/);
-    assert.match(indexHtml, /id="performanceGrainPlaybackSpeed" min="25" max="400" value="100" step="1"/);
-    assert.match(indexHtml, /const GRAIN_PLAYBACK_SPEED_DEFAULT = 100;/);
-    assert.match(indexHtml, /function syncGrainPlaybackSpeedControls\(value = document\.getElementById\('grainPlaybackSpeed'\)\?\.value \?\? GRAIN_PLAYBACK_SPEED_DEFAULT\)/);
-    assert.match(indexHtml, /performanceGrainPlaybackSpeed\?\.addEventListener\('input', \(event\) => \{/);
-    assert.match(indexHtml, /grainPlaybackSpeed: 100,/);
+test('granular restore and arp stay on the rebuilt synth path', () => {
+    assert.match(indexHtml, /if \(id === 'grainMainSource'\) \{\s*select\.value = normalizeGranularLayerSourceMode\(state\.selects\[id\], \{ layer: 'main' \}\);/);
+    assert.match(indexHtml, /if \(id === 'grainSynthASource'\) \{\s*select\.value = normalizeGranularLayerSourceMode\(state\.selects\[id\], \{ layer: 'A' \}\);/);
+    assert.match(indexHtml, /if \(id === 'grainSynthBSource'\) \{\s*select\.value = normalizeGranularLayerSourceMode\(state\.selects\[id\], \{ layer: 'B' \}\);/);
+    assert.match(indexHtml, /if \(select\.hasAttribute\('data-grain-mode-selector'\)\) \{\s*select\.value = 'synth';/);
+    assert.match(indexHtml, /normalizeGranularLayerSourceSelects\(\);/);
+    assert.match(indexHtml, /setGrainTimingMode\('synth', \{ silent: true, skipSave: true, skipRestart: true \}\);/);
+    assert.match(indexHtml, /streamStartTime: playTime,/);
+    assert.match(indexHtml, /continuousLoop: false/);
+    assert.match(indexHtml, /loopOriginTime: options\.streamStartTime\s*\?\? \(scheduledStartTime !== null \? scheduledStartTime : audioContext\.currentTime\),/);
+    assert.doesNotMatch(indexHtml, /arp:cloud/);
 });
 
 test('output source grains expose a dedicated volume control in the shared source path', () => {

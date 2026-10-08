@@ -104,26 +104,18 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        body.granular-oscillator-mode #recordGrainAMicBtn,
-        body.granular-oscillator-mode #recordGrainBMicBtn,
-        body.granular-oscillator-mode #auditionBtn,
-        body.granular-oscillator-mode #normalizeBtn,
-        body.granular-oscillator-mode .legacy-grain-window-control,
-        body.granular-oscillator-mode .legacy-grain-source-tools,
-        body.granular-oscillator-mode .legacy-grain-source-browser,
-        body.granular-oscillator-mode .legacy-source-waveform-mixer,
-        body.granular-oscillator-mode .source-grain-mode-control,
-        body.granular-oscillator-mode .source-loop-controls,
-        body.granular-oscillator-mode .source-waveform-control-grid,
-        body.granular-oscillator-mode .trim-source-btn {
+        body.granular-sampler-mode .source-grain-mode-control,
+        body.granular-sampler-mode .source-loop-controls,
+        body.granular-sampler-mode .source-waveform-control-grid,
+        body.granular-sampler-mode .trim-source-btn {
             display: none !important;
         }
 
-        body.granular-oscillator-mode .recording-section .source-waveform-grid {
+        body.granular-sampler-mode .recording-section .source-waveform-grid {
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         }
 
-        body.granular-oscillator-mode .recording-section .source-waveform-panel {
+        body.granular-sampler-mode .recording-section .source-waveform-panel {
             min-height: 148px;
         }
 
@@ -3733,7 +3725,7 @@
         }
     </style>
 </head>
-<body class="simplified-ui granular-oscillator-mode">
+<body class="simplified-ui granular-sampler-mode">
 
     <div id="settlePopup" class="settle-popup" role="status" aria-live="polite" aria-hidden="true">let it settle</div>
 
@@ -4275,7 +4267,7 @@
                 </div>
                 <div class="performance-actions">
                     <button class="performance-btn" id="performanceHoldBtn">Hold</button>
-                    <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Main Loop</button>
+                    <button class="performance-btn primary" id="performanceGenerateLoopBtn">Generate Loop</button>
                     <button class="performance-btn" id="performanceGenerateJunkBtn">Generate Sample</button>
                     <button class="performance-btn" id="performanceGenerateFmDrumsBtn">Huge Drums</button>
                     <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
@@ -4302,7 +4294,7 @@
                     <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                     <button class="performance-btn" id="performanceMegaRandomBtn">Mega Random</button>
                     <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
-                    <button class="performance-btn" id="performanceSynthPopupBtn">Advanced Strings</button>
+                    <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
                     <button class="performance-btn" id="performanceDrumMachineMainOpenBtn">Drum Machine</button>
                     <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
                     <button class="performance-btn" id="performancePanicBtn">Panic</button>
@@ -4360,9 +4352,9 @@
             <div class="performance-feature-card" aria-label="Grain controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
-                        <div class="performance-chip">String Grains</div>
-                        <h3 class="performance-feature-title">String Grain Controls</h3>
-                        <p class="performance-feature-note">These voices now act like smooth string-style oscillator layers, with motion and speed shaping instead of loop-window editing.</p>
+                        <div class="performance-chip">Granular Layers</div>
+                        <h3 class="performance-feature-title">Granular Layer Controls</h3>
+                        <p class="performance-feature-note">Three playable granular layers built from the recorded sample buffers, for keyboard and arp use rather than rhythm-loop slicing.</p>
                     </div>
                 </div>
                 <div class="performance-sound-controls" aria-label="Grain controls">
@@ -4379,13 +4371,6 @@
                             <span class="value" id="performanceGeneratedTransposeValue">0 oct</span>
                         </label>
                         <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
-                    </div>
-                    <div class="performance-sound-card">
-                        <label for="performanceGrainPlaybackSpeed">
-                            <span>Playback Speed</span>
-                            <span class="value" id="performanceGrainPlaybackSpeedValue">1x</span>
-                        </label>
-                        <input type="range" id="performanceGrainPlaybackSpeed" min="25" max="400" value="100" step="1">
                     </div>
                     <div class="performance-sound-card">
                         <label for="performanceModAmount">
@@ -4720,8 +4705,8 @@
                 <div class="app-branding">
                     <div>
                         <div class="app-kicker">MYGRAIN</div>
-                        <h2 class="app-title">String grain instrument</h2>
-                        <p class="app-subtitle">The grain section now behaves like a smooth string-style synth voice that tracks the keyboard, sequencer, and arp instead of acting like another loop player.</p>
+                        <h2 class="app-title">Sample granular instrument</h2>
+                        <p class="app-subtitle">Three granular layers built from your sample buffers, tuned for recognisable playback on the keyboard, sequencer, and arp.</p>
                     </div>
                     <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
                 </div>
@@ -4750,12 +4735,10 @@
                         <div class="source-grain-mode-control" aria-label="Main granular engine mode">
                             <label for="mainWaveformGrainTimingMode">
                                 <span>Main Mode</span>
-                                <span class="value" id="mainWaveformGrainTimingModeValue">Ensemble</span>
+                                <span class="value" id="mainWaveformGrainTimingModeValue">Playable</span>
                             </label>
                             <select id="mainWaveformGrainTimingMode" data-grain-mode-selector>
-                                <option value="cloud" selected>Ensemble</option>
-                                <option value="rhythmic">Pulse</option>
-                                <option value="drum">Pluck</option>
+                                <option value="synth" selected>Playable</option>
                             </select>
                         </div>
                         <div class="source-loop-controls">
@@ -4819,12 +4802,10 @@
                         <div class="source-grain-mode-control" aria-label="Grain A granular engine mode">
                             <label for="grainAWaveformGrainTimingMode">
                                 <span>Grain A Mode</span>
-                                <span class="value" id="grainAWaveformGrainTimingModeValue">Ensemble</span>
+                                <span class="value" id="grainAWaveformGrainTimingModeValue">Playable</span>
                             </label>
                             <select id="grainAWaveformGrainTimingMode" data-grain-mode-selector>
-                                <option value="cloud" selected>Ensemble</option>
-                                <option value="rhythmic">Pulse</option>
-                                <option value="drum">Pluck</option>
+                                <option value="synth" selected>Playable</option>
                             </select>
                         </div>
                         <div class="source-loop-controls">
@@ -4848,12 +4829,10 @@
                         <div class="source-grain-mode-control" aria-label="Grain B granular engine mode">
                             <label for="grainBWaveformGrainTimingMode">
                                 <span>Grain B Mode</span>
-                                <span class="value" id="grainBWaveformGrainTimingModeValue">Ensemble</span>
+                                <span class="value" id="grainBWaveformGrainTimingModeValue">Playable</span>
                             </label>
                             <select id="grainBWaveformGrainTimingMode" data-grain-mode-selector>
-                                <option value="cloud" selected>Ensemble</option>
-                                <option value="rhythmic">Pulse</option>
-                                <option value="drum">Pluck</option>
+                                <option value="synth" selected>Playable</option>
                             </select>
                         </div>
                         <div class="source-loop-controls">
@@ -4978,7 +4957,7 @@
 
             <div class="controls-section">
                 <div class="tab-container">
-                    <button class="tab-button active" data-tab="grain">Strings</button>
+                    <button class="tab-button active" data-tab="grain">Grain</button>
                     <button class="tab-button" data-tab="filter">Filter</button>
                     <button class="tab-button" data-tab="noise">Noise</button>
                     <button class="tab-button" data-tab="fx">FX</button>
@@ -4991,398 +4970,242 @@
 
                 <!-- Grain Tab -->
                 <div class="tab-content active" id="grain-tab">
-                    <div class="control-group highlight legacy-grain-window-control">
-                        <label>
-                            <span class="param-name">String Mode</span>
-                            <span class="value" id="grainTimingModeValue">Ensemble</span>
-                        </label>
-                        <select id="grainTimingMode">
-                            <option value="cloud" selected>Ensemble</option>
-                            <option value="rhythmic">Pulse</option>
-                            <option value="drum">Pluck</option>
-                        </select>
-                    </div>
-                    <div class="control-group highlight legacy-grain-window-control">
-                        <label>
-                            <span class="param-name">Legacy Start</span>
-                            <span class="value" id="sampleStartValue">0%</span>
-                        </label>
-                        <input type="range" id="sampleStart" min="0" max="100" value="0" step="1">
-                    </div>
-                    <div class="control-group highlight">
-                        <label>
-                            <span class="param-name">Legacy End</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="sampleEnd" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="sampleEnd" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="sampleEnd" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="sampleEnd" data-lfo="2">INV</button>
+                    <div class="source-waveform-grid" aria-label="Granular synth layers">
+                        <div class="source-waveform-panel">
+                            <div class="source-waveform-header">
+                                <span>Main Grain</span>
+                                <span class="source-waveform-meta">Primary layer</span>
                             </div>
-                            <span class="value" id="sampleEndValue">100%</span>
-                        </label>
-                        <input type="range" id="sampleEnd" min="0" max="100" value="100" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Grain Size</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSize" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSize" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSize" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label><span>Main Source</span></label>
+                                <select id="grainMainSource">
+                                    <option value="generated">Generated Loop</option>
+                                    <option value="mic" selected>Main Mic</option>
+                                    <option value="output">Output Source</option>
+                                    <option value="grainAMic">Grain A Mic</option>
+                                    <option value="grainBMic">Grain B Mic</option>
+                                    <option value="all">All Sources</option>
+                                </select>
                             </div>
-                            <span class="value" id="grainSizeValue">100ms</span>
-                        </label>
-                        <input type="range" id="grainSize" min="10" max="500" value="100" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Density</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="density" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="density" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="density" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="density" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Start Point</span>
+                                    <span class="value" id="grainMainStartValue">0%</span>
+                                </label>
+                                <input type="range" id="grainMainStart" min="0" max="100" value="0" step="1">
                             </div>
-                            <span class="value" id="densityValue">10</span>
-                        </label>
-                        <input type="range" id="density" min="1" max="40" value="10" step="1">
-                    </div>
-                    <div class="control-group highlight">
-                        <label>
-                            <span class="param-name">Color</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="position" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="position" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="position" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="position" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Grain Size</span>
+                                    <span class="value" id="grainSizeValue">180ms</span>
+                                </label>
+                                <input type="range" id="grainSize" min="10" max="500" value="180" step="1">
                             </div>
-                            <span class="value" id="positionValue">0%</span>
-                        </label>
-                        <input type="range" id="position" min="0" max="100" value="0" step="0.1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Motion</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="spray" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="spray" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="spray" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="spray" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Pitch Shift</span>
+                                    <span class="value" id="grainMainTuneValue">0st</span>
+                                </label>
+                                <input type="range" id="grainMainTune" min="-24" max="24" value="0" step="1">
                             </div>
-                            <span class="value" id="sprayValue">0%</span>
-                        </label>
-                        <input type="range" id="spray" min="0" max="100" value="0" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Attack</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="attack" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="attack" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="attack" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="attack" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Attack</span>
+                                    <span class="value" id="attackValue">55ms</span>
+                                </label>
+                                <input type="range" id="attack" min="1" max="5000" value="55" step="1">
                             </div>
-                            <span class="value" id="attackValue">10ms</span>
-                        </label>
-                        <input type="range" id="attack" min="1" max="5000" value="10" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Release</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="release" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="release" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="release" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="release" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Decay</span>
+                                    <span class="value" id="grainMainDecayValue">120ms</span>
+                                </label>
+                                <input type="range" id="grainMainDecay" min="1" max="5000" value="120" step="1">
                             </div>
-                            <span class="value" id="releaseValue">50ms</span>
-                        </label>
-                        <input type="range" id="release" min="1" max="5000" value="50" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Drift</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="pitchVar" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="pitchVar" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="pitchVar" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="pitchVar" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Release</span>
+                                    <span class="value" id="releaseValue">260ms</span>
+                                </label>
+                                <input type="range" id="release" min="1" max="5000" value="260" step="1">
                             </div>
-                            <span class="value" id="pitchVarValue">0%</span>
-                        </label>
-                        <input type="range" id="pitchVar" min="0" max="100" value="0" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Main Tune</span>
-                            <span class="value" id="grainTuneValue">0st</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainTune" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainTune" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainTune" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainTune" data-lfo="2">INV</button>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Blend</span>
+                                    <span class="value" id="grainMainBlendValue">60%</span>
+                                </label>
+                                <input type="range" id="grainMainBlend" min="0" max="100" value="60" step="1">
                             </div>
-                        </label>
-                        <input type="range" id="grainTune" min="-24" max="24" value="0" step="1">
+                            <div class="control-group highlight">
+                                <label>
+                                    <span class="param-name">Volume</span>
+                                    <span class="value" id="grainMainVolumeValue">75%</span>
+                                </label>
+                                <input type="range" id="grainMainVolume" min="0" max="150" value="75" step="1">
+                                <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="main">Solo Main</button>
+                            </div>
+                        </div>
+
+                        <div class="source-waveform-panel">
+                            <div class="source-waveform-header">
+                                <span>Grain A</span>
+                                <span class="source-waveform-meta">Layer A</span>
+                            </div>
+                            <div class="control-group">
+                                <label><span>Source</span></label>
+                                <select id="grainSynthASource">
+                                    <option value="grainAMic" selected>Grain A Mic</option>
+                                    <option value="mic">Main Mic</option>
+                                    <option value="generated">Generated Loop</option>
+                                    <option value="output">Output Source</option>
+                                    <option value="grainBMic">Grain B Mic</option>
+                                    <option value="all">All Sources</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Start Point</span>
+                                    <span class="value" id="grainSynthAStartValue">0%</span>
+                                </label>
+                                <input type="range" id="grainSynthAStart" min="0" max="100" value="0" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Grain Size</span>
+                                    <span class="value" id="grainSynthASizeValue">150ms</span>
+                                </label>
+                                <input type="range" id="grainSynthASize" min="10" max="500" value="150" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Pitch Shift</span>
+                                    <span class="value" id="grainSynthATuneValue">+7st</span>
+                                </label>
+                                <input type="range" id="grainSynthATune" min="-24" max="24" value="7" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Attack</span>
+                                    <span class="value" id="grainSynthAAttackValue">40ms</span>
+                                </label>
+                                <input type="range" id="grainSynthAAttack" min="1" max="5000" value="40" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Decay</span>
+                                    <span class="value" id="grainSynthADecayValue">95ms</span>
+                                </label>
+                                <input type="range" id="grainSynthADecay" min="1" max="5000" value="95" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Release</span>
+                                    <span class="value" id="grainSynthAReleaseValue">180ms</span>
+                                </label>
+                                <input type="range" id="grainSynthARelease" min="1" max="5000" value="180" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Blend</span>
+                                    <span class="value" id="grainSynthAMixValue">28%</span>
+                                </label>
+                                <input type="range" id="grainSynthAMix" min="0" max="100" value="28" step="1">
+                            </div>
+                            <div class="control-group highlight">
+                                <label>
+                                    <span class="param-name">Volume</span>
+                                    <span class="value" id="grainSynthAVolumeValue">62%</span>
+                                </label>
+                                <input type="range" id="grainSynthAVolume" min="0" max="150" value="62" step="1">
+                                <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="A">Solo A</button>
+                            </div>
+                        </div>
+
+                        <div class="source-waveform-panel">
+                            <div class="source-waveform-header">
+                                <span>Grain B</span>
+                                <span class="source-waveform-meta">Layer B</span>
+                            </div>
+                            <div class="control-group">
+                                <label><span>Source</span></label>
+                                <select id="grainSynthBSource">
+                                    <option value="grainBMic" selected>Grain B Mic</option>
+                                    <option value="mic">Main Mic</option>
+                                    <option value="generated">Generated Loop</option>
+                                    <option value="output">Output Source</option>
+                                    <option value="grainAMic">Grain A Mic</option>
+                                    <option value="all">All Sources</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Start Point</span>
+                                    <span class="value" id="grainSynthBStartValue">0%</span>
+                                </label>
+                                <input type="range" id="grainSynthBStart" min="0" max="100" value="0" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Grain Size</span>
+                                    <span class="value" id="grainSynthBSizeValue">210ms</span>
+                                </label>
+                                <input type="range" id="grainSynthBSize" min="10" max="500" value="210" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Pitch Shift</span>
+                                    <span class="value" id="grainSynthBTuneValue">-12st</span>
+                                </label>
+                                <input type="range" id="grainSynthBTune" min="-24" max="24" value="-12" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Attack</span>
+                                    <span class="value" id="grainSynthBAttackValue">65ms</span>
+                                </label>
+                                <input type="range" id="grainSynthBAttack" min="1" max="5000" value="65" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Decay</span>
+                                    <span class="value" id="grainSynthBDecayValue">140ms</span>
+                                </label>
+                                <input type="range" id="grainSynthBDecay" min="1" max="5000" value="140" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Release</span>
+                                    <span class="value" id="grainSynthBReleaseValue">240ms</span>
+                                </label>
+                                <input type="range" id="grainSynthBRelease" min="1" max="5000" value="240" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Blend</span>
+                                    <span class="value" id="grainSynthBMixValue">22%</span>
+                                </label>
+                                <input type="range" id="grainSynthBMix" min="0" max="100" value="22" step="1">
+                            </div>
+                            <div class="control-group highlight">
+                                <label>
+                                    <span class="param-name">Volume</span>
+                                    <span class="value" id="grainSynthBVolumeValue">58%</span>
+                                </label>
+                                <input type="range" id="grainSynthBVolume" min="0" max="150" value="58" step="1">
+                                <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="B">Solo B</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">Playback Speed</span>
-                            <span class="value" id="grainPlaybackSpeedValue">1x</span>
-                        </label>
-                        <input type="range" id="grainPlaybackSpeed" min="25" max="400" value="100" step="1">
-                    </div>
-                    <div class="source-seed-group" aria-label="Grain layer mixer">
-                        <div class="section-title">String Layer Mixer</div>
+
+                    <div class="source-seed-group" aria-label="Granular bus">
+                        <div class="section-title">Granular Bus</div>
                         <div class="control-group highlight">
                             <label>
-                                <span class="param-name">Main String Volume</span>
-                                <div class="button-group">
-                                    <button class="lfo-toggle" data-param="grainMainVolume" data-lfo="1">L1</button>
-                                    <button class="inv-toggle" data-param="grainMainVolume" data-lfo="1">INV</button>
-                                    <button class="lfo-toggle" data-param="grainMainVolume" data-lfo="2">L2</button>
-                                    <button class="inv-toggle" data-param="grainMainVolume" data-lfo="2">INV</button>
-                                    <button class="lfo-toggle" data-param="grainMainVolume" data-lfo="3">L3</button>
-                                    <button class="inv-toggle" data-param="grainMainVolume" data-lfo="3">INV</button>
-                                </div>
-                                <span class="value" id="grainMainVolumeValue">100%</span>
+                                <span class="param-name">Overall Grain Amp</span>
+                                <span class="value" id="grainMixerAmpValue">85%</span>
                             </label>
-                            <input type="range" id="grainMainVolume" min="0" max="150" value="100" step="1">
-                            <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="main">Solo Main</button>
+                            <input type="range" id="grainMixerAmp" min="0" max="200" value="85" step="1">
                         </div>
-                        <div class="control-group highlight">
-                            <label>
-                                <span class="param-name">Main String Tune</span>
-                                <div class="button-group">
-                                    <button class="lfo-toggle" data-param="grainMainTune" data-lfo="1">L1</button>
-                                    <button class="inv-toggle" data-param="grainMainTune" data-lfo="1">INV</button>
-                                    <button class="lfo-toggle" data-param="grainMainTune" data-lfo="2">L2</button>
-                                    <button class="inv-toggle" data-param="grainMainTune" data-lfo="2">INV</button>
-                                    <button class="lfo-toggle" data-param="grainMainTune" data-lfo="3">L3</button>
-                                    <button class="inv-toggle" data-param="grainMainTune" data-lfo="3">INV</button>
-                                </div>
-                                <span class="value" id="grainMainTuneValue">0st</span>
-                            </label>
-                            <input type="range" id="grainMainTune" min="-24" max="24" value="0" step="1">
-                        </div>
-                        <div class="control-group highlight">
-                            <label>
-                                <span class="param-name">String A Volume</span>
-                                <div class="button-group">
-                                    <button class="lfo-toggle" data-param="grainSynthAVolume" data-lfo="1">L1</button>
-                                    <button class="inv-toggle" data-param="grainSynthAVolume" data-lfo="1">INV</button>
-                                    <button class="lfo-toggle" data-param="grainSynthAVolume" data-lfo="2">L2</button>
-                                    <button class="inv-toggle" data-param="grainSynthAVolume" data-lfo="2">INV</button>
-                                    <button class="lfo-toggle" data-param="grainSynthAVolume" data-lfo="3">L3</button>
-                                    <button class="inv-toggle" data-param="grainSynthAVolume" data-lfo="3">INV</button>
-                                </div>
-                                <span class="value" id="grainSynthAVolumeValue">100%</span>
-                            </label>
-                            <input type="range" id="grainSynthAVolume" min="0" max="150" value="100" step="1">
-                            <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="A">Solo A</button>
-                        </div>
-                        <div class="control-group highlight">
-                            <label>
-                                <span class="param-name">String B Volume</span>
-                                <div class="button-group">
-                                    <button class="lfo-toggle" data-param="grainSynthBVolume" data-lfo="1">L1</button>
-                                    <button class="inv-toggle" data-param="grainSynthBVolume" data-lfo="1">INV</button>
-                                    <button class="lfo-toggle" data-param="grainSynthBVolume" data-lfo="2">L2</button>
-                                    <button class="inv-toggle" data-param="grainSynthBVolume" data-lfo="2">INV</button>
-                                    <button class="lfo-toggle" data-param="grainSynthBVolume" data-lfo="3">L3</button>
-                                    <button class="inv-toggle" data-param="grainSynthBVolume" data-lfo="3">INV</button>
-                                </div>
-                                <span class="value" id="grainSynthBVolumeValue">100%</span>
-                            </label>
-                            <input type="range" id="grainSynthBVolume" min="0" max="150" value="100" step="1">
-                            <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="B">Solo B</button>
-                        </div>
-                        <div class="control-group highlight">
-                            <label>
-                                <span class="param-name">String Bus Amp</span>
-                                <div class="button-group">
-                                    <button class="lfo-toggle" data-param="grainMixerAmp" data-lfo="1">L1</button>
-                                    <button class="inv-toggle" data-param="grainMixerAmp" data-lfo="1">INV</button>
-                                    <button class="lfo-toggle" data-param="grainMixerAmp" data-lfo="2">L2</button>
-                                    <button class="inv-toggle" data-param="grainMixerAmp" data-lfo="2">INV</button>
-                                    <button class="lfo-toggle" data-param="grainMixerAmp" data-lfo="3">L3</button>
-                                    <button class="inv-toggle" data-param="grainMixerAmp" data-lfo="3">INV</button>
-                                </div>
-                                <span class="value" id="grainMixerAmpValue">100%</span>
-                            </label>
-                            <input type="range" id="grainMixerAmp" min="0" max="200" value="100" step="1">
-                        </div>
-                    </div>
-                    <div class="control-group highlight">
-                        <label>
-                            <span class="param-name">String A Mix</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthAMix" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthAMix" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthAMix" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthAMix" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthAMix" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthAMix" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthAMixValue">28%</span>
-                        </label>
-                        <input type="range" id="grainSynthAMix" min="0" max="100" value="28" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label><span>String A Voice</span></label>
-                        <select id="grainSynthASource">
-                            <option value="warm">Warm Pad</option>
-                            <option value="silk">Silk Strings</option>
-                            <option value="glass">Glass Bow</option>
-                            <option value="air">Air Choir</option>
-                            <option value="sub">Sub Bloom</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String A Tune</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthATune" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthATune" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthATune" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthATune" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthATune" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthATune" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthATuneValue">+7st</span>
-                        </label>
-                        <input type="range" id="grainSynthATune" min="-24" max="24" value="7" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String A Bow</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthASize" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthASize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthASize" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthASize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthASize" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthASize" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthASizeValue">55ms</span>
-                        </label>
-                        <input type="range" id="grainSynthASize" min="10" max="500" value="55" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String A Stack</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthADensity" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthADensity" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthADensity" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthADensity" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthADensity" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthADensity" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthADensityValue">60%</span>
-                        </label>
-                        <input type="range" id="grainSynthADensity" min="0" max="100" value="60" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String A Width</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthASpread" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthASpread" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthASpread" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthASpread" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthASpread" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthASpread" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthASpreadValue">72%</span>
-                        </label>
-                        <input type="range" id="grainSynthASpread" min="0" max="100" value="72" step="1">
-                    </div>
-                    <div class="control-group highlight">
-                        <label>
-                            <span class="param-name">String B Mix</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthBMix" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthBMix" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBMix" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthBMix" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBMix" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthBMix" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthBMixValue">22%</span>
-                        </label>
-                        <input type="range" id="grainSynthBMix" min="0" max="100" value="22" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label><span>String B Voice</span></label>
-                        <select id="grainSynthBSource">
-                            <option value="air">Air Choir</option>
-                            <option value="warm">Warm Pad</option>
-                            <option value="glass">Glass Bow</option>
-                            <option value="silk">Silk Strings</option>
-                            <option value="sub">Sub Bloom</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String B Tune</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthBTune" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthBTune" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBTune" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthBTune" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBTune" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthBTune" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthBTuneValue">-12st</span>
-                        </label>
-                        <input type="range" id="grainSynthBTune" min="-24" max="24" value="-12" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String B Bow</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthBSize" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthBSize" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBSize" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthBSize" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBSize" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthBSize" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthBSizeValue">180ms</span>
-                        </label>
-                        <input type="range" id="grainSynthBSize" min="10" max="500" value="180" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String B Stack</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthBDensity" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthBDensity" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBDensity" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthBDensity" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBDensity" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthBDensity" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthBDensityValue">42%</span>
-                        </label>
-                        <input type="range" id="grainSynthBDensity" min="0" max="100" value="42" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <span class="param-name">String B Width</span>
-                            <div class="button-group">
-                                <button class="lfo-toggle" data-param="grainSynthBSpread" data-lfo="1">L1</button>
-                                <button class="inv-toggle" data-param="grainSynthBSpread" data-lfo="1">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBSpread" data-lfo="2">L2</button>
-                                <button class="inv-toggle" data-param="grainSynthBSpread" data-lfo="2">INV</button>
-                                <button class="lfo-toggle" data-param="grainSynthBSpread" data-lfo="3">L3</button>
-                                <button class="inv-toggle" data-param="grainSynthBSpread" data-lfo="3">INV</button>
-                            </div>
-                            <span class="value" id="grainSynthBSpreadValue">88%</span>
-                        </label>
-                        <input type="range" id="grainSynthBSpread" min="0" max="100" value="88" step="1">
                     </div>
                 </div>
 
@@ -7015,47 +6838,60 @@
         const GRAIN_SCHEDULER_LOOKAHEAD = 0.12;
         const GRAIN_SCHEDULER_INTERVAL = 10;
         const GRAIN_TIMING_MODE_LABELS = {
-            cloud: 'Ensemble',
-            rhythmic: 'Pulse',
-            drum: 'Pluck'
+            synth: 'Playable'
         };
-        const GRANULAR_STRING_SOURCE_DEFINITIONS = {
-            warm: {
-                label: 'Warm Pad',
-                harmonics: [1, 0.62, 0.28, 0.14, 0.08],
-                detuneCents: 4,
-                shimmerDepth: 0.012,
-                lowpassTilt: 0.88
+        const GRANULAR_LAYER_SOURCE_DEFAULTS = {
+            main: 'mic',
+            A: 'grainAMic',
+            B: 'grainBMic'
+        };
+        const GRANULAR_LAYER_DEFINITIONS = [
+            {
+                key: 'main',
+                label: 'Main Grain',
+                sourceId: 'grainMainSource',
+                startId: 'grainMainStart',
+                sizeId: 'grainSize',
+                pitchId: 'grainMainTune',
+                attackId: 'attack',
+                decayId: 'grainMainDecay',
+                releaseId: 'release',
+                blendId: 'grainMainBlend',
+                volumeId: 'grainMainVolume',
+                soloKey: 'main',
+                panBias: 0
             },
-            silk: {
-                label: 'Silk Strings',
-                harmonics: [1, 0.56, 0.34, 0.18, 0.1, 0.05],
-                detuneCents: 8,
-                shimmerDepth: 0.02,
-                lowpassTilt: 0.98
+            {
+                key: 'A',
+                label: 'Grain A',
+                sourceId: 'grainSynthASource',
+                startId: 'grainSynthAStart',
+                sizeId: 'grainSynthASize',
+                pitchId: 'grainSynthATune',
+                attackId: 'grainSynthAAttack',
+                decayId: 'grainSynthADecay',
+                releaseId: 'grainSynthARelease',
+                blendId: 'grainSynthAMix',
+                volumeId: 'grainSynthAVolume',
+                soloKey: 'A',
+                panBias: -0.22
             },
-            glass: {
-                label: 'Glass Bow',
-                harmonics: [1, 0.34, 0.42, 0.22, 0.14, 0.08],
-                detuneCents: 12,
-                shimmerDepth: 0.036,
-                lowpassTilt: 1.12
-            },
-            air: {
-                label: 'Air Choir',
-                harmonics: [0.88, 0.42, 0.26, 0.16, 0.1, 0.06],
-                detuneCents: 10,
-                shimmerDepth: 0.028,
-                lowpassTilt: 1.04
-            },
-            sub: {
-                label: 'Sub Bloom',
-                harmonics: [1, 0.24, 0.08, 0.03],
-                detuneCents: 2,
-                shimmerDepth: 0.008,
-                lowpassTilt: 0.72
+            {
+                key: 'B',
+                label: 'Grain B',
+                sourceId: 'grainSynthBSource',
+                startId: 'grainSynthBStart',
+                sizeId: 'grainSynthBSize',
+                pitchId: 'grainSynthBTune',
+                attackId: 'grainSynthBAttack',
+                decayId: 'grainSynthBDecay',
+                releaseId: 'grainSynthBRelease',
+                blendId: 'grainSynthBMix',
+                volumeId: 'grainSynthBVolume',
+                soloKey: 'B',
+                panBias: 0.22
             }
-        };
+        ];
         const FINAL_PAN_AUDIO_MODE_LABELS = {
             peak: 'Peak',
             centroid: 'Centroid',
@@ -7270,8 +7106,6 @@
             B: 11
         };
         const baseFrequency = 65.41; // C2
-        const granularStringBufferCache = new Map();
-
         // LFO State
         let lfoStartTime = 0;
         let lfoEnabled = {};
@@ -8006,6 +7840,9 @@
             outputLoopStart: { min: 0, max: 100 },
             outputLoopEnd: { min: 0, max: 100 },
             grainSize: { min: 10, max: 500 },
+            grainMainStart: { min: 0, max: 100 },
+            grainMainDecay: { min: 1, max: 5000 },
+            grainMainBlend: { min: 0, max: 100 },
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
             spray: { min: 0, max: 100 },
@@ -8016,7 +7853,15 @@
             grainTune: { min: -24, max: 24 },
             grainMainTune: { min: -24, max: 24 },
             grainMainVolume: { min: 0, max: 150 },
+            grainSynthAStart: { min: 0, max: 100 },
+            grainSynthAAttack: { min: 1, max: 5000 },
+            grainSynthADecay: { min: 1, max: 5000 },
+            grainSynthARelease: { min: 1, max: 5000 },
             grainSynthAVolume: { min: 0, max: 150 },
+            grainSynthBStart: { min: 0, max: 100 },
+            grainSynthBAttack: { min: 1, max: 5000 },
+            grainSynthBDecay: { min: 1, max: 5000 },
+            grainSynthBRelease: { min: 1, max: 5000 },
             grainSynthBVolume: { min: 0, max: 150 },
             grainMixerAmp: { min: 0, max: 200 },
             grainSynthAMix: { min: 0, max: 100 },
@@ -8145,32 +7990,33 @@
         };
         const ACTIVE_GRAIN_REALTIME_CONTROL_IDS = new Set([
             'grainSize',
-            'density',
-            'position',
-            'spray',
-            'grainPlaybackSpeed',
             'attack',
+            'grainMainStart',
+            'grainMainDecay',
+            'grainMainBlend',
             'release',
-            'pitchVar',
-            'grainTune',
             'grainMainTune',
             'grainMainVolume',
+            'grainSynthAStart',
+            'grainSynthAAttack',
+            'grainSynthADecay',
+            'grainSynthARelease',
             'grainSynthAVolume',
+            'grainSynthBStart',
+            'grainSynthBAttack',
+            'grainSynthBDecay',
+            'grainSynthBRelease',
             'grainSynthBVolume',
             'grainMixerAmp',
             'grainSynthAMix',
             'grainSynthATune',
             'grainSynthASize',
-            'grainSynthADensity',
-            'grainSynthASpread',
             'grainSynthBMix',
             'grainSynthBTune',
             'grainSynthBSize',
-            'grainSynthBDensity',
-            'grainSynthBSpread',
             'noiseMix',
-            ...SOURCE_GRAIN_CONTROL_IDS,
-            ...Object.values(SOURCE_TUNE_CONTROL_IDS)
+            'panSpread',
+            ...SOURCE_GRAIN_CONTROL_IDS
         ]);
         let sourceWaveformSoloKinds = new Set();
         let sourceWaveformSoloAuditionNodes = [];
@@ -8210,14 +8056,16 @@
         }
 
         const presetToggleParams = [
-            'sampleStart', 'sampleEnd', 'grainSize', 'density', 'position', 'spray', 'attack', 'release',
+            'sampleStart', 'sampleEnd', 'grainSize', 'grainMainStart', 'grainMainDecay', 'grainMainBlend', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
             'outputLoopStart', 'outputLoopEnd',
             'pitchVar', 'grainTune', 'grainPlaybackSpeed',
             'grainMainTune',
+            'grainSynthAStart', 'grainSynthAAttack', 'grainSynthADecay', 'grainSynthARelease',
             'grainMainVolume', 'grainSynthAVolume', 'grainSynthBVolume', 'grainMixerAmp',
             'grainSynthAMix', 'grainSynthATune', 'grainSynthASize', 'grainSynthADensity', 'grainSynthASpread',
+            'grainSynthBStart', 'grainSynthBAttack', 'grainSynthBDecay', 'grainSynthBRelease',
             'grainSynthBMix', 'grainSynthBTune', 'grainSynthBSize', 'grainSynthBDensity', 'grainSynthBSpread',
             'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ',
             'filterEnvAmount', 'filterEnvAttack', 'filterEnvDecay', 'filterEnvSustain', 'filterEnvRelease',
@@ -10863,9 +10711,8 @@
             const now = audioContext.currentTime;
             const perSourceGain = Math.min(0.8, 0.72 / Math.sqrt(Math.max(1, sources.length)));
             sources.forEach((sourceInfo) => {
-                const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
-                const buffer = getTempoLockedPitchBuffer(sourceInfo.buffer, sourceTuneRatio);
                 const { startPct, endPct } = getLoopRange(sourceInfo.startId, sourceInfo.endId);
+                const buffer = sourceInfo.buffer;
                 const offset = buffer.duration * startPct;
                 const loopEnd = Math.min(buffer.duration, Math.max(offset + 0.01, buffer.duration * endPct));
                 const fadeSeconds = getFadeSecondsForDuration(loopEnd - offset);
@@ -10938,7 +10785,7 @@
                 buffer,
                 startId: config.startId,
                 endId: config.endId,
-                tuneSemitones: getSourceTuneSemitones(kind)
+                tuneSemitones: 0
             };
         }
 
@@ -10960,96 +10807,118 @@
             ].filter(Boolean);
         }
 
-        function normalizeGranularStringSourceMode(value, options = {}) {
-            const layer = options.layer === 'B' ? 'B' : 'A';
-            const fallback = layer === 'B' ? 'air' : 'warm';
+        function normalizeGranularLayerSourceMode(value, options = {}) {
+            const layer = options.layer === 'A' || options.layer === 'B' ? options.layer : 'main';
+            const fallback = GRANULAR_LAYER_SOURCE_DEFAULTS[layer] || GRANULAR_LAYER_SOURCE_DEFAULTS.main;
             const normalized = String(value || '').trim().toLowerCase();
             const legacyMap = {
-                all: fallback,
-                generated: 'warm',
-                mic: 'silk',
-                layermic: layer === 'B' ? 'air' : 'silk',
-                output: 'glass'
+                warm: 'generated',
+                silk: 'mic',
+                glass: 'output',
+                air: layer === 'B' ? 'grainBMic' : 'grainAMic',
+                sub: 'generated',
+                layermic: layer === 'B' ? 'grainBMic' : 'grainAMic'
             };
-            const resolved = legacyMap[normalized] || normalized;
-            return Object.prototype.hasOwnProperty.call(GRANULAR_STRING_SOURCE_DEFINITIONS, resolved)
-                ? resolved
-                : fallback;
-        }
-
-        function buildGranularStringSourceBuffer(mode = 'warm') {
-            if (!audioContext) return null;
-            const resolvedMode = normalizeGranularStringSourceMode(mode);
-            const definition = GRANULAR_STRING_SOURCE_DEFINITIONS[resolvedMode] || GRANULAR_STRING_SOURCE_DEFINITIONS.warm;
-            const cacheKey = `${resolvedMode}:${audioContext.sampleRate}`;
-            const cached = granularStringBufferCache.get(cacheKey);
-            if (cached && cached.context === audioContext) {
-                return cached.buffer;
-            }
-
-            const durationSeconds = resolvedMode === 'sub' ? 1.8 : 1.35;
-            const frameCount = Math.max(1, Math.floor(audioContext.sampleRate * durationSeconds));
-            const buffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate);
-            const data = buffer.getChannelData(0);
-            const detuneRatio = Math.pow(2, (definition.detuneCents || 0) / 1200);
-            const harmonicTilt = Math.max(0.2, Number(definition.lowpassTilt) || 1);
-            const shimmerDepth = Math.max(0, Number(definition.shimmerDepth) || 0);
-
-            let peak = 0;
-            for (let index = 0; index < frameCount; index += 1) {
-                const time = index / audioContext.sampleRate;
-                let sample = 0;
-                definition.harmonics.forEach((amplitude, harmonicIndex) => {
-                    const harmonicNumber = harmonicIndex + 1;
-                    const harmonicPhase = harmonicNumber * Math.PI * 0.17;
-                    const baseOmega = Math.PI * 2 * baseFrequency * harmonicNumber;
-                    const overtoneScale = 1 / Math.pow(harmonicNumber, harmonicTilt);
-                    const shimmer = 1 + (Math.sin((time * Math.PI * 2 * (0.11 + harmonicIndex * 0.03)) + harmonicPhase) * shimmerDepth);
-                    const primary = Math.sin((baseOmega * time * shimmer) + harmonicPhase);
-                    const detuned = Math.sin((baseOmega * detuneRatio * time) + (harmonicPhase * 1.37));
-                    sample += (primary * amplitude * overtoneScale);
-                    sample += (detuned * amplitude * overtoneScale * 0.42);
-                });
-                sample = Math.tanh(sample * 0.92);
-                sample *= 0.86 + (0.14 * Math.sin((time * Math.PI * 2 * 0.31) + 0.8));
-                data[index] = sample;
-                peak = Math.max(peak, Math.abs(sample));
-            }
-
-            if (peak > 0.001) {
-                const scale = 0.94 / peak;
-                for (let index = 0; index < frameCount; index += 1) {
-                    data[index] *= scale;
-                }
-            }
-
-            granularStringBufferCache.set(cacheKey, { context: audioContext, buffer });
-            return buffer;
-        }
-
-        function makeGranularStringSource(mode = 'warm') {
-            const resolvedMode = normalizeGranularStringSourceMode(mode);
-            const buffer = buildGranularStringSourceBuffer(resolvedMode);
-            if (!buffer) return null;
-            return {
-                kind: `string:${resolvedMode}`,
-                buffer,
-                startId: null,
-                endId: null,
-                tuneSemitones: 0
+            const canonicalMap = {
+                all: 'all',
+                generated: 'generated',
+                mic: 'mic',
+                grainamic: 'grainAMic',
+                grainbmic: 'grainBMic',
+                output: 'output'
             };
-        }
-
-        function getGranularStringMainSources() {
-            return ['warm', 'silk'].map((mode) => makeGranularStringSource(mode)).filter(Boolean);
+            const resolved = canonicalMap[legacyMap[normalized] || normalized] || legacyMap[normalized] || normalized;
+            if (['all', 'generated', 'mic', 'grainAMic', 'grainBMic', 'output'].includes(resolved)) {
+                return resolved;
+            }
+            return fallback;
         }
 
         function getAvailableGranularSources(options = {}) {
-            const mode = options.mode || 'all';
-            if (!options.layer && (mode === 'all' || !mode)) {
-                return getGranularStringMainSources();
+            const layer = options.layer === 'A' || options.layer === 'B' ? options.layer : 'main';
+            const mode = normalizeGranularLayerSourceMode(options.mode || GRANULAR_LAYER_SOURCE_DEFAULTS[layer], { layer });
+            let sources = [];
+
+            if (mode === 'generated') {
+                sources = [makeGranularSource('generated')].filter(Boolean);
+            } else if (mode === 'mic') {
+                sources = [makeGranularSource('mic')].filter(Boolean);
+            } else if (mode === 'grainAMic') {
+                sources = [makeGranularSource('grainAMic')].filter(Boolean);
+            } else if (mode === 'grainBMic') {
+                sources = [makeGranularSource('grainBMic')].filter(Boolean);
+            } else if (mode === 'output') {
+                sources = [makeGranularSource('output')].filter(Boolean);
+            } else {
+                sources = getAllGranularSources();
             }
-            return [makeGranularStringSource(mode)].filter(Boolean);
+
+            if (sources.length === 0 && mode !== 'all') {
+                const fallbackMode = GRANULAR_LAYER_SOURCE_DEFAULTS[layer] || GRANULAR_LAYER_SOURCE_DEFAULTS.main;
+                if (fallbackMode !== mode) {
+                    sources = getAvailableGranularSources({ mode: fallbackMode, layer });
+                }
+            }
+
+            if (sources.length === 0 && audioBuffer) {
+                sources.push({ kind: 'legacy', buffer: audioBuffer, startId: 'sampleStart', endId: 'sampleEnd', tuneSemitones: 0 });
+            }
+            return sources;
+        }
+
+        function normalizeGranularLayerSourceSelects() {
+            GRANULAR_LAYER_DEFINITIONS.forEach((definition) => {
+                const select = document.getElementById(definition.sourceId);
+                if (!select) return;
+                const normalized = normalizeGranularLayerSourceMode(select.value, { layer: definition.key });
+                if (select.value !== normalized) {
+                    select.value = normalized;
+                }
+            });
+        }
+
+        function getGranularLayerIntervalSeconds(sizeSeconds, blendAmount = 0) {
+            const blend = Math.max(0, Math.min(1, Number(blendAmount) || 0));
+            const overlapScale = 0.92 - (blend * 0.52);
+            return Math.max(0.025, Math.min(0.18, Math.max(0.01, Number(sizeSeconds) || 0.01) * overlapScale));
+        }
+
+        function getGranularLayerJitterSeconds(sizeSeconds, blendAmount = 0) {
+            const blend = Math.max(0, Math.min(1, Number(blendAmount) || 0));
+            return Math.min(
+                Math.max(0.004, Math.max(0.01, Number(sizeSeconds) || 0.01) * 0.12),
+                Math.max(0, Math.max(0.01, Number(sizeSeconds) || 0.01) * 0.08 * blend)
+            );
+        }
+
+        function getGranularLayerSettings(noteFreq, velocity = 1) {
+            const velocityMultiplier = Number.isFinite(Number(velocity)) ? Math.max(0, Math.min(1, Number(velocity))) : 1;
+            return GRANULAR_LAYER_DEFINITIONS.map((definition) => {
+                const sizeMs = Number(getModulatedValue(definition.sizeId)) || 120;
+                const attackMs = Number(getModulatedValue(definition.attackId)) || 1;
+                const decayMs = Number(getModulatedValue(definition.decayId)) || 1;
+                const releaseMs = Number(getModulatedValue(definition.releaseId)) || 1;
+                const pitchSemitones = Number(getModulatedValue(definition.pitchId)) || 0;
+                const startPct = Math.max(0, Math.min(100, Number(getModulatedValue(definition.startId)) || 0)) / 100;
+                const blend = Math.max(0, Math.min(1, (Number(getModulatedValue(definition.blendId)) || 0) / 100));
+                const volume = getGrainLayerGain(definition.volumeId, 1) * getGrainLayerSoloGain(definition.soloKey) * velocityMultiplier;
+                const pitchRatio = Math.max(0.0625, Math.min(16, (noteFreq / baseFrequency) * Math.pow(2, pitchSemitones / 12)));
+                const sizeSeconds = Math.max(0.01, Math.min(0.5, sizeMs / 1000));
+                return {
+                    ...definition,
+                    sourceMode: normalizeGranularLayerSourceMode(document.getElementById(definition.sourceId)?.value, { layer: definition.key }),
+                    startPct,
+                    sizeSeconds,
+                    attackSeconds: Math.max(getFadeSecondsForDuration(sizeSeconds), attackMs / 1000),
+                    decaySeconds: Math.max(0.001, decayMs / 1000),
+                    releaseSeconds: Math.max(getFadeSecondsForDuration(sizeSeconds), releaseMs / 1000),
+                    blend,
+                    volume,
+                    pitchRatio,
+                    intervalSeconds: getGranularLayerIntervalSeconds(sizeSeconds, blend),
+                    jitterSeconds: getGranularLayerJitterSeconds(sizeSeconds, blend)
+                };
+            }).filter((definition) => definition.volume > 0.0005);
         }
 
         function getSourceGrainControlValue(kind, role, fallback) {
@@ -11192,12 +11061,12 @@
         }
 
         function getGrainTimingMode() {
-            const value = document.getElementById('grainTimingMode')?.value || 'cloud';
-            return Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'cloud';
+            const value = document.getElementById('grainTimingMode')?.value || 'synth';
+            return Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'synth';
         }
 
         function syncGrainTimingModeControls(value = getGrainTimingMode()) {
-            const mode = Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'cloud';
+            const mode = Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'synth';
             const label = GRAIN_TIMING_MODE_LABELS[mode];
             const grainSelect = document.getElementById('grainTimingMode');
             if (grainSelect && grainSelect.value !== mode) grainSelect.value = mode;
@@ -11217,7 +11086,7 @@
         }
 
         function setGrainTimingMode(value, options = {}) {
-            const mode = Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'cloud';
+            const mode = Object.prototype.hasOwnProperty.call(GRAIN_TIMING_MODE_LABELS, value) ? value : 'synth';
             syncGrainTimingModeControls(mode);
             updateGeneratedDryLoopMix();
             if (!options.skipRestart && arpEnabled && holdEnabled && audioContext) {
@@ -11226,69 +11095,32 @@
                 scheduleActiveGrains();
             }
             if (!options.silent) {
-                const messages = {
-                    cloud: 'Ensemble mode: smooth overlapping string grains with gentle drift.',
-                    rhythmic: 'Pulse mode: tempo-shaped string grains that lock to the clock.',
-                    drum: 'Pluck mode: short bowed/plucked grains with tighter articulation.'
-                };
-                setStatus(messages[mode]);
+                setStatus('Playable mode: layered granular sample playback with direct pitch, start, and envelope control.');
             }
             if (!options.skipSave && typeof saveState === 'function') saveState();
             return mode;
         }
 
         function getGrainModeProfile(mode = getGrainTimingMode()) {
-            if (mode === 'drum') {
-                return {
-                    mode,
-                    minGrainSize: 0.07,
-                    maxGrainSize: 0.2,
-                    minAttack: 0.01,
-                    minRelease: 0.06,
-                    releaseRatio: 0.55,
-                    sprayScale: 0.16,
-                    dryMixCap: 0.86,
-                    intervalScale: 0.9,
-                    jitterAmount: 0.025,
-                    positionDriftMin: 0,
-                    positionDriftMax: 0.03
-                };
-            }
-            if (mode === 'rhythmic') {
-                return {
-                    mode,
-                    minGrainSize: 0.11,
-                    maxGrainSize: 0.32,
-                    minAttack: 0.024,
-                    minRelease: 0.12,
-                    releaseRatio: 0.9,
-                    sprayScale: 0.14,
-                    dryMixCap: 0.62,
-                    intervalScale: 0.88,
-                    jitterAmount: 0.05,
-                    positionDriftMin: 0.006,
-                    positionDriftMax: 0.06
-                };
-            }
             return {
-                mode: 'cloud',
-                minGrainSize: 0.16,
-                maxGrainSize: 0.42,
-                minAttack: 0.045,
-                minRelease: 0.24,
-                releaseRatio: 1.55,
-                sprayScale: 0.1,
-                dryMixCap: 0.28,
-                intervalScale: 2.7,
-                jitterAmount: 0.035,
-                positionDriftMin: 0.005,
-                positionDriftMax: 0.04,
-                continuousTravelRate: 1.45,
-                continuousTravelDrift: 0.06,
-                sourceSizeScale: 0.62,
-                sourceFadeScale: 1.05,
-                sourceGainScale: 0.96,
-                maxSourceSizeSeconds: 0.42
+                mode: 'synth',
+                minGrainSize: 0.01,
+                maxGrainSize: 0.5,
+                minAttack: 0.001,
+                minRelease: 0.01,
+                releaseRatio: 1,
+                sprayScale: 0,
+                dryMixCap: 0.35,
+                intervalScale: 1,
+                jitterAmount: 0,
+                positionDriftMin: 0,
+                positionDriftMax: 0,
+                continuousTravelRate: 1,
+                continuousTravelDrift: 0,
+                sourceSizeScale: 1,
+                sourceFadeScale: 1,
+                sourceGainScale: 1,
+                maxSourceSizeSeconds: 0.5
             };
         }
 
@@ -14886,9 +14718,6 @@
             if (arpCurrentNote) {
                 const currentArpStreamId = getArpGrainStreamId(arpCurrentNote);
                 stopGrainStream(arpCurrentNote, { role: 'arp', streamId: currentArpStreamId });
-                if (currentArpStreamId !== 'arp:cloud') {
-                    stopGrainStream(arpCurrentNote, { role: 'arp', streamId: 'arp:cloud' });
-                }
                 stopOscillatorNote(arpCurrentNote, null, { role: 'arp' });
                 arpCurrentNote = null;
             }
@@ -15109,29 +14938,20 @@
             const nextNote = getNextArpeggiatorNote(notes);
             const scheduledTime = arpNextStepTime;
             const playTime = Math.max(currentTime, scheduledTime);
-            const grainMode = getGrainTimingMode();
-            const isCloudArp = grainMode === 'cloud';
             const arpGrainStreamId = getArpGrainStreamId(nextNote);
 
             if (arpCurrentNote) {
                 const stopTime = Math.max(0, playTime - getClickGuardSeconds());
-                if (!isCloudArp) {
-                    stopGrainStream(arpCurrentNote, { role: 'arp', streamId: getArpGrainStreamId(arpCurrentNote) });
-                }
+                stopGrainStream(arpCurrentNote, { role: 'arp', streamId: getArpGrainStreamId(arpCurrentNote) });
                 stopOscillatorNote(arpCurrentNote, stopTime, { role: 'arp' });
             }
 
-            const streamStartTime = getTransportLoopOriginTime() ?? currentTime;
-            if (isCloudArp && activeGrains.has(arpGrainStreamId)) {
-                retargetGrainStream(arpGrainStreamId, nextNote, 1);
-            } else {
-                startGrainStream(nextNote, playTime, 1, {
-                    role: 'arp',
-                    streamId: arpGrainStreamId,
-                    streamStartTime,
-                    continuousLoop: isCloudArp
-                });
-            }
+            startGrainStream(nextNote, playTime, 1, {
+                role: 'arp',
+                streamId: arpGrainStreamId,
+                streamStartTime: playTime,
+                continuousLoop: false
+            });
             playOscillatorNote(nextNote, playTime, 1, { role: 'arp' });
             arpCurrentNote = nextNote;
 
@@ -15667,9 +15487,7 @@
         }
 
         function getArpGrainStreamId(note = arpCurrentNote) {
-            return getGrainTimingMode() === 'cloud'
-                ? 'arp:cloud'
-                : makePerformanceStreamId('arp', note);
+            return makePerformanceStreamId('arp', note);
         }
 
         function retargetGrainStream(streamId, note, velocity = 1) {
@@ -15776,7 +15594,7 @@
                 const sizeSeconds = Math.max(0.01, Math.min(0.5, (Number(getModulatedValue(spec.sizeId)) || 80) / 1000));
                 const density = Math.max(0, Math.min(1, Number(getModulatedValue(spec.densityId)) / 100 || 0));
                 const spread = Math.max(0, Math.min(1, Number(getModulatedValue(spec.spreadId)) / 100 || 0));
-                const sourceMode = normalizeGranularStringSourceMode(
+                const sourceMode = normalizeGranularLayerSourceMode(
                     document.getElementById(spec.sourceId)?.value,
                     { layer: spec.label }
                 );
@@ -15823,17 +15641,78 @@
             return Math.max(modeProfile.minGrainSize, Math.min(modeProfile.maxGrainSize, fallbackSeconds));
         }
 
+        function getGranularKeyboardVolumeBiasGain(noteFreq) {
+            const volumeBiasValue = typeof keyboardVolumeBias === 'number' && isFinite(keyboardVolumeBias)
+                ? keyboardVolumeBias
+                : 0;
+            const minFreq = 32.70;
+            const maxFreq = 123.47;
+            let normalizedPitch = (Math.log(noteFreq) - Math.log(minFreq)) / (Math.log(maxFreq) - Math.log(minFreq));
+            normalizedPitch = Math.max(0, Math.min(1, normalizedPitch));
+            if (volumeBiasValue === 0) return 1;
+
+            const range = 0.7;
+            const minVol = 0.3;
+            if (volumeBiasValue < 0) {
+                return minVol + range * (1 - normalizedPitch * Math.abs(volumeBiasValue));
+            }
+            return minVol + range * (normalizedPitch * volumeBiasValue + (1 - volumeBiasValue));
+        }
+
+        function resolveGranularLayerSampleWindow(sourceInfo, layer, scheduledTime, streamStartTime, modeProfile = getGrainModeProfile()) {
+            if (!sourceInfo?.buffer) return null;
+            const minimumFadeSeconds = getFadeSecondsForDuration(layer.sizeSeconds);
+            const sourceShape = getSourceGrainShape(sourceInfo, {
+                positionPct: layer.startPct,
+                sizeSeconds: layer.sizeSeconds
+            }, {
+                attack: layer.attackSeconds,
+                release: layer.releaseSeconds,
+                minimumFadeSeconds
+            }, modeProfile);
+            const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
+            const loopStart = Math.max(0, sourceInfo.buffer.duration * loopRange.startPct);
+            const loopEnd = Math.min(sourceInfo.buffer.duration, Math.max(loopStart + 0.001, sourceInfo.buffer.duration * loopRange.endPct));
+            const loopDuration = Math.max(0.001, loopEnd - loopStart);
+            const playbackRate = Math.max(
+                0.0625,
+                Math.min(16, layer.pitchRatio * Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12))
+            );
+            const sourceDuration = Math.max(0.001, Math.min(loopDuration, sourceShape.sizeSeconds * playbackRate));
+            const grainDuration = Math.max(minimumFadeSeconds * 2, sourceDuration / playbackRate);
+            const maxOffsetSpan = Math.max(0, loopDuration - sourceDuration);
+            const baseOffset = wrapUnitInterval(sourceShape.positionPct) * maxOffsetSpan;
+            const elapsed = Math.max(0, (scheduledTime ?? audioContext.currentTime) - (streamStartTime ?? scheduledTime ?? audioContext.currentTime));
+            const scanOffset = maxOffsetSpan > 0 && streamStartTime !== undefined && streamStartTime !== null
+                ? (elapsed * playbackRate) % maxOffsetSpan
+                : 0;
+            const jitterOffset = maxOffsetSpan > 0
+                ? (Math.random() * 2 - 1) * Math.min(maxOffsetSpan * 0.5, Math.max(0, layer.jitterSeconds) * playbackRate)
+                : 0;
+            const playOffset = Math.max(
+                loopStart,
+                Math.min(loopStart + maxOffsetSpan, loopStart + baseOffset + scanOffset + jitterOffset)
+            );
+
+            return {
+                playbackRate,
+                playOffset,
+                sourceDuration,
+                grainDuration,
+                attackSeconds: sourceShape.sourceAttack,
+                releaseSeconds: sourceShape.sourceRelease
+            };
+        }
+
         function playGrain(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
             const grainMode = options.grainMode || getGrainTimingMode();
             const modeProfile = getGrainModeProfile(grainMode);
-            
-            // Prevent runaway node creation with smart recovery
+
             if (activeGrainNodes >= MAX_GRAIN_NODES) {
-                // Try to recover by checking if grains are actually active
                 if (activeGrains.size === 0) {
                     console.log('Resetting orphaned grain node counter on max reached');
-                    activeGrainNodes = 0; // Reset if no streams active
+                    activeGrainNodes = 0;
                 } else {
                     console.warn('Max grain nodes reached, skipping grain');
                     return;
@@ -15841,405 +15720,178 @@
             }
             activeGrainNodes++;
 
-            // Validate note frequency exists
             const noteFreq = getGranularKeyboardNoteFrequency(note);
             if (!noteFreq || !isFinite(noteFreq)) {
                 console.warn('Invalid note frequency for:', note);
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
-                return; // Exit early - can't play without valid frequency
+                return;
             }
 
-            // Params with LFO modulation - with safety defaults
-            const grainSize = getModeScaledMainGrainSizeSeconds(grainMode, 100);
-            const minimumFadeSeconds = getFadeSecondsForDuration(grainSize);
-            
-            const attackRaw = getModulatedValue('attack');
-            let attack = (typeof attackRaw === 'number' && isFinite(attackRaw) && attackRaw >= 0)
-                ? Math.max(attackRaw / 1000, minimumFadeSeconds)
-                : 0.01; // 10ms default
-            
-            const releaseRaw = getModulatedValue('release');
-            let release = (typeof releaseRaw === 'number' && isFinite(releaseRaw) && releaseRaw >= 0)
-                ? Math.max(releaseRaw / 1000, minimumFadeSeconds)
-                : 0.01; // 10ms default
-            attack = Math.max(attack, modeProfile.minAttack);
-            release = Math.max(release, modeProfile.minRelease, grainSize * modeProfile.releaseRatio);
-            
-            const sprayRaw = getModulatedValue('spray');
-            const spray = (typeof sprayRaw === 'number' && isFinite(sprayRaw)) 
-                ? sprayRaw / 100 
-                : 0;
-            
-            const pitchVarRaw = getModulatedValue('pitchVar');
-            const pitchVar = (typeof pitchVarRaw === 'number' && isFinite(pitchVarRaw)) 
-                ? pitchVarRaw / 100 
-                : 0;
-            
-            const panSpreadRaw = getModulatedValue('panSpread');
-            const panSpread = (typeof panSpreadRaw === 'number' && isFinite(panSpreadRaw)) 
-                ? panSpreadRaw / 100 
-                : 0;
-            
-            const noiseMixRaw = getModulatedValue('noiseMix');
-            const noiseMix = (typeof noiseMixRaw === 'number' && isFinite(noiseMixRaw)) 
-                ? noiseMixRaw / 100 
-                : 0;
+            const requestedLayerKeys = Array.isArray(options.layerKeys) && options.layerKeys.length > 0
+                ? new Set(options.layerKeys)
+                : null;
+            const layerSettings = (Array.isArray(options.layerSettings) && options.layerSettings.length > 0
+                ? options.layerSettings
+                : getGranularLayerSettings(noteFreq, velocity))
+                .filter((layer) => !requestedLayerKeys || requestedLayerKeys.has(layer.key));
 
-            // Pitch calculation uses the same octave-transposed keyboard frequency as oscillators.
-            let rate = noteFreq / baseFrequency;
-            
-            // Add Pitch Randomness
-            rate *= (1 + (Math.random() * 2 - 1) * pitchVar * 0.1);
-            
-            // Get grain tuning - with safety check
-            const grainTuneRaw = getModulatedValue('grainTune');
-            const grainTuneSemitones = (typeof grainTuneRaw === 'number' && isFinite(grainTuneRaw)) 
-                ? grainTuneRaw 
-                : 0;
-            const tuningMultiplier = Math.pow(2, grainTuneSemitones / 12);
-            
-            // Calculate final rate with tuning
-            const finalRate = rate * tuningMultiplier;
-            const grainMainTuneRaw = getModulatedValue('grainMainTune');
-            const grainMainTuneSemitones = (typeof grainMainTuneRaw === 'number' && isFinite(grainMainTuneRaw))
-                ? grainMainTuneRaw
-                : 0;
-            const mainLayerRate = finalRate * Math.pow(2, grainMainTuneSemitones / 12);
-            
-            // Validate final rate
-            if (!isFinite(finalRate) || finalRate <= 0 || !isFinite(mainLayerRate) || mainLayerRate <= 0) {
-                console.warn('Invalid grain rate calculated:', { finalRate, mainLayerRate, note });
+            if (layerSettings.length === 0) {
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
-                return; // Exit early
+                return;
             }
 
-            const secondaryGrainVoices = getSecondaryGrainSynthVoices(finalRate);
-            const mainGrainVolume = getGrainLayerGain('grainMainVolume', 1) * getGrainLayerSoloGain('main');
-            const grainSynthAVolume = getGrainLayerGain('grainSynthAVolume', 1) * getGrainLayerSoloGain('A');
-            const grainSynthBVolume = getGrainLayerGain('grainSynthBVolume', 1) * getGrainLayerSoloGain('B');
+            const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
+            const panSpread = Math.max(0, Math.min(1, Number(getModulatedValue('panSpread')) / 100 || 0));
+            const noiseMix = Math.max(0, Math.min(1, Number(getModulatedValue('noiseMix')) / 100 || 0));
             const grainMixerAmp = getGrainLayerGain('grainMixerAmp', 1);
-
-            // Volume multiplier with validation
-            const volumeBiasValue = typeof keyboardVolumeBias === 'number' && isFinite(keyboardVolumeBias) 
-                ? keyboardVolumeBias 
-                : 0;
-            
-            // Calculate keyboard volume bias based on note pitch
-            // Map note frequency to a 0-1 range (using log scale for better distribution)
-            const minFreq = 32.70; // C1
-            const maxFreq = 123.47; // B2
-            let normalizedPitch = (Math.log(noteFreq) - Math.log(minFreq)) / (Math.log(maxFreq) - Math.log(minFreq));
-            // Clamp to 0-1 range to handle octave offsets that go beyond C1-B2
-            normalizedPitch = Math.max(0, Math.min(1, normalizedPitch));
-            // Apply bias: at bias=-1, bass loud (low pitch = 1.0, high pitch = 0.3)
-            //             at bias=+1, treble loud (low pitch = 0.3, high pitch = 1.0)
-            //             at bias=0, equal volume (all = 1.0)
-            let volumeMultiplier = 1.0;
-            if (volumeBiasValue !== 0) {
-                // Linear interpolation based on pitch position and bias
-                // At center (bias=0): all notes = 1.0
-                // At extremes: range from 0.3 to 1.0
-                const range = 0.7; // Volume range (1.0 - 0.3)
-                const minVol = 0.3;
-                if (volumeBiasValue < 0) {
-                    // Bass emphasis: low notes loud, high notes quiet
-                    volumeMultiplier = minVol + range * (1 - normalizedPitch * Math.abs(volumeBiasValue));
-                } else {
-                    // Treble emphasis: high notes loud, low notes quiet
-                    volumeMultiplier = minVol + range * (normalizedPitch * volumeBiasValue + (1 - volumeBiasValue));
-                }
-            }
-            
-            if (!isFinite(volumeMultiplier) || volumeMultiplier < 0) {
-                console.warn('Invalid volume multiplier:', volumeMultiplier);
-                activeGrainNodes = Math.max(0, activeGrainNodes - 1);
-                return; // Exit early
-            }
-
-            const rawVelocity = Number(velocity);
-            const velocityMultiplier = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
-            volumeMultiplier *= velocityMultiplier;
-
-            const envelope = audioContext.createGain();
-            const panner = audioContext.createStereoPanner();
+            const keyboardBiasGain = getGranularKeyboardVolumeBiasGain(noteFreq);
             const mixer = audioContext.createGain();
-            
-            // Declare source nodes that will need cleanup
-            let noiseSource = null;
-            let noiseGain = null;
+            const outputGain = audioContext.createGain();
+            const grainAmpMultiplier = Math.max(0, keyboardBiasGain * grainMixerAmp);
+            outputGain.gain.setValueAtTime(grainAmpMultiplier, now);
+            mixer.connect(outputGain);
+            outputGain.connect(granularOutputGain);
 
-            // Random Pan
-            panner.pan.value = (Math.random() * 2 - 1) * panSpread;
-            
-            // Track how many sources need to finish before cleaning up common nodes
             let sourcesRemaining = 0;
-            let cleanupCompleted = false; // Track if cleanup already happened
-            let maxEnvelopeGrainSize = grainSize;
-            let maxVoiceTotalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
-            
-            // Cleanup function for common nodes (mixer, envelope, panner)
+            let cleanupCompleted = false;
+            let maxVoiceTotalDuration = 0.02;
+
             const cleanupCommonNodes = () => {
-                sourcesRemaining--;
-                if (sourcesRemaining === 0 && !cleanupCompleted) {
+                sourcesRemaining -= 1;
+                if (sourcesRemaining <= 0 && !cleanupCompleted) {
                     cleanupCompleted = true;
-                    activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
+                    activeGrainNodes = Math.max(0, activeGrainNodes - 1);
                     try {
                         mixer.disconnect();
-                        envelope.disconnect();
-                        panner.disconnect();
-                    } catch(e) {
-                        // Node may already be disconnected
-                    }
+                        outputGain.disconnect();
+                    } catch (error) {}
                 }
             };
 
-            // Create sample source if available and needed
-            const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
-
-            const posSlider = Number.isFinite(options.positionPct)
-                ? wrapUnitInterval(options.positionPct)
-                : getModulatedValue('position') / 100;
-            const sharedAdvanceRate = Number.isFinite(options.advanceRate) && options.advanceRate > 0
-                ? options.advanceRate
-                : 1;
-            const scheduleSourceVoice = (sourceInfo, voice) => {
-                if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
-                const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
-                const sourcePitchRate = Math.max(0.0625, Math.min(16, voice.rate * sourceTuneRatio));
-                const rawAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0
-                    ? voice.advanceRate
-                    : sharedAdvanceRate;
-                const sourceAdvanceRate = Math.max(
-                    0.05,
-                    Math.min(12, rawAdvanceRate * getGrainPlaybackSpeedMultiplier() * Math.max(0.25, Math.min(4, sourcePitchRate)))
+            const scheduleLayerSource = (sourceInfo, layer, targetGain) => {
+                if (!sourceInfo?.buffer || targetGain <= 0) return;
+                const sampleWindow = resolveGranularLayerSampleWindow(
+                    sourceInfo,
+                    layer,
+                    now,
+                    options.streamStartTime,
+                    modeProfile
                 );
-                const sourceShape = getSourceGrainShape(sourceInfo, voice, {
-                    attack,
-                    release,
-                    minimumFadeSeconds
-                }, modeProfile);
-                const loopRange = getLoopRange(sourceInfo.startId, sourceInfo.endId, { modulated: true });
-                const sampleWindow = typeof mygrainUtils.resolveSampleWindow === 'function'
-                    ? mygrainUtils.resolveSampleWindow({
-                        bufferDuration: sourceInfo.buffer.duration,
-                        startPct: loopRange.startPct,
-                        endPct: loopRange.endPct,
-                        positionPct: sourceShape.positionPct,
-                        grainSizeSeconds: sourceShape.sizeSeconds,
-                        sprayAmount: voice.sprayAmount,
-                        randomValue: Math.random() * 2 - 1
-                    })
-                    : {
-                        playPosition: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
-                        grainSizeSeconds: voice.sizeSeconds,
-                        startTime: Math.max(0, sourceInfo.buffer.duration * loopRange.startPct),
-                        endTime: Math.max(0, sourceInfo.buffer.duration * loopRange.endPct)
-                    };
-                const pitchShiftedBuffer = getTempoLockedPitchBuffer(
-                    sourceInfo.buffer,
-                    getTempoLockedSourceReadRatio(sourcePitchRate)
-                );
-                const trimmedBuffer = typeof mygrainUtils.trimAudioBufferToWindow === 'function'
-                    ? mygrainUtils.trimAudioBufferToWindow(
-                        pitchShiftedBuffer,
-                        sampleWindow.startTime,
-                        sampleWindow.endTime,
-                        audioContext
-                    )
-                    : pitchShiftedBuffer;
-                maxEnvelopeGrainSize = Math.max(maxEnvelopeGrainSize, sampleWindow.grainSizeSeconds);
+                if (!sampleWindow) return;
 
                 const source = audioContext.createBufferSource();
                 const sampleGain = audioContext.createGain();
-                const voicePanner = voice.useVoicePanner ? audioContext.createStereoPanner() : null;
-                const sourceGainScale = Math.max(0.25, Number(modeProfile.sourceGainScale) || 1);
-                const targetGain = Math.max(0, Math.min(1.35, voice.gain * sourceGainScale));
-                const playPosition = options.continuousLoop
-                    ? resolveContinuousLoopPosition(sampleWindow, sourceShape.positionPct, now, options.streamStartTime, sourceAdvanceRate)
-                    : sampleWindow.playPosition;
-                const useContinuousSourceLoop = Boolean(
-                    options.continuousLoop
-                    && modeProfile.mode === 'cloud'
-                    && pitchShiftedBuffer
-                    && (sampleWindow.endTime - sampleWindow.startTime) > 0.01
-                );
-                const playbackBuffer = useContinuousSourceLoop ? pitchShiftedBuffer : trimmedBuffer;
-                const playbackOffset = useContinuousSourceLoop
-                    ? playPosition
-                    : Math.max(0, Math.min(trimmedBuffer?.duration ?? 0, playPosition - sampleWindow.startTime));
-                source.buffer = playbackBuffer;
-                source.playbackRate.value = 1;
-                source.loop = useContinuousSourceLoop;
-                if (useContinuousSourceLoop) {
-                    source.loopStart = Math.max(0, sampleWindow.startTime);
-                    source.loopEnd = Math.max(source.loopStart + 0.001, sampleWindow.endTime);
-                } else {
-                    source.loopStart = 0;
-                    source.loopEnd = trimmedBuffer?.duration ?? sampleWindow.grainSizeSeconds;
-                }
-                sampleGain.gain.setValueAtTime(0, now);
+                const voicePanner = audioContext.createStereoPanner();
+                const sourcePeakGain = Math.max(0, Math.min(1.4, targetGain));
+                const sustainGain = Math.max(0, Math.min(sourcePeakGain, sourcePeakGain * (0.62 + (layer.blend * 0.28))));
+                const attackSeconds = Math.max(getFadeSecondsForDuration(sampleWindow.grainDuration), sampleWindow.attackSeconds);
+                const bodyDuration = Math.max(sampleWindow.grainDuration, attackSeconds + 0.001);
+                const releaseSeconds = Math.max(getFadeSecondsForDuration(bodyDuration), sampleWindow.releaseSeconds);
+                const attackEnd = now + Math.min(bodyDuration * 0.7, attackSeconds);
+                const bodyEnd = now + bodyDuration;
+                const availableDecay = Math.max(0.001, bodyEnd - attackEnd);
+                const decaySeconds = Math.min(Math.max(0.001, layer.decaySeconds), availableDecay);
+                const decayEnd = Math.min(bodyEnd, attackEnd + decaySeconds);
+                const panJitter = (Math.random() * 2 - 1) * panSpread * (0.1 + (layer.blend * 0.32));
+
+                source.buffer = sourceInfo.buffer;
+                source.playbackRate.value = sampleWindow.playbackRate;
+                sampleGain.gain.setValueAtTime(0.0001, now);
+                voicePanner.pan.value = Math.max(-1, Math.min(1, layer.panBias + panJitter));
 
                 source.connect(sampleGain);
-                if (voicePanner) {
-                    voicePanner.pan.value = voice.pan;
-                    sampleGain.connect(voicePanner);
-                    voicePanner.connect(mixer);
+                sampleGain.connect(voicePanner);
+                voicePanner.connect(mixer);
+                sourcesRemaining += 1;
+
+                applyEqualPowerGainRamp(sampleGain.gain, 0.0001, sourcePeakGain, now, Math.max(0.001, attackEnd - now));
+                if (decayEnd > attackEnd + 0.0005) {
+                    applyEqualPowerGainRamp(sampleGain.gain, sourcePeakGain, sustainGain, attackEnd, decayEnd - attackEnd);
                 } else {
-                    sampleGain.connect(mixer);
+                    sampleGain.gain.setValueAtTime(sustainGain, attackEnd);
                 }
-                sourcesRemaining++;
+                sampleGain.gain.setValueAtTime(sustainGain, bodyEnd);
+                applyEqualPowerGainRamp(sampleGain.gain, sustainGain, 0.0001, bodyEnd, releaseSeconds);
 
-                const sourceSustain = Math.max(sampleWindow.grainSizeSeconds - sourceShape.sourceAttack, 0.001);
-                const totalDuration = sourceShape.sourceAttack + sourceSustain + sourceShape.sourceRelease;
-                applyEqualPowerGainRamp(sampleGain.gain, 0, targetGain, now, sourceShape.sourceAttack);
-                sampleGain.gain.setValueAtTime(targetGain, now + sourceShape.sourceAttack + sourceSustain);
-                applyEqualPowerGainRamp(sampleGain.gain, targetGain, 0, now + sourceShape.sourceAttack + sourceSustain, sourceShape.sourceRelease);
-                maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, totalDuration);
-                source.start(now, Math.max(0, Math.min((playbackBuffer?.duration ?? 0) - 0.0005, playbackOffset)));
-                source.stop(now + totalDuration);
-
+                maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, bodyDuration + releaseSeconds);
+                source.start(now, sampleWindow.playOffset, sampleWindow.sourceDuration);
+                source.stop(bodyEnd + releaseSeconds + 0.02);
                 source.onended = () => {
                     try {
                         source.disconnect();
                         sampleGain.disconnect();
-                        if (voicePanner) voicePanner.disconnect();
-                    } catch(e) {
-                        // Node may already be disconnected
-                    }
+                        voicePanner.disconnect();
+                    } catch (error) {}
                     cleanupCommonNodes();
                 };
             };
 
-            if (noiseMix < 1.0) {
-                const baseSources = getAvailableGranularSources();
-                const baseGainMap = getGranularSourceGainMap(baseSources, 1 - noiseMix);
-                baseSources.forEach((sourceInfo) => {
-                    scheduleSourceVoice(sourceInfo, {
-                        rate: mainLayerRate,
-                        gain: (baseGainMap.get(sourceInfo) ?? 0) * mainGrainVolume,
-                        positionPct: posSlider,
-                        sizeSeconds: grainSize,
-                        sprayAmount: options.continuousLoop && grainMode === 'cloud' ? 0 : spray * modeProfile.sprayScale,
-                        useVoicePanner: false,
-                        pan: 0
-                    });
+            const sampleAvailableGain = Math.max(0, 1 - noiseMix);
+            layerSettings.forEach((layer) => {
+                const layerSources = getAvailableGranularSources({ mode: layer.sourceMode, layer: layer.key });
+                const layerGainMap = getGranularSourceGainMap(layerSources, layer.volume * sampleAvailableGain);
+                layerSources.forEach((sourceInfo) => {
+                    scheduleLayerSource(sourceInfo, layer, layerGainMap.get(sourceInfo) ?? 0);
                 });
+            });
 
-                secondaryGrainVoices.forEach((voice) => {
-                    if (Math.random() > voice.density) return;
-                    const voiceSources = getAvailableGranularSources({ mode: voice.sourceMode, layer: voice.label });
-                    const voiceGainMap = getGranularSourceGainMap(voiceSources, 1 - noiseMix);
-                    const layerVolume = voice.label === 'A' ? grainSynthAVolume : grainSynthBVolume;
-                    const shiftedPosition = ((posSlider + voice.positionOffset + 1) % 1 + 1) % 1;
-                    voiceSources.forEach((sourceInfo) => {
-                        scheduleSourceVoice(sourceInfo, {
-                            rate: voice.rate,
-                            gain: (voiceGainMap.get(sourceInfo) ?? 0) * voice.mix * voice.gainTrim * layerVolume,
-                            positionPct: shiftedPosition,
-                            sizeSeconds: voice.sizeSeconds,
-                            sprayAmount: options.continuousLoop && grainMode === 'cloud'
-                                ? 0
-                                : Math.min(1, (spray + 0.12 + voice.spread * 0.2) * modeProfile.sprayScale),
-                            useVoicePanner: true,
-                            pan: (Math.random() * 2 - 1) * voice.spread
-                        });
-                    });
-                });
-            }
-
-            // Create noise source if selected
-            const noiseType = document.getElementById('noiseType').value;
-            if (noiseType !== 'none' && noiseMix > 0) {
-                noiseSource = audioContext.createBufferSource();
-                noiseSource.buffer = noiseType === 'white' ? whiteNoiseBuffer : pinkNoiseBuffer;
-                noiseSource.playbackRate.value = finalRate;
+            const noiseType = document.getElementById('noiseType')?.value || 'none';
+            const noiseBuffer = noiseType === 'white' ? whiteNoiseBuffer : (noiseType === 'pink' ? pinkNoiseBuffer : null);
+            if (noiseMix > 0 && noiseBuffer && layerSettings.length > 0) {
+                const longestLayer = layerSettings.reduce((best, layer) => {
+                    return Math.max(best, layer.sizeSeconds + layer.releaseSeconds);
+                }, 0.05);
+                const primaryLayer = layerSettings[0];
+                const noiseSource = audioContext.createBufferSource();
+                const noiseGain = audioContext.createGain();
+                noiseSource.buffer = noiseBuffer;
+                noiseSource.playbackRate.value = Math.max(0.25, Math.min(4, primaryLayer.pitchRatio));
                 noiseSource.loop = true;
-
-                noiseGain = audioContext.createGain();
-                noiseGain.gain.value = noiseMix;
-
+                noiseGain.gain.setValueAtTime(0.0001, now);
+                applyEqualPowerGainRamp(noiseGain.gain, 0.0001, Math.min(0.35, noiseMix * 0.4), now, Math.max(0.002, primaryLayer.attackSeconds));
+                noiseGain.gain.setValueAtTime(Math.min(0.35, noiseMix * 0.4), now + Math.max(0.01, longestLayer * 0.55));
+                applyEqualPowerGainRamp(
+                    noiseGain.gain,
+                    Math.min(0.35, noiseMix * 0.4),
+                    0.0001,
+                    now + Math.max(0.01, longestLayer * 0.55),
+                    Math.max(0.01, primaryLayer.releaseSeconds)
+                );
                 noiseSource.connect(noiseGain);
                 noiseGain.connect(mixer);
-                
-                sourcesRemaining++; // Track this source
-
-                const totalDuration = attack + Math.max(grainSize - attack, 0.001) + release;
-                maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, totalDuration);
+                sourcesRemaining += 1;
+                maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, longestLayer + primaryLayer.releaseSeconds);
                 noiseSource.start(now);
-                noiseSource.stop(now + totalDuration);
-                
-                // Clean up noise nodes when source finishes
+                noiseSource.stop(now + longestLayer + primaryLayer.releaseSeconds + 0.04);
                 noiseSource.onended = () => {
                     try {
                         noiseSource.disconnect();
                         noiseGain.disconnect();
-                    } catch(e) {
-                        // Node may already be disconnected
-                    }
+                    } catch (error) {}
                     cleanupCommonNodes();
                 };
             }
 
-            // Connect through filters
-            mixer.connect(envelope);
-            envelope.connect(panner);
-            panner.connect(granularOutputGain);
-
-            // Envelope - with validated values
-            const sustainTime = Math.max(maxVoiceTotalDuration - attack - release, Math.max(maxEnvelopeGrainSize - attack, 0.001)); // Ensure positive sustain duration
-
-            // Final validation before AudioParam assignments
-            if (!isFinite(volumeMultiplier) || !isFinite(attack) || !isFinite(sustainTime) || !isFinite(release)) {
-                console.warn('Invalid envelope values - volumeMultiplier:', volumeMultiplier, 'attack:', attack, 'sustainTime:', sustainTime, 'release:', release);
+            if (sourcesRemaining === 0) {
+                cleanupCompleted = true;
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
-                // Cleanup nodes that were already created
                 try {
                     mixer.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                } catch(e) {
-                    // Node may already be disconnected
-                }
+                    outputGain.disconnect();
+                } catch (error) {}
                 return;
             }
 
-            envelope.gain.setValueAtTime(0, now);
-            const grainAmpMultiplier = volumeMultiplier * grainMixerAmp;
-            applyEqualPowerGainRamp(envelope.gain, 0, grainAmpMultiplier, now, attack);
-            envelope.gain.setValueAtTime(grainAmpMultiplier, now + attack + sustainTime);
-            applyEqualPowerGainRamp(envelope.gain, grainAmpMultiplier, 0, now + attack + sustainTime, release);
-            
-            const totalDuration = attack + sustainTime + release;
-            
-            // If no sources were created at all, clean up immediately after envelope
-            if (sourcesRemaining === 0) {
-                setTimeout(() => {
-                    if (!cleanupCompleted) {
-                        cleanupCompleted = true;
-                        activeGrainNodes = Math.max(0, activeGrainNodes - 1); // Prevent negative values
-                        try {
-                            mixer.disconnect();
-                            envelope.disconnect();
-                            panner.disconnect();
-                        } catch(e) {}
-                    }
-                }, totalDuration * 1000 + 10);
-            } else {
-                // Fallback timeout in case onended doesn't fire (safety net)
-                // This ensures cleanup happens even if the onended callback fails
-                setTimeout(() => {
-                    if (!cleanupCompleted && sourcesRemaining > 0) {
-                        // onended didn't fire for all sources, force cleanup
-                        cleanupCompleted = true;
-                        activeGrainNodes = Math.max(0, activeGrainNodes - 1);
-                        try {
-                            mixer.disconnect();
-                            envelope.disconnect();
-                            panner.disconnect();
-                        } catch(e) {}
-                    }
-                }, totalDuration * 1000 + 500);
-            }
+            setTimeout(() => {
+                if (!cleanupCompleted && sourcesRemaining > 0) {
+                    cleanupCompleted = true;
+                    activeGrainNodes = Math.max(0, activeGrainNodes - 1);
+                    try {
+                        mixer.disconnect();
+                        outputGain.disconnect();
+                    } catch (error) {}
+                }
+            }, Math.max(60, (maxVoiceTotalDuration * 1000) + 500));
         }
 
         // --- Scheduler ---
@@ -16262,7 +15914,6 @@
                 startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
                 nextTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
                 loopOriginTime: options.streamStartTime
-                    ?? (role === 'keyboard' ? getTransportLoopOriginTime() : null)
                     ?? (scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime),
                 velocity: Number.isFinite(Number(velocity)) ? Math.max(0, Math.min(1, Number(velocity))) : 1
             };
@@ -16271,7 +15922,7 @@
             activeGrains.set(streamId, {
                 note,
                 role,
-                continuousLoop: options.continuousLoop ?? role === 'keyboard',
+                continuousLoop: options.continuousLoop ?? true,
                 cancel: () => {},
                 startTime: grainState.startTime,
                 loopOriginTime: grainState.loopOriginTime,
@@ -16365,26 +16016,25 @@
             const scheduleUntil = audioContext.currentTime + GRAIN_SCHEDULER_LOOKAHEAD;
 
             activeGrains.forEach((grainInfo) => {
-                const modeProfile = getGrainModeProfile();
-                const density = Math.max(1, Number(getModulatedValue('density')) || 1);
-                const intervalSeconds = Math.max(0.01, getGrainSchedulerIntervalSeconds(density, modeProfile));
-                const basePosition = getModulatedValue('position') / 100;
-                const sprayValue = Math.max(0, Math.min(1, Number(getModulatedValue('spray')) / 100 || 0));
+                const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
+                if (!noteFreq || !isFinite(noteFreq)) return;
+                const layerSettings = getGranularLayerSettings(noteFreq, grainInfo.velocity);
+                const intervalSeconds = Math.max(
+                    0.012,
+                    Math.min(
+                        0.14,
+                        ...layerSettings.map((layer) => Math.max(0.012, Number(layer.intervalSeconds) || 0.012))
+                    )
+                );
 
                 while (grainInfo.nextTime < scheduleUntil) {
                     try {
-                        const grainTime = getJitteredGrainScheduleTime(grainInfo.nextTime, intervalSeconds, modeProfile);
-                        const positionPct = getSmoothedCloudPosition(grainInfo, basePosition, sprayValue, grainTime, modeProfile);
-                        const advanceRate = modeProfile.mode === 'cloud'
-                            ? getCloudContinuousAdvanceRate(grainInfo, grainTime, modeProfile)
-                            : 1;
-                        playGrain(grainInfo.note, grainTime, grainInfo.velocity, {
+                        playGrain(grainInfo.note, grainInfo.nextTime, grainInfo.velocity, {
                             role: grainInfo.role,
                             streamStartTime: grainInfo.loopOriginTime ?? grainInfo.startTime,
                             continuousLoop: grainInfo.continuousLoop,
-                            grainMode: modeProfile.mode,
-                            positionPct,
-                            advanceRate
+                            grainMode: 'synth',
+                            layerSettings
                         });
                     } catch (e) {
                         console.error('Error playing grain:', e);
@@ -16591,12 +16241,13 @@
             }
 
             [
-                ['grainMainVolume', 50],
-                ['grainSynthAVolume', 50],
-                ['grainSynthBVolume', 50],
-                ['grainMixerAmp', 50],
-                ['grainSynthAMix', 50],
-                ['grainSynthBMix', 50],
+                ['grainMainVolume', 75],
+                ['grainSynthAVolume', 62],
+                ['grainSynthBVolume', 58],
+                ['grainMixerAmp', 85],
+                ['grainMainBlend', 60],
+                ['grainSynthAMix', 28],
+                ['grainSynthBMix', 22],
                 ['performanceSampleVolume', 100],
                 ['performanceGeneratedSourceMix', 100]
             ].forEach(([id, fallback]) => {
@@ -16606,12 +16257,19 @@
                 setSliderValue(id, fallback);
             });
 
-            if ((document.getElementById('grainSynthASource')?.value || 'warm') !== 'warm') {
-                document.getElementById('grainSynthASource').value = 'warm';
+            const mainSource = document.getElementById('grainMainSource');
+            if (mainSource) {
+                mainSource.value = normalizeGranularLayerSourceMode(mainSource.value || GRANULAR_LAYER_SOURCE_DEFAULTS.main, { layer: 'main' });
             }
-            if ((document.getElementById('grainSynthBSource')?.value || 'air') !== 'air') {
-                document.getElementById('grainSynthBSource').value = 'air';
+            const grainASource = document.getElementById('grainSynthASource');
+            if (grainASource) {
+                grainASource.value = normalizeGranularLayerSourceMode(grainASource.value || GRANULAR_LAYER_SOURCE_DEFAULTS.A, { layer: 'A' });
             }
+            const grainBSource = document.getElementById('grainSynthBSource');
+            if (grainBSource) {
+                grainBSource.value = normalizeGranularLayerSourceMode(grainBSource.value || GRANULAR_LAYER_SOURCE_DEFAULTS.B, { layer: 'B' });
+            }
+            normalizeGranularLayerSourceSelects();
 
             updateSourceMixGains();
             updateGeneratedDryLoopMix();
@@ -18006,6 +17664,7 @@
                     const labelSpan = document.getElementById(e.target.id + 'Value');
                     if (labelSpan) {
                         let suffix = '';
+                        const lowerId = e.target.id.toLowerCase();
                         if (e.target.id === 'performanceGeneratedTranspose') {
                             labelSpan.textContent = formatGeneratedLoopTranspose(e.target.value);
                             return;
@@ -18027,7 +17686,7 @@
                             labelSpan.textContent = `${Math.round(Number(e.target.value) || 0)}ms`;
                             return;
                         } else if (e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay') suffix = '%';
-                        else if (e.target.id.includes('Size') || e.target.id.includes('attack') || e.target.id.includes('release') || e.target.id.includes('Decay')) suffix = 'ms';
+                        else if (lowerId.includes('size') || lowerId.includes('attack') || lowerId.includes('release') || lowerId.includes('decay')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
                         else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff' || e.target.id === 'finalReverbLowpass') suffix = 'Hz';
                         else if (e.target.id === 'lpfQ' || e.target.id === 'hpfQ') suffix = '';
@@ -21413,6 +21072,9 @@
                 outputLoopStart: 0,
                 outputLoopEnd: 100,
                 grainSize: 180,
+                grainMainStart: 0,
+                grainMainDecay: 120,
+                grainMainBlend: 60,
                 density: 16,
                 position: 0,
                 spray: 10,
@@ -21423,7 +21085,15 @@
                 grainTune: 0,
                 grainMainTune: 0,
                 grainMainVolume: 75,
+                grainSynthAStart: 0,
+                grainSynthAAttack: 40,
+                grainSynthADecay: 95,
+                grainSynthARelease: 180,
                 grainSynthAVolume: 62,
+                grainSynthBStart: 0,
+                grainSynthBAttack: 65,
+                grainSynthBDecay: 140,
+                grainSynthBRelease: 240,
                 grainSynthBVolume: 58,
                 grainMixerAmp: 85,
                 grainSynthAMix: 28,
@@ -21611,9 +21281,10 @@
             document.getElementById('oscRouteMode').value = 'random';
             clearAllLfoSquareForce();
             document.getElementById('noiseType').value = 'none';
-            setGrainTimingMode('cloud', { silent: true, skipSave: true, skipRestart: true });
-            document.getElementById('grainSynthASource').value = 'warm';
-            document.getElementById('grainSynthBSource').value = 'air';
+            setGrainTimingMode('synth', { silent: true, skipSave: true, skipRestart: true });
+            document.getElementById('grainMainSource').value = GRANULAR_LAYER_SOURCE_DEFAULTS.main;
+            document.getElementById('grainSynthASource').value = GRANULAR_LAYER_SOURCE_DEFAULTS.A;
+            document.getElementById('grainSynthBSource').value = GRANULAR_LAYER_SOURCE_DEFAULTS.B;
             document.getElementById('finalPanLfoWaveform').value = 'sine';
             document.getElementById('finalPanAudioDivider').value = '16';
             document.getElementById('finalPanAudioMode').value = 'hybrid';
@@ -21678,7 +21349,7 @@
             syncSourceWaveformTuneLabels();
             ensureGranularVoicePathAudible();
             saveState();
-            statusDiv.textContent = 'Reset patch: modulation off, grain engines reattached and active at 50%.';
+            statusDiv.textContent = 'Reset patch: granular layers restored for direct sample playback.';
         });
 
         // Debug Button Event Listeners
@@ -21809,8 +21480,9 @@
             preset.lfoWaveform = document.getElementById('lfoWaveform').value;
             preset.lfo2Waveform = document.getElementById('lfo2Waveform').value;
             preset.lfo3Waveform = document.getElementById('lfo3Waveform').value;
-            preset.grainSynthASource = normalizeGranularStringSourceMode(document.getElementById('grainSynthASource')?.value || 'warm', { layer: 'A' });
-            preset.grainSynthBSource = normalizeGranularStringSourceMode(document.getElementById('grainSynthBSource')?.value || 'air', { layer: 'B' });
+            preset.grainMainSource = normalizeGranularLayerSourceMode(document.getElementById('grainMainSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.main, { layer: 'main' });
+            preset.grainSynthASource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthASource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.A, { layer: 'A' });
+            preset.grainSynthBSource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthBSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.B, { layer: 'B' });
             preset.grainTimingMode = getGrainTimingMode();
             preset.noiseType = document.getElementById('noiseType').value;
             
@@ -21866,17 +21538,23 @@
             if (safePreset.lfo3Waveform) {
                 document.getElementById('lfo3Waveform').value = safePreset.lfo3Waveform;
             }
+            const importedGrainMainSource = safePreset.grainMainSource ?? preset.grainMainSource;
             const importedGrainSynthASource = safePreset.grainSynthASource ?? preset.grainSynthASource;
             const importedGrainSynthBSource = safePreset.grainSynthBSource ?? preset.grainSynthBSource;
+            if (importedGrainMainSource) {
+                const sourceSelect = document.getElementById('grainMainSource');
+                if (sourceSelect) sourceSelect.value = normalizeGranularLayerSourceMode(importedGrainMainSource, { layer: 'main' });
+            }
             if (importedGrainSynthASource) {
                 const sourceSelect = document.getElementById('grainSynthASource');
-                if (sourceSelect) sourceSelect.value = normalizeGranularStringSourceMode(importedGrainSynthASource, { layer: 'A' });
+                if (sourceSelect) sourceSelect.value = normalizeGranularLayerSourceMode(importedGrainSynthASource, { layer: 'A' });
             }
             if (importedGrainSynthBSource) {
                 const sourceSelect = document.getElementById('grainSynthBSource');
-                if (sourceSelect) sourceSelect.value = normalizeGranularStringSourceMode(importedGrainSynthBSource, { layer: 'B' });
+                if (sourceSelect) sourceSelect.value = normalizeGranularLayerSourceMode(importedGrainSynthBSource, { layer: 'B' });
             }
-            const importedGrainTimingMode = safePreset.grainTimingMode ?? preset.grainTimingMode ?? 'cloud';
+            normalizeGranularLayerSourceSelects();
+            const importedGrainTimingMode = safePreset.grainTimingMode ?? preset.grainTimingMode ?? 'synth';
             setGrainTimingMode(importedGrainTimingMode, { silent: true, skipSave: true, skipRestart: true });
             if (safePreset.noiseType) {
                 document.getElementById('noiseType').value = safePreset.noiseType;
@@ -22601,16 +22279,32 @@
                 if (state.selects) {
                     Object.keys(state.selects).forEach(id => {
                         const select = document.getElementById(id);
-                        if (select) {
-                            select.value = state.selects[id];
+                        if (!select) return;
+                        if (id === 'grainMainSource') {
+                            select.value = normalizeGranularLayerSourceMode(state.selects[id], { layer: 'main' });
+                            return;
                         }
+                        if (id === 'grainSynthASource') {
+                            select.value = normalizeGranularLayerSourceMode(state.selects[id], { layer: 'A' });
+                            return;
+                        }
+                        if (id === 'grainSynthBSource') {
+                            select.value = normalizeGranularLayerSourceMode(state.selects[id], { layer: 'B' });
+                            return;
+                        }
+                        if (select.hasAttribute('data-grain-mode-selector')) {
+                            select.value = 'synth';
+                            return;
+                        }
+                        select.value = state.selects[id];
                     });
                 }
+                normalizeGranularLayerSourceSelects();
                 ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync', 'oscNoiseType'].forEach((id) => {
                     document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
                 });
                 syncSynthPresetLabel(document.getElementById('synthPresetSelect')?.value || 'custom');
-                syncGrainTimingModeControls();
+                setGrainTimingMode('synth', { silent: true, skipSave: true, skipRestart: true });
                 syncOscSynthFilterControls();
                 syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
                 const hugeDrumKitSelect = document.getElementById('hugeDrumKit');
@@ -26482,6 +26176,15 @@
         document.querySelectorAll('[data-grain-mode-selector]').forEach((select) => {
             select.addEventListener('change', (event) => {
                 setGrainTimingMode(event.target.value);
+            });
+        });
+
+        ['grainMainSource', 'grainSynthASource', 'grainSynthBSource'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('change', () => {
+                normalizeGranularLayerSourceSelects();
+                syncSourceWaveformSoloAudition();
+                restartActiveGrainStreamsFromNow();
+                saveState();
             });
         });
 
