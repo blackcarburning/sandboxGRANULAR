@@ -61,7 +61,7 @@ test('simplified performance controls are grouped into labelled cards', () => {
     assert.match(indexHtml, />Export Length<\/h3>/);
     assert.match(indexHtml, /class="performance-feature-card performance-keyboard-card" aria-label="Keyboard controls"/);
     assert.match(indexHtml, />Play Surface<\/h3>/);
-    assert.match(indexHtml, />Grain Controls<\/h3>/);
+    assert.match(indexHtml, />String Grain Controls<\/h3>/);
     assert.match(indexHtml, />Mix & Trim<\/h3>/);
     assert.match(indexHtml, />LFO & Motion<\/h3>/);
     assert.match(indexHtml, /class="performance-feature-card internal-effects-panel" id="internalEffectsPanel"/);
@@ -826,27 +826,48 @@ test('cloud grain mode loops against the real source window instead of tiny trim
     assert.match(indexHtml, /source\.loopEnd = Math\.max\(source\.loopStart \+ 0\.001, sampleWindow\.endTime\);/);
 });
 
-test('cloud grain mode is tuned for smoother ethereal overlap and motion', () => {
-    assert.match(indexHtml, /minGrainSize: 0\.09/);
-    assert.match(indexHtml, /maxGrainSize: 0\.58/);
-    assert.match(indexHtml, /minRelease: 0\.08/);
-    assert.match(indexHtml, /releaseRatio: 0\.9/);
+test('cloud grain mode is tuned for smoother string-like overlap and motion', () => {
+    assert.match(indexHtml, /minGrainSize: 0\.16/);
+    assert.match(indexHtml, /maxGrainSize: 0\.42/);
+    assert.match(indexHtml, /minAttack: 0\.045/);
+    assert.match(indexHtml, /minRelease: 0\.24/);
+    assert.match(indexHtml, /releaseRatio: 1\.55/);
     assert.match(indexHtml, /dryMixCap: 0\.28/);
-    assert.match(indexHtml, /intervalScale: 3\.2/);
-    assert.match(indexHtml, /jitterAmount: 0\.12/);
-    assert.match(indexHtml, /positionDriftMin: 0\.03/);
-    assert.match(indexHtml, /positionDriftMax: 0\.24/);
-    assert.match(indexHtml, /continuousTravelRate: 1/);
-    assert.match(indexHtml, /continuousTravelDrift: 0\.22/);
-    assert.match(indexHtml, /sourceSizeScale: 1\.12/);
-    assert.match(indexHtml, /sourceFadeScale: 1\.22/);
-    assert.match(indexHtml, /sourceGainScale: 1\.18/);
-    assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud' \? 0\.85 : 0\.7;/);
+    assert.match(indexHtml, /intervalScale: 2\.7/);
+    assert.match(indexHtml, /jitterAmount: 0\.035/);
+    assert.match(indexHtml, /positionDriftMin: 0\.005/);
+    assert.match(indexHtml, /positionDriftMax: 0\.04/);
+    assert.match(indexHtml, /continuousTravelRate: 1\.45/);
+    assert.match(indexHtml, /continuousTravelDrift: 0\.06/);
+    assert.match(indexHtml, /sourceSizeScale: 0\.62/);
+    assert.match(indexHtml, /sourceFadeScale: 1\.05/);
+    assert.match(indexHtml, /sourceGainScale: 0\.96/);
+    assert.match(indexHtml, /maxSourceSizeSeconds: 0\.42/);
+    assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud'[\s\S]*Number\(modeProfile\.maxSourceSizeSeconds\) \|\| 0\.85[\s\S]*: 0\.7;/);
     assert.match(indexHtml, /const maxInterval = modeProfile\?\.mode === 'cloud' \? 0\.14 : 0\.22;/);
     assert.match(indexHtml, /const sourceGainScale = Math\.max\(0\.25, Number\(modeProfile\.sourceGainScale\) \|\| 1\);/);
     assert.match(indexHtml, /const targetGain = Math\.max\(0, Math\.min\(1\.35, voice\.gain \* sourceGainScale\)\);/);
     assert.match(indexHtml, /const bloomDrift = modeProfile\.mode === 'cloud'/);
     assert.match(indexHtml, /const bloomMotion = Math\.sin\(\(elapsed \* 0\.19\)/);
+});
+
+test('granular rewrite presents string-grain voices instead of legacy loop-editing controls', () => {
+    assert.match(indexHtml, /<body class="simplified-ui granular-oscillator-mode">/);
+    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-grain-source-tools/);
+    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-grain-source-browser/);
+    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-source-waveform-mixer/);
+    assert.match(indexHtml, /body\.granular-oscillator-mode \.legacy-grain-window-control/);
+    assert.match(indexHtml, /data-tab="grain">Strings<\/button>/);
+    assert.match(indexHtml, />String Grain Controls<\/h3>/);
+    assert.match(indexHtml, />String Layer Mixer</);
+    assert.match(indexHtml, />Main String Volume</);
+    assert.match(indexHtml, />Main String Tune</);
+    assert.match(indexHtml, />String A Volume</);
+    assert.match(indexHtml, />String B Volume</);
+    assert.match(indexHtml, />String Bus Amp</);
+    assert.match(indexHtml, /function getAvailableGranularSources\(options = \{\}\) \{[\s\S]*return getGranularStringMainSources\(\);[\s\S]*return \[makeGranularStringSource\(mode\)\]\.filter\(Boolean\);/);
+    assert.match(indexHtml, /function canPlayGrains\(\) \{\s*return Boolean\(audioContext && granularOutputGain\);\s*\}/);
+    assert.match(indexHtml, /return safePitchRatio;/);
 });
 
 test('grain playback speed control is exposed in both grain UIs and defaults to natural scan speed', () => {
@@ -1167,6 +1188,16 @@ test('drum machine exposes synced kick, snare, and hi-hat sequencing with popup 
     assert.match(indexHtml, /drumMachineSnareBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineSnare\);/);
     assert.match(indexHtml, /drumMachineHatBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(SAMPLE_BROWSER_TARGETS\.drumMachineHat\);/);
     assert.match(indexHtml, /drumMachineHatTimingModeBtn\?\.addEventListener\('click', \(\) => \{\s*cycleDrumMachineHatTimingMode\(\);/);
+});
+
+test('drum transport uses a single toggle button on each surface instead of separate stop controls', () => {
+    assert.doesNotMatch(indexHtml, /id="performanceDrumMachineStopBtn"/);
+    assert.doesNotMatch(indexHtml, /id="performanceDrumMachineMainStopBtn"/);
+    assert.doesNotMatch(indexHtml, /id="drumMachineStopBtn"/);
+    assert.match(indexHtml, /\[cardStartBtn, mainStartBtn, popupPlayBtn\]\.forEach\(\(button\) => \{[\s\S]*button\.classList\.toggle\('active', drumMachinePlaying\);[\s\S]*button\.setAttribute\('aria-pressed', String\(drumMachinePlaying\)\);[\s\S]*button\.textContent = drumMachinePlaying \? 'Stop Drums' : 'Start Drums';/);
+    assert.match(indexHtml, /performanceDrumMachineStartBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*if \(drumMachinePlaying\) \{[\s\S]*stopDrumMachine\(\);[\s\S]*\} else \{[\s\S]*startDrumMachine\(\);[\s\S]*\}/);
+    assert.match(indexHtml, /performanceDrumMachineMainStartBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*if \(drumMachinePlaying\) \{[\s\S]*stopDrumMachine\(\);[\s\S]*\} else \{[\s\S]*startDrumMachine\(\);[\s\S]*\}/);
+    assert.match(indexHtml, /drumMachinePlayBtn\?\.addEventListener\('click', \(\) => \{[\s\S]*if \(drumMachinePlaying\) \{[\s\S]*stopDrumMachine\(\);[\s\S]*\} else \{[\s\S]*startDrumMachine\(\);[\s\S]*\}/);
 });
 
 test('random drums also generates a playable beat pattern', () => {
