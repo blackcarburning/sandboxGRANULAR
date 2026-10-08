@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-19-13-build-v2026.10.08.3';
+            const cacheBuster = '2026-10-08-19-34-build-v2026.10.08.4';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -893,6 +893,47 @@
             border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        .grain-source-switch-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(96px, 128px);
+            gap: 6px;
+            align-items: center;
+        }
+
+        .grain-source-switch {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            padding: 4px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.26);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .grain-source-switch-btn {
+            min-height: 34px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(214, 232, 255, 0.82);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .grain-source-switch-btn.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.26), rgba(126, 255, 178, 0.18));
+            border-color: rgba(126, 246, 255, 0.56);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(126, 246, 255, 0.12), 0 8px 18px rgba(0, 0, 0, 0.24);
+        }
+
+        .grain-source-mode-block[hidden] {
+            display: none !important;
+        }
+
         .source-waveform-header,
         .source-loop-labels {
             display: flex;
@@ -1024,22 +1065,25 @@
 
         .source-loop-lfo-controls {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4px;
+            gap: 6px;
         }
 
         .source-loop-lfo-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(34px, auto) minmax(0, 1fr);
             align-items: center;
-            justify-content: space-between;
-            gap: 4px;
+            gap: 6px;
             min-width: 0;
             color: #aaa;
             font-size: 8px;
         }
 
         .source-loop-lfo-row .button-group {
-            flex-shrink: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 4px;
+            min-width: 0;
         }
 
         .source-grain-envelope-controls {
@@ -3810,7 +3854,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.4</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3823,7 +3867,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.4</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -4972,17 +5016,6 @@
                             </div>
                             <input type="range" id="generatedLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="generatedLoopEnd" min="0" max="100" value="100" step="1">
-                            <div class="source-loop-lfo-controls">
-                                <div class="source-loop-lfo-row">
-                                    <span>End</span>
-                                    <div class="button-group">
-                                        <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="1">L1</button>
-                                        <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="1">INV</button>
-                                        <button class="lfo-toggle" data-param="generatedLoopEnd" data-lfo="2">L2</button>
-                                        <button class="inv-toggle" data-param="generatedLoopEnd" data-lfo="2">INV</button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Selection</button>
@@ -5021,17 +5054,6 @@
                             </div>
                             <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
-                            <div class="source-loop-lfo-controls">
-                                <div class="source-loop-lfo-row">
-                                    <span>End</span>
-                                    <div class="button-group">
-                                        <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="1">L1</button>
-                                        <button class="inv-toggle" data-param="micLoopEnd" data-lfo="1">INV</button>
-                                        <button class="lfo-toggle" data-param="micLoopEnd" data-lfo="2">L2</button>
-                                        <button class="inv-toggle" data-param="micLoopEnd" data-lfo="2">INV</button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Selection</button>
@@ -5042,28 +5064,37 @@
                             <span>Grain A Mic</span>
                             <span class="source-waveform-meta" id="grainAMicWaveformMeta">Empty</span>
                         </div>
-                        <canvas id="grainAMicWaveformCanvas" class="source-waveform-canvas" data-source="grainAMic"></canvas>
-                        <div class="source-grain-mode-control" aria-label="Grain A granular engine mode">
-                            <label for="grainAWaveformGrainTimingMode">
-                                <span>Grain A Mode</span>
-                                <span class="value" id="grainAWaveformGrainTimingModeValue">Playable</span>
-                            </label>
-                            <select id="grainAWaveformGrainTimingMode" data-grain-mode-selector>
-                                <option value="synth" selected>Playable</option>
-                            </select>
-                        </div>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="grainAMicLoopStart">Start <span id="grainAMicLoopStartValue">0%</span></label>
-                                <label for="grainAMicLoopEnd">End <span id="grainAMicLoopEndValue">100%</span></label>
+                        <div class="grain-source-switch-row" data-grain-source-switch-row="A">
+                            <div class="grain-source-switch" role="group" aria-label="Grain A source switch">
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="A" data-source-mode="grainAMic" aria-pressed="true">Mic</button>
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="A" data-source-mode="grainASample" aria-pressed="false">Sample</button>
                             </div>
-                            <input type="range" id="grainAMicLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="grainAMicLoopEnd" min="0" max="100" value="100" step="1">
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-grain-layer-audition="A" aria-pressed="false" disabled>Audition</button>
                         </div>
-                        <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Selection</button>
+                        <div class="grain-source-mode-block" data-grain-source-panel="A" data-grain-source-kind="grainAMic">
+                            <canvas id="grainAMicWaveformCanvas" class="source-waveform-canvas" data-source="grainAMic"></canvas>
+                            <div class="source-grain-mode-control" aria-label="Grain A granular engine mode">
+                                <label for="grainAWaveformGrainTimingMode">
+                                    <span>Grain A Mode</span>
+                                    <span class="value" id="grainAWaveformGrainTimingModeValue">Playable</span>
+                                </label>
+                                <select id="grainAWaveformGrainTimingMode" data-grain-mode-selector>
+                                    <option value="synth" selected>Playable</option>
+                                </select>
+                            </div>
+                            <div class="source-loop-controls">
+                                <div class="source-loop-labels">
+                                    <label for="grainAMicLoopStart">Start <span id="grainAMicLoopStartValue">0%</span></label>
+                                    <label for="grainAMicLoopEnd">End <span id="grainAMicLoopEndValue">100%</span></label>
+                                </div>
+                                <input type="range" id="grainAMicLoopStart" min="0" max="100" value="0" step="1">
+                                <input type="range" id="grainAMicLoopEnd" min="0" max="100" value="100" step="1">
+                            </div>
+                            <div class="source-seed-buttons">
+                                <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Selection</button>
+                            </div>
                         </div>
-                        <div class="grain-inline-sample-strip" aria-label="Grain A inline sample controls">
+                        <div class="grain-inline-sample-strip grain-source-mode-block" aria-label="Grain A inline sample controls" data-grain-source-panel="A" data-grain-source-kind="grainASample">
                             <div class="source-waveform-header">
                                 <span>Sample Source</span>
                                 <span class="source-waveform-meta" id="grainASampleWaveformMeta">Empty</span>
@@ -5080,7 +5111,6 @@
                             <div class="source-seed-buttons source-seed-buttons-stack">
                                 <button type="button" class="grain-layer-browser-btn" id="grainASampleBrowseBtn" data-grain-browser-target="grainA">Browse Sample Folders</button>
                                 <button type="button" class="trim-source-btn" data-source-kind="grainASample">Trim to Selection</button>
-                                <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainASample" aria-pressed="false" disabled>Audition</button>
                             </div>
                         </div>
                     </div>
@@ -5089,28 +5119,37 @@
                             <span>Grain B Mic</span>
                             <span class="source-waveform-meta" id="grainBMicWaveformMeta">Empty</span>
                         </div>
-                        <canvas id="grainBMicWaveformCanvas" class="source-waveform-canvas" data-source="grainBMic"></canvas>
-                        <div class="source-grain-mode-control" aria-label="Grain B granular engine mode">
-                            <label for="grainBWaveformGrainTimingMode">
-                                <span>Grain B Mode</span>
-                                <span class="value" id="grainBWaveformGrainTimingModeValue">Playable</span>
-                            </label>
-                            <select id="grainBWaveformGrainTimingMode" data-grain-mode-selector>
-                                <option value="synth" selected>Playable</option>
-                            </select>
-                        </div>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="grainBMicLoopStart">Start <span id="grainBMicLoopStartValue">0%</span></label>
-                                <label for="grainBMicLoopEnd">End <span id="grainBMicLoopEndValue">100%</span></label>
+                        <div class="grain-source-switch-row" data-grain-source-switch-row="B">
+                            <div class="grain-source-switch" role="group" aria-label="Grain B source switch">
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBMic" aria-pressed="true">Mic</button>
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBSample" aria-pressed="false">Sample</button>
                             </div>
-                            <input type="range" id="grainBMicLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="grainBMicLoopEnd" min="0" max="100" value="100" step="1">
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-grain-layer-audition="B" aria-pressed="false" disabled>Audition</button>
                         </div>
-                        <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Selection</button>
+                        <div class="grain-source-mode-block" data-grain-source-panel="B" data-grain-source-kind="grainBMic">
+                            <canvas id="grainBMicWaveformCanvas" class="source-waveform-canvas" data-source="grainBMic"></canvas>
+                            <div class="source-grain-mode-control" aria-label="Grain B granular engine mode">
+                                <label for="grainBWaveformGrainTimingMode">
+                                    <span>Grain B Mode</span>
+                                    <span class="value" id="grainBWaveformGrainTimingModeValue">Playable</span>
+                                </label>
+                                <select id="grainBWaveformGrainTimingMode" data-grain-mode-selector>
+                                    <option value="synth" selected>Playable</option>
+                                </select>
+                            </div>
+                            <div class="source-loop-controls">
+                                <div class="source-loop-labels">
+                                    <label for="grainBMicLoopStart">Start <span id="grainBMicLoopStartValue">0%</span></label>
+                                    <label for="grainBMicLoopEnd">End <span id="grainBMicLoopEndValue">100%</span></label>
+                                </div>
+                                <input type="range" id="grainBMicLoopStart" min="0" max="100" value="0" step="1">
+                                <input type="range" id="grainBMicLoopEnd" min="0" max="100" value="100" step="1">
+                            </div>
+                            <div class="source-seed-buttons">
+                                <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Selection</button>
+                            </div>
                         </div>
-                        <div class="grain-inline-sample-strip" aria-label="Grain B inline sample controls">
+                        <div class="grain-inline-sample-strip grain-source-mode-block" aria-label="Grain B inline sample controls" data-grain-source-panel="B" data-grain-source-kind="grainBSample">
                             <div class="source-waveform-header">
                                 <span>Sample Source</span>
                                 <span class="source-waveform-meta" id="grainBSampleWaveformMeta">Empty</span>
@@ -5127,7 +5166,6 @@
                             <div class="source-seed-buttons source-seed-buttons-stack">
                                 <button type="button" class="grain-layer-browser-btn" id="grainBSampleBrowseBtn" data-grain-browser-target="grainB">Browse Sample Folders</button>
                                 <button type="button" class="trim-source-btn" data-source-kind="grainBSample">Trim to Selection</button>
-                                <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainBSample" aria-pressed="false" disabled>Audition</button>
                             </div>
                         </div>
                     </div>
@@ -8396,6 +8434,17 @@
                 }
             },
             {
+                kind: 'grainMainSample',
+                label: 'Main Grain Sample',
+                controls: {
+                    position: { id: 'grainMainSampleGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
+                    scale: { id: 'grainMainSampleGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    level: { id: 'grainMainSampleGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
+                    attack: { id: 'grainMainSampleGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
+                    release: { id: 'grainMainSampleGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
+                }
+            },
+            {
                 kind: 'mic',
                 label: 'Mic',
                 controls: {
@@ -8470,7 +8519,7 @@
             grainBMic: 'Grain B Mic',
             output: 'Output Source'
         };
-        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample']);
+        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample', 'grainAMic', 'grainBMic']);
         const SOURCE_TUNE_CONTROL_IDS = {
             generated: 'generatedSourceTune',
             mic: 'micSourceTune',
@@ -11319,6 +11368,15 @@
                 button.setAttribute('aria-pressed', String(active));
                 button.textContent = active ? 'Stop' : 'Audition';
             });
+            document.querySelectorAll('[data-grain-layer-audition]').forEach((button) => {
+                const kind = getGrainLayerPanelSourceKind(button.dataset.grainLayerAudition);
+                const hasBuffer = kind !== 'none' && Boolean(getSourceBuffer(kind));
+                const active = activeSourceCardAuditionKind === kind && auditionSources.length > 0;
+                button.disabled = !hasBuffer;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                button.textContent = active ? 'Stop' : 'Audition';
+            });
         }
 
         function normalizeSourceWaveformSoloState(value) {
@@ -11671,6 +11729,34 @@
                 if (select.value !== normalized) {
                     select.value = normalized;
                 }
+            });
+            syncGrainSourcePanelModes();
+            syncSourceCardAuditionButtons();
+        }
+
+        function getGrainLayerPanelSourceKind(layerKey) {
+            if (layerKey === 'A') {
+                const value = normalizeGranularLayerSourceMode(document.getElementById('grainSynthASource')?.value, { layer: 'A' });
+                return value === 'grainASample' ? 'grainASample' : 'grainAMic';
+            }
+            if (layerKey === 'B') {
+                const value = normalizeGranularLayerSourceMode(document.getElementById('grainSynthBSource')?.value, { layer: 'B' });
+                return value === 'grainBSample' ? 'grainBSample' : 'grainBMic';
+            }
+            return 'none';
+        }
+
+        function syncGrainSourcePanelModes() {
+            ['A', 'B'].forEach((layerKey) => {
+                const activeKind = getGrainLayerPanelSourceKind(layerKey);
+                document.querySelectorAll(`[data-grain-source-panel="${layerKey}"]`).forEach((panel) => {
+                    panel.hidden = panel.dataset.grainSourceKind !== activeKind;
+                });
+                document.querySelectorAll(`[data-grain-source-mode-btn="${layerKey}"]`).forEach((button) => {
+                    const active = button.dataset.sourceMode === activeKind;
+                    button.classList.toggle('active', active);
+                    button.setAttribute('aria-pressed', String(active));
+                });
             });
         }
 
@@ -18570,12 +18656,12 @@
                     controls.className = 'source-loop-lfo-controls';
                     host.append(controls);
                 }
+                controls.textContent = '';
 
                 [
                     { id: definition.startId, label: 'Start' },
                     { id: definition.endId, label: 'End' }
                 ].forEach((control) => {
-                    if (controls.querySelector(`.lfo-toggle[data-param="${control.id}"]`)) return;
                     const row = document.createElement('div');
                     row.className = 'source-loop-lfo-row';
                     const label = document.createElement('span');
@@ -18685,6 +18771,7 @@
         addSourceLoopLfoControls();
         addSourceGrainEnvelopeControls();
         addGranularLayerLfoControls();
+        syncGrainSourcePanelModes();
         syncSourceWaveformTuneLabels();
         syncSourceWaveformSoloButtons();
         syncSourceCardAuditionButtons();
@@ -18708,6 +18795,34 @@
                     console.error(error);
                     setStatus(`Audition failed: ${error.message}`, 'error');
                 }
+            });
+        });
+
+        document.querySelectorAll('[data-grain-layer-audition]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                try {
+                    await auditionSourceCard(getGrainLayerPanelSourceKind(button.dataset.grainLayerAudition));
+                } catch (error) {
+                    console.error(error);
+                    setStatus(`Audition failed: ${error.message}`, 'error');
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-grain-source-mode-btn]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const layerKey = button.dataset.grainSourceModeBtn;
+                const targetMode = button.dataset.sourceMode;
+                const selectId = layerKey === 'B' ? 'grainSynthBSource' : 'grainSynthASource';
+                const select = document.getElementById(selectId);
+                if (!select || !targetMode || select.value === targetMode) return;
+                select.value = targetMode;
+                normalizeGranularLayerSourceSelects();
+                stopSourceCardAudition({ preserveKind: false, skipSync: true });
+                syncSourceWaveformSoloAudition();
+                syncSourceCardAuditionButtons();
+                restartActiveGrainStreamsFromNow();
+                saveState();
             });
         });
 
@@ -27744,7 +27859,9 @@
         ['grainMainSource', 'grainSynthASource', 'grainSynthBSource'].forEach((id) => {
             document.getElementById(id)?.addEventListener('change', () => {
                 normalizeGranularLayerSourceSelects();
+                stopSourceCardAudition({ preserveKind: false, skipSync: true });
                 syncSourceWaveformSoloAudition();
+                syncSourceCardAuditionButtons();
                 restartActiveGrainStreamsFromNow();
                 saveState();
             });
