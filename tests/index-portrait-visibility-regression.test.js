@@ -346,6 +346,8 @@ test('source UI has separate generated and mic waveform loop controls', () => {
     assert.match(indexHtml, /id="micLoopStart"/);
     assert.match(indexHtml, /id="micLoopEnd"/);
     assert.match(indexHtml, /function handleSourceLoopChange\(kind\)/);
+    assert.match(indexHtml, /SOURCE_LOOP_CONTROL_DEFINITIONS\.forEach\(\(definition\) => \{/);
+    assert.match(indexHtml, /document\.getElementById\(id\)\?\.addEventListener\('input', \(\) => handleSourceLoopChange\(definition\.kind\)\);/);
     assert.match(indexHtml, /grainInfo\.nextTime = now/);
 });
 
@@ -353,8 +355,20 @@ test('patch randomize does not move manual source loop points', () => {
     assert.match(indexHtml, /const RANDOMIZE_SKIP_SLIDERS = new Set/);
     assert.match(indexHtml, /'generatedLoopStart'/);
     assert.match(indexHtml, /'generatedLoopEnd'/);
+    assert.match(indexHtml, /'grainMainSampleLoopStart'/);
+    assert.match(indexHtml, /'grainMainSampleLoopEnd'/);
     assert.match(indexHtml, /'micLoopStart'/);
     assert.match(indexHtml, /'micLoopEnd'/);
+    assert.match(indexHtml, /'grainAMicLoopStart'/);
+    assert.match(indexHtml, /'grainAMicLoopEnd'/);
+    assert.match(indexHtml, /'grainASampleLoopStart'/);
+    assert.match(indexHtml, /'grainASampleLoopEnd'/);
+    assert.match(indexHtml, /'grainBMicLoopStart'/);
+    assert.match(indexHtml, /'grainBMicLoopEnd'/);
+    assert.match(indexHtml, /'grainBSampleLoopStart'/);
+    assert.match(indexHtml, /'grainBSampleLoopEnd'/);
+    assert.match(indexHtml, /'outputLoopStart'/);
+    assert.match(indexHtml, /'outputLoopEnd'/);
     assert.match(indexHtml, /RANDOMIZE_SKIP_SLIDERS\.has\(id\)/);
 });
 
@@ -822,9 +836,9 @@ test('grain scheduling and generated loops are BPM-grid rhythmic and bright agai
 test('granular UI presents three direct sample layers instead of the discarded string mode', () => {
     assert.match(indexHtml, /<body class="simplified-ui granular-sampler-mode">/);
     assert.match(indexHtml, /body\.granular-sampler-mode \.source-grain-mode-control,/);
-    assert.match(indexHtml, /body\.granular-sampler-mode \.source-loop-controls,/);
-    assert.match(indexHtml, /body\.granular-sampler-mode \.source-waveform-control-grid,/);
-    assert.match(indexHtml, /body\.granular-sampler-mode \.trim-source-btn \{/);
+    assert.match(indexHtml, /body\.granular-sampler-mode \.source-waveform-control-grid \{/);
+    assert.doesNotMatch(indexHtml, /body\.granular-sampler-mode \.source-loop-controls,/);
+    assert.doesNotMatch(indexHtml, /body\.granular-sampler-mode \.trim-source-btn \{/);
     assert.match(indexHtml, /data-tab="grain">Grain<\/button>/);
     assert.match(indexHtml, />Granular Layer Controls<\/h3>/);
     assert.match(indexHtml, /<span>Main Grain<\/span>/);
@@ -872,6 +886,18 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainSynthBSmoothing"/);
     assert.match(indexHtml, /id="grainSynthBWidth"/);
     assert.match(indexHtml, /id="grainSynthBVolume"/);
+    assert.match(indexHtml, /id="grainMainSampleWaveformCanvas"/);
+    assert.match(indexHtml, /id="grainMainSampleLoopStart"/);
+    assert.match(indexHtml, /id="grainMainSampleLoopEnd"/);
+    assert.match(indexHtml, /data-source-kind="grainMainSample">Trim to Selection<\/button>/);
+    assert.match(indexHtml, /id="grainASampleWaveformCanvas"/);
+    assert.match(indexHtml, /id="grainASampleLoopStart"/);
+    assert.match(indexHtml, /id="grainASampleLoopEnd"/);
+    assert.match(indexHtml, /data-source-kind="grainASample">Trim to Selection<\/button>/);
+    assert.match(indexHtml, /id="grainBSampleWaveformCanvas"/);
+    assert.match(indexHtml, /id="grainBSampleLoopStart"/);
+    assert.match(indexHtml, /id="grainBSampleLoopEnd"/);
+    assert.match(indexHtml, /data-source-kind="grainBSample">Trim to Selection<\/button>/);
     assert.match(indexHtml, /id="grainMixerAmp"/);
     assert.match(indexHtml, /<select id="mainWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
     assert.match(indexHtml, /<select id="grainAWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
@@ -982,6 +1008,9 @@ test('grain sample browsers reuse the repo sample overlay with dedicated layer t
     assert.match(indexHtml, /slotKind: 'grainMainSample'/);
     assert.match(indexHtml, /slotKind: 'grainASample'/);
     assert.match(indexHtml, /slotKind: 'grainBSample'/);
+    assert.match(indexHtml, /\{ kind: 'grainMainSample', label: 'Main Grain Sample', startId: 'grainMainSampleLoopStart', endId: 'grainMainSampleLoopEnd' \}/);
+    assert.match(indexHtml, /\{ kind: 'grainASample', label: 'Grain A Sample', startId: 'grainASampleLoopStart', endId: 'grainASampleLoopEnd' \}/);
+    assert.match(indexHtml, /\{ kind: 'grainBSample', label: 'Grain B Sample', startId: 'grainBSampleLoopStart', endId: 'grainBSampleLoopEnd' \}/);
     assert.match(indexHtml, /id="dropboxSampleBrowserSourceSelect"/);
     assert.match(indexHtml, /function isGrainSampleBrowserTarget\(target\)/);
     assert.match(indexHtml, /function normalizeGrainSampleBrowserSourceKey\(sourceKey, fallback = 'sampledrop'\)/);
@@ -993,7 +1022,17 @@ test('grain sample browsers reuse the repo sample overlay with dedicated layer t
     assert.match(indexHtml, /subtitle: `Preview Dropbox samples and load one directly into \$\{details\.layerLabel\}\.`/);
     assert.match(indexHtml, /async function loadGranularBrowserSampleFromSourceRelativePath\(target, sourceKey, relativePath, fileName = ''\)/);
     assert.match(indexHtml, /await applyLoadedAudioBuffer\(decoded, `\$\{config\.layerLabel\} sample · \$\{sourceName\}`, config\.slotKind\);/);
+    assert.match(indexHtml, /canvas: grainMainSampleWaveformCanvas,/);
+    assert.match(indexHtml, /metaId: 'grainMainSampleWaveformMeta',/);
+    assert.match(indexHtml, /canvas: grainASampleWaveformCanvas,/);
+    assert.match(indexHtml, /metaId: 'grainASampleWaveformMeta',/);
+    assert.match(indexHtml, /canvas: grainBSampleWaveformCanvas,/);
+    assert.match(indexHtml, /metaId: 'grainBSampleWaveformMeta',/);
     assert.match(indexHtml, /sourceSelect\.value = config\.sourceMode;/);
+    assert.match(indexHtml, /drawSourceWaveform\(config\.slotKind\);/);
+    assert.match(indexHtml, /updateSourceAvailability\(\);/);
+    assert.match(indexHtml, /syncPerformanceControlState\(\);/);
+    assert.match(indexHtml, /requestAnimationFrame\(\(\) => \{\s*drawSourceWaveform\(config\.slotKind\);/);
     assert.match(indexHtml, /restartActiveGrainStreamsFromNow\(\);/);
     assert.match(indexHtml, /const showFeedback = !isGrainSampleBrowserTarget\(config\.target\);/);
     assert.match(indexHtml, /\[grainMainBrowseBtn, SAMPLE_BROWSER_TARGETS\.grainMain\]/);
@@ -1006,6 +1045,19 @@ test('dropbox sample browser shows only the active overlay and uses a robust clo
     assert.match(indexHtml, /body\.wav-repository-browser-open #wavRepositoryBrowserOverlay \{/);
     assert.match(indexHtml, /function handleDropboxSampleBrowserClose\(event\)/);
     assert.match(indexHtml, /\['click', 'pointerup'\]\.forEach\(\(eventName\) => \{\s*dropboxSampleBrowserCloseBtn\?\.addEventListener\(eventName, handleDropboxSampleBrowserClose\);/);
+});
+
+test('drum machine transport buttons recover audio before starting playback', () => {
+    assert.match(indexHtml, /async function toggleDrumMachinePlaybackFromUi\(\)/);
+    assert.match(indexHtml, /audioReady = await ensureAudioReadyForKeyInteraction\(\);/);
+    assert.match(indexHtml, /await ensureForegroundAudioReady\(\{ silent: true \}\);/);
+    assert.match(indexHtml, /await audioContext\.resume\(\);/);
+    assert.match(indexHtml, /if \(!drumMachineEnabled\) \{\s*setDrumMachineEnabled\(true, \{ silent: true, skipSave: true \}\);/);
+    assert.match(indexHtml, /const drumBus = ensureDrumMachineBus\(\);/);
+    assert.match(indexHtml, /performanceDrumMachineStartBtn\?\.addEventListener\('click', async \(\) => \{/);
+    assert.match(indexHtml, /performanceDrumMachineMainStartBtn\?\.addEventListener\('click', async \(\) => \{/);
+    assert.match(indexHtml, /drumMachinePlayBtn\?\.addEventListener\('click', async \(\) => \{/);
+    assert.match(indexHtml, /await toggleDrumMachinePlaybackFromUi\(\);/);
 });
 
 test('granular restore and arp stay on the rebuilt synth path', () => {

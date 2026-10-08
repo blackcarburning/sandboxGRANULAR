@@ -105,9 +105,7 @@
         }
 
         body.granular-sampler-mode .source-grain-mode-control,
-        body.granular-sampler-mode .source-loop-controls,
-        body.granular-sampler-mode .source-waveform-control-grid,
-        body.granular-sampler-mode .trim-source-btn {
+        body.granular-sampler-mode .source-waveform-control-grid {
             display: none !important;
         }
 
@@ -4982,7 +4980,25 @@
                             </div>
                         </div>
                         <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Locators</button>
+                            <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Selection</button>
+                        </div>
+                    </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Main Grain Sample</span>
+                            <span class="source-waveform-meta" id="grainMainSampleWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="grainMainSampleWaveformCanvas" class="source-waveform-canvas" data-source="grainMainSample"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="grainMainSampleLoopStart">Start <span id="grainMainSampleLoopStartValue">0%</span></label>
+                                <label for="grainMainSampleLoopEnd">End <span id="grainMainSampleLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="grainMainSampleLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="grainMainSampleLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="grainMainSample">Trim to Selection</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5011,7 +5027,7 @@
                             </div>
                         </div>
                         <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Locators</button>
+                            <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Selection</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5038,7 +5054,25 @@
                             <input type="range" id="grainAMicLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
                         <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Locators</button>
+                            <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Selection</button>
+                        </div>
+                    </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Grain A Sample</span>
+                            <span class="source-waveform-meta" id="grainASampleWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="grainASampleWaveformCanvas" class="source-waveform-canvas" data-source="grainASample"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="grainASampleLoopStart">Start <span id="grainASampleLoopStartValue">0%</span></label>
+                                <label for="grainASampleLoopEnd">End <span id="grainASampleLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="grainASampleLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="grainASampleLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="grainASample">Trim to Selection</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5065,7 +5099,25 @@
                             <input type="range" id="grainBMicLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
                         <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Locators</button>
+                            <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Selection</button>
+                        </div>
+                    </div>
+                    <div class="source-waveform-panel">
+                        <div class="source-waveform-header">
+                            <span>Grain B Sample</span>
+                            <span class="source-waveform-meta" id="grainBSampleWaveformMeta">Empty</span>
+                        </div>
+                        <canvas id="grainBSampleWaveformCanvas" class="source-waveform-canvas" data-source="grainBSample"></canvas>
+                        <div class="source-loop-controls">
+                            <div class="source-loop-labels">
+                                <label for="grainBSampleLoopStart">Start <span id="grainBSampleLoopStartValue">0%</span></label>
+                                <label for="grainBSampleLoopEnd">End <span id="grainBSampleLoopEndValue">100%</span></label>
+                            </div>
+                            <input type="range" id="grainBSampleLoopStart" min="0" max="100" value="0" step="1">
+                            <input type="range" id="grainBSampleLoopEnd" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="source-seed-buttons">
+                            <button type="button" class="trim-source-btn" data-source-kind="grainBSample">Trim to Selection</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5086,7 +5138,7 @@
                             <input type="range" id="outputLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
                         <div class="source-seed-buttons">
-                            <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Locators</button>
+                            <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Selection</button>
                         </div>
                     </div>
                 </div>
@@ -8008,8 +8060,20 @@
             'postFilterGain',
             'generatedLoopStart',
             'generatedLoopEnd',
+            'grainMainSampleLoopStart',
+            'grainMainSampleLoopEnd',
             'micLoopStart',
             'micLoopEnd',
+            'grainAMicLoopStart',
+            'grainAMicLoopEnd',
+            'grainASampleLoopStart',
+            'grainASampleLoopEnd',
+            'grainBMicLoopStart',
+            'grainBMicLoopEnd',
+            'grainBSampleLoopStart',
+            'grainBSampleLoopEnd',
+            'outputLoopStart',
+            'outputLoopEnd',
             'lfoPulseWidth',
             'lfo2PulseWidth',
             'lfo3PulseWidth',
@@ -8376,8 +8440,11 @@
         );
         const SOURCE_LOOP_CONTROL_DEFINITIONS = [
             { kind: 'generated', label: 'Generated', startId: 'generatedLoopStart', endId: 'generatedLoopEnd' },
+            { kind: 'grainMainSample', label: 'Main Grain Sample', startId: 'grainMainSampleLoopStart', endId: 'grainMainSampleLoopEnd' },
             { kind: 'mic', label: 'Mic', startId: 'micLoopStart', endId: 'micLoopEnd' },
+            { kind: 'grainASample', label: 'Grain A Sample', startId: 'grainASampleLoopStart', endId: 'grainASampleLoopEnd' },
             { kind: 'grainAMic', label: 'Grain A', startId: 'grainAMicLoopStart', endId: 'grainAMicLoopEnd' },
+            { kind: 'grainBSample', label: 'Grain B Sample', startId: 'grainBSampleLoopStart', endId: 'grainBSampleLoopEnd' },
             { kind: 'grainBMic', label: 'Grain B', startId: 'grainBMicLoopStart', endId: 'grainBMicLoopEnd' },
             { kind: 'output', label: 'Output', startId: 'outputLoopStart', endId: 'outputLoopEnd' }
         ];
@@ -8386,8 +8453,11 @@
         const SOURCE_LOOP_CONTROL_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.flatMap((definition) => [definition.startId, definition.endId]);
         const SOURCE_WAVEFORM_KIND_LABELS = {
             generated: 'Generated Loop',
+            grainMainSample: 'Main Grain Sample',
             mic: 'Mic Recording',
+            grainASample: 'Grain A Sample',
             grainAMic: 'Grain A Mic',
+            grainBSample: 'Grain B Sample',
             grainBMic: 'Grain B Mic',
             output: 'Output Source'
         };
@@ -10961,8 +11031,11 @@
         const normalizeBtn = document.getElementById('normalizeBtn');
         const clearBtn = document.getElementById('clearBtn');
         const generatedWaveformCanvas = document.getElementById('generatedWaveformCanvas');
+        const grainMainSampleWaveformCanvas = document.getElementById('grainMainSampleWaveformCanvas');
         const micWaveformCanvas = document.getElementById('micWaveformCanvas');
+        const grainASampleWaveformCanvas = document.getElementById('grainASampleWaveformCanvas');
         const grainAMicWaveformCanvas = document.getElementById('grainAMicWaveformCanvas');
+        const grainBSampleWaveformCanvas = document.getElementById('grainBSampleWaveformCanvas');
         const grainBMicWaveformCanvas = document.getElementById('grainBMicWaveformCanvas');
         const outputWaveformCanvas = document.getElementById('outputWaveformCanvas');
         const generateSourceBtn = document.getElementById('generateSourceBtn');
@@ -11053,8 +11126,8 @@
                     setBuffer: (buffer) => { grainMainSampleBuffer = buffer; },
                     startId: 'grainMainSampleLoopStart',
                     endId: 'grainMainSampleLoopEnd',
-                    canvas: null,
-                    metaId: null,
+                    canvas: grainMainSampleWaveformCanvas,
+                    metaId: 'grainMainSampleWaveformMeta',
                     dbKey: () => GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY,
                     emptyText: 'Load a sample into Main Grain',
                     color: '#6cc8ff'
@@ -11064,8 +11137,8 @@
                     setBuffer: (buffer) => { grainASampleBuffer = buffer; },
                     startId: 'grainASampleLoopStart',
                     endId: 'grainASampleLoopEnd',
-                    canvas: null,
-                    metaId: null,
+                    canvas: grainASampleWaveformCanvas,
+                    metaId: 'grainASampleWaveformMeta',
                     dbKey: () => GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY,
                     emptyText: 'Load a sample into Grain A',
                     color: '#ffd36f'
@@ -11075,8 +11148,8 @@
                     setBuffer: (buffer) => { grainBSampleBuffer = buffer; },
                     startId: 'grainBSampleLoopStart',
                     endId: 'grainBSampleLoopEnd',
-                    canvas: null,
-                    metaId: null,
+                    canvas: grainBSampleWaveformCanvas,
+                    metaId: 'grainBSampleWaveformMeta',
                     dbKey: () => GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY,
                     emptyText: 'Load a sample into Grain B',
                     color: '#ff9fe3'
@@ -14492,6 +14565,51 @@
             return true;
         }
 
+        async function toggleDrumMachinePlaybackFromUi() {
+            if (drumMachinePlaying) {
+                stopDrumMachine();
+                return true;
+            }
+
+            let audioReady = false;
+            try {
+                audioReady = await ensureAudioReadyForKeyInteraction();
+            } catch (error) {
+                console.warn('Drum machine key-style audio recovery failed:', error);
+            }
+
+            if (!audioReady) {
+                try {
+                    await ensureForegroundAudioReady({ silent: true });
+                } catch (error) {
+                    console.warn('Drum machine audio recovery failed:', error);
+                }
+            }
+
+            try {
+                if (audioContext && audioContext.state !== 'running') {
+                    await audioContext.resume();
+                }
+            } catch (error) {
+                console.warn('Drum machine resume failed:', error);
+            }
+
+            if (!drumMachineEnabled) {
+                setDrumMachineEnabled(true, { silent: true, skipSave: true });
+            }
+
+            const drumBus = ensureDrumMachineBus();
+            if (!audioContext || audioContext.state !== 'running' || !isAudioGraphReady() || !drumBus) {
+                syncPerformanceControlState();
+                setStatus('Start MYGRAIN before playing drums.', 'error');
+                return false;
+            }
+
+            updateDrumMachineMix();
+            syncDrumMachineUi();
+            return startDrumMachine();
+        }
+
         function setDrumMachineKickPitchSemitones(value, options = {}) {
             drumMachineKickPitchSemitones = clampDrumMachinePitchSemitones(value);
             syncDrumMachineUi();
@@ -15748,7 +15866,7 @@
             const hasSources = hasGranularSource();
             normalizeBtn.disabled = !hasSources;
             document.getElementById('auditionBtn').disabled = !hasSources;
-            ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => {
+            SOURCE_LOOP_CONTROL_DEFINITIONS.forEach(({ kind }) => {
                 const config = getSourceSlotConfig(kind);
                 const meta = document.getElementById(config.metaId);
                 const buffer = config.buffer();
@@ -15794,7 +15912,7 @@
         }
 
         function drawWaveforms() {
-            ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => drawSourceWaveform(kind));
+            SOURCE_LOOP_CONTROL_DEFINITIONS.forEach(({ kind }) => drawSourceWaveform(kind));
         }
 
         function drawSourceWaveform(kind) {
@@ -15874,10 +15992,10 @@
             }
         }
 
-        ['generated', 'mic', 'grainAMic', 'grainBMic', 'output'].forEach((kind) => {
-            const config = getSourceSlotConfig(kind);
+        SOURCE_LOOP_CONTROL_DEFINITIONS.forEach((definition) => {
+            const config = getSourceSlotConfig(definition.kind);
             [config.startId, config.endId].forEach((id) => {
-                document.getElementById(id)?.addEventListener('input', () => handleSourceLoopChange(kind));
+                document.getElementById(id)?.addEventListener('input', () => handleSourceLoopChange(definition.kind));
             });
         });
 
@@ -24427,8 +24545,14 @@
             const sourceSelect = document.getElementById(config.sourceSelectId);
             if (sourceSelect) sourceSelect.value = config.sourceMode;
             normalizeGranularLayerSourceSelects();
+            drawSourceWaveform(config.slotKind);
+            updateSourceAvailability();
             syncSourceWaveformSoloAudition();
             restartActiveGrainStreamsFromNow();
+            syncPerformanceControlState();
+            requestAnimationFrame(() => {
+                drawSourceWaveform(config.slotKind);
+            });
             saveState();
             setStatus(`${sourceName} ready in ${config.layerLabel} from ${responseSourceLabel}.`);
         }
@@ -27075,19 +27199,21 @@
             openDrumMachineOverlay();
         });
 
-        performanceDrumMachineStartBtn?.addEventListener('click', () => {
-            if (drumMachinePlaying) {
-                stopDrumMachine();
-            } else {
-                startDrumMachine();
+        performanceDrumMachineStartBtn?.addEventListener('click', async () => {
+            try {
+                await toggleDrumMachinePlaybackFromUi();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum machine failed: ${error.message}`, 'error');
             }
         });
 
-        performanceDrumMachineMainStartBtn?.addEventListener('click', () => {
-            if (drumMachinePlaying) {
-                stopDrumMachine();
-            } else {
-                startDrumMachine();
+        performanceDrumMachineMainStartBtn?.addEventListener('click', async () => {
+            try {
+                await toggleDrumMachinePlaybackFromUi();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum machine failed: ${error.message}`, 'error');
             }
         });
 
@@ -27121,11 +27247,12 @@
             }
         });
 
-        drumMachinePlayBtn?.addEventListener('click', () => {
-            if (drumMachinePlaying) {
-                stopDrumMachine();
-            } else {
-                startDrumMachine();
+        drumMachinePlayBtn?.addEventListener('click', async () => {
+            try {
+                await toggleDrumMachinePlaybackFromUi();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Drum machine failed: ${error.message}`, 'error');
             }
         });
 
