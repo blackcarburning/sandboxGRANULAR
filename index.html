@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-19-38-build-v2026.10.08.5';
+            const cacheBuster = '2026-10-08-18-51-build-v2026.10.08.6';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -2424,6 +2424,67 @@
             font-size: 0.82rem;
         }
 
+        .debug-console-card {
+            display: grid;
+            gap: 10px;
+            margin: 12px 0 8px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(110, 231, 255, 0.2);
+            background: rgba(6, 14, 24, 0.92);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .debug-console-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .debug-console-copy {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .debug-console-copy strong {
+            color: #edf7ff;
+            font-size: 0.96rem;
+        }
+
+        .debug-console-copy span {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .debug-console-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .debug-console-actions button {
+            width: auto;
+            min-width: 112px;
+        }
+
+        .debug-console-output {
+            width: 100%;
+            min-height: 132px;
+            resize: vertical;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0, 0, 0, 0.34);
+            color: #dff7ff;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.76rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+
         .help-panel {
             margin-top: 8px;
             padding: 12px 14px;
@@ -3854,7 +3915,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.5</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.6</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3867,7 +3928,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.5</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.6</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -5253,6 +5314,19 @@
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
                     <div id="audioStatus" class="status secondary-status" role="status" aria-live="polite">Audio idle</div>
+                </div>
+                <div class="debug-console-card" id="debugConsoleCard">
+                    <div class="debug-console-head">
+                        <div class="debug-console-copy">
+                            <strong>Debug Console</strong>
+                            <span>Copy this box and paste it back here if MYGRAIN falls over.</span>
+                        </div>
+                        <div class="debug-console-actions">
+                            <button type="button" id="copyDebugConsoleBtn">Copy Debug</button>
+                            <button type="button" id="clearDebugConsoleBtn">Clear Log</button>
+                        </div>
+                    </div>
+                    <textarea id="debugConsoleOutput" class="debug-console-output" readonly spellcheck="false">MYGRAIN debug console ready.</textarea>
                 </div>
                 <details class="help-panel">
                     <summary>Quick help</summary>
@@ -6971,6 +7045,133 @@
         let debugEnabled = false;
         let debugInterval = null;
         let debugLogs = [];
+        let debugConsoleEvents = [];
+        let debugConsoleHooksInstalled = false;
+        const DEBUG_CONSOLE_MAX_EVENTS = 80;
+
+        function formatDebugConsoleValue(value) {
+            if (value instanceof Error) {
+                return value.stack || value.message || String(value);
+            }
+            if (typeof value === 'string') return value;
+            if (value === undefined) return 'undefined';
+            if (value === null) return 'null';
+            try {
+                return JSON.stringify(value);
+            } catch (error) {
+                return String(value);
+            }
+        }
+
+        function appendDebugConsoleEvent(level, ...parts) {
+            const message = parts.map((part) => formatDebugConsoleValue(part)).join(' ').trim();
+            if (!message) return;
+            debugConsoleEvents.push({
+                timestamp: new Date().toISOString(),
+                level: String(level || 'info').toUpperCase(),
+                message
+            });
+            if (debugConsoleEvents.length > DEBUG_CONSOLE_MAX_EVENTS) {
+                debugConsoleEvents = debugConsoleEvents.slice(-DEBUG_CONSOLE_MAX_EVENTS);
+            }
+            renderDebugConsole();
+        }
+
+        function buildDebugConsoleText() {
+            const debug = captureAudioDebug();
+            const lines = ['MYGRAIN Debug Console'];
+
+            if (debug?.audioContext) {
+                lines.push(`Audio: ${debug.audioContext.state} @ ${debug.audioContext.currentTime}s`);
+            } else {
+                lines.push('Audio: not started');
+            }
+
+            if (debug?.activeNodes) {
+                lines.push(
+                    `Nodes: grains=${debug.activeNodes.activeGrains} voices=${debug.activeNodes.activeOscVoices} held=${debug.activeNodes.heldNotes} grainNodes=${debug.activeNodes.activeGrainNodes}`
+                );
+            }
+
+            if (debug?.warnings?.length) {
+                lines.push(`Warnings: ${debug.warnings.join(' | ')}`);
+            }
+
+            lines.push('');
+            lines.push('Recent events:');
+
+            if (debugConsoleEvents.length === 0) {
+                lines.push('(none yet)');
+            } else {
+                debugConsoleEvents.slice(-24).forEach((entry) => {
+                    lines.push(`${entry.timestamp} [${entry.level}] ${entry.message}`);
+                });
+            }
+
+            return lines.join('\n');
+        }
+
+        function renderDebugConsole() {
+            const output = document.getElementById('debugConsoleOutput');
+            if (!output) return;
+            output.value = buildDebugConsoleText();
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function copyDebugConsoleToClipboard() {
+            const output = document.getElementById('debugConsoleOutput');
+            const text = output?.value || buildDebugConsoleText();
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else if (output) {
+                    output.focus();
+                    output.select();
+                    document.execCommand('copy');
+                }
+                setStatus('Debug console copied.');
+            } catch (error) {
+                console.error('Failed to copy debug console:', error);
+                setStatus(`Debug copy failed: ${error.message}`, 'error');
+            }
+        }
+
+        function clearDebugConsoleLog() {
+            debugConsoleEvents = [];
+            renderDebugConsole();
+            setStatus('Debug console cleared.');
+        }
+
+        function installDebugConsoleHooks() {
+            if (debugConsoleHooksInstalled) return;
+            debugConsoleHooksInstalled = true;
+
+            const originalError = console.error.bind(console);
+            const originalWarn = console.warn.bind(console);
+
+            console.error = (...args) => {
+                appendDebugConsoleEvent('error', ...args);
+                originalError(...args);
+            };
+
+            console.warn = (...args) => {
+                appendDebugConsoleEvent('warn', ...args);
+                originalWarn(...args);
+            };
+
+            window.addEventListener('error', (event) => {
+                appendDebugConsoleEvent(
+                    'error',
+                    'window.onerror',
+                    event.message || 'Unknown error',
+                    event.filename ? `@ ${event.filename}:${event.lineno}:${event.colno}` : ''
+                );
+            });
+
+            window.addEventListener('unhandledrejection', (event) => {
+                appendDebugConsoleEvent('error', 'Unhandled rejection', event.reason || 'Unknown promise rejection');
+            });
+        }
 
         // Capture comprehensive audio debug information
         function captureAudioDebug() {
@@ -7138,6 +7339,7 @@
             debugLogs.push(debug);
             // Keep only last 100 logs
             if (debugLogs.length > 100) debugLogs.shift();
+            renderDebugConsole();
             
             // Safety check - if no grains are active but counter is high, reset it
             if (activeGrains.size === 0 && activeGrainNodes > 10) {
@@ -7153,6 +7355,8 @@
                 captureTime: new Date().toISOString(),
                 currentState: debug,
                 recentLogs: debugLogs.slice(-20),
+                debugConsoleText: buildDebugConsoleText(),
+                debugConsoleEvents: debugConsoleEvents.slice(-DEBUG_CONSOLE_MAX_EVENTS),
                 userAgent: navigator.userAgent,
                 platform: navigator.platform
             };
@@ -7189,6 +7393,7 @@
                 document.getElementById('toggleDebugBtn').textContent = 'Toggle Live Debug';
                 document.getElementById('toggleDebugBtn').style.background = '';
             }
+            renderDebugConsole();
         }
 
         // --- Globals ---
@@ -8666,11 +8871,15 @@
         const settlePopup = document.getElementById('settlePopup');
         let settlePopupTimer = null;
         let settlePopupPersistent = false;
+        let lastGrainNodeLimitWarnAt = 0;
 
         function setStatus(message, state = 'info') {
             if (!statusDiv) return;
             statusDiv.textContent = message;
             statusDiv.dataset.state = state;
+            if (state === 'error') {
+                appendDebugConsoleEvent('error', message);
+            }
         }
 
         function hideSettlePopup() {
@@ -16803,12 +17012,18 @@
 
             if (activeGrainNodes >= MAX_GRAIN_NODES) {
                 if (activeGrains.size === 0) {
-                    console.log('Resetting orphaned grain node counter on max reached');
+                    console.warn('Resetting orphaned grain node counter on max reached');
                     activeGrainNodes = 0;
                 } else {
-                    console.warn('Max grain nodes reached, rebuilding audio engine to recover granular playback');
-                    if (!audioEngineResetPromise) {
-                        resetEngineRoutine({ reason: 'panic', silent: true }).catch(() => {});
+                    const nowMs = Date.now();
+                    if (nowMs - lastGrainNodeLimitWarnAt > 1200) {
+                        lastGrainNodeLimitWarnAt = nowMs;
+                        console.warn('Max grain nodes reached, skipping new grains until existing voices decay.', {
+                            activeGrains: activeGrains.size,
+                            activeGrainNodes,
+                            maxGrainNodes: MAX_GRAIN_NODES,
+                            heldNotes: heldNotes.size
+                        });
                     }
                     return;
                 }
@@ -17792,9 +18007,6 @@
                 envelopes.noise = applyVoiceEnvelope(noiseGain, oscNoiseConfig, 1);
             }
 
-            // Debug: Log envelope timing
-            console.log(`[OSC Debug] Note: ${note}, Route: ${routeMode}, Now: ${now.toFixed(3)}, StartTime: ${startTime.toFixed(3)}, Attack: ${envelopes.osc1.attack.toFixed(3)}s, ${envelopes.osc2.attack.toFixed(3)}s, ${envelopes.osc3.attack.toFixed(3)}s`);
-
             // Store voice
             activeOscVoices.set(voiceId, {
                 note,
@@ -17844,9 +18056,6 @@
             
             // Ramp to zero
             voice.osc1Gain.gain.linearRampToValueAtTime(0, actualStopTime + release1);
-            
-            // Debug: Log release timing
-            console.log(`[OSC Debug] Stop Note: ${voice.note}, Now: ${now.toFixed(3)}, StopTime: ${stopTime.toFixed(3)}, Release: ${release1.toFixed(3)}s, CurrentGain: ${voice.osc1Gain.gain.value.toFixed(3)}`);
             
             // Apply release envelope for osc2
             const release2 = instantRelease ? getClickGuardSeconds() : Math.max(osc2Config.release / 1000, getClickGuardSeconds());
@@ -22721,6 +22930,14 @@
         // Debug Button Event Listeners
         document.getElementById('debugBtn').addEventListener('click', downloadDebugLog);
         document.getElementById('toggleDebugBtn').addEventListener('click', toggleDebugPanel);
+        document.getElementById('copyDebugConsoleBtn')?.addEventListener('click', () => {
+            copyDebugConsoleToClipboard().catch((error) => {
+                console.error(error);
+            });
+        });
+        document.getElementById('clearDebugConsoleBtn')?.addEventListener('click', clearDebugConsoleLog);
+        installDebugConsoleHooks();
+        renderDebugConsole();
 
         // Helper function to gather all preset data
         function gatherPreset() {
