@@ -348,7 +348,8 @@ test('source UI has separate generated and mic waveform loop controls', () => {
     assert.match(indexHtml, /function handleSourceLoopChange\(kind\)/);
     assert.match(indexHtml, /SOURCE_LOOP_CONTROL_DEFINITIONS\.forEach\(\(definition\) => \{/);
     assert.match(indexHtml, /document\.getElementById\(id\)\?\.addEventListener\('input', \(\) => handleSourceLoopChange\(definition\.kind\)\);/);
-    assert.match(indexHtml, /grainInfo\.nextTime = now/);
+    assert.match(indexHtml, /if \(audioContext && activeGrains\.size > 0\) \{\s*rescheduleActiveGrainsFromNow\(\);\s*\}/);
+    assert.doesNotMatch(indexHtml, /if \(audioContext && activeGrains\.size > 0\) \{\s*const now = audioContext\.currentTime;/);
 });
 
 test('patch randomize does not move manual source loop points', () => {

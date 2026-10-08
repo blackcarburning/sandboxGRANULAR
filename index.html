@@ -16093,11 +16093,7 @@
             }
 
             if (audioContext && activeGrains.size > 0) {
-                const now = audioContext.currentTime;
-                activeGrains.forEach((grainInfo) => {
-                    grainInfo.nextTime = now;
-                });
-                scheduleActiveGrains();
+                rescheduleActiveGrainsFromNow();
             }
 
             if (activeSourceCardAuditionKind === kind && auditionSources.length > 0) {
