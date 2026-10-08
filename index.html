@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-21-40-build-v2026.10.08.13';
+            const cacheBuster = '2026-10-08-21-45-build-v2026.10.08.14';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3947,7 +3947,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.13</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.14</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3960,7 +3960,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.13</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.14</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -6897,6 +6897,20 @@
                             </label>
                             <input type="range" id="drumMachineKickLevel" min="0" max="100" value="100" step="1">
                         </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineKickDecay">
+                                <span>Kick Decay</span>
+                                <span class="value" id="drumMachineKickDecayValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineKickDecay" min="5" max="100" value="100" step="1">
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineKickLength">
+                                <span>Kick Length</span>
+                                <span class="value" id="drumMachineKickLengthValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineKickLength" min="5" max="100" value="100" step="1">
+                        </div>
                         <div class="drum-machine-track-meta">
                             <span>Steps</span>
                             <span>Tap to toggle</span>
@@ -6924,6 +6938,20 @@
                                 <span class="value" id="drumMachineSnareLevelValue">100%</span>
                             </label>
                             <input type="range" id="drumMachineSnareLevel" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineSnareDecay">
+                                <span>Snare Decay</span>
+                                <span class="value" id="drumMachineSnareDecayValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineSnareDecay" min="5" max="100" value="100" step="1">
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineSnareLength">
+                                <span>Snare Length</span>
+                                <span class="value" id="drumMachineSnareLengthValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineSnareLength" min="5" max="100" value="100" step="1">
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineSnareDistortion">
@@ -6962,6 +6990,20 @@
                                 <span class="value" id="drumMachineHatLevelValue">100%</span>
                             </label>
                             <input type="range" id="drumMachineHatLevel" min="0" max="100" value="100" step="1">
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineHatDecay">
+                                <span>Hat Decay</span>
+                                <span class="value" id="drumMachineHatDecayValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineHatDecay" min="5" max="100" value="100" step="1">
+                        </div>
+                        <div class="performance-sound-card">
+                            <label for="drumMachineHatLength">
+                                <span>Hat Length</span>
+                                <span class="value" id="drumMachineHatLengthValue">100%</span>
+                            </label>
+                            <input type="range" id="drumMachineHatLength" min="5" max="100" value="100" step="1">
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineHatAccentAmount">
@@ -8000,6 +8042,12 @@
         let drumMachineKickTrackLevel = 1;
         let drumMachineSnareTrackLevel = 1;
         let drumMachineHatTrackLevel = 1;
+        let drumMachineKickDecay = 1;
+        let drumMachineKickLength = 1;
+        let drumMachineSnareDecay = 1;
+        let drumMachineSnareLength = 1;
+        let drumMachineHatDecay = 1;
+        let drumMachineHatLength = 1;
         let drumMachineSnareDriveAmount = 0;
         let drumMachineHatAccentAmount = 0.35;
         let drumMachineKickPattern = Array.from({ length: 16 }, (_, index) => index === 0 || index === 8);
@@ -14592,6 +14640,43 @@
             return drumMachineHatTrackLevel;
         }
 
+        function getDrumMachineEnvelopeAmount(sliderId, fallbackValue = 1) {
+            const slider = document.getElementById(sliderId);
+            const rawValue = Number(slider?.value ?? (fallbackValue * 100));
+            const clamped = Math.max(5, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
+            return clamped / 100;
+        }
+
+        function getDrumMachineKickDecayValue() {
+            drumMachineKickDecay = getDrumMachineEnvelopeAmount('drumMachineKickDecay', drumMachineKickDecay);
+            return drumMachineKickDecay;
+        }
+
+        function getDrumMachineKickLengthValue() {
+            drumMachineKickLength = getDrumMachineEnvelopeAmount('drumMachineKickLength', drumMachineKickLength);
+            return drumMachineKickLength;
+        }
+
+        function getDrumMachineSnareDecayValue() {
+            drumMachineSnareDecay = getDrumMachineEnvelopeAmount('drumMachineSnareDecay', drumMachineSnareDecay);
+            return drumMachineSnareDecay;
+        }
+
+        function getDrumMachineSnareLengthValue() {
+            drumMachineSnareLength = getDrumMachineEnvelopeAmount('drumMachineSnareLength', drumMachineSnareLength);
+            return drumMachineSnareLength;
+        }
+
+        function getDrumMachineHatDecayValue() {
+            drumMachineHatDecay = getDrumMachineEnvelopeAmount('drumMachineHatDecay', drumMachineHatDecay);
+            return drumMachineHatDecay;
+        }
+
+        function getDrumMachineHatLengthValue() {
+            drumMachineHatLength = getDrumMachineEnvelopeAmount('drumMachineHatLength', drumMachineHatLength);
+            return drumMachineHatLength;
+        }
+
         function getDrumMachineLevelValue(options = {}) {
             const slider = document.getElementById('performanceDrumMachineLevel');
             const rawValue = Number(slider?.value ?? (drumMachineLevel * 100));
@@ -14930,34 +15015,64 @@
             const kickLevel = Math.round(getDrumMachineKickLevelValue() * 100);
             const snareLevel = Math.round(getDrumMachineSnareLevelValue() * 100);
             const hatLevel = Math.round(getDrumMachineHatLevelValue() * 100);
+            const kickDecay = Math.round(getDrumMachineKickDecayValue() * 100);
+            const kickLength = Math.round(getDrumMachineKickLengthValue() * 100);
+            const snareDecay = Math.round(getDrumMachineSnareDecayValue() * 100);
+            const snareLength = Math.round(getDrumMachineSnareLengthValue() * 100);
+            const hatDecay = Math.round(getDrumMachineHatDecayValue() * 100);
+            const hatLength = Math.round(getDrumMachineHatLengthValue() * 100);
             const snareDistortion = Math.round(getDrumMachineSnareDistortionAmount() * 100);
             const hatAccentAmount = Math.round(getDrumMachineHatAccentAmount() * 100);
             const kickLabel = document.getElementById('drumMachineKickPitchValue');
             const snareLabel = document.getElementById('drumMachineSnarePitchValue');
             const hatLabel = document.getElementById('drumMachineHatTuneValue');
             const kickLevelLabel = document.getElementById('drumMachineKickLevelValue');
+            const kickDecayLabel = document.getElementById('drumMachineKickDecayValue');
+            const kickLengthLabel = document.getElementById('drumMachineKickLengthValue');
             const snareLevelLabel = document.getElementById('drumMachineSnareLevelValue');
+            const snareDecayLabel = document.getElementById('drumMachineSnareDecayValue');
+            const snareLengthLabel = document.getElementById('drumMachineSnareLengthValue');
             const hatLevelLabel = document.getElementById('drumMachineHatLevelValue');
+            const hatDecayLabel = document.getElementById('drumMachineHatDecayValue');
+            const hatLengthLabel = document.getElementById('drumMachineHatLengthValue');
             const snareDistortionLabel = document.getElementById('drumMachineSnareDistortionValue');
             const hatAccentAmountLabel = document.getElementById('drumMachineHatAccentAmountValue');
             const hatTuneSlider = document.getElementById('drumMachineHatTune');
             const kickLevelSlider = document.getElementById('drumMachineKickLevel');
+            const kickDecaySlider = document.getElementById('drumMachineKickDecay');
+            const kickLengthSlider = document.getElementById('drumMachineKickLength');
             const snareLevelSlider = document.getElementById('drumMachineSnareLevel');
+            const snareDecaySlider = document.getElementById('drumMachineSnareDecay');
+            const snareLengthSlider = document.getElementById('drumMachineSnareLength');
             const hatLevelSlider = document.getElementById('drumMachineHatLevel');
+            const hatDecaySlider = document.getElementById('drumMachineHatDecay');
+            const hatLengthSlider = document.getElementById('drumMachineHatLength');
             const snareDistortionSlider = document.getElementById('drumMachineSnareDistortion');
             const hatAccentSlider = document.getElementById('drumMachineHatAccentAmount');
             if (kickLabel) kickLabel.textContent = formatDrumMachinePitchSemitones(kickValue);
             if (snareLabel) snareLabel.textContent = formatDrumMachinePitchSemitones(snareValue);
             if (hatLabel) hatLabel.textContent = formatDrumMachinePitchSemitones(hatValue);
             if (kickLevelLabel) kickLevelLabel.textContent = `${kickLevel}%`;
+            if (kickDecayLabel) kickDecayLabel.textContent = `${kickDecay}%`;
+            if (kickLengthLabel) kickLengthLabel.textContent = `${kickLength}%`;
             if (snareLevelLabel) snareLevelLabel.textContent = `${snareLevel}%`;
+            if (snareDecayLabel) snareDecayLabel.textContent = `${snareDecay}%`;
+            if (snareLengthLabel) snareLengthLabel.textContent = `${snareLength}%`;
             if (hatLevelLabel) hatLevelLabel.textContent = `${hatLevel}%`;
+            if (hatDecayLabel) hatDecayLabel.textContent = `${hatDecay}%`;
+            if (hatLengthLabel) hatLengthLabel.textContent = `${hatLength}%`;
             if (snareDistortionLabel) snareDistortionLabel.textContent = `${snareDistortion}%`;
             if (hatAccentAmountLabel) hatAccentAmountLabel.textContent = `${hatAccentAmount}%`;
             if (hatTuneSlider) hatTuneSlider.value = String(hatValue);
             if (kickLevelSlider) kickLevelSlider.value = String(kickLevel);
+            if (kickDecaySlider) kickDecaySlider.value = String(kickDecay);
+            if (kickLengthSlider) kickLengthSlider.value = String(kickLength);
             if (snareLevelSlider) snareLevelSlider.value = String(snareLevel);
+            if (snareDecaySlider) snareDecaySlider.value = String(snareDecay);
+            if (snareLengthSlider) snareLengthSlider.value = String(snareLength);
             if (hatLevelSlider) hatLevelSlider.value = String(hatLevel);
+            if (hatDecaySlider) hatDecaySlider.value = String(hatDecay);
+            if (hatLengthSlider) hatLengthSlider.value = String(hatLength);
             if (snareDistortionSlider) snareDistortionSlider.value = String(snareDistortion);
             if (hatAccentSlider) hatAccentSlider.value = String(hatAccentAmount);
         }
@@ -15075,10 +15190,14 @@
             const accentAmount = getDrumMachineHatAccentAmount();
             const accentBoost = options.accent ? accentAmount : 0;
             const trackLevel = getDrumMachineHatLevelValue();
+            const decayRatio = getDrumMachineHatDecayValue();
+            const lengthRatio = getDrumMachineHatLengthValue();
             if (drumMachineHatBuffer) {
                 const baseLevel = options.ratchet ? 0.22 : 0.3;
                 return playDrumMachineHit(drumMachineHatBuffer, scheduledTime, getDrumMachineHatPitchRatio(), {
-                    level: Math.min(1, (baseLevel + (accentBoost * 0.5)) * trackLevel)
+                    level: Math.min(1, (baseLevel + (accentBoost * 0.5)) * trackLevel),
+                    decayRatio,
+                    lengthRatio
                 });
             }
             if (!audioContext) return false;
@@ -15092,9 +15211,11 @@
             const gain = audioContext.createGain();
             const pitchRatio = Math.max(0.5, Math.min(2, getDrumMachineHatPitchRatio()));
             const baseFrequency = 7200 * pitchRatio;
-            const duration = options.ratchet ? 0.038 : 0.055;
+            const baseDuration = options.ratchet ? 0.038 : 0.055;
+            const duration = Math.max(0.01, baseDuration * lengthRatio);
             const fadeSeconds = 0.003;
             const startLevel = (0.18 + (accentBoost * 0.28)) * trackLevel;
+            const decayEndTime = scheduledTime + Math.max(0.008, duration * Math.max(0.08, decayRatio));
             const endTime = scheduledTime + duration;
 
             source.buffer = noiseBuffer;
@@ -15108,7 +15229,7 @@
 
             gain.gain.setValueAtTime(0.0001, scheduledTime);
             gain.gain.linearRampToValueAtTime(startLevel, scheduledTime + 0.0015);
-            gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(endTime, decayEndTime));
 
             source.connect(highpass);
             highpass.connect(bandpass);
@@ -15145,16 +15266,19 @@
                 : Math.max(0, Math.min(1, Number(options.level) || 0));
             const distortionAmount = Math.max(0, Math.min(1, Number(options.distortionAmount) || 0));
             const rate = Math.max(0.25, Math.min(4, Number(pitchRatio) || 1));
-            const duration = Math.max(0.02, buffer.duration / rate);
+            const rawDuration = Math.max(0.02, buffer.duration / rate);
+            const lengthRatio = Math.max(0.05, Math.min(1, Number(options.lengthRatio) || 1));
+            const decayRatio = Math.max(0.05, Math.min(1, Number(options.decayRatio) || 1));
+            const duration = Math.max(0.02, rawDuration * lengthRatio);
             const fadeSeconds = Math.min(0.02, Math.max(0.003, getFadeSecondsForDuration(duration)));
-            const releaseTime = Math.max(scheduledTime + fadeSeconds, scheduledTime + duration - fadeSeconds);
+            const attackTime = Math.min(fadeSeconds, Math.max(0.0015, duration * 0.08));
+            const decayEndTime = scheduledTime + Math.max(attackTime + 0.006, duration * Math.max(0.08, decayRatio));
 
             source.buffer = buffer;
             source.playbackRate.value = rate;
             gain.gain.setValueAtTime(0, scheduledTime);
-            gain.gain.linearRampToValueAtTime(level, scheduledTime + fadeSeconds);
-            gain.gain.setValueAtTime(level, releaseTime);
-            gain.gain.linearRampToValueAtTime(0.0001, Math.max(releaseTime + fadeSeconds, scheduledTime + duration));
+            gain.gain.linearRampToValueAtTime(level, scheduledTime + attackTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(scheduledTime + duration, decayEndTime));
             source.connect(gain);
 
             const cleanupNodes = [gain];
@@ -15251,12 +15375,16 @@
                     }
                     playDrumMachineHit(drumMachineKickBuffer, scheduledTime, getDrumMachineKickPitchRatio(), {
                         level: kickLevel,
+                        decayRatio: getDrumMachineKickDecayValue(),
+                        lengthRatio: getDrumMachineKickLengthValue(),
                         bypassFinalCompressor: shouldRouteKickAroundFinalCompressor()
                     });
                 }
                 if (drumMachineSnarePattern[stepIndex] && drumMachineSnareBuffer) {
                     playDrumMachineHit(drumMachineSnareBuffer, scheduledTime, getDrumMachineSnarePitchRatio(), {
                         level: getDrumMachineSnareLevelValue(),
+                        decayRatio: getDrumMachineSnareDecayValue(),
+                        lengthRatio: getDrumMachineSnareLengthValue(),
                         distortionAmount: getDrumMachineSnareDistortionAmount()
                     });
                 }
@@ -15314,6 +15442,24 @@
             }
             if (!(drumMachineHatTrackLevel > 0.0001)) {
                 drumMachineHatTrackLevel = 1;
+            }
+            if (!(drumMachineKickDecay > 0.0001)) {
+                drumMachineKickDecay = 1;
+            }
+            if (!(drumMachineKickLength > 0.0001)) {
+                drumMachineKickLength = 1;
+            }
+            if (!(drumMachineSnareDecay > 0.0001)) {
+                drumMachineSnareDecay = 1;
+            }
+            if (!(drumMachineSnareLength > 0.0001)) {
+                drumMachineSnareLength = 1;
+            }
+            if (!(drumMachineHatDecay > 0.0001)) {
+                drumMachineHatDecay = 1;
+            }
+            if (!(drumMachineHatLength > 0.0001)) {
+                drumMachineHatLength = 1;
             }
 
             syncDrumMachineUi();
@@ -23304,12 +23450,18 @@
                 drumMachineHatAccentPattern: drumMachineHatAccentPattern.slice(),
                 drumMachineHatRatchetPattern: drumMachineHatRatchetPattern.slice(),
                 drumMachineHatTimingMode: getDrumMachineHatTimingMode(),
+                drumMachineKickDecay,
+                drumMachineKickLength,
                 drumMachineKickSourceKey: drumMachineKickMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.kick,
                 drumMachineKickFileName: drumMachineKickMetadata?.fileName || '',
                 drumMachineKickRelativePath: drumMachineKickMetadata?.relativePath || '',
+                drumMachineSnareDecay,
+                drumMachineSnareLength,
                 drumMachineSnareSourceKey: drumMachineSnareMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
                 drumMachineSnareFileName: drumMachineSnareMetadata?.fileName || '',
                 drumMachineSnareRelativePath: drumMachineSnareMetadata?.relativePath || '',
+                drumMachineHatDecay,
+                drumMachineHatLength,
                 drumMachineHatSourceKey: drumMachineHatMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.hat,
                 drumMachineHatFileName: drumMachineHatMetadata?.fileName || '',
                 drumMachineHatRelativePath: drumMachineHatMetadata?.relativePath || '',
@@ -23574,6 +23726,12 @@
             drumMachineHatAccentPattern = Array.from({ length: 16 }, (_, index) => Boolean((safePreset.drumMachineHatAccentPattern ?? preset.drumMachineHatAccentPattern)?.[index]));
             drumMachineHatRatchetPattern = Array.from({ length: 16 }, (_, index) => Boolean((safePreset.drumMachineHatRatchetPattern ?? preset.drumMachineHatRatchetPattern)?.[index]));
             drumMachineHatTimingMode = normalizeDrumMachineHatTimingMode(safePreset.drumMachineHatTimingMode ?? preset.drumMachineHatTimingMode);
+            drumMachineKickDecay = Math.max(0.05, Math.min(1, Number(safePreset.drumMachineKickDecay ?? preset.drumMachineKickDecay) || 1));
+            drumMachineKickLength = Math.max(0.05, Math.min(1, Number(safePreset.drumMachineKickLength ?? preset.drumMachineKickLength) || 1));
+            drumMachineSnareDecay = Math.max(0.05, Math.min(1, Number(safePreset.drumMachineSnareDecay ?? preset.drumMachineSnareDecay) || 1));
+            drumMachineSnareLength = Math.max(0.05, Math.min(1, Number(safePreset.drumMachineSnareLength ?? preset.drumMachineSnareLength) || 1));
+            drumMachineHatDecay = Math.max(0.05, Math.min(1, Number(safePreset.drumMachineHatDecay ?? preset.drumMachineHatDecay) || 1));
+            drumMachineHatLength = Math.max(0.05, Math.min(1, Number(safePreset.drumMachineHatLength ?? preset.drumMachineHatLength) || 1));
             drumMachineKickMetadata = {
                 sourceKey: safePreset.drumMachineKickSourceKey ?? preset.drumMachineKickSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.kick,
                 sourceLabel: BASTARD_LOOP_SOURCE_LABELS[safePreset.drumMachineKickSourceKey ?? preset.drumMachineKickSourceKey ?? DRUM_MACHINE_SOURCE_KEYS.kick] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
@@ -24073,12 +24231,18 @@
                     drumMachineHatAccentPattern: drumMachineHatAccentPattern.slice(),
                     drumMachineHatRatchetPattern: drumMachineHatRatchetPattern.slice(),
                     drumMachineHatTimingMode: getDrumMachineHatTimingMode(),
+                    drumMachineKickDecay,
+                    drumMachineKickLength,
                     drumMachineKickSourceKey: drumMachineKickMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.kick,
                     drumMachineKickFileName: drumMachineKickMetadata?.fileName || '',
                     drumMachineKickRelativePath: drumMachineKickMetadata?.relativePath || '',
+                    drumMachineSnareDecay,
+                    drumMachineSnareLength,
                     drumMachineSnareSourceKey: drumMachineSnareMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.snare,
                     drumMachineSnareFileName: drumMachineSnareMetadata?.fileName || '',
                     drumMachineSnareRelativePath: drumMachineSnareMetadata?.relativePath || '',
+                    drumMachineHatDecay,
+                    drumMachineHatLength,
                     drumMachineHatSourceKey: drumMachineHatMetadata?.sourceKey || DRUM_MACHINE_SOURCE_KEYS.hat,
                     drumMachineHatFileName: drumMachineHatMetadata?.fileName || '',
                     drumMachineHatRelativePath: drumMachineHatMetadata?.relativePath || '',
@@ -24383,6 +24547,12 @@
                     drumMachineHatAccentPattern = Array.from({ length: 16 }, (_, index) => Boolean(state.modes.drumMachineHatAccentPattern?.[index]));
                     drumMachineHatRatchetPattern = Array.from({ length: 16 }, (_, index) => Boolean(state.modes.drumMachineHatRatchetPattern?.[index]));
                     drumMachineHatTimingMode = normalizeDrumMachineHatTimingMode(state.modes.drumMachineHatTimingMode);
+                    drumMachineKickDecay = Math.max(0.05, Math.min(1, Number(state.modes.drumMachineKickDecay) || 1));
+                    drumMachineKickLength = Math.max(0.05, Math.min(1, Number(state.modes.drumMachineKickLength) || 1));
+                    drumMachineSnareDecay = Math.max(0.05, Math.min(1, Number(state.modes.drumMachineSnareDecay) || 1));
+                    drumMachineSnareLength = Math.max(0.05, Math.min(1, Number(state.modes.drumMachineSnareLength) || 1));
+                    drumMachineHatDecay = Math.max(0.05, Math.min(1, Number(state.modes.drumMachineHatDecay) || 1));
+                    drumMachineHatLength = Math.max(0.05, Math.min(1, Number(state.modes.drumMachineHatLength) || 1));
                     drumMachineKickMetadata = {
                         sourceKey: state.modes.drumMachineKickSourceKey || DRUM_MACHINE_SOURCE_KEYS.kick,
                         sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes.drumMachineKickSourceKey || DRUM_MACHINE_SOURCE_KEYS.kick] || BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
@@ -27153,11 +27323,17 @@
         const drumMachineHatTimingModeBtn = document.getElementById('drumMachineHatTimingModeBtn');
         const drumMachineKickPitch = document.getElementById('drumMachineKickPitch');
         const drumMachineKickLevel = document.getElementById('drumMachineKickLevel');
+        const drumMachineKickDecaySlider = document.getElementById('drumMachineKickDecay');
+        const drumMachineKickLengthSlider = document.getElementById('drumMachineKickLength');
         const drumMachineSnarePitch = document.getElementById('drumMachineSnarePitch');
         const drumMachineSnareLevel = document.getElementById('drumMachineSnareLevel');
+        const drumMachineSnareDecaySlider = document.getElementById('drumMachineSnareDecay');
+        const drumMachineSnareLengthSlider = document.getElementById('drumMachineSnareLength');
         const drumMachineSnareDistortion = document.getElementById('drumMachineSnareDistortion');
         const drumMachineHatTune = document.getElementById('drumMachineHatTune');
         const drumMachineHatLevel = document.getElementById('drumMachineHatLevel');
+        const drumMachineHatDecaySlider = document.getElementById('drumMachineHatDecay');
+        const drumMachineHatLengthSlider = document.getElementById('drumMachineHatLength');
         const drumMachineHatAccentAmountSlider = document.getElementById('drumMachineHatAccentAmount');
         const wavRepositoryBrowserOverlay = document.getElementById('wavRepositoryBrowserOverlay');
         const wavRepositoryBrowserCloseBtn = document.getElementById('wavRepositoryBrowserCloseBtn');
@@ -28314,6 +28490,20 @@
             saveState();
         });
 
+        drumMachineKickDecaySlider?.addEventListener('input', (event) => {
+            const value = Math.max(5, Math.min(100, Number(event.target.value) || 100));
+            drumMachineKickDecay = value / 100;
+            document.getElementById('drumMachineKickDecayValue').textContent = `${Math.round(value)}%`;
+            saveState();
+        });
+
+        drumMachineKickLengthSlider?.addEventListener('input', (event) => {
+            const value = Math.max(5, Math.min(100, Number(event.target.value) || 100));
+            drumMachineKickLength = value / 100;
+            document.getElementById('drumMachineKickLengthValue').textContent = `${Math.round(value)}%`;
+            saveState();
+        });
+
         drumMachineSnarePitch?.addEventListener('input', (event) => {
             setDrumMachineSnarePitchSemitones(event.target.value);
         });
@@ -28322,6 +28512,20 @@
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             drumMachineSnareTrackLevel = value / 100;
             document.getElementById('drumMachineSnareLevelValue').textContent = `${Math.round(value)}%`;
+            saveState();
+        });
+
+        drumMachineSnareDecaySlider?.addEventListener('input', (event) => {
+            const value = Math.max(5, Math.min(100, Number(event.target.value) || 100));
+            drumMachineSnareDecay = value / 100;
+            document.getElementById('drumMachineSnareDecayValue').textContent = `${Math.round(value)}%`;
+            saveState();
+        });
+
+        drumMachineSnareLengthSlider?.addEventListener('input', (event) => {
+            const value = Math.max(5, Math.min(100, Number(event.target.value) || 100));
+            drumMachineSnareLength = value / 100;
+            document.getElementById('drumMachineSnareLengthValue').textContent = `${Math.round(value)}%`;
             saveState();
         });
 
@@ -28340,6 +28544,20 @@
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             drumMachineHatTrackLevel = value / 100;
             document.getElementById('drumMachineHatLevelValue').textContent = `${Math.round(value)}%`;
+            saveState();
+        });
+
+        drumMachineHatDecaySlider?.addEventListener('input', (event) => {
+            const value = Math.max(5, Math.min(100, Number(event.target.value) || 100));
+            drumMachineHatDecay = value / 100;
+            document.getElementById('drumMachineHatDecayValue').textContent = `${Math.round(value)}%`;
+            saveState();
+        });
+
+        drumMachineHatLengthSlider?.addEventListener('input', (event) => {
+            const value = Math.max(5, Math.min(100, Number(event.target.value) || 100));
+            drumMachineHatLength = value / 100;
+            document.getElementById('drumMachineHatLengthValue').textContent = `${Math.round(value)}%`;
             saveState();
         });
 
