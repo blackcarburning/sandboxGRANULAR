@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-21-58-build-v2026.10.08.17';
+            const cacheBuster = '2026-10-08-22-07-build-v2026.10.08.18';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3952,7 +3952,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.17</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.18</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3965,7 +3965,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.17</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.18</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -6843,10 +6843,12 @@
                         <label class="sample-browser-filter-label" for="wavRepositoryBrowserFilter">Search WAVs</label>
                         <input class="sample-browser-filter-input" id="wavRepositoryBrowserFilter" type="search" placeholder="Filter saved WAVs" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
                     </div>
+                    <button class="performance-btn" id="wavRepositoryBrowserUploadBtn" type="button">Upload WAVs</button>
                     <button class="performance-btn" id="wavRepositoryBrowserRefreshBtn" type="button">Refresh</button>
                 </div>
                 <div class="sample-browser-status" id="wavRepositoryBrowserStatus">Browse and annotate saved WAVs.</div>
                 <div class="sample-browser-list" id="wavRepositoryBrowserList"></div>
+                <input id="wavRepositoryBrowserUploadInput" type="file" accept=".wav,audio/wav" multiple hidden>
             </div>
         </div>
 
@@ -26430,6 +26432,20 @@
             }
         }
 
+        async function uploadWavFilesToRepository(files) {
+            const wavFiles = Array.from(files || []).filter((file) => file instanceof File);
+            if (!wavFiles.length) return;
+
+            setWavRepositoryBrowserStatus(`Uploading ${wavFiles.length} WAV${wavFiles.length === 1 ? '' : 's'}…`);
+            for (const file of wavFiles) {
+                const fallbackBase = file.name.replace(/\.[^.]+$/i, '') || 'mygrain-upload';
+                const filename = sanitizeWavRepositoryFilename(file.name, fallbackBase);
+                await uploadWavToRepository(file, filename);
+            }
+            setWavRepositoryBrowserStatus(`Uploaded ${wavFiles.length} WAV${wavFiles.length === 1 ? '' : 's'} to the repository.`);
+            await refreshWavRepositoryBrowser({ forceRefresh: true });
+        }
+
         function pauseWavRepositoryBrowserPreviewAudio() {
             document.querySelectorAll('#wavRepositoryBrowserList audio').forEach((audio) => {
                 try {
@@ -27367,6 +27383,8 @@
         const drumMachineHatAccentAmountSlider = document.getElementById('drumMachineHatAccentAmount');
         const wavRepositoryBrowserOverlay = document.getElementById('wavRepositoryBrowserOverlay');
         const wavRepositoryBrowserCloseBtn = document.getElementById('wavRepositoryBrowserCloseBtn');
+        const wavRepositoryBrowserUploadBtn = document.getElementById('wavRepositoryBrowserUploadBtn');
+        const wavRepositoryBrowserUploadInput = document.getElementById('wavRepositoryBrowserUploadInput');
         const wavRepositoryBrowserRefreshBtn = document.getElementById('wavRepositoryBrowserRefreshBtn');
         const wavRepositoryBrowserFilter = document.getElementById('wavRepositoryBrowserFilter');
         const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
@@ -28600,6 +28618,25 @@
 
         wavRepositoryBrowserCloseBtn?.addEventListener('click', () => {
             closeWavRepositoryBrowser();
+        });
+
+        wavRepositoryBrowserUploadBtn?.addEventListener('click', () => {
+            wavRepositoryBrowserUploadInput?.click();
+        });
+
+        wavRepositoryBrowserUploadInput?.addEventListener('change', async (event) => {
+            const input = event.target;
+            const files = input?.files;
+            if (!files || !files.length) return;
+            try {
+                await uploadWavFilesToRepository(files);
+            } catch (error) {
+                console.error(error);
+                setWavRepositoryBrowserStatus(`Upload failed: ${error.message}`);
+                setStatus(`WAV upload failed: ${error.message}`, 'error');
+            } finally {
+                if (input) input.value = '';
+            }
         });
 
         wavRepositoryBrowserRefreshBtn?.addEventListener('click', () => {
