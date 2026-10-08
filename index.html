@@ -879,6 +879,15 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        .grain-inline-sample-panel {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+            padding-top: 6px;
+            margin-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
         .source-waveform-header,
         .source-loop-labels {
             display: flex;
@@ -904,6 +913,15 @@
         .source-loop-controls {
             display: grid;
             gap: 4px;
+        }
+
+        .source-seed-buttons-stack {
+            display: grid;
+            gap: 6px;
+        }
+
+        .source-seed-buttons-stack button {
+            width: 100%;
         }
 
         .source-grain-mode-control {
@@ -4196,7 +4214,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Grains</div>
                         <h3 class="performance-feature-title">Granular Layer Quick Controls</h3>
-                        <p class="performance-feature-note">Keep the grain tuning, stereo width, smoothing, and core LFO depth controls visible on iPhone without reopening the hidden desktop grain tab.</p>
+                        <p class="performance-feature-note">Keep the grain tuning, stereo width, smoothing, and core LFO depth controls close to the grain waveforms on iPhone without reopening the hidden desktop grain tab.</p>
                     </div>
                 </div>
                 <div class="performance-grain-layer-grid" aria-label="Granular layer quick controls">
@@ -4235,9 +4253,6 @@
                                 <input type="range" id="performanceGrainMainSmoothing" min="0" max="100" value="42" step="1">
                             </div>
                         </div>
-                        <div class="performance-grain-layer-actions">
-                            <button class="performance-btn" id="performanceGrainMainBrowseBtn" type="button">Browse Sample Folders</button>
-                        </div>
                     </section>
                     <section class="performance-grain-layer-group" aria-label="Grain A quick controls">
                         <div class="performance-grain-layer-head">
@@ -4274,9 +4289,6 @@
                                 <input type="range" id="performanceGrainASmoothing" min="0" max="100" value="48" step="1">
                             </div>
                         </div>
-                        <div class="performance-grain-layer-actions">
-                            <button class="performance-btn" id="performanceGrainABrowseBtn" type="button">Browse Sample Folders</button>
-                        </div>
                     </section>
                     <section class="performance-grain-layer-group" aria-label="Grain B quick controls">
                         <div class="performance-grain-layer-head">
@@ -4312,9 +4324,6 @@
                                 </label>
                                 <input type="range" id="performanceGrainBSmoothing" min="0" max="100" value="56" step="1">
                             </div>
-                        </div>
-                        <div class="performance-grain-layer-actions">
-                            <button class="performance-btn" id="performanceGrainBBrowseBtn" type="button">Browse Sample Folders</button>
                         </div>
                     </section>
                     <section class="performance-grain-layer-group" aria-label="Granular LFO depth quick controls">
@@ -4985,9 +4994,10 @@
                             <input type="range" id="grainMainSampleLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="grainMainSampleLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
-                        <div class="source-seed-buttons">
-                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
+                        <div class="source-seed-buttons source-seed-buttons-stack">
+                            <button type="button" class="grain-layer-browser-btn" id="grainMainSampleBrowseBtn" data-grain-browser-target="grainMain">Browse Sample Folders</button>
                             <button type="button" class="trim-source-btn" data-source-kind="grainMainSample">Trim to Selection</button>
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5045,24 +5055,25 @@
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Selection</button>
                         </div>
-                    </div>
-                    <div class="source-waveform-panel">
-                        <div class="source-waveform-header">
-                            <span>Grain A Sample</span>
-                            <span class="source-waveform-meta" id="grainASampleWaveformMeta">Empty</span>
-                        </div>
-                        <canvas id="grainASampleWaveformCanvas" class="source-waveform-canvas" data-source="grainASample"></canvas>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="grainASampleLoopStart">Start <span id="grainASampleLoopStartValue">0%</span></label>
-                                <label for="grainASampleLoopEnd">End <span id="grainASampleLoopEndValue">100%</span></label>
+                        <div class="grain-inline-sample-panel" aria-label="Grain A sample controls">
+                            <div class="source-waveform-header">
+                                <span>Grain A Sample</span>
+                                <span class="source-waveform-meta" id="grainASampleWaveformMeta">Empty</span>
                             </div>
-                            <input type="range" id="grainASampleLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="grainASampleLoopEnd" min="0" max="100" value="100" step="1">
-                        </div>
-                        <div class="source-seed-buttons">
-                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainASample" aria-pressed="false" disabled>Audition</button>
-                            <button type="button" class="trim-source-btn" data-source-kind="grainASample">Trim to Selection</button>
+                            <canvas id="grainASampleWaveformCanvas" class="source-waveform-canvas" data-source="grainASample"></canvas>
+                            <div class="source-loop-controls">
+                                <div class="source-loop-labels">
+                                    <label for="grainASampleLoopStart">Start <span id="grainASampleLoopStartValue">0%</span></label>
+                                    <label for="grainASampleLoopEnd">End <span id="grainASampleLoopEndValue">100%</span></label>
+                                </div>
+                                <input type="range" id="grainASampleLoopStart" min="0" max="100" value="0" step="1">
+                                <input type="range" id="grainASampleLoopEnd" min="0" max="100" value="100" step="1">
+                            </div>
+                            <div class="source-seed-buttons source-seed-buttons-stack">
+                                <button type="button" class="grain-layer-browser-btn" id="grainASampleBrowseBtn" data-grain-browser-target="grainA">Browse Sample Folders</button>
+                                <button type="button" class="trim-source-btn" data-source-kind="grainASample">Trim to Selection</button>
+                                <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainASample" aria-pressed="false" disabled>Audition</button>
+                            </div>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5091,24 +5102,25 @@
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Selection</button>
                         </div>
-                    </div>
-                    <div class="source-waveform-panel">
-                        <div class="source-waveform-header">
-                            <span>Grain B Sample</span>
-                            <span class="source-waveform-meta" id="grainBSampleWaveformMeta">Empty</span>
-                        </div>
-                        <canvas id="grainBSampleWaveformCanvas" class="source-waveform-canvas" data-source="grainBSample"></canvas>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="grainBSampleLoopStart">Start <span id="grainBSampleLoopStartValue">0%</span></label>
-                                <label for="grainBSampleLoopEnd">End <span id="grainBSampleLoopEndValue">100%</span></label>
+                        <div class="grain-inline-sample-panel" aria-label="Grain B sample controls">
+                            <div class="source-waveform-header">
+                                <span>Grain B Sample</span>
+                                <span class="source-waveform-meta" id="grainBSampleWaveformMeta">Empty</span>
                             </div>
-                            <input type="range" id="grainBSampleLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="grainBSampleLoopEnd" min="0" max="100" value="100" step="1">
-                        </div>
-                        <div class="source-seed-buttons">
-                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainBSample" aria-pressed="false" disabled>Audition</button>
-                            <button type="button" class="trim-source-btn" data-source-kind="grainBSample">Trim to Selection</button>
+                            <canvas id="grainBSampleWaveformCanvas" class="source-waveform-canvas" data-source="grainBSample"></canvas>
+                            <div class="source-loop-controls">
+                                <div class="source-loop-labels">
+                                    <label for="grainBSampleLoopStart">Start <span id="grainBSampleLoopStartValue">0%</span></label>
+                                    <label for="grainBSampleLoopEnd">End <span id="grainBSampleLoopEndValue">100%</span></label>
+                                </div>
+                                <input type="range" id="grainBSampleLoopStart" min="0" max="100" value="0" step="1">
+                                <input type="range" id="grainBSampleLoopEnd" min="0" max="100" value="100" step="1">
+                            </div>
+                            <div class="source-seed-buttons source-seed-buttons-stack">
+                                <button type="button" class="grain-layer-browser-btn" id="grainBSampleBrowseBtn" data-grain-browser-target="grainB">Browse Sample Folders</button>
+                                <button type="button" class="trim-source-btn" data-source-kind="grainBSample">Trim to Selection</button>
+                                <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainBSample" aria-pressed="false" disabled>Audition</button>
+                            </div>
                         </div>
                     </div>
                     <div class="source-waveform-panel">
@@ -5253,10 +5265,6 @@
                                 </select>
                             </div>
                             <div class="control-group">
-                                <label><span>Sample Browser</span></label>
-                                <button type="button" class="grain-layer-browser-btn" id="grainMainBrowseBtn">Browse Sample Folders</button>
-                            </div>
-                            <div class="control-group">
                                 <label>
                                     <span class="param-name">Start Point</span>
                                     <span class="value" id="grainMainStartValue">0%</span>
@@ -5354,10 +5362,6 @@
                                 </select>
                             </div>
                             <div class="control-group">
-                                <label><span>Sample Browser</span></label>
-                                <button type="button" class="grain-layer-browser-btn" id="grainSynthABrowseBtn">Browse Sample Folders</button>
-                            </div>
-                            <div class="control-group">
                                 <label>
                                     <span class="param-name">Start Point</span>
                                     <span class="value" id="grainSynthAStartValue">0%</span>
@@ -5453,10 +5457,6 @@
                                     <option value="grainAMic">Grain A Mic</option>
                                     <option value="all">All Sources</option>
                                 </select>
-                            </div>
-                            <div class="control-group">
-                                <label><span>Sample Browser</span></label>
-                                <button type="button" class="grain-layer-browser-btn" id="grainSynthBBrowseBtn">Browse Sample Folders</button>
                             </div>
                             <div class="control-group">
                                 <label>
@@ -7336,6 +7336,11 @@
                 sourceMode: 'grainBSample'
             }
         };
+        const GRAIN_SAMPLE_SLOT_TARGETS = {
+            grainMainSample: SAMPLE_BROWSER_TARGETS.grainMain,
+            grainASample: SAMPLE_BROWSER_TARGETS.grainA,
+            grainBSample: SAMPLE_BROWSER_TARGETS.grainB
+        };
         const ARP_MODE_OPTIONS = [
             { value: 'up', label: 'Up' },
             { value: 'down', label: 'Down' },
@@ -7657,6 +7662,9 @@
         let grainSampleBrowserSourceKeys = {
             ...GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS
         };
+        let grainMainSampleMetadata = null;
+        let grainASampleMetadata = null;
+        let grainBSampleMetadata = null;
         let drumMachineKickBuffer = null;
         let drumMachineSnareBuffer = null;
         let drumMachineHatBuffer = null;
@@ -9660,12 +9668,33 @@
                     }
                     if (shouldRestoreGrainMainSample) {
                         grainMainSampleBuffer = restoredGrainMainSampleBuffer;
+                        if (!grainMainSampleMetadata?.fileName) {
+                            setGrainSampleMetadata('grainMainSample', {
+                                sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain),
+                                fileName: 'restored-main-grain.wav',
+                                relativePath: ''
+                            });
+                        }
                     }
                     if (shouldRestoreGrainASample) {
                         grainASampleBuffer = restoredGrainASampleBuffer;
+                        if (!grainASampleMetadata?.fileName) {
+                            setGrainSampleMetadata('grainASample', {
+                                sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainA),
+                                fileName: 'restored-grain-a.wav',
+                                relativePath: ''
+                            });
+                        }
                     }
                     if (shouldRestoreGrainBSample) {
                         grainBSampleBuffer = restoredGrainBSampleBuffer;
+                        if (!grainBSampleMetadata?.fileName) {
+                            setGrainSampleMetadata('grainBSample', {
+                                sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainB),
+                                fileName: 'restored-grain-b.wav',
+                                relativePath: ''
+                            });
+                        }
                     }
                     if (shouldRestoreGrainAMic) {
                         grainSynthAMicBuffer = normalizeSourceBufferChannels('grainAMic', restoredGrainAMicBuffer);
@@ -12756,6 +12785,48 @@
 
         function getGrainSampleBrowserSourceOptions() {
             return GRAIN_SAMPLE_BROWSER_SOURCE_OPTIONS.map((option) => ({ ...option }));
+        }
+
+        function getGrainSampleMetadata(kind) {
+            if (kind === 'grainMainSample') return grainMainSampleMetadata;
+            if (kind === 'grainASample') return grainASampleMetadata;
+            if (kind === 'grainBSample') return grainBSampleMetadata;
+            return null;
+        }
+
+        function setGrainSampleMetadata(kind, metadata = null) {
+            if (!Object.prototype.hasOwnProperty.call(GRAIN_SAMPLE_SLOT_TARGETS, kind)) return null;
+
+            let normalizedMetadata = null;
+            if (metadata) {
+                const fallbackSourceKey = getGrainSampleBrowserSourceKey(GRAIN_SAMPLE_SLOT_TARGETS[kind]);
+                const sourceKey = normalizeGrainSampleBrowserSourceKey(metadata.sourceKey, fallbackSourceKey);
+                normalizedMetadata = {
+                    sourceKey,
+                    sourceLabel: String(metadata.sourceLabel || getGrainSampleBrowserSourceLabel(sourceKey)).trim(),
+                    fileName: String(metadata.fileName || metadata.filename || '').trim(),
+                    relativePath: String(metadata.relativePath || '').trim()
+                };
+            }
+
+            if (kind === 'grainMainSample') {
+                grainMainSampleMetadata = normalizedMetadata;
+            } else if (kind === 'grainASample') {
+                grainASampleMetadata = normalizedMetadata;
+            } else if (kind === 'grainBSample') {
+                grainBSampleMetadata = normalizedMetadata;
+            }
+
+            return normalizedMetadata;
+        }
+
+        function getSourceWaveformMetaText(kind, buffer) {
+            if (!buffer) return 'Empty';
+            const metadata = getGrainSampleMetadata(kind);
+            if (metadata?.fileName) {
+                return `${metadata.fileName} · ${buffer.duration.toFixed(2)}s`;
+            }
+            return `${buffer.duration.toFixed(2)}s`;
         }
 
         function getDrumMachineSourceLabel(kind) {
@@ -15983,7 +16054,7 @@
                 const meta = document.getElementById(config.metaId);
                 const buffer = config.buffer();
                 if (meta) {
-                    meta.textContent = buffer ? `${buffer.duration.toFixed(2)}s` : 'Empty';
+                    meta.textContent = getSourceWaveformMetaText(kind, buffer);
                 }
             });
             syncSourceCardAuditionButtons();
@@ -16125,8 +16196,11 @@
             generatedLoopBaseBuffer = null;
             micAudioBuffer = null;
             grainMainSampleBuffer = null;
+            grainMainSampleMetadata = null;
             grainASampleBuffer = null;
+            grainASampleMetadata = null;
             grainBSampleBuffer = null;
+            grainBSampleMetadata = null;
             grainSynthAMicBuffer = null;
             grainSynthBMicBuffer = null;
             outputSourceBuffer = null;
@@ -23294,6 +23368,18 @@
                     dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
                     dropboxSampleLayerSourceBpm: dropboxSampleLayerSourceBpm,
                     dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
+                    grainMainSampleBrowserSourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain),
+                    grainMainSampleSourceKey: grainMainSampleMetadata?.sourceKey || '',
+                    grainMainSampleFileName: grainMainSampleMetadata?.fileName || '',
+                    grainMainSampleRelativePath: grainMainSampleMetadata?.relativePath || '',
+                    grainASampleBrowserSourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainA),
+                    grainASampleSourceKey: grainASampleMetadata?.sourceKey || '',
+                    grainASampleFileName: grainASampleMetadata?.fileName || '',
+                    grainASampleRelativePath: grainASampleMetadata?.relativePath || '',
+                    grainBSampleBrowserSourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainB),
+                    grainBSampleSourceKey: grainBSampleMetadata?.sourceKey || '',
+                    grainBSampleFileName: grainBSampleMetadata?.fileName || '',
+                    grainBSampleRelativePath: grainBSampleMetadata?.relativePath || '',
                     drumMachineEnabled: drumMachineEnabled,
                     drumMachineKickPattern: drumMachineKickPattern.slice(),
                     drumMachineSnarePattern: drumMachineSnarePattern.slice(),
@@ -23567,6 +23653,30 @@
                             dropboxStretchToggle.checked = dropboxSampleLayerStretchToLoop;
                         }
                     }
+                    if (state.modes.grainMainSampleBrowserSourceKey !== undefined) {
+                        setGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain, state.modes.grainMainSampleBrowserSourceKey);
+                    }
+                    if (state.modes.grainASampleBrowserSourceKey !== undefined) {
+                        setGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainA, state.modes.grainASampleBrowserSourceKey);
+                    }
+                    if (state.modes.grainBSampleBrowserSourceKey !== undefined) {
+                        setGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainB, state.modes.grainBSampleBrowserSourceKey);
+                    }
+                    setGrainSampleMetadata('grainMainSample', {
+                        sourceKey: state.modes.grainMainSampleSourceKey || getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain),
+                        fileName: state.modes.grainMainSampleFileName || '',
+                        relativePath: state.modes.grainMainSampleRelativePath || ''
+                    });
+                    setGrainSampleMetadata('grainASample', {
+                        sourceKey: state.modes.grainASampleSourceKey || getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainA),
+                        fileName: state.modes.grainASampleFileName || '',
+                        relativePath: state.modes.grainASampleRelativePath || ''
+                    });
+                    setGrainSampleMetadata('grainBSample', {
+                        sourceKey: state.modes.grainBSampleSourceKey || getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainB),
+                        fileName: state.modes.grainBSampleFileName || '',
+                        relativePath: state.modes.grainBSampleRelativePath || ''
+                    });
                     if (state.modes.drumMachineEnabled !== undefined) {
                         setDrumMachineEnabled(state.modes.drumMachineEnabled, { silent: true, skipSave: true });
                     }
@@ -24623,6 +24733,13 @@
             const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
 
             await applyLoadedAudioBuffer(decoded, `${config.layerLabel} sample · ${sourceName}`, config.slotKind);
+            setGrainSampleBrowserSourceKey(target, responseSourceKey);
+            setGrainSampleMetadata(config.slotKind, {
+                sourceKey: responseSourceKey,
+                sourceLabel: responseSourceLabel,
+                fileName: sourceName,
+                relativePath
+            });
             const sourceSelect = document.getElementById(config.sourceSelectId);
             if (sourceSelect) sourceSelect.value = config.sourceMode;
             normalizeGranularLayerSourceSelects();
@@ -26256,20 +26373,14 @@
         const performanceGrainMainFineTune = document.getElementById('performanceGrainMainFineTune');
         const performanceGrainMainWidth = document.getElementById('performanceGrainMainWidth');
         const performanceGrainMainSmoothing = document.getElementById('performanceGrainMainSmoothing');
-        const performanceGrainMainBrowseBtn = document.getElementById('performanceGrainMainBrowseBtn');
         const performanceGrainATune = document.getElementById('performanceGrainATune');
         const performanceGrainAFineTune = document.getElementById('performanceGrainAFineTune');
         const performanceGrainAWidth = document.getElementById('performanceGrainAWidth');
         const performanceGrainASmoothing = document.getElementById('performanceGrainASmoothing');
-        const performanceGrainABrowseBtn = document.getElementById('performanceGrainABrowseBtn');
         const performanceGrainBTune = document.getElementById('performanceGrainBTune');
         const performanceGrainBFineTune = document.getElementById('performanceGrainBFineTune');
         const performanceGrainBWidth = document.getElementById('performanceGrainBWidth');
         const performanceGrainBSmoothing = document.getElementById('performanceGrainBSmoothing');
-        const performanceGrainBBrowseBtn = document.getElementById('performanceGrainBBrowseBtn');
-        const grainMainBrowseBtn = document.getElementById('grainMainBrowseBtn');
-        const grainSynthABrowseBtn = document.getElementById('grainSynthABrowseBtn');
-        const grainSynthBBrowseBtn = document.getElementById('grainSynthBBrowseBtn');
         const performanceLfo1Depth = document.getElementById('performanceLfo1Depth');
         const performanceLfo2Depth = document.getElementById('performanceLfo2Depth');
         const performanceLfo3Depth = document.getElementById('performanceLfo3Depth');
@@ -26359,10 +26470,12 @@
         mountInternalEffectsPanel();
 
         function mountPerformanceGrainQuickControlsCard() {
-            const grainControlsCard = document.getElementById('performanceGrainControlsCard');
             const grainQuickControlsCard = document.getElementById('performanceGrainQuickControlsCard');
-            if (!grainControlsCard || !grainQuickControlsCard) return;
-            grainControlsCard.insertAdjacentElement('afterend', grainQuickControlsCard);
+            const grainWaveformGrid = document.querySelector('.legacy-grain-source-browser');
+            const fallbackCard = document.getElementById('performanceGrainControlsCard');
+            const anchor = grainWaveformGrid || fallbackCard;
+            if (!anchor || !grainQuickControlsCard) return;
+            anchor.insertAdjacentElement('afterend', grainQuickControlsCard);
         }
 
         mountPerformanceGrainQuickControlsCard();
@@ -27199,15 +27312,10 @@
             openDropboxSampleBrowser();
         });
 
-        [
-            [grainMainBrowseBtn, SAMPLE_BROWSER_TARGETS.grainMain],
-            [performanceGrainMainBrowseBtn, SAMPLE_BROWSER_TARGETS.grainMain],
-            [grainSynthABrowseBtn, SAMPLE_BROWSER_TARGETS.grainA],
-            [performanceGrainABrowseBtn, SAMPLE_BROWSER_TARGETS.grainA],
-            [grainSynthBBrowseBtn, SAMPLE_BROWSER_TARGETS.grainB],
-            [performanceGrainBBrowseBtn, SAMPLE_BROWSER_TARGETS.grainB]
-        ].forEach(([button, target]) => {
-            button?.addEventListener('click', () => {
+        document.querySelectorAll('[data-grain-browser-target]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const target = button.dataset.grainBrowserTarget;
+                if (!target) return;
                 openDropboxSampleBrowser(target);
             });
         });
@@ -27230,6 +27338,7 @@
         dropboxSampleBrowserSourceSelect?.addEventListener('change', () => {
             if (!isGrainSampleBrowserTarget(dropboxSampleBrowserTarget)) return;
             setGrainSampleBrowserSourceKey(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect.value);
+            saveState();
             syncDropboxSampleBrowserTargetUi();
             refreshDropboxSampleBrowser().catch((error) => {
                 console.error(error);
