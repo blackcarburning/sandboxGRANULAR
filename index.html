@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-20-55-build-v2026.10.08.1';
+            const cacheBuster = '2026-10-08-19-12-build-v2026.10.08.2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3802,7 +3802,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.07.8</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.2</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3815,7 +3815,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.07.8</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.2</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -14689,6 +14689,36 @@
             }
         }
 
+        function ensureDrumMachineStartAudibility() {
+            const hasAnyPattern = drumMachineKickPattern.some(Boolean)
+                || drumMachineSnarePattern.some(Boolean)
+                || drumMachineHatPattern.some(Boolean);
+
+            if (!hasAnyPattern) {
+                drumMachineKickPattern = Array.from({ length: 16 }, (_, index) => index === 0 || index === 8);
+                drumMachineSnarePattern = Array.from({ length: 16 }, (_, index) => index === 4 || index === 12);
+                drumMachineHatPattern = Array.from({ length: 16 }, (_, index) => index === 2 || index === 6 || index === 10 || index === 14);
+                drumMachineHatAccentPattern = Array.from({ length: 16 }, () => false);
+                drumMachineHatRatchetPattern = Array.from({ length: 16 }, () => false);
+                drumMachineHatTimingMode = 'straight';
+            }
+
+            if (!(drumMachineLevel > 0.0001)) {
+                drumMachineLevel = 0.55;
+            }
+            if (!(drumMachineKickTrackLevel > 0.0001)) {
+                drumMachineKickTrackLevel = 1;
+            }
+            if (!(drumMachineSnareTrackLevel > 0.0001)) {
+                drumMachineSnareTrackLevel = 1;
+            }
+            if (!(drumMachineHatTrackLevel > 0.0001)) {
+                drumMachineHatTrackLevel = 1;
+            }
+
+            syncDrumMachineUi();
+        }
+
         function startDrumMachine(startTime = null, options = {}) {
             if (!audioContext || !preFilterGainNode) {
                 syncPerformanceControlState();
@@ -14705,6 +14735,8 @@
                 }
                 return false;
             }
+
+            ensureDrumMachineStartAudibility();
 
             const resolvedStartTime = Number.isFinite(startTime)
                 ? startTime
