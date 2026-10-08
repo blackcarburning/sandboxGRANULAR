@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-20-55-build-v2026.10.08.9';
+            const cacheBuster = '2026-10-08-21-02-build-v2026.10.08.10';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3941,7 +3941,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.9</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.10</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3954,7 +3954,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.9</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.10</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -13509,7 +13509,7 @@
                     : (bastardLoopBuffer ? 'Rebuild Bastardloop A' : 'Generate Bastardloop A');
             }
             if (samplesButton) {
-                samplesButton.disabled = !getBastardLoopSampleNames('A').length;
+                samplesButton.disabled = bastardLoopGenerationInFlight || !bastardLoopBuffer;
             }
             playButtons.forEach((playButton) => {
                 playButton.disabled = anyGenerationInFlight || !anyBufferReady;
@@ -13770,7 +13770,7 @@
                     : (bastardLoop2Buffer ? 'Rebuild Bastardloop B' : 'Generate Bastardloop B');
             }
             if (samplesButton) {
-                samplesButton.disabled = !getBastardLoopSampleNames('B').length;
+                samplesButton.disabled = bastardLoop2GenerationInFlight || !bastardLoop2Buffer;
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoop2Reverse);
@@ -14024,7 +14024,7 @@
                     : (bastardLoop3Buffer ? 'Rebuild Bastardloop C' : 'Generate Bastardloop C');
             }
             if (samplesButton) {
-                samplesButton.disabled = !getBastardLoopSampleNames('C').length;
+                samplesButton.disabled = bastardLoop3GenerationInFlight || !bastardLoop3Buffer;
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoop3Reverse);
@@ -14215,6 +14215,7 @@
                     if (slider) slider.value = '50';
                 }
                 updateBastardLoopMix();
+                appendBastardLoopTrace('A', 'ensure-ready');
                 syncPerformanceControlState();
                 return;
             }
@@ -14228,6 +14229,21 @@
                     if (slider) slider.value = '50';
                 }
                 updateBastardLoop2Mix();
+                appendBastardLoopTrace('B', 'ensure-ready');
+                syncPerformanceControlState();
+                return;
+            }
+            if (layer === 'C') {
+                if (!bastardLoop3Enabled) {
+                    bastardLoop3Enabled = true;
+                }
+                if (!(bastardLoop3Level > 0.0001)) {
+                    bastardLoop3Level = 0.5;
+                    const slider = document.getElementById('performanceBastardLoop3Level');
+                    if (slider) slider.value = '50';
+                }
+                updateBastardLoop3Mix();
+                appendBastardLoopTrace('C', 'ensure-ready');
                 syncPerformanceControlState();
             }
         }
@@ -26103,6 +26119,7 @@
                 appendBastardLoopTrace('C', 'fetch-ok', { audioUrl });
                 const arrayBuffer = await audioResponse.arrayBuffer();
                 await applyLoadedBastardLoop3Buffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop C ${bpm} BPM`, payload);
+                ensureBastardLoopLayerReady('C');
 
                 if (shouldRestartSequencer) {
                     startSequencer(restartTime);
