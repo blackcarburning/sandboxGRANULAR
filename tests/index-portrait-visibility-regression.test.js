@@ -128,6 +128,8 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, />Gen Swing</);
     assert.match(indexHtml, /id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1"/);
     assert.match(indexHtml, />Loop Transpose</);
+    assert.match(indexHtml, /id="performanceGrainPlaybackSpeed" min="25" max="400" value="100" step="1"/);
+    assert.match(indexHtml, />Playback Speed</);
     assert.match(indexHtml, /id="performanceModAmount" min="0" max="100" value="55" step="1"/);
     assert.match(indexHtml, />Mod Amount</);
     assert.match(indexHtml, /id="performanceGrainModAmount" min="0" max="100" value="75" step="1"/);
@@ -679,6 +681,7 @@ test('tempo-locked keyboard pitch reads source buffers in the non-reversed direc
     assert.match(indexHtml, /return 1 \/ safePitchRatio;/);
     assert.match(indexHtml, /getTempoLockedPitchBuffer\(\s*sourceInfo\.buffer,\s*getTempoLockedSourceReadRatio\(sourcePitchRate\)\s*\)/);
     assert.match(indexHtml, /pitchShiftBufferByRatioKeepDuration\(\s*sourceInfo\.buffer,\s*getTempoLockedSourceReadRatio\(sourcePlaybackRate\),\s*ctx\s*\)/);
+    assert.match(indexHtml, /const sourceAdvanceRate = Math\.max\(\s*0\.05,\s*Math\.min\(12, rawAdvanceRate \* getGrainPlaybackSpeedMultiplier\(\) \* Math\.max\(0\.25, Math\.min\(4, sourcePitchRate\)\)\)\s*\);/);
 });
 
 test('oscillators can be disabled for granular-only playback', () => {
@@ -824,26 +827,35 @@ test('cloud grain mode loops against the real source window instead of tiny trim
 });
 
 test('cloud grain mode is tuned for smoother ethereal overlap and motion', () => {
-    assert.match(indexHtml, /minGrainSize: 0\.24/);
-    assert.match(indexHtml, /maxGrainSize: 0\.72/);
-    assert.match(indexHtml, /minRelease: 0\.32/);
-    assert.match(indexHtml, /releaseRatio: 1\.45/);
-    assert.match(indexHtml, /dryMixCap: 0\.26/);
-    assert.match(indexHtml, /intervalScale: 3\.4/);
-    assert.match(indexHtml, /jitterAmount: 0\.18/);
-    assert.match(indexHtml, /positionDriftMin: 0\.09/);
-    assert.match(indexHtml, /positionDriftMax: 0\.46/);
-    assert.match(indexHtml, /continuousTravelRate: 0\.24/);
-    assert.match(indexHtml, /continuousTravelDrift: 0\.14/);
-    assert.match(indexHtml, /sourceSizeScale: 1\.55/);
-    assert.match(indexHtml, /sourceFadeScale: 1\.9/);
-    assert.match(indexHtml, /sourceGainScale: 1\.22/);
-    assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud' \? 1\.1 : 0\.7;/);
+    assert.match(indexHtml, /minGrainSize: 0\.09/);
+    assert.match(indexHtml, /maxGrainSize: 0\.58/);
+    assert.match(indexHtml, /minRelease: 0\.08/);
+    assert.match(indexHtml, /releaseRatio: 0\.9/);
+    assert.match(indexHtml, /dryMixCap: 0\.28/);
+    assert.match(indexHtml, /intervalScale: 3\.2/);
+    assert.match(indexHtml, /jitterAmount: 0\.12/);
+    assert.match(indexHtml, /positionDriftMin: 0\.03/);
+    assert.match(indexHtml, /positionDriftMax: 0\.24/);
+    assert.match(indexHtml, /continuousTravelRate: 1/);
+    assert.match(indexHtml, /continuousTravelDrift: 0\.22/);
+    assert.match(indexHtml, /sourceSizeScale: 1\.12/);
+    assert.match(indexHtml, /sourceFadeScale: 1\.22/);
+    assert.match(indexHtml, /sourceGainScale: 1\.18/);
+    assert.match(indexHtml, /const maxSourceSizeSeconds = modeProfile\?\.mode === 'cloud' \? 0\.85 : 0\.7;/);
     assert.match(indexHtml, /const maxInterval = modeProfile\?\.mode === 'cloud' \? 0\.14 : 0\.22;/);
     assert.match(indexHtml, /const sourceGainScale = Math\.max\(0\.25, Number\(modeProfile\.sourceGainScale\) \|\| 1\);/);
     assert.match(indexHtml, /const targetGain = Math\.max\(0, Math\.min\(1\.35, voice\.gain \* sourceGainScale\)\);/);
     assert.match(indexHtml, /const bloomDrift = modeProfile\.mode === 'cloud'/);
     assert.match(indexHtml, /const bloomMotion = Math\.sin\(\(elapsed \* 0\.19\)/);
+});
+
+test('grain playback speed control is exposed in both grain UIs and defaults to natural scan speed', () => {
+    assert.match(indexHtml, /id="grainPlaybackSpeed" min="25" max="400" value="100" step="1"/);
+    assert.match(indexHtml, /id="performanceGrainPlaybackSpeed" min="25" max="400" value="100" step="1"/);
+    assert.match(indexHtml, /const GRAIN_PLAYBACK_SPEED_DEFAULT = 100;/);
+    assert.match(indexHtml, /function syncGrainPlaybackSpeedControls\(value = document\.getElementById\('grainPlaybackSpeed'\)\?\.value \?\? GRAIN_PLAYBACK_SPEED_DEFAULT\)/);
+    assert.match(indexHtml, /performanceGrainPlaybackSpeed\?\.addEventListener\('input', \(event\) => \{/);
+    assert.match(indexHtml, /grainPlaybackSpeed: 100,/);
 });
 
 test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {

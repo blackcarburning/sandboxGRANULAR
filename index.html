@@ -4360,6 +4360,13 @@
                         <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
                     </div>
                     <div class="performance-sound-card">
+                        <label for="performanceGrainPlaybackSpeed">
+                            <span>Playback Speed</span>
+                            <span class="value" id="performanceGrainPlaybackSpeedValue">1x</span>
+                        </label>
+                        <input type="range" id="performanceGrainPlaybackSpeed" min="25" max="400" value="100" step="1">
+                    </div>
+                    <div class="performance-sound-card">
                         <label for="performanceModAmount">
                             <span>Mod Amount</span>
                             <span class="value" id="performanceModAmountValue">55%</span>
@@ -5099,6 +5106,13 @@
                             </div>
                         </label>
                         <input type="range" id="grainTune" min="-24" max="24" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <span class="param-name">Playback Speed</span>
+                            <span class="value" id="grainPlaybackSpeedValue">1x</span>
+                        </label>
+                        <input type="range" id="grainPlaybackSpeed" min="25" max="400" value="100" step="1">
                     </div>
                     <div class="source-seed-group" aria-label="Grain layer mixer">
                         <div class="section-title">Grain Layer Mixer</div>
@@ -7769,6 +7783,7 @@
             density: { min: 6, max: 36 },
             position: { min: 0, max: 72 },
             spray: { min: 0, max: 64 },
+            grainPlaybackSpeed: { min: 100, max: 100 },
             attack: { min: 1, max: 8 },
             release: { min: 12, max: 92 },
             pitchVar: { min: 0, max: 30 },
@@ -7938,6 +7953,7 @@
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
             spray: { min: 0, max: 100 },
+            grainPlaybackSpeed: { min: 25, max: 400 },
             attack: { min: 1, max: 5000 },
             release: { min: 1, max: 5000 },
             pitchVar: { min: 0, max: 100 },
@@ -8075,6 +8091,7 @@
             'density',
             'position',
             'spray',
+            'grainPlaybackSpeed',
             'attack',
             'release',
             'pitchVar',
@@ -8134,7 +8151,7 @@
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
             'outputLoopStart', 'outputLoopEnd',
-            'pitchVar', 'grainTune',
+            'pitchVar', 'grainTune', 'grainPlaybackSpeed',
             'grainMainTune',
             'grainMainVolume', 'grainSynthAVolume', 'grainSynthBVolume', 'grainMixerAmp',
             'grainSynthAMix', 'grainSynthATune', 'grainSynthASize', 'grainSynthADensity', 'grainSynthASpread',
@@ -10933,7 +10950,7 @@
             const cloudSizeScale = modeProfile?.mode === 'cloud'
                 ? Math.max(1, Number(modeProfile.sourceSizeScale) || 1)
                 : 1;
-            const maxSourceSizeSeconds = modeProfile?.mode === 'cloud' ? 1.1 : 0.7;
+            const maxSourceSizeSeconds = modeProfile?.mode === 'cloud' ? 0.85 : 0.7;
             const sourceAttack = Math.max(minimumFade, baseEnvelope.attack * attackScale * cloudFadeScale);
             const sourceRelease = Math.max(minimumFade, baseEnvelope.release * releaseScale * cloudFadeScale);
 
@@ -11116,23 +11133,70 @@
             }
             return {
                 mode: 'cloud',
-                minGrainSize: 0.24,
-                maxGrainSize: 0.72,
-                minAttack: 0.035,
-                minRelease: 0.32,
-                releaseRatio: 1.45,
-                sprayScale: 0.24,
-                dryMixCap: 0.26,
-                intervalScale: 3.4,
-                jitterAmount: 0.18,
-                positionDriftMin: 0.09,
-                positionDriftMax: 0.46,
-                continuousTravelRate: 0.24,
-                continuousTravelDrift: 0.14,
-                sourceSizeScale: 1.55,
-                sourceFadeScale: 1.9,
-                sourceGainScale: 1.22
+                minGrainSize: 0.09,
+                maxGrainSize: 0.58,
+                minAttack: 0.01,
+                minRelease: 0.08,
+                releaseRatio: 0.9,
+                sprayScale: 0.28,
+                dryMixCap: 0.28,
+                intervalScale: 3.2,
+                jitterAmount: 0.12,
+                positionDriftMin: 0.03,
+                positionDriftMax: 0.24,
+                continuousTravelRate: 1,
+                continuousTravelDrift: 0.22,
+                sourceSizeScale: 1.12,
+                sourceFadeScale: 1.22,
+                sourceGainScale: 1.18
             };
+        }
+
+        const GRAIN_PLAYBACK_SPEED_DEFAULT = 100;
+        const GRAIN_PLAYBACK_SPEED_MIN = 25;
+        const GRAIN_PLAYBACK_SPEED_MAX = 400;
+        let grainPlaybackSpeedPercent = GRAIN_PLAYBACK_SPEED_DEFAULT;
+
+        function clampGrainPlaybackSpeedPercent(value, fallback = GRAIN_PLAYBACK_SPEED_DEFAULT) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return fallback;
+            return Math.max(GRAIN_PLAYBACK_SPEED_MIN, Math.min(GRAIN_PLAYBACK_SPEED_MAX, Math.round(numeric)));
+        }
+
+        function formatGrainPlaybackSpeed(value) {
+            const speed = clampGrainPlaybackSpeedPercent(value) / 100;
+            if (Number.isInteger(speed)) return `${speed}x`;
+            if (Math.abs((speed * 10) - Math.round(speed * 10)) < 0.0001) {
+                return `${speed.toFixed(1)}x`;
+            }
+            return `${speed.toFixed(2)}x`;
+        }
+
+        function syncGrainPlaybackSpeedControls(value = document.getElementById('grainPlaybackSpeed')?.value ?? GRAIN_PLAYBACK_SPEED_DEFAULT) {
+            const clamped = clampGrainPlaybackSpeedPercent(value);
+            grainPlaybackSpeedPercent = clamped;
+            const label = formatGrainPlaybackSpeed(clamped);
+            const grainPlaybackSpeed = document.getElementById('grainPlaybackSpeed');
+            const performanceGrainPlaybackSpeed = document.getElementById('performanceGrainPlaybackSpeed');
+            if (grainPlaybackSpeed) grainPlaybackSpeed.value = String(clamped);
+            if (performanceGrainPlaybackSpeed) performanceGrainPlaybackSpeed.value = String(clamped);
+            const grainPlaybackSpeedValue = document.getElementById('grainPlaybackSpeedValue');
+            const performanceGrainPlaybackSpeedValue = document.getElementById('performanceGrainPlaybackSpeedValue');
+            if (grainPlaybackSpeedValue) grainPlaybackSpeedValue.textContent = label;
+            if (performanceGrainPlaybackSpeedValue) performanceGrainPlaybackSpeedValue.textContent = label;
+            return clamped;
+        }
+
+        function getGrainPlaybackSpeedMultiplier() {
+            return grainPlaybackSpeedPercent / 100;
+        }
+
+        function handleGrainPlaybackSpeedInput(value, options = {}) {
+            const clamped = syncGrainPlaybackSpeedControls(value);
+            if (!options.skipReschedule && activeGrains.size > 0 && audioContext) {
+                scheduleActiveGrains();
+            }
+            return clamped;
         }
 
         function createEqualPowerFadeCurve(startValue, endValue, steps = 48) {
@@ -15538,14 +15602,14 @@
             }
             const state = grainInfo?.positionState;
             const elapsed = Math.max(0, (scheduledTime ?? audioContext.currentTime) - (state?.startTime ?? audioContext.currentTime));
-            const baseRate = Math.max(0.05, Number(safeProfile.continuousTravelRate) || 0.18);
-            const driftAmount = Math.max(0, Number(safeProfile.continuousTravelDrift) || 0.08);
+            const baseRate = Math.max(0.25, Number(safeProfile.continuousTravelRate) || 1);
+            const driftAmount = Math.max(0, Number(safeProfile.continuousTravelDrift) || 0.12);
             const seedA = state?.seedA ?? 0;
             const seedB = state?.seedB ?? 0;
             const slowMotion = Math.sin((elapsed * 0.11) + seedA) * driftAmount;
             const slowerMotion = Math.sin((elapsed * 0.043) + seedB) * driftAmount * 0.55;
             const bloomMotion = Math.sin((elapsed * 0.19) + (seedA * 0.6) + (seedB * 0.4)) * driftAmount * 0.28;
-            return Math.max(0.035, baseRate + slowMotion + slowerMotion + bloomMotion);
+            return Math.max(0.25, Math.min(4, baseRate + slowMotion + slowerMotion + bloomMotion));
         }
 
         function getSecondaryGrainSynthVoices(baseRate) {
@@ -15807,9 +15871,13 @@
                 if (!sourceInfo || voice.gain <= 0 || !Number.isFinite(voice.rate) || voice.rate <= 0) return;
                 const sourceTuneRatio = Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12);
                 const sourcePitchRate = Math.max(0.0625, Math.min(16, voice.rate * sourceTuneRatio));
-                const sourceAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0
+                const rawAdvanceRate = Number.isFinite(voice.advanceRate) && voice.advanceRate > 0
                     ? voice.advanceRate
                     : sharedAdvanceRate;
+                const sourceAdvanceRate = Math.max(
+                    0.05,
+                    Math.min(12, rawAdvanceRate * getGrainPlaybackSpeedMultiplier() * Math.max(0.25, Math.min(4, sourcePitchRate)))
+                );
                 const sourceShape = getSourceGrainShape(sourceInfo, voice, {
                     attack,
                     release,
@@ -17767,6 +17835,9 @@
                     if (labelSpan) {
                         labelSpan.textContent = e.target.value;
                     }
+                } else if (e.target.id === 'grainPlaybackSpeed' || e.target.id === 'performanceGrainPlaybackSpeed') {
+                    handleGrainPlaybackSpeedInput(e.target.value);
+                    return;
                 } else if (e.target.id === 'phaserRate') {
                     const rate = clampInternalLfoBpmValue(e.target.value);
                     e.target.value = String(rate);
@@ -19631,6 +19702,7 @@
                 density,
                 position: rand(0, Math.min(80, 24 + density)),
                 spray: rand(Math.round(density * 0.25), Math.min(68, 8 + Math.round(density * 1.6))),
+                grainPlaybackSpeed: 100,
                 attack: rand(1, Math.max(3, Math.round(12 - density / 3))),
                 release: rand(Math.max(18, Math.round(grainSize * 0.5)), Math.max(36, Math.round(grainSize * 1.2))),
                 pitchVar: rand(4, 24),
@@ -21209,6 +21281,7 @@
                 density: 10,
                 position: 0,
                 spray: 0,
+                grainPlaybackSpeed: 100,
                 attack: 10,
                 release: 50,
                 pitchVar: 0,
@@ -25041,6 +25114,7 @@
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceSampleVolume = document.getElementById('performanceSampleVolume');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
+        const performanceGrainPlaybackSpeed = document.getElementById('performanceGrainPlaybackSpeed');
         const performanceBastardLoopPitch = document.getElementById('performanceBastardLoopPitch');
         const performanceBastardLoopPitchAffectsDuration = document.getElementById('performanceBastardLoopPitchAffectsDuration');
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
@@ -25412,6 +25486,8 @@
                 performancePulseWidth.value = String(value);
                 document.getElementById('performancePulseWidthValue').textContent = `${value}%`;
             }
+
+            syncGrainPlaybackSpeedControls();
 
             syncFilterPoleControls();
             syncBastardLoopUi();
@@ -26251,6 +26327,12 @@
 
         performanceGeneratedTranspose?.addEventListener('input', async (event) => {
             await applyGeneratedLoopTranspose({ value: event.target.value });
+        });
+
+        performanceGrainPlaybackSpeed?.addEventListener('input', (event) => {
+            const value = clampGrainPlaybackSpeedPercent(event.target.value);
+            event.target.value = String(value);
+            setSliderValue('grainPlaybackSpeed', value);
         });
 
         performanceModAmount?.addEventListener('input', (event) => {
