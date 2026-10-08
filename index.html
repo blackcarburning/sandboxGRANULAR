@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-22-29-build-v2026.10.08.20';
+            const cacheBuster = '2026-10-08-22-47-build-v2026.10.08.21';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -992,6 +992,9 @@
         .source-loop-labels {
             color: #aaa;
             font-size: 8px;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .source-loop-controls {
@@ -2924,6 +2927,9 @@
             margin: 0;
             color: rgba(230, 240, 255, 0.74);
             line-height: 1.45;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .simplified-ui .performance-bpm-card,
@@ -2989,6 +2995,9 @@
             color: rgba(255, 255, 255, 0.76);
             font-size: 0.82rem;
             line-height: 1.45;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .simplified-ui .performance-feature-card .performance-btn {
@@ -3011,6 +3020,9 @@
             color: rgba(126, 246, 255, 0.86);
             font-size: 0.78rem;
             font-weight: 700;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .simplified-ui .performance-checkbox-grid {
@@ -3627,6 +3639,9 @@
             background: rgba(255, 255, 255, 0.06);
             border-color: rgba(255, 255, 255, 0.08);
             color: rgba(240, 248, 255, 0.88);
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .settle-popup {
@@ -3634,6 +3649,8 @@
             top: max(18px, env(safe-area-inset-top));
             left: 50%;
             z-index: 10001;
+            width: min(calc(100vw - 24px), 460px);
+            max-width: calc(100vw - 24px);
             padding: 12px 18px;
             border-radius: 14px;
             border: 1px solid rgba(126, 246, 255, 0.45);
@@ -3641,6 +3658,10 @@
             color: #fff;
             font-weight: 900;
             letter-spacing: 0;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36), 0 0 22px rgba(126, 246, 255, 0.24);
             opacity: 0;
             pointer-events: none;
@@ -4015,7 +4036,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.20</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.21</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4028,7 +4049,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.20</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.21</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
