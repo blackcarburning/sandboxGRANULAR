@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-18-51-build-v2026.10.08.6';
+            const cacheBuster = '2026-10-08-18-54-build-v2026.10.08.7';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -2472,7 +2472,8 @@
 
         .debug-console-output {
             width: 100%;
-            min-height: 132px;
+            min-height: 112px;
+            max-height: 220px;
             resize: vertical;
             padding: 12px;
             border-radius: 12px;
@@ -3915,7 +3916,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.6</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.7</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3928,7 +3929,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.6</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.7</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -3941,6 +3942,19 @@
                         <input type="number" id="globalBpmNumber" min="1" max="300" value="120" step="1" inputmode="numeric">
                     </div>
                 </div>
+            </div>
+            <div class="debug-console-card" id="debugConsoleCard">
+                <div class="debug-console-head">
+                    <div class="debug-console-copy">
+                        <strong>Debug Console</strong>
+                        <span>Copy this box and paste it back here if MYGRAIN falls over.</span>
+                    </div>
+                    <div class="debug-console-actions">
+                        <button type="button" id="copyDebugConsoleBtn">Copy Debug</button>
+                        <button type="button" id="clearDebugConsoleBtn">Clear Log</button>
+                    </div>
+                </div>
+                <textarea id="debugConsoleOutput" class="debug-console-output" readonly spellcheck="false">MYGRAIN debug console ready.</textarea>
             </div>
             <div class="performance-feature-card" aria-label="Bastardloop controls">
                 <div class="performance-feature-head">
@@ -5314,19 +5328,6 @@
                 <div class="status-stack">
                     <div id="status" class="status" role="status" aria-live="polite">Tap Start to enable audio.</div>
                     <div id="audioStatus" class="status secondary-status" role="status" aria-live="polite">Audio idle</div>
-                </div>
-                <div class="debug-console-card" id="debugConsoleCard">
-                    <div class="debug-console-head">
-                        <div class="debug-console-copy">
-                            <strong>Debug Console</strong>
-                            <span>Copy this box and paste it back here if MYGRAIN falls over.</span>
-                        </div>
-                        <div class="debug-console-actions">
-                            <button type="button" id="copyDebugConsoleBtn">Copy Debug</button>
-                            <button type="button" id="clearDebugConsoleBtn">Clear Log</button>
-                        </div>
-                    </div>
-                    <textarea id="debugConsoleOutput" class="debug-console-output" readonly spellcheck="false">MYGRAIN debug console ready.</textarea>
                 </div>
                 <details class="help-panel">
                     <summary>Quick help</summary>
