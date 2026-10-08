@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-21-02-build-v2026.10.08.10';
+            const cacheBuster = '2026-10-08-21-06-build-v2026.10.08.11';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3941,7 +3941,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.10</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.11</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3954,7 +3954,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.10</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.11</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -7173,6 +7173,7 @@
                     hasBuffer: Boolean(snapshot.buffer),
                     hasSourceNode: snapshot.hasSourceNode,
                     sampleCount: getBastardLoopSampleNames(snapshot.layer).length,
+                    loopLayerSolo,
                     ...details
                 }
             );
@@ -7206,7 +7207,7 @@
                 const summary = snapshot.metadata?.summary || 'empty';
                 const preview = sampleNames.slice(0, 4).join(', ') || '(no sample list)';
                 lines.push(
-                    `${layer}: ${snapshot.sourceLabel} | enabled=${snapshot.enabled} level=${snapshot.level}% buffer=${Boolean(snapshot.buffer)} sourceNode=${snapshot.hasSourceNode} | ${summary}`
+                    `${layer}: ${snapshot.sourceLabel} | enabled=${snapshot.enabled} level=${snapshot.level}% buffer=${Boolean(snapshot.buffer)} sourceNode=${snapshot.hasSourceNode} loopSolo=${loopLayerSolo} | ${summary}`
                 );
                 lines.push(`   samples: ${preview}${sampleNames.length > 4 ? '…' : ''}`);
             });
@@ -12869,6 +12870,17 @@
             if (!options.skipSave) {
                 saveState();
             }
+        }
+
+        function clearLoopLayerSoloForBastardLoop(layer) {
+            const target = normalizeLoopLayerSolo(layer);
+            if (loopLayerSolo === 'none' || loopLayerSolo === target) return false;
+            const previousSolo = loopLayerSolo;
+            setLoopLayerSolo('none', { silent: true });
+            appendBastardLoopTrace(target === 'bastardb' ? 'B' : (target === 'bastardc' ? 'C' : 'A'), 'solo-cleared', {
+                previousSolo
+            });
+            return true;
         }
 
         function getLoopLayerSoloGain(layer) {
@@ -25888,6 +25900,7 @@
             bastardLoopGenerationInFlight = true;
             syncBastardLoopUi();
             setStatus(`Building bastardloop from SAMPLEDROP at ${bpm} BPM using ${divisions.join(', ')}…`);
+            clearLoopLayerSoloForBastardLoop('bastarda');
             appendBastardLoopTrace('A', 'build-request', { bpm, divisions, source: 'sampledrop' });
 
             try {
@@ -25982,6 +25995,7 @@
             syncBastardLoopUi();
             syncBastardLoop2Ui();
             setStatus(`Building Bastardloop B from SAMPLEDROP_2 at ${bpm} BPM using ${divisions.join(', ')}…`);
+            clearLoopLayerSoloForBastardLoop('bastardb');
             appendBastardLoopTrace('B', 'build-request', { bpm, divisions, source: 'sampledrop2' });
 
             try {
@@ -26076,6 +26090,7 @@
             syncBastardLoop2Ui();
             syncBastardLoop3Ui();
             setStatus(`Building Bastardloop C from SPLICE_CLAW at ${bpm} BPM using ${divisions.join(', ')}…`);
+            clearLoopLayerSoloForBastardLoop('bastardc');
             appendBastardLoopTrace('C', 'build-request', { bpm, divisions, source: 'splice_claw' });
 
             try {
