@@ -831,6 +831,8 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /<span>Grain A<\/span>/);
     assert.match(indexHtml, /<span>Grain B<\/span>/);
     assert.match(indexHtml, /id="grainMainSource"/);
+    assert.match(indexHtml, /<option value="grainMainSample">Main Grain Sample<\/option>/);
+    assert.match(indexHtml, /id="grainMainBrowseBtn"/);
     assert.match(indexHtml, /id="grainMainStart"/);
     assert.match(indexHtml, /id="grainSize"/);
     assert.match(indexHtml, /id="grainMainTune"/);
@@ -843,6 +845,8 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainMainWidth"/);
     assert.match(indexHtml, /id="grainMainVolume"/);
     assert.match(indexHtml, /id="grainSynthASource"/);
+    assert.match(indexHtml, /<option value="grainASample">Grain A Sample<\/option>/);
+    assert.match(indexHtml, /id="grainSynthABrowseBtn"/);
     assert.match(indexHtml, /id="grainSynthAStart"/);
     assert.match(indexHtml, /id="grainSynthASize"/);
     assert.match(indexHtml, /id="grainSynthATune"/);
@@ -855,6 +859,8 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /id="grainSynthAWidth"/);
     assert.match(indexHtml, /id="grainSynthAVolume"/);
     assert.match(indexHtml, /id="grainSynthBSource"/);
+    assert.match(indexHtml, /<option value="grainBSample">Grain B Sample<\/option>/);
+    assert.match(indexHtml, /id="grainSynthBBrowseBtn"/);
     assert.match(indexHtml, /id="grainSynthBStart"/);
     assert.match(indexHtml, /id="grainSynthBSize"/);
     assert.match(indexHtml, /id="grainSynthBTune"/);
@@ -885,14 +891,17 @@ test('mobile performance surface exposes granular tune width smoothing and lfo d
     assert.match(indexHtml, /id="performanceGrainMainFineTune"/);
     assert.match(indexHtml, /id="performanceGrainMainWidth"/);
     assert.match(indexHtml, /id="performanceGrainMainSmoothing"/);
+    assert.match(indexHtml, /id="performanceGrainMainBrowseBtn"/);
     assert.match(indexHtml, /id="performanceGrainATune"/);
     assert.match(indexHtml, /id="performanceGrainAFineTune"/);
     assert.match(indexHtml, /id="performanceGrainAWidth"/);
     assert.match(indexHtml, /id="performanceGrainASmoothing"/);
+    assert.match(indexHtml, /id="performanceGrainABrowseBtn"/);
     assert.match(indexHtml, /id="performanceGrainBTune"/);
     assert.match(indexHtml, /id="performanceGrainBFineTune"/);
     assert.match(indexHtml, /id="performanceGrainBWidth"/);
     assert.match(indexHtml, /id="performanceGrainBSmoothing"/);
+    assert.match(indexHtml, /id="performanceGrainBBrowseBtn"/);
     assert.match(indexHtml, /id="performanceLfo1Depth"/);
     assert.match(indexHtml, /id="performanceLfo2Depth"/);
     assert.match(indexHtml, /id="performanceLfo3Depth"/);
@@ -925,6 +934,9 @@ test('granular engine plays raw sample buffers with per-layer pitch start and en
     assert.match(indexHtml, /widthId: 'grainSynthAWidth'/);
     assert.match(indexHtml, /widthId: 'grainSynthBWidth'/);
     assert.match(indexHtml, /function normalizeGranularLayerSourceMode\(value, options = \{\}\)/);
+    assert.match(indexHtml, /grainmainsample: 'grainMainSample'/);
+    assert.match(indexHtml, /grainasample: 'grainASample'/);
+    assert.match(indexHtml, /grainbsample: 'grainBSample'/);
     assert.match(indexHtml, /grainamic: 'grainAMic'/);
     assert.match(indexHtml, /grainbmic: 'grainBMic'/);
     assert.match(indexHtml, /warm: 'generated'/);
@@ -952,6 +964,31 @@ test('granular engine plays raw sample buffers with per-layer pitch start and en
     assert.match(indexHtml, /applyEqualPowerGainRamp\(sampleGain\.gain, 0\.0001, sourcePeakGain, now, Math\.max\(0\.001, attackEnd - now\)\);/);
     assert.doesNotMatch(indexHtml, /makeGranularStringSource/);
     assert.doesNotMatch(indexHtml, /getGranularStringMainSources/);
+});
+
+test('grain sample browsers reuse the repo sample overlay with dedicated layer targets and folder selection', () => {
+    assert.match(indexHtml, /grainMain: 'grainMain'/);
+    assert.match(indexHtml, /grainA: 'grainA'/);
+    assert.match(indexHtml, /grainB: 'grainB'/);
+    assert.match(indexHtml, /const GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS = \{/);
+    assert.match(indexHtml, /\[SAMPLE_BROWSER_TARGETS\.grainMain\]: 'sampledrop'/);
+    assert.match(indexHtml, /\[SAMPLE_BROWSER_TARGETS\.grainA\]: 'sampledrop2'/);
+    assert.match(indexHtml, /\[SAMPLE_BROWSER_TARGETS\.grainB\]: 'splice_claw'/);
+    assert.match(indexHtml, /const GRAIN_SAMPLE_BROWSER_TARGET_DETAILS = \{/);
+    assert.match(indexHtml, /slotKind: 'grainMainSample'/);
+    assert.match(indexHtml, /slotKind: 'grainASample'/);
+    assert.match(indexHtml, /slotKind: 'grainBSample'/);
+    assert.match(indexHtml, /id="dropboxSampleBrowserSourceSelect"/);
+    assert.match(indexHtml, /function isGrainSampleBrowserTarget\(target\)/);
+    assert.match(indexHtml, /function getGrainSampleBrowserSourceOptions\(\)/);
+    assert.match(indexHtml, /title: `\$\{details\.layerLabel\} Sample Browser`/);
+    assert.match(indexHtml, /async function loadGranularBrowserSampleFromSourceRelativePath\(target, sourceKey, relativePath, fileName = ''\)/);
+    assert.match(indexHtml, /await applyLoadedAudioBuffer\(decoded, `\$\{config\.layerLabel\} sample · \$\{sourceName\}`, config\.slotKind\);/);
+    assert.match(indexHtml, /sourceSelect\.value = config\.sourceMode;/);
+    assert.match(indexHtml, /restartActiveGrainStreamsFromNow\(\);/);
+    assert.match(indexHtml, /\[grainMainBrowseBtn, SAMPLE_BROWSER_TARGETS\.grainMain\]/);
+    assert.match(indexHtml, /\[performanceGrainABrowseBtn, SAMPLE_BROWSER_TARGETS\.grainA\]/);
+    assert.match(indexHtml, /\[performanceGrainBBrowseBtn, SAMPLE_BROWSER_TARGETS\.grainB\]/);
 });
 
 test('granular restore and arp stay on the rebuilt synth path', () => {

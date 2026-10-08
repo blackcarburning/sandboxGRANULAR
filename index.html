@@ -1080,6 +1080,20 @@
             box-shadow: 0 0 12px rgba(0, 212, 255, 0.28);
         }
 
+        .grain-layer-browser-btn {
+            width: 100%;
+            min-height: 34px;
+            padding: 7px 9px;
+            border-radius: 7px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: rgba(0, 212, 255, 0.14);
+            color: var(--accent);
+            border: 1px solid rgba(0, 212, 255, 0.24);
+        }
+
         .synth-fine-tune-lfo,
         .synth-filter-lfo {
             display: grid;
@@ -2889,6 +2903,16 @@
             gap: 10px;
         }
 
+        .simplified-ui .performance-grain-layer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .simplified-ui .performance-grain-layer-actions .performance-btn {
+            flex: 1 1 100%;
+        }
+
         .simplified-ui .performance-layer-switches-card {
             display: grid;
             gap: 10px;
@@ -4224,6 +4248,9 @@
                                 <input type="range" id="performanceGrainMainSmoothing" min="0" max="100" value="42" step="1">
                             </div>
                         </div>
+                        <div class="performance-grain-layer-actions">
+                            <button class="performance-btn" id="performanceGrainMainBrowseBtn" type="button">Browse Sample Folders</button>
+                        </div>
                     </section>
                     <section class="performance-grain-layer-group" aria-label="Grain A quick controls">
                         <div class="performance-grain-layer-head">
@@ -4260,6 +4287,9 @@
                                 <input type="range" id="performanceGrainASmoothing" min="0" max="100" value="48" step="1">
                             </div>
                         </div>
+                        <div class="performance-grain-layer-actions">
+                            <button class="performance-btn" id="performanceGrainABrowseBtn" type="button">Browse Sample Folders</button>
+                        </div>
                     </section>
                     <section class="performance-grain-layer-group" aria-label="Grain B quick controls">
                         <div class="performance-grain-layer-head">
@@ -4295,6 +4325,9 @@
                                 </label>
                                 <input type="range" id="performanceGrainBSmoothing" min="0" max="100" value="56" step="1">
                             </div>
+                        </div>
+                        <div class="performance-grain-layer-actions">
+                            <button class="performance-btn" id="performanceGrainBBrowseBtn" type="button">Browse Sample Folders</button>
                         </div>
                     </section>
                     <section class="performance-grain-layer-group" aria-label="Granular LFO depth quick controls">
@@ -5167,6 +5200,7 @@
                             <div class="control-group">
                                 <label><span>Main Source</span></label>
                                 <select id="grainMainSource">
+                                    <option value="grainMainSample">Main Grain Sample</option>
                                     <option value="generated">Generated Loop</option>
                                     <option value="mic" selected>Main Mic</option>
                                     <option value="output">Output Source</option>
@@ -5174,6 +5208,10 @@
                                     <option value="grainBMic">Grain B Mic</option>
                                     <option value="all">All Sources</option>
                                 </select>
+                            </div>
+                            <div class="control-group">
+                                <label><span>Sample Browser</span></label>
+                                <button type="button" class="grain-layer-browser-btn" id="grainMainBrowseBtn">Browse Sample Folders</button>
                             </div>
                             <div class="control-group">
                                 <label>
@@ -5263,6 +5301,7 @@
                             <div class="control-group">
                                 <label><span>Source</span></label>
                                 <select id="grainSynthASource">
+                                    <option value="grainASample">Grain A Sample</option>
                                     <option value="grainAMic" selected>Grain A Mic</option>
                                     <option value="mic">Main Mic</option>
                                     <option value="generated">Generated Loop</option>
@@ -5270,6 +5309,10 @@
                                     <option value="grainBMic">Grain B Mic</option>
                                     <option value="all">All Sources</option>
                                 </select>
+                            </div>
+                            <div class="control-group">
+                                <label><span>Sample Browser</span></label>
+                                <button type="button" class="grain-layer-browser-btn" id="grainSynthABrowseBtn">Browse Sample Folders</button>
                             </div>
                             <div class="control-group">
                                 <label>
@@ -5359,6 +5402,7 @@
                             <div class="control-group">
                                 <label><span>Source</span></label>
                                 <select id="grainSynthBSource">
+                                    <option value="grainBSample">Grain B Sample</option>
                                     <option value="grainBMic" selected>Grain B Mic</option>
                                     <option value="mic">Main Mic</option>
                                     <option value="generated">Generated Loop</option>
@@ -5366,6 +5410,10 @@
                                     <option value="grainAMic">Grain A Mic</option>
                                     <option value="all">All Sources</option>
                                 </select>
+                            </div>
+                            <div class="control-group">
+                                <label><span>Sample Browser</span></label>
+                                <button type="button" class="grain-layer-browser-btn" id="grainSynthBBrowseBtn">Browse Sample Folders</button>
                             </div>
                             <div class="control-group">
                                 <label>
@@ -6562,6 +6610,10 @@
                     <button class="performance-btn" id="dropboxSampleBrowserCloseBtn" type="button">Close</button>
                 </div>
                 <div class="sample-browser-controls">
+                    <div class="sample-browser-filter-group" id="dropboxSampleBrowserSourceGroup" hidden>
+                        <label class="sample-browser-filter-label" for="dropboxSampleBrowserSourceSelect">Sample Folder</label>
+                        <select class="sample-browser-filter-input" id="dropboxSampleBrowserSourceSelect"></select>
+                    </div>
                     <div class="sample-browser-filter-group">
                         <label class="sample-browser-filter-label" for="dropboxSampleBrowserFilter">Search Samples</label>
                         <input class="sample-browser-filter-input" id="dropboxSampleBrowserFilter" type="search" placeholder="Filter samples" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -7055,6 +7107,9 @@
         let generatedLoopBuffer = null;
         let generatedLoopBaseBuffer = null;
         let micAudioBuffer = null;
+        let grainMainSampleBuffer = null;
+        let grainASampleBuffer = null;
+        let grainBSampleBuffer = null;
         let grainSynthAMicBuffer = null;
         let grainSynthBMicBuffer = null;
         let outputSourceBuffer = null;
@@ -7202,7 +7257,35 @@
             dropboxSampleLayer: 'dropboxSampleLayer',
             drumMachineKick: 'drumMachineKick',
             drumMachineSnare: 'drumMachineSnare',
-            drumMachineHat: 'drumMachineHat'
+            drumMachineHat: 'drumMachineHat',
+            grainMain: 'grainMain',
+            grainA: 'grainA',
+            grainB: 'grainB'
+        };
+        const GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS = {
+            [SAMPLE_BROWSER_TARGETS.grainMain]: 'sampledrop',
+            [SAMPLE_BROWSER_TARGETS.grainA]: 'sampledrop2',
+            [SAMPLE_BROWSER_TARGETS.grainB]: 'splice_claw'
+        };
+        const GRAIN_SAMPLE_BROWSER_TARGET_DETAILS = {
+            [SAMPLE_BROWSER_TARGETS.grainMain]: {
+                layerLabel: 'Main Grain',
+                slotKind: 'grainMainSample',
+                sourceSelectId: 'grainMainSource',
+                sourceMode: 'grainMainSample'
+            },
+            [SAMPLE_BROWSER_TARGETS.grainA]: {
+                layerLabel: 'Grain A',
+                slotKind: 'grainASample',
+                sourceSelectId: 'grainSynthASource',
+                sourceMode: 'grainASample'
+            },
+            [SAMPLE_BROWSER_TARGETS.grainB]: {
+                layerLabel: 'Grain B',
+                slotKind: 'grainBSample',
+                sourceSelectId: 'grainSynthBSource',
+                sourceMode: 'grainBSample'
+            }
         };
         const ARP_MODE_OPTIONS = [
             { value: 'up', label: 'Up' },
@@ -7522,6 +7605,9 @@
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
+        let grainSampleBrowserSourceKeys = {
+            ...GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS
+        };
         let drumMachineKickBuffer = null;
         let drumMachineSnareBuffer = null;
         let drumMachineHatBuffer = null;
@@ -9465,6 +9551,9 @@
                     // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
                     const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
                     const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
+                    const restoredGrainMainSampleBuffer = await loadAudioBufferFromDB(GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY);
+                    const restoredGrainASampleBuffer = await loadAudioBufferFromDB(GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY);
+                    const restoredGrainBSampleBuffer = await loadAudioBufferFromDB(GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY);
                     const restoredGrainAMicBuffer = await loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY);
                     const restoredGrainBMicBuffer = await loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY);
                     const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
@@ -9478,6 +9567,9 @@
                     const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                     const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                     const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
+                    const shouldRestoreGrainMainSample = restoredGrainMainSampleBuffer && restoreStillCurrent;
+                    const shouldRestoreGrainASample = restoredGrainASampleBuffer && restoreStillCurrent;
+                    const shouldRestoreGrainBSample = restoredGrainBSampleBuffer && restoreStillCurrent;
                     const shouldRestoreGrainAMic = restoredGrainAMicBuffer && restoreStillCurrent;
                     const shouldRestoreGrainBMic = restoredGrainBMicBuffer && restoreStillCurrent;
                     const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
@@ -9494,6 +9586,15 @@
                     }
                     if (shouldRestoreMic) {
                         micAudioBuffer = normalizeSourceBufferChannels('mic', restoredMicBuffer);
+                    }
+                    if (shouldRestoreGrainMainSample) {
+                        grainMainSampleBuffer = restoredGrainMainSampleBuffer;
+                    }
+                    if (shouldRestoreGrainASample) {
+                        grainASampleBuffer = restoredGrainASampleBuffer;
+                    }
+                    if (shouldRestoreGrainBSample) {
+                        grainBSampleBuffer = restoredGrainBSampleBuffer;
                     }
                     if (shouldRestoreGrainAMic) {
                         grainSynthAMicBuffer = normalizeSourceBufferChannels('grainAMic', restoredGrainAMicBuffer);
@@ -9570,7 +9671,7 @@
                             };
                         }
                     }
-                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare || shouldRestoreDrumMachineHat) {
+                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainMainSample || shouldRestoreGrainASample || shouldRestoreGrainBSample || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare || shouldRestoreDrumMachineHat) {
                         syncLegacyAudioBuffer();
                         drawWaveforms();
                         updateSourceAvailability();
@@ -10941,6 +11042,39 @@
                     emptyText: 'Record main mic to fill this source',
                     color: '#7effb2'
                 },
+                grainMainSample: {
+                    buffer: () => grainMainSampleBuffer,
+                    setBuffer: (buffer) => { grainMainSampleBuffer = buffer; },
+                    startId: 'grainMainSampleLoopStart',
+                    endId: 'grainMainSampleLoopEnd',
+                    canvas: null,
+                    metaId: null,
+                    dbKey: () => GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY,
+                    emptyText: 'Load a sample into Main Grain',
+                    color: '#6cc8ff'
+                },
+                grainASample: {
+                    buffer: () => grainASampleBuffer,
+                    setBuffer: (buffer) => { grainASampleBuffer = buffer; },
+                    startId: 'grainASampleLoopStart',
+                    endId: 'grainASampleLoopEnd',
+                    canvas: null,
+                    metaId: null,
+                    dbKey: () => GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY,
+                    emptyText: 'Load a sample into Grain A',
+                    color: '#ffd36f'
+                },
+                grainBSample: {
+                    buffer: () => grainBSampleBuffer,
+                    setBuffer: (buffer) => { grainBSampleBuffer = buffer; },
+                    startId: 'grainBSampleLoopStart',
+                    endId: 'grainBSampleLoopEnd',
+                    canvas: null,
+                    metaId: null,
+                    dbKey: () => GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY,
+                    emptyText: 'Load a sample into Grain B',
+                    color: '#ff9fe3'
+                },
                 grainAMic: {
                     buffer: () => grainSynthAMicBuffer,
                     setBuffer: (buffer) => { grainSynthAMicBuffer = buffer; },
@@ -10984,11 +11118,29 @@
         }
 
         function syncLegacyAudioBuffer() {
-            audioBuffer = generatedLoopBuffer || micAudioBuffer || outputSourceBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || null;
+            audioBuffer = generatedLoopBuffer
+                || grainMainSampleBuffer
+                || grainASampleBuffer
+                || grainBSampleBuffer
+                || micAudioBuffer
+                || outputSourceBuffer
+                || grainSynthAMicBuffer
+                || grainSynthBMicBuffer
+                || null;
         }
 
         function hasGranularSource() {
-            return Boolean(generatedLoopBuffer || micAudioBuffer || outputSourceBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || audioBuffer);
+            return Boolean(
+                generatedLoopBuffer
+                || grainMainSampleBuffer
+                || grainASampleBuffer
+                || grainBSampleBuffer
+                || micAudioBuffer
+                || outputSourceBuffer
+                || grainSynthAMicBuffer
+                || grainSynthBMicBuffer
+                || audioBuffer
+            );
         }
 
         function normalizeSourceWaveformKind(kind) {
@@ -11198,6 +11350,9 @@
         function getAllGranularSources() {
             return [
                 makeGranularSource('generated'),
+                makeGranularSource('grainMainSample'),
+                makeGranularSource('grainASample'),
+                makeGranularSource('grainBSample'),
                 makeGranularSource('mic'),
                 makeGranularSource('grainAMic'),
                 makeGranularSource('grainBMic'),
@@ -11221,12 +11376,15 @@
                 all: 'all',
                 generated: 'generated',
                 mic: 'mic',
+                grainmainsample: 'grainMainSample',
+                grainasample: 'grainASample',
+                grainbsample: 'grainBSample',
                 grainamic: 'grainAMic',
                 grainbmic: 'grainBMic',
                 output: 'output'
             };
             const resolved = canonicalMap[legacyMap[normalized] || normalized] || legacyMap[normalized] || normalized;
-            if (['all', 'generated', 'mic', 'grainAMic', 'grainBMic', 'output'].includes(resolved)) {
+            if (['all', 'generated', 'grainMainSample', 'grainASample', 'grainBSample', 'mic', 'grainAMic', 'grainBMic', 'output'].includes(resolved)) {
                 return resolved;
             }
             return fallback;
@@ -11239,6 +11397,12 @@
 
             if (mode === 'generated') {
                 sources = [makeGranularSource('generated')].filter(Boolean);
+            } else if (mode === 'grainMainSample') {
+                sources = [makeGranularSource('grainMainSample')].filter(Boolean);
+            } else if (mode === 'grainASample') {
+                sources = [makeGranularSource('grainASample')].filter(Boolean);
+            } else if (mode === 'grainBSample') {
+                sources = [makeGranularSource('grainBSample')].filter(Boolean);
             } else if (mode === 'mic') {
                 sources = [makeGranularSource('mic')].filter(Boolean);
             } else if (mode === 'grainAMic') {
@@ -12370,6 +12534,28 @@
             return BASTARD_LOOP_SOURCE_LABELS[sourceKey] || BASTARD_LOOP_SOURCE_LABELS.sampledrop;
         }
 
+        function isGrainSampleBrowserTarget(target) {
+            return Object.prototype.hasOwnProperty.call(GRAIN_SAMPLE_BROWSER_TARGET_DETAILS, target);
+        }
+
+        function getGrainSampleBrowserSourceKey(target) {
+            const fallback = GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS[target] || 'sampledrop';
+            const value = String(grainSampleBrowserSourceKeys[target] || fallback).trim().toLowerCase();
+            return Object.prototype.hasOwnProperty.call(BASTARD_LOOP_SOURCE_LABELS, value) ? value : fallback;
+        }
+
+        function setGrainSampleBrowserSourceKey(target, sourceKey) {
+            if (!isGrainSampleBrowserTarget(target)) return;
+            const normalized = String(sourceKey || '').trim().toLowerCase();
+            grainSampleBrowserSourceKeys[target] = Object.prototype.hasOwnProperty.call(BASTARD_LOOP_SOURCE_LABELS, normalized)
+                ? normalized
+                : GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS[target];
+        }
+
+        function getGrainSampleBrowserSourceOptions() {
+            return Object.entries(BASTARD_LOOP_SOURCE_LABELS).map(([value, label]) => ({ value, label }));
+        }
+
         function getDrumMachineSourceLabel(kind) {
             const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
             if (BASTARD_LOOP_SOURCE_LABELS[sourceKey]) {
@@ -12381,6 +12567,24 @@
         }
 
         function getSampleBrowserTargetConfig(target = dropboxSampleBrowserTarget) {
+            if (isGrainSampleBrowserTarget(target)) {
+                const details = GRAIN_SAMPLE_BROWSER_TARGET_DETAILS[target];
+                const sourceKey = getGrainSampleBrowserSourceKey(target);
+                return {
+                    target,
+                    title: `${details.layerLabel} Sample Browser`,
+                    subtitle: `Preview and load one source sample directly into ${details.layerLabel}.`,
+                    sourceKey,
+                    sourceLabel: getDropboxSampleLayerSourceLabel(sourceKey),
+                    loadButtonLabel: `Load into ${details.layerLabel}`,
+                    loadingLabel: 'Loading grain samples...',
+                    sourceOptions: getGrainSampleBrowserSourceOptions(),
+                    slotKind: details.slotKind,
+                    sourceSelectId: details.sourceSelectId,
+                    sourceMode: details.sourceMode,
+                    layerLabel: details.layerLabel
+                };
+            }
             if (target === SAMPLE_BROWSER_TARGETS.drumMachineKick) {
                 return {
                     target,
@@ -15674,6 +15878,9 @@
             generatedLoopBuffer = null;
             generatedLoopBaseBuffer = null;
             micAudioBuffer = null;
+            grainMainSampleBuffer = null;
+            grainASampleBuffer = null;
+            grainBSampleBuffer = null;
             grainSynthAMicBuffer = null;
             grainSynthBMicBuffer = null;
             outputSourceBuffer = null;
@@ -18139,6 +18346,9 @@
             const labels = {
                 generated: 'Generated loop',
                 mic: 'Mic recording',
+                grainMainSample: 'Main grain sample',
+                grainASample: 'Grain A sample',
+                grainBSample: 'Grain B sample',
                 grainAMic: 'Grain A mic',
                 grainBMic: 'Grain B mic',
                 output: 'Output source'
@@ -20536,6 +20746,9 @@
             const previousGeneratedBuffer = generatedLoopBuffer;
             const previousGeneratedBaseBuffer = generatedLoopBaseBuffer;
             const previousMicBuffer = micAudioBuffer;
+            const previousGrainMainSampleBuffer = grainMainSampleBuffer;
+            const previousGrainASampleBuffer = grainASampleBuffer;
+            const previousGrainBSampleBuffer = grainBSampleBuffer;
             const previousGrainAMicBuffer = grainSynthAMicBuffer;
             const previousGrainBMicBuffer = grainSynthBMicBuffer;
             const previousOutputBuffer = outputSourceBuffer;
@@ -20552,6 +20765,9 @@
                 generatedLoopBuffer = previousGeneratedBuffer;
                 generatedLoopBaseBuffer = previousGeneratedBaseBuffer;
                 micAudioBuffer = previousMicBuffer;
+                grainMainSampleBuffer = previousGrainMainSampleBuffer;
+                grainASampleBuffer = previousGrainASampleBuffer;
+                grainBSampleBuffer = previousGrainBSampleBuffer;
                 grainSynthAMicBuffer = previousGrainAMicBuffer;
                 grainSynthBMicBuffer = previousGrainBMicBuffer;
                 outputSourceBuffer = previousOutputBuffer;
@@ -22151,6 +22367,9 @@
                     note: 'Patch JSON stores synth settings only. Use Export WAV or Save Audio for audio samples.',
                     hasGeneratedSample: Boolean(generatedLoopBuffer),
                     hasMicSample: Boolean(micAudioBuffer),
+                    hasGrainMainSample: Boolean(grainMainSampleBuffer),
+                    hasGrainASample: Boolean(grainASampleBuffer),
+                    hasGrainBSample: Boolean(grainBSampleBuffer),
                     hasGrainAMicSample: Boolean(grainSynthAMicBuffer),
                     hasGrainBMicSample: Boolean(grainSynthBMicBuffer),
                     hasOutputSample: Boolean(outputSourceBuffer),
@@ -22164,7 +22383,7 @@
                     hasDrumMachineHats: drumMachineHatPattern.some(Boolean),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || drumMachineHatBuffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainMainSampleBuffer || grainASampleBuffer || grainBSampleBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || drumMachineHatBuffer || audioBuffer)
             };
             
             // Gather all slider values
@@ -22694,6 +22913,9 @@
         const AUDIO_BUFFER_KEY = 'currentAudioBuffer';
         const GENERATED_AUDIO_BUFFER_KEY = 'generatedLoopBuffer';
         const MIC_AUDIO_BUFFER_KEY = 'micAudioBuffer';
+        const GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY = 'grainMainSampleBuffer';
+        const GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY = 'grainASampleBuffer';
+        const GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY = 'grainBSampleBuffer';
         const GRAIN_A_MIC_AUDIO_BUFFER_KEY = 'grainSynthAMicBuffer';
         const GRAIN_B_MIC_AUDIO_BUFFER_KEY = 'grainSynthBMicBuffer';
         const OUTPUT_AUDIO_BUFFER_KEY = 'outputSourceBuffer';
@@ -24129,12 +24351,86 @@
             if (status) status.textContent = message;
         }
 
+        function syncDropboxSampleBrowserSourceUi(config = getSampleBrowserTargetConfig()) {
+            const group = document.getElementById('dropboxSampleBrowserSourceGroup');
+            const select = document.getElementById('dropboxSampleBrowserSourceSelect');
+            if (!group || !select) return;
+
+            const options = Array.isArray(config.sourceOptions) ? config.sourceOptions : [];
+            group.hidden = options.length === 0;
+            if (group.hidden) {
+                select.innerHTML = '';
+                return;
+            }
+
+            const previousValue = select.value;
+            select.innerHTML = '';
+            options.forEach((option) => {
+                const element = document.createElement('option');
+                element.value = option.value;
+                element.textContent = option.label;
+                select.appendChild(element);
+            });
+            const nextValue = options.some((option) => option.value === config.sourceKey)
+                ? config.sourceKey
+                : (options.some((option) => option.value === previousValue) ? previousValue : options[0]?.value || '');
+            select.value = nextValue;
+        }
+
         function syncDropboxSampleBrowserTargetUi() {
             const title = document.getElementById('dropboxSampleBrowserTitle');
             const subtitle = document.getElementById('dropboxSampleBrowserSubtitle');
             const config = getSampleBrowserTargetConfig();
             if (title) title.textContent = config.title;
             if (subtitle) subtitle.textContent = config.subtitle;
+            syncDropboxSampleBrowserSourceUi(config);
+        }
+
+        async function loadGranularBrowserSampleFromResponse(response, target, fallback = {}) {
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Grain sample load failed with status ${response.status}`);
+            }
+
+            const config = getSampleBrowserTargetConfig(target);
+            if (!config.slotKind || !config.sourceMode || !config.sourceSelectId) {
+                throw new Error('Grain browser target is missing a sample slot.');
+            }
+
+            const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'sample.wav';
+            const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
+            const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || config.sourceKey;
+            const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || fallback.sourceLabel || getDropboxSampleLayerSourceLabel(responseSourceKey);
+            const arrayBuffer = await response.arrayBuffer();
+            const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+
+            await applyLoadedAudioBuffer(decoded, `${config.layerLabel} sample · ${sourceName}`, config.slotKind);
+            const sourceSelect = document.getElementById(config.sourceSelectId);
+            if (sourceSelect) sourceSelect.value = config.sourceMode;
+            normalizeGranularLayerSourceSelects();
+            syncSourceWaveformSoloAudition();
+            restartActiveGrainStreamsFromNow();
+            saveState();
+            setStatus(`${sourceName} ready in ${config.layerLabel} from ${responseSourceLabel}.`);
+        }
+
+        async function loadGranularBrowserSampleFromSourceRelativePath(target, sourceKey, relativePath, fileName = '') {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading a grain sample.');
+            }
+            const config = getSampleBrowserTargetConfig(target);
+            const sourceLabel = getDropboxSampleLayerSourceLabel(sourceKey);
+            setStatus(`Loading ${fileName || 'sample'} into ${config.layerLabel} from ${sourceLabel}…`);
+            const response = await fetch(buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath), {
+                mode: 'cors',
+                cache: 'no-store'
+            });
+            await loadGranularBrowserSampleFromResponse(response, target, {
+                sourceKey,
+                sourceLabel,
+                fileName,
+                relativePath
+            });
         }
 
         function normalizeDropboxSampleBrowserFeedback(feedback = {}, file = {}) {
@@ -24408,6 +24704,8 @@
                             await loadDrumMachineSampleFromSourceRelativePath('snare', file.sourceKey, file.relativePath, file.name);
                         } else if (config.target === SAMPLE_BROWSER_TARGETS.drumMachineHat) {
                             await loadDrumMachineSampleFromSourceRelativePath('hat', file.sourceKey, file.relativePath, file.name);
+                        } else if (isGrainSampleBrowserTarget(config.target)) {
+                            await loadGranularBrowserSampleFromSourceRelativePath(config.target, file.sourceKey, file.relativePath, file.name);
                         } else {
                             await loadDropboxSampleLayerFromSourceRelativePath(file.sourceKey, file.relativePath, file.name);
                         }
@@ -24415,7 +24713,13 @@
                     } catch (error) {
                         console.error(error);
                         setDropboxSampleBrowserStatus(`Load failed: ${error.message}`);
-                        setStatus(`${config.target === SAMPLE_BROWSER_TARGETS.dropboxSampleLayer ? 'Dropbox sample' : 'Drum sample'} load failed: ${error.message}`, 'error');
+                        setStatus(
+                            `${config.target === SAMPLE_BROWSER_TARGETS.dropboxSampleLayer
+                                ? 'Dropbox sample'
+                                : (isGrainSampleBrowserTarget(config.target) ? `${config.layerLabel} sample` : 'Drum sample')
+                            } load failed: ${error.message}`,
+                            'error'
+                        );
                     } finally {
                         loadButton.disabled = false;
                     }
@@ -25696,6 +26000,7 @@
         const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
         const dropboxSampleBrowserRefreshBtn = document.getElementById('dropboxSampleBrowserRefreshBtn');
         const dropboxSampleBrowserFilter = document.getElementById('dropboxSampleBrowserFilter');
+        const dropboxSampleBrowserSourceSelect = document.getElementById('dropboxSampleBrowserSourceSelect');
         const performanceGeneratedDryTrim = document.getElementById('performanceGeneratedDryTrim');
         const performanceGranularTrim = document.getElementById('performanceGranularTrim');
         const performanceNoiseLevel = document.getElementById('performanceNoiseLevel');
@@ -25711,14 +26016,20 @@
         const performanceGrainMainFineTune = document.getElementById('performanceGrainMainFineTune');
         const performanceGrainMainWidth = document.getElementById('performanceGrainMainWidth');
         const performanceGrainMainSmoothing = document.getElementById('performanceGrainMainSmoothing');
+        const performanceGrainMainBrowseBtn = document.getElementById('performanceGrainMainBrowseBtn');
         const performanceGrainATune = document.getElementById('performanceGrainATune');
         const performanceGrainAFineTune = document.getElementById('performanceGrainAFineTune');
         const performanceGrainAWidth = document.getElementById('performanceGrainAWidth');
         const performanceGrainASmoothing = document.getElementById('performanceGrainASmoothing');
+        const performanceGrainABrowseBtn = document.getElementById('performanceGrainABrowseBtn');
         const performanceGrainBTune = document.getElementById('performanceGrainBTune');
         const performanceGrainBFineTune = document.getElementById('performanceGrainBFineTune');
         const performanceGrainBWidth = document.getElementById('performanceGrainBWidth');
         const performanceGrainBSmoothing = document.getElementById('performanceGrainBSmoothing');
+        const performanceGrainBBrowseBtn = document.getElementById('performanceGrainBBrowseBtn');
+        const grainMainBrowseBtn = document.getElementById('grainMainBrowseBtn');
+        const grainSynthABrowseBtn = document.getElementById('grainSynthABrowseBtn');
+        const grainSynthBBrowseBtn = document.getElementById('grainSynthBBrowseBtn');
         const performanceLfo1Depth = document.getElementById('performanceLfo1Depth');
         const performanceLfo2Depth = document.getElementById('performanceLfo2Depth');
         const performanceLfo3Depth = document.getElementById('performanceLfo3Depth');
@@ -26648,6 +26959,19 @@
             openDropboxSampleBrowser();
         });
 
+        [
+            [grainMainBrowseBtn, SAMPLE_BROWSER_TARGETS.grainMain],
+            [performanceGrainMainBrowseBtn, SAMPLE_BROWSER_TARGETS.grainMain],
+            [grainSynthABrowseBtn, SAMPLE_BROWSER_TARGETS.grainA],
+            [performanceGrainABrowseBtn, SAMPLE_BROWSER_TARGETS.grainA],
+            [grainSynthBBrowseBtn, SAMPLE_BROWSER_TARGETS.grainB],
+            [performanceGrainBBrowseBtn, SAMPLE_BROWSER_TARGETS.grainB]
+        ].forEach(([button, target]) => {
+            button?.addEventListener('click', () => {
+                openDropboxSampleBrowser(target);
+            });
+        });
+
         performanceDropboxSampleSoloBtn?.addEventListener('click', () => {
             setLoopLayerSolo('dropbox', { toggle: true });
         });
@@ -26661,6 +26985,16 @@
                     setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
                 });
             }
+        });
+
+        dropboxSampleBrowserSourceSelect?.addEventListener('change', () => {
+            if (!isGrainSampleBrowserTarget(dropboxSampleBrowserTarget)) return;
+            setGrainSampleBrowserSourceKey(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect.value);
+            syncDropboxSampleBrowserTargetUi();
+            refreshDropboxSampleBrowser().catch((error) => {
+                console.error(error);
+                setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
+            });
         });
 
         performanceDropboxSampleStretchToLoop?.addEventListener('change', (event) => {
