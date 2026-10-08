@@ -858,6 +858,16 @@ test('grain playback speed control is exposed in both grain UIs and defaults to 
     assert.match(indexHtml, /grainPlaybackSpeed: 100,/);
 });
 
+test('output source grains expose a dedicated volume control in the shared source path', () => {
+    assert.match(indexHtml, /level: \{ id: 'outputGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 \}/);
+    assert.match(indexHtml, /function getGranularSourceLevelMultiplier\(sourceInfo\)/);
+    assert.match(indexHtml, /const levelPercent = getSourceGrainControlValue\(kind, 'level', 100\);/);
+    assert.match(indexHtml, /return Math\.max\(0, Math\.min\(2, levelPercent \/ 100\)\);/);
+    assert.match(indexHtml, /role === 'level'\s*\?\s*\{ min: 70, max: 130 \}/);
+    assert.match(indexHtml, /const setSourceGain = \(source, gainAmount\) => \{\s*gains\.set\(source, Math\.max\(0, gainAmount \* getGranularSourceLevelMultiplier\(source\)\)\);\s*\};/);
+    assert.match(indexHtml, /Math\.min\(1, perSourceGain \* getGranularSourceLevelMultiplier\(sourceInfo\)\)/);
+});
+
 test('granular loop endpoints keep start manual while end remains lfo-routable for playback', () => {
     assert.doesNotMatch(indexHtml, /data-param="generatedLoopStart" data-lfo="1"/);
     assert.match(indexHtml, /data-param="generatedLoopEnd" data-lfo="2"/);

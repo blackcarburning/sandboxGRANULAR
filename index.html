@@ -8053,6 +8053,7 @@
                 controls: {
                     position: { id: 'outputGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
                     scale: { id: 'outputGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
+                    level: { id: 'outputGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
                     attack: { id: 'outputGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
                     release: { id: 'outputGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
                 }
@@ -8123,8 +8124,14 @@
                 paramRanges[control.id] = { min: control.min, max: control.max };
                 INTERNAL_RANDOMIZE_SLIDER_RANGES[control.id] = role === 'position'
                     ? { min: -24, max: 24 }
+                    : role === 'level'
+                        ? { min: 70, max: 130 }
                     : { min: 60, max: 160 };
-                GRANULAR_LFO_MODULATION_SCALES[control.id] = role === 'position' ? 0.1 : 0.08;
+                GRANULAR_LFO_MODULATION_SCALES[control.id] = role === 'position'
+                    ? 0.1
+                    : role === 'level'
+                        ? 0.045
+                        : 0.08;
                 RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.add(control.id);
             });
         });
@@ -10815,7 +10822,10 @@
                 source.loopEnd = loopEnd;
                 source.playbackRate.value = 1;
                 gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(perSourceGain, now + fadeSeconds);
+                gain.gain.linearRampToValueAtTime(
+                    Math.min(1, perSourceGain * getGranularSourceLevelMultiplier(sourceInfo)),
+                    now + fadeSeconds
+                );
                 source.connect(gain);
                 gain.connect(masterGain);
                 source.start(now, offset);
@@ -10929,6 +10939,13 @@
             const rawValue = getModulatedValue(control.id);
             const bounded = Math.max(control.min, Math.min(control.max, Number.isFinite(rawValue) ? rawValue : fallback));
             return bounded;
+        }
+
+        function getGranularSourceLevelMultiplier(sourceInfo) {
+            const kind = sourceInfo?.kind;
+            if (!kind || kind === 'legacy') return 1;
+            const levelPercent = getSourceGrainControlValue(kind, 'level', 100);
+            return Math.max(0, Math.min(2, levelPercent / 100));
         }
 
         function wrapUnitInterval(value) {
@@ -14623,6 +14640,10 @@
             const gains = new Map();
             if (!Array.isArray(sources) || sources.length === 0) return gains;
 
+            const setSourceGain = (source, gainAmount) => {
+                gains.set(source, Math.max(0, gainAmount * getGranularSourceLevelMultiplier(source)));
+            };
+
             const generatedSources = sources.filter((source) => source.kind === 'generated');
             const otherSources = sources.filter((source) => source.kind !== 'generated');
             const generatedMix = getGeneratedSourceMixValue();
@@ -14631,19 +14652,19 @@
             if (generatedSources.length > 0 && otherSources.length > 0) {
                 const generatedGain = availableGain * generatedMix * generatedVolume / generatedSources.length;
                 const otherGain = generatedSampleSolo ? 0 : availableGain * (1 - generatedMix) / otherSources.length;
-                generatedSources.forEach((source) => gains.set(source, generatedGain));
-                otherSources.forEach((source) => gains.set(source, otherGain));
+                generatedSources.forEach((source) => setSourceGain(source, generatedGain));
+                otherSources.forEach((source) => setSourceGain(source, otherGain));
                 return gains;
             }
 
             if (generatedSources.length > 0) {
                 const generatedGain = availableGain * generatedMix * generatedVolume / generatedSources.length;
-                generatedSources.forEach((source) => gains.set(source, generatedGain));
+                generatedSources.forEach((source) => setSourceGain(source, generatedGain));
                 return gains;
             }
 
             const perSourceGain = availableGain / sources.length;
-            sources.forEach((source) => gains.set(source, perSourceGain));
+            sources.forEach((source) => setSourceGain(source, perSourceGain));
             return gains;
         }
 
@@ -17680,7 +17701,7 @@
 
                 const controls = document.createElement('div');
                 controls.className = 'source-grain-envelope-controls';
-                controls.setAttribute('aria-label', `${definition.label} grain envelope, position, and size`);
+                controls.setAttribute('aria-label', `${definition.label} grain source controls`);
 
                 Object.values(definition.controls).forEach((control) => {
                     const row = document.createElement('div');
