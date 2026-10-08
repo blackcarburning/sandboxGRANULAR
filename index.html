@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-22-47-build-v2026.10.08.21';
+            const cacheBuster = '2026-10-08-23-00-build-v2026.10.08.22';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4036,7 +4036,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.21</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.22</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4049,7 +4049,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.21</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.22</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -25750,6 +25750,7 @@
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
         const WAV_REPOSITORY_LIST_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/list`;
         const WAV_REPOSITORY_FEEDBACK_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/file-feedback`;
+        const WAV_REPOSITORY_DELETE_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/delete`;
         const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
         const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
         const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-files`;
@@ -25784,6 +25785,20 @@
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.ok) {
                 throw new Error(payload.error || `Upload failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function deleteWavFromRepository(filename) {
+            const deleteUrl = `${WAV_REPOSITORY_DELETE_API_URL}?filename=${encodeURIComponent(filename)}`;
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                mode: 'cors',
+                cache: 'no-store'
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Could not delete WAV (${response.status})`);
             }
             return payload;
         }
@@ -26971,6 +26986,11 @@
                 downloadButton.type = 'button';
                 downloadButton.textContent = 'Download WAV';
 
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'performance-btn danger';
+                deleteButton.type = 'button';
+                deleteButton.textContent = 'Delete WAV';
+
                 const meta = document.createElement('div');
                 meta.className = 'sample-browser-path';
                 meta.textContent = formatWavRepositoryFileMeta(file);
@@ -27116,11 +27136,36 @@
                     }
                 });
 
+                deleteButton.addEventListener('click', async () => {
+                    const originalLabel = deleteButton.textContent;
+                    deleteButton.disabled = true;
+                    downloadButton.disabled = true;
+                    saveButton.disabled = true;
+                    deleteButton.textContent = 'Deleting...';
+                    try {
+                        await deleteWavFromRepository(file.name);
+                        wavRepositoryBrowserFiles = wavRepositoryBrowserFiles.filter((entry) => entry.name !== file.name);
+                        renderWavRepositoryBrowserFiles();
+                        setWavRepositoryBrowserStatus(`Deleted ${file.name}.`);
+                        setStatus(`Deleted WAV from repository: ${file.name}`, 'info');
+                        await refreshWavRepositoryBrowser({ keepStatus: true });
+                    } catch (error) {
+                        console.error(error);
+                        setWavRepositoryBrowserStatus(`Delete failed: ${error.message}`);
+                        setStatus(`WAV delete failed: ${error.message}`, 'error');
+                    } finally {
+                        deleteButton.disabled = false;
+                        downloadButton.disabled = false;
+                        syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
+                        deleteButton.textContent = originalLabel;
+                    }
+                });
+
                 feedbackActions.append(likeButton, loveButton, saveButton);
                 feedbackRow.append(feedbackActions, feedbackStatus);
                 feedback.append(feedbackLabel, textarea, feedbackRow);
                 head.append(name);
-                actions.append(repositoryHint, downloadButton);
+                actions.append(repositoryHint, downloadButton, deleteButton);
                 card.append(head, meta, audio, actions, feedback);
                 list.appendChild(card);
             });
