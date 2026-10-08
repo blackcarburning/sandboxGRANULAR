@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-19-12-build-v2026.10.08.2';
+            const cacheBuster = '2026-10-08-19-13-build-v2026.10.08.3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -358,6 +358,11 @@
 
         body.drum-machine-open .drum-machine-overlay {
             display: flex;
+        }
+
+        body.drum-machine-open {
+            overflow: hidden;
+            overflow-x: hidden;
         }
 
         .drum-machine-shell {
@@ -3465,7 +3470,8 @@
             align-items: stretch;
             border-radius: 18px;
             z-index: 20;
-            overflow: visible;
+            overflow-x: hidden;
+            overflow-y: visible;
             overscroll-behavior-x: contain;
             -webkit-overflow-scrolling: touch;
             touch-action: pan-x;
@@ -3482,11 +3488,13 @@
             justify-self: center;
             justify-content: center;
             width: min(100%, 580px) !important;
+            max-width: 100%;
             min-width: 0;
             height: var(--keyboard-key-height);
             min-height: var(--keyboard-key-height);
             align-self: stretch;
             padding-top: 0;
+            overflow: hidden;
         }
 
         .simplified-ui .keyboard-section .octave-controls {
@@ -3802,7 +3810,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.3</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3815,7 +3823,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.3</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -8869,10 +8877,14 @@
 
             const notes = Array.from(keyboard.querySelectorAll('.key')).map((key) => key.dataset.note);
             const whiteKeyCount = notes.filter((note) => !note.includes('#')).length || 1;
-            const reservedWidth = window.innerWidth < 640 ? 120 : 160;
-            const availableWidth = Math.max(whiteKeyCount * 26, keyboard.clientWidth || (window.innerWidth - reservedWidth));
-            const whiteWidth = Math.max(26, Math.min(68, availableWidth / whiteKeyCount));
-            const blackWidth = Math.max(16, Math.min(whiteWidth * 0.64, 42));
+            const narrowPhone = window.innerWidth < 640;
+            const reservedWidth = narrowPhone ? 32 : 160;
+            const minimumWhiteWidth = narrowPhone ? 18 : 26;
+            const minimumBlackWidth = narrowPhone ? 11 : 16;
+            const containerWidth = keyboard.parentElement?.clientWidth || keyboard.clientWidth || (window.innerWidth - reservedWidth);
+            const availableWidth = Math.max(whiteKeyCount * minimumWhiteWidth, containerWidth || (window.innerWidth - reservedWidth));
+            const whiteWidth = Math.max(minimumWhiteWidth, Math.min(68, availableWidth / whiteKeyCount));
+            const blackWidth = Math.max(minimumBlackWidth, Math.min(whiteWidth * 0.64, 42));
 
             keyboard.style.setProperty('--white-key-width', `${whiteWidth}px`);
             keyboard.style.setProperty('--black-key-width', `${blackWidth}px`);
@@ -15031,6 +15043,9 @@
         function openDrumMachineOverlay() {
             const overlay = document.getElementById('drumMachineOverlay');
             if (!overlay) return;
+            if (overlay.parentElement !== document.body) {
+                document.body.appendChild(overlay);
+            }
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('drum-machine-open');
