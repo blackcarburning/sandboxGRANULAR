@@ -5003,10 +5003,17 @@
                             </div>
                             <div class="control-group">
                                 <label>
-                                    <span class="param-name">Pitch Shift</span>
+                                    <span class="param-name">Coarse Tune</span>
                                     <span class="value" id="grainMainTuneValue">0st</span>
                                 </label>
                                 <input type="range" id="grainMainTune" min="-24" max="24" value="0" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Fine Tune</span>
+                                    <span class="value" id="grainMainFineTuneValue">0c</span>
+                                </label>
+                                <input type="range" id="grainMainFineTune" min="-100" max="100" value="0" step="1">
                             </div>
                             <div class="control-group">
                                 <label>
@@ -5025,16 +5032,23 @@
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Release</span>
-                                    <span class="value" id="releaseValue">260ms</span>
+                                    <span class="value" id="releaseValue">900ms</span>
                                 </label>
-                                <input type="range" id="release" min="1" max="5000" value="260" step="1">
+                                <input type="range" id="release" min="1" max="8000" value="900" step="1">
                             </div>
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Blend</span>
-                                    <span class="value" id="grainMainBlendValue">60%</span>
+                                    <span class="value" id="grainMainBlendValue">72%</span>
                                 </label>
-                                <input type="range" id="grainMainBlend" min="0" max="100" value="60" step="1">
+                                <input type="range" id="grainMainBlend" min="0" max="100" value="72" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Stereo Width</span>
+                                    <span class="value" id="grainMainWidthValue">24%</span>
+                                </label>
+                                <input type="range" id="grainMainWidth" min="0" max="100" value="24" step="1">
                             </div>
                             <div class="control-group highlight">
                                 <label>
@@ -5078,10 +5092,17 @@
                             </div>
                             <div class="control-group">
                                 <label>
-                                    <span class="param-name">Pitch Shift</span>
+                                    <span class="param-name">Coarse Tune</span>
                                     <span class="value" id="grainSynthATuneValue">+7st</span>
                                 </label>
                                 <input type="range" id="grainSynthATune" min="-24" max="24" value="7" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Fine Tune</span>
+                                    <span class="value" id="grainSynthAFineTuneValue">0c</span>
+                                </label>
+                                <input type="range" id="grainSynthAFineTune" min="-100" max="100" value="0" step="1">
                             </div>
                             <div class="control-group">
                                 <label>
@@ -5100,16 +5121,23 @@
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Release</span>
-                                    <span class="value" id="grainSynthAReleaseValue">180ms</span>
+                                    <span class="value" id="grainSynthAReleaseValue">1250ms</span>
                                 </label>
-                                <input type="range" id="grainSynthARelease" min="1" max="5000" value="180" step="1">
+                                <input type="range" id="grainSynthARelease" min="1" max="8000" value="1250" step="1">
                             </div>
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Blend</span>
-                                    <span class="value" id="grainSynthAMixValue">28%</span>
+                                    <span class="value" id="grainSynthAMixValue">36%</span>
                                 </label>
-                                <input type="range" id="grainSynthAMix" min="0" max="100" value="28" step="1">
+                                <input type="range" id="grainSynthAMix" min="0" max="100" value="36" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Stereo Width</span>
+                                    <span class="value" id="grainSynthAWidthValue">58%</span>
+                                </label>
+                                <input type="range" id="grainSynthAWidth" min="0" max="100" value="58" step="1">
                             </div>
                             <div class="control-group highlight">
                                 <label>
@@ -5153,10 +5181,17 @@
                             </div>
                             <div class="control-group">
                                 <label>
-                                    <span class="param-name">Pitch Shift</span>
+                                    <span class="param-name">Coarse Tune</span>
                                     <span class="value" id="grainSynthBTuneValue">-12st</span>
                                 </label>
                                 <input type="range" id="grainSynthBTune" min="-24" max="24" value="-12" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Fine Tune</span>
+                                    <span class="value" id="grainSynthBFineTuneValue">0c</span>
+                                </label>
+                                <input type="range" id="grainSynthBFineTune" min="-100" max="100" value="0" step="1">
                             </div>
                             <div class="control-group">
                                 <label>
@@ -5175,16 +5210,23 @@
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Release</span>
-                                    <span class="value" id="grainSynthBReleaseValue">240ms</span>
+                                    <span class="value" id="grainSynthBReleaseValue">1750ms</span>
                                 </label>
-                                <input type="range" id="grainSynthBRelease" min="1" max="5000" value="240" step="1">
+                                <input type="range" id="grainSynthBRelease" min="1" max="8000" value="1750" step="1">
                             </div>
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Blend</span>
-                                    <span class="value" id="grainSynthBMixValue">22%</span>
+                                    <span class="value" id="grainSynthBMixValue">34%</span>
                                 </label>
-                                <input type="range" id="grainSynthBMix" min="0" max="100" value="22" step="1">
+                                <input type="range" id="grainSynthBMix" min="0" max="100" value="34" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label>
+                                    <span class="param-name">Stereo Width</span>
+                                    <span class="value" id="grainSynthBWidthValue">76%</span>
+                                </label>
+                                <input type="range" id="grainSynthBWidth" min="0" max="100" value="76" step="1">
                             </div>
                             <div class="control-group highlight">
                                 <label>
@@ -6853,10 +6895,12 @@
                 startId: 'grainMainStart',
                 sizeId: 'grainSize',
                 pitchId: 'grainMainTune',
+                fineTuneId: 'grainMainFineTune',
                 attackId: 'attack',
                 decayId: 'grainMainDecay',
                 releaseId: 'release',
                 blendId: 'grainMainBlend',
+                widthId: 'grainMainWidth',
                 volumeId: 'grainMainVolume',
                 soloKey: 'main',
                 panBias: 0
@@ -6868,10 +6912,12 @@
                 startId: 'grainSynthAStart',
                 sizeId: 'grainSynthASize',
                 pitchId: 'grainSynthATune',
+                fineTuneId: 'grainSynthAFineTune',
                 attackId: 'grainSynthAAttack',
                 decayId: 'grainSynthADecay',
                 releaseId: 'grainSynthARelease',
                 blendId: 'grainSynthAMix',
+                widthId: 'grainSynthAWidth',
                 volumeId: 'grainSynthAVolume',
                 soloKey: 'A',
                 panBias: -0.22
@@ -6883,10 +6929,12 @@
                 startId: 'grainSynthBStart',
                 sizeId: 'grainSynthBSize',
                 pitchId: 'grainSynthBTune',
+                fineTuneId: 'grainSynthBFineTune',
                 attackId: 'grainSynthBAttack',
                 decayId: 'grainSynthBDecay',
                 releaseId: 'grainSynthBRelease',
                 blendId: 'grainSynthBMix',
+                widthId: 'grainSynthBWidth',
                 volumeId: 'grainSynthBVolume',
                 soloKey: 'B',
                 panBias: 0.22
@@ -6981,6 +7029,7 @@
         let restartBastardLoopOnFocusReturn = false;
         let restartDrumMachineOnFocusReturn = false;
         let foregroundAudioRecoveryPromise = null;
+        let audioEngineResetPromise = null;
         let activeKeyCount = 0; // Counter for tracking number of keys currently pressed
         let engineInitialized = false;
         let engineStarting = false;
@@ -7519,8 +7568,10 @@
             micLoopEnd: 0.12,
             grainSize: 0.14,
             grainMainStart: 0.1,
+            grainMainFineTune: 0.08,
             grainMainDecay: 0.08,
             grainMainBlend: 0.18,
+            grainMainWidth: 0.18,
             density: 0.08,
             position: 0.1,
             spray: 0.1,
@@ -7536,21 +7587,25 @@
             grainSynthAStart: 0.1,
             grainSynthAMix: 0.18,
             grainSynthATune: 0.12,
+            grainSynthAFineTune: 0.08,
             grainSynthASize: 0.16,
             grainSynthAAttack: 0.05,
             grainSynthADecay: 0.08,
             grainSynthARelease: 0.06,
             grainSynthADensity: 0.18,
             grainSynthASpread: 0.16,
+            grainSynthAWidth: 0.18,
             grainSynthBStart: 0.1,
             grainSynthBMix: 0.18,
             grainSynthBTune: 0.12,
+            grainSynthBFineTune: 0.08,
             grainSynthBSize: 0.16,
             grainSynthBAttack: 0.05,
             grainSynthBDecay: 0.08,
             grainSynthBRelease: 0.06,
             grainSynthBDensity: 0.18,
-            grainSynthBSpread: 0.16
+            grainSynthBSpread: 0.16,
+            grainSynthBWidth: 0.18
         };
         const PRIORITY_RANDOM_LFO_TARGET_PARAMS = new Set([
             'lpfCutoff',
@@ -7570,8 +7625,10 @@
             'micLoopEnd',
             'grainSize',
             'grainMainStart',
+            'grainMainFineTune',
             'grainMainDecay',
             'grainMainBlend',
+            'grainMainWidth',
             'density',
             'position',
             'spray',
@@ -7587,21 +7644,25 @@
             'grainSynthAStart',
             'grainSynthAMix',
             'grainSynthATune',
+            'grainSynthAFineTune',
             'grainSynthASize',
             'grainSynthAAttack',
             'grainSynthADecay',
             'grainSynthARelease',
             'grainSynthADensity',
             'grainSynthASpread',
+            'grainSynthAWidth',
             'grainSynthBStart',
             'grainSynthBMix',
             'grainSynthBTune',
+            'grainSynthBFineTune',
             'grainSynthBSize',
             'grainSynthBAttack',
             'grainSynthBDecay',
             'grainSynthBRelease',
             'grainSynthBDensity',
-            'grainSynthBSpread'
+            'grainSynthBSpread',
+            'grainSynthBWidth'
         ]);
         const RANDOMIZE_SKIP_SLIDERS = new Set([
             'lockBpmSlider',
@@ -7865,12 +7926,14 @@
             grainMainStart: { min: 0, max: 100 },
             grainMainDecay: { min: 1, max: 5000 },
             grainMainBlend: { min: 0, max: 100 },
+            grainMainFineTune: { min: -100, max: 100 },
+            grainMainWidth: { min: 0, max: 100 },
             density: { min: 1, max: 40 },
             position: { min: 0, max: 100 },
             spray: { min: 0, max: 100 },
             grainPlaybackSpeed: { min: 25, max: 400 },
             attack: { min: 1, max: 5000 },
-            release: { min: 1, max: 5000 },
+            release: { min: 1, max: 8000 },
             pitchVar: { min: 0, max: 100 },
             grainTune: { min: -24, max: 24 },
             grainMainTune: { min: -24, max: 24 },
@@ -7878,13 +7941,17 @@
             grainSynthAStart: { min: 0, max: 100 },
             grainSynthAAttack: { min: 1, max: 5000 },
             grainSynthADecay: { min: 1, max: 5000 },
-            grainSynthARelease: { min: 1, max: 5000 },
+            grainSynthARelease: { min: 1, max: 8000 },
             grainSynthAVolume: { min: 0, max: 150 },
+            grainSynthAFineTune: { min: -100, max: 100 },
+            grainSynthAWidth: { min: 0, max: 100 },
             grainSynthBStart: { min: 0, max: 100 },
             grainSynthBAttack: { min: 1, max: 5000 },
             grainSynthBDecay: { min: 1, max: 5000 },
-            grainSynthBRelease: { min: 1, max: 5000 },
+            grainSynthBRelease: { min: 1, max: 8000 },
             grainSynthBVolume: { min: 0, max: 150 },
+            grainSynthBFineTune: { min: -100, max: 100 },
+            grainSynthBWidth: { min: 0, max: 100 },
             grainMixerAmp: { min: 0, max: 200 },
             grainSynthAMix: { min: 0, max: 100 },
             grainSynthATune: { min: -24, max: 24 },
@@ -8023,6 +8090,8 @@
             'grainMainStart',
             'grainMainDecay',
             'grainMainBlend',
+            'grainMainFineTune',
+            'grainMainWidth',
             'release',
             'grainMainTune',
             'grainMainVolume',
@@ -8030,12 +8099,16 @@
             'grainSynthAAttack',
             'grainSynthADecay',
             'grainSynthARelease',
+            'grainSynthAFineTune',
             'grainSynthAVolume',
+            'grainSynthAWidth',
             'grainSynthBStart',
             'grainSynthBAttack',
             'grainSynthBDecay',
             'grainSynthBRelease',
+            'grainSynthBFineTune',
             'grainSynthBVolume',
+            'grainSynthBWidth',
             'grainMixerAmp',
             'grainSynthAMix',
             'grainSynthATune',
@@ -8051,26 +8124,32 @@
             'grainMainStart',
             'grainSize',
             'grainMainTune',
+            'grainMainFineTune',
             'attack',
             'grainMainDecay',
             'release',
             'grainMainBlend',
+            'grainMainWidth',
             'grainMainVolume',
             'grainSynthAStart',
             'grainSynthASize',
             'grainSynthATune',
+            'grainSynthAFineTune',
             'grainSynthAAttack',
             'grainSynthADecay',
             'grainSynthARelease',
             'grainSynthAMix',
+            'grainSynthAWidth',
             'grainSynthAVolume',
             'grainSynthBStart',
             'grainSynthBSize',
             'grainSynthBTune',
+            'grainSynthBFineTune',
             'grainSynthBAttack',
             'grainSynthBDecay',
             'grainSynthBRelease',
             'grainSynthBMix',
+            'grainSynthBWidth',
             'grainSynthBVolume',
             'grainMixerAmp'
         ];
@@ -8117,11 +8196,11 @@
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
             'outputLoopStart', 'outputLoopEnd',
             'pitchVar', 'grainTune', 'grainPlaybackSpeed',
-            'grainMainTune',
-            'grainSynthAStart', 'grainSynthAAttack', 'grainSynthADecay', 'grainSynthARelease',
+            'grainMainTune', 'grainMainFineTune', 'grainMainWidth',
+            'grainSynthAStart', 'grainSynthAAttack', 'grainSynthADecay', 'grainSynthARelease', 'grainSynthAFineTune', 'grainSynthAWidth',
             'grainMainVolume', 'grainSynthAVolume', 'grainSynthBVolume', 'grainMixerAmp',
             'grainSynthAMix', 'grainSynthATune', 'grainSynthASize', 'grainSynthADensity', 'grainSynthASpread',
-            'grainSynthBStart', 'grainSynthBAttack', 'grainSynthBDecay', 'grainSynthBRelease',
+            'grainSynthBStart', 'grainSynthBAttack', 'grainSynthBDecay', 'grainSynthBRelease', 'grainSynthBFineTune', 'grainSynthBWidth',
             'grainSynthBMix', 'grainSynthBTune', 'grainSynthBSize', 'grainSynthBDensity', 'grainSynthBSpread',
             'lpfCutoff', 'lpfQ', 'hpfCutoff', 'hpfQ',
             'filterEnvAmount', 'filterEnvAttack', 'filterEnvDecay', 'filterEnvSustain', 'filterEnvRelease',
@@ -8262,7 +8341,7 @@
 
         async function rebuildAudioEngineGraph(options = {}) {
             stopModulationLoop();
-            panicAllNotes({ preserveStatus: true });
+            panicAllNotes({ preserveStatus: true, immediate: true });
             stopMicCapture();
 
             if (audioContext && audioContext.state !== 'closed') {
@@ -10954,9 +11033,12 @@
                 const attackMs = Number(getModulatedValue(definition.attackId)) || 1;
                 const decayMs = Number(getModulatedValue(definition.decayId)) || 1;
                 const releaseMs = Number(getModulatedValue(definition.releaseId)) || 1;
-                const pitchSemitones = Number(getModulatedValue(definition.pitchId)) || 0;
+                const coarseTuneSemitones = Number(getModulatedValue(definition.pitchId)) || 0;
+                const fineTuneCents = Number(getModulatedValue(definition.fineTuneId)) || 0;
+                const pitchSemitones = coarseTuneSemitones + (fineTuneCents / 100);
                 const startPct = Math.max(0, Math.min(100, Number(getModulatedValue(definition.startId)) || 0)) / 100;
                 const blend = Math.max(0, Math.min(1, (Number(getModulatedValue(definition.blendId)) || 0) / 100));
+                const width = Math.max(0, Math.min(1, (Number(getModulatedValue(definition.widthId)) || 0) / 100));
                 const volume = getGrainLayerGain(definition.volumeId, 1) * getGrainLayerSoloGain(definition.soloKey) * velocityMultiplier;
                 const pitchRatio = Math.max(0.0625, Math.min(16, (noteFreq / baseFrequency) * Math.pow(2, pitchSemitones / 12)));
                 const sizeSeconds = Math.max(0.01, Math.min(0.5, sizeMs / 1000));
@@ -10969,6 +11051,7 @@
                     decaySeconds: Math.max(0.001, decayMs / 1000),
                     releaseSeconds: Math.max(getFadeSecondsForDuration(sizeSeconds), releaseMs / 1000),
                     blend,
+                    width,
                     volume,
                     pitchRatio,
                     intervalSeconds: getGranularLayerIntervalSeconds(sizeSeconds, blend),
@@ -15848,12 +15931,14 @@
                 const availableDecay = Math.max(0.001, bodyEnd - attackEnd);
                 const decaySeconds = Math.min(Math.max(0.001, layer.decaySeconds), availableDecay);
                 const decayEnd = Math.min(bodyEnd, attackEnd + decaySeconds);
-                const panJitter = (Math.random() * 2 - 1) * panSpread * (0.1 + (layer.blend * 0.32));
+                const width = Math.max(0, Math.min(1, Number(layer.width) || 0));
+                const weightedPanBias = layer.panBias * (0.2 + (width * 0.8));
+                const panJitter = (Math.random() * 2 - 1) * panSpread * width * (0.1 + (layer.blend * 0.32));
 
                 source.buffer = sourceInfo.buffer;
                 source.playbackRate.value = sampleWindow.playbackRate;
                 sampleGain.gain.setValueAtTime(0.0001, now);
-                voicePanner.pan.value = Math.max(-1, Math.min(1, layer.panBias + panJitter));
+                voicePanner.pan.value = Math.max(-1, Math.min(1, weightedPanBias + panJitter));
 
                 source.connect(sampleGain);
                 sampleGain.connect(voicePanner);
@@ -15951,6 +16036,17 @@
         }
 
         // --- Scheduler ---
+        function getGranularStreamReleaseSeconds(grainInfo) {
+            if (!grainInfo) return 0;
+            const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
+            if (!noteFreq || !isFinite(noteFreq)) return 0;
+            const layerSettings = getGranularLayerSettings(noteFreq, 1);
+            if (!layerSettings.length) return 0;
+            return layerSettings.reduce((longest, layer) => {
+                return Math.max(longest, Math.max(0.02, Number(layer.releaseSeconds) || 0) + (Number(layer.intervalSeconds) || 0.02));
+            }, 0.02);
+        }
+
         function startGrainStream(note, scheduledStartTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
 
@@ -15959,7 +16055,7 @@
 
             // If this stream is already playing, stop it first to restart.
             if (activeGrains.has(streamId)) {
-                stopGrainStream(note, { role, streamId });
+                stopGrainStream(note, { role, streamId, immediate: true });
             }
 
             if (role === 'keyboard') {
@@ -15984,6 +16080,10 @@
                 loopOriginTime: grainState.loopOriginTime,
                 positionState: null,
                 filterEnvRelease: 0,
+                releasing: false,
+                releaseStartTime: null,
+                releaseEndTime: null,
+                releaseVelocity: grainState.velocity,
                 get nextTime() {
                     return grainState.nextTime;
                 },
@@ -16012,21 +16112,19 @@
 
             if (activeGrains.has(streamId)) {
                 const grainInfo = activeGrains.get(streamId);
-                grainInfo.cancel();
-                
-                // Clear current note if this was it
+                const immediate = options.immediate === true || !audioContext;
+
                 if (grainInfo.role === 'keyboard' && currentGrainNote === note) {
                     const nextKeyboardGrain = Array.from(activeGrains.values()).find((grain) => grain.role === 'keyboard' && grain.note !== note);
                     currentGrainNote = nextKeyboardGrain ? nextKeyboardGrain.note : null;
                 }
-                
-                // Trigger filter envelope release
-                const now = audioContext.currentTime;
+
+                const now = audioContext ? audioContext.currentTime : 0;
                 const filterRelease = Number.isFinite(grainInfo.filterEnvRelease)
                     ? grainInfo.filterEnvRelease
                     : parseFloat(document.getElementById('filterEnvRelease').value) / 1000;
                 const baseCutoff = getModulatedValue('lpfCutoff');
-                
+
                 if (lpfEnabled && lpfNodes.length > 0) {
                     lpfNodes.forEach(node => {
                         node.frequency.cancelScheduledValues(now);
@@ -16034,7 +16132,21 @@
                         node.frequency.linearRampToValueAtTime(baseCutoff, now + filterRelease);
                     });
                 }
-                
+
+                if (!immediate) {
+                    const releaseSeconds = getGranularStreamReleaseSeconds(grainInfo);
+                    if (releaseSeconds > 0) {
+                        grainInfo.releasing = true;
+                        grainInfo.releaseStartTime = now;
+                        grainInfo.releaseEndTime = now + releaseSeconds;
+                        grainInfo.releaseVelocity = grainInfo.velocity;
+                        grainInfo.nextTime = Math.min(grainInfo.nextTime, now);
+                        scheduleActiveGrains();
+                        return;
+                    }
+                }
+
+                grainInfo.cancel();
                 activeGrains.delete(streamId);
                 if (activeGrains.size === 0) {
                     stopGrainScheduler();
@@ -16070,11 +16182,16 @@
 
             stopGrainScheduler();
             const scheduleUntil = audioContext.currentTime + GRAIN_SCHEDULER_LOOKAHEAD;
+            const streamsToDelete = [];
 
-            activeGrains.forEach((grainInfo) => {
+            activeGrains.forEach((grainInfo, streamId) => {
                 const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
                 if (!noteFreq || !isFinite(noteFreq)) return;
                 const layerSettings = getGranularLayerSettings(noteFreq, grainInfo.velocity);
+                if (!layerSettings.length) {
+                    streamsToDelete.push(streamId);
+                    return;
+                }
                 const intervalSeconds = Math.max(
                     0.012,
                     Math.min(
@@ -16084,21 +16201,58 @@
                 );
 
                 while (grainInfo.nextTime < scheduleUntil) {
+                    if (grainInfo.releasing) {
+                        const releaseEndTime = Number(grainInfo.releaseEndTime);
+                        if (!Number.isFinite(releaseEndTime) || grainInfo.nextTime >= releaseEndTime) {
+                            streamsToDelete.push(streamId);
+                            break;
+                        }
+                    }
+
+                    let grainVelocity = grainInfo.velocity;
+                    let scheduledLayerSettings = layerSettings;
+                    if (grainInfo.releasing) {
+                        const releaseStartTime = Number(grainInfo.releaseStartTime) || audioContext.currentTime;
+                        const releaseEndTime = Number(grainInfo.releaseEndTime) || releaseStartTime;
+                        const releaseDuration = Math.max(0.001, releaseEndTime - releaseStartTime);
+                        const remainingRatio = Math.max(0, Math.min(1, (releaseEndTime - grainInfo.nextTime) / releaseDuration));
+                        grainVelocity = Math.max(0, (grainInfo.releaseVelocity ?? grainInfo.velocity) * Math.pow(remainingRatio, 1.35));
+                        if (grainVelocity <= 0.0025) {
+                            streamsToDelete.push(streamId);
+                            break;
+                        }
+                        scheduledLayerSettings = getGranularLayerSettings(noteFreq, grainVelocity);
+                        if (!scheduledLayerSettings.length) {
+                            streamsToDelete.push(streamId);
+                            break;
+                        }
+                    }
+
                     try {
-                        playGrain(grainInfo.note, grainInfo.nextTime, grainInfo.velocity, {
+                        playGrain(grainInfo.note, grainInfo.nextTime, grainVelocity, {
                             role: grainInfo.role,
                             streamStartTime: grainInfo.loopOriginTime ?? grainInfo.startTime,
                             continuousLoop: grainInfo.continuousLoop,
                             grainMode: 'synth',
-                            layerSettings
+                            layerSettings: scheduledLayerSettings
                         });
                     } catch (e) {
                         console.error('Error playing grain:', e);
+                        streamsToDelete.push(streamId);
                         break;
                     }
                     grainInfo.nextTime += intervalSeconds;
                 }
             });
+
+            streamsToDelete.forEach((streamId) => {
+                activeGrains.delete(streamId);
+            });
+
+            if (activeGrains.size === 0) {
+                stopGrainScheduler();
+                return;
+            }
 
             grainSchedulerTimerId = setTimeout(scheduleActiveGrains, GRAIN_SCHEDULER_INTERVAL);
         }
@@ -16301,9 +16455,9 @@
                 ['grainSynthAVolume', 62],
                 ['grainSynthBVolume', 58],
                 ['grainMixerAmp', 85],
-                ['grainMainBlend', 60],
-                ['grainSynthAMix', 28],
-                ['grainSynthBMix', 22],
+                ['grainMainBlend', 72],
+                ['grainSynthAMix', 36],
+                ['grainSynthBMix', 34],
                 ['performanceSampleVolume', 100],
                 ['performanceGeneratedSourceMix', 100]
             ].forEach(([id, fallback]) => {
@@ -16799,9 +16953,9 @@
             });
         }
 
-        function stopAllOscillators() {
+        function stopAllOscillators(options = {}) {
             Array.from(activeOscVoices.entries()).forEach(([voiceId, voice]) => {
-                stopOscillatorNote(voice.note, null, { role: voice.role, voiceId });
+                stopOscillatorNote(voice.note, null, { role: voice.role, voiceId, instant: options.instant === true });
             });
         }
 
@@ -16811,7 +16965,7 @@
             stopAllBastardLoopLayers({ preserveTransportState: false, skipUi: true });
             stopDrumMachine({ preserveTransportState: false, skipUi: true, silent: true });
             stopAllGrains();
-            stopAllOscillators();
+            stopAllOscillators({ instant: options.immediate === true });
             heldNotes.clear();
             activeKeyCount = 0;
             currentGrainNote = null;
@@ -17723,13 +17877,29 @@
                     if (tremoloLFO) {
                         tremoloLFO.frequency.setTargetAtTime(rate / 60, audioContext?.currentTime || 0, 0.01);
                     }
-                } else if (e.target.id === 'grainTune' || e.target.id === 'grainMainTune' || e.target.id === 'grainSynthATune' || e.target.id === 'grainSynthBTune' || e.target.dataset.sourceWaveformTune) {
+                } else if (
+                    e.target.id === 'grainTune' ||
+                    e.target.id === 'grainMainTune' ||
+                    e.target.id === 'grainSynthATune' ||
+                    e.target.id === 'grainSynthBTune' ||
+                    e.target.dataset.sourceWaveformTune
+                ) {
                     // Update grain tune display with + for positive values
                     const labelSpan = document.getElementById('grainTuneValue');
                     const targetLabelSpan = document.getElementById(e.target.id + 'Value') || labelSpan;
                     if (targetLabelSpan) {
                         const value = parseInt(e.target.value);
                         targetLabelSpan.textContent = `${value > 0 ? '+' : ''}${value}st`;
+                    }
+                } else if (
+                    e.target.id === 'grainMainFineTune' ||
+                    e.target.id === 'grainSynthAFineTune' ||
+                    e.target.id === 'grainSynthBFineTune'
+                ) {
+                    const labelSpan = document.getElementById(e.target.id + 'Value');
+                    if (labelSpan) {
+                        const value = Math.round(Number(e.target.value) || 0);
+                        labelSpan.textContent = `${value > 0 ? '+' : ''}${value}c`;
                     }
                 } else {
                     // Update text label
@@ -18175,8 +18345,10 @@
             setArpMode(ARP_MODE_OPTIONS[nextIndex].value);
         });
 
-        document.getElementById('panicBtn').addEventListener('click', () => panicAllNotes());
-        document.getElementById('panicUtilityBtn').addEventListener('click', () => panicAllNotes());
+        document.getElementById('panicBtn').addEventListener('click', () => {
+            resetEngineRoutine({ reason: 'panic' }).catch(() => {});
+        });
+        document.getElementById('panicUtilityBtn').addEventListener('click', () => panicAllNotes({ immediate: true }));
 
         // --- Delay Division Selector ---
         document.getElementById('delayDivision').addEventListener('change', () => {
@@ -20856,24 +21028,64 @@
             e.target.value = '';
         });
 
+        function setEngineResetButtonState(isResetting) {
+            [
+                { id: 'panicBtn', idle: 'Panic', active: 'Resetting…' },
+                { id: 'performancePanicBtn', idle: 'Panic', active: 'Resetting…' },
+                { id: 'resetEngineBtn', idle: 'Reset Engine', active: 'Resetting…' }
+            ].forEach(({ id, idle, active }) => {
+                const button = document.getElementById(id);
+                if (!button) return;
+                button.disabled = isResetting;
+                button.textContent = isResetting ? active : idle;
+            });
+        }
+
         // Reset Engine Routine - extracted for reuse
-        async function resetEngineRoutine() {
+        async function resetEngineRoutine(options = {}) {
             if (!audioContext && !engineInitialized) {
-                return;
+                if (!options.silent) {
+                    setStatus('Start MYGRAIN first.', 'error');
+                }
+                return false;
             }
 
-            await rebuildAudioEngineGraph({ silent: true });
+            if (audioEngineResetPromise) {
+                return audioEngineResetPromise;
+            }
+
+            const resetReason = options.reason === 'panic' ? 'Panic reset' : 'Audio engine reset';
+            audioEngineResetPromise = (async () => {
+                setEngineResetButtonState(true);
+                setAudioStatus('Resetting audio engine…', 'error');
+                if (!options.silent) {
+                    setStatus(`${resetReason} in progress…`);
+                }
+                await rebuildAudioEngineGraph({ silent: true });
+                syncPerformanceControlState();
+                setAudioStatus(`Audio running · ${audioContext.sampleRate} Hz`, 'info');
+                if (!options.silent) {
+                    setStatus(`${resetReason} complete.`);
+                }
+                return true;
+            })().catch((error) => {
+                console.error(error);
+                setAudioStatus('Audio reset failed.', 'error');
+                if (!options.silent) {
+                    setStatus(`Audio reset failed: ${error.message}`, 'error');
+                }
+                throw error;
+            }).finally(() => {
+                setEngineResetButtonState(false);
+                audioEngineResetPromise = null;
+            });
+
+            return audioEngineResetPromise;
         }
 
         // Reset Engine Button
-        document.getElementById('resetEngineBtn').addEventListener('click', async () => {
-            if (!audioContext) {
-                alert('Engine not initialized yet.');
-                return;
-            }
-            
-            await resetEngineRoutine();
-            setStatus('Engine reset successfully.');
+        document.getElementById('resetEngineBtn').addEventListener('click', () => {
+            resetEngineRoutine().catch(() => {});
         });
 
         function randomizeMegaBastardLoopSettings() {
@@ -21149,13 +21361,15 @@
                 grainSize: 180,
                 grainMainStart: 0,
                 grainMainDecay: 120,
-                grainMainBlend: 60,
+                grainMainBlend: 72,
+                grainMainFineTune: 0,
+                grainMainWidth: 24,
                 density: 16,
                 position: 0,
                 spray: 10,
                 grainPlaybackSpeed: 100,
                 attack: 55,
-                release: 260,
+                release: 900,
                 pitchVar: 4,
                 grainTune: 0,
                 grainMainTune: 0,
@@ -21163,20 +21377,24 @@
                 grainSynthAStart: 0,
                 grainSynthAAttack: 40,
                 grainSynthADecay: 95,
-                grainSynthARelease: 180,
+                grainSynthARelease: 1250,
                 grainSynthAVolume: 62,
+                grainSynthAFineTune: 0,
+                grainSynthAWidth: 58,
                 grainSynthBStart: 0,
                 grainSynthBAttack: 65,
                 grainSynthBDecay: 140,
-                grainSynthBRelease: 240,
+                grainSynthBRelease: 1750,
                 grainSynthBVolume: 58,
+                grainSynthBFineTune: 0,
+                grainSynthBWidth: 76,
                 grainMixerAmp: 85,
-                grainSynthAMix: 28,
+                grainSynthAMix: 36,
                 grainSynthATune: 7,
                 grainSynthASize: 150,
                 grainSynthADensity: 78,
                 grainSynthASpread: 32,
-                grainSynthBMix: 22,
+                grainSynthBMix: 34,
                 grainSynthBTune: -12,
                 grainSynthBSize: 210,
                 grainSynthBDensity: 58,
@@ -26485,8 +26703,9 @@
         });
 
         performancePanicBtn?.addEventListener('click', () => {
-            panicAllNotes();
-            syncPerformanceControlState();
+            resetEngineRoutine({ reason: 'panic' })
+                .catch(() => {})
+                .finally(() => syncPerformanceControlState());
         });
 
         performanceRecordBtn?.addEventListener('click', () => {
