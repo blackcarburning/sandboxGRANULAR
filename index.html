@@ -132,8 +132,8 @@
             -webkit-backdrop-filter: blur(10px);
         }
 
-        body.dropbox-sample-browser-open .sample-browser-overlay,
-        body.wav-repository-browser-open .sample-browser-overlay {
+        body.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,
+        body.wav-repository-browser-open #wavRepositoryBrowserOverlay {
             display: flex;
         }
 
@@ -7238,6 +7238,12 @@
             samples_snares: 'SAMPLES_SNARES',
             samples_hats: 'SAMPLES_HATS'
         };
+        const GRAIN_SAMPLE_BROWSER_SOURCE_LABELS = {
+            sampledrop: 'SAMPLEDROP',
+            sampledrop2: 'SAMPLEDROP_2',
+            splice_claw: 'SAMPLEDROP_CLAW'
+        };
+        const GRAIN_SAMPLE_BROWSER_SOURCE_OPTIONS = Object.entries(GRAIN_SAMPLE_BROWSER_SOURCE_LABELS).map(([value, label]) => ({ value, label }));
         const DRUM_MACHINE_SOURCE_KEYS = {
             kick: 'samples_kicks',
             snare: 'samples_snares',
@@ -12538,22 +12544,32 @@
             return Object.prototype.hasOwnProperty.call(GRAIN_SAMPLE_BROWSER_TARGET_DETAILS, target);
         }
 
+        function normalizeGrainSampleBrowserSourceKey(sourceKey, fallback = 'sampledrop') {
+            const normalized = String(sourceKey || '').trim().toLowerCase();
+            const resolved = normalized === 'sampledrop_claw' ? 'splice_claw' : normalized;
+            return Object.prototype.hasOwnProperty.call(GRAIN_SAMPLE_BROWSER_SOURCE_LABELS, resolved) ? resolved : fallback;
+        }
+
+        function getGrainSampleBrowserSourceLabel(sourceKey) {
+            const normalized = normalizeGrainSampleBrowserSourceKey(sourceKey, 'sampledrop');
+            return GRAIN_SAMPLE_BROWSER_SOURCE_LABELS[normalized] || GRAIN_SAMPLE_BROWSER_SOURCE_LABELS.sampledrop;
+        }
+
         function getGrainSampleBrowserSourceKey(target) {
             const fallback = GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS[target] || 'sampledrop';
-            const value = String(grainSampleBrowserSourceKeys[target] || fallback).trim().toLowerCase();
-            return Object.prototype.hasOwnProperty.call(BASTARD_LOOP_SOURCE_LABELS, value) ? value : fallback;
+            return normalizeGrainSampleBrowserSourceKey(grainSampleBrowserSourceKeys[target] || fallback, fallback);
         }
 
         function setGrainSampleBrowserSourceKey(target, sourceKey) {
             if (!isGrainSampleBrowserTarget(target)) return;
-            const normalized = String(sourceKey || '').trim().toLowerCase();
-            grainSampleBrowserSourceKeys[target] = Object.prototype.hasOwnProperty.call(BASTARD_LOOP_SOURCE_LABELS, normalized)
-                ? normalized
-                : GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS[target];
+            grainSampleBrowserSourceKeys[target] = normalizeGrainSampleBrowserSourceKey(
+                sourceKey,
+                GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS[target]
+            );
         }
 
         function getGrainSampleBrowserSourceOptions() {
-            return Object.entries(BASTARD_LOOP_SOURCE_LABELS).map(([value, label]) => ({ value, label }));
+            return GRAIN_SAMPLE_BROWSER_SOURCE_OPTIONS.map((option) => ({ ...option }));
         }
 
         function getDrumMachineSourceLabel(kind) {
@@ -12573,9 +12589,9 @@
                 return {
                     target,
                     title: `${details.layerLabel} Sample Browser`,
-                    subtitle: `Preview and load one source sample directly into ${details.layerLabel}.`,
+                    subtitle: `Preview Dropbox samples and load one directly into ${details.layerLabel}.`,
                     sourceKey,
-                    sourceLabel: getDropboxSampleLayerSourceLabel(sourceKey),
+                    sourceLabel: getGrainSampleBrowserSourceLabel(sourceKey),
                     loadButtonLabel: `Load into ${details.layerLabel}`,
                     loadingLabel: 'Loading grain samples...',
                     sourceOptions: getGrainSampleBrowserSourceOptions(),
@@ -24399,8 +24415,11 @@
 
             const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'sample.wav';
             const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
-            const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || config.sourceKey;
-            const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || fallback.sourceLabel || getDropboxSampleLayerSourceLabel(responseSourceKey);
+            const responseSourceKey = normalizeGrainSampleBrowserSourceKey(
+                response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || config.sourceKey,
+                config.sourceKey
+            );
+            const responseSourceLabel = fallback.sourceLabel || getGrainSampleBrowserSourceLabel(responseSourceKey);
             const arrayBuffer = await response.arrayBuffer();
             const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
 
@@ -24419,7 +24438,7 @@
                 throw new Error('Start MYGRAIN before loading a grain sample.');
             }
             const config = getSampleBrowserTargetConfig(target);
-            const sourceLabel = getDropboxSampleLayerSourceLabel(sourceKey);
+            const sourceLabel = getGrainSampleBrowserSourceLabel(sourceKey);
             setStatus(`Loading ${fileName || 'sample'} into ${config.layerLabel} from ${sourceLabel}…`);
             const response = await fetch(buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath), {
                 mode: 'cors',
@@ -24542,6 +24561,7 @@
             const filter = document.getElementById('dropboxSampleBrowserFilter');
             if (!list) return;
             const config = getSampleBrowserTargetConfig();
+            const showFeedback = !isGrainSampleBrowserTarget(config.target);
 
             const query = String(filter?.value || '').trim().toLowerCase();
             const visibleFiles = dropboxSampleBrowserFiles.filter((file) => {
@@ -24592,107 +24612,6 @@
                 previewHint.className = 'sample-browser-path';
                 previewHint.textContent = file.sourceLabel || config.sourceLabel;
 
-                const feedback = document.createElement('div');
-                feedback.className = 'sample-browser-feedback';
-
-                const feedbackLabel = document.createElement('div');
-                feedbackLabel.className = 'sample-browser-feedback-label';
-                feedbackLabel.textContent = 'Repo Notes';
-
-                const textarea = document.createElement('textarea');
-                textarea.className = 'sample-browser-feedback-textarea';
-                textarea.placeholder = 'Add a permanent comment for this sample…';
-                textarea.maxLength = 2000;
-
-                const feedbackRow = document.createElement('div');
-                feedbackRow.className = 'sample-browser-feedback-row';
-
-                const feedbackActions = document.createElement('div');
-                feedbackActions.className = 'sample-browser-feedback-actions';
-
-                const likeButton = document.createElement('button');
-                likeButton.className = 'performance-btn sample-browser-feedback-btn';
-                likeButton.type = 'button';
-                likeButton.dataset.reaction = 'like';
-                likeButton.textContent = 'Like';
-
-                const loveButton = document.createElement('button');
-                loveButton.className = 'performance-btn sample-browser-feedback-btn';
-                loveButton.type = 'button';
-                loveButton.dataset.reaction = 'love';
-                loveButton.textContent = 'Love';
-
-                const saveButton = document.createElement('button');
-                saveButton.className = 'performance-btn primary';
-                saveButton.type = 'button';
-                saveButton.textContent = 'Save Notes';
-
-                const feedbackStatus = document.createElement('div');
-                feedbackStatus.className = 'sample-browser-feedback-status';
-
-                const feedbackControls = {
-                    textarea,
-                    likeButton,
-                    loveButton,
-                    saveButton,
-                    status: feedbackStatus
-                };
-
-                ensureDropboxSampleBrowserFeedbackDraft(file);
-                syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
-
-                textarea.addEventListener('input', () => {
-                    const draft = ensureDropboxSampleBrowserFeedbackDraft(file);
-                    draft.comment = textarea.value.replace(/\r\n?/g, '\n').slice(0, 2000);
-                    if (textarea.value !== draft.comment) textarea.value = draft.comment;
-                    syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
-                });
-
-                textarea.addEventListener('keydown', async (event) => {
-                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                        event.preventDefault();
-                        try {
-                            await saveDropboxSampleBrowserFeedback(file, feedbackControls);
-                        } catch (error) {
-                            console.error(error);
-                            setStatus(`Sample note save failed: ${error.message}`, 'error');
-                        }
-                    }
-                });
-
-                likeButton.addEventListener('click', async () => {
-                    const draft = ensureDropboxSampleBrowserFeedbackDraft(file);
-                    draft.reaction = draft.reaction === 'like' ? '' : 'like';
-                    syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
-                    try {
-                        await saveDropboxSampleBrowserFeedback(file, feedbackControls);
-                    } catch (error) {
-                        console.error(error);
-                        setStatus(`Sample reaction save failed: ${error.message}`, 'error');
-                    }
-                });
-
-                loveButton.addEventListener('click', async () => {
-                    const draft = ensureDropboxSampleBrowserFeedbackDraft(file);
-                    draft.reaction = draft.reaction === 'love' ? '' : 'love';
-                    syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
-                    try {
-                        await saveDropboxSampleBrowserFeedback(file, feedbackControls);
-                    } catch (error) {
-                        console.error(error);
-                        setStatus(`Sample reaction save failed: ${error.message}`, 'error');
-                    }
-                });
-
-                saveButton.addEventListener('click', async () => {
-                    try {
-                        await saveDropboxSampleBrowserFeedback(file, feedbackControls);
-                    } catch (error) {
-                        console.error(error);
-                        setStatus(`Sample note save failed: ${error.message}`, 'error');
-                    }
-                });
-
                 loadButton.addEventListener('click', async () => {
                     if (dropboxSampleLayerLoadInFlight || drumMachineLoadInFlight) return;
                     loadButton.disabled = true;
@@ -24725,12 +24644,118 @@
                     }
                 });
 
-                feedbackActions.append(likeButton, loveButton, saveButton);
-                feedbackRow.append(feedbackActions, feedbackStatus);
-                feedback.append(feedbackLabel, textarea, feedbackRow);
                 head.append(name, loadButton);
                 actions.append(previewHint);
-                card.append(head, path, audio, actions, feedback);
+                card.append(head, path, audio, actions);
+
+                if (showFeedback) {
+                    const feedback = document.createElement('div');
+                    feedback.className = 'sample-browser-feedback';
+
+                    const feedbackLabel = document.createElement('div');
+                    feedbackLabel.className = 'sample-browser-feedback-label';
+                    feedbackLabel.textContent = 'Repo Notes';
+
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'sample-browser-feedback-textarea';
+                    textarea.placeholder = 'Add a permanent comment for this sample…';
+                    textarea.maxLength = 2000;
+
+                    const feedbackRow = document.createElement('div');
+                    feedbackRow.className = 'sample-browser-feedback-row';
+
+                    const feedbackActions = document.createElement('div');
+                    feedbackActions.className = 'sample-browser-feedback-actions';
+
+                    const likeButton = document.createElement('button');
+                    likeButton.className = 'performance-btn sample-browser-feedback-btn';
+                    likeButton.type = 'button';
+                    likeButton.dataset.reaction = 'like';
+                    likeButton.textContent = 'Like';
+
+                    const loveButton = document.createElement('button');
+                    loveButton.className = 'performance-btn sample-browser-feedback-btn';
+                    loveButton.type = 'button';
+                    loveButton.dataset.reaction = 'love';
+                    loveButton.textContent = 'Love';
+
+                    const saveButton = document.createElement('button');
+                    saveButton.className = 'performance-btn primary';
+                    saveButton.type = 'button';
+                    saveButton.textContent = 'Save Notes';
+
+                    const feedbackStatus = document.createElement('div');
+                    feedbackStatus.className = 'sample-browser-feedback-status';
+
+                    const feedbackControls = {
+                        textarea,
+                        likeButton,
+                        loveButton,
+                        saveButton,
+                        status: feedbackStatus
+                    };
+
+                    ensureDropboxSampleBrowserFeedbackDraft(file);
+                    syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
+
+                    textarea.addEventListener('input', () => {
+                        const draft = ensureDropboxSampleBrowserFeedbackDraft(file);
+                        draft.comment = textarea.value.replace(/\r\n?/g, '\n').slice(0, 2000);
+                        if (textarea.value !== draft.comment) textarea.value = draft.comment;
+                        syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
+                    });
+
+                    textarea.addEventListener('keydown', async (event) => {
+                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                            event.preventDefault();
+                            try {
+                                await saveDropboxSampleBrowserFeedback(file, feedbackControls);
+                            } catch (error) {
+                                console.error(error);
+                                setStatus(`Sample note save failed: ${error.message}`, 'error');
+                            }
+                        }
+                    });
+
+                    likeButton.addEventListener('click', async () => {
+                        const draft = ensureDropboxSampleBrowserFeedbackDraft(file);
+                        draft.reaction = draft.reaction === 'like' ? '' : 'like';
+                        syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
+                        try {
+                            await saveDropboxSampleBrowserFeedback(file, feedbackControls);
+                        } catch (error) {
+                            console.error(error);
+                            setStatus(`Sample reaction save failed: ${error.message}`, 'error');
+                        }
+                    });
+
+                    loveButton.addEventListener('click', async () => {
+                        const draft = ensureDropboxSampleBrowserFeedbackDraft(file);
+                        draft.reaction = draft.reaction === 'love' ? '' : 'love';
+                        syncDropboxSampleBrowserFeedbackUi(file, feedbackControls);
+                        try {
+                            await saveDropboxSampleBrowserFeedback(file, feedbackControls);
+                        } catch (error) {
+                            console.error(error);
+                            setStatus(`Sample reaction save failed: ${error.message}`, 'error');
+                        }
+                    });
+
+                    saveButton.addEventListener('click', async () => {
+                        try {
+                            await saveDropboxSampleBrowserFeedback(file, feedbackControls);
+                        } catch (error) {
+                            console.error(error);
+                            setStatus(`Sample note save failed: ${error.message}`, 'error');
+                        }
+                    });
+
+                    feedbackActions.append(likeButton, loveButton, saveButton);
+                    feedbackRow.append(feedbackActions, feedbackStatus);
+                    feedback.append(feedbackLabel, textarea, feedbackRow);
+                    card.append(feedback);
+                }
+
                 list.appendChild(card);
             });
         }
@@ -24754,14 +24779,18 @@
                 if (!response.ok || !payload.ok) {
                     throw new Error(payload.error || `Could not load sample list (${response.status})`);
                 }
+                const resolvedSourceLabel = isGrainSampleBrowserTarget(config.target)
+                    ? getGrainSampleBrowserSourceLabel(sourceKey)
+                    : (payload.sourceLabel || sourceLabel);
                 dropboxSampleBrowserFiles = Array.isArray(payload.files)
                     ? payload.files.map((file) => ({
                         ...file,
+                        sourceLabel: isGrainSampleBrowserTarget(config.target) ? resolvedSourceLabel : (file.sourceLabel || resolvedSourceLabel),
                         feedback: normalizeDropboxSampleBrowserFeedback(file.feedback, file),
                         feedbackDraft: null
                     }))
                     : [];
-                setDropboxSampleBrowserStatus(`${dropboxSampleBrowserFiles.length} sample${dropboxSampleBrowserFiles.length === 1 ? '' : 's'} from ${payload.sourceLabel || sourceLabel}.`);
+                setDropboxSampleBrowserStatus(`${dropboxSampleBrowserFiles.length} sample${dropboxSampleBrowserFiles.length === 1 ? '' : 's'} from ${resolvedSourceLabel}.`);
             } catch (error) {
                 dropboxSampleBrowserFiles = [];
                 setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
@@ -24796,6 +24825,12 @@
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('dropbox-sample-browser-open');
+        }
+
+        function handleDropboxSampleBrowserClose(event) {
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
+            closeDropboxSampleBrowser();
         }
 
         async function loadDropboxSampleLayerFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
@@ -27182,8 +27217,8 @@
             }
         });
 
-        dropboxSampleBrowserCloseBtn?.addEventListener('click', () => {
-            closeDropboxSampleBrowser();
+        ['click', 'pointerup'].forEach((eventName) => {
+            dropboxSampleBrowserCloseBtn?.addEventListener(eventName, handleDropboxSampleBrowserClose);
         });
 
         dropboxSampleBrowserRefreshBtn?.addEventListener('click', () => {

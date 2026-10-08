@@ -970,6 +970,10 @@ test('grain sample browsers reuse the repo sample overlay with dedicated layer t
     assert.match(indexHtml, /grainMain: 'grainMain'/);
     assert.match(indexHtml, /grainA: 'grainA'/);
     assert.match(indexHtml, /grainB: 'grainB'/);
+    assert.match(indexHtml, /const GRAIN_SAMPLE_BROWSER_SOURCE_LABELS = \{/);
+    assert.match(indexHtml, /sampledrop: 'SAMPLEDROP'/);
+    assert.match(indexHtml, /sampledrop2: 'SAMPLEDROP_2'/);
+    assert.match(indexHtml, /splice_claw: 'SAMPLEDROP_CLAW'/);
     assert.match(indexHtml, /const GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS = \{/);
     assert.match(indexHtml, /\[SAMPLE_BROWSER_TARGETS\.grainMain\]: 'sampledrop'/);
     assert.match(indexHtml, /\[SAMPLE_BROWSER_TARGETS\.grainA\]: 'sampledrop2'/);
@@ -980,15 +984,28 @@ test('grain sample browsers reuse the repo sample overlay with dedicated layer t
     assert.match(indexHtml, /slotKind: 'grainBSample'/);
     assert.match(indexHtml, /id="dropboxSampleBrowserSourceSelect"/);
     assert.match(indexHtml, /function isGrainSampleBrowserTarget\(target\)/);
+    assert.match(indexHtml, /function normalizeGrainSampleBrowserSourceKey\(sourceKey, fallback = 'sampledrop'\)/);
+    assert.match(indexHtml, /normalized === 'sampledrop_claw' \? 'splice_claw' : normalized/);
+    assert.match(indexHtml, /function getGrainSampleBrowserSourceLabel\(sourceKey\)/);
     assert.match(indexHtml, /function getGrainSampleBrowserSourceOptions\(\)/);
+    assert.match(indexHtml, /return GRAIN_SAMPLE_BROWSER_SOURCE_OPTIONS\.map\(\(option\) => \(\{ \.\.\.option \}\)\);/);
     assert.match(indexHtml, /title: `\$\{details\.layerLabel\} Sample Browser`/);
+    assert.match(indexHtml, /subtitle: `Preview Dropbox samples and load one directly into \$\{details\.layerLabel\}\.`/);
     assert.match(indexHtml, /async function loadGranularBrowserSampleFromSourceRelativePath\(target, sourceKey, relativePath, fileName = ''\)/);
     assert.match(indexHtml, /await applyLoadedAudioBuffer\(decoded, `\$\{config\.layerLabel\} sample · \$\{sourceName\}`, config\.slotKind\);/);
     assert.match(indexHtml, /sourceSelect\.value = config\.sourceMode;/);
     assert.match(indexHtml, /restartActiveGrainStreamsFromNow\(\);/);
+    assert.match(indexHtml, /const showFeedback = !isGrainSampleBrowserTarget\(config\.target\);/);
     assert.match(indexHtml, /\[grainMainBrowseBtn, SAMPLE_BROWSER_TARGETS\.grainMain\]/);
     assert.match(indexHtml, /\[performanceGrainABrowseBtn, SAMPLE_BROWSER_TARGETS\.grainA\]/);
     assert.match(indexHtml, /\[performanceGrainBBrowseBtn, SAMPLE_BROWSER_TARGETS\.grainB\]/);
+});
+
+test('dropbox sample browser shows only the active overlay and uses a robust close handler', () => {
+    assert.match(indexHtml, /body\.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,/);
+    assert.match(indexHtml, /body\.wav-repository-browser-open #wavRepositoryBrowserOverlay \{/);
+    assert.match(indexHtml, /function handleDropboxSampleBrowserClose\(event\)/);
+    assert.match(indexHtml, /\['click', 'pointerup'\]\.forEach\(\(eventName\) => \{\s*dropboxSampleBrowserCloseBtn\?\.addEventListener\(eventName, handleDropboxSampleBrowserClose\);/);
 });
 
 test('granular restore and arp stay on the rebuilt synth path', () => {
