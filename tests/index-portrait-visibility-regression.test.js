@@ -912,8 +912,8 @@ test('granular UI presents three direct sample layers instead of the discarded s
     assert.match(indexHtml, /data-grain-browser-target="grainB"/);
     assert.match(indexHtml, /data-source-card-audition="grainBSample"/);
     assert.match(indexHtml, /data-source-kind="grainBSample">Trim to Selection<\/button>/);
-    assert.match(indexHtml, /class="grain-inline-sample-panel" aria-label="Grain A sample controls"/);
-    assert.match(indexHtml, /class="grain-inline-sample-panel" aria-label="Grain B sample controls"/);
+    assert.match(indexHtml, /class="grain-inline-sample-strip" aria-label="Grain A inline sample controls"/);
+    assert.match(indexHtml, /class="grain-inline-sample-strip" aria-label="Grain B inline sample controls"/);
     assert.match(indexHtml, /id="grainMixerAmp"/);
     assert.match(indexHtml, /<select id="mainWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
     assert.match(indexHtml, /<select id="grainAWaveformGrainTimingMode" data-grain-mode-selector>\s*<option value="synth" selected>Playable<\/option>/);
@@ -957,9 +957,11 @@ test('mobile performance surface exposes granular tune width smoothing and lfo d
     assert.match(indexHtml, /id="performanceLfo1Depth"/);
     assert.match(indexHtml, /id="performanceLfo2Depth"/);
     assert.match(indexHtml, /id="performanceLfo3Depth"/);
-    assert.match(indexHtml, /function mountPerformanceGrainQuickControlsCard\(\)/);
+    assert.match(indexHtml, /function mountPerformanceGrainControlCards\(\)/);
+    assert.match(indexHtml, /const grainControlsCard = document\.getElementById\('performanceGrainControlsCard'\);/);
     assert.match(indexHtml, /const grainWaveformGrid = document\.querySelector\('\.legacy-grain-source-browser'\);/);
-    assert.match(indexHtml, /anchor\.insertAdjacentElement\('afterend', grainQuickControlsCard\);/);
+    assert.match(indexHtml, /\[grainControlsCard, grainQuickControlsCard\]\.forEach\(\(card\) => \{/);
+    assert.match(indexHtml, /insertionPoint\.insertAdjacentElement\('afterend', card\);/);
     assert.doesNotMatch(indexHtml, /id="performanceGrainMainBrowseBtn"/);
     assert.doesNotMatch(indexHtml, /id="performanceGrainABrowseBtn"/);
     assert.doesNotMatch(indexHtml, /id="performanceGrainBBrowseBtn"/);
@@ -1098,14 +1100,23 @@ test('grain sample browser selections and cached metadata survive refresh state 
     assert.match(indexHtml, /if \(!grainMainSampleMetadata\?\.fileName\) \{\s*setGrainSampleMetadata\('grainMainSample', \{/);
     assert.match(indexHtml, /if \(!grainASampleMetadata\?\.fileName\) \{\s*setGrainSampleMetadata\('grainASample', \{/);
     assert.match(indexHtml, /if \(!grainBSampleMetadata\?\.fileName\) \{\s*setGrainSampleMetadata\('grainBSample', \{/);
-    assert.match(indexHtml, /setGrainSampleBrowserSourceKey\(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect\.value\);\s*saveState\(\);/);
+    assert.match(indexHtml, /setGrainSampleBrowserSourceKey\(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect\.value\);\s*saveState\(\);\s*refreshDropboxSampleBrowser\(\)/);
+    assert.doesNotMatch(indexHtml, /dropboxSampleBrowserSourceSelect\?\.addEventListener\('change'[\s\S]*?syncDropboxSampleBrowserTargetUi\(\);[\s\S]*?\}\);/);
 });
 
 test('dropbox sample browser shows only the active overlay and uses a robust close handler', () => {
     assert.match(indexHtml, /body\.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,/);
     assert.match(indexHtml, /body\.wav-repository-browser-open #wavRepositoryBrowserOverlay \{/);
+    assert.match(indexHtml, /const DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT = 80;/);
+    assert.match(indexHtml, /const visibleFiles = matchingFiles\.slice\(0, DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT\);/);
+    assert.match(indexHtml, /let dropboxSampleBrowserRefreshAbortController = null;/);
+    assert.match(indexHtml, /let dropboxSampleBrowserRefreshToken = 0;/);
+    assert.match(indexHtml, /dropboxSampleBrowserRefreshAbortController\.abort\(\);/);
+    assert.match(indexHtml, /signal: abortController\.signal/);
     assert.match(indexHtml, /function handleDropboxSampleBrowserClose\(event\)/);
-    assert.match(indexHtml, /\['click', 'pointerup'\]\.forEach\(\(eventName\) => \{\s*dropboxSampleBrowserCloseBtn\?\.addEventListener\(eventName, handleDropboxSampleBrowserClose\);/);
+    assert.match(indexHtml, /\['pointerdown', \{ capture: true \}\]/);
+    assert.match(indexHtml, /\['touchend', \{ capture: true, passive: false \}\]/);
+    assert.match(indexHtml, /dropboxSampleBrowserCloseBtn\?\.addEventListener\(eventName, handleDropboxSampleBrowserClose, options\);/);
 });
 
 test('drum machine transport buttons recover audio before starting playback', () => {

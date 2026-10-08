@@ -879,7 +879,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .grain-inline-sample-panel {
+        .grain-inline-sample-strip {
             display: grid;
             gap: 6px;
             min-width: 0;
@@ -5055,9 +5055,9 @@
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Selection</button>
                         </div>
-                        <div class="grain-inline-sample-panel" aria-label="Grain A sample controls">
+                        <div class="grain-inline-sample-strip" aria-label="Grain A inline sample controls">
                             <div class="source-waveform-header">
-                                <span>Grain A Sample</span>
+                                <span>Sample Source</span>
                                 <span class="source-waveform-meta" id="grainASampleWaveformMeta">Empty</span>
                             </div>
                             <canvas id="grainASampleWaveformCanvas" class="source-waveform-canvas" data-source="grainASample"></canvas>
@@ -5102,9 +5102,9 @@
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Selection</button>
                         </div>
-                        <div class="grain-inline-sample-panel" aria-label="Grain B sample controls">
+                        <div class="grain-inline-sample-strip" aria-label="Grain B inline sample controls">
                             <div class="source-waveform-header">
-                                <span>Grain B Sample</span>
+                                <span>Sample Source</span>
                                 <span class="source-waveform-meta" id="grainBSampleWaveformMeta">Empty</span>
                             </div>
                             <canvas id="grainBSampleWaveformCanvas" class="source-waveform-canvas" data-source="grainBSample"></canvas>
@@ -7659,6 +7659,8 @@
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
+        let dropboxSampleBrowserRefreshAbortController = null;
+        let dropboxSampleBrowserRefreshToken = 0;
         let grainSampleBrowserSourceKeys = {
             ...GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS
         };
@@ -24593,6 +24595,7 @@
         const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-files`;
         const DROPBOX_SAMPLE_SOURCE_FEEDBACK_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-file-feedback`;
         const DROPBOX_SAMPLE_SOURCE_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-sample`;
+        const DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT = 80;
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
             const fallback = `${fallbackBase}.wav`;
@@ -24886,13 +24889,15 @@
             const showFeedback = !isGrainSampleBrowserTarget(config.target);
 
             const query = String(filter?.value || '').trim().toLowerCase();
-            const visibleFiles = dropboxSampleBrowserFiles.filter((file) => {
+            const matchingFiles = dropboxSampleBrowserFiles.filter((file) => {
                 const haystack = `${file.name} ${file.relativePath}`.toLowerCase();
                 return !query || haystack.includes(query);
             });
+            const visibleFiles = matchingFiles.slice(0, DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT);
+            const hiddenMatchCount = Math.max(0, matchingFiles.length - visibleFiles.length);
             list.innerHTML = '';
 
-            if (!visibleFiles.length) {
+            if (!matchingFiles.length) {
                 const empty = document.createElement('div');
                 empty.className = 'sample-browser-empty';
                 empty.textContent = dropboxSampleBrowserLoading
@@ -25080,12 +25085,26 @@
 
                 list.appendChild(card);
             });
+
+            if (hiddenMatchCount > 0) {
+                const limited = document.createElement('div');
+                limited.className = 'sample-browser-empty';
+                limited.textContent = `Showing first ${visibleFiles.length} of ${matchingFiles.length} matches. Search to narrow the folder without locking the browser.`;
+                list.appendChild(limited);
+            }
         }
 
         async function refreshDropboxSampleBrowser(options = {}) {
             const config = getSampleBrowserTargetConfig();
             const sourceKey = config.sourceKey;
             const sourceLabel = config.sourceLabel;
+            const refreshToken = dropboxSampleBrowserRefreshToken + 1;
+            dropboxSampleBrowserRefreshToken = refreshToken;
+            if (dropboxSampleBrowserRefreshAbortController) {
+                dropboxSampleBrowserRefreshAbortController.abort();
+            }
+            const abortController = new AbortController();
+            dropboxSampleBrowserRefreshAbortController = abortController;
             dropboxSampleBrowserLoading = true;
             setDropboxSampleBrowserStatus(`Loading ${sourceLabel} preview list…`);
             renderDropboxSampleBrowserFiles();
@@ -25095,12 +25114,14 @@
                 if (options.forceRefresh) params.set('refresh', '1');
                 const response = await fetch(`${DROPBOX_SAMPLE_SOURCE_FILES_API_URL}?${params.toString()}`, {
                     mode: 'cors',
-                    cache: 'no-store'
+                    cache: 'no-store',
+                    signal: abortController.signal
                 });
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok || !payload.ok) {
                     throw new Error(payload.error || `Could not load sample list (${response.status})`);
                 }
+                if (refreshToken !== dropboxSampleBrowserRefreshToken) return;
                 const resolvedSourceLabel = isGrainSampleBrowserTarget(config.target)
                     ? getGrainSampleBrowserSourceLabel(sourceKey)
                     : (payload.sourceLabel || sourceLabel);
@@ -25114,11 +25135,18 @@
                     : [];
                 setDropboxSampleBrowserStatus(`${dropboxSampleBrowserFiles.length} sample${dropboxSampleBrowserFiles.length === 1 ? '' : 's'} from ${resolvedSourceLabel}.`);
             } catch (error) {
+                if (error?.name === 'AbortError') return;
+                if (refreshToken !== dropboxSampleBrowserRefreshToken) return;
                 dropboxSampleBrowserFiles = [];
                 setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
             } finally {
-                dropboxSampleBrowserLoading = false;
-                renderDropboxSampleBrowserFiles();
+                if (dropboxSampleBrowserRefreshAbortController === abortController) {
+                    dropboxSampleBrowserRefreshAbortController = null;
+                }
+                if (refreshToken === dropboxSampleBrowserRefreshToken) {
+                    dropboxSampleBrowserLoading = false;
+                    renderDropboxSampleBrowserFiles();
+                }
             }
         }
 
@@ -25143,6 +25171,12 @@
         function closeDropboxSampleBrowser() {
             const overlay = document.getElementById('dropboxSampleBrowserOverlay');
             if (!overlay) return;
+            dropboxSampleBrowserRefreshToken += 1;
+            if (dropboxSampleBrowserRefreshAbortController) {
+                dropboxSampleBrowserRefreshAbortController.abort();
+                dropboxSampleBrowserRefreshAbortController = null;
+            }
+            dropboxSampleBrowserLoading = false;
             pauseDropboxSampleBrowserPreviewAudio();
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
@@ -26469,16 +26503,22 @@
 
         mountInternalEffectsPanel();
 
-        function mountPerformanceGrainQuickControlsCard() {
+        function mountPerformanceGrainControlCards() {
+            const grainControlsCard = document.getElementById('performanceGrainControlsCard');
             const grainQuickControlsCard = document.getElementById('performanceGrainQuickControlsCard');
             const grainWaveformGrid = document.querySelector('.legacy-grain-source-browser');
-            const fallbackCard = document.getElementById('performanceGrainControlsCard');
-            const anchor = grainWaveformGrid || fallbackCard;
-            if (!anchor || !grainQuickControlsCard) return;
-            anchor.insertAdjacentElement('afterend', grainQuickControlsCard);
+            const anchor = grainWaveformGrid || grainControlsCard || grainQuickControlsCard;
+            if (!anchor) return;
+
+            let insertionPoint = anchor;
+            [grainControlsCard, grainQuickControlsCard].forEach((card) => {
+                if (!card || card === insertionPoint) return;
+                insertionPoint.insertAdjacentElement('afterend', card);
+                insertionPoint = card;
+            });
         }
 
-        mountPerformanceGrainQuickControlsCard();
+        mountPerformanceGrainControlCards();
 
         function formatSignedControlValue(value, suffix) {
             const rounded = Math.round(Number(value) || 0);
@@ -27339,7 +27379,6 @@
             if (!isGrainSampleBrowserTarget(dropboxSampleBrowserTarget)) return;
             setGrainSampleBrowserSourceKey(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect.value);
             saveState();
-            syncDropboxSampleBrowserTargetUi();
             refreshDropboxSampleBrowser().catch((error) => {
                 console.error(error);
                 setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
@@ -27534,8 +27573,12 @@
             }
         });
 
-        ['click', 'pointerup'].forEach((eventName) => {
-            dropboxSampleBrowserCloseBtn?.addEventListener(eventName, handleDropboxSampleBrowserClose);
+        [
+            ['pointerdown', { capture: true }],
+            ['touchend', { capture: true, passive: false }],
+            ['click', { capture: true }]
+        ].forEach(([eventName, options]) => {
+            dropboxSampleBrowserCloseBtn?.addEventListener(eventName, handleDropboxSampleBrowserClose, options);
         });
 
         dropboxSampleBrowserRefreshBtn?.addEventListener('click', () => {
