@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-22-07-build-v2026.10.08.18';
+            const cacheBuster = '2026-10-08-22-24-build-v2026.10.08.19';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3450,6 +3450,42 @@
             box-shadow: 0 12px 26px rgba(0, 198, 255, 0.26);
         }
 
+        .simplified-ui .performance-btn.take-slot-filled {
+            box-shadow: 0 0 0 2px rgba(255, 242, 122, 0.28), 0 0 22px rgba(255, 224, 138, 0.32);
+        }
+
+        .simplified-ui .performance-btn.take-slot-btn-1 {
+            color: #1b0f00;
+            background: linear-gradient(135deg, #ffd86f 0%, #ffb347 100%);
+            border-color: rgba(255, 216, 111, 0.58);
+        }
+
+        .simplified-ui .performance-btn.take-slot-btn-2 {
+            color: #12001b;
+            background: linear-gradient(135deg, #f6a5ff 0%, #cc7bff 100%);
+            border-color: rgba(246, 165, 255, 0.58);
+        }
+
+        .simplified-ui .performance-btn.take-slot-btn-3 {
+            color: #00171b;
+            background: linear-gradient(135deg, #98f9ff 0%, #52c9ff 100%);
+            border-color: rgba(152, 249, 255, 0.58);
+        }
+
+        .simplified-ui .performance-btn.take-slot-btn-4 {
+            color: #041409;
+            background: linear-gradient(135deg, #b7ff84 0%, #58d26a 100%);
+            border-color: rgba(183, 255, 132, 0.58);
+        }
+
+        .simplified-ui .performance-btn.take-upload-btn {
+            grid-column: 1 / -1;
+            color: #00131a;
+            background: linear-gradient(135deg, #fff27a 0%, #7ef6ff 100%);
+            border-color: rgba(255, 242, 122, 0.62);
+            box-shadow: 0 12px 26px rgba(126, 246, 255, 0.22);
+        }
+
         .simplified-ui #performanceSeqPlayBtn {
             color: #00131a;
             background: linear-gradient(135deg, #7effb2 0%, #00c6ff 100%);
@@ -3952,7 +3988,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.18</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.19</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -3965,7 +4001,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.18</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.19</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -4680,6 +4716,11 @@
                     <button class="performance-btn" id="performanceSynthPopupBtn">Open Synth</button>
                     <button class="performance-btn" id="performanceDrumMachineMainOpenBtn">Drum Machine</button>
                     <button class="performance-btn" id="performanceRecordBtn">Record Output</button>
+                    <button class="performance-btn take-slot-btn-1" id="performanceTakeSlot1Btn" type="button">Take 1</button>
+                    <button class="performance-btn take-slot-btn-2" id="performanceTakeSlot2Btn" type="button">Take 2</button>
+                    <button class="performance-btn take-slot-btn-3" id="performanceTakeSlot3Btn" type="button">Take 3</button>
+                    <button class="performance-btn take-slot-btn-4" id="performanceTakeSlot4Btn" type="button">Take 4</button>
+                    <button class="performance-btn take-upload-btn" id="performanceUploadTakesBtn" type="button">Upload Takes</button>
                     <button class="performance-btn" id="performancePanicBtn">Panic</button>
                 </div>
             </div>
@@ -8114,6 +8155,9 @@
         let drumMachineHatTapIndex = -1;
         let drumMachineHatTapAt = 0;
         let drumMachineHatTapTimers = new Map();
+        const performanceTakeSlots = Array.from({ length: 4 }, () => null);
+        let performanceTakeCaptureInFlight = false;
+        let performanceTakeUploadInFlight = false;
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
@@ -25204,6 +25248,56 @@
             return `${createBpmFilenameBase(bpmValue)}.wav`;
         }
 
+        function formatTakeTimestamp(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+        }
+
+        function buildTakeUploadFilename(slotIndex, takeData = {}) {
+            const fallbackBase = `mygrain-take-${slotIndex + 1}-${formatTakeTimestamp(takeData.capturedAt || new Date())}`;
+            const base = String(takeData.filename || fallbackBase)
+                .replace(/\.wav$/i, '')
+                .replace(/[^A-Za-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^[-_.]+|[-_.]+$/g, '');
+            return `${base || fallbackBase}-take-${slotIndex + 1}.wav`;
+        }
+
+        function getPerformanceTakeSlotButtonLabel(slotIndex, slotData, isBusy = false) {
+            if (isBusy) return `Saving Take ${slotIndex + 1}...`;
+            return slotData ? `Take ${slotIndex + 1} ★` : `Take ${slotIndex + 1}`;
+        }
+
+        function syncPerformanceTakeButtons() {
+            const takeButtons = [
+                performanceTakeSlot1Btn,
+                performanceTakeSlot2Btn,
+                performanceTakeSlot3Btn,
+                performanceTakeSlot4Btn
+            ];
+            takeButtons.forEach((button, slotIndex) => {
+                if (!button) return;
+                const slotData = performanceTakeSlots[slotIndex];
+                const isBusy = performanceTakeCaptureInFlight;
+                button.disabled = isBusy || performanceTakeUploadInFlight;
+                button.classList.toggle('take-slot-filled', Boolean(slotData));
+                button.textContent = getPerformanceTakeSlotButtonLabel(slotIndex, slotData, isBusy);
+                button.setAttribute('aria-pressed', String(Boolean(slotData)));
+            });
+            if (performanceUploadTakesBtn) {
+                const takeCount = performanceTakeSlots.filter(Boolean).length;
+                performanceUploadTakesBtn.disabled = performanceTakeCaptureInFlight || performanceTakeUploadInFlight || takeCount === 0;
+                performanceUploadTakesBtn.textContent = performanceTakeUploadInFlight
+                    ? `Uploading ${takeCount} Take${takeCount === 1 ? '' : 's'}...`
+                    : `Upload Takes${takeCount ? ` (${takeCount})` : ''}`;
+            }
+        }
+
         function delayMs(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
@@ -26446,6 +26540,59 @@
             await refreshWavRepositoryBrowser({ forceRefresh: true });
         }
 
+        async function capturePerformanceTake(slotIndex) {
+            if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= performanceTakeSlots.length) {
+                return;
+            }
+            if (performanceTakeCaptureInFlight || performanceTakeUploadInFlight) return;
+            performanceTakeCaptureInFlight = true;
+            syncPerformanceTakeButtons();
+            syncPerformanceControlState();
+            setStatus(`Capturing Take ${slotIndex + 1}...`);
+            try {
+                const exportData = await renderDawReadyBarsExport();
+                performanceTakeSlots[slotIndex] = {
+                    blob: exportData.blob,
+                    filename: exportData.filename,
+                    bpm: exportData.bpm,
+                    bars: exportData.bars,
+                    capturedAt: new Date()
+                };
+                setStatus(`Stored Take ${slotIndex + 1}. Press Upload Takes when you're ready.`);
+            } finally {
+                performanceTakeCaptureInFlight = false;
+                syncPerformanceTakeButtons();
+                syncPerformanceControlState();
+            }
+        }
+
+        async function uploadPerformanceTakesToRepository() {
+            const populatedSlots = performanceTakeSlots
+                .map((slot, index) => ({ slot, index }))
+                .filter(({ slot }) => Boolean(slot?.blob));
+            if (!populatedSlots.length) {
+                setStatus('No takes stored yet.', 'error');
+                return;
+            }
+            if (performanceTakeCaptureInFlight || performanceTakeUploadInFlight) return;
+            performanceTakeUploadInFlight = true;
+            syncPerformanceTakeButtons();
+            syncPerformanceControlState();
+            try {
+                setStatus(`Uploading ${populatedSlots.length} take${populatedSlots.length === 1 ? '' : 's'} to the WAV repository...`);
+                for (const { slot, index } of populatedSlots) {
+                    const filename = buildTakeUploadFilename(index, slot);
+                    await uploadWavToRepository(slot.blob, filename);
+                }
+                setStatus(`Uploaded ${populatedSlots.length} take${populatedSlots.length === 1 ? '' : 's'} to the WAV repository.`);
+                await refreshWavRepositoryBrowser({ forceRefresh: true });
+            } finally {
+                performanceTakeUploadInFlight = false;
+                syncPerformanceTakeButtons();
+                syncPerformanceControlState();
+            }
+        }
+
         function pauseWavRepositoryBrowserPreviewAudio() {
             document.querySelectorAll('#wavRepositoryBrowserList audio').forEach((audio) => {
                 try {
@@ -27442,6 +27589,11 @@
         const performanceExportBtn = document.getElementById('performanceExportBtn');
         const performanceRepoExportBtn = document.getElementById('performanceRepoExportBtn');
         const performanceWavBrowserBtn = document.getElementById('performanceWavBrowserBtn');
+        const performanceTakeSlot1Btn = document.getElementById('performanceTakeSlot1Btn');
+        const performanceTakeSlot2Btn = document.getElementById('performanceTakeSlot2Btn');
+        const performanceTakeSlot3Btn = document.getElementById('performanceTakeSlot3Btn');
+        const performanceTakeSlot4Btn = document.getElementById('performanceTakeSlot4Btn');
+        const performanceUploadTakesBtn = document.getElementById('performanceUploadTakesBtn');
         const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
         const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
@@ -27843,6 +27995,8 @@
                 performanceRecordBtn.classList.toggle('recording', isRecordingNow);
                 performanceRecordBtn.textContent = isProcessing ? 'Processing...' : (isRecordingNow ? 'Stop Recording' : 'Record Output');
             }
+
+            syncPerformanceTakeButtons();
 
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
@@ -28972,6 +29126,51 @@
 
         performanceWavBrowserBtn?.addEventListener('click', () => {
             openWavRepositoryBrowser();
+        });
+
+        performanceTakeSlot1Btn?.addEventListener('click', async () => {
+            try {
+                await capturePerformanceTake(0);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Take 1 failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceTakeSlot2Btn?.addEventListener('click', async () => {
+            try {
+                await capturePerformanceTake(1);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Take 2 failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceTakeSlot3Btn?.addEventListener('click', async () => {
+            try {
+                await capturePerformanceTake(2);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Take 3 failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceTakeSlot4Btn?.addEventListener('click', async () => {
+            try {
+                await capturePerformanceTake(3);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Take 4 failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceUploadTakesBtn?.addEventListener('click', async () => {
+            try {
+                await uploadPerformanceTakesToRepository();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Take upload failed: ${error.message}`, 'error');
+            }
         });
 
         performanceExportPatchBtn?.addEventListener('click', () => {
