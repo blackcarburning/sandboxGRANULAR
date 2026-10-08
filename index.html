@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-23-09-build-v2026.10.08.23';
+            const cacheBuster = '2026-10-08-23-16-build-v2026.10.08.24';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3517,6 +3517,12 @@
             border-color: rgba(183, 255, 132, 0.58);
         }
 
+        .simplified-ui .performance-btn.take-slot-btn-5 {
+            color: #150418;
+            background: linear-gradient(135deg, #ffb0d8 0%, #ff73b3 100%);
+            border-color: rgba(255, 176, 216, 0.58);
+        }
+
         .simplified-ui .performance-btn.take-upload-btn {
             grid-column: 1 / -1;
             color: #00131a;
@@ -4036,7 +4042,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.23</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.08.24</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4049,7 +4055,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.08.23</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.08.24</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                 </div>
                 <div class="performance-bpm-card">
@@ -4768,6 +4774,7 @@
                     <button class="performance-btn take-slot-btn-2" id="performanceTakeSlot2Btn" type="button">Take 2</button>
                     <button class="performance-btn take-slot-btn-3" id="performanceTakeSlot3Btn" type="button">Take 3</button>
                     <button class="performance-btn take-slot-btn-4" id="performanceTakeSlot4Btn" type="button">Take 4</button>
+                    <button class="performance-btn take-slot-btn-5" id="performanceTakeSlot5Btn" type="button">Take 5</button>
                     <button class="performance-btn take-upload-btn" id="performanceUploadTakesBtn" type="button">Upload Takes</button>
                     <button class="performance-btn" id="performancePanicBtn">Panic</button>
                 </div>
@@ -8221,7 +8228,7 @@
         let drumMachineHatTapIndex = -1;
         let drumMachineHatTapAt = 0;
         let drumMachineHatTapTimers = new Map();
-        const performanceTakeSlots = Array.from({ length: 4 }, () => null);
+        const performanceTakeSlots = Array.from({ length: 5 }, () => null);
         let performanceTakeCaptureInFlight = false;
         let performanceTakeUploadInFlight = false;
         let generatedDrySource = null;
@@ -25369,7 +25376,8 @@
                 performanceTakeSlot1Btn,
                 performanceTakeSlot2Btn,
                 performanceTakeSlot3Btn,
-                performanceTakeSlot4Btn
+                performanceTakeSlot4Btn,
+                performanceTakeSlot5Btn
             ];
             takeButtons.forEach((button, slotIndex) => {
                 if (!button) return;
@@ -27875,6 +27883,7 @@
         const performanceTakeSlot2Btn = document.getElementById('performanceTakeSlot2Btn');
         const performanceTakeSlot3Btn = document.getElementById('performanceTakeSlot3Btn');
         const performanceTakeSlot4Btn = document.getElementById('performanceTakeSlot4Btn');
+        const performanceTakeSlot5Btn = document.getElementById('performanceTakeSlot5Btn');
         const performanceUploadTakesBtn = document.getElementById('performanceUploadTakesBtn');
         const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
         const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
@@ -29443,6 +29452,15 @@
             } catch (error) {
                 console.error(error);
                 setStatus(`Take 4 failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceTakeSlot5Btn?.addEventListener('click', async () => {
+            try {
+                await capturePerformanceTake(4);
+            } catch (error) {
+                console.error(error);
+                setStatus(`Take 5 failed: ${error.message}`, 'error');
             }
         });
 
