@@ -200,6 +200,39 @@ test('mobile performance controls expose mix and tame filter controls', () => {
     assert.match(indexHtml, /id="lpfQ" min="0\.1" max="2\.5" value="0\.6"/);
 });
 
+test('bastardloop V mirrors the other bastardloops and uses vocal samples', () => {
+    assert.match(indexHtml, /<h3 class="performance-feature-title">Bastardloop V<\/h3>/);
+    assert.match(indexHtml, /id="performanceGenerateBastardLoopVBtn">Generate Bastardloop V<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopVBrowserBtn">Bastardloop Browser<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopVSamplesBtn">Used Samples<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopVSoloBtn" aria-pressed="false">Solo Off<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopVToggleBtn" aria-pressed="true"[^>]*>Bastardloop V On<\/button>/);
+    assert.match(indexHtml, /id="performanceBastardLoopVLevel" min="0" max="100" value="50" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoopVFilterCutoff" min="300" max="18000" value="18000" step="10"/);
+    assert.match(indexHtml, /id="performanceBastardLoopVPitch" min="-2" max="2" value="0" step="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoopVPitchAffectsDuration"/);
+    assert.match(indexHtml, /id="performanceBastardLoopVReverseBtn" aria-pressed="false"/);
+    assert.match(indexHtml, /id="performanceBastardLoopVMeta">Empty<\/div>/);
+    assert.match(indexHtml, /id="performanceBastardVDivisionWhole" value="1"/);
+    assert.match(indexHtml, /id="performanceBastardVDivisionHalf" value="1\/2"/);
+    assert.match(indexHtml, /id="performanceBastardVDivisionQuarter" value="1\/4"/);
+    assert.match(indexHtml, /id="performanceBastardVDivisionEighth" value="1\/8"/);
+    assert.match(indexHtml, /id="performanceBastardVDivisionSixteenth" value="1\/16" checked/);
+    assert.match(indexHtml, /id="performanceBastardVDivisionThirtySecond" value="1\/32"/);
+    assert.match(indexHtml, /samples_vocal: 'SAMPLES_VOCAL'/);
+    assert.match(indexHtml, /source: 'samples_vocal'/);
+    assert.match(indexHtml, /async function generateBastardLoopVWithPlaybackRestart\(\)/);
+    assert.match(indexHtml, /await applyLoadedBastardLoopVBuffer/);
+    assert.match(indexHtml, /function startBastardLoopV\(startTime = null, options = \{\}\)/);
+    assert.match(indexHtml, /function updateBastardLoopVMix\(\)/);
+    assert.match(indexHtml, /setLoopLayerSolo\('bastardv', \{ toggle: true \}\);/);
+    assert.match(indexHtml, /performanceBastardLoopVLevel\?\.addEventListener\('input'/);
+    assert.match(indexHtml, /performanceBastardLoopVFilterCutoff\?\.addEventListener\('input'/);
+    assert.match(indexHtml, /performanceBastardLoopVToggleBtn\?\.addEventListener\('click'/);
+    assert.match(indexHtml, /performanceBastardLoopVReverseBtn\?\.addEventListener\('click'/);
+    assert.match(indexHtml, /performanceGenerateBastardLoopVBtn\?\.addEventListener\('click'/);
+});
+
 test('mobile controls can remove the noise oscillator and its modulation', () => {
     assert.match(indexHtml, /id="performanceNoiseOffBtn">Noise Off<\/button>/);
     assert.match(indexHtml, /function isNoiseOscillatorActive\(\)/);
@@ -566,29 +599,35 @@ test('all bastardloop layers can switch between duration-preserved and sampler-s
     assert.match(indexHtml, /id="performanceBastardLoopPitchAffectsDuration"/);
     assert.match(indexHtml, /id="performanceBastardLoop2PitchAffectsDuration"/);
     assert.match(indexHtml, /id="performanceBastardLoop3PitchAffectsDuration"/);
+    assert.match(indexHtml, /id="performanceBastardLoopVPitchAffectsDuration"/);
     assert.match(indexHtml, /let bastardLoopPitchAffectsDuration = false/);
     assert.match(indexHtml, /let bastardLoop2PitchAffectsDuration = false/);
     assert.match(indexHtml, /let bastardLoop3PitchAffectsDuration = false/);
+    assert.match(indexHtml, /let bastardLoopVPitchAffectsDuration = false/);
     assert.match(indexHtml, /function getBastardLoopPlaybackBufferForMode\(sourceBuffer, pitchRatio = 1, options = \{\}\)/);
     assert.match(indexHtml, /function getBastardLoopPitchAffectsDuration\(\)/);
     assert.match(indexHtml, /function getBastardLoop2PitchAffectsDuration\(\)/);
     assert.match(indexHtml, /function getBastardLoop3PitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /function getBastardLoopVPitchAffectsDuration\(\)/);
     assert.match(indexHtml, /function setBastardLoopPitchAffectsDuration\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /function setBastardLoop2PitchAffectsDuration\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /function setBastardLoop3PitchAffectsDuration\(enabled, options = \{\}\)/);
+    assert.match(indexHtml, /function setBastardLoopVPitchAffectsDuration\(enabled, options = \{\}\)/);
     assert.match(indexHtml, /preserveDuration: !getBastardLoopPitchAffectsDuration\(\)/);
     assert.match(indexHtml, /preserveDuration: !getBastardLoop2PitchAffectsDuration\(\)/);
     assert.match(indexHtml, /preserveDuration: !getBastardLoop3PitchAffectsDuration\(\)/);
+    assert.match(indexHtml, /preserveDuration: !getBastardLoopVPitchAffectsDuration\(\)/);
     assert.match(indexHtml, /performanceBastardLoopPitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoopPitchAffectsDuration\(event\.target\.checked\);/);
     assert.match(indexHtml, /performanceBastardLoop2PitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoop2PitchAffectsDuration\(event\.target\.checked\);/);
     assert.match(indexHtml, /performanceBastardLoop3PitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoop3PitchAffectsDuration\(event\.target\.checked\);/);
+    assert.match(indexHtml, /performanceBastardLoopVPitchAffectsDuration\?\.addEventListener\('change', \(event\) => \{\s*setBastardLoopVPitchAffectsDuration\(event\.target\.checked\);/);
 });
 
 test('bastardloop has independent transport controls and is not owned by the sequencer stop path', () => {
     assert.match(indexHtml, /let bastardLoopPlaying = false/);
     assert.match(indexHtml, /let bastardLoopTransportStartTime = null/);
     assert.match(indexHtml, /function setBastardLoopPlaying\(enabled, options = \{\}\)/);
-    assert.match(indexHtml, /performanceBastardLoopPlayBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(true\);/);
+    assert.match(indexHtml, /document\.querySelectorAll\('\[data-bastardloop-start\]'\)\.forEach\(\(button\) => \{[\s\S]*setBastardLoopPlaying\(!bastardLoopPlaying\);/);
     assert.match(indexHtml, /performanceBastardLoopStopBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(false\);/);
     assert.match(indexHtml, /if \(bastardLoopPlaying && bastardLoopBuffer\) \{/);
 
@@ -683,15 +722,16 @@ test('dropbox sample layer card has a solo button tied to the shared loop-layer 
     assert.match(indexHtml, /return dropboxSampleLayerEnabled \? dropboxSampleLayerLevel \* getLoopLayerSoloGain\('dropbox'\) : 0;/);
 });
 
-test('bastardloop transport can start three loop layers together', () => {
+test('bastardloop transport can start four loop layers together', () => {
     assert.match(indexHtml, /function stopAllBastardLoopLayers\(options = \{\}\)/);
     assert.match(indexHtml, /function startAllBastardLoopLayers\(startTime = null, options = \{\}\)/);
     assert.match(indexHtml, /const startedA = startBastardLoop\(resolvedStartTime, \{ skipUi: true \}\);/);
     assert.match(indexHtml, /const startedB = startBastardLoop2\(resolvedStartTime, \{ skipUi: true \}\);/);
     assert.match(indexHtml, /const startedC = startBastardLoop3\(resolvedStartTime, \{ skipUi: true \}\);/);
-    assert.match(indexHtml, /performanceBastardLoopPlayBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(true\);/);
+    assert.match(indexHtml, /const startedV = startBastardLoopV\(resolvedStartTime, \{ skipUi: true \}\);/);
+    assert.match(indexHtml, /document\.querySelectorAll\('\[data-bastardloop-start\]'\)\.forEach\(\(button\) => \{[\s\S]*setBastardLoopPlaying\(!bastardLoopPlaying\);/);
     assert.match(indexHtml, /performanceBastardLoopStopBtn\?\.addEventListener\('click', \(\) => \{\s*setBastardLoopPlaying\(false\);/);
-    assert.match(indexHtml, /if \(!bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer\) \{/);
+    assert.match(indexHtml, /if \(!bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer && !bastardLoopVBuffer && !dropboxSampleLayerBuffer\) \{/);
 });
 
 test('tempo-locked keyboard pitch reads source buffers in the non-reversed direction', () => {
