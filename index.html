@@ -4194,6 +4194,7 @@
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop O controls']">Loop O</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Drum machine controls']">Drums</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Dropbox sample layer controls']">Sample</button>
+                <button class="section-jump-option" type="button" data-jump-target="#performanceLayerSwitchesCard">Layer Switch</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Mixer controls']">Mixer</button>
                 <button class="section-jump-option" type="button" data-jump-target="#performanceGrainQuickControlsCard">Quick Grain</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Filter controls']">Filter</button>
@@ -4204,6 +4205,11 @@
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='LFO controls']">LFO</button>
                 <button class="section-jump-option" type="button" data-jump-target="#internalEffectsPanel">FX</button>
                 <button class="section-jump-option" type="button" data-jump-target=".recording-section">Sources</button>
+                <button class="section-jump-option" type="button" data-jump-target="#grainWaveformEditors">Waveforms</button>
+                <button class="section-jump-option" type="button" data-jump-target="#grainMainWaveformEditor">Main Wave</button>
+                <button class="section-jump-option" type="button" data-jump-target="#grainAWaveformEditor">A Wave</button>
+                <button class="section-jump-option" type="button" data-jump-target="#grainBWaveformEditor">B Wave</button>
+                <button class="section-jump-option" type="button" data-jump-target="#outputWaveformEditor">Output Wave</button>
                 <button class="section-jump-option" type="button" data-jump-target="#finalPanSection">Pan Lab</button>
             </div>
         </div>
@@ -4727,7 +4733,7 @@
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceDropboxSampleMeta">Empty</div>
             </div>
-            <div class="performance-layer-switches-card" aria-label="Quick layer switches">
+            <div class="performance-layer-switches-card" id="performanceLayerSwitchesCard" aria-label="Quick layer switches">
                 <div class="performance-layer-switches-copy">
                     <div class="performance-chip">Quick Mutes</div>
                     <h3 class="performance-layer-switches-title">Layer Switches</h3>
@@ -5630,8 +5636,8 @@
                     <button id="normalizeBtn" disabled>Normalize</button>
                     <button id="clearBtn">Clear</button>
                 </div>
-                <div class="source-waveform-grid legacy-grain-source-browser" aria-label="Granular source waveforms">
-                    <div class="source-waveform-panel">
+                <div class="source-waveform-grid legacy-grain-source-browser" id="grainWaveformEditors" aria-label="Granular source waveforms">
+                    <div class="source-waveform-panel" id="generatedWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Generated Loop</span>
                             <span class="source-waveform-meta" id="generatedLoopMeta">Empty</span>
@@ -5658,7 +5664,7 @@
                             <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Selection</button>
                         </div>
                     </div>
-                    <div class="source-waveform-panel">
+                    <div class="source-waveform-panel" id="grainMainWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Main Grain Sample</span>
                             <span class="source-waveform-meta" id="grainMainSampleWaveformMeta">Empty</span>
@@ -5678,7 +5684,7 @@
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
-                    <div class="source-waveform-panel">
+                    <div class="source-waveform-panel" id="micWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Mic Recording</span>
                             <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
@@ -5696,7 +5702,7 @@
                             <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Selection</button>
                         </div>
                     </div>
-                    <div class="source-waveform-panel">
+                    <div class="source-waveform-panel" id="grainAWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Grain A Mic</span>
                             <span class="source-waveform-meta" id="grainAMicWaveformMeta">Empty</span>
@@ -5751,7 +5757,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="source-waveform-panel">
+                    <div class="source-waveform-panel" id="grainBWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Grain B Mic</span>
                             <span class="source-waveform-meta" id="grainBMicWaveformMeta">Empty</span>
@@ -5806,7 +5812,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="source-waveform-panel">
+                    <div class="source-waveform-panel" id="outputWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Output Source</span>
                             <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
