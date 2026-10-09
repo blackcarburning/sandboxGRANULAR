@@ -4337,10 +4337,10 @@
                     </div>
                     <label for="globalPatternLength" class="pattern-length-label">
                         <span>Pattern Length</span>
-                        <span class="value" id="globalPatternLengthValue">16 steps</span>
+                        <span class="value" id="globalPatternLengthValue">64 steps</span>
                     </label>
                     <div class="pattern-length-input-row">
-                        <input type="number" id="globalPatternLength" min="8" max="64" value="16" step="1" inputmode="numeric">
+                        <input type="number" id="globalPatternLength" min="8" max="64" value="64" step="1" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -5462,9 +5462,9 @@
                     <div class="performance-sound-card">
                         <label for="performanceExportBars">
                             <span>Export Bars</span>
-                            <span class="value" id="performanceExportBarsValue">2 bars</span>
+                            <span class="value" id="performanceExportBarsValue">4 bars</span>
                         </label>
-                        <input type="number" id="performanceExportBars" min="1" max="64" value="2" step="1" inputmode="numeric">
+                        <input type="number" id="performanceExportBars" min="1" max="64" value="4" step="1" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -8995,12 +8995,13 @@
         let drumMachineHatLength = 1;
         let drumMachineSnareDriveAmount = 0;
         let drumMachineHatAccentAmount = 0.35;
-        const DEFAULT_PATTERN_LENGTH_STEPS = 16;
+        const PATTERN_STEPS_PER_BAR = 16;
+        const DEFAULT_PATTERN_LENGTH_STEPS = PATTERN_STEPS_PER_BAR * 4;
         const MIN_PATTERN_LENGTH_STEPS = 8;
         const MAX_PATTERN_LENGTH_STEPS = 64;
-        let drumMachineKickPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index === 0 || index === 8);
-        let drumMachineSnarePattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index === 4 || index === 12);
-        let drumMachineHatPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index === 2 || index === 6 || index === 10 || index === 14);
+        let drumMachineKickPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index % PATTERN_STEPS_PER_BAR === 0 || index % PATTERN_STEPS_PER_BAR === 8);
+        let drumMachineSnarePattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index % PATTERN_STEPS_PER_BAR === 4 || index % PATTERN_STEPS_PER_BAR === 12);
+        let drumMachineHatPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => [2, 6, 10, 14].includes(index % PATTERN_STEPS_PER_BAR));
         let drumMachineHatAccentPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false);
         let drumMachineHatRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false);
         let drumMachineHatTimingMode = 'straight';
@@ -16952,12 +16953,12 @@
         function createDefaultDrumMachinePattern(track, length = getPatternLengthSteps()) {
             const steps = clampPatternLengthSteps(length);
             if (track === 'snare') {
-                return Array.from({ length: steps }, (_, index) => index % DEFAULT_PATTERN_LENGTH_STEPS === 4 || index % DEFAULT_PATTERN_LENGTH_STEPS === 12);
+                return Array.from({ length: steps }, (_, index) => index % PATTERN_STEPS_PER_BAR === 4 || index % PATTERN_STEPS_PER_BAR === 12);
             }
             if (track === 'hat') {
-                return Array.from({ length: steps }, (_, index) => [2, 6, 10, 14].includes(index % DEFAULT_PATTERN_LENGTH_STEPS));
+                return Array.from({ length: steps }, (_, index) => [2, 6, 10, 14].includes(index % PATTERN_STEPS_PER_BAR));
             }
-            return Array.from({ length: steps }, (_, index) => index % DEFAULT_PATTERN_LENGTH_STEPS === 0 || index % DEFAULT_PATTERN_LENGTH_STEPS === 8);
+            return Array.from({ length: steps }, (_, index) => index % PATTERN_STEPS_PER_BAR === 0 || index % PATTERN_STEPS_PER_BAR === 8);
         }
 
         function normalizeDrumMachinePattern(pattern, length = getPatternLengthSteps()) {
@@ -17021,7 +17022,7 @@
             const chance = (probability) => Math.random() < probability;
             if (track === 'hat') {
                 const pattern = Array.from({ length: patternLength }, (_, index) => index % 2 === 0);
-                for (let offset = 0; offset < patternLength; offset += DEFAULT_PATTERN_LENGTH_STEPS) {
+                for (let offset = 0; offset < patternLength; offset += PATTERN_STEPS_PER_BAR) {
                     [2, 6, 10, 14].forEach((step, index) => {
                         if (offset + step < patternLength && chance([0.72, 0.72, 0.78, 0.82][index])) pattern[offset + step] = true;
                     });
@@ -17033,7 +17034,7 @@
             }
             if (track === 'snare') {
                 const pattern = Array.from({ length: patternLength }, () => false);
-                for (let offset = 0; offset < patternLength; offset += DEFAULT_PATTERN_LENGTH_STEPS) {
+                for (let offset = 0; offset < patternLength; offset += PATTERN_STEPS_PER_BAR) {
                     [4, 12].forEach((step) => {
                         if (offset + step < patternLength) pattern[offset + step] = true;
                     });
@@ -17045,7 +17046,7 @@
             }
 
             const pattern = Array.from({ length: patternLength }, () => false);
-            for (let offset = 0; offset < patternLength; offset += DEFAULT_PATTERN_LENGTH_STEPS) {
+            for (let offset = 0; offset < patternLength; offset += PATTERN_STEPS_PER_BAR) {
                 [0, 8].forEach((step) => {
                     if (offset + step < patternLength) pattern[offset + step] = true;
                 });
@@ -25254,7 +25255,7 @@
                 const fallbackKickSteps = [];
                 const fallbackSnareSteps = [];
                 const fallbackHatSteps = [];
-                for (let offset = 0; offset < loopSteps; offset += DEFAULT_PATTERN_LENGTH_STEPS) {
+                for (let offset = 0; offset < loopSteps; offset += PATTERN_STEPS_PER_BAR) {
                     [0, 4, 8, 12].forEach((step) => {
                         if (offset + step < loopSteps) fallbackKickSteps.push(offset + step);
                     });
@@ -27959,7 +27960,7 @@
             document.getElementById('lockBpmSlider')?.addEventListener('change', saveState);
         }
 
-        const DEFAULT_EXPORT_BARS = 2;
+        const DEFAULT_EXPORT_BARS = 4;
 
         function clampExportBars(value) {
             const numeric = Number.parseFloat(value);
