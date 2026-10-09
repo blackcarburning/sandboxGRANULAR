@@ -132,6 +132,7 @@
 
         body.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,
         body.wav-repository-browser-open #wavRepositoryBrowserOverlay,
+        body.patch-repository-browser-open #patchRepositoryBrowserOverlay,
         body.performance-take-browser-open #performanceTakeBrowserOverlay {
             display: flex;
         }
@@ -30481,6 +30482,7 @@
             if (!overlay) return;
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('patch-repository-browser-open');
             refreshPatchRepositoryBrowser({ forceRefresh: true }).catch((error) => {
                 console.error(error);
             });
@@ -30491,6 +30493,7 @@
             if (!overlay) return;
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('patch-repository-browser-open');
         }
 
         async function ensurePatchZipAudioReady() {
@@ -32668,6 +32671,10 @@
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && document.body.classList.contains('wav-repository-browser-open')) {
                 closeWavRepositoryBrowser();
+                return;
+            }
+            if (event.key === 'Escape' && document.body.classList.contains('patch-repository-browser-open')) {
+                closePatchRepositoryBrowser();
                 return;
             }
             if (event.key === 'Escape' && document.body.classList.contains('bastardloop-samples-open')) {
