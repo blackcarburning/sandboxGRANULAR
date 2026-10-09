@@ -8822,7 +8822,7 @@
         let dropboxSampleLayerEnabled = true;
         let drumMachineLevel = 0.55;
         let drumMachineEnabled = true;
-        let drumMachineDirectOutput = false;
+        let drumMachineDirectOutput = true;
         let drumMachinePlaying = false;
         let drumMachineTransportStartTime = null;
         let drumMachineKickPitchSemitones = 0;
@@ -11829,17 +11829,7 @@
         }
 
         function getFinalSidechainKickLevelValue() {
-            const slider = document.getElementById('finalSidechainKickLevel');
-            const rawValue = Number(slider?.value ?? 100);
-            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
-            if (slider && Number(slider.value) !== clamped) {
-                slider.value = String(clamped);
-            }
-            const label = document.getElementById('finalSidechainKickLevelValue');
-            if (label) {
-                label.textContent = `${Math.round(clamped)}%`;
-            }
-            return clamped / 100;
+            return getDrumMachineKickLevelValue();
         }
 
         function getFinalCompressorAmount() {
@@ -16593,6 +16583,24 @@
             return Math.pow(2, getDrumMachineHatTuneSemitones() / 12);
         }
 
+        function setDrumMachineKickLevelPercent(value, options = {}) {
+            const numeric = Number(value);
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(numeric) ? numeric : 100));
+            drumMachineKickTrackLevel = clamped / 100;
+            [
+                ['drumMachineKickLevel', 'drumMachineKickLevelValue'],
+                ['finalSidechainKickLevel', 'finalSidechainKickLevelValue']
+            ].forEach(([sliderId, labelId]) => {
+                const slider = document.getElementById(sliderId);
+                const label = document.getElementById(labelId);
+                if (slider) slider.value = String(clamped);
+                if (label) label.textContent = `${Math.round(clamped)}%`;
+            });
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function getDrumMachineHatAccentAmount() {
             const slider = document.getElementById('drumMachineHatAccentAmount');
             const rawValue = Number(slider?.value ?? (drumMachineHatAccentAmount * 100));
@@ -16607,10 +16615,10 @@
         }
 
         function getDrumMachineKickLevelValue() {
-            const slider = document.getElementById('drumMachineKickLevel');
+            const slider = document.getElementById('drumMachineKickLevel') || document.getElementById('finalSidechainKickLevel');
             const rawValue = Number(slider?.value ?? (drumMachineKickTrackLevel * 100));
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
-            drumMachineKickTrackLevel = clamped / 100;
+            setDrumMachineKickLevelPercent(clamped, { skipSave: true });
             return drumMachineKickTrackLevel;
         }
 
@@ -16733,7 +16741,7 @@
                 return drumMachineKickBypassGainNode;
             }
             const gain = audioContext.createGain();
-            gain.gain.value = getDrumMachineOutputGain() * getFinalSidechainKickLevelValue();
+            gain.gain.value = getDrumMachineOutputGain();
             gain.connect(finalKickBypassMasterGain);
             gain.connectedTo = finalKickBypassMasterGain;
             drumMachineKickBypassGainNode = gain;
@@ -16748,10 +16756,9 @@
             if (!mainBus || !audioContext) return;
             const now = audioContext.currentTime;
             const targetGain = getDrumMachineOutputGain();
-            const kickBypassGain = targetGain * getFinalSidechainKickLevelValue();
             [
                 { bus: mainBus, gain: targetGain },
-                { bus: kickBypassBus, gain: kickBypassGain }
+                { bus: kickBypassBus, gain: targetGain }
             ].forEach(({ bus, gain }) => {
                 if (!bus) return;
                 bus.gain.cancelScheduledValues(now);
@@ -17798,6 +17805,7 @@
                 if (randomizePattern) {
                     forceDrumMachineRandomLevel();
                     forceFinalSidechainKickRandomLevel();
+                    setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
                     randomizeDrumMachinePatterns();
                 }
                 syncDrumMachineUi();
@@ -22219,7 +22227,7 @@
                     updateFinalOutputPanning();
                 }
                 if (e.target.id === 'finalSidechainKickLevel') {
-                    getFinalSidechainKickLevelValue();
+                    setDrumMachineKickLevelPercent(e.target.value, { skipSave: true });
                     updateDrumMachineMix();
                 }
                 if (ACTIVE_GRAIN_REALTIME_CONTROL_IDS.has(e.target.id) && audioContext && activeGrains.size > 0) {
@@ -25500,18 +25508,13 @@
         }
 
         function forceFinalSidechainKickRandomLevel() {
-            const slider = document.getElementById('finalSidechainKickLevel');
-            if (slider) {
-                setSliderValue('finalSidechainKickLevel', 100);
-            } else {
-                getFinalSidechainKickLevelValue();
-                updateDrumMachineMix();
-            }
+            setDrumMachineKickLevelPercent(100, { skipSave: true });
         }
 
         function applyRandomMixBalanceDefaults() {
             forceDrumMachineRandomLevel();
             forceFinalSidechainKickRandomLevel();
+            setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
             capBastardLoopLevelsForRandom();
             syncPerformanceControlState();
         }
@@ -25578,12 +25581,13 @@
 
         function randomizeMegaDrumMachineSettings() {
             setDrumMachineEnabled(true, { silent: true, skipSave: true });
+            setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
             setSliderValue('performanceDrumMachineLevel', RANDOM_DRUM_MACHINE_LEVEL_PERCENT);
-            setSliderValue('finalSidechainKickLevel', 100);
+            forceFinalSidechainKickRandomLevel();
             setDrumMachineKickPitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
             setDrumMachineSnarePitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
             setDrumMachineHatTuneSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
-            setSliderValue('drumMachineKickLevel', randomIntegerInRange(28, 100));
+            setDrumMachineKickLevelPercent(100, { skipSave: true });
             setSliderValue('drumMachineSnareLevel', randomIntegerInRange(28, 100));
             setSliderValue('drumMachineHatLevel', randomIntegerInRange(20, 100));
             setSliderValue('drumMachineSnareDistortion', randomIntegerInRange(0, 72));
@@ -25622,7 +25626,7 @@
         function applyRandomizeFinalCompressorDefaults() {
             setSliderValue('finalCompressorAmount', 0);
             setSliderValue('finalSidechainAmount', 0);
-            setSliderValue('finalSidechainKickLevel', 100);
+            forceFinalSidechainKickRandomLevel();
             setFinalCompressorSidechainSource('off', { silent: true, skipSave: true });
         }
 
@@ -27412,9 +27416,7 @@
                     if (state.modes.drumMachineEnabled !== undefined) {
                         setDrumMachineEnabled(state.modes.drumMachineEnabled, { silent: true, skipSave: true });
                     }
-                    if (state.modes.drumMachineDirectOutput !== undefined) {
-                        setDrumMachineDirectOutput(state.modes.drumMachineDirectOutput, { silent: true, skipSave: true });
-                    }
+                    setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
                     if (state.modes.drumMachineKickPattern !== undefined) {
                         setDrumMachinePattern('kick', state.modes.drumMachineKickPattern, { skipSave: true });
                     }
@@ -30491,6 +30493,24 @@
             overlay.setAttribute('aria-hidden', 'true');
         }
 
+        async function ensurePatchZipAudioReady() {
+            if (!audioContext || audioContext.state === 'closed' || !isAudioGraphReady()) {
+                setStatus('Starting MYGRAIN to open patch ZIP…');
+                await rebuildAudioEngineGraph({ silent: true });
+            } else if (audioContext.state !== 'running') {
+                await audioContext.resume();
+            }
+            if (!audioContext || audioContext.state !== 'running') {
+                throw new Error('Audio engine could not start for patch ZIP restore.');
+            }
+            if (startOverlay) {
+                startOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    startOverlay.style.display = 'none';
+                }, 300);
+            }
+        }
+
         async function restorePatchAudioEntry(asset, bytes) {
             if (!asset || !bytes) return false;
             if (!audioContext) {
@@ -30545,6 +30565,9 @@
             const manifest = manifestText ? JSON.parse(manifestText) : {};
             const preset = JSON.parse(presetText);
             const assets = Array.isArray(manifest.assets) ? manifest.assets : [];
+            if (assets.length) {
+                await ensurePatchZipAudioReady();
+            }
             let restoredAssets = 0;
             for (const asset of assets) {
                 const bytes = entries.get(asset.path);
@@ -33075,9 +33098,7 @@
         });
 
         drumMachineKickLevel?.addEventListener('input', (event) => {
-            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
-            drumMachineKickTrackLevel = value / 100;
-            document.getElementById('drumMachineKickLevelValue').textContent = `${Math.round(value)}%`;
+            setDrumMachineKickLevelPercent(event.target.value, { skipSave: true });
             saveState();
         });
 
