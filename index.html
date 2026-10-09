@@ -3685,6 +3685,8 @@
         .simplified-ui #performanceDryFilterBtn.dry-filtered,
         .simplified-ui #performanceNoiseOffBtn.noise-active,
         .simplified-ui #performanceRecordBtn.recording,
+        .simplified-ui #performanceKeyboardRecordBtn.armed,
+        .simplified-ui #performanceKeyboardRecordBtn.recording,
         .simplified-ui #recordBtn.recording {
             background: linear-gradient(135deg, #ff0844 0%, #ff6b6b 100%);
             color: #fff;
@@ -5426,6 +5428,7 @@
                     <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
                     <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                     <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
+                    <button class="performance-btn" id="performanceKeyboardRecordBtn" type="button">Key Record</button>
                     <label class="performance-patch-name-group" for="performancePatchZipName">
                         <span class="performance-patch-name-label">Patch ZIP Name</span>
                         <input class="performance-patch-name-input" id="performancePatchZipName" type="text" placeholder="Leave blank for timestamped name" maxlength="120" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -21831,6 +21834,9 @@
 
                 isKeyPressed = false;
                 activeKeyCount = Math.max(0, activeKeyCount - 1);
+                if (activeKeyCount === 0) {
+                    scheduleKeyboardRepositoryRecordingStop();
+                }
 
                 if (holdEnabled && !heldNotes.has(note)) {
                     heldNotes.add(note);
@@ -21872,6 +21878,13 @@
 
                     const note = key.dataset.note;
 
+                    try {
+                        await notifyKeyboardRepositoryKeyPress();
+                    } catch (error) {
+                        console.error('Keyboard recording failed to start:', error);
+                        setStatus(`Keyboard recording failed: ${error.message}`, 'error');
+                        setKeyboardRepositoryRecordingState('idle');
+                    }
                     triggerArmedOutputRecording();
 
                     // If note is already held, release it
@@ -21880,6 +21893,9 @@
                         stopGrainStream(note);
                         stopOscillatorNote(note);
                         key.classList.remove('active');
+                        if (activeKeyCount === 0) {
+                            scheduleKeyboardRepositoryRecordingStop();
+                        }
                         if (arpEnabled) {
                             startArpeggiatorPlayback();
                         }
@@ -31467,6 +31483,9 @@
         let isOutputRecording = false;
         let isOutputRecordingArmed = false;
         let isOutputRecordingArmedStart = false; // Track if recording was started via armed mode
+        const KEYBOARD_RECORD_AUTO_STOP_MS = 2000;
+        let keyboardRepositoryRecordingState = 'idle';
+        let keyboardRepositoryStopTimerId = null;
 
         // Helper function to save WAV file with proper cross-platform support
         async function saveWavFile(wavArrayBuffer) {
@@ -31596,6 +31615,126 @@
             return arrayBuffer;
         }
 
+        function getKeyboardRepositoryRecordingButton() {
+            return document.getElementById('performanceKeyboardRecordBtn');
+        }
+
+        function clearKeyboardRepositoryStopTimer() {
+            if (keyboardRepositoryStopTimerId) {
+                clearTimeout(keyboardRepositoryStopTimerId);
+                keyboardRepositoryStopTimerId = null;
+            }
+        }
+
+        function buildKeyboardRepositoryRecordingDefaultName() {
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            return `keyboard_${formatTakeTimestamp()}.${bpm}`;
+        }
+
+        function syncKeyboardRepositoryRecordingButton() {
+            const button = getKeyboardRepositoryRecordingButton();
+            if (!button) return;
+            const isArmed = keyboardRepositoryRecordingState === 'armed';
+            const isRecordingNow = keyboardRepositoryRecordingState === 'recording';
+            const isProcessing = keyboardRepositoryRecordingState === 'processing';
+            button.classList.toggle('armed', isArmed);
+            button.classList.toggle('recording', isRecordingNow);
+            button.disabled = isProcessing || (isOutputRecording && outputRecordingTarget !== 'keyboard-repo');
+            button.setAttribute('aria-pressed', String(isArmed || isRecordingNow));
+            button.setAttribute('aria-busy', String(isProcessing));
+            button.textContent = isArmed
+                ? 'Armed'
+                : isRecordingNow
+                    ? 'Recording...'
+                    : isProcessing
+                        ? 'Processing...'
+                        : 'Key Record';
+        }
+
+        function setKeyboardRepositoryRecordingState(state) {
+            keyboardRepositoryRecordingState = state;
+            syncKeyboardRepositoryRecordingButton();
+            syncPerformanceControlState();
+        }
+
+        function disarmOutputRecordingArm() {
+            isOutputRecordingArmed = false;
+            const armBtn = document.getElementById('armOutputRecBtn');
+            if (armBtn) {
+                armBtn.classList.remove('armed');
+                armBtn.textContent = 'Arm';
+            }
+        }
+
+        function cancelKeyboardRepositoryRecording(options = {}) {
+            clearKeyboardRepositoryStopTimer();
+            if (keyboardRepositoryRecordingState === 'armed') {
+                setKeyboardRepositoryRecordingState('idle');
+                if (!options.silent) {
+                    setStatus('Keyboard recording disarmed.');
+                }
+            }
+        }
+
+        async function saveKeyboardRepositoryRecording(audioBuffer) {
+            const wav = audioBufferToWav24bit(audioBuffer);
+            const blob = new Blob([wav], { type: 'audio/wav' });
+            const defaultName = buildKeyboardRepositoryRecordingDefaultName();
+            const requestedName = prompt('Save keyboard recording to WAV repository as:', defaultName);
+            if (!requestedName) {
+                setStatus('Keyboard recording save cancelled.');
+                return false;
+            }
+            const filename = sanitizeWavRepositoryFilename(requestedName, defaultName);
+            setStatus(`Uploading keyboard recording ${filename} to the WAV repository...`);
+            const result = await uploadWavToRepository(blob, filename);
+            setStatus(`Uploaded keyboard recording: ${result.savedName || filename}.`);
+            refreshWavRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.warn('WAV repository refresh after keyboard record upload failed:', error);
+            });
+            return true;
+        }
+
+        async function startKeyboardRepositoryRecordingFromKey() {
+            if (keyboardRepositoryRecordingState !== 'armed') return;
+            if (isOutputRecording) {
+                setStatus('Stop the current output recording before keyboard recording.', 'error');
+                setKeyboardRepositoryRecordingState('idle');
+                return;
+            }
+            clearKeyboardRepositoryStopTimer();
+            disarmOutputRecordingArm();
+            setKeyboardRepositoryRecordingState('recording');
+            setStatus('Keyboard recording started.');
+            await startOutputRecording('keyboard-repo');
+            if (!isOutputRecording && keyboardRepositoryRecordingState === 'recording') {
+                setKeyboardRepositoryRecordingState('idle');
+            }
+        }
+
+        async function notifyKeyboardRepositoryKeyPress() {
+            if (keyboardRepositoryRecordingState === 'armed') {
+                await startKeyboardRepositoryRecordingFromKey();
+                return;
+            }
+            if (keyboardRepositoryRecordingState === 'recording') {
+                clearKeyboardRepositoryStopTimer();
+            }
+        }
+
+        function scheduleKeyboardRepositoryRecordingStop() {
+            if (keyboardRepositoryRecordingState !== 'recording') return;
+            clearKeyboardRepositoryStopTimer();
+            keyboardRepositoryStopTimerId = setTimeout(() => {
+                keyboardRepositoryStopTimerId = null;
+                if (keyboardRepositoryRecordingState !== 'recording') return;
+                setKeyboardRepositoryRecordingState('processing');
+                setStatus('Processing keyboard recording...');
+                stopOutputRecording();
+            }, KEYBOARD_RECORD_AUTO_STOP_MS);
+            setStatus('Keyboard recording will stop in 2 seconds.');
+        }
+
         function setOutputRecordingButtons(recording, target = outputRecordingTarget) {
             const startBtn = document.getElementById('startOutputRecBtn');
             const sourceBtns = [
@@ -31617,6 +31756,7 @@
             if (stopBtn) {
                 stopBtn.disabled = !recording;
             }
+            syncKeyboardRepositoryRecordingButton();
         }
 
         function startOutputRecording(target = 'file') {
@@ -31705,6 +31845,9 @@
                             if (outputRecordingTarget === 'source') {
                                 await applyLoadedAudioBuffer(audioBuffer, 'Output source recording', 'output');
                                 console.log('Output recording loaded into granular output source slot');
+                            } else if (outputRecordingTarget === 'keyboard-repo') {
+                                console.log('Uploading keyboard recording to repository...');
+                                await saveKeyboardRepositoryRecording(audioBuffer);
                             } else {
                                 console.log('Converting to WAV format...');
                                 const wav = audioBufferToWav24bit(audioBuffer);
@@ -31718,7 +31861,9 @@
 
                             document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
                                 ? 'Output source recorded'
-                                : 'Recording saved';
+                                : outputRecordingTarget === 'keyboard-repo'
+                                    ? 'Keyboard recording done'
+                                    : 'Recording saved';
                             setTimeout(() => {
                                 document.getElementById('outputRecText').textContent = 'Ready';
                             }, 3000);
@@ -31746,7 +31891,9 @@
                     document.getElementById('outputRecDot').classList.add('active');
                     document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
                         ? 'Recording output source...'
-                        : 'Recording...';
+                        : outputRecordingTarget === 'keyboard-repo'
+                            ? 'Recording keyboard...'
+                            : 'Recording...';
 
                 } catch (err) {
                     console.error('Failed to start recording:', err);
@@ -31809,6 +31956,11 @@
             outputRecordingMimeType = null;
             outputRecordingTarget = 'file';
             isOutputRecording = false;
+            if (keyboardRepositoryRecordingState !== 'armed') {
+                clearKeyboardRepositoryStopTimer();
+                keyboardRepositoryRecordingState = 'idle';
+                syncKeyboardRepositoryRecordingButton();
+            }
             console.log('Recording UI reset complete');
         }
 
@@ -31821,6 +31973,10 @@
 
             isOutputRecording = false;
             isOutputRecordingArmedStart = false; // Reset the armed start flag
+            if (outputRecordingTarget === 'keyboard-repo' && keyboardRepositoryRecordingState === 'recording') {
+                clearKeyboardRepositoryStopTimer();
+                setKeyboardRepositoryRecordingState('processing');
+            }
 
             // Update UI
             document.getElementById('stopOutputRecBtn').disabled = true;
@@ -31853,6 +32009,7 @@
                 document.getElementById('outputRecText').textContent = 'Ready';
             } else {
                 // Arm - wait for keyboard press
+                cancelKeyboardRepositoryRecording({ silent: true });
                 isOutputRecordingArmed = true;
                 armBtn.classList.add('armed');
                 armBtn.textContent = 'Armed...';
@@ -31910,6 +32067,7 @@
         const performanceMegaRandomBtn = document.getElementById('performanceMegaRandomBtn');
         const performanceResetPatchBtn = document.getElementById('performanceResetPatchBtn');
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
+        const performanceKeyboardRecordBtn = document.getElementById('performanceKeyboardRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
         const performanceSourceMix = document.getElementById('performanceSourceMix');
         const performanceOscVolume = document.getElementById('performanceOscVolume');
@@ -32551,11 +32709,17 @@
             if (performanceRecordBtn) {
                 const recText = document.getElementById('outputRecText')?.textContent || '';
                 const isProcessing = recText === 'Processing...';
-                const isRecordingNow = document.getElementById('startOutputRecBtn')?.classList.contains('recording');
-                performanceRecordBtn.disabled = isProcessing;
+                const isRecordingNow = isOutputRecording && outputRecordingTarget === 'file';
+                const isOtherOutputRecording = isOutputRecording && outputRecordingTarget !== 'file';
+                performanceRecordBtn.disabled = isProcessing || isOtherOutputRecording;
                 performanceRecordBtn.classList.toggle('recording', isRecordingNow);
-                performanceRecordBtn.textContent = isProcessing ? 'Processing...' : (isRecordingNow ? 'Stop Recording' : 'Record Output');
+                performanceRecordBtn.textContent = isProcessing
+                    ? 'Processing...'
+                    : isOtherOutputRecording
+                        ? 'Output Busy'
+                        : (isRecordingNow ? 'Stop Recording' : 'Record Output');
             }
+            syncKeyboardRepositoryRecordingButton();
 
             syncPerformanceTakeButtons();
 
@@ -33966,6 +34130,31 @@
             closePerformanceTakeBrowser();
         });
 
+        performanceKeyboardRecordBtn?.addEventListener('click', () => {
+            if (keyboardRepositoryRecordingState === 'processing') return;
+            if (keyboardRepositoryRecordingState === 'recording') {
+                setKeyboardRepositoryRecordingState('processing');
+                setStatus('Processing keyboard recording...');
+                stopOutputRecording();
+                return;
+            }
+            if (keyboardRepositoryRecordingState === 'armed') {
+                cancelKeyboardRepositoryRecording();
+                return;
+            }
+            if (!audioContext || !finalAmplifierNode) {
+                setStatus('Start MYGRAIN before keyboard recording.', 'error');
+                return;
+            }
+            if (isOutputRecording) {
+                setStatus('Stop the current output recording before keyboard recording.', 'error');
+                return;
+            }
+            disarmOutputRecordingArm();
+            setKeyboardRepositoryRecordingState('armed');
+            setStatus('Keyboard recording armed. Press the keyboard to start.');
+        });
+
         performanceExportPatchBtn?.addEventListener('click', () => {
             document.getElementById('savePresetBtn')?.click();
         });
@@ -34052,7 +34241,7 @@
             syncPerformanceControlState();
         });
 
-        ['holdBtn', 'seqPlayBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText'].forEach(id => {
+        ['holdBtn', 'seqPlayBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText', 'performanceKeyboardRecordBtn'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             new MutationObserver(syncPerformanceControlState).observe(el, {
