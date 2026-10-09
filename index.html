@@ -31484,8 +31484,14 @@
         let isOutputRecordingArmed = false;
         let isOutputRecordingArmedStart = false; // Track if recording was started via armed mode
         const KEYBOARD_RECORD_AUTO_STOP_MS = 2000;
+        const KEYBOARD_RECORD_METRONOME_LOOKAHEAD_SECONDS = 0.12;
+        const KEYBOARD_RECORD_METRONOME_TIMER_MS = 25;
         let keyboardRepositoryRecordingState = 'idle';
         let keyboardRepositoryStopTimerId = null;
+        let keyboardRepositoryMetronomeTimerId = null;
+        let keyboardRepositoryMetronomeNextTime = 0;
+        let keyboardRepositoryMetronomeBeatIndex = 0;
+        const keyboardRepositoryMetronomeNodes = new Set();
 
         // Helper function to save WAV file with proper cross-platform support
         async function saveWavFile(wavArrayBuffer) {
@@ -31626,6 +31632,87 @@
             }
         }
 
+        function getKeyboardRepositoryMetronomeIntervalSeconds() {
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            return 60 / bpm;
+        }
+
+        function playKeyboardRepositoryMetronomeClick(time, accent = false) {
+            if (!audioContext || audioContext.state !== 'running') return;
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const stopAt = time + 0.055;
+            const nodeRecord = { oscillator, gain };
+            keyboardRepositoryMetronomeNodes.add(nodeRecord);
+
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(accent ? 1760 : 1174.66, time);
+            gain.gain.setValueAtTime(0.0001, time);
+            gain.gain.exponentialRampToValueAtTime(accent ? 0.13 : 0.075, time + 0.004);
+            gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.addEventListener('ended', () => {
+                try {
+                    oscillator.disconnect();
+                    gain.disconnect();
+                } catch (error) {
+                    console.debug('Keyboard metronome node cleanup skipped:', error);
+                }
+                keyboardRepositoryMetronomeNodes.delete(nodeRecord);
+            }, { once: true });
+            oscillator.start(time);
+            oscillator.stop(stopAt + 0.01);
+        }
+
+        function scheduleKeyboardRepositoryMetronome() {
+            if (keyboardRepositoryRecordingState !== 'recording' || !audioContext || audioContext.state !== 'running') {
+                return;
+            }
+            const now = audioContext.currentTime;
+            const lookaheadUntil = now + KEYBOARD_RECORD_METRONOME_LOOKAHEAD_SECONDS;
+            while (keyboardRepositoryMetronomeNextTime < lookaheadUntil) {
+                playKeyboardRepositoryMetronomeClick(
+                    keyboardRepositoryMetronomeNextTime,
+                    keyboardRepositoryMetronomeBeatIndex % 4 === 0
+                );
+                keyboardRepositoryMetronomeBeatIndex += 1;
+                keyboardRepositoryMetronomeNextTime += getKeyboardRepositoryMetronomeIntervalSeconds();
+            }
+            keyboardRepositoryMetronomeTimerId = setTimeout(
+                scheduleKeyboardRepositoryMetronome,
+                KEYBOARD_RECORD_METRONOME_TIMER_MS
+            );
+        }
+
+        function stopKeyboardRepositoryMetronome() {
+            if (keyboardRepositoryMetronomeTimerId) {
+                clearTimeout(keyboardRepositoryMetronomeTimerId);
+                keyboardRepositoryMetronomeTimerId = null;
+            }
+            keyboardRepositoryMetronomeNextTime = 0;
+            keyboardRepositoryMetronomeBeatIndex = 0;
+            keyboardRepositoryMetronomeNodes.forEach(({ oscillator, gain }) => {
+                try {
+                    const now = gain.context?.currentTime || audioContext?.currentTime || 0;
+                    gain.gain.cancelScheduledValues(now);
+                    gain.gain.setTargetAtTime(0.0001, now, 0.01);
+                    oscillator.stop(now + 0.025);
+                } catch (error) {
+                    console.debug('Keyboard metronome stop skipped:', error);
+                }
+            });
+        }
+
+        function startKeyboardRepositoryMetronome() {
+            stopKeyboardRepositoryMetronome();
+            if (!audioContext || audioContext.state !== 'running') return;
+            keyboardRepositoryMetronomeBeatIndex = 0;
+            keyboardRepositoryMetronomeNextTime = audioContext.currentTime + 0.01;
+            scheduleKeyboardRepositoryMetronome();
+        }
+
         function buildKeyboardRepositoryRecordingDefaultName() {
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             return `keyboard_${formatTakeTimestamp()}.${bpm}`;
@@ -31672,6 +31759,7 @@
 
         function cancelKeyboardRepositoryRecording(options = {}) {
             clearKeyboardRepositoryStopTimer();
+            stopKeyboardRepositoryMetronome();
             if (keyboardRepositoryRecordingState === 'armed') {
                 setKeyboardRepositoryRecordingState('idle');
                 if (!options.silent) {
@@ -31711,9 +31799,14 @@
             setKeyboardRepositoryRecordingState('recording');
             setStatus('Keyboard recording started.');
             await startOutputRecording('keyboard-repo');
-            if (!isOutputRecording && keyboardRepositoryRecordingState === 'recording') {
-                setKeyboardRepositoryRecordingState('idle');
+            if (!isOutputRecording || keyboardRepositoryRecordingState !== 'recording') {
+                if (keyboardRepositoryRecordingState === 'recording') {
+                    setKeyboardRepositoryRecordingState('idle');
+                }
+                stopKeyboardRepositoryMetronome();
+                return;
             }
+            startKeyboardRepositoryMetronome();
         }
 
         async function notifyKeyboardRepositoryKeyPress() {
@@ -31929,6 +32022,9 @@
             setOutputRecordingButtons(false);
             document.getElementById('outputRecStatus').classList.remove('active');
             document.getElementById('outputRecDot').classList.remove('active');
+            if (outputRecordingTarget === 'keyboard-repo' || keyboardRepositoryRecordingState !== 'armed') {
+                stopKeyboardRepositoryMetronome();
+            }
 
             // Clean up MediaRecorder
             if (outputMediaRecorder) {
@@ -31962,6 +32058,7 @@
             isOutputRecording = false;
             if (keyboardRepositoryRecordingState !== 'armed') {
                 clearKeyboardRepositoryStopTimer();
+                stopKeyboardRepositoryMetronome();
                 keyboardRepositoryRecordingState = 'idle';
                 syncKeyboardRepositoryRecordingButton();
             }
@@ -31979,6 +32076,7 @@
             isOutputRecordingArmedStart = false; // Reset the armed start flag
             if (outputRecordingTarget === 'keyboard-repo' && keyboardRepositoryRecordingState === 'recording') {
                 clearKeyboardRepositoryStopTimer();
+                stopKeyboardRepositoryMetronome();
                 setKeyboardRepositoryRecordingState('processing');
             }
 
