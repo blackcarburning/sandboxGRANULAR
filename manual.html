@@ -6,72 +6,69 @@
     <title>MYGRAIN Manual</title>
     <style>
         :root {
-            --bg: #0b0f19;
-            --panel: #151c2a;
-            --text: #edf6ff;
-            --muted: #a9b9c9;
-            --accent: #00d4ff;
-            --line: rgba(255, 255, 255, 0.12);
+            --bg: #080d14;
+            --panel: #111927;
+            --text: #edf7ff;
+            --muted: #aebfd0;
+            --accent: #6ee7ff;
+            --accent-2: #ffd166;
+            --line: rgba(255, 255, 255, 0.13);
+            --green: #8df6b1;
+            --pink: #ff8fcb;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
 
         body {
             margin: 0;
-            font-family: "Segoe UI", system-ui, sans-serif;
-            line-height: 1.58;
-            background: var(--bg);
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.55;
+            background:
+                radial-gradient(circle at 10% 0%, rgba(110, 231, 255, 0.16), transparent 32rem),
+                linear-gradient(180deg, #080d14 0%, #0d1320 48%, #080d14 100%);
             color: var(--text);
         }
 
         main {
-            width: min(960px, 100%);
+            width: min(1120px, 100%);
             margin: 0 auto;
-            padding: 22px 16px 56px;
+            padding: 24px 16px 64px;
         }
 
         header {
-            padding: 22px 0 18px;
+            display: grid;
+            gap: 16px;
+            padding: 24px 0 20px;
             border-bottom: 1px solid var(--line);
         }
 
-        h1,
-        h2,
-        h3 {
-            line-height: 1.15;
-        }
+        h1, h2, h3 { line-height: 1.12; }
 
         h1 {
-            margin: 0 0 8px;
+            margin: 0;
             color: var(--accent);
-            font-size: clamp(2rem, 8vw, 4rem);
+            font-size: clamp(2.1rem, 9vw, 4.6rem);
             letter-spacing: 0;
         }
 
         h2 {
-            margin: 34px 0 12px;
-            padding-top: 8px;
+            margin: 36px 0 14px;
+            padding-top: 12px;
             border-top: 1px solid var(--line);
             color: #ffffff;
-            font-size: 1.45rem;
+            font-size: clamp(1.35rem, 3vw, 1.9rem);
         }
 
         h3 {
             margin: 22px 0 8px;
-            color: #dff8ff;
+            color: #e8fbff;
             font-size: 1.08rem;
         }
 
-        p,
-        li {
-            color: var(--muted);
-        }
-
-        a {
-            color: var(--accent);
-        }
+        p, li, td { color: var(--muted); }
+        a { color: var(--accent); }
+        strong { color: #ffffff; }
 
         code {
             padding: 1px 5px;
@@ -80,28 +77,134 @@
             color: #ffffff;
         }
 
-        .summary {
-            display: grid;
+        .topbar {
+            display: flex;
             gap: 10px;
-            margin: 18px 0;
-            padding: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(110, 231, 255, 0.34);
+            background: rgba(110, 231, 255, 0.1);
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        .lede {
+            max-width: 78ch;
+            margin: 0;
+            color: #d8e9f8;
+            font-size: 1.04rem;
+        }
+
+        .summary-grid,
+        .diagram-grid,
+        .card-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .summary-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            margin: 18px 0 4px;
+        }
+
+        .summary-card,
+        .diagram-card,
+        .note,
+        .control-card {
             border: 1px solid var(--line);
             border-radius: 8px;
-            background: var(--panel);
+            background: rgba(17, 25, 39, 0.92);
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+        }
+
+        .summary-card,
+        .control-card {
+            padding: 14px;
+        }
+
+        .summary-card b,
+        .control-card b {
+            display: block;
+            margin-bottom: 6px;
+            color: #ffffff;
+        }
+
+        .summary-card span,
+        .control-card span {
+            color: var(--muted);
+            font-size: 0.92rem;
         }
 
         .toc {
-            display: grid;
-            gap: 6px;
-            padding-left: 18px;
+            columns: 2;
+            gap: 28px;
+            margin: 16px 0 8px;
+            padding-left: 22px;
         }
 
-        .note {
-            margin: 16px 0;
-            padding: 12px 14px;
-            border-left: 4px solid var(--accent);
-            background: rgba(0, 212, 255, 0.08);
-            color: var(--text);
+        .toc li {
+            break-inside: avoid;
+            margin: 4px 0;
+        }
+
+        .diagram-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin: 18px 0;
+        }
+
+        .diagram-card {
+            padding: 14px;
+            overflow: hidden;
+        }
+
+        .diagram-card h3 { margin-top: 0; }
+
+        svg.diagram {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 8px;
+            border-radius: 8px;
+            background: #09111c;
+        }
+
+        .node {
+            fill: #172234;
+            stroke: rgba(110, 231, 255, 0.58);
+            stroke-width: 1.5;
+        }
+
+        .node.alt { stroke: rgba(255, 209, 102, 0.68); }
+        .node.green { stroke: rgba(141, 246, 177, 0.74); }
+        .node.pink { stroke: rgba(255, 143, 203, 0.68); }
+
+        .arrow {
+            stroke: rgba(237, 247, 255, 0.72);
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrow);
+        }
+
+        .label {
+            fill: #edf7ff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .small-label {
+            fill: #aebfd0;
+            font-size: 10px;
         }
 
         table {
@@ -113,7 +216,7 @@
 
         th,
         td {
-            padding: 9px 8px;
+            padding: 10px 8px;
             border-bottom: 1px solid var(--line);
             text-align: left;
             vertical-align: top;
@@ -121,166 +224,274 @@
 
         th {
             color: #ffffff;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .note {
+            margin: 16px 0;
+            padding: 13px 15px;
+            border-left: 4px solid var(--accent);
+            color: #dcecff;
+        }
+
+        .control-card {
+            display: grid;
+            gap: 4px;
+        }
+
+        .card-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin: 14px 0;
+        }
+
+        @media (max-width: 860px) {
+            .summary-grid,
+            .diagram-grid,
+            .card-grid { grid-template-columns: 1fr; }
+            .toc { columns: 1; }
         }
 
         @media (max-width: 640px) {
-            table,
-            tbody,
-            tr,
-            th,
-            td {
-                display: block;
-            }
-
-            th {
-                padding-top: 14px;
-                border-bottom: 0;
-            }
-
-            td {
-                padding-top: 2px;
-            }
+            main { padding: 18px 12px 48px; }
+            table, tbody, tr, th, td { display: block; }
+            th { padding-top: 14px; border-bottom: 0; }
+            td { padding-top: 2px; }
         }
     </style>
 </head>
 <body>
     <main>
         <header>
-            <h1>MYGRAIN Manual</h1>
-            <p>MYGRAIN is a keyboard-first granular instrument for generated loops, recorded or loaded samples, BPM-locked modulation, filters, and quick mobile performance.</p>
+            <div class="topbar">
+                <a class="pill" href="index.html">Open MYGRAIN</a>
+                <a class="pill" href="#quick-start">Quick Start</a>
+                <a class="pill" href="#troubleshooting">Troubleshooting</a>
+            </div>
+            <div>
+                <h1>MYGRAIN Manual</h1>
+                <p class="lede">MYGRAIN is a keyboard-first granular instrument built around one shared BPM clock, multiple sample-backed layers, live waveform editors, Bastardloops, drums, internal effects, and fast iPhone performance controls.</p>
+            </div>
         </header>
 
-        <section class="summary" aria-label="Quick start">
-            <h2 id="quick-start">Quick Start</h2>
-            <ol>
-                <li>Tap <strong>START MYGRAIN</strong> to unlock the browser audio engine.</li>
-                <li>Tap <strong>Generate Loop</strong> for a full patch and sequencer pattern, or <strong>Generate Sample</strong> for a new generated sample while keeping the current pattern.</li>
-                <li>Play the on-screen keyboard. Use <strong>Hold</strong> for drones and <strong>Panic</strong> if anything keeps sounding.</li>
-                <li>Shape the sound with <strong>Sample Vol</strong>, <strong>Sample Solo</strong>, filters, LFO routing, and the LFO rate radio buttons.</li>
-                <li>Use <strong>Export WAV</strong> for audio, <strong>Export JSON</strong> for patch settings, and <strong>Import JSON</strong> to load a saved patch.</li>
-            </ol>
+        <section class="summary-grid" aria-label="Manual overview">
+            <div class="summary-card"><b>Start Here</b><span>Tap Start, set BPM, generate or load a source, then play the keyboard.</span></div>
+            <div class="summary-card"><b>Main Sound</b><span>Granular layers read from generated, mic, sample, and output-captured waveforms.</span></div>
+            <div class="summary-card"><b>Loop Layers</b><span>Bastardloops A/B/C/V/P/O, sample layer, and drums can run beside the keyboard.</span></div>
+            <div class="summary-card"><b>Safety</b><span>Use Panic, Reset Engine, Debug Console, and the manual links when testing builds.</span></div>
         </section>
+
+        <h2 id="quick-start">Quick Start</h2>
+        <ol>
+            <li>Tap <strong>START MYGRAIN</strong> to unlock browser audio.</li>
+            <li>Set <strong>BPM</strong>. This is the shared clock for loops, grains, sequencer timing, and internal LFOs.</li>
+            <li>Create sound with <strong>Generate Source</strong>, <strong>Record Mic</strong>, <strong>Load Audio</strong>, grain sample browsers, Bastardloops, or the drum machine.</li>
+            <li>Play the on-screen keyboard. Use <strong>Hold</strong> for drones and <strong>Arp</strong> for stepped held-note playback.</li>
+            <li>Use the right-edge <strong>Jump</strong> handle on iPhone to move between sections without scrolling through the whole app.</li>
+            <li>Use <strong>Panic</strong> if anything sticks, then use the <strong>Debug Console</strong> if you need to send a report.</li>
+        </ol>
 
         <h2 id="contents">Contents</h2>
         <ol class="toc">
-            <li><a href="#layout">Main Layout</a></li>
-            <li><a href="#sources">Sources and Samples</a></li>
-            <li><a href="#playing">Playing and Looping</a></li>
-            <li><a href="#sound">Sound Controls</a></li>
-            <li><a href="#filters">Filters and LFO Routing</a></li>
-            <li><a href="#lfo-rates">LFO Rate Controls</a></li>
-            <li><a href="#record-export">Recording, WAV Export, and JSON Export</a></li>
-            <li><a href="#saving">Preset and Sample Saving</a></li>
-            <li><a href="#iphone">iPhone Notes</a></li>
-            <li><a href="#troubleshooting">Troubleshooting</a></li>
+            <li><a href="#mental-model">Mental Model</a></li>
+            <li><a href="#layout">App Layout</a></li>
+            <li><a href="#sources">Sources and Waveforms</a></li>
+            <li><a href="#granular">Granular Layers</a></li>
+            <li><a href="#bastardloops">Bastardloops</a></li>
+            <li><a href="#drums">Drum Machine</a></li>
+            <li><a href="#keyboard">Keyboard, Hold, and Arp</a></li>
+            <li><a href="#mix">Mixer and Layer Switches</a></li>
+            <li><a href="#filters">Filters and Modulation</a></li>
+            <li><a href="#effects">Internal Effects</a></li>
+            <li><a href="#recording">Recording and Export</a></li>
+            <li><a href="#random">Randomize and Reset</a></li>
+            <li><a href="#iphone">iPhone Navigation</a></li>
+            <li><a href="#debug">Debug Console</a></li>
         </ol>
 
-        <h2 id="layout">Main Layout</h2>
-        <p>The app is arranged around immediate performance. The keyboard stays prominent, while the performance panel gives fast access to generation, source balance, filters, LFOs, export, and safety controls.</p>
+        <h2 id="mental-model">Mental Model</h2>
+        <p>Think of MYGRAIN as one performance mixer. Different layers create or load audio, the keyboard and transports decide when to play it, and the filter/effects/output chain shapes the final sound.</p>
 
+        <div class="diagram-grid">
+            <article class="diagram-card">
+                <h3>Signal Flow</h3>
+                <p>Most sound eventually reaches the pre-filter bus, then the filter/effects/output path.</p>
+                <svg class="diagram" viewBox="0 0 520 260" role="img" aria-label="MYGRAIN signal flow diagram">
+                    <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(237,247,255,0.78)"></path></marker></defs>
+                    <rect class="node green" x="18" y="24" width="126" height="42" rx="8"></rect>
+                    <text class="label" x="32" y="49">Sources</text>
+                    <text class="small-label" x="32" y="62">generated / mic / load</text>
+                    <rect class="node" x="190" y="24" width="126" height="42" rx="8"></rect>
+                    <text class="label" x="206" y="49">Granular</text>
+                    <text class="small-label" x="206" y="62">main / A / B</text>
+                    <rect class="node alt" x="18" y="108" width="126" height="42" rx="8"></rect>
+                    <text class="label" x="32" y="133">Bastardloops</text>
+                    <text class="small-label" x="32" y="146">A B C V P O</text>
+                    <rect class="node pink" x="190" y="108" width="126" height="42" rx="8"></rect>
+                    <text class="label" x="206" y="133">Drums</text>
+                    <text class="small-label" x="206" y="146">kick snare hats</text>
+                    <rect class="node" x="360" y="64" width="126" height="42" rx="8"></rect>
+                    <text class="label" x="378" y="89">Filters</text>
+                    <text class="small-label" x="378" y="102">LP / HP / gain</text>
+                    <rect class="node" x="360" y="158" width="126" height="42" rx="8"></rect>
+                    <text class="label" x="378" y="183">FX + Output</text>
+                    <text class="small-label" x="378" y="196">record / export</text>
+                    <path class="arrow" d="M144 45 H190"></path>
+                    <path class="arrow" d="M316 45 C345 45 344 84 360 84"></path>
+                    <path class="arrow" d="M144 129 H190"></path>
+                    <path class="arrow" d="M316 129 C346 129 344 91 360 91"></path>
+                    <path class="arrow" d="M423 106 V158"></path>
+                </svg>
+            </article>
+
+            <article class="diagram-card">
+                <h3>Performance Map</h3>
+                <p>The visible mobile layout is ordered for performance first, detail controls second.</p>
+                <svg class="diagram" viewBox="0 0 520 260" role="img" aria-label="MYGRAIN performance layout diagram">
+                    <rect class="node" x="18" y="22" width="484" height="38" rx="8"></rect>
+                    <text class="label" x="34" y="46">Top: BPM, build marker, manual, global state</text>
+                    <rect class="node green" x="18" y="80" width="144" height="48" rx="8"></rect>
+                    <text class="label" x="34" y="108">Bastardloops</text>
+                    <rect class="node alt" x="188" y="80" width="144" height="48" rx="8"></rect>
+                    <text class="label" x="214" y="108">Grain + Mix</text>
+                    <rect class="node pink" x="358" y="80" width="144" height="48" rx="8"></rect>
+                    <text class="label" x="394" y="108">Filters</text>
+                    <rect class="node" x="18" y="148" width="144" height="48" rx="8"></rect>
+                    <text class="label" x="38" y="176">Keyboard</text>
+                    <rect class="node" x="188" y="148" width="144" height="48" rx="8"></rect>
+                    <text class="label" x="220" y="176">Sources</text>
+                    <rect class="node" x="358" y="148" width="144" height="48" rx="8"></rect>
+                    <text class="label" x="400" y="176">FX</text>
+                    <rect class="node alt" x="104" y="216" width="312" height="28" rx="8"></rect>
+                    <text class="label" x="156" y="235">Bottom: manual + debug console</text>
+                </svg>
+            </article>
+        </div>
+
+        <h2 id="layout">App Layout</h2>
         <table>
-            <tr><th>Area</th><th>Purpose</th></tr>
-            <tr><td>Performance controls</td><td>Main sound and transport controls such as BPM, Generate Loop, Generate Sample, Play Loop, Sample Vol, Sample Solo, filter controls, LFO routing, and exports.</td></tr>
-            <tr><td>Source panel</td><td>Generated loop waveform, mic waveform, source loading, normalization, audition, and loop start/end ranges.</td></tr>
-            <tr><td>Keyboard</td><td>Touch-playable note surface. Notes trigger granular playback and oscillator voices through the current patch.</td></tr>
-            <tr><td>Tabs</td><td>Deeper grain, filter, noise, FX, LFO, stereo, utility, oscillator, and sequencer controls.</td></tr>
+            <tr><th>Area</th><th>Use it for</th></tr>
+            <tr><td>Top performance header</td><td>BPM, build marker, manual access, and the first status context.</td></tr>
+            <tr><td>Right-edge Jump drawer</td><td>Fast navigation between keys, loops, mixer, filters, sources, waveforms, FX, and Pan Lab on iPhone.</td></tr>
+            <tr><td>Bastardloop cards</td><td>Generate and tune A/B/C/V/P/O loop layers.</td></tr>
+            <tr><td>Mixer and Layer Switches</td><td>Set levels and turn layers on/off without opening deep tabs.</td></tr>
+            <tr><td>Source waveform editors</td><td>Choose source regions, tune source playback, audition, and select grain buffers.</td></tr>
+            <tr><td>Debug Console</td><td>Copy app state and recent errors when something needs diagnosing.</td></tr>
         </table>
 
-        <h2 id="sources">Sources and Samples</h2>
-        <h3>Generate Loop</h3>
-        <p><strong>Generate Loop</strong> creates a complete loop-ready patch: source audio, sequencer pattern, and related randomization. The generated source is designed to stay locked to the project BPM.</p>
+        <h2 id="sources">Sources and Waveforms</h2>
+        <p>Sources are audio buffers MYGRAIN can read from. They stay separate so a generated loop, mic recording, loaded sample, grain sample, and output capture do not overwrite each other unexpectedly.</p>
+        <div class="card-grid">
+            <div class="control-card"><b>Generated Loop</b><span>Created inside the app, BPM-aware, and usable for dry playback or granular playback.</span></div>
+            <div class="control-card"><b>Mic Recording</b><span>Captured from the browser microphone and normalized for centered granular playback.</span></div>
+            <div class="control-card"><b>Loaded Audio</b><span>Any audio file you load from the device, then trim with loop start/end.</span></div>
+            <div class="control-card"><b>Grain Samples</b><span>Main, A, and B sample slots selected from source browsers.</span></div>
+            <div class="control-card"><b>Output Source</b><span>A capture of MYGRAIN itself, useful for resampling back into the grain engine.</span></div>
+            <div class="control-card"><b>Waveform Tune</b><span>Source tune controls act on the source playback path, not just the picture.</span></div>
+        </div>
 
-        <h3>Generate Sample</h3>
-        <p><strong>Generate Sample</strong> creates another generated sample without replacing the current sequencer pattern. Its timing is constrained to quarter, half, and whole-beat positions, with more low-frequency noise and less high-pitched content.</p>
-
-        <h3>Low Noise Source</h3>
-        <p><strong>Low Noise Source</strong> biases generation toward lower-frequency, less bright material. This is useful when the generated source is too sharp or busy.</p>
-
-        <h3>Record Mic and Load Audio</h3>
-        <p><strong>Record Mic</strong> captures microphone input after permission is granted. <strong>Load Audio</strong> imports an audio file from the device. Loaded and recorded audio can be used as granular sources and trimmed with the waveform start/end controls.</p>
-
-        <h3>Loop Start and End</h3>
-        <p>The generated and mic waveform panels each have start/end sliders. These define the region used by direct looping and granular playback. The loop end point can be controlled by LFO 1 or LFO 2.</p>
-
-        <h2 id="playing">Playing and Looping</h2>
-        <p>Tap or drag on the keyboard to play notes. The granular engine reads from the active source loop, while oscillators can be blended in with the source controls.</p>
+        <h2 id="granular">Granular Layers</h2>
+        <p>The grain engine has three visible performance layers: <strong>Main</strong>, <strong>A</strong>, and <strong>B</strong>. Each layer has source choice, grain position, size, volume, tuning, width, smoothing, and envelope controls.</p>
         <ul>
-            <li><strong>Hold</strong> keeps notes sounding after you lift your finger.</li>
-            <li><strong>Play Loop</strong> starts or stops the sequencer loop.</li>
-            <li><strong>Osc On / Osc Off</strong> enables or disables oscillator contribution.</li>
-            <li><strong>Noise Off</strong> clears active generated noise sources when noise is present.</li>
-            <li><strong>Panic</strong> stops held notes and active voices.</li>
+            <li><strong>Quick Grain</strong> exposes the controls most likely to matter while playing.</li>
+            <li><strong>Grain</strong> jumps to the fuller grain controls.</li>
+            <li><strong>Main Wave</strong>, <strong>A Wave</strong>, and <strong>B Wave</strong> jump directly to waveform editors.</li>
+            <li>Smooth/cloud-style grain settings are better for pads and held notes; shorter rhythmic settings are better for choppy or percussive playback.</li>
         </ul>
 
-        <h2 id="sound">Sound Controls</h2>
+        <h2 id="bastardloops">Bastardloops</h2>
+        <p>Bastardloops are generated loop layers that share a transport. They are useful for quickly building a backing bed around the playable granular keyboard.</p>
         <table>
-            <tr><th>Control</th><th>What it does</th></tr>
-            <tr><td>Granular/Osc</td><td>Balances sample/granular playback against oscillator voices.</td></tr>
-            <tr><td>Gen Loop Mix</td><td>Balances generated source material against other available source material.</td></tr>
-            <tr><td>Sample Vol</td><td>Sets the level of the generated sample contribution.</td></tr>
-            <tr><td>Sample Solo</td><td>Mutes oscillator and non-sample paths so the generated sample is heard clearly. The generated dry loop is forced through the filter path while solo is on.</td></tr>
-            <tr><td>Gen Dry</td><td>Adds direct generated-loop playback alongside granular playback.</td></tr>
-            <tr><td>Dry Trim and Grain Trim</td><td>Level trims for direct generated playback and granular playback.</td></tr>
-            <tr><td>Loop Transpose</td><td>Transposes the generated loop without changing the global BPM.</td></tr>
-            <tr><td>Mod Amount and Grain Mod</td><td>Global depth controls for modulation, with Grain Mod focusing granular parameters.</td></tr>
+            <tr><th>Layer</th><th>Source family</th><th>Notes</th></tr>
+            <tr><td>A</td><td><code>SAMPLEDROP</code></td><td>First generated Bastardloop layer.</td></tr>
+            <tr><td>B</td><td><code>SAMPLEDROP_2</code></td><td>Second layer with reverse, pitch, level, and filter controls.</td></tr>
+            <tr><td>C</td><td><code>SPLICE_CLAW</code></td><td>Third layer with the same independent controls.</td></tr>
+            <tr><td>V</td><td><code>SAMPLES_VOCAL</code></td><td>Vocal layer with octave, semitone, and fine-tune controls.</td></tr>
+            <tr><td>P</td><td><code>SAMPLES_PIANO</code></td><td>Piano layer with octave, semitone, and fine-tune controls.</td></tr>
+            <tr><td>O</td><td><code>SAMPLES_ORCH</code></td><td>Orchestral layer with octave, semitone, and fine-tune controls.</td></tr>
+        </table>
+        <p><strong>Don't Preserve Duration</strong> switches a layer into sampler-style pitch mode. Off means pitch changes preserve bar length; on means pitch and speed move together.</p>
+
+        <h2 id="drums">Drum Machine</h2>
+        <p>The drum machine loads kick, snare, and hat sources, then places them on a 16-step grid. <strong>Random Drums</strong> loads samples and creates a pattern; <strong>Random Samples</strong> only changes the samples.</p>
+        <ul>
+            <li>Drum randomization forces the drum machine layer to 100%.</li>
+            <li>Bastardloop random levels are capped so drums remain audible.</li>
+            <li>Kick, snare, and hats have level, decay, length, and pitch/tune controls in the drum popup.</li>
+        </ul>
+
+        <h2 id="keyboard">Keyboard, Hold, and Arp</h2>
+        <p>The keyboard is the main instrument surface. Touching a key starts granular and oscillator playback through the current patch.</p>
+        <table>
+            <tr><th>Control</th><th>Meaning</th></tr>
+            <tr><td>Hold</td><td>Held notes keep sounding after release.</td></tr>
+            <tr><td>Arp</td><td>Steps through held notes using the shared BPM clock.</td></tr>
+            <tr><td>Octave</td><td>Moves the keyboard note range without changing generated-loop transpose.</td></tr>
+            <tr><td>Panic</td><td>Stops notes, stuck voices, and transport problems.</td></tr>
         </table>
 
-        <h2 id="filters">Filters and LFO Routing</h2>
-        <p>The low-pass and high-pass filters sit on the main sound path. Use cutoff and resonance controls to shape the tone, then route LFO 1 or LFO 2 to each target.</p>
+        <h2 id="mix">Mixer and Layer Switches</h2>
+        <p>The mixer controls how much each layer contributes. The Layer Switch panel lets you mute or re-enable layers quickly while performing.</p>
+        <div class="note">If something disappears after randomization, check Layer Switches first, then check the Mixer level for that layer.</div>
+
+        <h2 id="filters">Filters and Modulation</h2>
+        <p>Low-pass and high-pass filters shape the main path. LFO route buttons attach modulation to filter, grain, source, and effects targets. LFOs are BPM-aware so a tempo change keeps the musical ratio stable.</p>
         <ul>
-            <li><strong>LP Cutoff / LP Res</strong> shape the high-frequency rolloff and low-pass resonance.</li>
-            <li><strong>HP Cutoff / HP Res</strong> remove low frequencies and set high-pass resonance.</li>
-            <li><strong>LP Cutoff LFO, LP Res LFO, HP Cutoff LFO, HP Res LFO</strong> each provide L1 and L2 buttons for modulation routing.</li>
-            <li><strong>LFO 1 Filter Depth</strong> and <strong>LFO 2 Filter Depth</strong> set how strongly each LFO affects routed filter targets.</li>
-            <li><strong>LP Filter</strong> and <strong>HP Filter</strong> let you turn each filter on and choose 2-pole or 4-pole behavior.</li>
-            <li><strong>Filter In</strong> and <strong>Filter Out</strong> trim gain before and after the filter chain.</li>
+            <li><strong>LP/HP cutoff</strong> sets tonal range.</li>
+            <li><strong>LP/HP resonance</strong> emphasizes frequencies around the cutoff.</li>
+            <li><strong>L1/L2/L3 route buttons</strong> assign internal LFOs to parameters.</li>
+            <li><strong>INV</strong> flips modulation direction for the selected route.</li>
+            <li><strong>All LFOs Square</strong> forces square internal LFO movement until cleared.</li>
         </ul>
 
-        <h2 id="lfo-rates">LFO Rate Controls</h2>
-        <p>MYGRAIN uses BPM-locked LFO rates. The main page includes radio buttons for LFO 1 and LFO 2 with straight, dotted, and triplet values.</p>
+        <h2 id="effects">Internal Effects</h2>
+        <p>Internal Effects contains the final chain and the FX-muted path. Effects are bounded to avoid runaway feedback, but high wet/depth settings can still be dramatic.</p>
         <table>
-            <tr><th>Radio label</th><th>Meaning</th></tr>
-            <tr><td>1/4, 1/2, 1x, 2x, 4x</td><td>Straight divisions and multipliers relative to the shared BPM clock.</td></tr>
-            <tr><td>D</td><td>Dotted timing: one and a half times the straight value.</td></tr>
-            <tr><td>T</td><td>Triplet timing: two thirds of the straight value.</td></tr>
+            <tr><th>Effect family</th><th>Use</th></tr>
+            <tr><td>Delay/Reverb</td><td>Space, repeats, and ambience.</td></tr>
+            <tr><td>Drive/Crush/Fold</td><td>Harmonic damage and texture.</td></tr>
+            <tr><td>Ring/Pan/LFO placement</td><td>Motion, stereo animation, and placement shifts.</td></tr>
+            <tr><td>FX Mute</td><td>Hard-mutes the wet path without moving the slider positions.</td></tr>
         </table>
-        <p>The global BPM control preserves the selected LFO 1 and LFO 2 timing ratios when BPM changes.</p>
 
-        <h2 id="record-export">Recording, WAV Export, and JSON Export</h2>
-        <h3>Record Output</h3>
-        <p>Use <strong>Record Output</strong> to capture live performance. <strong>Arm</strong> waits for a keyboard press before starting, which is useful for cleaner takes.</p>
-
-        <h3>Export WAV</h3>
-        <p><strong>Export WAV</strong> renders DAW-ready audio for the selected bar count. When generated audio exists, MYGRAIN can also export a generated dry stem.</p>
-
-        <h3>Export JSON and Import JSON</h3>
-        <p><strong>Export JSON</strong> saves the patch settings as a preset file. It stores sliders, selects, LFO routing, filter states, performance modes, and metadata about whether samples were present.</p>
-        <p><strong>Import JSON</strong> loads one of those patch files through the same preset validation path as the Utility tab's Load Preset button.</p>
-        <p class="note">Audio samples are not embedded in patch JSON. JSON is good for patch settings; WAV or Save Audio is the right format for actual sound.</p>
-
-        <h2 id="saving">Preset and Sample Saving</h2>
-        <p><strong>Save Preset</strong> and <strong>Export JSON</strong> save settings only. If a patch used generated, recorded, or loaded audio, the JSON marks that a sample reload may be required.</p>
-        <p><strong>Save Audio</strong> exports the current sample as audio. <strong>Load Preset</strong> imports JSON settings. <strong>Load Audio</strong> imports audio separately.</p>
-
-        <h2 id="iphone">iPhone Notes</h2>
+        <h2 id="recording">Recording and Export</h2>
         <ul>
-            <li>Always tap <strong>START MYGRAIN</strong> before generating, recording, playing, or exporting audio.</li>
-            <li>If a slider feels hard to grab, use a deliberate horizontal drag from the thumb area.</li>
-            <li>Use the browser share sheet when saving JSON or WAV files.</li>
-            <li>If audio stops after switching apps or locking the phone, return to MYGRAIN and use Reset Engine if needed.</li>
-            <li>Large audio files are intentionally limited for mobile stability.</li>
+            <li><strong>Record Output</strong> captures the live mix.</li>
+            <li><strong>Rec Output Source</strong> records MYGRAIN back into the output source waveform so it can be granularized again.</li>
+            <li><strong>Export</strong> renders DAW-ready audio from the current BPM and bar count.</li>
+            <li><strong>WAV Repository</strong> stores takes and exported audio for later download or review.</li>
+            <li><strong>Export Patch</strong> saves settings; it does not embed every audio buffer.</li>
         </ul>
+
+        <h2 id="random">Randomize and Reset</h2>
+        <p><strong>Randomise Patch</strong> changes the current patch while protecting important performance controls. <strong>Mega Random</strong> goes wider: it can regenerate/load multiple layers, drums, source states, and internal modulation.</p>
+        <p><strong>Reset Patch</strong> returns controls to the app defaults. <strong>Reset Engine</strong> rebuilds the audio graph when the browser gets into a bad audio state.</p>
+
+        <h2 id="iphone">iPhone Navigation</h2>
+        <p>The iPhone layout is intentionally dense. Use these shortcuts:</p>
+        <ul>
+            <li>Use the right-side <strong>Jump</strong> tab to go directly to Keys, loops, Drums, Layer Switch, Mixer, Quick Grain, Waveforms, FX, and Pan Lab.</li>
+            <li>The drawer retracts after the target section is reached.</li>
+            <li>The top manual button opens this page from the start of the app.</li>
+            <li>The lower manual card appears above the Debug Console so help is still available after scrolling.</li>
+        </ul>
+
+        <h2 id="debug">Debug Console</h2>
+        <p>The Debug Console is for reporting app state. If MYGRAIN falls over, tap <strong>Copy Debug</strong> and paste the text back into chat. Use <strong>Clear Log</strong> only after saving anything important.</p>
 
         <h2 id="troubleshooting">Troubleshooting</h2>
         <table>
             <tr><th>Problem</th><th>Try this</th></tr>
-            <tr><td>No sound</td><td>Tap START MYGRAIN, raise Master Trim, check Sample Vol, turn off FX mute, and press Panic before trying again.</td></tr>
-            <tr><td>Generated sample is too bright</td><td>Enable Low Noise Source, lower LP Cutoff, reduce LP Res, or use Sample Solo to hear the source clearly before mixing.</td></tr>
-            <tr><td>Loop feels too random</td><td>Use Generate Sample again; current generation favors quarter, half, and whole-beat timing. Reduce Gen Swing if needed.</td></tr>
-            <tr><td>Preset loads but sounds different</td><td>Reload the original sample or generate a new one. Patch JSON does not embed audio.</td></tr>
-            <tr><td>Stuck note or runaway sound</td><td>Tap Panic. If needed, use Reset Engine.</td></tr>
-            <tr><td>Export does not appear</td><td>Check the browser download/share sheet. On iPhone, files may appear through the share workflow rather than a desktop-style download bar.</td></tr>
+            <tr><td>No sound</td><td>Tap Start MYGRAIN, check Layer Switches, check Mixer levels, then use Panic and Reset Engine.</td></tr>
+            <tr><td>A layer is too loud or quiet</td><td>Open Mixer, then check the matching Bastardloop/drum/grain level.</td></tr>
+            <tr><td>Pitch feels wrong</td><td>Check keyboard octave, generated-loop transpose, source waveform tune, and V/P/O semitone/fine controls separately.</td></tr>
+            <tr><td>Loop points are strange</td><td>Jump to Waveforms and inspect start/end handles for the active source.</td></tr>
+            <tr><td>iPhone is showing an old build</td><td>Reload the public route, check the visible build badge, and remove/recreate stale home-screen shortcuts if needed.</td></tr>
+            <tr><td>Something is stuck</td><td>Use Panic. If it continues, use Reset Engine and copy Debug Console output.</td></tr>
         </table>
+
+        <p class="note"><strong>Working habit:</strong> when tuning, change one layer at a time. Solo the layer, tune it, then bring the rest of the mix back in.</p>
     </main>
 </body>
 </html>
