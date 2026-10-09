@@ -3509,6 +3509,41 @@
             gap: 10px;
         }
 
+        .simplified-ui .performance-patch-name-group {
+            display: grid;
+            gap: 6px;
+            grid-column: 1 / -1;
+            min-width: 0;
+        }
+
+        .simplified-ui .performance-patch-name-label {
+            color: rgba(214, 232, 255, 0.72);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-patch-name-input {
+            width: 100%;
+            min-width: 0;
+            min-height: 42px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(5, 8, 15, 0.72);
+            color: #fff;
+            font: inherit;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        .simplified-ui .performance-patch-name-input:focus {
+            outline: none;
+            border-color: rgba(0, 212, 255, 0.55);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.14);
+        }
+
         .simplified-ui .source-seed-buttons,
         .simplified-ui .source-secondary-buttons {
             display: grid;
@@ -5296,6 +5331,10 @@
                     <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
                     <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                     <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
+                    <label class="performance-patch-name-group" for="performancePatchZipName">
+                        <span class="performance-patch-name-label">Patch ZIP Name</span>
+                        <input class="performance-patch-name-input" id="performancePatchZipName" type="text" placeholder="Leave blank for timestamped name" maxlength="120" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </label>
                     <button class="performance-btn primary" id="performanceExportPatchZipBtn">Export Patch ZIP</button>
                     <button class="performance-btn" id="performancePatchBrowserBtn">Patch Browser</button>
                     <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
@@ -28540,6 +28579,8 @@
         const PATCH_REPOSITORY_BASE_URL = `${window.location.origin}/mygrain`;
         const PATCH_REPOSITORY_LIST_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/list`;
         const PATCH_REPOSITORY_UPLOAD_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/upload`;
+        const PATCH_REPOSITORY_RENAME_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/rename`;
+        const PATCH_REPOSITORY_DELETE_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/delete`;
         const PATCH_REPOSITORY_FORMAT_VERSION = 1;
         const PATCH_REPOSITORY_AUDIO_ENTRIES = [
             { key: 'generated', label: 'Generated / loaded source', role: 'source', path: 'audio/generated-source.wav', getBuffer: () => generatedLoopBuffer },
@@ -28939,6 +28980,40 @@
             return payload;
         }
 
+        async function renamePatchZipInRepository(oldName, newName) {
+            const response = await fetch(PATCH_REPOSITORY_RENAME_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    oldName,
+                    newName
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Patch rename failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function deletePatchZipFromRepository(filename) {
+            const deleteUrl = `${PATCH_REPOSITORY_DELETE_API_URL}?filename=${encodeURIComponent(filename)}`;
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                mode: 'cors',
+                cache: 'no-store'
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Patch delete failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
         async function downloadBlob(blob, filename) {
             if (navigator.share) {
                 try {
@@ -28970,7 +29045,8 @@
                 performanceExportPatchZipBtn.textContent = 'Bundling...';
             }
             const defaultBase = buildPatchDefaultBaseName();
-            const requested = prompt('Enter patch ZIP filename:', defaultBase);
+            const typedName = String(performancePatchZipName?.value || '').trim();
+            const requested = typedName || prompt('Enter patch ZIP filename:', defaultBase);
             if (!requested) {
                 setStatus('Patch ZIP export cancelled.');
                 if (performanceExportPatchZipBtn) {
@@ -28985,6 +29061,9 @@
                 if (performanceExportPatchZipBtn) performanceExportPatchZipBtn.textContent = 'Uploading...';
                 try {
                     const result = await uploadPatchZipToRepository(blob, filename);
+                    if (performancePatchZipName) {
+                        performancePatchZipName.value = String(result.savedName || filename).replace(/\.zip$/i, '');
+                    }
                     setStatus(`Patch ZIP saved to repository: ${result.savedName || filename}.`);
                     await refreshPatchRepositoryBrowser({ forceRefresh: true, silent: true });
                 } catch (uploadError) {
@@ -30411,6 +30490,16 @@
                 downloadButton.type = 'button';
                 downloadButton.textContent = 'Download ZIP';
 
+                const renameButton = document.createElement('button');
+                renameButton.className = 'performance-btn';
+                renameButton.type = 'button';
+                renameButton.textContent = 'Rename';
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'performance-btn danger';
+                deleteButton.type = 'button';
+                deleteButton.textContent = 'Delete';
+
                 const meta = document.createElement('div');
                 meta.className = 'sample-browser-path';
                 meta.textContent = formatPatchRepositoryFileMeta(file);
@@ -30443,8 +30532,67 @@
                     window.open(file.url, '_blank', 'noopener');
                 });
 
+                renameButton.addEventListener('click', async () => {
+                    const defaultName = String(file.name || '').replace(/\.zip$/i, '');
+                    const requested = prompt('Rename patch ZIP:', defaultName);
+                    if (!requested || !requested.trim()) return;
+                    const originalLabel = renameButton.textContent;
+                    renameButton.disabled = true;
+                    openButton.disabled = true;
+                    downloadButton.disabled = true;
+                    deleteButton.disabled = true;
+                    renameButton.textContent = 'Renaming...';
+                    setPatchRepositoryBrowserStatus(`Renaming ${file.name}...`);
+                    try {
+                        const result = await renamePatchZipInRepository(file.name, requested);
+                        const savedName = result.savedName || sanitizePatchRepositoryFilename(requested, defaultName);
+                        setPatchRepositoryBrowserStatus(`Renamed ${file.name} to ${savedName}.`);
+                        setStatus(`Renamed patch ZIP: ${savedName}`, 'info');
+                        await refreshPatchRepositoryBrowser({ forceRefresh: true, silent: true });
+                    } catch (error) {
+                        console.error(error);
+                        setPatchRepositoryBrowserStatus(`Rename failed: ${error.message}`);
+                        setStatus(`Patch ZIP rename failed: ${error.message}`, 'error');
+                    } finally {
+                        renameButton.disabled = false;
+                        openButton.disabled = false;
+                        downloadButton.disabled = false;
+                        deleteButton.disabled = false;
+                        renameButton.textContent = originalLabel;
+                    }
+                });
+
+                deleteButton.addEventListener('click', async () => {
+                    if (!confirm(`Delete ${file.name}?`)) return;
+                    const originalLabel = deleteButton.textContent;
+                    deleteButton.disabled = true;
+                    openButton.disabled = true;
+                    downloadButton.disabled = true;
+                    renameButton.disabled = true;
+                    deleteButton.textContent = 'Deleting...';
+                    setPatchRepositoryBrowserStatus(`Deleting ${file.name}...`);
+                    try {
+                        await deletePatchZipFromRepository(file.name);
+                        patchRepositoryBrowserFiles = patchRepositoryBrowserFiles.filter((entry) => entry.name !== file.name);
+                        renderPatchRepositoryBrowserFiles();
+                        setPatchRepositoryBrowserStatus(`Deleted ${file.name}.`);
+                        setStatus(`Deleted patch ZIP from repository: ${file.name}`, 'info');
+                        await refreshPatchRepositoryBrowser({ forceRefresh: true, silent: true });
+                    } catch (error) {
+                        console.error(error);
+                        setPatchRepositoryBrowserStatus(`Delete failed: ${error.message}`);
+                        setStatus(`Patch ZIP delete failed: ${error.message}`, 'error');
+                    } finally {
+                        deleteButton.disabled = false;
+                        openButton.disabled = false;
+                        downloadButton.disabled = false;
+                        renameButton.disabled = false;
+                        deleteButton.textContent = originalLabel;
+                    }
+                });
+
                 head.append(name, openButton);
-                actions.append(downloadButton, hint);
+                actions.append(downloadButton, renameButton, deleteButton, hint);
                 card.append(head, meta, actions);
                 list.appendChild(card);
             });
@@ -31672,6 +31820,7 @@
         const performanceUploadTakesBtn = document.getElementById('performanceUploadTakesBtn');
         const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
         const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
+        const performancePatchZipName = document.getElementById('performancePatchZipName');
         const performanceExportPatchZipBtn = document.getElementById('performanceExportPatchZipBtn');
         const performancePatchBrowserBtn = document.getElementById('performancePatchBrowserBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
