@@ -4025,6 +4025,133 @@
             }
         }
 
+        .section-jump-drawer {
+            display: none;
+        }
+
+        .simplified-ui .section-jump-drawer {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            z-index: 9990;
+            display: block;
+            width: min(78vw, 258px);
+            max-height: min(78svh, 560px);
+            transform: translate(calc(100% - 30px), -50%);
+            opacity: 0.72;
+            transition: transform 0.24s ease, opacity 0.24s ease;
+            pointer-events: none;
+        }
+
+        .simplified-ui .section-jump-drawer.is-open,
+        .simplified-ui .section-jump-drawer:focus-within {
+            transform: translate(0, -50%);
+            opacity: 1;
+        }
+
+        .simplified-ui .section-jump-drawer.is-settling {
+            opacity: 0.38;
+        }
+
+        .section-jump-handle {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 30px;
+            min-width: 30px;
+            min-height: 116px;
+            padding: 8px 2px;
+            transform: translateY(-50%);
+            display: grid;
+            place-items: center;
+            gap: 6px;
+            border-radius: 12px 0 0 12px;
+            border: 1px solid rgba(126, 246, 255, 0.34);
+            border-right: 0;
+            background: rgba(5, 12, 22, 0.94);
+            color: var(--accent);
+            box-shadow: -8px 0 22px rgba(0, 0, 0, 0.26);
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        .section-jump-arrow {
+            font-size: 18px;
+            line-height: 1;
+            font-weight: 900;
+        }
+
+        .section-jump-handle-text {
+            writing-mode: vertical-rl;
+            text-transform: uppercase;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+        }
+
+        .section-jump-panel {
+            margin-left: 30px;
+            max-height: min(78svh, 560px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            padding: 10px;
+            border-radius: 16px 0 0 16px;
+            border: 1px solid rgba(126, 246, 255, 0.24);
+            border-right: 0;
+            background: rgba(6, 12, 22, 0.96);
+            box-shadow: -14px 0 34px rgba(0, 0, 0, 0.34);
+            pointer-events: auto;
+        }
+
+        .section-jump-title {
+            margin: 0 0 8px;
+            color: rgba(230, 248, 255, 0.78);
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .section-jump-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px;
+        }
+
+        .section-jump-option {
+            min-height: 38px;
+            min-width: 0;
+            padding: 7px 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.07);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 850;
+            line-height: 1.1;
+            text-align: center;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            touch-action: manipulation;
+        }
+
+        .section-jump-option:active {
+            background: rgba(126, 246, 255, 0.2);
+            color: var(--accent);
+        }
+
+        .section-jump-arrival {
+            outline: 2px solid rgba(126, 246, 255, 0.78);
+            outline-offset: 3px;
+        }
+
+        @media (min-width: 961px) {
+            .simplified-ui .section-jump-drawer {
+                display: none;
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation: none !important;
@@ -4048,6 +4175,39 @@
 
     <!-- Fullscreen Button -->
     <button id="fullscreenBtn" class="hidden">Go Fullscreen</button>
+
+    <nav class="section-jump-drawer" id="sectionJumpDrawer" aria-label="Section jumps">
+        <button class="section-jump-handle" id="sectionJumpHandle" type="button" aria-expanded="false" aria-controls="sectionJumpPanel">
+            <span class="section-jump-arrow" id="sectionJumpArrow" aria-hidden="true">&lsaquo;</span>
+            <span class="section-jump-handle-text">Jump</span>
+        </button>
+        <div class="section-jump-panel" id="sectionJumpPanel">
+            <div class="section-jump-title">Jump To</div>
+            <div class="section-jump-grid">
+                <button class="section-jump-option" type="button" data-jump-target=".performance-toolbar">Top</button>
+                <button class="section-jump-option" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop controls']">Loop A</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop B controls']">Loop B</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop C controls']">Loop C</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop V controls']">Loop V</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop P controls']">Loop P</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop O controls']">Loop O</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Drum machine controls']">Drums</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Dropbox sample layer controls']">Sample</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Mixer controls']">Mixer</button>
+                <button class="section-jump-option" type="button" data-jump-target="#performanceGrainQuickControlsCard">Quick Grain</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Filter controls']">Filter</button>
+                <button class="section-jump-option" type="button" data-jump-target=".performance-actions-card">Actions</button>
+                <button class="section-jump-option" type="button" data-jump-target=".performance-export-card">Export</button>
+                <button class="section-jump-option" type="button" data-jump-target="#performanceGrainControlsCard">Grain</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Mix controls']">Mix</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='LFO controls']">LFO</button>
+                <button class="section-jump-option" type="button" data-jump-target="#internalEffectsPanel">FX</button>
+                <button class="section-jump-option" type="button" data-jump-target=".recording-section">Sources</button>
+                <button class="section-jump-option" type="button" data-jump-target="#finalPanSection">Pan Lab</button>
+            </div>
+        </div>
+    </nav>
 
     <div class="synth-container">
         <div class="performance-controls" aria-label="Performance controls">
@@ -23638,6 +23798,101 @@
                 button.focus();
             }
         }
+
+        function initSectionJumpDrawer() {
+            const drawer = document.getElementById('sectionJumpDrawer');
+            const handle = document.getElementById('sectionJumpHandle');
+            const arrow = document.getElementById('sectionJumpArrow');
+            if (!drawer || !handle) return;
+
+            let closeTimer = 0;
+
+            const setDrawerOpen = (open) => {
+                drawer.classList.toggle('is-open', open);
+                handle.setAttribute('aria-expanded', String(open));
+                if (arrow) arrow.innerHTML = open ? '&rsaquo;' : '&lsaquo;';
+            };
+
+            const clearCloseTimer = () => {
+                if (!closeTimer) return;
+                window.clearTimeout(closeTimer);
+                closeTimer = 0;
+            };
+
+            const closeAfterArrival = (target) => {
+                clearCloseTimer();
+                drawer.classList.add('is-settling');
+
+                const finish = () => {
+                    clearCloseTimer();
+                    drawer.classList.remove('is-settling');
+                    setDrawerOpen(false);
+                    if (target) {
+                        target.classList.add('section-jump-arrival');
+                        window.setTimeout(() => target.classList.remove('section-jump-arrival'), 850);
+                    }
+                };
+
+                if ('onscrollend' in window) {
+                    const onScrollEnd = () => finish();
+                    document.addEventListener('scrollend', onScrollEnd, { once: true });
+                    closeTimer = window.setTimeout(() => {
+                        document.removeEventListener('scrollend', onScrollEnd);
+                        finish();
+                    }, 1200);
+                } else {
+                    closeTimer = window.setTimeout(finish, 650);
+                }
+            };
+
+            const jumpToButtonTarget = (button) => {
+                const tabName = button.dataset.jumpTab;
+                if (tabName) {
+                    const tabButton = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
+                    if (tabButton) activateTab(tabButton);
+                }
+
+                const selector = button.dataset.jumpTarget;
+                if (!selector) return;
+                const target = document.querySelector(selector);
+                if (!target) return;
+
+                target.scrollIntoView({
+                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                    block: 'start',
+                    inline: 'nearest'
+                });
+                closeAfterArrival(target);
+            };
+
+            handle.addEventListener('click', () => {
+                clearCloseTimer();
+                drawer.classList.remove('is-settling');
+                setDrawerOpen(!drawer.classList.contains('is-open'));
+            });
+
+            drawer.querySelectorAll('.section-jump-option').forEach((button) => {
+                button.addEventListener('click', () => jumpToButtonTarget(button));
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    clearCloseTimer();
+                    drawer.classList.remove('is-settling');
+                    setDrawerOpen(false);
+                }
+            });
+
+            document.addEventListener('pointerdown', (event) => {
+                if (!drawer.classList.contains('is-open')) return;
+                if (drawer.contains(event.target)) return;
+                clearCloseTimer();
+                drawer.classList.remove('is-settling');
+                setDrawerOpen(false);
+            });
+        }
+
+        initSectionJumpDrawer();
 
         function openSynthPopup() {
             if (!synthPopupOverlay || !synthPopupMount) return;
