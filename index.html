@@ -8953,6 +8953,9 @@
         const SYNTH_POPUP_PRESETS = buildSynthPopupPresets();
         const SYNTH_POPUP_PRESET_MAP = new Map(SYNTH_POPUP_PRESETS.map((preset) => [preset.id, preset]));
         const MIX_HEADROOM = 0.9;
+        const DRUM_MACHINE_OUTPUT_GAIN_MULTIPLIER = 1.08;
+        const RANDOM_DRUM_MACHINE_LEVEL_PERCENT = 100;
+        const RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT = 60;
         const MAX_SAFE_FILTER_Q = 2.5;
         const DEFAULT_PERFORMANCE_CUTOFF = 2800;
         const DEFAULT_PERFORMANCE_RESONANCE = 0.6;
@@ -16443,7 +16446,7 @@
         }
 
         function getDrumMachineOutputGain(level = getDrumMachineLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.9;
+            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * DRUM_MACHINE_OUTPUT_GAIN_MULTIPLIER;
         }
 
         function ensureDrumMachineBus() {
@@ -17504,6 +17507,7 @@
                 }
 
                 if (randomizePattern) {
+                    forceDrumMachineRandomLevel();
                     randomizeDrumMachinePatterns();
                 }
                 syncDrumMachineUi();
@@ -25052,6 +25056,47 @@
             resetEngineRoutine().catch(() => {});
         });
 
+        function capBastardLoopLevelsForRandom() {
+            const levelControls = [
+                { id: 'performanceBastardLoopLevel', get: () => bastardLoopLevel, set: (value) => { bastardLoopLevel = value; } },
+                { id: 'performanceBastardLoop2Level', get: () => bastardLoop2Level, set: (value) => { bastardLoop2Level = value; } },
+                { id: 'performanceBastardLoop3Level', get: () => bastardLoop3Level, set: (value) => { bastardLoop3Level = value; } },
+                { id: 'performanceBastardLoopVLevel', get: () => bastardLoopVLevel, set: (value) => { bastardLoopVLevel = value; } },
+                { id: 'performanceBastardLoopPLevel', get: () => bastardLoopPLevel, set: (value) => { bastardLoopPLevel = value; } },
+                { id: 'performanceBastardLoopOLevel', get: () => bastardLoopOLevel, set: (value) => { bastardLoopOLevel = value; } }
+            ];
+
+            levelControls.forEach(({ id, get, set }) => {
+                const slider = document.getElementById(id);
+                const rawValue = Number(slider?.value ?? (get() * 100));
+                const currentPercent = Number.isFinite(rawValue) ? rawValue : 0;
+                const cappedPercent = Math.max(0, Math.min(RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT, currentPercent));
+                if (slider) {
+                    if (Number(slider.value) !== cappedPercent) {
+                        setSliderValue(id, cappedPercent);
+                    }
+                } else {
+                    set(cappedPercent / 100);
+                }
+            });
+        }
+
+        function forceDrumMachineRandomLevel() {
+            const slider = document.getElementById('performanceDrumMachineLevel');
+            if (slider) {
+                setSliderValue('performanceDrumMachineLevel', RANDOM_DRUM_MACHINE_LEVEL_PERCENT);
+            } else {
+                drumMachineLevel = RANDOM_DRUM_MACHINE_LEVEL_PERCENT / 100;
+                updateDrumMachineMix();
+            }
+        }
+
+        function applyRandomMixBalanceDefaults() {
+            forceDrumMachineRandomLevel();
+            capBastardLoopLevelsForRandom();
+            syncPerformanceControlState();
+        }
+
         function randomizeMegaBastardLoopSettings() {
             const divisionPool = ['1/4', '1/8', '1/16', '1/32'];
             applyBastardLoopDivisionSelection(chooseRandomSubset(divisionPool, { minimum: 1, maximum: 3 }), { save: false });
@@ -25087,12 +25132,12 @@
             setBastardLoopPReverse(maybe(0.5), { silent: true, skipSave: true });
             setBastardLoopOReverse(maybe(0.5), { silent: true, skipSave: true });
 
-            setSliderValue('performanceBastardLoopLevel', randomIntegerInRange(24, 92));
-            setSliderValue('performanceBastardLoop2Level', randomIntegerInRange(24, 92));
-            setSliderValue('performanceBastardLoop3Level', randomIntegerInRange(24, 92));
-            setSliderValue('performanceBastardLoopVLevel', randomIntegerInRange(24, 92));
-            setSliderValue('performanceBastardLoopPLevel', randomIntegerInRange(24, 92));
-            setSliderValue('performanceBastardLoopOLevel', randomIntegerInRange(24, 92));
+            setSliderValue('performanceBastardLoopLevel', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoop2Level', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoop3Level', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoopVLevel', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoopPLevel', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoopOLevel', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
         }
 
         function randomizeMegaDropboxSampleLayerSettings() {
@@ -25108,7 +25153,7 @@
 
         function randomizeMegaDrumMachineSettings() {
             setDrumMachineEnabled(true, { silent: true, skipSave: true });
-            setSliderValue('performanceDrumMachineLevel', randomIntegerInRange(24, 90));
+            setSliderValue('performanceDrumMachineLevel', RANDOM_DRUM_MACHINE_LEVEL_PERCENT);
             setDrumMachineKickPitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
             setDrumMachineSnarePitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
             setDrumMachineHatTuneSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
@@ -25161,6 +25206,7 @@
             setGrainTimingMode(randomizeGrainMode, { silent: true, skipSave: true, skipRestart: true });
             const generationProfile = randomizeInternalParameters({ profile: createMusicalGenerationProfile(), grainMode: randomizeGrainMode });
             const randomizeState = randomizeFullPatchPerformanceState({ profile: generationProfile, grainMode: randomizeGrainMode });
+            applyRandomMixBalanceDefaults();
             const loopBlueprint = buildLoopBlueprint(generationProfile);
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             const sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
