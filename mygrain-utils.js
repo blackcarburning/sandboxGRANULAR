@@ -708,8 +708,7 @@
     const DRUM_SOUND_PALETTE = buildDrumSoundPalette();
 
     function generateDrumLoopBlueprint(options = {}) {
-        // The groove templates are authored as one 16-step bar, so keep source-drum blueprints pinned to that grid.
-        const stepCount = 16;
+        const stepCount = Math.max(8, Math.min(64, Math.round(clampNumber(options.stepCount, { min: 8, max: 64, fallback: 16 }))));
         const random = typeof options.random === 'function'
             ? options.random
             : createSeededRandom(options.seed ?? `mygrain-drum-${stepCount}`);
@@ -796,6 +795,20 @@
         const groove = grooveTemplates[archetypeId] || grooveTemplates.straight;
         const events = [];
         const occupied = new Set();
+        const barOffsets = Array.from(
+            { length: Math.max(1, Math.ceil(stepCount / 16)) },
+            (_, index) => index * 16
+        ).filter((offset) => offset < stepCount);
+
+        function forEachGrooveStep(template, callback) {
+            barOffsets.forEach((offset, barIndex) => {
+                template.forEach((item) => {
+                    const step = offset + item[0];
+                    if (step >= stepCount) return;
+                    callback(step, item, barIndex);
+                });
+            });
+        }
 
         function normalizedVelocity(base, accent = false, bonus = 0) {
             const velocity = clampNumber(base + (accent ? 0.12 : 0) + bonus + ((random() - 0.5) * 0.08), {
@@ -843,18 +856,18 @@
             return true;
         }
 
-        groove.kick.forEach(([step, probability, velocity]) => {
-            addHit(step, 'kick', velocity, { probability, accent: step === 0 || step === 8, role: 'kick' });
+        forEachGrooveStep(groove.kick, (step, [, probability, velocity], barIndex) => {
+            addHit(step, 'kick', velocity, { probability, accent: step % 16 === 0 || step % 16 === 8 || barIndex === 0, role: 'kick' });
         });
 
-        (groove.impact || []).forEach(([step, probability, velocity]) => {
-            addHit(step, 'impact', velocity, { probability, accent: step === 0 || step === 8, role: `impact-${step}`, allowLayer: true });
+        forEachGrooveStep(groove.impact || [], (step, [, probability, velocity]) => {
+            addHit(step, 'impact', velocity, { probability, accent: step % 16 === 0 || step % 16 === 8, role: `impact-${step}`, allowLayer: true });
         });
 
         const backbeatRecipe = random() < 0.28 ? ['snare', 'clap'] : 'snare';
-        groove.snare.forEach(([step, probability, velocity]) => {
-            addHit(step, backbeatRecipe, velocity, { probability, accent: step === 4 || step === 12, role: 'snare' });
-            if ((step === 4 || step === 12) && random() < 0.32) {
+        forEachGrooveStep(groove.snare, (step, [, probability, velocity]) => {
+            addHit(step, backbeatRecipe, velocity, { probability, accent: step % 16 === 4 || step % 16 === 12, role: 'snare' });
+            if ((step % 16 === 4 || step % 16 === 12) && random() < 0.32) {
                 addHit(step, 'clap', Math.max(0.42, velocity - 0.12), { allowLayer: true, probability: 1, role: 'clapLayer' });
             }
         });
@@ -891,21 +904,23 @@
             });
         }
 
-        [7, 11, 15].forEach((step) => {
+        barOffsets.forEach((offset) => [7, 11, 15].forEach((baseStep) => {
+            const step = offset + baseStep;
+            if (step >= stepCount) return;
             let probability = 0.18 + (densityBias * 0.16) + (energy * 0.08);
-            if (step === 15) probability += 0.08;
+            if (baseStep === 15) probability += 0.08;
             if (lowNoiseOnly) probability *= 0.68;
             if (random() < probability) {
-                addHit(step, random() < 0.72 ? 'openHat' : 'cymbal', 0.42 + (step === 15 ? 0.08 : 0), {
+                addHit(step, random() < 0.72 ? 'openHat' : 'cymbal', 0.42 + (baseStep === 15 ? 0.08 : 0), {
                     role: 'openHat',
-                    accent: step === 15,
+                    accent: baseStep === 15,
                     allowLayer: false
                 });
             }
-        });
+        }));
 
         const percussionDensity = 0.18 + (densityBias * 0.24) + (energy * 0.08);
-        groove.perc.forEach(([step, probability, category]) => {
+        forEachGrooveStep(groove.perc, (step, [, probability, category]) => {
             addHit(step, category, 0.32 + (probability * 0.2), {
                 probability: Math.max(0, Math.min(0.9, probability + (percussionDensity - 0.24))),
                 accent: step >= stepCount - 2,
@@ -914,7 +929,9 @@
         });
 
         if (random() < 0.22 + (densityBias * 0.2)) {
-            const doubleSteps = [5, 6, 13, 14].filter((step) => step < stepCount);
+            const doubleSteps = barOffsets
+                .flatMap((offset) => [5, 6, 13, 14].map((step) => offset + step))
+                .filter((step) => step < stepCount);
             const step = doubleSteps[Math.floor(random() * doubleSteps.length)];
             addHit(step, random() < 0.5 ? 'kick' : 'closedHat', 0.48, {
                 probability: 0.58,
@@ -928,7 +945,7 @@
         const fillProbability = groove.fillChance + ((densityBias - 0.5) * 0.16);
         if (stepCount >= 16 && random() < fillProbability) {
             fillApplied = true;
-            const fillStarts = [12, 13];
+            const fillStarts = [Math.max(0, stepCount - 4), Math.max(0, stepCount - 3)];
             const fillStart = fillStarts[Math.floor(random() * fillStarts.length)];
             for (let step = fillStart; step < stepCount; step += 1) {
                 const fillCategory = includeTonalDrums

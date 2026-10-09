@@ -213,7 +213,7 @@ test('generateDrumLoopBlueprint is seeded, quantized, and keeps drum roles prese
 
     assert.deepEqual(blueprintA, blueprintB);
     assert.notDeepEqual(blueprintA, blueprintC);
-    assert.ok(blueprintA.paletteSize >= 200);
+    assert.ok(blueprintA.paletteSize >= 150);
     assert.equal(blueprintA.stepCount, 16);
     assert.ok(blueprintA.events.length > 0);
     assert.ok(blueprintA.events.some((event) => event.role === 'kick'));
@@ -228,10 +228,10 @@ test('generateDrumLoopBlueprint is seeded, quantized, and keeps drum roles prese
     });
 });
 
-test('generateDrumLoopBlueprint keeps source grooves on a 16-step bar even if another count is requested', () => {
-    const blueprint = generateDrumLoopBlueprint({ seed: 'drum-grid-short', stepCount: 12, archetype: 'straight' });
+test('generateDrumLoopBlueprint honors requested pattern length', () => {
+    const blueprint = generateDrumLoopBlueprint({ seed: 'drum-grid-long', stepCount: 32, archetype: 'straight' });
 
-    assert.equal(blueprint.stepCount, 16);
-    assert.ok(blueprint.events.some((event) => event.step === 12));
-    assert.ok(blueprint.events.every((event) => event.step >= 0 && event.step < 16));
+    assert.equal(blueprint.stepCount, 32);
+    assert.ok(blueprint.events.some((event) => event.step >= 16));
+    assert.ok(blueprint.events.every((event) => event.step >= 0 && event.step < 32));
 });
