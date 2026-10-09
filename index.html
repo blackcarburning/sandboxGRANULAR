@@ -5294,6 +5294,8 @@
                     <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
                     <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                     <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
+                    <button class="performance-btn primary" id="performanceExportPatchZipBtn">Export Patch ZIP</button>
+                    <button class="performance-btn" id="performancePatchBrowserBtn">Patch Browser</button>
                     <button class="performance-btn" id="performanceRandomizeBtn">Randomise Patch</button>
                     <button class="performance-btn" id="performanceMegaRandomBtn">Mega Random</button>
                     <button class="performance-btn" id="performanceResetPatchBtn">Reset Patch</button>
@@ -7475,6 +7477,29 @@
                 <div class="sample-browser-status" id="wavRepositoryBrowserStatus">Browse and annotate saved WAVs.</div>
                 <div class="sample-browser-list" id="wavRepositoryBrowserList"></div>
                 <input id="wavRepositoryBrowserUploadInput" type="file" accept=".wav,audio/wav" multiple hidden>
+            </div>
+        </div>
+
+        <div class="sample-browser-overlay" id="patchRepositoryBrowserOverlay" hidden aria-hidden="true">
+            <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="patchRepositoryBrowserTitle">
+                <div class="sample-browser-head">
+                    <div class="sample-browser-copy">
+                        <h3 id="patchRepositoryBrowserTitle">Patch Repository Browser</h3>
+                        <p id="patchRepositoryBrowserSubtitle">Open MYGRAIN patch ZIPs saved in the repository, or import a local bundle.</p>
+                    </div>
+                    <button class="performance-btn" id="patchRepositoryBrowserCloseBtn" type="button">Close</button>
+                </div>
+                <div class="sample-browser-controls">
+                    <div class="sample-browser-filter-group">
+                        <label class="sample-browser-filter-label" for="patchRepositoryBrowserFilter">Search Patches</label>
+                        <input class="sample-browser-filter-input" id="patchRepositoryBrowserFilter" type="search" placeholder="Filter patch ZIPs" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <button class="performance-btn" id="patchRepositoryBrowserOpenLocalBtn" type="button">Open Local ZIP</button>
+                    <button class="performance-btn" id="patchRepositoryBrowserRefreshBtn" type="button">Refresh</button>
+                </div>
+                <div class="sample-browser-status" id="patchRepositoryBrowserStatus">Browse saved patch ZIPs.</div>
+                <div class="sample-browser-list" id="patchRepositoryBrowserList"></div>
+                <input id="patchRepositoryBrowserOpenInput" type="file" accept=".zip,application/zip" hidden>
             </div>
         </div>
 
@@ -28407,6 +28432,30 @@
         const DROPBOX_SAMPLE_SOURCE_FEEDBACK_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-file-feedback`;
         const DROPBOX_SAMPLE_SOURCE_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-sample`;
         const DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT = 80;
+        const PATCH_REPOSITORY_BASE_URL = `${window.location.origin}/mygrain`;
+        const PATCH_REPOSITORY_LIST_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/list`;
+        const PATCH_REPOSITORY_UPLOAD_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/upload`;
+        const PATCH_REPOSITORY_FORMAT_VERSION = 1;
+        const PATCH_REPOSITORY_AUDIO_ENTRIES = [
+            { key: 'generated', label: 'Generated / loaded source', role: 'source', path: 'audio/generated-source.wav', getBuffer: () => generatedLoopBuffer },
+            { key: 'mic', label: 'Main mic recording', role: 'recorded-mic', path: 'audio/main-mic.wav', getBuffer: () => micAudioBuffer },
+            { key: 'grainMainSample', label: 'Main grain sample', role: 'source', path: 'audio/grain-main-sample.wav', getBuffer: () => grainMainSampleBuffer },
+            { key: 'grainASample', label: 'Grain A sample', role: 'source', path: 'audio/grain-a-sample.wav', getBuffer: () => grainASampleBuffer },
+            { key: 'grainBSample', label: 'Grain B sample', role: 'source', path: 'audio/grain-b-sample.wav', getBuffer: () => grainBSampleBuffer },
+            { key: 'grainAMic', label: 'Grain A mic recording', role: 'recorded-mic', path: 'audio/grain-a-mic.wav', getBuffer: () => grainSynthAMicBuffer },
+            { key: 'grainBMic', label: 'Grain B mic recording', role: 'recorded-mic', path: 'audio/grain-b-mic.wav', getBuffer: () => grainSynthBMicBuffer },
+            { key: 'output', label: 'Recorded output capture', role: 'output-capture', path: 'audio/output-capture.wav', getBuffer: () => outputSourceBuffer },
+            { key: 'bastardA', label: 'Bastardloop A rendered buffer', role: 'bastardloop-render', layer: 'A', path: 'bastardloops/bastardloop-a.wav', getBuffer: () => bastardLoopBuffer, getMetadata: () => bastardLoopMetadata, apply: applyLoadedBastardLoopBuffer },
+            { key: 'bastardB', label: 'Bastardloop B rendered buffer', role: 'bastardloop-render', layer: 'B', path: 'bastardloops/bastardloop-b.wav', getBuffer: () => bastardLoop2Buffer, getMetadata: () => bastardLoop2Metadata, apply: applyLoadedBastardLoop2Buffer },
+            { key: 'bastardC', label: 'Bastardloop C rendered buffer', role: 'bastardloop-render', layer: 'C', path: 'bastardloops/bastardloop-c.wav', getBuffer: () => bastardLoop3Buffer, getMetadata: () => bastardLoop3Metadata, apply: applyLoadedBastardLoop3Buffer },
+            { key: 'bastardV', label: 'Bastardloop V rendered buffer', role: 'bastardloop-render', layer: 'V', path: 'bastardloops/bastardloop-v.wav', getBuffer: () => bastardLoopVBuffer, getMetadata: () => bastardLoopVMetadata, apply: applyLoadedBastardLoopVBuffer },
+            { key: 'bastardP', label: 'Bastardloop P rendered buffer', role: 'bastardloop-render', layer: 'P', path: 'bastardloops/bastardloop-p.wav', getBuffer: () => bastardLoopPBuffer, getMetadata: () => bastardLoopPMetadata, apply: applyLoadedBastardLoopPBuffer },
+            { key: 'bastardO', label: 'Bastardloop O rendered buffer', role: 'bastardloop-render', layer: 'O', path: 'bastardloops/bastardloop-o.wav', getBuffer: () => bastardLoopOBuffer, getMetadata: () => bastardLoopOMetadata, apply: applyLoadedBastardLoopOBuffer },
+            { key: 'dropboxSample', label: 'Dropbox sample layer source', role: 'source', path: 'audio/dropbox-sample-layer.wav', getBuffer: () => dropboxSampleLayerRawBuffer },
+            { key: 'drumKick', label: 'Drum machine kick sample', role: 'drum-sample', path: 'drums/kick.wav', getBuffer: () => drumMachineKickBuffer },
+            { key: 'drumSnare', label: 'Drum machine snare sample', role: 'drum-sample', path: 'drums/snare.wav', getBuffer: () => drumMachineSnareBuffer },
+            { key: 'drumHat', label: 'Drum machine hat sample', role: 'drum-sample', path: 'drums/hat.wav', getBuffer: () => drumMachineHatBuffer }
+        ];
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
             const fallback = `${fallbackBase}.wav`;
@@ -28437,6 +28486,413 @@
                 throw new Error(payload.error || `Upload failed with status ${response.status}`);
             }
             return payload;
+        }
+
+        function sanitizePatchRepositoryFilename(value, fallbackBase = 'mygrain-patch') {
+            const input = String(value || '').trim();
+            const lastSegment = input.replace(/\\/g, '/').split('/').pop() || '';
+            const cleaned = lastSegment
+                .replace(/\.zip$/i, '')
+                .replace(/[^A-Za-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^[-_.]+|[-_.]+$/g, '');
+            return `${cleaned || fallbackBase}.zip`;
+        }
+
+        function buildPatchDefaultBaseName() {
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const stamp = new Date().toISOString().replace(/[:.]/g, '-').replace(/Z$/, 'Z');
+            return `mygrain-${bpm}bpm-${stamp}`;
+        }
+
+        function getCrc32Table() {
+            if (getCrc32Table.table) return getCrc32Table.table;
+            const table = new Uint32Array(256);
+            for (let i = 0; i < 256; i++) {
+                let value = i;
+                for (let bit = 0; bit < 8; bit++) {
+                    value = (value & 1) ? (0xEDB88320 ^ (value >>> 1)) : (value >>> 1);
+                }
+                table[i] = value >>> 0;
+            }
+            getCrc32Table.table = table;
+            return table;
+        }
+
+        function crc32(bytes) {
+            const table = getCrc32Table();
+            let crc = 0xFFFFFFFF;
+            for (let index = 0; index < bytes.length; index++) {
+                crc = table[(crc ^ bytes[index]) & 0xFF] ^ (crc >>> 8);
+            }
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+
+        function uint8FromString(value) {
+            return new TextEncoder().encode(String(value ?? ''));
+        }
+
+        async function normalizeZipEntryData(data) {
+            if (data instanceof Uint8Array) return data;
+            if (data instanceof ArrayBuffer) return new Uint8Array(data);
+            if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer());
+            return uint8FromString(data);
+        }
+
+        function writeZipUint16(view, offset, value) {
+            view.setUint16(offset, value, true);
+        }
+
+        function writeZipUint32(view, offset, value) {
+            view.setUint32(offset, value >>> 0, true);
+        }
+
+        async function createStoredZip(entries) {
+            const normalizedEntries = [];
+            for (const entry of entries) {
+                const name = String(entry.path || '').replace(/^\/+/, '');
+                if (!name || name.includes('..')) continue;
+                const data = await normalizeZipEntryData(entry.data);
+                const nameBytes = uint8FromString(name);
+                normalizedEntries.push({
+                    name,
+                    nameBytes,
+                    data,
+                    crc: crc32(data)
+                });
+            }
+
+            const localParts = [];
+            const centralParts = [];
+            let offset = 0;
+            for (const entry of normalizedEntries) {
+                const localHeader = new Uint8Array(30 + entry.nameBytes.length);
+                const localView = new DataView(localHeader.buffer);
+                writeZipUint32(localView, 0, 0x04034b50);
+                writeZipUint16(localView, 4, 10);
+                writeZipUint16(localView, 6, 0);
+                writeZipUint16(localView, 8, 0);
+                writeZipUint16(localView, 10, 0);
+                writeZipUint16(localView, 12, 0);
+                writeZipUint32(localView, 14, entry.crc);
+                writeZipUint32(localView, 18, entry.data.length);
+                writeZipUint32(localView, 22, entry.data.length);
+                writeZipUint16(localView, 26, entry.nameBytes.length);
+                writeZipUint16(localView, 28, 0);
+                localHeader.set(entry.nameBytes, 30);
+                localParts.push(localHeader, entry.data);
+
+                const centralHeader = new Uint8Array(46 + entry.nameBytes.length);
+                const centralView = new DataView(centralHeader.buffer);
+                writeZipUint32(centralView, 0, 0x02014b50);
+                writeZipUint16(centralView, 4, 20);
+                writeZipUint16(centralView, 6, 10);
+                writeZipUint16(centralView, 8, 0);
+                writeZipUint16(centralView, 10, 0);
+                writeZipUint16(centralView, 12, 0);
+                writeZipUint16(centralView, 14, 0);
+                writeZipUint32(centralView, 16, entry.crc);
+                writeZipUint32(centralView, 20, entry.data.length);
+                writeZipUint32(centralView, 24, entry.data.length);
+                writeZipUint16(centralView, 28, entry.nameBytes.length);
+                writeZipUint16(centralView, 30, 0);
+                writeZipUint16(centralView, 32, 0);
+                writeZipUint16(centralView, 34, 0);
+                writeZipUint16(centralView, 36, 0);
+                writeZipUint32(centralView, 38, 0);
+                writeZipUint32(centralView, 42, offset);
+                centralHeader.set(entry.nameBytes, 46);
+                centralParts.push(centralHeader);
+
+                offset += localHeader.length + entry.data.length;
+            }
+
+            const centralSize = centralParts.reduce((total, part) => total + part.length, 0);
+            const end = new Uint8Array(22);
+            const endView = new DataView(end.buffer);
+            writeZipUint32(endView, 0, 0x06054b50);
+            writeZipUint16(endView, 4, 0);
+            writeZipUint16(endView, 6, 0);
+            writeZipUint16(endView, 8, normalizedEntries.length);
+            writeZipUint16(endView, 10, normalizedEntries.length);
+            writeZipUint32(endView, 12, centralSize);
+            writeZipUint32(endView, 16, offset);
+            writeZipUint16(endView, 20, 0);
+
+            return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+        }
+
+        function parseStoredZipEntries(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+            const decoder = new TextDecoder();
+            const entries = new Map();
+            let offset = 0;
+            while (offset + 30 <= bytes.length && view.getUint32(offset, true) === 0x04034b50) {
+                const method = view.getUint16(offset + 8, true);
+                const compressedSize = view.getUint32(offset + 18, true);
+                const uncompressedSize = view.getUint32(offset + 22, true);
+                const nameLength = view.getUint16(offset + 26, true);
+                const extraLength = view.getUint16(offset + 28, true);
+                const nameStart = offset + 30;
+                const dataStart = nameStart + nameLength + extraLength;
+                const dataEnd = dataStart + compressedSize;
+                if (dataEnd > bytes.length) {
+                    throw new Error('Patch ZIP is truncated.');
+                }
+                const name = decoder.decode(bytes.slice(nameStart, nameStart + nameLength));
+                if (method !== 0) {
+                    throw new Error(`${name} is compressed. MYGRAIN patch ZIPs must use the built-in stored format.`);
+                }
+                if (compressedSize !== uncompressedSize) {
+                    throw new Error(`${name} has mismatched ZIP sizes.`);
+                }
+                entries.set(name, bytes.slice(dataStart, dataEnd));
+                offset = dataEnd;
+            }
+            if (!entries.size) {
+                throw new Error('No readable MYGRAIN patch entries found.');
+            }
+            return entries;
+        }
+
+        function getZipText(entries, path) {
+            const bytes = entries.get(path);
+            if (!bytes) return null;
+            return new TextDecoder().decode(bytes);
+        }
+
+        function getPatchBastardLoopReferences() {
+            return {
+                A: {
+                    enabled: bastardLoopEnabled,
+                    level: Math.round((bastardLoopLevel || 0) * 100),
+                    sourceBpm: bastardLoopSourceBpm,
+                    divisions: getSelectedBastardLoopDivisions({ ensureDefault: false }),
+                    pitchOctaves: bastardLoopPitchOctaves,
+                    pitchAffectsDuration: bastardLoopPitchAffectsDuration,
+                    metadata: snapshotBastardLoopMetadata(bastardLoopMetadata, 'SAMPLEDROP')
+                },
+                B: {
+                    enabled: bastardLoop2Enabled,
+                    level: Math.round((bastardLoop2Level || 0) * 100),
+                    sourceBpm: bastardLoop2SourceBpm,
+                    divisions: getSelectedBastardLoop2Divisions({ ensureDefault: false }),
+                    pitchOctaves: bastardLoop2PitchOctaves,
+                    pitchAffectsDuration: bastardLoop2PitchAffectsDuration,
+                    reverse: bastardLoop2Reverse,
+                    metadata: snapshotBastardLoopMetadata(bastardLoop2Metadata, 'SAMPLEDROP_2')
+                },
+                C: {
+                    enabled: bastardLoop3Enabled,
+                    level: Math.round((bastardLoop3Level || 0) * 100),
+                    sourceBpm: bastardLoop3SourceBpm,
+                    divisions: getSelectedBastardLoop3Divisions({ ensureDefault: false }),
+                    pitchOctaves: bastardLoop3PitchOctaves,
+                    pitchAffectsDuration: bastardLoop3PitchAffectsDuration,
+                    reverse: bastardLoop3Reverse,
+                    metadata: snapshotBastardLoopMetadata(bastardLoop3Metadata, 'SPLICE_CLAW')
+                },
+                V: {
+                    enabled: bastardLoopVEnabled,
+                    level: Math.round((bastardLoopVLevel || 0) * 100),
+                    sourceBpm: bastardLoopVSourceBpm,
+                    divisions: getSelectedBastardLoopVDivisions({ ensureDefault: false }),
+                    pitchOctaves: bastardLoopVPitchOctaves,
+                    pitchSemitones: getBastardLoopVPitchSemitones(),
+                    fineCents: getBastardLoopVFineCents(),
+                    pitchAffectsDuration: bastardLoopVPitchAffectsDuration,
+                    reverse: bastardLoopVReverse,
+                    metadata: snapshotBastardLoopMetadata(bastardLoopVMetadata, 'SAMPLES_VOCAL')
+                },
+                P: {
+                    enabled: bastardLoopPEnabled,
+                    level: Math.round((bastardLoopPLevel || 0) * 100),
+                    sourceBpm: bastardLoopPSourceBpm,
+                    divisions: getSelectedBastardLoopPDivisions({ ensureDefault: false }),
+                    pitchOctaves: bastardLoopPPitchOctaves,
+                    pitchSemitones: getBastardLoopPPitchSemitones(),
+                    fineCents: getBastardLoopPFineCents(),
+                    pitchAffectsDuration: bastardLoopPPitchAffectsDuration,
+                    reverse: bastardLoopPReverse,
+                    metadata: snapshotBastardLoopMetadata(bastardLoopPMetadata, 'SAMPLES_PIANO')
+                },
+                O: {
+                    enabled: bastardLoopOEnabled,
+                    level: Math.round((bastardLoopOLevel || 0) * 100),
+                    sourceBpm: bastardLoopOSourceBpm,
+                    divisions: getSelectedBastardLoopODivisions({ ensureDefault: false }),
+                    pitchOctaves: bastardLoopOPitchOctaves,
+                    pitchSemitones: getBastardLoopOPitchSemitones(),
+                    fineCents: getBastardLoopOFineCents(),
+                    pitchAffectsDuration: bastardLoopOPitchAffectsDuration,
+                    reverse: bastardLoopOReverse,
+                    metadata: snapshotBastardLoopMetadata(bastardLoopOMetadata, 'SAMPLES_ORCH')
+                }
+            };
+        }
+
+        function buildPatchEffectsSnapshot() {
+            return {
+                fxMuted,
+                finalReverbEnabled,
+                finalCompressorSidechainSource,
+                finalFxPlacementLfoEnabled,
+                finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
+                filterEnabled: {
+                    lpf: lpfEnabled,
+                    hpf: hpfEnabled
+                },
+                filterPoles: {
+                    lpf: slopeToFilterPoles(lpfSlope),
+                    hpf: slopeToFilterPoles(hpfSlope)
+                },
+                lfo: {
+                    lfo1: { mode: lfoMode, waveform: document.getElementById('lfoWaveform')?.value || 'sine', enabled: { ...lfoEnabled }, inverted: { ...lfoInverted } },
+                    lfo2: { mode: lfo2Mode, waveform: document.getElementById('lfo2Waveform')?.value || 'sine', enabled: { ...lfo2Enabled }, inverted: { ...lfo2Inverted } },
+                    lfo3: { mode: 'bpm', waveform: document.getElementById('lfo3Waveform')?.value || 'sine', enabled: { ...lfo3Enabled }, inverted: { ...lfo3Inverted } }
+                },
+                finalPan: {
+                    center: document.getElementById('finalPanCenter')?.value,
+                    width: document.getElementById('finalPanWidth')?.value,
+                    lfoRate: document.getElementById('finalPanLfoRate')?.value,
+                    lfoDepth: document.getElementById('finalPanLfoDepth')?.value,
+                    lfoWaveform: document.getElementById('finalPanLfoWaveform')?.value,
+                    pitchDepth: document.getElementById('finalPanAudioDepth')?.value
+                }
+            };
+        }
+
+        async function buildPatchZipBlob(filename) {
+            const preset = gatherPreset();
+            const entries = [];
+            const assets = [];
+
+            for (const definition of PATCH_REPOSITORY_AUDIO_ENTRIES) {
+                const buffer = definition.getBuffer();
+                if (!buffer) continue;
+                const wav = audioBufferToWav(buffer);
+                entries.push({ path: definition.path, data: wav });
+                assets.push({
+                    path: definition.path,
+                    key: definition.key,
+                    label: definition.label,
+                    role: definition.role,
+                    layer: definition.layer || '',
+                    channels: buffer.numberOfChannels,
+                    sampleRate: buffer.sampleRate,
+                    durationSeconds: Number(buffer.duration.toFixed(4)),
+                    metadata: typeof definition.getMetadata === 'function'
+                        ? snapshotBastardLoopMetadata(definition.getMetadata(), definition.label)
+                        : null
+                });
+            }
+
+            const manifest = {
+                app: 'MYGRAIN',
+                format: 'mygrain-patch-zip',
+                formatVersion: PATCH_REPOSITORY_FORMAT_VERSION,
+                createdAt: new Date().toISOString(),
+                filename,
+                presetPath: 'preset.json',
+                statePath: 'state.json',
+                debugPath: 'debug.txt',
+                assets,
+                bastardLoopReferences: getPatchBastardLoopReferences(),
+                lfoAndEffects: buildPatchEffectsSnapshot(),
+                notes: [
+                    'This ZIP is created with stored entries so MYGRAIN can read it without an external ZIP library.',
+                    'Browser security allows direct repo upload only through the MYGRAIN server API; otherwise the ZIP is downloaded locally.'
+                ]
+            };
+
+            entries.unshift(
+                { path: 'manifest.json', data: JSON.stringify(manifest, null, 2) },
+                { path: 'preset.json', data: JSON.stringify(preset, null, 2) },
+                { path: 'state.json', data: JSON.stringify(readStoredStateSnapshot() || {}, null, 2) },
+                { path: 'debug.txt', data: buildDebugConsoleText() }
+            );
+
+            return createStoredZip(entries);
+        }
+
+        async function uploadPatchZipToRepository(blob, filename) {
+            const uploadUrl = `${PATCH_REPOSITORY_UPLOAD_API_URL}?filename=${encodeURIComponent(filename)}`;
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/zip',
+                    'X-Filename': filename
+                },
+                body: blob
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Patch upload failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function downloadBlob(blob, filename) {
+            if (navigator.share) {
+                try {
+                    const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+                    await navigator.share({ files: [file], title: filename });
+                    return true;
+                } catch (error) {
+                    if (error.name === 'AbortError') return false;
+                    console.warn('Share failed, falling back to download:', error);
+                }
+            }
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.style.display = 'none';
+            anchor.href = url;
+            anchor.download = filename;
+            document.body.appendChild(anchor);
+            anchor.click();
+            setTimeout(() => {
+                document.body.removeChild(anchor);
+                URL.revokeObjectURL(url);
+            }, 100);
+            return true;
+        }
+
+        async function exportPatchZipToRepository() {
+            if (performanceExportPatchZipBtn) {
+                performanceExportPatchZipBtn.disabled = true;
+                performanceExportPatchZipBtn.textContent = 'Bundling...';
+            }
+            const defaultBase = buildPatchDefaultBaseName();
+            const requested = prompt('Enter patch ZIP filename:', defaultBase);
+            if (!requested) {
+                setStatus('Patch ZIP export cancelled.');
+                if (performanceExportPatchZipBtn) {
+                    performanceExportPatchZipBtn.disabled = false;
+                    performanceExportPatchZipBtn.textContent = 'Export Patch ZIP';
+                }
+                return;
+            }
+            const filename = sanitizePatchRepositoryFilename(requested, defaultBase);
+            try {
+                const blob = await buildPatchZipBlob(filename);
+                if (performanceExportPatchZipBtn) performanceExportPatchZipBtn.textContent = 'Uploading...';
+                try {
+                    const result = await uploadPatchZipToRepository(blob, filename);
+                    setStatus(`Patch ZIP saved to repository: ${result.savedName || filename}.`);
+                    await refreshPatchRepositoryBrowser({ forceRefresh: true, silent: true });
+                } catch (uploadError) {
+                    console.warn('Patch repo upload failed; downloading ZIP instead:', uploadError);
+                    await downloadBlob(blob, filename);
+                    setStatus(`Patch repo upload failed (${uploadError.message}); downloaded ${filename} instead.`, 'error');
+                }
+            } finally {
+                if (performanceExportPatchZipBtn) {
+                    performanceExportPatchZipBtn.disabled = false;
+                    performanceExportPatchZipBtn.textContent = 'Export Patch ZIP';
+                }
+            }
         }
 
         async function deleteWavFromRepository(filename) {
@@ -29781,6 +30237,236 @@
             }
         }
 
+        let patchRepositoryBrowserFiles = [];
+        let patchRepositoryBrowserLoading = false;
+
+        function setPatchRepositoryBrowserStatus(message = '') {
+            const status = document.getElementById('patchRepositoryBrowserStatus');
+            if (status) status.textContent = message;
+        }
+
+        function formatPatchRepositoryFileMeta(file = {}) {
+            const parts = [];
+            const size = Number(file.size);
+            if (Number.isFinite(size) && size > 0) {
+                parts.push(size >= 1024 * 1024
+                    ? `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`
+                    : `${Math.max(1, Math.round(size / 1024))} KB`);
+            }
+            const modified = Number(file.modified);
+            if (Number.isFinite(modified) && modified > 0) {
+                const date = new Date(modified * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    parts.push(date.toLocaleString());
+                }
+            }
+            return parts.join(' · ') || 'Saved patch';
+        }
+
+        function renderPatchRepositoryBrowserFiles() {
+            const list = document.getElementById('patchRepositoryBrowserList');
+            const filter = document.getElementById('patchRepositoryBrowserFilter');
+            if (!list) return;
+
+            const query = String(filter?.value || '').trim().toLowerCase();
+            const visibleFiles = patchRepositoryBrowserFiles.filter((file) => {
+                const haystack = `${file.name}`.toLowerCase();
+                return !query || haystack.includes(query);
+            });
+            list.innerHTML = '';
+
+            if (!visibleFiles.length) {
+                const empty = document.createElement('div');
+                empty.className = 'sample-browser-empty';
+                empty.textContent = patchRepositoryBrowserLoading
+                    ? 'Loading saved patches…'
+                    : (patchRepositoryBrowserFiles.length ? 'No patches match that filter.' : 'No patch ZIPs were found.');
+                list.appendChild(empty);
+                return;
+            }
+
+            visibleFiles.forEach((file) => {
+                const card = document.createElement('article');
+                card.className = 'sample-browser-card';
+
+                const head = document.createElement('div');
+                head.className = 'sample-browser-card-head';
+
+                const name = document.createElement('div');
+                name.className = 'sample-browser-name';
+                name.textContent = file.name;
+
+                const openButton = document.createElement('button');
+                openButton.className = 'performance-btn primary';
+                openButton.type = 'button';
+                openButton.textContent = 'Open Patch';
+
+                const downloadButton = document.createElement('button');
+                downloadButton.className = 'performance-btn';
+                downloadButton.type = 'button';
+                downloadButton.textContent = 'Download ZIP';
+
+                const meta = document.createElement('div');
+                meta.className = 'sample-browser-path';
+                meta.textContent = formatPatchRepositoryFileMeta(file);
+
+                const hint = document.createElement('div');
+                hint.className = 'sample-browser-path';
+                hint.textContent = 'Stored in sandboxGRANULAR/patches';
+
+                const actions = document.createElement('div');
+                actions.className = 'sample-browser-card-actions';
+
+                openButton.addEventListener('click', async () => {
+                    openButton.disabled = true;
+                    setPatchRepositoryBrowserStatus(`Opening ${file.name}…`);
+                    try {
+                        const response = await fetch(file.url, { cache: 'no-store' });
+                        if (!response.ok) throw new Error(`Could not fetch patch (${response.status})`);
+                        await openPatchZipFromArrayBuffer(await response.arrayBuffer(), file.name);
+                        closePatchRepositoryBrowser();
+                    } catch (error) {
+                        console.error(error);
+                        setPatchRepositoryBrowserStatus(`Open failed: ${error.message}`);
+                        setStatus(`Patch open failed: ${error.message}`, 'error');
+                    } finally {
+                        openButton.disabled = false;
+                    }
+                });
+
+                downloadButton.addEventListener('click', () => {
+                    window.open(file.url, '_blank', 'noopener');
+                });
+
+                head.append(name, openButton);
+                actions.append(downloadButton, hint);
+                card.append(head, meta, actions);
+                list.appendChild(card);
+            });
+        }
+
+        async function refreshPatchRepositoryBrowser(options = {}) {
+            patchRepositoryBrowserLoading = true;
+            if (!options.silent) setPatchRepositoryBrowserStatus('Loading saved patch ZIPs…');
+            renderPatchRepositoryBrowserFiles();
+            try {
+                const response = await fetch(PATCH_REPOSITORY_LIST_API_URL, {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Patch list failed with status ${response.status}`);
+                }
+                patchRepositoryBrowserFiles = Array.isArray(payload.files) ? payload.files : [];
+                setPatchRepositoryBrowserStatus(patchRepositoryBrowserFiles.length
+                    ? `${patchRepositoryBrowserFiles.length} patch ZIP${patchRepositoryBrowserFiles.length === 1 ? '' : 's'} in the repository.`
+                    : 'No patch ZIPs were found.');
+            } catch (error) {
+                console.error(error);
+                setPatchRepositoryBrowserStatus(`Patch browser failed: ${error.message}`);
+                if (!options.silent) setStatus(`Patch browser failed: ${error.message}`, 'error');
+            } finally {
+                patchRepositoryBrowserLoading = false;
+                renderPatchRepositoryBrowserFiles();
+            }
+        }
+
+        function openPatchRepositoryBrowser() {
+            const overlay = document.getElementById('patchRepositoryBrowserOverlay');
+            if (!overlay) return;
+            overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
+            refreshPatchRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+            });
+        }
+
+        function closePatchRepositoryBrowser() {
+            const overlay = document.getElementById('patchRepositoryBrowserOverlay');
+            if (!overlay) return;
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+
+        async function restorePatchAudioEntry(asset, bytes) {
+            if (!asset || !bytes) return false;
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before opening a patch ZIP with audio.');
+            }
+            const decoded = await audioContext.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+            const definition = PATCH_REPOSITORY_AUDIO_ENTRIES.find((entry) => entry.key === asset.key || entry.path === asset.path);
+            if (!definition) return false;
+            const metadata = asset.metadata || {};
+            if (definition.role === 'bastardloop-render' && typeof definition.apply === 'function') {
+                await definition.apply(decoded, asset.label || definition.label, metadata);
+                return true;
+            }
+            if (definition.key === 'dropboxSample') {
+                dropboxSampleLayerRawBuffer = decoded;
+                dropboxSampleLayerMetadata = {
+                    ...(metadata || {}),
+                    summary: metadata.summary || `${decoded.duration.toFixed(2)}s source · restored from patch`,
+                    durationSeconds: decoded.duration,
+                    bpm: dropboxSampleLayerSourceBpm
+                };
+                rerenderDropboxSampleLayerFromRaw({ skipUi: true });
+                await saveAudioBufferToDB(dropboxSampleLayerRawBuffer, DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY);
+                return true;
+            }
+            if (definition.key === 'drumKick') {
+                drumMachineKickBuffer = decoded;
+                await saveAudioBufferToDB(drumMachineKickBuffer, DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
+                return true;
+            }
+            if (definition.key === 'drumSnare') {
+                drumMachineSnareBuffer = decoded;
+                await saveAudioBufferToDB(drumMachineSnareBuffer, DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
+                return true;
+            }
+            if (definition.key === 'drumHat') {
+                drumMachineHatBuffer = decoded;
+                await saveAudioBufferToDB(drumMachineHatBuffer, DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY);
+                return true;
+            }
+            await applyLoadedAudioBuffer(decoded, asset.label || definition.label, definition.key);
+            return true;
+        }
+
+        async function openPatchZipFromArrayBuffer(arrayBuffer, sourceName = 'patch.zip') {
+            const entries = parseStoredZipEntries(arrayBuffer);
+            const manifestText = getZipText(entries, 'manifest.json');
+            const presetText = getZipText(entries, 'preset.json');
+            if (!presetText) {
+                throw new Error('Patch ZIP is missing preset.json.');
+            }
+            const manifest = manifestText ? JSON.parse(manifestText) : {};
+            const preset = JSON.parse(presetText);
+            const assets = Array.isArray(manifest.assets) ? manifest.assets : [];
+            let restoredAssets = 0;
+            for (const asset of assets) {
+                const bytes = entries.get(asset.path);
+                if (!bytes) continue;
+                if (await restorePatchAudioEntry(asset, bytes)) {
+                    restoredAssets += 1;
+                }
+            }
+            applyPreset(preset);
+            syncLegacyAudioBuffer();
+            drawWaveforms();
+            updateSourceAvailability();
+            syncBastardLoopUi();
+            syncBastardLoop2Ui();
+            syncBastardLoop3Ui();
+            syncBastardLoopVUi();
+            syncBastardLoopPUi();
+            syncBastardLoopOUi();
+            syncDropboxSampleLayerUi();
+            syncDrumMachineUi();
+            saveState();
+            setStatus(`Opened ${sourceName}: preset plus ${restoredAssets} audio asset${restoredAssets === 1 ? '' : 's'} restored.`);
+        }
+
         function pauseWavRepositoryBrowserPreviewAudio() {
             document.querySelectorAll('#wavRepositoryBrowserList audio').forEach((audio) => {
                 try {
@@ -30856,6 +31542,8 @@
         const performanceUploadTakesBtn = document.getElementById('performanceUploadTakesBtn');
         const performanceExportPatchBtn = document.getElementById('performanceExportPatchBtn');
         const performanceImportPatchBtn = document.getElementById('performanceImportPatchBtn');
+        const performanceExportPatchZipBtn = document.getElementById('performanceExportPatchZipBtn');
+        const performancePatchBrowserBtn = document.getElementById('performancePatchBrowserBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceFinalReverbBtn = document.getElementById('performanceFinalReverbBtn');
         const performanceFinalSidechainBtn = document.getElementById('performanceFinalSidechainBtn');
@@ -32716,6 +33404,19 @@
             openWavRepositoryBrowser();
         });
 
+        performanceExportPatchZipBtn?.addEventListener('click', async () => {
+            try {
+                await exportPatchZipToRepository();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Patch ZIP export failed: ${error.message}`, 'error');
+            }
+        });
+
+        performancePatchBrowserBtn?.addEventListener('click', () => {
+            openPatchRepositoryBrowser();
+        });
+
         performanceTakeSlot1Btn?.addEventListener('click', async () => {
             try {
                 await capturePerformanceTake(0);
@@ -32784,6 +33485,38 @@
 
         performanceImportPatchBtn?.addEventListener('click', () => {
             document.getElementById('loadPresetBtn')?.click();
+        });
+
+        document.getElementById('patchRepositoryBrowserCloseBtn')?.addEventListener('click', () => {
+            closePatchRepositoryBrowser();
+        });
+
+        document.getElementById('patchRepositoryBrowserRefreshBtn')?.addEventListener('click', () => {
+            refreshPatchRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+                setPatchRepositoryBrowserStatus(`Refresh failed: ${error.message}`);
+            });
+        });
+
+        document.getElementById('patchRepositoryBrowserFilter')?.addEventListener('input', renderPatchRepositoryBrowserFiles);
+
+        document.getElementById('patchRepositoryBrowserOpenLocalBtn')?.addEventListener('click', () => {
+            document.getElementById('patchRepositoryBrowserOpenInput')?.click();
+        });
+
+        document.getElementById('patchRepositoryBrowserOpenInput')?.addEventListener('change', async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+                await openPatchZipFromArrayBuffer(await file.arrayBuffer(), file.name);
+                closePatchRepositoryBrowser();
+            } catch (error) {
+                console.error(error);
+                setPatchRepositoryBrowserStatus(`Open failed: ${error.message}`);
+                setStatus(`Patch open failed: ${error.message}`, 'error');
+            } finally {
+                event.target.value = '';
+            }
         });
 
         performanceSeqPlayBtn?.addEventListener('click', () => {
