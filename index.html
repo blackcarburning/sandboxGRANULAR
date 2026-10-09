@@ -4470,7 +4470,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Vocal Layer</div>
                         <h3 class="performance-feature-title">Bastardloop V</h3>
-                        <p class="performance-feature-note">Generate a vocal Bastardloop layer from `SAMPLES_VOCAL`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                        <p class="performance-feature-note">Generate a vocal Bastardloop layer from `SAMPLES_VOCAL`, with its own resolutions, octave/semitone/fine pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopVBtn">Generate Bastardloop V</button>
@@ -4521,6 +4521,20 @@
                     <input type="range" id="performanceBastardLoopVPitch" min="-2" max="2" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoopVSemitone">
+                        <span>Bastardloop V Semitone</span>
+                        <span class="value" id="performanceBastardLoopVSemitoneValue">0 st</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopVSemitone" min="-12" max="12" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopVFineTune">
+                        <span>Bastardloop V Fine Tune</span>
+                        <span class="value" id="performanceBastardLoopVFineTuneValue">0 c</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopVFineTune" min="-100" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label class="performance-checkbox-option" for="performanceBastardLoopVPitchAffectsDuration">
                         <input type="checkbox" id="performanceBastardLoopVPitchAffectsDuration">
                         <span>Don't Preserve Duration</span>
@@ -4543,7 +4557,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Piano Layer</div>
                         <h3 class="performance-feature-title">Bastardloop P</h3>
-                        <p class="performance-feature-note">Generate a piano Bastardloop layer from `SAMPLES_PIANO`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                        <p class="performance-feature-note">Generate a piano Bastardloop layer from `SAMPLES_PIANO`, with its own resolutions, octave/semitone/fine pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopPBtn">Generate Bastardloop P</button>
@@ -4594,6 +4608,20 @@
                     <input type="range" id="performanceBastardLoopPPitch" min="-2" max="2" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoopPSemitone">
+                        <span>Bastardloop P Semitone</span>
+                        <span class="value" id="performanceBastardLoopPSemitoneValue">0 st</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopPSemitone" min="-12" max="12" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopPFineTune">
+                        <span>Bastardloop P Fine Tune</span>
+                        <span class="value" id="performanceBastardLoopPFineTuneValue">0 c</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopPFineTune" min="-100" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
                     <label class="performance-checkbox-option" for="performanceBastardLoopPPitchAffectsDuration">
                         <input type="checkbox" id="performanceBastardLoopPPitchAffectsDuration">
                         <span>Don't Preserve Duration</span>
@@ -4616,7 +4644,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Orch Layer</div>
                         <h3 class="performance-feature-title">Bastardloop O</h3>
-                        <p class="performance-feature-note">Generate a orchestral Bastardloop layer from `SAMPLES_ORCH`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                        <p class="performance-feature-note">Generate an orchestral Bastardloop layer from `SAMPLES_ORCH`, with its own resolutions, octave/semitone/fine pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopOBtn">Generate Bastardloop O</button>
@@ -4665,6 +4693,20 @@
                         <span class="value" id="performanceBastardLoopOPitchValue">0 oct</span>
                     </label>
                     <input type="range" id="performanceBastardLoopOPitch" min="-2" max="2" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopOSemitone">
+                        <span>Bastardloop O Semitone</span>
+                        <span class="value" id="performanceBastardLoopOSemitoneValue">0 st</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopOSemitone" min="-12" max="12" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopOFineTune">
+                        <span>Bastardloop O Fine Tune</span>
+                        <span class="value" id="performanceBastardLoopOFineTuneValue">0 c</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopOFineTune" min="-100" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label class="performance-checkbox-option" for="performanceBastardLoopOPitchAffectsDuration">
@@ -8665,18 +8707,24 @@
         let bastardLoopVLevel = 0.5;
         let bastardLoopVFilterCutoff = 18000;
         let bastardLoopVPitchOctaves = 0;
+        let bastardLoopVPitchSemitones = 0;
+        let bastardLoopVFineCents = 0;
         let bastardLoopVPitchAffectsDuration = false;
         let bastardLoopVEnabled = true;
         let bastardLoopVReverse = false;
         let bastardLoopPLevel = 0.5;
         let bastardLoopPFilterCutoff = 18000;
         let bastardLoopPPitchOctaves = 0;
+        let bastardLoopPPitchSemitones = 0;
+        let bastardLoopPFineCents = 0;
         let bastardLoopPPitchAffectsDuration = false;
         let bastardLoopPEnabled = true;
         let bastardLoopPReverse = false;
         let bastardLoopOLevel = 0.5;
         let bastardLoopOFilterCutoff = 18000;
         let bastardLoopOPitchOctaves = 0;
+        let bastardLoopOPitchSemitones = 0;
+        let bastardLoopOFineCents = 0;
         let bastardLoopOPitchAffectsDuration = false;
         let bastardLoopOEnabled = true;
         let bastardLoopOReverse = false;
@@ -13991,6 +14039,45 @@
             return `${clamped > 0 ? '+' : ''}${clamped} oct`;
         }
 
+        function clampBastardLoopPitchSemitones(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 0;
+            return Math.max(-12, Math.min(12, Math.round(numeric)));
+        }
+
+        function clampBastardLoopFineCents(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return 0;
+            return Math.max(-100, Math.min(100, Math.round(numeric)));
+        }
+
+        function formatBastardLoopPitchSemitones(semitones) {
+            const clamped = clampBastardLoopPitchSemitones(semitones);
+            return `${clamped > 0 ? '+' : ''}${clamped} st`;
+        }
+
+        function formatBastardLoopFineCents(cents) {
+            const clamped = clampBastardLoopFineCents(cents);
+            return `${clamped > 0 ? '+' : ''}${clamped} c`;
+        }
+
+        function getBastardLoopPitchRatioFromParts(octaves, semitones = 0, cents = 0) {
+            const totalSemitones = (clampBastardLoopPitchOctaves(octaves) * 12)
+                + clampBastardLoopPitchSemitones(semitones)
+                + (clampBastardLoopFineCents(cents) / 100);
+            return Math.pow(2, totalSemitones / 12);
+        }
+
+        function syncBastardLoopPitchControl(sliderId, valueId, value, formatter) {
+            const clampedValue = Number(value);
+            const label = document.getElementById(valueId);
+            if (label) label.textContent = formatter(clampedValue);
+            const slider = document.getElementById(sliderId);
+            if (slider && Number(slider.value) !== clampedValue) {
+                slider.value = String(clampedValue);
+            }
+        }
+
         function updateBastardLoopPitchLabel() {
             const value = clampBastardLoopPitchOctaves(bastardLoopPitchOctaves);
             const label = document.getElementById('performanceBastardLoopPitchValue');
@@ -14055,13 +14142,9 @@
         }
 
         function updateBastardLoopVPitchLabel() {
-            const value = clampBastardLoopPitchOctaves(bastardLoopVPitchOctaves);
-            const label = document.getElementById('performanceBastardLoopVPitchValue');
-            if (label) label.textContent = formatBastardLoopPitchOctaves(value);
-            const slider = document.getElementById('performanceBastardLoopVPitch');
-            if (slider && Number(slider.value) !== value) {
-                slider.value = String(value);
-            }
+            syncBastardLoopPitchControl('performanceBastardLoopVPitch', 'performanceBastardLoopVPitchValue', clampBastardLoopPitchOctaves(bastardLoopVPitchOctaves), formatBastardLoopPitchOctaves);
+            syncBastardLoopPitchControl('performanceBastardLoopVSemitone', 'performanceBastardLoopVSemitoneValue', clampBastardLoopPitchSemitones(bastardLoopVPitchSemitones), formatBastardLoopPitchSemitones);
+            syncBastardLoopPitchControl('performanceBastardLoopVFineTune', 'performanceBastardLoopVFineTuneValue', clampBastardLoopFineCents(bastardLoopVFineCents), formatBastardLoopFineCents);
         }
 
         function getBastardLoopVPitchOctaves() {
@@ -14071,17 +14154,31 @@
             return bastardLoopVPitchOctaves;
         }
 
+        function getBastardLoopVPitchSemitones() {
+            const slider = document.getElementById('performanceBastardLoopVSemitone');
+            bastardLoopVPitchSemitones = clampBastardLoopPitchSemitones(slider?.value ?? bastardLoopVPitchSemitones);
+            updateBastardLoopVPitchLabel();
+            return bastardLoopVPitchSemitones;
+        }
+
+        function getBastardLoopVFineCents() {
+            const slider = document.getElementById('performanceBastardLoopVFineTune');
+            bastardLoopVFineCents = clampBastardLoopFineCents(slider?.value ?? bastardLoopVFineCents);
+            updateBastardLoopVPitchLabel();
+            return bastardLoopVFineCents;
+        }
+
         function getBastardLoopVPitchRatio() {
-            return Math.pow(2, getBastardLoopVPitchOctaves());
+            return getBastardLoopPitchRatioFromParts(
+                getBastardLoopVPitchOctaves(),
+                getBastardLoopVPitchSemitones(),
+                getBastardLoopVFineCents()
+            );
         }
         function updateBastardLoopPPitchLabel() {
-            const value = clampBastardLoopPitchOctaves(bastardLoopPPitchOctaves);
-            const label = document.getElementById('performanceBastardLoopPPitchValue');
-            if (label) label.textContent = formatBastardLoopPitchOctaves(value);
-            const slider = document.getElementById('performanceBastardLoopPPitch');
-            if (slider && Number(slider.value) !== value) {
-                slider.value = String(value);
-            }
+            syncBastardLoopPitchControl('performanceBastardLoopPPitch', 'performanceBastardLoopPPitchValue', clampBastardLoopPitchOctaves(bastardLoopPPitchOctaves), formatBastardLoopPitchOctaves);
+            syncBastardLoopPitchControl('performanceBastardLoopPSemitone', 'performanceBastardLoopPSemitoneValue', clampBastardLoopPitchSemitones(bastardLoopPPitchSemitones), formatBastardLoopPitchSemitones);
+            syncBastardLoopPitchControl('performanceBastardLoopPFineTune', 'performanceBastardLoopPFineTuneValue', clampBastardLoopFineCents(bastardLoopPFineCents), formatBastardLoopFineCents);
         }
 
         function getBastardLoopPPitchOctaves() {
@@ -14091,17 +14188,31 @@
             return bastardLoopPPitchOctaves;
         }
 
+        function getBastardLoopPPitchSemitones() {
+            const slider = document.getElementById('performanceBastardLoopPSemitone');
+            bastardLoopPPitchSemitones = clampBastardLoopPitchSemitones(slider?.value ?? bastardLoopPPitchSemitones);
+            updateBastardLoopPPitchLabel();
+            return bastardLoopPPitchSemitones;
+        }
+
+        function getBastardLoopPFineCents() {
+            const slider = document.getElementById('performanceBastardLoopPFineTune');
+            bastardLoopPFineCents = clampBastardLoopFineCents(slider?.value ?? bastardLoopPFineCents);
+            updateBastardLoopPPitchLabel();
+            return bastardLoopPFineCents;
+        }
+
         function getBastardLoopPPitchRatio() {
-            return Math.pow(2, getBastardLoopPPitchOctaves());
+            return getBastardLoopPitchRatioFromParts(
+                getBastardLoopPPitchOctaves(),
+                getBastardLoopPPitchSemitones(),
+                getBastardLoopPFineCents()
+            );
         }
         function updateBastardLoopOPitchLabel() {
-            const value = clampBastardLoopPitchOctaves(bastardLoopOPitchOctaves);
-            const label = document.getElementById('performanceBastardLoopOPitchValue');
-            if (label) label.textContent = formatBastardLoopPitchOctaves(value);
-            const slider = document.getElementById('performanceBastardLoopOPitch');
-            if (slider && Number(slider.value) !== value) {
-                slider.value = String(value);
-            }
+            syncBastardLoopPitchControl('performanceBastardLoopOPitch', 'performanceBastardLoopOPitchValue', clampBastardLoopPitchOctaves(bastardLoopOPitchOctaves), formatBastardLoopPitchOctaves);
+            syncBastardLoopPitchControl('performanceBastardLoopOSemitone', 'performanceBastardLoopOSemitoneValue', clampBastardLoopPitchSemitones(bastardLoopOPitchSemitones), formatBastardLoopPitchSemitones);
+            syncBastardLoopPitchControl('performanceBastardLoopOFineTune', 'performanceBastardLoopOFineTuneValue', clampBastardLoopFineCents(bastardLoopOFineCents), formatBastardLoopFineCents);
         }
 
         function getBastardLoopOPitchOctaves() {
@@ -14111,8 +14222,26 @@
             return bastardLoopOPitchOctaves;
         }
 
+        function getBastardLoopOPitchSemitones() {
+            const slider = document.getElementById('performanceBastardLoopOSemitone');
+            bastardLoopOPitchSemitones = clampBastardLoopPitchSemitones(slider?.value ?? bastardLoopOPitchSemitones);
+            updateBastardLoopOPitchLabel();
+            return bastardLoopOPitchSemitones;
+        }
+
+        function getBastardLoopOFineCents() {
+            const slider = document.getElementById('performanceBastardLoopOFineTune');
+            bastardLoopOFineCents = clampBastardLoopFineCents(slider?.value ?? bastardLoopOFineCents);
+            updateBastardLoopOPitchLabel();
+            return bastardLoopOFineCents;
+        }
+
         function getBastardLoopOPitchRatio() {
-            return Math.pow(2, getBastardLoopOPitchOctaves());
+            return getBastardLoopPitchRatioFromParts(
+                getBastardLoopOPitchOctaves(),
+                getBastardLoopOPitchSemitones(),
+                getBastardLoopOFineCents()
+            );
         }
 
         function getBastardLoopTempoRate(sourceBpm) {
@@ -17940,6 +18069,47 @@
                 saveState();
             }
         }
+
+        function setBastardLoopVPitchSemitones(value, options = {}) {
+            const nextValue = clampBastardLoopPitchSemitones(value);
+            bastardLoopVPitchSemitones = nextValue;
+            updateBastardLoopVPitchLabel();
+            if (bastardLoopPlaying && bastardLoopVBuffer) {
+                startBastardLoopV(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopVUi();
+            syncBastardLoopPUi();
+            syncBastardLoopOUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop V semitone ${formatBastardLoopPitchSemitones(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoopVFineCents(value, options = {}) {
+            const nextValue = clampBastardLoopFineCents(value);
+            bastardLoopVFineCents = nextValue;
+            updateBastardLoopVPitchLabel();
+            if (bastardLoopPlaying && bastardLoopVBuffer) {
+                startBastardLoopV(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopVUi();
+            syncBastardLoopPUi();
+            syncBastardLoopOUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop V fine tune ${formatBastardLoopFineCents(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function setBastardLoopPReverse(enabled, options = {}) {
             const nextValue = Boolean(enabled);
             if (bastardLoopPReverse === nextValue) {
@@ -17978,6 +18148,43 @@
                 saveState();
             }
         }
+
+        function setBastardLoopPPitchSemitones(value, options = {}) {
+            const nextValue = clampBastardLoopPitchSemitones(value);
+            bastardLoopPPitchSemitones = nextValue;
+            updateBastardLoopPPitchLabel();
+            if (bastardLoopPlaying && bastardLoopPBuffer) {
+                startBastardLoopP(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopPUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop P semitone ${formatBastardLoopPitchSemitones(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoopPFineCents(value, options = {}) {
+            const nextValue = clampBastardLoopFineCents(value);
+            bastardLoopPFineCents = nextValue;
+            updateBastardLoopPPitchLabel();
+            if (bastardLoopPlaying && bastardLoopPBuffer) {
+                startBastardLoopP(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopPUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop P fine tune ${formatBastardLoopFineCents(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function setBastardLoopOReverse(enabled, options = {}) {
             const nextValue = Boolean(enabled);
             if (bastardLoopOReverse === nextValue) {
@@ -18011,6 +18218,42 @@
             syncBastardLoopOUi();
             if (!options.silent) {
                 setStatus(`Bastardloop O pitch ${formatBastardLoopPitchOctaves(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoopOPitchSemitones(value, options = {}) {
+            const nextValue = clampBastardLoopPitchSemitones(value);
+            bastardLoopOPitchSemitones = nextValue;
+            updateBastardLoopOPitchLabel();
+            if (bastardLoopPlaying && bastardLoopOBuffer) {
+                startBastardLoopO(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopOUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop O semitone ${formatBastardLoopPitchSemitones(nextValue)}.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setBastardLoopOFineCents(value, options = {}) {
+            const nextValue = clampBastardLoopFineCents(value);
+            bastardLoopOFineCents = nextValue;
+            updateBastardLoopOPitchLabel();
+            if (bastardLoopPlaying && bastardLoopOBuffer) {
+                startBastardLoopO(null, { skipUi: true });
+            } else {
+                syncAllBastardLoopTempos();
+            }
+            syncBastardLoopOUi();
+            if (!options.silent) {
+                setStatus(`Bastardloop O fine tune ${formatBastardLoopFineCents(nextValue)}.`);
             }
             if (!options.skipSave) {
                 saveState();
@@ -25125,6 +25368,12 @@
             setBastardLoopVPitchOctaves(chooseRandom([-2, -1, 0, 0, 1, 2]), { silent: true, skipSave: true });
             setBastardLoopPPitchOctaves(chooseRandom([-2, -1, 0, 0, 1, 2]), { silent: true, skipSave: true });
             setBastardLoopOPitchOctaves(chooseRandom([-2, -1, 0, 0, 1, 2]), { silent: true, skipSave: true });
+            setBastardLoopVPitchSemitones(0, { silent: true, skipSave: true });
+            setBastardLoopVFineCents(0, { silent: true, skipSave: true });
+            setBastardLoopPPitchSemitones(0, { silent: true, skipSave: true });
+            setBastardLoopPFineCents(0, { silent: true, skipSave: true });
+            setBastardLoopOPitchSemitones(0, { silent: true, skipSave: true });
+            setBastardLoopOFineCents(0, { silent: true, skipSave: true });
 
             setBastardLoopPitchAffectsDuration(maybe(0.45), { silent: true, skipSave: true });
             setBastardLoop2PitchAffectsDuration(maybe(0.45), { silent: true, skipSave: true });
@@ -25511,10 +25760,16 @@
                 performanceBastardLoop3Pitch: 0,
                 performanceBastardLoop3Level: 50,
                 performanceBastardLoopVPitch: 0,
+                performanceBastardLoopVSemitone: 0,
+                performanceBastardLoopVFineTune: 0,
                 performanceBastardLoopVLevel: 50,
                 performanceBastardLoopPPitch: 0,
+                performanceBastardLoopPSemitone: 0,
+                performanceBastardLoopPFineTune: 0,
                 performanceBastardLoopPLevel: 50,
                 performanceBastardLoopOPitch: 0,
+                performanceBastardLoopOSemitone: 0,
+                performanceBastardLoopOFineTune: 0,
                 performanceBastardLoopOLevel: 50,
                 performanceDropboxSampleLevel: 45,
                 performanceGeneratedDryTrim: 0,
@@ -30417,18 +30672,24 @@
         const performanceBastardLoopVFilterCutoff = document.getElementById('performanceBastardLoopVFilterCutoff');
         const performanceBastardLoopVSoloBtn = document.getElementById('performanceBastardLoopVSoloBtn');
         const performanceBastardLoopVReverseBtn = document.getElementById('performanceBastardLoopVReverseBtn');
+        const performanceBastardLoopVSemitone = document.getElementById('performanceBastardLoopVSemitone');
+        const performanceBastardLoopVFineTune = document.getElementById('performanceBastardLoopVFineTune');
         const performanceBastardLoopPPitch = document.getElementById('performanceBastardLoopPPitch');
         const performanceBastardLoopPPitchAffectsDuration = document.getElementById('performanceBastardLoopPPitchAffectsDuration');
         const performanceBastardLoopPLevel = document.getElementById('performanceBastardLoopPLevel');
         const performanceBastardLoopPFilterCutoff = document.getElementById('performanceBastardLoopPFilterCutoff');
         const performanceBastardLoopPSoloBtn = document.getElementById('performanceBastardLoopPSoloBtn');
         const performanceBastardLoopPReverseBtn = document.getElementById('performanceBastardLoopPReverseBtn');
+        const performanceBastardLoopPSemitone = document.getElementById('performanceBastardLoopPSemitone');
+        const performanceBastardLoopPFineTune = document.getElementById('performanceBastardLoopPFineTune');
         const performanceBastardLoopOPitch = document.getElementById('performanceBastardLoopOPitch');
         const performanceBastardLoopOPitchAffectsDuration = document.getElementById('performanceBastardLoopOPitchAffectsDuration');
         const performanceBastardLoopOLevel = document.getElementById('performanceBastardLoopOLevel');
         const performanceBastardLoopOFilterCutoff = document.getElementById('performanceBastardLoopOFilterCutoff');
         const performanceBastardLoopOSoloBtn = document.getElementById('performanceBastardLoopOSoloBtn');
         const performanceBastardLoopOReverseBtn = document.getElementById('performanceBastardLoopOReverseBtn');
+        const performanceBastardLoopOSemitone = document.getElementById('performanceBastardLoopOSemitone');
+        const performanceBastardLoopOFineTune = document.getElementById('performanceBastardLoopOFineTune');
         const performanceDropboxSampleBrowseBtn = document.getElementById('performanceDropboxSampleBrowseBtn');
         const performanceDropboxSampleLoadBtn = document.getElementById('performanceDropboxSampleLoadBtn');
         const performanceDropboxSampleSoloBtn = document.getElementById('performanceDropboxSampleSoloBtn');
@@ -30771,6 +31032,18 @@
                 document.getElementById('performanceBastardLoopVPitchValue').textContent = formatBastardLoopPitchOctaves(value);
             }
 
+            if (performanceBastardLoopVSemitone) {
+                const value = getBastardLoopVPitchSemitones();
+                performanceBastardLoopVSemitone.value = String(value);
+                document.getElementById('performanceBastardLoopVSemitoneValue').textContent = formatBastardLoopPitchSemitones(value);
+            }
+
+            if (performanceBastardLoopVFineTune) {
+                const value = getBastardLoopVFineCents();
+                performanceBastardLoopVFineTune.value = String(value);
+                document.getElementById('performanceBastardLoopVFineTuneValue').textContent = formatBastardLoopFineCents(value);
+            }
+
             if (performanceBastardLoopPLevel) {
                 const value = Math.round(getBastardLoopPLevelValue({ applyLayerToggle: false }) * 100);
                 performanceBastardLoopPLevel.value = String(value);
@@ -30783,6 +31056,18 @@
                 document.getElementById('performanceBastardLoopPPitchValue').textContent = formatBastardLoopPitchOctaves(value);
             }
 
+            if (performanceBastardLoopPSemitone) {
+                const value = getBastardLoopPPitchSemitones();
+                performanceBastardLoopPSemitone.value = String(value);
+                document.getElementById('performanceBastardLoopPSemitoneValue').textContent = formatBastardLoopPitchSemitones(value);
+            }
+
+            if (performanceBastardLoopPFineTune) {
+                const value = getBastardLoopPFineCents();
+                performanceBastardLoopPFineTune.value = String(value);
+                document.getElementById('performanceBastardLoopPFineTuneValue').textContent = formatBastardLoopFineCents(value);
+            }
+
             if (performanceBastardLoopOLevel) {
                 const value = Math.round(getBastardLoopOLevelValue({ applyLayerToggle: false }) * 100);
                 performanceBastardLoopOLevel.value = String(value);
@@ -30793,6 +31078,18 @@
                 const value = getBastardLoopOPitchOctaves();
                 performanceBastardLoopOPitch.value = String(value);
                 document.getElementById('performanceBastardLoopOPitchValue').textContent = formatBastardLoopPitchOctaves(value);
+            }
+
+            if (performanceBastardLoopOSemitone) {
+                const value = getBastardLoopOPitchSemitones();
+                performanceBastardLoopOSemitone.value = String(value);
+                document.getElementById('performanceBastardLoopOSemitoneValue').textContent = formatBastardLoopPitchSemitones(value);
+            }
+
+            if (performanceBastardLoopOFineTune) {
+                const value = getBastardLoopOFineCents();
+                performanceBastardLoopOFineTune.value = String(value);
+                document.getElementById('performanceBastardLoopOFineTuneValue').textContent = formatBastardLoopFineCents(value);
             }
 
             if (performanceDrumMachineLevel) {
@@ -31655,6 +31952,14 @@
             setBastardLoopVPitchOctaves(event.target.value);
         });
 
+        performanceBastardLoopVSemitone?.addEventListener('input', (event) => {
+            setBastardLoopVPitchSemitones(event.target.value);
+        });
+
+        performanceBastardLoopVFineTune?.addEventListener('input', (event) => {
+            setBastardLoopVFineCents(event.target.value);
+        });
+
         performanceBastardLoopVPitchAffectsDuration?.addEventListener('change', (event) => {
             setBastardLoopVPitchAffectsDuration(event.target.checked);
         });
@@ -31686,6 +31991,14 @@
             setBastardLoopPPitchOctaves(event.target.value);
         });
 
+        performanceBastardLoopPSemitone?.addEventListener('input', (event) => {
+            setBastardLoopPPitchSemitones(event.target.value);
+        });
+
+        performanceBastardLoopPFineTune?.addEventListener('input', (event) => {
+            setBastardLoopPFineCents(event.target.value);
+        });
+
         performanceBastardLoopPPitchAffectsDuration?.addEventListener('change', (event) => {
             setBastardLoopPPitchAffectsDuration(event.target.checked);
         });
@@ -31715,6 +32028,14 @@
 
         performanceBastardLoopOPitch?.addEventListener('input', (event) => {
             setBastardLoopOPitchOctaves(event.target.value);
+        });
+
+        performanceBastardLoopOSemitone?.addEventListener('input', (event) => {
+            setBastardLoopOPitchSemitones(event.target.value);
+        });
+
+        performanceBastardLoopOFineTune?.addEventListener('input', (event) => {
+            setBastardLoopOFineCents(event.target.value);
         });
 
         performanceBastardLoopOPitchAffectsDuration?.addEventListener('change', (event) => {
