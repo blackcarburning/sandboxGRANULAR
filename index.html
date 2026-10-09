@@ -673,7 +673,7 @@
 
         .overlay h1 { color: var(--accent); margin-bottom: 20px; }
         .overlay p { max-width: 400px; line-height: 1.5; color: #ccc; }
-        
+
         #start-btn {
             margin-top: 30px;
             padding: 15px 40px;
@@ -759,7 +759,7 @@
             padding: 5px;
             font-size: 8px;
         }
-        
+
         .output-recording-section .section-title {
             font-size: 9px;
             margin-bottom: 1px;
@@ -795,10 +795,10 @@
             animation: pulse-arm 1.5s infinite;
         }
 
-        @keyframes pulse-arm { 
-            0% { opacity: 1; box-shadow: 0 0 5px rgba(255, 149, 0, 0.5); } 
-            50% { opacity: 0.7; box-shadow: 0 0 15px rgba(255, 149, 0, 0.8); } 
-            100% { opacity: 1; box-shadow: 0 0 5px rgba(255, 149, 0, 0.5); } 
+        @keyframes pulse-arm {
+            0% { opacity: 1; box-shadow: 0 0 5px rgba(255, 149, 0, 0.5); }
+            50% { opacity: 0.7; box-shadow: 0 0 15px rgba(255, 149, 0, 0.8); }
+            100% { opacity: 1; box-shadow: 0 0 5px rgba(255, 149, 0, 0.5); }
         }
 
         .recording-indicator {
@@ -853,9 +853,9 @@
             align-items: center;
         }
 
-        .recording-buttons { 
-            display: flex; 
-            gap: 2px; 
+        .recording-buttons {
+            display: flex;
+            gap: 2px;
             flex-wrap: wrap;
         }
 
@@ -1357,8 +1357,8 @@
             flex: 1;
         }
 
-        .control-group label .value { 
-            color: var(--accent); 
+        .control-group label .value {
+            color: var(--accent);
             margin-left: 3px;
             cursor: pointer;
             text-decoration: underline;
@@ -1483,7 +1483,7 @@
             transform: scale(1.15);
             box-shadow: 0 0 16px var(--accent-glow);
         }
-        
+
         input[type="range"]::-webkit-slider-runnable-track {
             height: 12px;
             background: #333;
@@ -2019,18 +2019,18 @@
                 height: 125px;
                 z-index: 100;
             }
-            
+
             /* Make keyboard keys smaller on iPhone to fit everything */
             .keyboard-section .key.white {
                 width: 28px;
                 min-width: 16px;
             }
-            
+
             .keyboard-section .key.black {
                 width: 18px;
                 min-width: 10px;
             }
-            
+
             /* Adjust black key positions for smaller keys */
             .key.black[data-note="C#1"] { left: 20px; }
             .key.black[data-note="D#1"] { left: 50px; }
@@ -6588,7 +6588,7 @@
                         </label>
                         <input type="range" id="filterEnvRelease" min="1" max="5000" value="100" step="1">
                     </div>
-                    
+
                     <!-- Pre-Filter Gain -->
                     <div class="control-group">
                         <label>
@@ -7317,15 +7317,15 @@
                             <span class="param-name">Seq Grains</span>
                         </label>
                     </div>
-                    
+
                     <div class="control-group">
                         <button id="seqPlayBtn" style="width: 100%; background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);">Play</button>
                     </div>
-                    
+
                     <div class="control-group">
                         <button id="seqResetBtn" style="width: 100%;">RESET</button>
                     </div>
-                    
+
                     <!-- 16 Steps -->
                     <div class="control-group seq-step">
                         <label style="font-size: 9px; color: var(--accent);">Step 1 <span id="seqStep1PitchValue">A3</span> <span id="seqStep1VolValue" style="color: #ff6b6b;">80%</span></label>
@@ -7333,7 +7333,7 @@
                         <input type="range" id="seqStep1Vol" class="seq-vol" min="0" max="100" value="80" step="1">
                         <button class="slope-toggle active" data-step="1">ON</button>
                     </div>
-                    
+
                     <div class="control-group seq-step">
                         <label style="font-size: 9px; color: var(--accent);">Step 2 <span id="seqStep2PitchValue">C4</span> <span id="seqStep2VolValue" style="color: #ff6b6b;">80%</span></label>
                         <input type="range" id="seqStep2Pitch" class="seq-pitch" min="0" max="24" value="12" step="1">
@@ -7872,38 +7872,38 @@
         }
 
         // --- Touch Behaviour ---
-        
+
         /**
          * Helper function to determine if an element is interactive and should allow touch events.
          * @param {HTMLElement} target - The DOM element to check
          * @returns {boolean} True if element should receive normal touch events, false otherwise
          */
         function isInteractiveElement(target) {
-            return target.tagName === 'INPUT' || 
-                   target.tagName === 'BUTTON' || 
-                   target.tagName === 'SELECT' || 
+            return target.tagName === 'INPUT' ||
+                   target.tagName === 'BUTTON' ||
+                   target.tagName === 'SELECT' ||
                    target.tagName === 'CANVAS' ||
                    target.classList.contains('key') ||
-                   target.classList.contains('value') || 
+                   target.classList.contains('value') ||
                    target.tagName === 'LABEL';
         }
-        
+
         // Constants for touch handling
         const DOUBLE_TAP_TIMEOUT = 300; // milliseconds
-        
+
         const touchStartPositions = new Map();
         let lastTouchEnd = 0;
         const directManipulationSelector = '.key, .keyboard, .source-waveform-canvas, input[type="range"]';
-        
+
         // Unified touchstart handler
         document.addEventListener('touchstart', (e) => {
             const target = e.target;
-            
+
             // Store start position for each touch (for pull-to-refresh prevention)
             for (const touch of e.touches) {
                 touchStartPositions.set(touch.identifier, touch.clientY);
             }
-            
+
             const directManipulationTarget = target.closest ? target.closest(directManipulationSelector) : null;
             if (isInteractiveElement(target) && !directManipulationTarget) {
                 return;
@@ -7935,12 +7935,12 @@
         // Unified touchend handler
         document.addEventListener('touchend', (e) => {
             const target = e.target;
-            
+
             // Clean up stored positions for ended touches
             for (const touch of e.changedTouches) {
                 touchStartPositions.delete(touch.identifier);
             }
-            
+
             if (target.closest && target.closest('.keyboard-section')) {
                 const now = Date.now();
                 if (now - lastTouchEnd <= DOUBLE_TAP_TIMEOUT) {
@@ -8191,7 +8191,7 @@
         // Capture comprehensive audio debug information
         function captureAudioDebug() {
             if (!audioContext) return null;
-            
+
             const debug = {
                 timestamp: new Date().toISOString(),
                 audioContext: {
@@ -8205,7 +8205,7 @@
                 activeNodes: {},
                 warnings: []
             };
-            
+
             // Capture gain levels at each stage
             if (masterGain) {
                 debug.gains.masterGain = masterGain.gain.value.toFixed(4);
@@ -8229,13 +8229,13 @@
             if (typeof oscMix !== 'undefined') debug.gains.oscMix = oscMix.toFixed(4); // oscMix is a numeric variable, not an AudioNode
             if (oscOutputGain) debug.gains.oscOutputGain = oscOutputGain.gain.value.toFixed(4);
             if (granularOutputGain) debug.gains.granularOutputGain = granularOutputGain.gain.value.toFixed(4);
-            
+
             // Active nodes count
             debug.activeNodes.activeGrains = activeGrains ? activeGrains.size : 0;
             debug.activeNodes.activeOscVoices = activeOscVoices ? activeOscVoices.size : 0;
             debug.activeNodes.heldNotes = heldNotes ? heldNotes.size : 0;
             debug.activeNodes.activeGrainNodes = activeGrainNodes || 0;
-            
+
             // Filter states
             if (lpfNodes && lpfNodes.length > 0) {
                 debug.filters = {
@@ -8247,43 +8247,43 @@
                 debug.filters = debug.filters || {};
                 debug.filters.hpfCutoff = hpfNodes[0].frequency.value.toFixed(1);
             }
-            
+
             // LFO states
             debug.lfo = {
                 lfo1Rate: parseFloat(document.getElementById('lfoRate')?.value || 0).toFixed(2),
                 lfo2Rate: parseFloat(document.getElementById('lfo2Rate')?.value || 0).toFixed(2)
             };
-            
+
             // Sequencer state
             debug.sequencer = {
                 playing: sequencerPlaying,
                 currentStep: sequencerCurrentStep,
                 bpm: sequencerBPM
             };
-            
+
             // Check for potential issues
             const totalGain = parseFloat(debug.gains.masterGain || 1) * parseFloat(debug.gains.makeupGain || 1);
             if (totalGain > 3) {
                 debug.warnings.push(`Total gain chain: ${totalGain.toFixed(2)} (potential clipping)`);
             }
-            
+
             if (debug.activeNodes.activeGrains > 50) {
                 debug.warnings.push(`High grain count: ${debug.activeNodes.activeGrains}`);
             }
-            
+
             if (activeGrainNodes > 50) {
                 debug.warnings.push(`High grain node count: ${activeGrainNodes}`);
             }
-            
+
             return debug;
         }
 
         // Format debug info for display
         function formatDebugInfo(debug) {
             if (!debug) return 'AudioContext not initialized';
-            
+
             let html = '';
-            
+
             // Audio Context
             html += '<div class="debug-section">';
             html += '<strong>AudioContext:</strong><br>';
@@ -8293,7 +8293,7 @@
             html += `Output Latency: ${debug.audioContext.outputLatency}s<br>`;
             html += `Current Time: ${debug.audioContext.currentTime}s<br>`;
             html += '</div>';
-            
+
             // Gains
             html += '<div class="debug-section">';
             html += '<strong>Gain Stages:</strong><br>';
@@ -8303,7 +8303,7 @@
                 html += `<span class="${cls}">${name}: ${value}</span><br>`;
             }
             html += '</div>';
-            
+
             // Active Nodes
             html += '<div class="debug-section">';
             html += '<strong>Active Nodes:</strong><br>';
@@ -8312,7 +8312,7 @@
                 html += `<span class="${cls}">${name}: ${count}</span><br>`;
             }
             html += '</div>';
-            
+
             // Filters
             if (debug.filters) {
                 html += '<div class="debug-section">';
@@ -8322,7 +8322,7 @@
                 }
                 html += '</div>';
             }
-            
+
             // Sequencer
             html += '<div class="debug-section">';
             html += '<strong>Sequencer:</strong><br>';
@@ -8330,7 +8330,7 @@
             html += `Step: ${debug.sequencer.currentStep}<br>`;
             html += `BPM: ${debug.sequencer.bpm}<br>`;
             html += '</div>';
-            
+
             // Warnings
             if (debug.warnings.length > 0) {
                 html += '<div class="debug-section">';
@@ -8340,7 +8340,7 @@
                 }
                 html += '</div>';
             }
-            
+
             return html;
         }
 
@@ -8355,7 +8355,7 @@
             // Keep only last 100 logs
             if (debugLogs.length > 100) debugLogs.shift();
             renderDebugConsole();
-            
+
             // Safety check - if no grains are active but counter is high, reset it
             if (activeGrains.size === 0 && activeGrainNodes > 10) {
                 console.warn('Resetting orphaned grain node counter from', activeGrainNodes, 'to 0');
@@ -8375,7 +8375,7 @@
                 userAgent: navigator.userAgent,
                 platform: navigator.platform
             };
-            
+
             const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -8385,7 +8385,7 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+
             console.log('Debug log downloaded. Current state:', debug);
         }
 
@@ -8393,7 +8393,7 @@
         function toggleDebugPanel() {
             const panel = document.getElementById('debugPanel');
             debugEnabled = !debugEnabled;
-            
+
             if (debugEnabled) {
                 panel.classList.add('visible');
                 debugInterval = setInterval(updateDebugPanel, 200); // Update 5x per second
@@ -8717,7 +8717,7 @@
         let grainSchedulerTimerId = null;
         let pendingGranularRefreshFrame = null;
         let sampleLoadToken = 0;
-        
+
         // Effects nodes
         let reverbNode = null;
         let dryGainNode = null;
@@ -8791,19 +8791,19 @@
         let oscSynthDriveGain = null; // Synth-local drive stage
         let oscSynthFilter = null; // Synth-local filter stage
         let granularOutputGain = null; // Controls overall granular level
-        
+
         // BPM-synced delay nodes
         let delayNode = null;
         let delayFeedbackGain = null;
         let delayWetGain = null;
         let delayDryGain = null;
         let bpmLocked = true; // BPM lock state (ON by default)
-        
+
         // Modulation loop state
         let modulationIntervalId = null;
         let modulationEvaluationTime = null;
         const MODULATION_RATE_MS = 33; // ~30Hz modulation rate
-        
+
         // Delay constants
         const MAX_DELAY_FEEDBACK = 0.9; // Maximum feedback for stability (prevents runaway feedback)
 
@@ -8843,19 +8843,19 @@
         let lfoEnabled = {};
         let lfoInverted = {};
         let lfoMode = 'bpm';
-        
+
         // LFO2 State
         let lfo2StartTime = 0;
         let lfo2Enabled = {};
         let lfo2Inverted = {};
         let lfo2Mode = 'bpm';
-        
+
         // LFO3 State (BPM-synced stereo tremolo)
         let lfo3StartTime = 0;
         let lfo3Enabled = {};
         let lfo3Inverted = {};
         const DISABLED_LOOP_START_LFO_PARAMS = new Set();
-        
+
         // Oscillator state
         let osc1Config = {
             waveform: 'sawtooth',
@@ -9644,7 +9644,7 @@
             { name: 'dorian', intervals: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17, 19, 21] },
             { name: 'chromatic-edge', intervals: [0, 1, 3, 5, 6, 8, 10, 12, 13, 15, 17, 18, 20] }
         ];
-        
+
         // Sequencer state
         let sequencerPlaying = false;
         let sequencerCurrentStep = 0;
@@ -9656,19 +9656,38 @@
         let seqGrainsEnabled = true; // Track if sequencer should trigger grains
         const SCHEDULE_AHEAD_TIME = 0.12;
         const SCHEDULER_INTERVAL = 10;
-        
-        // Initialize sequencer steps
-        for (let i = 1; i <= 16; i++) {
-            sequencerSteps.push({
+        const SEQUENCER_DEFAULT_PITCHES = ['A3', 'C4', 'E3', 'F#3'];
+
+        function createDefaultSequencerStep(index = 0) {
+            return {
                 enabled: true,
-                pitch: 'A3',
+                pitch: SEQUENCER_DEFAULT_PITCHES[index % SEQUENCER_DEFAULT_PITCHES.length],
                 volume: 80
-            });
+            };
         }
-        
+
+        function normalizeSequencerSteps(stepCount = getPatternLengthSteps()) {
+            const targetLength = clampPatternLengthSteps(stepCount);
+            while (sequencerSteps.length < targetLength) {
+                sequencerSteps.push(createDefaultSequencerStep(sequencerSteps.length));
+            }
+            if (sequencerSteps.length > targetLength) {
+                sequencerSteps.length = targetLength;
+            }
+            if (sequencerCurrentStep >= targetLength) {
+                sequencerCurrentStep = sequencerCurrentStep % targetLength;
+            }
+            return targetLength;
+        }
+
+        // Initialize sequencer steps
+        for (let i = 0; i < DEFAULT_PATTERN_LENGTH_STEPS; i++) {
+            sequencerSteps.push(createDefaultSequencerStep(i));
+        }
+
         // Initialize Dropbox toggle state
         let dropboxEnabled = localStorage.getItem('dropboxEnabled') === 'true';
-        
+
         // Parameter ranges for clamping
         const paramRanges = {
             sampleStart: { min: 0, max: 100 },
@@ -10338,6 +10357,12 @@
             if (!options.skipNormalizeDrums && typeof normalizeAllDrumMachinePatterns === 'function') {
                 normalizeAllDrumMachinePatterns(steps, { skipSave: true });
             }
+            if (!options.skipNormalizeSequencer && typeof normalizeSequencerSteps === 'function') {
+                normalizeSequencerSteps(steps);
+                if (typeof ensureSequencerStepControls === 'function') {
+                    ensureSequencerStepControls(steps);
+                }
+            }
             if (!options.skipSave && typeof saveState === 'function') {
                 saveState();
             }
@@ -10585,7 +10610,7 @@
         // Raw LFO1 value without cross-modulation (to avoid circular dependency)
         function getLFOValue1Raw() {
             if (!audioContext) return 0;
-            
+
             let rate = parseFloat(document.getElementById('lfoRate').value);
             // Convert BPM to Hz if in BPM mode
             if (lfoMode === 'bpm') {
@@ -10593,19 +10618,19 @@
             }
             const waveform = document.getElementById('lfoWaveform').value;
             const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
-            
+
             const elapsed = getModulationEvaluationTime() - lfoStartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
-            
+
             const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(1));
-            
+
             return value * depth;
         }
 
         function getLFOValue() {
             if (!audioContext) return 0;
-            
+
             let rate = parseFloat(document.getElementById('lfoRate').value);
             // Convert BPM to Hz if in BPM mode
             if (lfoMode === 'bpm') {
@@ -10613,7 +10638,7 @@
             }
             const waveform = document.getElementById('lfoWaveform').value;
             let depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
-            
+
             // Apply cross-modulation: LFO2 modulates LFO1 depth
             const lfo2ToLfo1Mod = parseFloat(document.getElementById('lfo2ToLfo1Mod')?.value || 0) / 100;
             if (lfo2ToLfo1Mod > 0) {
@@ -10629,20 +10654,20 @@
                 const modAmount = (lfo3Value + 1) * 0.5;
                 depth = depth * (1 - lfo3ToLfo1Mod + modAmount * lfo3ToLfo1Mod);
             }
-            
+
             const elapsed = getModulationEvaluationTime() - lfoStartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
-            
+
             const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(1));
-            
+
             return value * depth;
         }
 
         // Raw LFO2 value without cross-modulation (to avoid circular dependency)
         function getLFOValue2Raw() {
             if (!audioContext) return 0;
-            
+
             let rate = parseFloat(document.getElementById('lfo2Rate').value);
             // Convert BPM to Hz if in BPM mode
             if (lfo2Mode === 'bpm') {
@@ -10650,19 +10675,19 @@
             }
             const waveform = document.getElementById('lfo2Waveform').value;
             const depth = parseFloat(document.getElementById('lfo2Depth').value) / 100;
-            
+
             const elapsed = getModulationEvaluationTime() - lfo2StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
-            
+
             const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(2));
-            
+
             return value * depth;
         }
 
         function getLFOValue2() {
             if (!audioContext) return 0;
-            
+
             let rate = parseFloat(document.getElementById('lfo2Rate').value);
             // Convert BPM to Hz if in BPM mode
             if (lfo2Mode === 'bpm') {
@@ -10670,7 +10695,7 @@
             }
             const waveform = document.getElementById('lfo2Waveform').value;
             let depth = parseFloat(document.getElementById('lfo2Depth').value) / 100;
-            
+
             // Apply cross-modulation: LFO1 modulates LFO2 depth
             const lfo1ToLfo2Mod = parseFloat(document.getElementById('lfo1ToLfo2Mod')?.value || 0) / 100;
             if (lfo1ToLfo2Mod > 0) {
@@ -10686,29 +10711,29 @@
                 const modAmount = (lfo3Value + 1) * 0.5;
                 depth = depth * (1 - lfo3ToLfo2Mod + modAmount * lfo3ToLfo2Mod);
             }
-            
+
             const elapsed = getModulationEvaluationTime() - lfo2StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
-            
+
             const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(2));
-            
+
             return value * depth;
         }
 
         function getLFOValue3Raw() {
             if (!audioContext) return 0;
-            
+
             const rate = parseFloat(document.getElementById('lfo3Rate').value) / 60;
             const waveform = document.getElementById('lfo3Waveform').value;
             const depth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
-            
+
             const elapsed = getModulationEvaluationTime() - lfo3StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
-            
+
             const value = evaluateLfoWaveform(waveform, phase, getLfoPulseWidth(3));
-            
+
             return value * depth;
         }
 
@@ -10808,44 +10833,44 @@
         function getModulatedValue(paramId) {
             const slider = document.getElementById(paramId);
             if (!slider) return 0;
-            
+
             const baseValue = parseFloat(slider.value);
             if (DISABLED_LOOP_START_LFO_PARAMS.has(paramId)) {
                 return baseValue;
             }
-            
+
             // Calculate total modulation from both LFOs
             let totalOffset = 0;
             const range = paramRanges[paramId];
             if (!range) return baseValue;
             const rangeSize = range.max - range.min;
-            
+
             // Apply LFO1 if enabled
             if (lfoEnabled[paramId]) {
                 const lfoValue = getLFOValue();
                 const invertedLFO = lfoInverted[paramId] ? -lfoValue : lfoValue;
                 totalOffset += invertedLFO * rangeSize * getLfoModulationScale(paramId);
             }
-            
+
             // Apply LFO2 if enabled
             if (lfo2Enabled[paramId]) {
                 const lfo2Value = getLFOValue2();
                 const invertedLFO2 = lfo2Inverted[paramId] ? -lfo2Value : lfo2Value;
                 totalOffset += invertedLFO2 * rangeSize * getLfoModulationScale(paramId);
             }
-            
+
             // Apply LFO3 if enabled (for panSpread/stereo modulation)
             if (lfo3Enabled[paramId]) {
                 const lfo3Value = getLFOValue3();
                 const invertedLFO3 = lfo3Inverted[paramId] ? -lfo3Value : lfo3Value;
                 totalOffset += invertedLFO3 * rangeSize * getLfoModulationScale(paramId);
             }
-            
+
             // If no LFOs are enabled, return base value
             if (!lfoEnabled[paramId] && !lfo2Enabled[paramId] && !lfo3Enabled[paramId]) {
                 return baseValue;
             }
-            
+
             const modulated = baseValue + totalOffset;
             return Math.max(range.min, Math.min(range.max, modulated));
         }
@@ -11074,15 +11099,15 @@
                 await setupEffects();
                 startModulationLoop();
                 engineInitialized = true;
-                
+
                 // Hide overlay
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
-                
+
                 setStatus('Engine ready. Generate a source, use Load Audio, use Load Demo, or record the mic.');
                 setAudioStatus(`Audio running · ${audioContext.sampleRate} Hz`);
                 updateKeyboardGeometry();
-                
+
                 // Restore state from localStorage and setup state saving
                 const restoreSourceSerial = sourceMutationSerial;
                 setTimeout(async () => {
@@ -11092,7 +11117,7 @@
                         console.log('State restored from localStorage');
                     }
                     setupStateSaving();
-                    
+
                     // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
                     const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
                     const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
@@ -11302,40 +11327,40 @@
             // Create stereo splitter and merger
             splitterNode = audioContext.createChannelSplitter(2);
             mergerNode = audioContext.createChannelMerger(2);
-            
+
             // Create separate gain nodes for left and right channels
             masterGainLeft = audioContext.createGain();
             masterGainRight = audioContext.createGain();
             masterGainLeft.gain.value = 1.0;
             masterGainRight.gain.value = 1.0;
-            
+
             // Create LFO3 oscillator for audio-rate modulation
             lfo3Oscillator = audioContext.createOscillator();
             lfo3Oscillator.type = getNativeOscillatorWaveform(document.getElementById('lfo3Waveform').value);
             lfo3Oscillator.frequency.value = parseFloat(document.getElementById('lfo3Rate').value) / 60;
-            
+
             // Create depth control (scales the LFO output)
             lfo3DepthGain = audioContext.createGain();
             const initialDepth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
             lfo3DepthGain.gain.value = initialDepth * 0.5; // Scale for stereo effect
-            
+
             // Create inverter for right channel (-1 gain)
             lfo3Inverter = audioContext.createGain();
             lfo3Inverter.gain.value = -1;
-            
+
             // Connect LFO3 to depth control
             lfo3Oscillator.connect(lfo3DepthGain);
-            
+
             // Connect depth control to left channel (in-phase)
             lfo3DepthGain.connect(masterGainLeft.gain);
-            
+
             // Connect depth control to inverter, then to right channel (out-of-phase)
             lfo3DepthGain.connect(lfo3Inverter);
             lfo3Inverter.connect(masterGainRight.gain);
-            
+
             // Start the LFO3 oscillator
             lfo3Oscillator.start();
-            
+
             // Connect stereo chain: splitter -> L/R gains -> merger -> destination
             splitterNode.connect(masterGainLeft, 0); // Left channel
             splitterNode.connect(masterGainRight, 1); // Right channel
@@ -11392,7 +11417,7 @@
             finalPanBaseOffsetSource.start();
             finalPanAudioOscillator.start();
             finalPanLfoStartTime = audioContext.currentTime;
-            
+
             // Keep legacy masterGain for backward compatibility (points to splitter input)
             masterGain = audioContext.createGain();
             masterGain.gain.value = dbToLinear(getMasterTrimDb());
@@ -11560,10 +11585,10 @@
             syncOscSynthFilterControls();
             oscSynthDriveGain.connect(oscSynthFilter);
             oscSynthFilter.connect(oscOutputGain);
-            
+
             granularOutputGain = audioContext.createGain();
             granularOutputGain.gain.value = Math.sqrt(oscillatorsEnabled ? (1 - oscMix) : 1) * MIX_HEADROOM * dbToLinear(getGranularTrimDb());
-            
+
             // Connect both to the pre-filter gain node, then to the optional filter chain
             granularOutputGain.connect(preFilterGainNode);
             oscOutputGain.connect(preFilterGainNode);
@@ -11571,13 +11596,13 @@
             // BPM-synced delay setup
             delayNode = audioContext.createDelay(5.0);
             delayNode.delayTime.value = 0.5; // Default 500ms (120 BPM quarter note)
-            
+
             delayFeedbackGain = audioContext.createGain();
             delayFeedbackGain.gain.value = 0.3; // 30% feedback
-            
+
             delayWetGain = audioContext.createGain();
             delayWetGain.gain.value = 0; // Start with no delay
-            
+
             delayDryGain = audioContext.createGain();
             delayDryGain.gain.value = 1.0; // Full dry signal
 
@@ -11847,17 +11872,17 @@
             // Get current filter slopes (use the global variables)
             const currentLpfSlope = lpfSlope || 12;
             const currentHpfSlope = hpfSlope || 12;
-            
+
             // Calculate makeup gain based on total filter stages
             // Each 12dB stage can attenuate up to ~6dB at cutoff
             const lpfStages = lpfEnabled ? Math.ceil(currentLpfSlope / 12) : 0;
             const hpfStages = hpfEnabled ? Math.ceil(currentHpfSlope / 12) : 0;
             const totalStages = lpfStages + hpfStages;
-            
+
             // Approximate makeup gain needed (in linear scale)
             // Base: 1.0 for 2 stages, +0.5 for each additional stage
             const makeupLinear = 1.0 + (Math.max(0, totalStages - 2) * 0.18);
-            
+
             return Math.min(makeupLinear, 1.45);
         }
 
@@ -11866,7 +11891,7 @@
             const curve = new Float32Array(samples);
             const deg = Math.PI / 180;
             const k = amount * 100;
-            
+
             for (let i = 0; i < samples; i++) {
                 const x = (i * 2 / samples) - 1;
                 curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
@@ -12399,26 +12424,26 @@
         function updateEffects() {
             if (!audioContext || audioContext.state !== 'running') return;
             if (!dryGainNode) return;
-            
+
             const now = audioContext.currentTime;
             const rampTime = 0.05; // 50ms smooth ramp
-            
+
             // Helper function for smooth parameter updates
             function smoothRamp(audioParam, targetValue) {
                 audioParam.cancelScheduledValues(now);
                 audioParam.setValueAtTime(audioParam.value, now);
                 audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
             }
-            
+
             const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
             const placementSwitchDuck = getFinalFxPlacementSwitchDuck(now);
             const postBusGain = Math.min(1, volAmt) * placementSwitchDuck;
-            
+
             // Dry/Wet gains
             smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.28));
             smoothRamp(wetGainNode.gain, Math.min(1.25, reverbAmt * 1.18));
-            
+
             // Master and output gain
             smoothRamp(masterGain.gain, Math.min(1, volAmt));
             if (finalKickBypassMasterGain) {
@@ -12427,7 +12452,7 @@
             if (outputGainNode) {
                 smoothRamp(outputGainNode.gain, placementSwitchDuck);
             }
-            
+
             // Filters
             if (lpfNodes && lpfNodes.length > 0) {
                 const lpfCutoff = getModulatedValue('lpfCutoff');
@@ -12456,7 +12481,7 @@
                 const postFilterGainDb = getDbControlValue('postFilterGain', 0, -24, 12, { modulated: true });
                 smoothRamp(makeupGain.gain, dbToLinear(postFilterGainDb));
             }
-            
+
             // Delay parameters
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
                 const bpm = getSharedBpmClockValue();
@@ -12465,13 +12490,13 @@
                 const mix = fxMuted ? 0 : getModulatedValue('delayMix') / 100;
                 let delayTime = getBpmDelaySeconds(division, bpm);
                 delayTime = Math.max(0.01, Math.min(5.0, delayTime));
-                
+
                 smoothRamp(delayNode.delayTime, delayTime);
                 smoothRamp(delayFeedbackGain.gain, feedback * MAX_DELAY_FEEDBACK);
                 smoothRamp(delayWetGain.gain, Math.sin(mix * Math.PI / 2));
                 smoothRamp(delayDryGain.gain, Math.cos(mix * Math.PI / 2));
             }
-            
+
             // Phaser depth
             if (phaserLFOGain) {
                 if (phaserLFO) {
@@ -12480,7 +12505,7 @@
                 const phaserDepth = getModulatedValue('phaserDepth');
                 smoothRamp(phaserLFOGain.gain, phaserDepth);
             }
-            
+
             // Tremolo
             if (tremoloLFOGain && tremoloGain) {
                 if (tremoloLFO) {
@@ -12489,7 +12514,7 @@
                 const tremoloDepth = getModulatedValue('tremoloDepth') / 100;
                 smoothRamp(tremoloLFOGain.gain, tremoloDepth * 0.5);
             }
-            
+
             // Distortion
             if (distortionNode) {
                 const distAmt = getModulatedValue('distortion') / 100;
@@ -12506,7 +12531,7 @@
             if (modulationIntervalId) {
                 clearInterval(modulationIntervalId);
             }
-            
+
             modulationIntervalId = setInterval(() => {
                 if (audioContext && audioContext.state === 'running') {
                     updateFinalFxPlacementLfo();
@@ -19733,16 +19758,16 @@
             try {
                 // Ensure context is running
                 if (audioContext.state === 'suspended') await audioContext.resume();
-                
+
                 // Wait for audio system to stabilize
                 await new Promise(resolve => setTimeout(resolve, 100));
 
-                micStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { 
-                        echoCancellation: false, 
-                        noiseSuppression: false, 
-                        autoGainControl: false 
-                    } 
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
                 });
                 const mimeType = chooseRecordingMimeType();
                 mediaRecorder = mimeType ? new MediaRecorder(micStream, { mimeType }) : new MediaRecorder(micStream);
@@ -19818,7 +19843,7 @@
                         if (abs > peak) peak = abs;
                     }
                 }
-            
+
                 const epsilon = 0.0001;
                 if (peak === 0 || Math.abs(peak - 1.0) < epsilon) {
                     return { buffer, peak, changed: false };
@@ -20387,7 +20412,7 @@
                 currentGrainNote = note;
             }
 
-            const grainState = { 
+            const grainState = {
                 startTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
                 nextTime: scheduledStartTime !== null ? scheduledStartTime : audioContext.currentTime,
                 loopOriginTime: options.streamStartTime
@@ -20419,7 +20444,7 @@
                     return grainState.velocity;
                 }
             });
-            
+
             // Apply filter envelope when note starts
             // Use a long duration (60 seconds) to allow envelope to sustain until note is released
             const FILTER_ENVELOPE_MAX_DURATION = 60;
@@ -20996,7 +21021,7 @@
 
             const role = options.role || 'keyboard';
             const voiceId = options.voiceId || makePerformanceStreamId(role, note);
-            
+
             // Force stop any existing voice for this note to ensure envelope restarts
             if (activeOscVoices.has(voiceId)) {
                 stopOscillatorNote(note, scheduledTime, { role, voiceId });
@@ -21174,36 +21199,36 @@
             const role = options.role || 'keyboard';
             const voiceId = options.voiceId || makePerformanceStreamId(role, note);
             if (!activeOscVoices.has(voiceId)) return;
-            
+
             const voice = activeOscVoices.get(voiceId);
-            
+
             // DELETE IMMEDIATELY so new notes don't overwrite before cleanup
             activeOscVoices.delete(voiceId);
-            
+
             const stopTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             const now = audioContext.currentTime;
             const actualStopTime = Math.max(now, stopTime);
-            
+
             // Apply release envelope for osc1
             const instantRelease = options.instant === true;
             const release1 = instantRelease ? getClickGuardSeconds() : Math.max(osc1Config.release / 1000, getClickGuardSeconds());
             const release3 = instantRelease ? getClickGuardSeconds() : Math.max(osc3Config.release / 1000, getClickGuardSeconds());
             const releaseNoise = instantRelease ? getClickGuardSeconds() : Math.max(oscNoiseConfig.release / 1000, getClickGuardSeconds());
-            
+
             // Cancel from now, not from stopTime
             voice.osc1Gain.gain.cancelScheduledValues(now);
-            
+
             // Set current value at current time
             voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, now);
-            
+
             // If stop is scheduled for the future, hold current value until then
             if (actualStopTime > now) {
                 voice.osc1Gain.gain.setValueAtTime(voice.osc1Gain.gain.value, actualStopTime);
             }
-            
+
             // Ramp to zero
             voice.osc1Gain.gain.linearRampToValueAtTime(0, actualStopTime + release1);
-            
+
             // Apply release envelope for osc2
             const release2 = instantRelease ? getClickGuardSeconds() : Math.max(osc2Config.release / 1000, getClickGuardSeconds());
             voice.osc3Gain.gain.cancelScheduledValues(now);
@@ -21220,21 +21245,21 @@
                 }
                 voice.noiseGain.gain.linearRampToValueAtTime(0, actualStopTime + releaseNoise);
             }
-            
+
             // Cancel from now, not from stopTime
             voice.osc2Gain.gain.cancelScheduledValues(now);
-            
+
             // Set current value at current time
             voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, now);
-            
+
             // If stop is scheduled for the future, hold current value until then
             if (actualStopTime > now) {
                 voice.osc2Gain.gain.setValueAtTime(voice.osc2Gain.gain.value, actualStopTime);
             }
-            
+
             // Ramp to zero
             voice.osc2Gain.gain.linearRampToValueAtTime(0, actualStopTime + release2);
-            
+
             // Stop oscillators after release
             const maxRelease = Math.max(release1, release2, release3, releaseNoise);
             voice.osc1.stop(actualStopTime + maxRelease);
@@ -21247,7 +21272,7 @@
                     console.debug('Noise source already stopped:', e);
                 }
             }
-            
+
             // Clean up - disconnect nodes after they stop (voice reference is still valid)
             setTimeout(() => {
                 try {
@@ -21598,7 +21623,7 @@
                 setStatus('Start MYGRAIN before playing a loop.', 'error');
                 return;
             }
-            
+
             // Check if output recording is armed - if so, trigger recording and disarm
             if (isOutputRecordingArmed) {
                 console.log('Armed recording triggered by sequencer start');
@@ -21612,7 +21637,7 @@
                 // Trigger the start recording button
                 document.getElementById('startOutputRecBtn')?.click();
             }
-            
+
             sequencerPlaying = true;
             const now = audioContext.currentTime;
             const stepDuration = (60 / sequencerBPM) / 4;
@@ -21629,12 +21654,13 @@
                     sequencerNextStepTime = sharedOrigin;
                 } else {
                     const elapsed = Math.max(0, now - sharedOrigin);
+                    const sequencerLength = normalizeSequencerSteps(getPatternLengthSteps());
                     const stepsElapsed = Math.max(0, Math.ceil((elapsed - 0.002) / stepDuration));
-                    sequencerCurrentStep = stepsElapsed % 16;
+                    sequencerCurrentStep = stepsElapsed % sequencerLength;
                     sequencerNextStepTime = sharedOrigin + (stepsElapsed * stepDuration);
                     if (sequencerNextStepTime < now - 0.002) {
                         sequencerNextStepTime += stepDuration;
-                        sequencerCurrentStep = (sequencerCurrentStep + 1) % 16;
+                        sequencerCurrentStep = (sequencerCurrentStep + 1) % sequencerLength;
                     }
                 }
             } else {
@@ -21644,20 +21670,21 @@
             }
 
             startGeneratedDryLoop(startAt);
-            
+
             document.getElementById('seqPlayBtn').classList.add('playing');
-            
+
             scheduleSequencer();
         }
 
         function scheduleSequencer() {
             const stepDuration = (60 / sequencerBPM) / 4; // 16th notes in seconds
-            
+            const sequencerLength = normalizeSequencerSteps(getPatternLengthSteps());
+
             while (sequencerNextStepTime < audioContext.currentTime + SCHEDULE_AHEAD_TIME) {
                 // Schedule note at precise time
                 const step = sequencerSteps[sequencerCurrentStep];
                 const scheduledTime = sequencerNextStepTime;
-                
+
                 // Play current step at scheduled time
                 if (step.enabled) {
                     const stepVelocity = Math.max(0, Math.min(1, (Number(step.volume) || 80) / 100));
@@ -21667,7 +21694,7 @@
                         stopAllGrains({ role: 'sequencer' });
                     }
                     playOscillatorNote(step.pitch, scheduledTime, stepVelocity, { role: 'sequencer' });
-                    
+
                     // Start grain for this step if grain sequencing is enabled
                     if (seqGrainsEnabled) {
                         try {
@@ -21687,7 +21714,7 @@
                         stopAllGrains({ role: 'sequencer' });
                     }
                 }
-                
+
                 // Update visual indicator (deferred to not block audio)
                 const currentStepForVisual = sequencerCurrentStep;
                 setTimeout(() => {
@@ -21699,12 +21726,12 @@
                         }
                     });
                 }, 0);
-                
+
                 // Advance
                 sequencerNextStepTime += stepDuration;
-                sequencerCurrentStep = (sequencerCurrentStep + 1) % 16;
+                sequencerCurrentStep = (sequencerCurrentStep + 1) % sequencerLength;
             }
-            
+
             if (sequencerPlaying) {
                 sequencerTimerId = setTimeout(scheduleSequencer, SCHEDULER_INTERVAL);
             }
@@ -21714,24 +21741,24 @@
             if (!sequencerPlaying) return;
             sequencerPlaying = false;
             transportLoopStartTime = null;
-            
+
             if (sequencerTimerId) {
                 clearTimeout(sequencerTimerId);
                 sequencerTimerId = null;
             }
-            
+
             stopGeneratedDryLoop();
             stopOscillatorsByRole('sequencer');
-            
+
             // Stop only sequencer-owned grains so held keyboard notes can keep playing.
             if (seqGrainsEnabled) {
                 stopAllGrains({ role: 'sequencer' });
             }
-            
+
             document.querySelectorAll('.seq-step').forEach(el => {
                 el.style.backgroundColor = '';
             });
-            
+
             document.getElementById('seqPlayBtn').classList.remove('playing');
         }
 
@@ -21749,10 +21776,10 @@
             key.setAttribute('role', 'button');
             key.setAttribute('aria-label', `Play ${key.dataset.note}`);
         });
-        
+
         // Track last touch time per key to prevent double-tap zoom
         const keyLastTouchTime = new Map();
-        
+
         keys.forEach(key => {
             let isKeyPressed = false;
             let keyInteractionPending = false;
@@ -21874,12 +21901,12 @@
                 const now = Date.now();
                 const lastTouch = keyLastTouchTime.get(key) || 0;
                 e.preventDefault();
-                
+
                 // If touches are very close together (< 300ms), prevent default to block zoom
                 if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
                     e.preventDefault();
                 }
-                
+
                 keyLastTouchTime.set(key, now);
                 if (now - lastPointerKeyActionAt > duplicateInputSuppressMs) {
                     lastTouchKeyActionAt = now;
@@ -21889,13 +21916,13 @@
                     });
                 }
             }, { passive: false });
-            
+
             key.addEventListener('touchend', (e) => {
                 // Prevent double-tap zoom on touchend as well
                 const now = Date.now();
                 const lastTouch = keyLastTouchTime.get(key) || 0;
                 e.preventDefault();
-                
+
                 if (now - lastTouch < DOUBLE_TAP_TIMEOUT) {
                     e.preventDefault();
                 }
@@ -21906,7 +21933,7 @@
                 e.preventDefault();
                 releaseKey();
             }, { passive: false });
-            
+
             // Use pointerdown/up for unified mouse/touch support
             key.addEventListener('pointerdown', (e) => {
                 e.preventDefault(); // Prevent scrolling
@@ -22363,8 +22390,8 @@
                 }
 
                 // Special handling for effects or redraw
-                if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' || 
-                    e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' || 
+                if (e.target.id === 'reverb' || e.target.id === 'volume' || e.target.id === 'distortion' ||
+                    e.target.id === 'phaserRate' || e.target.id === 'phaserDepth' ||
                     e.target.id === 'tremoloRate' || e.target.id === 'tremoloDepth' ||
                     e.target.id === 'delayBpm' || e.target.id === 'delayFeedback' || e.target.id === 'delayMix' ||
                     e.target.id.startsWith('finalDrive') ||
@@ -22401,7 +22428,7 @@
                     rescheduleActiveGrainsFromNow();
                 }
             });
-            
+
             // Attach the throttled handler to the slider
             slider.addEventListener('input', throttledHandler);
 
@@ -22409,16 +22436,16 @@
             slider.addEventListener('touchstart', (e) => {
                 e.stopPropagation();
             }, { passive: false });
-            
+
             slider.addEventListener('touchmove', (e) => {
                 e.stopPropagation();
             }, { passive: false });
-            
+
             // Ensure pointer events work correctly
             slider.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
             });
-            
+
             slider.addEventListener('pointermove', (e) => {
                 if (e.buttons > 0) { // Only if mouse button is pressed
                     e.stopPropagation();
@@ -22431,16 +22458,16 @@
             valueDisplay.addEventListener('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                
+
                 // Find the associated slider
                 const sliderId = valueDisplay.id.replace('Value', '');
                 const slider = document.getElementById(sliderId);
                 if (!slider) return;
-                
+
                 // Get current value without suffix
                 const currentText = valueDisplay.textContent;
                 const currentValue = parseFloat(currentText);
-                
+
                 // Create input element
                 const input = document.createElement('input');
                 input.type = 'number';
@@ -22449,41 +22476,41 @@
                 input.max = slider.max;
                 input.step = slider.step;
                 input.style.cssText = 'width: 50px; font-size: 9px; background: #000; color: var(--accent); border: 1px solid var(--accent); border-radius: 2px; padding: 1px 2px;';
-                
+
                 // Replace text with input
                 const originalText = valueDisplay.textContent;
                 valueDisplay.textContent = '';
                 valueDisplay.appendChild(input);
                 input.focus();
                 input.select();
-                
+
                 let isEscaping = false;
-                
+
                 const finishEdit = () => {
                     // Don't finish if we're escaping
                     if (isEscaping) return;
-                    
+
                     let newValue = parseFloat(input.value);
-                    
+
                     // Validate range
                     if (isNaN(newValue) || newValue < parseFloat(slider.min)) {
                         newValue = parseFloat(slider.min);
                     } else if (newValue > parseFloat(slider.max)) {
                         newValue = parseFloat(slider.max);
                     }
-                    
+
                     // Update slider
                     slider.value = newValue;
-                    
+
                     // Trigger input event to update display and effects
                     slider.dispatchEvent(new Event('input', { bubbles: true }));
-                    
+
                     // Restore display - check if input still exists
                     if (valueDisplay.contains(input)) {
                         valueDisplay.removeChild(input);
                     }
                 };
-                
+
                 input.addEventListener('blur', finishEdit);
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
@@ -22829,7 +22856,7 @@
         document.getElementById('lockBpmSlider').addEventListener('input', (e) => {
             bpmLocked = parseInt(e.target.value) === 1;
             document.getElementById('lockBpmValue').textContent = bpmLocked ? 'ON' : 'OFF';
-            
+
             // Update slider appearance based on lock state
             if (bpmLocked) {
                 e.target.classList.add('locked');
@@ -23135,11 +23162,11 @@
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
                 const now = audioContext.currentTime;
                 const rampTime = 0.05;
-                
+
                 oscOutputGain.gain.cancelScheduledValues(now);
                 oscOutputGain.gain.setValueAtTime(oscOutputGain.gain.value, now);
                 oscOutputGain.gain.linearRampToValueAtTime(oscLevel, now + rampTime);
-                
+
                 granularOutputGain.gain.cancelScheduledValues(now);
                 granularOutputGain.gain.setValueAtTime(granularOutputGain.gain.value, now);
                 granularOutputGain.gain.linearRampToValueAtTime(granularLevel, now + rampTime);
@@ -23342,6 +23369,94 @@
             slider.max = String(noteNames.length - 1);
         });
 
+        function bindSequencerStepControls(stepNumber) {
+            const pitchSlider = document.getElementById(`seqStep${stepNumber}Pitch`);
+            const volumeSlider = document.getElementById(`seqStep${stepNumber}Vol`);
+            const stepButton = document.querySelector(`[data-step="${stepNumber}"]`);
+
+            if (pitchSlider && pitchSlider.dataset.seqBound !== 'true') {
+                pitchSlider.max = String(noteNames.length - 1);
+                pitchSlider.addEventListener('input', (e) => {
+                    const sliderValue = parseInt(e.target.value, 10);
+                    const noteName = noteNames[sliderValue] || noteNames[0];
+                    normalizeSequencerSteps(getPatternLengthSteps());
+                    sequencerSteps[stepNumber - 1].pitch = noteName;
+                    const pitchValue = document.getElementById(`seqStep${stepNumber}PitchValue`);
+                    if (pitchValue) pitchValue.textContent = noteName;
+                    saveState();
+                });
+                pitchSlider.dataset.seqBound = 'true';
+            }
+
+            if (volumeSlider && volumeSlider.dataset.seqBound !== 'true') {
+                volumeSlider.addEventListener('input', (e) => {
+                    const volume = Math.max(0, Math.min(100, Number.parseFloat(e.target.value) || 0));
+                    normalizeSequencerSteps(getPatternLengthSteps());
+                    sequencerSteps[stepNumber - 1].volume = volume;
+                    const volumeValue = document.getElementById(`seqStep${stepNumber}VolValue`);
+                    if (volumeValue) volumeValue.textContent = `${volume}%`;
+                    saveState();
+                });
+                volumeSlider.dataset.seqBound = 'true';
+            }
+
+            if (stepButton && stepButton.dataset.seqBound !== 'true') {
+                stepButton.addEventListener('click', () => {
+                    normalizeSequencerSteps(getPatternLengthSteps());
+                    const step = sequencerSteps[stepNumber - 1];
+                    if (!step) return;
+                    step.enabled = !step.enabled;
+                    stepButton.classList.toggle('active', step.enabled);
+                    stepButton.textContent = step.enabled ? 'ON' : 'OFF';
+                    saveState();
+                });
+                stepButton.dataset.seqBound = 'true';
+            }
+        }
+
+        function createSequencerStepControl(stepNumber) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'control-group seq-step generated-seq-step';
+            wrapper.dataset.generatedSeqStep = String(stepNumber);
+            wrapper.innerHTML = `
+                <label style="font-size: 9px; color: var(--accent);">Step ${stepNumber} <span id="seqStep${stepNumber}PitchValue">A3</span> <span id="seqStep${stepNumber}VolValue" style="color: #ff6b6b;">80%</span></label>
+                <input type="range" id="seqStep${stepNumber}Pitch" class="seq-pitch" min="0" max="${noteNames.length - 1}" value="9" step="1">
+                <input type="range" id="seqStep${stepNumber}Vol" class="seq-vol" min="0" max="100" value="80" step="1">
+                <button class="slope-toggle active" data-step="${stepNumber}">ON</button>
+            `;
+            return wrapper;
+        }
+
+        function ensureSequencerStepControls(stepCount = getPatternLengthSteps()) {
+            const targetLength = clampPatternLengthSteps(stepCount);
+            const seqTab = document.getElementById('seq-tab');
+            if (!seqTab) return;
+
+            for (let stepNumber = 1; stepNumber <= targetLength; stepNumber += 1) {
+                if (!document.getElementById(`seqStep${stepNumber}Pitch`)) {
+                    const stepControl = createSequencerStepControl(stepNumber);
+                    const lastStep = seqTab.querySelector('.seq-step:last-of-type');
+                    if (lastStep) {
+                        lastStep.insertAdjacentElement('afterend', stepControl);
+                    } else {
+                        seqTab.appendChild(stepControl);
+                    }
+                }
+                const container = document.getElementById(`seqStep${stepNumber}Pitch`)?.closest('.seq-step');
+                if (container) container.hidden = false;
+                bindSequencerStepControls(stepNumber);
+                updateSequencerStepUI(stepNumber);
+            }
+
+            document.querySelectorAll('#seq-tab .seq-step').forEach((container) => {
+                const stepNumber = Number.parseInt(container.querySelector('[data-step]')?.dataset.step || '0', 10);
+                if (stepNumber > targetLength) {
+                    container.hidden = true;
+                    container.style.backgroundColor = '';
+                }
+            });
+        }
+
         function updateSequencerStepUI(stepNumber) {
             const step = sequencerSteps[stepNumber - 1];
             if (!step) return;
@@ -23353,7 +23468,7 @@
             const volumeValue = document.getElementById(`seqStep${stepNumber}VolValue`);
             const stepButton = document.querySelector(`[data-step="${stepNumber}"]`);
 
-            if (pitchSlider) pitchSlider.value = String(pitchIndex);
+            if (pitchSlider) pitchSlider.value = String(pitchIndex >= 0 ? pitchIndex : 0);
             if (volumeSlider) volumeSlider.value = String(step.volume);
             if (pitchValue) pitchValue.textContent = step.pitch;
             if (volumeValue) volumeValue.textContent = `${step.volume}%`;
@@ -23363,9 +23478,7 @@
             }
         }
 
-        for (let i = 1; i <= 16; i++) {
-            updateSequencerStepUI(i);
-        }
+        ensureSequencerStepControls(getPatternLengthSteps());
 
         function setSelectValue(id, value) {
             const select = document.getElementById(id);
@@ -24250,7 +24363,11 @@
             const scale = blueprint.profile.scale || LOOP_SCALE_FAMILIES[0];
             const rootIndex = Math.max(0, noteNames.indexOf(blueprint.profile.root || 'C1'));
 
-            for (let index = 0; index < 16; index++) {
+            const patternLength = clampPatternLengthSteps(blueprint.pattern.stepCount ?? getPatternLengthSteps());
+            normalizeSequencerSteps(patternLength);
+            ensureSequencerStepControls(patternLength);
+
+            for (let index = 0; index < patternLength; index++) {
                 const enabled = Boolean(blueprint.pattern.enabled[index]);
                 const accentLift = blueprint.pattern.accents[index] ? 8 : 0;
                 const baseOffset = Number(blueprint.pattern.pitchOffsets[index]) || 0;
@@ -24272,7 +24389,7 @@
             seqGrainsEnabled = true;
             const grainsCheckbox = document.getElementById('seqGrainsEnabled');
             if (grainsCheckbox) grainsCheckbox.checked = true;
-            setStatus(`Generated ${blueprint.profile.label} / ${scale.name} loop at ${bpm} BPM.`);
+            setStatus(`Generated ${blueprint.profile.label} / ${scale.name} ${patternLength}-step loop at ${bpm} BPM.`);
             saveState();
             return blueprint;
         }
@@ -24321,37 +24438,7 @@
             }
         }
 
-        // Step controls
-        for (let i = 1; i <= 16; i++) {
-            // Pitch slider
-            document.getElementById(`seqStep${i}Pitch`).addEventListener('input', (e) => {
-                const sliderValue = parseInt(e.target.value);
-                const noteName = noteNames[sliderValue];
-                sequencerSteps[i - 1].pitch = noteName;
-                document.getElementById(`seqStep${i}PitchValue`).textContent = noteName;
-            });
-
-            // Volume slider
-            document.getElementById(`seqStep${i}Vol`).addEventListener('input', (e) => {
-                sequencerSteps[i - 1].volume = parseFloat(e.target.value);
-                document.getElementById(`seqStep${i}VolValue`).textContent = `${e.target.value}%`;
-            });
-
-            // Enable/disable button
-            const stepBtn = document.querySelector(`[data-step="${i}"]`);
-            if (stepBtn) {
-                stepBtn.addEventListener('click', () => {
-                    sequencerSteps[i - 1].enabled = !sequencerSteps[i - 1].enabled;
-                    if (sequencerSteps[i - 1].enabled) {
-                        stepBtn.classList.add('active');
-                        stepBtn.textContent = 'ON';
-                    } else {
-                        stepBtn.classList.remove('active');
-                        stepBtn.textContent = 'OFF';
-                    }
-                });
-            }
-        }
+        ensureSequencerStepControls(getPatternLengthSteps());
 
         // --- Tab System ---
         const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
@@ -24641,7 +24728,7 @@
         updateKeyboardNoteLabels();
 
         // --- Utility Functions ---
-        
+
         // Hidden file input for audio loading
         const audioFileInput = document.createElement('input');
         audioFileInput.type = 'file';
@@ -25381,11 +25468,11 @@
                 alert('No audio buffer to save. Please load or record audio first.');
                 return;
             }
-            
+
             // Convert audioBuffer to WAV
             const wav = audioBufferToWav(audioBuffer);
             const blob = new Blob([wav], { type: 'audio/wav' });
-            
+
             // Prompt user for filename (works on iOS)
             const defaultName = createBpmWavFilename().replace(/\.wav$/i, '');
             let userFilename = prompt('Enter filename for audio:', defaultName);
@@ -25393,10 +25480,10 @@
                 statusDiv.textContent = 'Save cancelled';
                 return; // User cancelled
             }
-            
+
             // Ensure .wav extension
             const filename = userFilename.endsWith('.wav') ? userFilename : userFilename + '.wav';
-            
+
             // Check if Dropbox mode is enabled and SDK is loaded
             if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
                 try {
@@ -25428,12 +25515,12 @@
                     // Fall through to share API
                 }
             }
-            
+
             // Use Web Share API for iOS (primary method for iOS)
             if (navigator.share) {
                 try {
                     const file = new File([blob], filename, { type: 'audio/wav' });
-                    await navigator.share({ 
+                    await navigator.share({
                         files: [file],
                         title: 'Save Audio Sample'
                     });
@@ -25448,7 +25535,7 @@
                     // Fall through to download
                 }
             }
-            
+
             // Fallback: traditional download (for desktop browsers)
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -25476,7 +25563,7 @@
         audioFileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             try {
                 if (file.size > MAX_SAMPLE_BYTES) {
                     throw new Error(`Audio files larger than ${(MAX_SAMPLE_BYTES / (1024 * 1024)).toFixed(0)}MB are not supported on mobile.`);
@@ -25488,7 +25575,7 @@
                 setStatus(`Failed to load ${file.name}: ${err.message}`, 'error');
                 alert('Failed to load audio file: ' + err.message);
             }
-            
+
             // Reset input
             e.target.value = '';
         });
@@ -25498,7 +25585,7 @@
             const preset = gatherPreset();
             const json = JSON.stringify(preset, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
-            
+
             // Prompt user for filename
             const defaultName = 'mygrain-preset';
             let userFilename = prompt('Enter filename for preset:', defaultName);
@@ -25506,10 +25593,10 @@
                 statusDiv.textContent = 'Save cancelled';
                 return; // User cancelled
             }
-            
+
             // Ensure .json extension
             const filename = userFilename.endsWith('.json') ? userFilename : userFilename + '.json';
-            
+
             // Check if Dropbox mode is enabled and SDK is loaded
             if (dropboxEnabled && typeof Dropbox !== 'undefined' && Dropbox.save) {
                 try {
@@ -25538,12 +25625,12 @@
                     // Fall through to share API
                 }
             }
-            
+
             // Use Web Share API for iOS
             if (navigator.share) {
                 try {
                     const file = new File([blob], filename, { type: 'application/json' });
-                    await navigator.share({ 
+                    await navigator.share({
                         files: [file],
                         title: 'Save Preset'
                     });
@@ -25558,7 +25645,7 @@
                     // Fall through to download
                 }
             }
-            
+
             // Fallback: traditional download
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -25582,7 +25669,7 @@
         presetFileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             try {
                 const text = await file.text();
                 const preset = JSON.parse(text);
@@ -25592,7 +25679,7 @@
                 console.error(err);
                 alert('Failed to load preset: ' + err.message);
             }
-            
+
             // Reset input
             e.target.value = '';
         });
@@ -26188,7 +26275,7 @@
                     defaults[control.id] = control.value;
                 });
             });
-            
+
             // Reset all sliders to default values
             Object.keys(defaults).forEach(id => {
                 const slider = document.getElementById(id);
@@ -26245,7 +26332,7 @@
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             setOscillatorsEnabled(false, { silent: true, skipSave: true });
-            
+
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
             document.getElementById('lfo2Waveform').value = 'sine';
@@ -26285,7 +26372,7 @@
             setOscillatorOctave(1, 8);
             setOscillatorOctave(2, 16);
             setOscillatorOctave(3, 8);
-            
+
             enforceBpmOnlyLfoMode();
             // Turn off all LFO toggles
             document.querySelectorAll('.lfo-toggle').forEach(btn => {
@@ -26295,7 +26382,7 @@
                 if (map && param) map[param] = false;
                 syncLfoRouteButtons(param, lfoNum);
             });
-            
+
             // Turn off all INV toggles
             document.querySelectorAll('.inv-toggle').forEach(btn => {
                 const param = btn.dataset.param;
@@ -26304,16 +26391,16 @@
                 if (map && param) map[param] = false;
                 syncLfoRouteButtons(param, lfoNum, true);
             });
-            
+
             // Reset octave offset
             octaveOffset = 0;
             updateOctaveDisplay();
-            
+
             // Update waveform display if audio buffer exists
             if (audioBuffer) {
                 drawWaveform();
             }
-            
+
             syncPerformanceControlState();
             syncArpModeControls();
             syncDropboxSampleLayerUi();
@@ -26473,12 +26560,12 @@
                 },
                 requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainMainSampleBuffer || grainASampleBuffer || grainBSampleBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || drumMachineHatBuffer || audioBuffer)
             };
-            
+
             // Gather all slider values
             document.querySelectorAll('input[type="range"]').forEach(slider => {
                 preset.sliders[slider.id] = slider.value;
             });
-            
+
             // Gather dropdown values
             preset.lfoWaveform = document.getElementById('lfoWaveform').value;
             preset.lfo2Waveform = document.getElementById('lfo2Waveform').value;
@@ -26488,19 +26575,19 @@
             preset.grainSynthBSource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthBSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.B, { layer: 'B' });
             preset.grainTimingMode = getGrainTimingMode();
             preset.noiseType = document.getElementById('noiseType').value;
-            
+
             // Gather LFO enabled/inverted states
             preset.lfo.enabled = { ...lfoEnabled };
             preset.lfo.inverted = { ...lfoInverted };
-            
+
             // Gather LFO2 enabled/inverted states
             preset.lfo2.enabled = { ...lfo2Enabled };
             preset.lfo2.inverted = { ...lfo2Inverted };
-            
+
             // Gather LFO3 enabled/inverted states
             preset.lfo3.enabled = { ...lfo3Enabled };
             preset.lfo3.inverted = { ...lfo3Inverted };
-            
+
             return preset;
         }
 
@@ -26519,7 +26606,7 @@
                 lfo2Mode: safePreset.lfo2?.mode,
                 lfo3Mode: safePreset.lfo3?.mode
             });
-            
+
             // Apply slider values
             if (normalizedSliders) {
                 Object.keys(normalizedSliders).forEach(id => {
@@ -26530,7 +26617,7 @@
                     }
                 });
             }
-            
+
             // Apply dropdown values
             if (safePreset.lfoWaveform) {
                 document.getElementById('lfoWaveform').value = safePreset.lfoWaveform;
@@ -26577,7 +26664,7 @@
             const restoredHugeKit = HUGE_DRUM_KITS.find((kit) => kit.id === document.getElementById('hugeDrumKit')?.value) || HUGE_DRUM_KITS[0];
             const hugeKitLabel = document.getElementById('hugeDrumKitValue');
             if (hugeKitLabel) hugeKitLabel.textContent = restoredHugeKit.name;
-            
+
             enforceBpmOnlyLfoMode();
             syncPatternLengthControls(safePreset.patternLength ?? preset.patternLength ?? DEFAULT_PATTERN_LENGTH_STEPS, { skipSave: true });
             const usesSharedBpmPreset = safePreset.bpmOnlyLfos === true || safePreset.globalBpm != null || normalizedSliders?.globalBpmSlider != null;
@@ -26790,85 +26877,85 @@
             }
             syncFinalPanControlDisplays();
             updateFinalOutputPanning();
-            
+
             // Apply LFO enabled states
             if (safePreset.lfo && safePreset.lfo.enabled) {
                 Object.keys(safePreset.lfo.enabled).forEach(param => {
                     const shouldBeEnabled = safePreset.lfo.enabled[param];
                     const isEnabled = lfoEnabled[param];
-                    
+
                     if (shouldBeEnabled !== isEnabled) {
                         const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="1"]`);
                         if (btn) btn.click();
                     }
                 });
             }
-            
+
             // Apply LFO inverted states
             if (safePreset.lfo && safePreset.lfo.inverted) {
                 Object.keys(safePreset.lfo.inverted).forEach(param => {
                     const shouldBeInverted = safePreset.lfo.inverted[param];
                     const isInverted = lfoInverted[param];
-                    
+
                     if (shouldBeInverted !== isInverted) {
                         const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="1"]`);
                         if (btn) btn.click();
                     }
                 });
             }
-            
+
             // Apply LFO2 enabled states
             if (safePreset.lfo2 && safePreset.lfo2.enabled) {
                 Object.keys(safePreset.lfo2.enabled).forEach(param => {
                     const shouldBeEnabled = safePreset.lfo2.enabled[param];
                     const isEnabled = lfo2Enabled[param];
-                    
+
                     if (shouldBeEnabled !== isEnabled) {
                         const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="2"]`);
                         if (btn) btn.click();
                     }
                 });
             }
-            
+
             // Apply LFO2 inverted states
             if (safePreset.lfo2 && safePreset.lfo2.inverted) {
                 Object.keys(safePreset.lfo2.inverted).forEach(param => {
                     const shouldBeInverted = safePreset.lfo2.inverted[param];
                     const isInverted = lfo2Inverted[param];
-                    
+
                     if (shouldBeInverted !== isInverted) {
                         const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="2"]`);
                         if (btn) btn.click();
                     }
                 });
             }
-            
+
             // Apply LFO3 enabled states
             if (safePreset.lfo3 && safePreset.lfo3.enabled) {
                 Object.keys(safePreset.lfo3.enabled).forEach(param => {
                     const shouldBeEnabled = safePreset.lfo3.enabled[param];
                     const isEnabled = lfo3Enabled[param];
-                    
+
                     if (shouldBeEnabled !== isEnabled) {
                         const btn = document.querySelector(`.lfo-toggle[data-param="${param}"][data-lfo="3"]`);
                         if (btn) btn.click();
                     }
                 });
             }
-            
+
             // Apply LFO3 inverted states
             if (safePreset.lfo3 && safePreset.lfo3.inverted) {
                 Object.keys(safePreset.lfo3.inverted).forEach(param => {
                     const shouldBeInverted = safePreset.lfo3.inverted[param];
                     const isInverted = lfo3Inverted[param];
-                    
+
                     if (shouldBeInverted !== isInverted) {
                         const btn = document.querySelector(`.inv-toggle[data-param="${param}"][data-lfo="3"]`);
                         if (btn) btn.click();
                     }
                 });
             }
-            
+
             // Apply octave offset
             if (safePreset.octave !== undefined) {
                 octaveOffset = safePreset.octave;
@@ -26893,23 +26980,23 @@
             const sampleRate = buffer.sampleRate;
             const format = 1; // PCM
             const bitDepth = 16;
-            
+
             const bytesPerSample = bitDepth / 8;
             const blockAlign = numChannels * bytesPerSample;
-            
+
             const data = [];
             for (let i = 0; i < numChannels; i++) {
                 data.push(buffer.getChannelData(i));
             }
-            
+
             const interleaved = interleaveChannels(data);
             const dataLength = interleaved.length * bytesPerSample;
             const headerLength = 44;
             const totalLength = headerLength + dataLength;
-            
+
             const arrayBuffer = new ArrayBuffer(totalLength);
             const view = new DataView(arrayBuffer);
-            
+
             // Write WAV header
             writeString(view, 0, 'RIFF');
             view.setUint32(4, totalLength - 8, true);
@@ -26924,7 +27011,7 @@
             view.setUint16(34, bitDepth, true);
             writeString(view, 36, 'data');
             view.setUint32(40, dataLength, true);
-            
+
             // Write audio data
             let offset = 44;
             for (let i = 0; i < interleaved.length; i++) {
@@ -26933,7 +27020,7 @@
                 view.setInt16(offset, intSample, true);
                 offset += 2;
             }
-            
+
             return arrayBuffer;
         }
 
@@ -26941,13 +27028,13 @@
             const length = channels[0].length;
             const numChannels = channels.length;
             const interleaved = new Float32Array(length * numChannels);
-            
+
             for (let i = 0; i < length; i++) {
                 for (let ch = 0; ch < numChannels; ch++) {
                     interleaved[i * numChannels + ch] = channels[ch][i];
                 }
             }
-            
+
             return interleaved;
         }
 
@@ -26959,7 +27046,7 @@
 
         // --- Fullscreen Button Handler ---
         const fullscreenBtn = document.getElementById('fullscreenBtn');
-        
+
         // Show fullscreen button after start overlay is dismissed
         document.getElementById('start-btn').addEventListener('click', () => {
             // Show fullscreen button after a delay to allow audio context to initialize
@@ -26969,12 +27056,12 @@
                 }
             }, 1000);
         });
-        
+
         // Handle fullscreen button click
         fullscreenBtn.addEventListener('click', async () => {
             try {
                 const elem = document.documentElement;
-                
+
                 if (document.fullscreenElement || document.webkitFullscreenElement) {
                     // Exit fullscreen
                     if (document.exitFullscreen) {
@@ -26996,7 +27083,7 @@
                 console.error('Fullscreen error:', err);
             }
         });
-        
+
         // Update button text when fullscreen state changes
         document.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement) {
@@ -27005,7 +27092,7 @@
                 fullscreenBtn.textContent = 'Go Fullscreen';
             }
         });
-        
+
         document.addEventListener('webkitfullscreenchange', () => {
             if (document.webkitFullscreenElement) {
                 fullscreenBtn.textContent = 'Exit Fullscreen';
@@ -27026,12 +27113,12 @@
         window.addEventListener('load', () => {
             const dropboxToggle = document.getElementById('dropboxToggle');
             const dropboxValue = document.getElementById('dropboxValue');
-            
+
             if (dropboxToggle && dropboxValue) {
                 // Set initial state from localStorage
                 dropboxToggle.value = dropboxEnabled ? '1' : '0';
                 dropboxValue.textContent = dropboxEnabled ? 'ON' : 'OFF';
-                
+
                 // Handle toggle changes
                 dropboxToggle.addEventListener('input', () => {
                     dropboxEnabled = dropboxToggle.value === '1';
@@ -27070,10 +27157,10 @@
         function openAudioDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(AUDIO_DB_NAME, AUDIO_DB_VERSION);
-                
+
                 request.onerror = () => reject(request.error);
                 request.onsuccess = () => resolve(request.result);
-                
+
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
                     if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
@@ -27086,10 +27173,10 @@
         // Save audio buffer to IndexedDB
         async function saveAudioBufferToDB(buffer, key = AUDIO_BUFFER_KEY) {
             if (!buffer) return;
-            
+
             try {
                 const db = await openAudioDB();
-                
+
                 // Convert AudioBuffer to storable format
                 const audioData = {
                     sampleRate: buffer.sampleRate,
@@ -27097,22 +27184,22 @@
                     numberOfChannels: buffer.numberOfChannels,
                     channelData: []
                 };
-                
+
                 // Extract channel data as Float32Arrays
                 for (let i = 0; i < buffer.numberOfChannels; i++) {
                     audioData.channelData.push(Array.from(buffer.getChannelData(i)));
                 }
-                
+
                 // Store in IndexedDB
                 const transaction = db.transaction([AUDIO_STORE_NAME], 'readwrite');
                 const store = transaction.objectStore(AUDIO_STORE_NAME);
                 store.put(audioData, key);
-                
+
                 await new Promise((resolve, reject) => {
                     transaction.oncomplete = resolve;
                     transaction.onerror = () => reject(transaction.error);
                 });
-                
+
                 db.close();
                 console.log('Audio buffer saved to IndexedDB:', key);
             } catch (err) {
@@ -27126,32 +27213,32 @@
                 const db = await openAudioDB();
                 const transaction = db.transaction([AUDIO_STORE_NAME], 'readonly');
                 const store = transaction.objectStore(AUDIO_STORE_NAME);
-                
+
                 const audioData = await new Promise((resolve, reject) => {
                     const request = store.get(key);
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
                 });
-                
+
                 db.close();
-                
+
                 if (!audioData || !audioContext) {
                     return null;
                 }
-                
+
                 // Reconstruct AudioBuffer from stored data
                 const buffer = audioContext.createBuffer(
                     audioData.numberOfChannels,
                     audioData.length,
                     audioData.sampleRate
                 );
-                
+
                 for (let i = 0; i < audioData.numberOfChannels; i++) {
                     const channelData = buffer.getChannelData(i);
                     const sourceData = new Float32Array(audioData.channelData[i]);
                     channelData.set(sourceData);
                 }
-                
+
                 console.log('Audio buffer restored from IndexedDB:', key);
                 return buffer;
             } catch (err) {
@@ -31388,7 +31475,7 @@
             const filename = createBpmWavFilename(sequencerBPM);
             const fallbackFilename = filename;
             console.log('Blob created. Size:', blob.size, 'bytes. Filename:', filename);
-            
+
             // Desktop: Use File System Access API for Save As dialog
             if ('showSaveFilePicker' in window) {
                 console.log('Using File System Access API (showSaveFilePicker)');
@@ -31415,7 +31502,7 @@
                     // Fall through
                 }
             }
-            
+
             // iOS/Mobile: Use Web Share API with file - this shows the share sheet!
             if (navigator.share && navigator.canShare) {
                 const file = new File([blob], filename, { type: 'audio/wav' });
@@ -31437,7 +31524,7 @@
                     }
                 }
             }
-            
+
             // Fallback: download link (for browsers that don't support share)
             console.log('Using download link method');
             const url = URL.createObjectURL(blob);
@@ -31450,7 +31537,7 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 1000);
-            
+
             console.log('Download triggered for:', filename);
         }
 
@@ -31463,20 +31550,20 @@
             const format = 1; // PCM
             const bytesPerSample = bitDepth / 8;
             const blockAlign = numChannels * bytesPerSample;
-            
+
             const data = [];
             for (let i = 0; i < numChannels; i++) {
                 data.push(buffer.getChannelData(i));
             }
-            
+
             const interleaved = interleaveChannels(data);
             const dataLength = interleaved.length * bytesPerSample;
             const headerLength = 44;
             const totalLength = headerLength + dataLength;
-            
+
             const arrayBuffer = new ArrayBuffer(totalLength);
             const view = new DataView(arrayBuffer);
-            
+
             // Write WAV header
             writeString(view, 0, 'RIFF');
             view.setUint32(4, totalLength - 8, true);
@@ -31491,21 +31578,21 @@
             view.setUint16(34, bitDepth, true);
             writeString(view, 36, 'data');
             view.setUint32(40, dataLength, true);
-            
+
             // Write audio data as 24-bit
             let offset = 44;
             for (let i = 0; i < interleaved.length; i++) {
                 const sample = Math.max(-1, Math.min(1, interleaved[i]));
                 // Convert to 24-bit integer
                 const intSample = sample < 0 ? Math.floor(sample * 0x800000) : Math.floor(sample * 0x7FFFFF);
-                
+
                 // Write 24-bit little-endian
                 view.setUint8(offset, intSample & 0xFF);
                 view.setUint8(offset + 1, (intSample >> 8) & 0xFF);
                 view.setUint8(offset + 2, (intSample >> 16) & 0xFF);
                 offset += 3;
             }
-            
+
             return arrayBuffer;
         }
 
@@ -31644,12 +31731,12 @@
                                 document.getElementById('outputRecText').textContent = 'Ready';
                             }, 3000);
                         }
-                        
+
                         console.log('Resetting recording UI...');
                         resetRecordingUI(true);
                         console.log('=== RECORDING STOP COMPLETE ===');
                     };
-                    
+
                     outputMediaRecorder.start();
                     console.log('MediaRecorder started');
 
@@ -31691,7 +31778,7 @@
             setOutputRecordingButtons(false);
             document.getElementById('outputRecStatus').classList.remove('active');
             document.getElementById('outputRecDot').classList.remove('active');
-            
+
             // Clean up MediaRecorder
             if (outputMediaRecorder) {
                 console.log('Cleaning up MediaRecorder. State:', outputMediaRecorder.state);
@@ -31706,7 +31793,7 @@
                 }
                 outputMediaRecorder = null;
             }
-            
+
             // Clean up recording resources
             if (outputRecordingDestination && finalAmplifierNode) {
                 try {
@@ -31717,7 +31804,7 @@
                 }
                 outputRecordingDestination = null;
             }
-            
+
             outputRecordedChunks = [];
             outputRecordingMimeType = null;
             outputRecordingTarget = 'file';
@@ -31729,16 +31816,16 @@
             console.log('=== STOP RECORDING CLICKED ===');
             console.log('isOutputRecording:', isOutputRecording);
             console.log('outputMediaRecorder:', outputMediaRecorder);
-            
+
             if (!isOutputRecording || !outputMediaRecorder) return;
-            
+
             isOutputRecording = false;
             isOutputRecordingArmedStart = false; // Reset the armed start flag
-            
+
             // Update UI
             document.getElementById('stopOutputRecBtn').disabled = true;
             document.getElementById('outputRecText').textContent = 'Processing...';
-            
+
             console.log('Stopping MediaRecorder...');
             // Stop the MediaRecorder - this will trigger onstop event
             outputMediaRecorder.stop();
@@ -31757,7 +31844,7 @@
             }
 
             const armBtn = document.getElementById('armOutputRecBtn');
-            
+
             if (isOutputRecordingArmed) {
                 // Disarm
                 isOutputRecordingArmed = false;
