@@ -8351,6 +8351,7 @@
         
         // Modulation loop state
         let modulationIntervalId = null;
+        let modulationEvaluationTime = null;
         const MODULATION_RATE_MS = 33; // ~30Hz modulation rate
         
         // Delay constants
@@ -9497,6 +9498,7 @@
             });
         });
         SOURCE_LOOP_CONTROL_IDS.forEach((id) => {
+            paramRanges[id] = { min: 0, max: 100 };
             GRANULAR_LFO_MODULATION_SCALES[id] = 0.06;
             RANDOMIZE_GRANULAR_LFO_TARGET_PARAMS.add(id);
         });
@@ -10067,6 +10069,24 @@
             }
         }
 
+        function getModulationEvaluationTime() {
+            if (Number.isFinite(modulationEvaluationTime)) {
+                return modulationEvaluationTime;
+            }
+            return audioContext ? audioContext.currentTime : 0;
+        }
+
+        function withModulationEvaluationTime(time, callback) {
+            const previousTime = modulationEvaluationTime;
+            const numericTime = time === null || time === undefined ? NaN : Number(time);
+            modulationEvaluationTime = Number.isFinite(numericTime) ? numericTime : previousTime;
+            try {
+                return callback();
+            } finally {
+                modulationEvaluationTime = previousTime;
+            }
+        }
+
         function getNativeOscillatorWaveform(waveform) {
             return ['sine', 'triangle', 'sawtooth', 'square'].includes(waveform) ? waveform : 'square';
         }
@@ -10083,7 +10103,7 @@
             const waveform = document.getElementById('lfoWaveform').value;
             const depth = parseFloat(document.getElementById('lfoDepth').value) / 100;
             
-            const elapsed = audioContext.currentTime - lfoStartTime;
+            const elapsed = getModulationEvaluationTime() - lfoStartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
@@ -10119,7 +10139,7 @@
                 depth = depth * (1 - lfo3ToLfo1Mod + modAmount * lfo3ToLfo1Mod);
             }
             
-            const elapsed = audioContext.currentTime - lfoStartTime;
+            const elapsed = getModulationEvaluationTime() - lfoStartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
@@ -10140,7 +10160,7 @@
             const waveform = document.getElementById('lfo2Waveform').value;
             const depth = parseFloat(document.getElementById('lfo2Depth').value) / 100;
             
-            const elapsed = audioContext.currentTime - lfo2StartTime;
+            const elapsed = getModulationEvaluationTime() - lfo2StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
@@ -10176,7 +10196,7 @@
                 depth = depth * (1 - lfo3ToLfo2Mod + modAmount * lfo3ToLfo2Mod);
             }
             
-            const elapsed = audioContext.currentTime - lfo2StartTime;
+            const elapsed = getModulationEvaluationTime() - lfo2StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
@@ -10192,7 +10212,7 @@
             const waveform = document.getElementById('lfo3Waveform').value;
             const depth = parseFloat(document.getElementById('lfo3Depth').value) / 100;
             
-            const elapsed = audioContext.currentTime - lfo3StartTime;
+            const elapsed = getModulationEvaluationTime() - lfo3StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
             
@@ -10222,7 +10242,7 @@
                 depth = depth * (1 - lfo2ToLfo3Mod + modAmount * lfo2ToLfo3Mod);
             }
 
-            const elapsed = audioContext.currentTime - lfo3StartTime;
+            const elapsed = getModulationEvaluationTime() - lfo3StartTime;
             // Use fract for better precision with long-running oscillators
             const phase = elapsed * rate - Math.floor(elapsed * rate);
 
@@ -10384,6 +10404,19 @@
             refreshActiveOscillatorVoices();
             syncSynthDetuneLabels();
             syncOscSynthFilterControls({ preserveSliderValues: true });
+        }
+
+        function hasActiveGranularLfoRouting() {
+            const routeMaps = [lfoEnabled, lfo2Enabled, lfo3Enabled];
+            return routeMaps.some((routeMap) => Object.keys(routeMap).some((param) => (
+                routeMap[param] && isGranularLfoTargetParam(param)
+            )));
+        }
+
+        function updateGranularLfoModulation() {
+            if (!audioContext || audioContext.state !== 'running' || activeGrains.size === 0) return;
+            if (!hasActiveGranularLfoRouting()) return;
+            rescheduleActiveGrainsFromNow();
         }
 
         function clearDisabledLoopStartLfoRoutes() {
@@ -11984,6 +12017,7 @@
                     updateFinalFxPlacementLfo();
                     updateEffects();
                     updateSynthLfoModulation();
+                    updateGranularLfoModulation();
                 }
             }, MODULATION_RATE_MS);
         }
@@ -19394,23 +19428,24 @@
                 return;
             }
 
+            const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
             const requestedLayerKeys = Array.isArray(options.layerKeys) && options.layerKeys.length > 0
                 ? new Set(options.layerKeys)
                 : null;
-            const layerSettings = (Array.isArray(options.layerSettings) && options.layerSettings.length > 0
-                ? options.layerSettings
-                : getGranularLayerSettings(noteFreq, velocity))
-                .filter((layer) => !requestedLayerKeys || requestedLayerKeys.has(layer.key));
+            const layerSettings = withModulationEvaluationTime(now, () => (
+                Array.isArray(options.layerSettings) && options.layerSettings.length > 0
+                    ? options.layerSettings
+                    : getGranularLayerSettings(noteFreq, velocity)
+            ).filter((layer) => !requestedLayerKeys || requestedLayerKeys.has(layer.key)));
 
             if (layerSettings.length === 0) {
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
                 return;
             }
 
-            const now = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
-            const panSpread = Math.max(0, Math.min(1, Number(getModulatedValue('panSpread')) / 100 || 0));
-            const noiseMix = Math.max(0, Math.min(1, Number(getModulatedValue('noiseMix')) / 100 || 0));
-            const grainMixerAmp = getGrainLayerGain('grainMixerAmp', 1);
+            const panSpread = withModulationEvaluationTime(now, () => Math.max(0, Math.min(1, Number(getModulatedValue('panSpread')) / 100 || 0)));
+            const noiseMix = withModulationEvaluationTime(now, () => Math.max(0, Math.min(1, Number(getModulatedValue('noiseMix')) / 100 || 0)));
+            const grainMixerAmp = withModulationEvaluationTime(now, () => getGrainLayerGain('grainMixerAmp', 1));
             const keyboardBiasGain = getGranularKeyboardVolumeBiasGain(noteFreq);
             const mixer = audioContext.createGain();
             const outputGain = audioContext.createGain();
@@ -19437,13 +19472,13 @@
 
             const scheduleLayerSource = (sourceInfo, layer, targetGain) => {
                 if (!sourceInfo?.buffer || targetGain <= 0) return;
-                const sampleWindow = resolveGranularLayerSampleWindow(
+                const sampleWindow = withModulationEvaluationTime(now, () => resolveGranularLayerSampleWindow(
                     sourceInfo,
                     layer,
                     now,
                     options.streamStartTime,
                     modeProfile
-                );
+                ));
                 if (!sampleWindow) return;
 
                 const source = audioContext.createBufferSource();
@@ -19503,11 +19538,13 @@
             };
 
             const sampleAvailableGain = Math.max(0, 1 - noiseMix);
-            layerSettings.forEach((layer) => {
-                const layerSources = getAvailableGranularSources({ mode: layer.sourceMode, layer: layer.key });
-                const layerGainMap = getGranularSourceGainMap(layerSources, layer.volume * sampleAvailableGain);
-                layerSources.forEach((sourceInfo) => {
-                    scheduleLayerSource(sourceInfo, layer, layerGainMap.get(sourceInfo) ?? 0);
+            withModulationEvaluationTime(now, () => {
+                layerSettings.forEach((layer) => {
+                    const layerSources = getAvailableGranularSources({ mode: layer.sourceMode, layer: layer.key });
+                    const layerGainMap = getGranularSourceGainMap(layerSources, layer.volume * sampleAvailableGain);
+                    layerSources.forEach((sourceInfo) => {
+                        scheduleLayerSource(sourceInfo, layer, layerGainMap.get(sourceInfo) ?? 0);
+                    });
                 });
             });
 
@@ -19575,11 +19612,21 @@
             if (!grainInfo) return 0;
             const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
             if (!noteFreq || !isFinite(noteFreq)) return 0;
-            const layerSettings = getGranularLayerSettings(noteFreq, 1);
+            const layerSettings = withModulationEvaluationTime(audioContext?.currentTime ?? null, () => getGranularLayerSettings(noteFreq, 1));
             if (!layerSettings.length) return 0;
             return layerSettings.reduce((longest, layer) => {
                 return Math.max(longest, Math.max(0.02, Number(layer.releaseSeconds) || 0) + (Number(layer.intervalSeconds) || 0.02));
             }, 0.02);
+        }
+
+        function getGranularLayerScheduleIntervalSeconds(layerSettings) {
+            return Math.max(
+                0.012,
+                Math.min(
+                    0.14,
+                    ...layerSettings.map((layer) => Math.max(0.012, Number(layer.intervalSeconds) || 0.012))
+                )
+            );
         }
 
         function startGrainStream(note, scheduledStartTime = null, velocity = 1, options = {}) {
@@ -19722,18 +19769,14 @@
             activeGrains.forEach((grainInfo, streamId) => {
                 const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
                 if (!noteFreq || !isFinite(noteFreq)) return;
-                const layerSettings = getGranularLayerSettings(noteFreq, grainInfo.velocity);
+                const layerSettings = withModulationEvaluationTime(
+                    grainInfo.nextTime,
+                    () => getGranularLayerSettings(noteFreq, grainInfo.velocity)
+                );
                 if (!layerSettings.length) {
                     streamsToDelete.push(streamId);
                     return;
                 }
-                const intervalSeconds = Math.max(
-                    0.012,
-                    Math.min(
-                        0.14,
-                        ...layerSettings.map((layer) => Math.max(0.012, Number(layer.intervalSeconds) || 0.012))
-                    )
-                );
 
                 while (grainInfo.nextTime < scheduleUntil) {
                     if (grainInfo.releasing) {
@@ -19745,7 +19788,6 @@
                     }
 
                     let grainVelocity = grainInfo.velocity;
-                    let scheduledLayerSettings = layerSettings;
                     if (grainInfo.releasing) {
                         const releaseStartTime = Number(grainInfo.releaseStartTime) || audioContext.currentTime;
                         const releaseEndTime = Number(grainInfo.releaseEndTime) || releaseStartTime;
@@ -19756,11 +19798,15 @@
                             streamsToDelete.push(streamId);
                             break;
                         }
-                        scheduledLayerSettings = getGranularLayerSettings(noteFreq, grainVelocity);
-                        if (!scheduledLayerSettings.length) {
-                            streamsToDelete.push(streamId);
-                            break;
-                        }
+                    }
+
+                    const scheduledLayerSettings = withModulationEvaluationTime(
+                        grainInfo.nextTime,
+                        () => getGranularLayerSettings(noteFreq, grainVelocity)
+                    );
+                    if (!scheduledLayerSettings.length) {
+                        streamsToDelete.push(streamId);
+                        break;
                     }
 
                     try {
@@ -19776,6 +19822,7 @@
                         streamsToDelete.push(streamId);
                         break;
                     }
+                    const intervalSeconds = getGranularLayerScheduleIntervalSeconds(scheduledLayerSettings);
                     grainInfo.nextTime += intervalSeconds;
                 }
             });
