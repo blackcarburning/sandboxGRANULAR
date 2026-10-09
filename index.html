@@ -31637,18 +31637,22 @@
             const isArmed = keyboardRepositoryRecordingState === 'armed';
             const isRecordingNow = keyboardRepositoryRecordingState === 'recording';
             const isProcessing = keyboardRepositoryRecordingState === 'processing';
-            button.classList.toggle('armed', isArmed);
-            button.classList.toggle('recording', isRecordingNow);
-            button.disabled = isProcessing || (isOutputRecording && outputRecordingTarget !== 'keyboard-repo');
-            button.setAttribute('aria-pressed', String(isArmed || isRecordingNow));
-            button.setAttribute('aria-busy', String(isProcessing));
-            button.textContent = isArmed
+            const disabled = isProcessing || (isOutputRecording && outputRecordingTarget !== 'keyboard-repo');
+            const ariaPressed = String(isArmed || isRecordingNow);
+            const ariaBusy = String(isProcessing);
+            const text = isArmed
                 ? 'Armed'
                 : isRecordingNow
                     ? 'Recording...'
                     : isProcessing
                         ? 'Processing...'
                         : 'Key Record';
+            button.classList.toggle('armed', isArmed);
+            button.classList.toggle('recording', isRecordingNow);
+            if (button.disabled !== disabled) button.disabled = disabled;
+            if (button.getAttribute('aria-pressed') !== ariaPressed) button.setAttribute('aria-pressed', ariaPressed);
+            if (button.getAttribute('aria-busy') !== ariaBusy) button.setAttribute('aria-busy', ariaBusy);
+            if (button.textContent !== text) button.textContent = text;
         }
 
         function setKeyboardRepositoryRecordingState(state) {
@@ -34241,7 +34245,7 @@
             syncPerformanceControlState();
         });
 
-        ['holdBtn', 'seqPlayBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText', 'performanceKeyboardRecordBtn'].forEach(id => {
+        ['holdBtn', 'seqPlayBtn', 'startOutputRecBtn', 'stopOutputRecBtn', 'outputRecText'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             new MutationObserver(syncPerformanceControlState).observe(el, {
