@@ -28826,6 +28826,7 @@
         const WAV_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-wavs';
         const WAV_REPOSITORY_LIST_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/list`;
         const WAV_REPOSITORY_FEEDBACK_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/file-feedback`;
+        const WAV_REPOSITORY_RENAME_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/rename`;
         const WAV_REPOSITORY_DELETE_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/delete`;
         const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
         const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
@@ -28891,6 +28892,26 @@
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.ok) {
                 throw new Error(payload.error || `Upload failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function renameWavInRepository(oldName, newName) {
+            const response = await fetch(WAV_REPOSITORY_RENAME_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: oldName,
+                    to: newName
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `WAV rename failed with status ${response.status}`);
             }
             return payload;
         }
@@ -31136,6 +31157,25 @@
             }
         }
 
+        async function promptRenameWavRepositoryFile(currentName, options = {}) {
+            const sourceName = String(currentName || '').trim();
+            if (!sourceName) return null;
+            const fallbackBase = sourceName.replace(/\.wav$/i, '') || 'mygrain-recording';
+            const requestedName = prompt(options.message || 'Rename WAV:', fallbackBase);
+            if (!requestedName) return null;
+            const nextName = sanitizeWavRepositoryFilename(requestedName, fallbackBase);
+            if (nextName === sourceName) {
+                return {
+                    ok: true,
+                    unchanged: true,
+                    oldName: sourceName,
+                    savedName: sourceName,
+                    url: `${WAV_REPOSITORY_BASE_URL}/${encodeURIComponent(sourceName)}`
+                };
+            }
+            return renameWavInRepository(sourceName, nextName);
+        }
+
         function renderWavRepositoryBrowserFiles() {
             const list = document.getElementById('wavRepositoryBrowserList');
             const filter = document.getElementById('wavRepositoryBrowserFilter');
@@ -31173,6 +31213,11 @@
                 downloadButton.className = 'performance-btn';
                 downloadButton.type = 'button';
                 downloadButton.textContent = 'Download WAV';
+
+                const renameButton = document.createElement('button');
+                renameButton.className = 'performance-btn';
+                renameButton.type = 'button';
+                renameButton.textContent = 'Rename WAV';
 
                 const deleteButton = document.createElement('button');
                 deleteButton.className = 'performance-btn danger';
@@ -31324,10 +31369,46 @@
                     }
                 });
 
+                renameButton.addEventListener('click', async () => {
+                    const originalLabel = renameButton.textContent;
+                    renameButton.disabled = true;
+                    downloadButton.disabled = true;
+                    deleteButton.disabled = true;
+                    saveButton.disabled = true;
+                    renameButton.textContent = 'Renaming...';
+                    try {
+                        const result = await promptRenameWavRepositoryFile(file.name);
+                        if (!result) {
+                            setWavRepositoryBrowserStatus('Rename cancelled.');
+                            return;
+                        }
+                        const savedName = result.savedName || file.name;
+                        setWavRepositoryBrowserStatus(
+                            result.unchanged
+                                ? `${savedName} kept the same name.`
+                                : `Renamed ${file.name} to ${savedName}.`
+                        );
+                        setStatus(`Renamed WAV: ${savedName}`, 'info');
+                        await refreshWavRepositoryBrowser({ forceRefresh: true });
+                        setWavRepositoryBrowserStatus(`Renamed WAV: ${savedName}.`);
+                    } catch (error) {
+                        console.error(error);
+                        setWavRepositoryBrowserStatus(`Rename failed: ${error.message}`);
+                        setStatus(`WAV rename failed: ${error.message}`, 'error');
+                    } finally {
+                        renameButton.disabled = false;
+                        downloadButton.disabled = false;
+                        deleteButton.disabled = false;
+                        syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
+                        renameButton.textContent = originalLabel;
+                    }
+                });
+
                 deleteButton.addEventListener('click', async () => {
                     const originalLabel = deleteButton.textContent;
                     deleteButton.disabled = true;
                     downloadButton.disabled = true;
+                    renameButton.disabled = true;
                     saveButton.disabled = true;
                     deleteButton.textContent = 'Deleting...';
                     try {
@@ -31344,6 +31425,7 @@
                     } finally {
                         deleteButton.disabled = false;
                         downloadButton.disabled = false;
+                        renameButton.disabled = false;
                         syncWavRepositoryBrowserFeedbackUi(file, feedbackControls);
                         deleteButton.textContent = originalLabel;
                     }
@@ -31353,7 +31435,7 @@
                 feedbackRow.append(feedbackActions, feedbackStatus);
                 feedback.append(feedbackLabel, textarea, feedbackRow);
                 head.append(name);
-                actions.append(repositoryHint, downloadButton, deleteButton);
+                actions.append(repositoryHint, downloadButton, renameButton, deleteButton);
                 card.append(head, meta, audio, actions, feedback);
                 list.appendChild(card);
             });
@@ -31772,7 +31854,7 @@
             const wav = audioBufferToWav24bit(audioBuffer);
             const blob = new Blob([wav], { type: 'audio/wav' });
             const defaultName = buildKeyboardRepositoryRecordingDefaultName();
-            const requestedName = prompt('Save keyboard recording to WAV repository as:', defaultName);
+            const requestedName = prompt('Name keyboard recording for the WAV repository:', defaultName);
             if (!requestedName) {
                 setStatus('Keyboard recording save cancelled.');
                 return false;
@@ -31780,8 +31862,27 @@
             const filename = sanitizeWavRepositoryFilename(requestedName, defaultName);
             setStatus(`Uploading keyboard recording ${filename} to the WAV repository...`);
             const result = await uploadWavToRepository(blob, filename);
-            setStatus(`Uploaded keyboard recording: ${result.savedName || filename}.`);
-            refreshWavRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+            let savedName = result.savedName || filename;
+            setStatus(`Uploaded keyboard recording: ${savedName}.`);
+            if (confirm(`Saved keyboard recording as ${savedName}. Rename it now?`)) {
+                try {
+                    const renameResult = await promptRenameWavRepositoryFile(savedName, {
+                        message: 'Rename keyboard recording:'
+                    });
+                    if (renameResult) {
+                        savedName = renameResult.savedName || savedName;
+                        setStatus(`Renamed keyboard recording: ${savedName}.`);
+                    } else {
+                        setStatus(`Keyboard recording kept as: ${savedName}.`);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    setStatus(`Keyboard recording saved as ${savedName}, but rename failed: ${error.message}`, 'error');
+                }
+            }
+            refreshWavRepositoryBrowser({ forceRefresh: true }).then(() => {
+                setWavRepositoryBrowserStatus(`Keyboard recording saved as ${savedName}.`);
+            }).catch((error) => {
                 console.warn('WAV repository refresh after keyboard record upload failed:', error);
             });
             return true;
