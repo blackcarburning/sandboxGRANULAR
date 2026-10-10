@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-09-35-build-v2026.10.10.11';
+            const cacheBuster = '2026-10-10-09-37-build-v2026.10.10.12';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4438,7 +4438,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.11</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.12</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4497,7 +4497,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.11</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.12</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -7915,6 +7915,8 @@
                     <button class="performance-btn primary" id="drumMachineRandomizeBtn" type="button">Random Drums</button>
                     <button class="performance-btn" id="drumMachineSamplesOnlyBtn" type="button">Random Samples</button>
                     <button class="performance-btn" id="drumMachineDirectOutBtn" type="button" aria-pressed="false">Direct Out Off</button>
+                    <button class="performance-btn" id="drumMachineDirectDelayBtn" type="button" aria-pressed="false">Delay Send Off</button>
+                    <button class="performance-btn" id="drumMachineDirectReverbBtn" type="button" aria-pressed="false">Reverb Send Off</button>
                     <button class="performance-btn" id="drumMachinePlayBtn" type="button">Start Drums</button>
                     <div class="drum-machine-status" id="drumMachineStatus">Kick empty · Snare empty · Synth hats · Hats empty</div>
                 </div>
@@ -9060,6 +9062,8 @@
         let finalReverbShimmerDelay = null;
         let finalReverbShimmerGain = null;
         let finalReverbShimmerDrive = null;
+        let drumMachineDirectDelaySendGainNode = null;
+        let drumMachineDirectReverbSendGainNode = null;
         let finalReverbEnabled = false;
         let finalReverbImpulseKey = '';
         let finalFxPlacement = 'post';
@@ -9267,6 +9271,8 @@
         let drumMachineLevel = 0.55;
         let drumMachineEnabled = true;
         let drumMachineDirectOutput = true;
+        let drumMachineDirectDelaySendEnabled = false;
+        let drumMachineDirectReverbSendEnabled = false;
         let drumMachinePlaying = false;
         let drumMachineTransportStartTime = null;
         let drumMachineKickPitchSemitones = 0;
@@ -17366,6 +17372,7 @@
                     drumMachineBusGainNode.connect(destination);
                     drumMachineBusGainNode.connectedTo = destination;
                 }
+                ensureDrumMachineDirectFxSends();
                 return drumMachineBusGainNode;
             }
             const gain = audioContext.createGain();
@@ -17373,7 +17380,28 @@
             gain.connect(destination);
             gain.connectedTo = destination;
             drumMachineBusGainNode = gain;
+            ensureDrumMachineDirectFxSends();
             return drumMachineBusGainNode;
+        }
+
+        function ensureDrumMachineDirectFxSends() {
+            if (!audioContext || !drumMachineBusGainNode) return;
+
+            if (!drumMachineDirectDelaySendGainNode && finalDelayNode && finalDelayShadowNodeA && finalDelayShadowNodeB) {
+                drumMachineDirectDelaySendGainNode = audioContext.createGain();
+                drumMachineDirectDelaySendGainNode.gain.value = 0;
+                drumMachineBusGainNode.connect(drumMachineDirectDelaySendGainNode);
+                drumMachineDirectDelaySendGainNode.connect(finalDelayNode);
+                drumMachineDirectDelaySendGainNode.connect(finalDelayShadowNodeA);
+                drumMachineDirectDelaySendGainNode.connect(finalDelayShadowNodeB);
+            }
+
+            if (!drumMachineDirectReverbSendGainNode && finalReverbPreDelay) {
+                drumMachineDirectReverbSendGainNode = audioContext.createGain();
+                drumMachineDirectReverbSendGainNode.gain.value = 0;
+                drumMachineBusGainNode.connect(drumMachineDirectReverbSendGainNode);
+                drumMachineDirectReverbSendGainNode.connect(finalReverbPreDelay);
+            }
         }
 
         function ensureDrumMachineKickBypassBus() {
@@ -17407,6 +17435,18 @@
             [
                 { bus: mainBus, gain: targetGain },
                 { bus: kickBypassBus, gain: targetGain }
+            ].forEach(({ bus, gain }) => {
+                if (!bus) return;
+                bus.gain.cancelScheduledValues(now);
+                bus.gain.setValueAtTime(bus.gain.value, now);
+                bus.gain.linearRampToValueAtTime(gain, now + 0.03);
+            });
+
+            const directDelaySendGain = shouldRouteDrumMachineDirectToOutput() && drumMachineDirectDelaySendEnabled ? 1 : 0;
+            const directReverbSendGain = shouldRouteDrumMachineDirectToOutput() && drumMachineDirectReverbSendEnabled ? 1 : 0;
+            [
+                { bus: drumMachineDirectDelaySendGainNode, gain: directDelaySendGain },
+                { bus: drumMachineDirectReverbSendGainNode, gain: directReverbSendGain }
             ].forEach(({ bus, gain }) => {
                 if (!bus) return;
                 bus.gain.cancelScheduledValues(now);
@@ -17898,6 +17938,12 @@
                 document.getElementById('performanceDrumMachineDirectOutBtn'),
                 document.getElementById('drumMachineDirectOutBtn')
             ];
+            const directDelayButtons = [
+                document.getElementById('drumMachineDirectDelayBtn')
+            ];
+            const directReverbButtons = [
+                document.getElementById('drumMachineDirectReverbBtn')
+            ];
             const browserButtons = [
                 document.getElementById('drumMachineKickBrowseBtn'),
                 document.getElementById('drumMachineSnareBrowseBtn'),
@@ -17940,6 +17986,26 @@
                 button.title = drumMachineDirectOutput
                     ? 'Drum machine bypasses MYGRAIN filters, compressor, and effects.'
                     : 'Drum machine routes through MYGRAIN filters, compressor, and effects.';
+            });
+
+            directDelayButtons.forEach((button) => {
+                if (!button) return;
+                button.classList.toggle('active', drumMachineDirectDelaySendEnabled && drumMachineDirectOutput);
+                button.textContent = drumMachineDirectDelaySendEnabled ? 'Delay Send On' : 'Delay Send Off';
+                button.setAttribute('aria-pressed', String(drumMachineDirectDelaySendEnabled));
+                button.title = drumMachineDirectOutput
+                    ? 'Send direct-output drums into the shared delay bus.'
+                    : 'Enable this, then turn Direct Out on to feed drums into the shared delay bus.';
+            });
+
+            directReverbButtons.forEach((button) => {
+                if (!button) return;
+                button.classList.toggle('active', drumMachineDirectReverbSendEnabled && drumMachineDirectOutput);
+                button.textContent = drumMachineDirectReverbSendEnabled ? 'Reverb Send On' : 'Reverb Send Off';
+                button.setAttribute('aria-pressed', String(drumMachineDirectReverbSendEnabled));
+                button.title = drumMachineDirectOutput
+                    ? 'Send direct-output drums into the shared reverb bus.'
+                    : 'Enable this, then turn Direct Out on to feed drums into the shared reverb bus.';
             });
 
             browserButtons.forEach((button) => {
@@ -18281,6 +18347,44 @@
                 setStatus(drumMachineDirectOutput
                     ? 'Drum machine routed direct to output.'
                     : 'Drum machine routed through MYGRAIN processing.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setDrumMachineDirectDelaySend(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (drumMachineDirectDelaySendEnabled === nextValue) {
+                syncDrumMachineUi();
+                return;
+            }
+            drumMachineDirectDelaySendEnabled = nextValue;
+            updateDrumMachineMix();
+            syncDrumMachineUi();
+            if (!options.silent) {
+                setStatus(drumMachineDirectDelaySendEnabled
+                    ? 'Drum machine direct output routed to delay.'
+                    : 'Drum machine direct delay send off.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setDrumMachineDirectReverbSend(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (drumMachineDirectReverbSendEnabled === nextValue) {
+                syncDrumMachineUi();
+                return;
+            }
+            drumMachineDirectReverbSendEnabled = nextValue;
+            updateDrumMachineMix();
+            syncDrumMachineUi();
+            if (!options.silent) {
+                setStatus(drumMachineDirectReverbSendEnabled
+                    ? 'Drum machine direct output routed to reverb.'
+                    : 'Drum machine direct reverb send off.');
             }
             if (!options.skipSave) {
                 saveState();
@@ -27040,6 +27144,8 @@
             setGeneratedSourceLowNoiseMode(false, { silent: true, skipSave: true });
             setTonalDrumsEnabled(false, { silent: true, skipSave: true });
             setOscillatorsEnabled(false, { silent: true, skipSave: true });
+            setDrumMachineDirectDelaySend(false, { silent: true, skipSave: true });
+            setDrumMachineDirectReverbSend(false, { silent: true, skipSave: true });
 
             // Reset dropdowns to default
             document.getElementById('lfoWaveform').value = 'sine';
@@ -27199,6 +27305,8 @@
                 dropboxSampleSourceKey: getDropboxSampleLayerSourceKey(),
                 drumMachineEnabled: drumMachineEnabled,
                 drumMachineDirectOutput: drumMachineDirectOutput,
+                drumMachineDirectDelaySendEnabled: drumMachineDirectDelaySendEnabled,
+                drumMachineDirectReverbSendEnabled: drumMachineDirectReverbSendEnabled,
                 drumMachineKickPattern: drumMachineKickPattern.slice(),
                 drumMachineSnarePattern: drumMachineSnarePattern.slice(),
                 drumMachineHatPattern: drumMachineHatPattern.slice(),
@@ -27519,6 +27627,14 @@
             const importedDrumMachineDirectOutput = safePreset.drumMachineDirectOutput ?? preset.drumMachineDirectOutput;
             if (importedDrumMachineDirectOutput !== undefined) {
                 setDrumMachineDirectOutput(importedDrumMachineDirectOutput, { silent: true, skipSave: true });
+            }
+            const importedDrumMachineDirectDelaySendEnabled = safePreset.drumMachineDirectDelaySendEnabled ?? preset.drumMachineDirectDelaySendEnabled;
+            if (importedDrumMachineDirectDelaySendEnabled !== undefined) {
+                setDrumMachineDirectDelaySend(importedDrumMachineDirectDelaySendEnabled, { silent: true, skipSave: true });
+            }
+            const importedDrumMachineDirectReverbSendEnabled = safePreset.drumMachineDirectReverbSendEnabled ?? preset.drumMachineDirectReverbSendEnabled;
+            if (importedDrumMachineDirectReverbSendEnabled !== undefined) {
+                setDrumMachineDirectReverbSend(importedDrumMachineDirectReverbSendEnabled, { silent: true, skipSave: true });
             }
             const importedDrumMachineKickPattern = safePreset.drumMachineKickPattern ?? preset.drumMachineKickPattern;
             if (importedDrumMachineKickPattern !== undefined) {
@@ -28073,6 +28189,8 @@
                     grainBSampleRelativePath: grainBSampleMetadata?.relativePath || '',
                     drumMachineEnabled: drumMachineEnabled,
                     drumMachineDirectOutput: drumMachineDirectOutput,
+                    drumMachineDirectDelaySendEnabled: drumMachineDirectDelaySendEnabled,
+                    drumMachineDirectReverbSendEnabled: drumMachineDirectReverbSendEnabled,
                     drumMachineKickPattern: drumMachineKickPattern.slice(),
                     drumMachineSnarePattern: drumMachineSnarePattern.slice(),
                     drumMachineHatPattern: drumMachineHatPattern.slice(),
@@ -28441,7 +28559,13 @@
                     if (state.modes.drumMachineEnabled !== undefined) {
                         setDrumMachineEnabled(state.modes.drumMachineEnabled, { silent: true, skipSave: true });
                     }
-                    setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
+                    setDrumMachineDirectOutput(state.modes.drumMachineDirectOutput !== undefined ? state.modes.drumMachineDirectOutput : true, { silent: true, skipSave: true });
+                    if (state.modes.drumMachineDirectDelaySendEnabled !== undefined) {
+                        setDrumMachineDirectDelaySend(state.modes.drumMachineDirectDelaySendEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.drumMachineDirectReverbSendEnabled !== undefined) {
+                        setDrumMachineDirectReverbSend(state.modes.drumMachineDirectReverbSendEnabled, { silent: true, skipSave: true });
+                    }
                     if (state.modes.drumMachineKickPattern !== undefined) {
                         setDrumMachinePattern('kick', state.modes.drumMachineKickPattern, { skipSave: true });
                     }
@@ -34660,6 +34784,14 @@
 
         drumMachineDirectOutBtn?.addEventListener('click', () => {
             setDrumMachineDirectOutput(!drumMachineDirectOutput);
+        });
+
+        drumMachineDirectDelayBtn?.addEventListener('click', () => {
+            setDrumMachineDirectDelaySend(!drumMachineDirectDelaySendEnabled);
+        });
+
+        drumMachineDirectReverbBtn?.addEventListener('click', () => {
+            setDrumMachineDirectReverbSend(!drumMachineDirectReverbSendEnabled);
         });
 
         drumMachineSamplesOnlyBtn?.addEventListener('click', async () => {
