@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-10-45-build-v2026.10.10.19';
+            const cacheBuster = '2026-10-10-10-54-build-v2026.10.10.20';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4463,7 +4463,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.19</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.20</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4522,7 +4522,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.19</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.20</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -5172,9 +5172,11 @@
                 <div class="performance-layer-switches-copy">
                     <div class="performance-chip">Quick Mutes</div>
                     <h3 class="performance-layer-switches-title">Layer Switches</h3>
-                    <p class="performance-layer-switches-note">Mute the generated sample or huge drums layer, the dry loop, or any Bastardloop layer without opening the mixer.</p>
+                    <p class="performance-layer-switches-note">Quickly mute osc, granular, loops, drums, or Bastardloops without opening the mixer.</p>
                 </div>
                 <div class="performance-layer-switches">
+                    <button class="performance-btn" id="performanceLayerOscBtn" data-osc-layer-toggle="true" aria-pressed="true" title="Enable or mute the oscillator layer">Osc On</button>
+                    <button class="performance-btn" id="performanceLayerGranularBtn" data-granular-layer-toggle="true" aria-pressed="true" title="Enable or mute the granular layer">Granular On</button>
                     <button class="performance-btn" id="performanceGeneratedLayerBtn" aria-pressed="true" title="Enable or mute the generated sample or huge drums granular layer">Sample/Drums On</button>
                     <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
                     <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop A layer">Bastardloop A On</button>
@@ -5617,7 +5619,7 @@
                     <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
                     <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
                     <button class="performance-btn" id="performanceMainStopAllBtn">Stop All</button>
-                    <button class="performance-btn" id="performanceOscToggleBtn">Osc On</button>
+                    <button class="performance-btn" id="performanceOscToggleBtn" data-osc-layer-toggle="true">Osc On</button>
                     <button class="performance-btn" id="performanceSampleSoloBtn">Sample Solo Off</button>
                     <button class="performance-btn" id="performanceNoiseOffBtn">Noise Off</button>
                     <button class="performance-btn" id="performanceTonalDrumsBtn">Tonal Drums Off</button>
@@ -9469,6 +9471,7 @@
         let generatedDrySource = null;
         let generatedDryGainNode = null;
         let oscillatorsEnabled = true;
+        let granularLayersEnabled = true;
         let fxMuted = false;
         let allLfosSquareForced = false;
         let allLfosSquarePreviousWaveforms = null;
@@ -24279,7 +24282,9 @@
 
         function updateSourceMixGains() {
             const oscLevel = generatedSampleSolo ? 0 : (oscillatorsEnabled ? Math.sqrt(oscMix) * MIX_HEADROOM * getOscModuleVolumeValue() : 0);
-            const granularLevel = Math.sqrt(generatedSampleSolo ? 1 : (oscillatorsEnabled ? (1 - oscMix) : 1)) * MIX_HEADROOM * dbToLinear(getGranularTrimDb());
+            const granularLevel = granularLayersEnabled
+                ? Math.sqrt(generatedSampleSolo ? 1 : (oscillatorsEnabled ? (1 - oscMix) : 1)) * MIX_HEADROOM * dbToLinear(getGranularTrimDb())
+                : 0;
 
             if (oscOutputGain && granularOutputGain && audioContext && audioContext.state === 'running') {
                 const now = audioContext.currentTime;
@@ -24307,6 +24312,18 @@
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus(oscillatorsEnabled ? 'Oscillators enabled.' : 'Oscillators off. Granular sources only.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setGranularLayersEnabled(enabled, options = {}) {
+            granularLayersEnabled = Boolean(enabled);
+            updateSourceMixGains();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(granularLayersEnabled ? 'Granular layer enabled.' : 'Granular layer muted.');
             }
             if (!options.skipSave) {
                 saveState();
@@ -27591,6 +27608,7 @@
                 finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
                 generatedDryThroughFilters: generatedDryThroughFilters,
                 generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
+                granularLayersEnabled: granularLayersEnabled,
                 generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                 generatedDryLoopEnabled: generatedDryLoopEnabled,
                 bastardLoopEnabled: bastardLoopEnabled,
@@ -27670,6 +27688,7 @@
                     oscSynthFilterType: document.getElementById('oscSynthFilterType')?.value || 'lowpass'
                 },
                 generatedSampleSolo: generatedSampleSolo,
+                granularLayersEnabled: granularLayersEnabled,
                 grainLayerSolo: grainLayerSolo,
                 sourceWaveformSolo: getSourceWaveformSoloState(),
                 samples: {
@@ -27816,6 +27835,9 @@
                 if (importedGrainMute.B !== undefined) {
                     setGranularLayerMuted('B', importedGrainMute.B, { silent: true, skipSave: true });
                 }
+            }
+            if ((safePreset.granularLayersEnabled ?? preset.granularLayersEnabled) !== undefined) {
+                setGranularLayersEnabled(safePreset.granularLayersEnabled ?? preset.granularLayersEnabled, { silent: true, skipSave: true });
             }
             const importedGrainTimingMode = safePreset.grainTimingMode ?? preset.grainTimingMode ?? 'synth';
             setGrainTimingMode(importedGrainTimingMode, { silent: true, skipSave: true, skipRestart: true });
@@ -28499,6 +28521,7 @@
                     generatedDryThroughFilters: generatedDryThroughFilters,
                     generatedSourceLowNoiseMode: generatedSourceLowNoiseMode,
                     oscillatorsEnabled: oscillatorsEnabled,
+                    granularLayersEnabled: granularLayersEnabled,
                     generatedSampleSolo: generatedSampleSolo,
                     generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                     generatedDryLoopEnabled: generatedDryLoopEnabled,
@@ -28790,6 +28813,9 @@
                     }
                     if (state.modes.oscillatorsEnabled !== undefined) {
                         setOscillatorsEnabled(state.modes.oscillatorsEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.granularLayersEnabled !== undefined) {
+                        setGranularLayersEnabled(state.modes.granularLayersEnabled, { silent: true, skipSave: true });
                     }
                     if (state.modes.generatedSampleSolo !== undefined) {
                         setGeneratedSampleSolo(state.modes.generatedSampleSolo, { silent: true, skipSave: true });
@@ -33590,6 +33616,8 @@
         const performanceBastardLoopPToggleBtn = document.getElementById('performanceBastardLoopPToggleBtn');
         const performanceBastardLoopOToggleBtn = document.getElementById('performanceBastardLoopOToggleBtn');
         const performanceDropboxSampleLayerBtn = document.getElementById('performanceDropboxSampleLayerBtn');
+        const performanceLayerOscBtn = document.getElementById('performanceLayerOscBtn');
+        const performanceLayerGranularBtn = document.getElementById('performanceLayerGranularBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
         const performanceTonalDrumsBtn = document.getElementById('performanceTonalDrumsBtn');
@@ -34319,10 +34347,18 @@
                 button.textContent = megaRandomizeInFlight ? 'Mega Random…' : 'Mega Randomise';
             });
 
-            if (performanceOscToggleBtn) {
-                performanceOscToggleBtn.classList.toggle('osc-off', !oscillatorsEnabled);
-                performanceOscToggleBtn.textContent = oscillatorsEnabled ? 'Osc On' : 'Osc Off';
-                performanceOscToggleBtn.setAttribute('aria-pressed', String(!oscillatorsEnabled));
+            document.querySelectorAll('[data-osc-layer-toggle="true"]').forEach((button) => {
+                button.classList.toggle('osc-off', !oscillatorsEnabled);
+                button.classList.toggle('layer-muted', !oscillatorsEnabled);
+                button.textContent = oscillatorsEnabled ? 'Osc On' : 'Osc Off';
+                button.setAttribute('aria-pressed', String(oscillatorsEnabled));
+                button.title = oscillatorsEnabled ? 'Mute the oscillator layer' : 'Enable the oscillator layer';
+            });
+
+            if (performanceLayerGranularBtn) {
+                performanceLayerGranularBtn.classList.toggle('layer-muted', !granularLayersEnabled);
+                performanceLayerGranularBtn.textContent = granularLayersEnabled ? 'Granular On' : 'Granular Off';
+                performanceLayerGranularBtn.setAttribute('aria-pressed', String(granularLayersEnabled));
             }
 
             if (performanceNoiseOffBtn) {
@@ -34721,6 +34757,14 @@
                 performanceGenerateFmDrumsBtn.disabled = false;
                 performanceGenerateFmDrumsBtn.textContent = 'Huge Drums';
             }
+        });
+
+        performanceLayerOscBtn?.addEventListener('click', () => {
+            setOscillatorsEnabled(!oscillatorsEnabled);
+        });
+
+        performanceLayerGranularBtn?.addEventListener('click', () => {
+            setGranularLayersEnabled(!granularLayersEnabled);
         });
 
         performanceGeneratedLayerBtn?.addEventListener('click', () => {
