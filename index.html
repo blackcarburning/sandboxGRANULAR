@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-07-03-build-v2026.10.10.2';
+            const cacheBuster = '2026-10-10-07-18-build-v2026.10.10.3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -519,6 +519,26 @@
             border-color: rgba(255, 214, 126, 0.7);
             color: #fff8dd;
             box-shadow: 0 0 0 1px rgba(255, 214, 126, 0.12), 0 8px 16px rgba(0, 0, 0, 0.24);
+        }
+
+        .drum-machine-ratchet-btn {
+            min-height: 26px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 126, 228, 0.12);
+            color: rgba(255, 220, 246, 0.84);
+            font-size: 0.66rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .drum-machine-ratchet-btn.active {
+            background: linear-gradient(135deg, rgba(255, 126, 228, 0.3), rgba(171, 126, 255, 0.24));
+            border-color: rgba(255, 126, 228, 0.7);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255, 126, 228, 0.12), 0 8px 16px rgba(0, 0, 0, 0.24);
         }
 
         .drum-machine-step-btn {
@@ -4174,6 +4194,32 @@
             touch-action: manipulation;
         }
 
+        .section-jump-quick {
+            position: absolute;
+            top: calc(50% + 128px);
+            left: 0;
+            width: 30px;
+            min-width: 30px;
+            min-height: 86px;
+            padding: 8px 2px;
+            transform: translateY(-50%);
+            display: grid;
+            place-items: center;
+            border-radius: 12px 0 0 12px;
+            border: 1px solid rgba(126, 246, 255, 0.34);
+            border-right: 0;
+            background: rgba(5, 12, 22, 0.94);
+            color: var(--accent);
+            box-shadow: -8px 0 22px rgba(0, 0, 0, 0.26);
+            pointer-events: auto;
+            touch-action: manipulation;
+            writing-mode: vertical-rl;
+            text-transform: uppercase;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+        }
+
         .section-jump-arrow {
             font-size: 18px;
             line-height: 1;
@@ -4268,7 +4314,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.3</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4280,6 +4326,7 @@
             <span class="section-jump-arrow" id="sectionJumpArrow" aria-hidden="true">&lsaquo;</span>
             <span class="section-jump-handle-text">Jump</span>
         </button>
+        <button class="section-jump-quick" id="sectionJumpKeyboardBtn" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
         <div class="section-jump-panel" id="sectionJumpPanel">
             <div class="section-jump-title">Jump To</div>
             <div class="section-jump-grid">
@@ -4320,7 +4367,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.3</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -7737,8 +7784,8 @@
                             <input type="range" id="drumMachineKickLength" min="5" max="100" value="100" step="1">
                         </div>
                         <div class="drum-machine-track-meta">
-                            <span>Steps</span>
-                            <span>Tap to toggle</span>
+                            <span>Ratchet above</span>
+                            <span>Tap = step</span>
                         </div>
                         <div class="drum-machine-step-grid" id="drumMachineKickGrid" role="group" aria-label="Kick pattern grid"></div>
                     </article>
@@ -7789,8 +7836,8 @@
                             <input type="range" id="drumMachineSnareDistortion" min="0" max="100" value="0" step="1">
                         </div>
                         <div class="drum-machine-track-meta">
-                            <span>Steps</span>
-                            <span>Tap to toggle</span>
+                            <span>Ratchet above</span>
+                            <span>Tap = step</span>
                         </div>
                         <div class="drum-machine-step-grid" id="drumMachineSnareGrid" role="group" aria-label="Snare pattern grid"></div>
                     </article>
@@ -9009,6 +9056,8 @@
         let drumMachineKickPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index % PATTERN_STEPS_PER_BAR === 0 || index % PATTERN_STEPS_PER_BAR === 8);
         let drumMachineSnarePattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index % PATTERN_STEPS_PER_BAR === 4 || index % PATTERN_STEPS_PER_BAR === 12);
         let drumMachineHatPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => [2, 6, 10, 14].includes(index % PATTERN_STEPS_PER_BAR));
+        let drumMachineKickRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => 0);
+        let drumMachineSnareRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => 0);
         let drumMachineHatAccentPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false);
         let drumMachineHatRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false);
         let drumMachineHatTimingMode = 'straight';
@@ -16977,11 +17026,24 @@
             });
         }
 
+        function normalizeDrumMachineRatchetPattern(pattern, length = getPatternLengthSteps()) {
+            const steps = clampPatternLengthSteps(length);
+            const source = Array.isArray(pattern) ? pattern : [];
+            return Array.from({ length: steps }, (_, index) => {
+                const rawValue = index < source.length ? source[index] : (source.length > 0 ? source[index % source.length] : 0);
+                if (rawValue === 3 || rawValue === '3' || rawValue === 'triple') return 3;
+                if (rawValue === 2 || rawValue === '2' || rawValue === true || rawValue === 'double') return 2;
+                return 0;
+            });
+        }
+
         function normalizeAllDrumMachinePatterns(length = getPatternLengthSteps(), options = {}) {
             const steps = clampPatternLengthSteps(length);
             drumMachineKickPattern = normalizeDrumMachinePattern(drumMachineKickPattern, steps);
             drumMachineSnarePattern = normalizeDrumMachinePattern(drumMachineSnarePattern, steps);
             drumMachineHatPattern = normalizeDrumMachinePattern(drumMachineHatPattern, steps);
+            drumMachineKickRatchetPattern = normalizeDrumMachineRatchetPattern(drumMachineKickRatchetPattern, steps);
+            drumMachineSnareRatchetPattern = normalizeDrumMachineRatchetPattern(drumMachineSnareRatchetPattern, steps);
             drumMachineHatAccentPattern = normalizeDrumMachinePattern(drumMachineHatAccentPattern, steps);
             drumMachineHatRatchetPattern = normalizeDrumMachinePattern(drumMachineHatRatchetPattern, steps);
             renderDrumMachineStepGrid('kick');
@@ -17111,6 +17173,30 @@
             saveState();
         }
 
+        function cycleDrumMachineRatchetStep(track, index) {
+            const sourcePattern = track === 'snare' ? drumMachineSnareRatchetPattern : drumMachineKickRatchetPattern;
+            if (index < 0 || index >= sourcePattern.length) return;
+            const nextPattern = sourcePattern.slice();
+            const currentValue = nextPattern[index] === 3 ? 3 : (nextPattern[index] === 2 ? 2 : 0);
+            nextPattern[index] = currentValue === 0 ? 2 : (currentValue === 2 ? 3 : 0);
+            if (track === 'snare') {
+                drumMachineSnareRatchetPattern = nextPattern;
+            } else {
+                drumMachineKickRatchetPattern = nextPattern;
+            }
+            const stepPattern = getDrumMachinePattern(track).slice();
+            if (nextPattern[index] > 0 && !stepPattern[index]) {
+                stepPattern[index] = true;
+                if (track === 'snare') {
+                    drumMachineSnarePattern = stepPattern;
+                } else {
+                    drumMachineKickPattern = stepPattern;
+                }
+            }
+            renderDrumMachineStepGrid(track);
+            saveState();
+        }
+
         function cycleDrumMachineHatTimingMode(options = {}) {
             const order = ['straight', 'dotted', 'triplet'];
             const currentIndex = order.indexOf(getDrumMachineHatTimingMode());
@@ -17189,6 +17275,16 @@
                         container.appendChild(cell);
                         continue;
                     }
+                    const cell = document.createElement('div');
+                    cell.className = 'drum-machine-step-cell';
+                    const ratchetButton = document.createElement('button');
+                    ratchetButton.type = 'button';
+                    ratchetButton.className = 'drum-machine-ratchet-btn';
+                    ratchetButton.dataset.track = track;
+                    ratchetButton.dataset.stepIndex = String(index);
+                    ratchetButton.addEventListener('click', () => {
+                        cycleDrumMachineRatchetStep(track, index);
+                    });
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'drum-machine-step-btn';
@@ -17197,7 +17293,8 @@
                     button.addEventListener('click', () => {
                         toggleDrumMachineStep(track, index);
                     });
-                    container.appendChild(button);
+                    cell.append(ratchetButton, button);
+                    container.appendChild(cell);
                 }
             }
 
@@ -17221,12 +17318,22 @@
                     stepButton.title = `Hat step ${index + 1}${active ? ' on' : ' off'}${ratchet ? ' · 1/32 ratchet' : ''}`;
                     return;
                 }
+                const cell = button;
+                const ratchetButton = cell.children[0];
+                const stepButton = cell.children[1];
                 const active = Boolean(pattern[index]);
-                button.textContent = String(index + 1).padStart(2, '0');
-                button.classList.toggle('active', active);
-                button.classList.toggle('current', drumMachinePlaying && drumMachineCurrentVisualStep === index);
-                button.setAttribute('aria-pressed', String(active));
-                button.title = `${track === 'kick' ? 'Kick' : 'Snare'} step ${index + 1}${active ? ' on' : ' off'}`;
+                const ratchetPattern = track === 'snare' ? drumMachineSnareRatchetPattern : drumMachineKickRatchetPattern;
+                const ratchetCount = ratchetPattern[index] === 3 ? 3 : (ratchetPattern[index] === 2 ? 2 : 0);
+                ratchetButton.textContent = ratchetCount > 0 ? `x${ratchetCount}` : '-';
+                ratchetButton.classList.toggle('active', ratchetCount > 0);
+                ratchetButton.setAttribute('aria-pressed', String(ratchetCount > 0));
+                ratchetButton.title = `${track === 'kick' ? 'Kick' : 'Snare'} ratchet step ${index + 1}${ratchetCount > 0 ? ` · x${ratchetCount}` : ' off'}`;
+                stepButton.textContent = String(index + 1).padStart(2, '0');
+                stepButton.classList.toggle('active', active);
+                stepButton.classList.toggle('current', drumMachinePlaying && drumMachineCurrentVisualStep === index);
+                stepButton.classList.toggle('ratchet', ratchetCount > 0);
+                stepButton.setAttribute('aria-pressed', String(active));
+                stepButton.title = `${track === 'kick' ? 'Kick' : 'Snare'} step ${index + 1}${active ? ' on' : ' off'}${ratchetCount > 0 ? ` · x${ratchetCount}` : ''}`;
             });
         }
 
@@ -17608,6 +17715,38 @@
             }
         }
 
+        function scheduleDrumMachineRepeats(track, stepIndex, scheduledTime, stepDuration) {
+            if (!audioContext) return;
+            const isKick = track === 'kick';
+            const pattern = isKick ? drumMachineKickPattern : drumMachineSnarePattern;
+            const buffer = isKick ? drumMachineKickBuffer : drumMachineSnareBuffer;
+            if (!pattern[stepIndex] || !buffer) return;
+
+            const ratchetPattern = isKick ? drumMachineKickRatchetPattern : drumMachineSnareRatchetPattern;
+            const ratchetCount = ratchetPattern[stepIndex] === 3 ? 3 : (ratchetPattern[stepIndex] === 2 ? 2 : 1);
+            const baseLevel = isKick ? getDrumMachineKickLevelValue() : getDrumMachineSnareLevelValue();
+            const pitchRatio = isKick ? getDrumMachineKickPitchRatio() : getDrumMachineSnarePitchRatio();
+            const decayRatio = isKick ? getDrumMachineKickDecayValue() : getDrumMachineSnareDecayValue();
+            const lengthRatio = isKick ? getDrumMachineKickLengthValue() : getDrumMachineSnareLengthValue();
+            const distortionAmount = isKick ? 0 : getDrumMachineSnareDistortionAmount();
+            const bypassFinalCompressor = isKick && shouldRouteKickAroundFinalCompressor() && !shouldRouteDrumMachineDirectToOutput();
+
+            for (let hitIndex = 0; hitIndex < ratchetCount; hitIndex += 1) {
+                const offset = hitIndex === 0 ? 0 : (stepDuration * (hitIndex / ratchetCount));
+                const levelScale = hitIndex === 0 ? 1 : (ratchetCount === 3 ? 0.68 : 0.76);
+                if (isKick && hitIndex === 0 && baseLevel > 0.0001) {
+                    registerFinalSidechainKickTrigger(scheduledTime + offset, baseLevel * levelScale);
+                }
+                playDrumMachineHit(buffer, scheduledTime + offset, pitchRatio, {
+                    level: baseLevel * levelScale,
+                    decayRatio,
+                    lengthRatio,
+                    distortionAmount,
+                    bypassFinalCompressor
+                });
+            }
+        }
+
         function scheduleDrumMachine() {
             if (!drumMachinePlaying || !audioContext) return;
 
@@ -17616,26 +17755,8 @@
                 const patternLength = getDrumMachinePatternLength();
                 const stepIndex = drumMachineCurrentStep % patternLength;
                 const scheduledTime = drumMachineNextStepTime;
-                if (drumMachineKickPattern[stepIndex] && drumMachineKickBuffer) {
-                    const kickLevel = getDrumMachineKickLevelValue();
-                    if (kickLevel > 0.0001) {
-                        registerFinalSidechainKickTrigger(scheduledTime, kickLevel);
-                    }
-                    playDrumMachineHit(drumMachineKickBuffer, scheduledTime, getDrumMachineKickPitchRatio(), {
-                        level: kickLevel,
-                        decayRatio: getDrumMachineKickDecayValue(),
-                        lengthRatio: getDrumMachineKickLengthValue(),
-                        bypassFinalCompressor: shouldRouteKickAroundFinalCompressor() && !shouldRouteDrumMachineDirectToOutput()
-                    });
-                }
-                if (drumMachineSnarePattern[stepIndex] && drumMachineSnareBuffer) {
-                    playDrumMachineHit(drumMachineSnareBuffer, scheduledTime, getDrumMachineSnarePitchRatio(), {
-                        level: getDrumMachineSnareLevelValue(),
-                        decayRatio: getDrumMachineSnareDecayValue(),
-                        lengthRatio: getDrumMachineSnareLengthValue(),
-                        distortionAmount: getDrumMachineSnareDistortionAmount()
-                    });
-                }
+                scheduleDrumMachineRepeats('kick', stepIndex, scheduledTime, stepDuration);
+                scheduleDrumMachineRepeats('snare', stepIndex, scheduledTime, stepDuration);
                 scheduleDrumMachineHatStep(stepIndex, scheduledTime, stepDuration);
                 scheduleDrumMachineVisualStep(stepIndex, scheduledTime);
                 drumMachineNextStepTime += stepDuration;
@@ -17689,15 +17810,17 @@
                 || drumMachineSnarePattern.some(Boolean)
                 || drumMachineHatPattern.some(Boolean);
 
-            if (!hasAnyPattern) {
-                const patternLength = getDrumMachinePatternLength();
-                drumMachineKickPattern = createDefaultDrumMachinePattern('kick', patternLength);
-                drumMachineSnarePattern = createDefaultDrumMachinePattern('snare', patternLength);
-                drumMachineHatPattern = createDefaultDrumMachinePattern('hat', patternLength);
-                drumMachineHatAccentPattern = Array.from({ length: patternLength }, () => false);
-                drumMachineHatRatchetPattern = Array.from({ length: patternLength }, () => false);
-                drumMachineHatTimingMode = 'straight';
-            }
+                if (!hasAnyPattern) {
+                    const patternLength = getDrumMachinePatternLength();
+                    drumMachineKickPattern = createDefaultDrumMachinePattern('kick', patternLength);
+                    drumMachineSnarePattern = createDefaultDrumMachinePattern('snare', patternLength);
+                    drumMachineHatPattern = createDefaultDrumMachinePattern('hat', patternLength);
+                    drumMachineKickRatchetPattern = Array.from({ length: patternLength }, () => 0);
+                    drumMachineSnareRatchetPattern = Array.from({ length: patternLength }, () => 0);
+                    drumMachineHatAccentPattern = Array.from({ length: patternLength }, () => false);
+                    drumMachineHatRatchetPattern = Array.from({ length: patternLength }, () => false);
+                    drumMachineHatTimingMode = 'straight';
+                }
 
             if (!(drumMachineLevel > 0.0001)) {
                 drumMachineLevel = 0.55;
@@ -24601,7 +24724,7 @@
                 setDrawerOpen(!drawer.classList.contains('is-open'));
             });
 
-            drawer.querySelectorAll('.section-jump-option').forEach((button) => {
+            document.querySelectorAll('.section-jump-option, .section-jump-quick').forEach((button) => {
                 button.addEventListener('click', () => jumpToButtonTarget(button));
             });
 
@@ -26547,6 +26670,8 @@
                 drumMachineKickPattern: drumMachineKickPattern.slice(),
                 drumMachineSnarePattern: drumMachineSnarePattern.slice(),
                 drumMachineHatPattern: drumMachineHatPattern.slice(),
+                drumMachineKickRatchetPattern: drumMachineKickRatchetPattern.slice(),
+                drumMachineSnareRatchetPattern: drumMachineSnareRatchetPattern.slice(),
                 drumMachineHatAccentPattern: drumMachineHatAccentPattern.slice(),
                 drumMachineHatRatchetPattern: drumMachineHatRatchetPattern.slice(),
                 drumMachineHatTimingMode: getDrumMachineHatTimingMode(),
@@ -26868,6 +26993,8 @@
                 setDrumMachinePattern('hat', importedDrumMachineHatPattern, { skipSave: true });
             }
             const importedPatternLength = getPatternLengthSteps();
+            drumMachineKickRatchetPattern = normalizeDrumMachineRatchetPattern(safePreset.drumMachineKickRatchetPattern ?? preset.drumMachineKickRatchetPattern, importedPatternLength);
+            drumMachineSnareRatchetPattern = normalizeDrumMachineRatchetPattern(safePreset.drumMachineSnareRatchetPattern ?? preset.drumMachineSnareRatchetPattern, importedPatternLength);
             drumMachineHatAccentPattern = normalizeDrumMachinePattern(safePreset.drumMachineHatAccentPattern ?? preset.drumMachineHatAccentPattern, importedPatternLength);
             drumMachineHatRatchetPattern = normalizeDrumMachinePattern(safePreset.drumMachineHatRatchetPattern ?? preset.drumMachineHatRatchetPattern, importedPatternLength);
             drumMachineHatTimingMode = normalizeDrumMachineHatTimingMode(safePreset.drumMachineHatTimingMode ?? preset.drumMachineHatTimingMode);
@@ -27394,6 +27521,8 @@
                     drumMachineKickPattern: drumMachineKickPattern.slice(),
                     drumMachineSnarePattern: drumMachineSnarePattern.slice(),
                     drumMachineHatPattern: drumMachineHatPattern.slice(),
+                    drumMachineKickRatchetPattern: drumMachineKickRatchetPattern.slice(),
+                    drumMachineSnareRatchetPattern: drumMachineSnareRatchetPattern.slice(),
                     drumMachineHatAccentPattern: drumMachineHatAccentPattern.slice(),
                     drumMachineHatRatchetPattern: drumMachineHatRatchetPattern.slice(),
                     drumMachineHatTimingMode: getDrumMachineHatTimingMode(),
@@ -27761,6 +27890,8 @@
                         setDrumMachinePattern('hat', state.modes.drumMachineHatPattern, { skipSave: true });
                     }
                     const restoredPatternLength = getPatternLengthSteps();
+                    drumMachineKickRatchetPattern = normalizeDrumMachineRatchetPattern(state.modes.drumMachineKickRatchetPattern, restoredPatternLength);
+                    drumMachineSnareRatchetPattern = normalizeDrumMachineRatchetPattern(state.modes.drumMachineSnareRatchetPattern, restoredPatternLength);
                     drumMachineHatAccentPattern = normalizeDrumMachinePattern(state.modes.drumMachineHatAccentPattern, restoredPatternLength);
                     drumMachineHatRatchetPattern = normalizeDrumMachinePattern(state.modes.drumMachineHatRatchetPattern, restoredPatternLength);
                     drumMachineHatTimingMode = normalizeDrumMachineHatTimingMode(state.modes.drumMachineHatTimingMode);
