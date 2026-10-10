@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-10-37-build-v2026.10.10.18';
+            const cacheBuster = '2026-10-10-10-45-build-v2026.10.10.19';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4463,7 +4463,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.18</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.19</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4522,7 +4522,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.18</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.19</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -6184,6 +6184,10 @@
                             <span>Mic Recording</span>
                             <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
                         </div>
+                        <div class="grain-engine-action-row">
+                            <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" data-grain-preserve-duration="main" aria-pressed="true">Preserve Duration</button>
+                            <button type="button" class="source-waveform-solo-btn" data-grain-layer-mute="main" aria-pressed="false">Mute Main</button>
+                        </div>
                         <canvas id="micWaveformCanvas" class="source-waveform-canvas" data-source="mic"></canvas>
                         <div class="source-loop-controls">
                             <div class="source-loop-labels">
@@ -6203,6 +6207,10 @@
                         <div class="source-waveform-header">
                             <span>Grain A Mic</span>
                             <span class="source-waveform-meta" id="grainAMicWaveformMeta">Empty</span>
+                        </div>
+                        <div class="grain-engine-action-row">
+                            <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" data-grain-preserve-duration="A" aria-pressed="true">Preserve Duration</button>
+                            <button type="button" class="source-waveform-solo-btn" data-grain-layer-mute="A" aria-pressed="false">Mute A</button>
                         </div>
                         <div class="grain-source-switch-row" data-grain-source-switch-row="A">
                             <div class="grain-source-switch" role="group" aria-label="Grain A source switch">
@@ -6261,6 +6269,10 @@
                             <span>Grain B Mic</span>
                             <span class="source-waveform-meta" id="grainBMicWaveformMeta">Empty</span>
                         </div>
+                        <div class="grain-engine-action-row">
+                            <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" data-grain-preserve-duration="B" aria-pressed="true">Preserve Duration</button>
+                            <button type="button" class="source-waveform-solo-btn" data-grain-layer-mute="B" aria-pressed="false">Mute B</button>
+                        </div>
                         <div class="grain-source-switch-row" data-grain-source-switch-row="B">
                             <div class="grain-source-switch" role="group" aria-label="Grain B source switch">
                                 <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBMic" aria-pressed="true">Mic</button>
@@ -6318,6 +6330,10 @@
                             <span>Output Source</span>
                             <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
                         </div>
+                        <div class="grain-engine-action-row">
+                            <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" data-grain-preserve-duration="main" aria-pressed="true">Preserve Duration</button>
+                            <button type="button" class="source-waveform-solo-btn" data-grain-layer-mute="main" aria-pressed="false">Mute Main</button>
+                        </div>
                         <canvas id="outputWaveformCanvas" class="source-waveform-canvas" data-source="output"></canvas>
                         <div class="source-seed-buttons">
                             <button id="recordOutputSourcePanelBtn" class="primary" data-idle-text="Record Output to Source">Record Output to Source</button>
@@ -6332,6 +6348,7 @@
                         </div>
                         <div class="source-seed-buttons source-seed-buttons-stack">
                             <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Selection</button>
+                            <button type="button" class="trim-source-btn" id="clearOutputSourceBtn">Clear Output</button>
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="output" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
@@ -6456,7 +6473,7 @@
                                 </select>
                             </div>
                             <div class="grain-engine-action-row">
-                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainMainPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainMainPreserveDurationBtn" data-grain-preserve-duration="main" aria-pressed="true">Preserve Duration</button>
                                 <button type="button" class="source-waveform-solo-btn" id="grainMainMuteBtn" data-grain-layer-mute="main" aria-pressed="false">Mute Main</button>
                             </div>
                             <div class="control-group">
@@ -6559,7 +6576,7 @@
                                 </select>
                             </div>
                             <div class="grain-engine-action-row">
-                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainAPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainAPreserveDurationBtn" data-grain-preserve-duration="A" aria-pressed="true">Preserve Duration</button>
                                 <button type="button" class="source-waveform-solo-btn" id="grainAMuteBtn" data-grain-layer-mute="A" aria-pressed="false">Mute A</button>
                             </div>
                             <div class="control-group">
@@ -6662,7 +6679,7 @@
                                 </select>
                             </div>
                             <div class="grain-engine-action-row">
-                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainBPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainBPreserveDurationBtn" data-grain-preserve-duration="B" aria-pressed="true">Preserve Duration</button>
                                 <button type="button" class="source-waveform-solo-btn" id="grainBMuteBtn" data-grain-layer-mute="B" aria-pressed="false">Mute B</button>
                             </div>
                             <div class="control-group">
@@ -15280,17 +15297,17 @@
 
         function syncGranularLayerMuteButtons() {
             [
-                ['main', 'grainMainMuteBtn', 'Main'],
-                ['A', 'grainAMuteBtn', 'A'],
-                ['B', 'grainBMuteBtn', 'B']
-            ].forEach(([layerKey, id, label]) => {
-                const button = document.getElementById(id);
-                if (!button) return;
+                ['main', 'Main'],
+                ['A', 'A'],
+                ['B', 'B']
+            ].forEach(([layerKey, label]) => {
                 const muted = getGranularLayerMuted(layerKey);
-                button.classList.toggle('active', muted);
-                button.setAttribute('aria-pressed', String(muted));
-                button.textContent = muted ? `Muted ${label}` : `Mute ${label}`;
-                button.title = muted ? `${label === 'Main' ? 'Main Grain' : `Grain ${label}`} muted.` : `Mute ${label === 'Main' ? 'Main Grain' : `Grain ${label}`}.`;
+                document.querySelectorAll(`[data-grain-layer-mute="${layerKey}"]`).forEach((button) => {
+                    button.classList.toggle('active', muted);
+                    button.setAttribute('aria-pressed', String(muted));
+                    button.textContent = muted ? `Muted ${label}` : `Mute ${label}`;
+                    button.title = muted ? `${label === 'Main' ? 'Main Grain' : `Grain ${label}`} muted.` : `Mute ${label === 'Main' ? 'Main Grain' : `Grain ${label}`}.`;
+                });
             });
         }
 
@@ -15326,17 +15343,15 @@
 
         function syncGranularPreserveDurationButtons() {
             GRANULAR_LAYER_DEFINITIONS.forEach((definition) => {
-                const buttonId = definition.preserveDurationButtonId;
-                if (!buttonId) return;
-                const button = document.getElementById(buttonId);
-                if (!button) return;
                 const preserveDuration = getGranularLayerPreserveDuration(definition.key);
-                button.classList.toggle('active', preserveDuration);
-                button.setAttribute('aria-pressed', String(preserveDuration));
-                button.textContent = preserveDuration ? 'Preserve Duration' : 'Pitch Changes Length';
-                button.title = preserveDuration
-                    ? `${definition.label} keeps grain duration steady while pitch changes.`
-                    : `${definition.label} follows sampler-style pitch and duration together.`;
+                document.querySelectorAll(`[data-grain-preserve-duration="${definition.key}"]`).forEach((button) => {
+                    button.classList.toggle('active', preserveDuration);
+                    button.setAttribute('aria-pressed', String(preserveDuration));
+                    button.textContent = preserveDuration ? 'Preserve Duration' : 'Pitch Changes Length';
+                    button.title = preserveDuration
+                        ? `${definition.label} keeps grain duration steady while pitch changes.`
+                        : `${definition.label} follows sampler-style pitch and duration together.`;
+                });
             });
         }
 
@@ -20607,7 +20622,7 @@
         }
 
         async function clearGranularSourceSlot(kind, label) {
-            const allowedKinds = new Set(['mic', 'grainMainSample', 'grainAMic', 'grainASample', 'grainBMic', 'grainBSample']);
+            const allowedKinds = new Set(['mic', 'grainMainSample', 'grainAMic', 'grainASample', 'grainBMic', 'grainBSample', 'output']);
             if (!allowedKinds.has(kind)) return;
 
             sourceMutationSerial += 1;
@@ -35546,22 +35561,16 @@
             });
         });
 
-        [
-            ['grainMainPreserveDurationBtn', 'main'],
-            ['grainAPreserveDurationBtn', 'A'],
-            ['grainBPreserveDurationBtn', 'B']
-        ].forEach(([id, layerKey]) => {
-            document.getElementById(id)?.addEventListener('click', () => {
+        document.querySelectorAll('[data-grain-preserve-duration]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const layerKey = button.dataset.grainPreserveDuration || 'main';
                 setGranularLayerPreserveDuration(layerKey, !getGranularLayerPreserveDuration(layerKey));
             });
         });
         syncGranularPreserveDurationButtons();
-        [
-            ['grainMainMuteBtn', 'main'],
-            ['grainAMuteBtn', 'A'],
-            ['grainBMuteBtn', 'B']
-        ].forEach(([id, layerKey]) => {
-            document.getElementById(id)?.addEventListener('click', () => {
+        document.querySelectorAll('[data-grain-layer-mute]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const layerKey = button.dataset.grainLayerMute || 'main';
                 setGranularLayerMuted(layerKey, !getGranularLayerMuted(layerKey));
             });
         });
@@ -35572,7 +35581,8 @@
             ['clearGrainAMicBtn', 'grainAMic', 'Grain A mic'],
             ['clearGrainASampleBtn', 'grainASample', 'Grain A sample'],
             ['clearGrainBMicBtn', 'grainBMic', 'Grain B mic'],
-            ['clearGrainBSampleBtn', 'grainBSample', 'Grain B sample']
+            ['clearGrainBSampleBtn', 'grainBSample', 'Grain B sample'],
+            ['clearOutputSourceBtn', 'output', 'Output source']
         ].forEach(([id, kind, label]) => {
             document.getElementById(id)?.addEventListener('click', async () => {
                 await clearGranularSourceSlot(kind, label);
