@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-06-53-build-v2026.10.10.1';
+            const cacheBuster = '2026-10-10-07-03-build-v2026.10.10.2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4268,7 +4268,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.2</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4320,7 +4320,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.2</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -18030,6 +18030,7 @@
                 } else {
                     setStatus(successMessage);
                 }
+                saveState();
             } finally {
                 drumMachineLoadInFlight = false;
                 syncDrumMachineUi();
