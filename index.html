@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-10-26-build-v2026.10.10.17';
+            const cacheBuster = '2026-10-10-10-37-build-v2026.10.10.18';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3126,6 +3126,19 @@
             text-transform: uppercase;
         }
 
+        .grain-engine-action-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .grain-layer-action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
         .simplified-ui .performance-feature-note {
             margin: 0;
             color: rgba(255, 255, 255, 0.76);
@@ -4450,7 +4463,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.17</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.18</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4509,7 +4522,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.17</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.18</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -6162,6 +6175,7 @@
                         <div class="source-seed-buttons source-seed-buttons-stack">
                             <button type="button" class="grain-layer-browser-btn" id="grainMainSampleBrowseBtn" data-grain-browser-target="grainMain">Browse Sample Folders</button>
                             <button type="button" class="trim-source-btn" data-source-kind="grainMainSample">Trim to Selection</button>
+                            <button type="button" class="trim-source-btn" id="clearGrainMainSampleBtn">Clear Sample</button>
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
@@ -6182,6 +6196,7 @@
                         <div class="source-seed-buttons source-seed-buttons-stack">
                             <button type="button" class="grain-layer-browser-btn" id="micSampleBrowseBtn" data-grain-browser-target="grainMainMic">Browse Sample Folders</button>
                             <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Selection</button>
+                            <button type="button" class="trim-source-btn" id="clearMainMicBtn">Clear Mic</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel" id="grainAWaveformEditor">
@@ -6215,8 +6230,9 @@
                                 <input type="range" id="grainAMicLoopStart" min="0" max="100" value="0" step="1">
                                 <input type="range" id="grainAMicLoopEnd" min="0" max="100" value="100" step="1">
                             </div>
-                            <div class="source-seed-buttons">
+                            <div class="source-seed-buttons source-seed-buttons-stack">
                                 <button type="button" class="trim-source-btn" data-source-kind="grainAMic">Trim to Selection</button>
+                                <button type="button" class="trim-source-btn" id="clearGrainAMicBtn">Clear Mic</button>
                             </div>
                         </div>
                         <div class="grain-inline-sample-strip grain-source-mode-block" aria-label="Grain A inline sample controls" data-grain-source-panel="A" data-grain-source-kind="grainASample">
@@ -6236,6 +6252,7 @@
                             <div class="source-seed-buttons source-seed-buttons-stack">
                                 <button type="button" class="grain-layer-browser-btn" id="grainASampleBrowseBtn" data-grain-browser-target="grainA">Browse Sample Folders</button>
                                 <button type="button" class="trim-source-btn" data-source-kind="grainASample">Trim to Selection</button>
+                                <button type="button" class="trim-source-btn" id="clearGrainASampleBtn">Clear Sample</button>
                             </div>
                         </div>
                     </div>
@@ -6270,8 +6287,9 @@
                                 <input type="range" id="grainBMicLoopStart" min="0" max="100" value="0" step="1">
                                 <input type="range" id="grainBMicLoopEnd" min="0" max="100" value="100" step="1">
                             </div>
-                            <div class="source-seed-buttons">
+                            <div class="source-seed-buttons source-seed-buttons-stack">
                                 <button type="button" class="trim-source-btn" data-source-kind="grainBMic">Trim to Selection</button>
+                                <button type="button" class="trim-source-btn" id="clearGrainBMicBtn">Clear Mic</button>
                             </div>
                         </div>
                         <div class="grain-inline-sample-strip grain-source-mode-block" aria-label="Grain B inline sample controls" data-grain-source-panel="B" data-grain-source-kind="grainBSample">
@@ -6291,6 +6309,7 @@
                             <div class="source-seed-buttons source-seed-buttons-stack">
                                 <button type="button" class="grain-layer-browser-btn" id="grainBSampleBrowseBtn" data-grain-browser-target="grainB">Browse Sample Folders</button>
                                 <button type="button" class="trim-source-btn" data-source-kind="grainBSample">Trim to Selection</button>
+                                <button type="button" class="trim-source-btn" id="clearGrainBSampleBtn">Clear Sample</button>
                             </div>
                         </div>
                     </div>
@@ -6436,6 +6455,10 @@
                                     <option value="all">All Sources</option>
                                 </select>
                             </div>
+                            <div class="grain-engine-action-row">
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainMainPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                                <button type="button" class="source-waveform-solo-btn" id="grainMainMuteBtn" data-grain-layer-mute="main" aria-pressed="false">Mute Main</button>
+                            </div>
                             <div class="control-group">
                                 <label>
                                     <span class="param-name">Start Point</span>
@@ -6506,17 +6529,15 @@
                                 </label>
                                 <input type="range" id="grainMainWidth" min="0" max="100" value="24" step="1">
                             </div>
-                            <div class="control-group">
-                                <label><span class="param-name">Duration</span></label>
-                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainMainPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
-                            </div>
                             <div class="control-group highlight">
                                 <label>
                                     <span class="param-name">Volume</span>
                                     <span class="value" id="grainMainVolumeValue">75%</span>
                                 </label>
                                 <input type="range" id="grainMainVolume" min="0" max="150" value="75" step="1">
-                                <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="main">Solo Main</button>
+                                <div class="grain-layer-action-row">
+                                    <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="main">Solo Main</button>
+                                </div>
                             </div>
                         </div>
 
@@ -6536,6 +6557,10 @@
                                     <option value="grainBMic">Grain B Mic</option>
                                     <option value="all">All Sources</option>
                                 </select>
+                            </div>
+                            <div class="grain-engine-action-row">
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainAPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                                <button type="button" class="source-waveform-solo-btn" id="grainAMuteBtn" data-grain-layer-mute="A" aria-pressed="false">Mute A</button>
                             </div>
                             <div class="control-group">
                                 <label>
@@ -6607,17 +6632,15 @@
                                 </label>
                                 <input type="range" id="grainSynthAWidth" min="0" max="100" value="58" step="1">
                             </div>
-                            <div class="control-group">
-                                <label><span class="param-name">Duration</span></label>
-                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainAPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
-                            </div>
                             <div class="control-group highlight">
                                 <label>
                                     <span class="param-name">Volume</span>
                                     <span class="value" id="grainSynthAVolumeValue">62%</span>
                                 </label>
                                 <input type="range" id="grainSynthAVolume" min="0" max="150" value="62" step="1">
-                                <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="A">Solo A</button>
+                                <div class="grain-layer-action-row">
+                                    <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="A">Solo A</button>
+                                </div>
                             </div>
                         </div>
 
@@ -6637,6 +6660,10 @@
                                     <option value="grainAMic">Grain A Mic</option>
                                     <option value="all">All Sources</option>
                                 </select>
+                            </div>
+                            <div class="grain-engine-action-row">
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainBPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                                <button type="button" class="source-waveform-solo-btn" id="grainBMuteBtn" data-grain-layer-mute="B" aria-pressed="false">Mute B</button>
                             </div>
                             <div class="control-group">
                                 <label>
@@ -6708,17 +6735,15 @@
                                 </label>
                                 <input type="range" id="grainSynthBWidth" min="0" max="100" value="76" step="1">
                             </div>
-                            <div class="control-group">
-                                <label><span class="param-name">Duration</span></label>
-                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainBPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
-                            </div>
                             <div class="control-group highlight">
                                 <label>
                                     <span class="param-name">Volume</span>
                                     <span class="value" id="grainSynthBVolumeValue">58%</span>
                                 </label>
                                 <input type="range" id="grainSynthBVolume" min="0" max="150" value="58" step="1">
-                                <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="B">Solo B</button>
+                                <div class="grain-layer-action-row">
+                                    <button type="button" class="grain-layer-solo-btn" data-grain-layer-solo="B">Solo B</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -9397,6 +9422,9 @@
         let grainMainPreserveDuration = true;
         let grainAPreserveDuration = true;
         let grainBPreserveDuration = true;
+        let grainMainMuted = false;
+        let grainAMuted = false;
+        let grainBMuted = false;
         let drumMachineKickBuffer = null;
         let drumMachineSnareBuffer = null;
         let drumMachineHatBuffer = null;
@@ -13775,7 +13803,10 @@
                 const blend = Math.max(0, Math.min(1, (Number(getModulatedValue(definition.blendId)) || 0) / 100));
                 const smoothing = Math.max(0, Math.min(1, (Number(getModulatedValue(definition.smoothingId)) || 0) / 100));
                 const width = Math.max(0, Math.min(1, (Number(getModulatedValue(definition.widthId)) || 0) / 100));
-                const volume = getGrainLayerGain(definition.volumeId, 1) * getGrainLayerSoloGain(definition.soloKey) * velocityMultiplier;
+                const volume = getGrainLayerGain(definition.volumeId, 1)
+                    * getGrainLayerSoloGain(definition.soloKey)
+                    * getGranularLayerMuteGain(definition.key)
+                    * velocityMultiplier;
                 const pitchRatio = Math.max(0.0625, Math.min(16, (noteFreq / baseFrequency) * Math.pow(2, pitchSemitones / 12)));
                 const sizeSeconds = Math.max(0.01, Math.min(0.5, sizeMs / 1000));
                 const minimumFadeSeconds = getFadeSecondsForDuration(sizeSeconds) * (1 + (smoothing * 0.9));
@@ -15234,6 +15265,56 @@
 
         function normalizeGranularLayerKey(layerKey) {
             return layerKey === 'A' || layerKey === 'B' ? layerKey : 'main';
+        }
+
+        function getGranularLayerMuted(layerKey) {
+            const normalized = normalizeGranularLayerKey(layerKey);
+            if (normalized === 'A') return grainAMuted;
+            if (normalized === 'B') return grainBMuted;
+            return grainMainMuted;
+        }
+
+        function getGranularLayerMuteGain(layerKey) {
+            return getGranularLayerMuted(layerKey) ? 0 : 1;
+        }
+
+        function syncGranularLayerMuteButtons() {
+            [
+                ['main', 'grainMainMuteBtn', 'Main'],
+                ['A', 'grainAMuteBtn', 'A'],
+                ['B', 'grainBMuteBtn', 'B']
+            ].forEach(([layerKey, id, label]) => {
+                const button = document.getElementById(id);
+                if (!button) return;
+                const muted = getGranularLayerMuted(layerKey);
+                button.classList.toggle('active', muted);
+                button.setAttribute('aria-pressed', String(muted));
+                button.textContent = muted ? `Muted ${label}` : `Mute ${label}`;
+                button.title = muted ? `${label === 'Main' ? 'Main Grain' : `Grain ${label}`} muted.` : `Mute ${label === 'Main' ? 'Main Grain' : `Grain ${label}`}.`;
+            });
+        }
+
+        function setGranularLayerMuted(layerKey, muted, options = {}) {
+            const normalized = normalizeGranularLayerKey(layerKey);
+            const nextValue = Boolean(muted);
+            if (normalized === 'A') {
+                grainAMuted = nextValue;
+            } else if (normalized === 'B') {
+                grainBMuted = nextValue;
+            } else {
+                grainMainMuted = nextValue;
+            }
+            syncGranularLayerMuteButtons();
+            if (audioContext && activeGrains.size > 0) {
+                rescheduleActiveGrainsFromNow();
+            }
+            if (!options.silent) {
+                const label = normalized === 'main' ? 'Main Grain' : `Grain ${normalized}`;
+                setStatus(nextValue ? `${label} muted.` : `${label} unmuted.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
         }
 
         function getGranularLayerPreserveDuration(layerKey) {
@@ -20523,6 +20604,40 @@
             updateSourceAvailability();
             syncSourceWaveformSoloAudition();
             setStatus(`${sourceLabel} ready (${normalizedBuffer.duration.toFixed(2)}s, ${normalizedBuffer.numberOfChannels}ch @ ${normalizedBuffer.sampleRate} Hz).`);
+        }
+
+        async function clearGranularSourceSlot(kind, label) {
+            const allowedKinds = new Set(['mic', 'grainMainSample', 'grainAMic', 'grainASample', 'grainBMic', 'grainBSample']);
+            if (!allowedKinds.has(kind)) return;
+
+            sourceMutationSerial += 1;
+            lastSourceWriteAt = Date.now();
+            const config = getSourceSlotConfig(kind);
+            config.setBuffer(null);
+
+            if (Object.prototype.hasOwnProperty.call(GRAIN_SAMPLE_SLOT_TARGETS, kind)) {
+                setGrainSampleMetadata(kind, null);
+            }
+
+            if (activeSourceCardAuditionKind === kind) {
+                stopSourceCardAudition({ preserveKind: false, skipSync: true });
+            }
+            if (sourceWaveformSoloKinds.has(kind)) {
+                sourceWaveformSoloKinds.delete(kind);
+                syncSourceWaveformSoloButtons();
+            }
+
+            await clearAudioBufferFromDB(config.dbKey());
+            syncLegacyAudioBuffer();
+            resetSourceLoopPoints(kind);
+            drawWaveforms();
+            updateSourceAvailability();
+            syncSourceWaveformSoloAudition();
+            syncSourceCardAuditionButtons();
+            restartActiveGrainStreamsFromNow();
+            syncPerformanceControlState();
+            saveState();
+            setStatus(`${label} cleared.`);
         }
 
         function updateLoopLabels(kind) {
@@ -27587,6 +27702,11 @@
                 A: grainAPreserveDuration,
                 B: grainBPreserveDuration
             };
+            preset.grainMute = {
+                main: grainMainMuted,
+                A: grainAMuted,
+                B: grainBMuted
+            };
             preset.grainTimingMode = getGrainTimingMode();
             preset.noiseType = document.getElementById('noiseType').value;
 
@@ -27668,6 +27788,18 @@
                 }
                 if (importedGrainPreserveDuration.B !== undefined) {
                     setGranularLayerPreserveDuration('B', importedGrainPreserveDuration.B, { silent: true, skipSave: true });
+                }
+            }
+            const importedGrainMute = safePreset.grainMute ?? preset.grainMute;
+            if (importedGrainMute) {
+                if (importedGrainMute.main !== undefined) {
+                    setGranularLayerMuted('main', importedGrainMute.main, { silent: true, skipSave: true });
+                }
+                if (importedGrainMute.A !== undefined) {
+                    setGranularLayerMuted('A', importedGrainMute.A, { silent: true, skipSave: true });
+                }
+                if (importedGrainMute.B !== undefined) {
+                    setGranularLayerMuted('B', importedGrainMute.B, { silent: true, skipSave: true });
                 }
             }
             const importedGrainTimingMode = safePreset.grainTimingMode ?? preset.grainTimingMode ?? 'synth';
@@ -28258,6 +28390,22 @@
             }
         }
 
+        async function clearAudioBufferFromDB(key = AUDIO_BUFFER_KEY) {
+            try {
+                const db = await openAudioDB();
+                const transaction = db.transaction([AUDIO_STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(AUDIO_STORE_NAME);
+                store.delete(key);
+                await new Promise((resolve, reject) => {
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = () => reject(transaction.error);
+                });
+                db.close();
+            } catch (err) {
+                console.error('Failed to clear audio buffer from IndexedDB:', err);
+            }
+        }
+
         // Load audio buffer from IndexedDB
         async function loadAudioBufferFromDB(key = AUDIO_BUFFER_KEY) {
             try {
@@ -28376,6 +28524,9 @@
                     grainMainPreserveDuration: grainMainPreserveDuration,
                     grainAPreserveDuration: grainAPreserveDuration,
                     grainBPreserveDuration: grainBPreserveDuration,
+                    grainMainMuted: grainMainMuted,
+                    grainAMuted: grainAMuted,
+                    grainBMuted: grainBMuted,
                     grainMainMicBrowserSourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMainMic),
                     grainMainMicSourceKey: micSampleMetadata?.sourceKey || '',
                     grainMainMicFileName: micSampleMetadata?.fileName || '',
@@ -28745,6 +28896,15 @@
                     }
                     if (state.modes.grainBPreserveDuration !== undefined) {
                         setGranularLayerPreserveDuration('B', state.modes.grainBPreserveDuration, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainMainMuted !== undefined) {
+                        setGranularLayerMuted('main', state.modes.grainMainMuted, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainAMuted !== undefined) {
+                        setGranularLayerMuted('A', state.modes.grainAMuted, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainBMuted !== undefined) {
+                        setGranularLayerMuted('B', state.modes.grainBMuted, { silent: true, skipSave: true });
                     }
                     if (state.modes.grainMainMicBrowserSourceKey !== undefined) {
                         setGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMainMic, state.modes.grainMainMicBrowserSourceKey);
@@ -35396,6 +35556,28 @@
             });
         });
         syncGranularPreserveDurationButtons();
+        [
+            ['grainMainMuteBtn', 'main'],
+            ['grainAMuteBtn', 'A'],
+            ['grainBMuteBtn', 'B']
+        ].forEach(([id, layerKey]) => {
+            document.getElementById(id)?.addEventListener('click', () => {
+                setGranularLayerMuted(layerKey, !getGranularLayerMuted(layerKey));
+            });
+        });
+        syncGranularLayerMuteButtons();
+        [
+            ['clearMainMicBtn', 'mic', 'Main mic'],
+            ['clearGrainMainSampleBtn', 'grainMainSample', 'Main grain sample'],
+            ['clearGrainAMicBtn', 'grainAMic', 'Grain A mic'],
+            ['clearGrainASampleBtn', 'grainASample', 'Grain A sample'],
+            ['clearGrainBMicBtn', 'grainBMic', 'Grain B mic'],
+            ['clearGrainBSampleBtn', 'grainBSample', 'Grain B sample']
+        ].forEach(([id, kind, label]) => {
+            document.getElementById(id)?.addEventListener('click', async () => {
+                await clearGranularSourceSlot(kind, label);
+            });
+        });
 
         document.querySelectorAll('[data-grain-layer-solo]').forEach((button) => {
             button.addEventListener('click', () => {
