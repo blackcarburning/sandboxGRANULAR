@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-07-47-build-v2026.10.10.5';
+            const cacheBuster = '2026-10-10-07-52-build-v2026.10.10.6';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4315,7 +4315,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.5</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.6</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4368,7 +4368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.5</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.6</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -4385,10 +4385,10 @@
                     </div>
                     <label for="globalPatternLength" class="pattern-length-label">
                         <span>Pattern Length</span>
-                        <span class="value" id="globalPatternLengthValue">64 steps</span>
+                        <span class="value" id="globalPatternLengthValue">16 steps</span>
                     </label>
                     <div class="pattern-length-input-row">
-                        <input type="number" id="globalPatternLength" min="8" max="64" value="64" step="1" inputmode="numeric">
+                        <input type="number" id="globalPatternLength" min="8" max="64" value="16" step="1" inputmode="numeric">
                     </div>
                 </div>
             </div>
@@ -9052,6 +9052,7 @@
         let drumMachineHatAccentAmount = 0.35;
         const PATTERN_STEPS_PER_BAR = 16;
         const DEFAULT_PATTERN_LENGTH_STEPS = PATTERN_STEPS_PER_BAR * 4;
+        const DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS = 16;
         const MIN_PATTERN_LENGTH_STEPS = 8;
         const MAX_PATTERN_LENGTH_STEPS = 64;
         let drumMachineKickPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, (_, index) => index % PATTERN_STEPS_PER_BAR === 0 || index % PATTERN_STEPS_PER_BAR === 8);
@@ -10404,12 +10405,17 @@
             return Math.max(MIN_PATTERN_LENGTH_STEPS, Math.min(MAX_PATTERN_LENGTH_STEPS, Math.round(numeric)));
         }
 
-        function getPatternLengthSteps() {
-            const input = document.getElementById('globalPatternLength');
-            return clampPatternLengthSteps(input?.value ?? DEFAULT_PATTERN_LENGTH_STEPS);
+        function resolveStoredPatternLength(state = readStoredStateSnapshot()) {
+            const remembered = state?.patternLength ?? state?.modes?.patternLength;
+            return clampPatternLengthSteps(remembered, DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS);
         }
 
-        function syncPatternLengthControls(value = DEFAULT_PATTERN_LENGTH_STEPS, options = {}) {
+        function getPatternLengthSteps() {
+            const input = document.getElementById('globalPatternLength');
+            return clampPatternLengthSteps(input?.value ?? DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS);
+        }
+
+        function syncPatternLengthControls(value = DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS, options = {}) {
             const steps = clampPatternLengthSteps(value);
             const input = document.getElementById('globalPatternLength');
             const label = document.getElementById('globalPatternLengthValue');
@@ -23639,7 +23645,7 @@
             }
         }
 
-        ensureSequencerStepControls(getPatternLengthSteps());
+        syncPatternLengthControls(resolveStoredPatternLength(), { skipSave: true });
 
         function setSelectValue(id, value) {
             const select = document.getElementById(id);
@@ -26829,7 +26835,7 @@
             if (hugeKitLabel) hugeKitLabel.textContent = restoredHugeKit.name;
 
             enforceBpmOnlyLfoMode();
-            syncPatternLengthControls(safePreset.patternLength ?? preset.patternLength ?? DEFAULT_PATTERN_LENGTH_STEPS, { skipSave: true });
+            syncPatternLengthControls(safePreset.patternLength ?? preset.patternLength ?? DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS, { skipSave: true });
             const usesSharedBpmPreset = safePreset.bpmOnlyLfos === true || safePreset.globalBpm != null || normalizedSliders?.globalBpmSlider != null;
             const restoredGlobalBpm = safePreset.globalBpm ??
                 normalizedSliders?.globalBpmSlider ??
@@ -27670,7 +27676,7 @@
                 }
 
                 enforceBpmOnlyLfoMode();
-                syncPatternLengthControls(state.patternLength ?? state.modes?.patternLength ?? DEFAULT_PATTERN_LENGTH_STEPS, { skipSave: true });
+                syncPatternLengthControls(resolveStoredPatternLength(state), { skipSave: true });
 
                 // Restore other modes
                 if (state.modes) {
