@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-09-48-build-v2026.10.10.14';
+            const cacheBuster = '2026-10-10-10-00-build-v2026.10.10.15';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4450,7 +4450,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.14</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.15</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4509,7 +4509,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.14</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.15</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -12787,8 +12787,9 @@
                 ? (postFilterFx ? 0.2 : 0.64)
                 : (postFilterFx ? 0.16 : 0.58);
             const shadowMix = Math.sin(delayMix * Math.PI / 2) * (filteredDelayTail ? 0.26 : (postFilterFx ? 0.08 : 0.2));
-            const shadowTimeA = Math.max(0.03, Math.min(2.5, delayTime * (filteredDelayTail ? 0.9 : 0.72) + 0.013));
-            const shadowTimeB = Math.max(0.04, Math.min(2.5, delayTime * (filteredDelayTail ? 1.42 : 1.18) + 0.021));
+            // Keep the multi-tap spacing locked to the clock even when the delay filter mode changes.
+            const shadowTimeA = Math.max(0.03, Math.min(2.5, delayTime * 0.72 + 0.013));
+            const shadowTimeB = Math.max(0.04, Math.min(2.5, delayTime * 1.18 + 0.021));
             smoothRamp(finalDelayNode?.delayTime, delayTime);
             smoothRamp(finalDelayShadowNodeA?.delayTime, shadowTimeA);
             smoothRamp(finalDelayShadowNodeB?.delayTime, shadowTimeB);
@@ -17383,6 +17384,12 @@
                     try {
                         drumMachineBusGainNode.disconnect();
                     } catch (error) {}
+                    if (drumMachineDirectDelaySendGainNode) {
+                        drumMachineDirectDelaySendGainNode.connectedFromDrumBus = false;
+                    }
+                    if (drumMachineDirectReverbSendGainNode) {
+                        drumMachineDirectReverbSendGainNode.connectedFromDrumBus = false;
+                    }
                     drumMachineBusGainNode.connect(destination);
                     drumMachineBusGainNode.connectedTo = destination;
                 }
@@ -17401,20 +17408,30 @@
         function ensureDrumMachineDirectFxSends() {
             if (!audioContext || !drumMachineBusGainNode) return;
 
-            if (!drumMachineDirectDelaySendGainNode && finalDelayNode && finalDelayShadowNodeA && finalDelayShadowNodeB) {
-                drumMachineDirectDelaySendGainNode = audioContext.createGain();
-                drumMachineDirectDelaySendGainNode.gain.value = 0;
-                drumMachineBusGainNode.connect(drumMachineDirectDelaySendGainNode);
-                drumMachineDirectDelaySendGainNode.connect(finalDelayNode);
-                drumMachineDirectDelaySendGainNode.connect(finalDelayShadowNodeA);
-                drumMachineDirectDelaySendGainNode.connect(finalDelayShadowNodeB);
+            if (finalDelayNode && finalDelayShadowNodeA && finalDelayShadowNodeB) {
+                if (!drumMachineDirectDelaySendGainNode) {
+                    drumMachineDirectDelaySendGainNode = audioContext.createGain();
+                    drumMachineDirectDelaySendGainNode.gain.value = 0;
+                    drumMachineDirectDelaySendGainNode.connect(finalDelayNode);
+                    drumMachineDirectDelaySendGainNode.connect(finalDelayShadowNodeA);
+                    drumMachineDirectDelaySendGainNode.connect(finalDelayShadowNodeB);
+                }
+                if (!drumMachineDirectDelaySendGainNode.connectedFromDrumBus) {
+                    drumMachineBusGainNode.connect(drumMachineDirectDelaySendGainNode);
+                    drumMachineDirectDelaySendGainNode.connectedFromDrumBus = true;
+                }
             }
 
-            if (!drumMachineDirectReverbSendGainNode && finalReverbPreDelay) {
-                drumMachineDirectReverbSendGainNode = audioContext.createGain();
-                drumMachineDirectReverbSendGainNode.gain.value = 0;
-                drumMachineBusGainNode.connect(drumMachineDirectReverbSendGainNode);
-                drumMachineDirectReverbSendGainNode.connect(finalReverbPreDelay);
+            if (finalReverbPreDelay) {
+                if (!drumMachineDirectReverbSendGainNode) {
+                    drumMachineDirectReverbSendGainNode = audioContext.createGain();
+                    drumMachineDirectReverbSendGainNode.gain.value = 0;
+                    drumMachineDirectReverbSendGainNode.connect(finalReverbPreDelay);
+                }
+                if (!drumMachineDirectReverbSendGainNode.connectedFromDrumBus) {
+                    drumMachineBusGainNode.connect(drumMachineDirectReverbSendGainNode);
+                    drumMachineDirectReverbSendGainNode.connectedFromDrumBus = true;
+                }
             }
         }
 
@@ -18412,6 +18429,9 @@
                 return;
             }
             drumMachineDirectReverbSendEnabled = nextValue;
+            if (drumMachineDirectReverbSendEnabled && !finalReverbEnabled) {
+                setFinalReverbEnabled(true, { silent: true, skipSave: true });
+            }
             updateDrumMachineMix();
             syncDrumMachineUi();
             if (!options.silent) {
@@ -29085,9 +29105,9 @@
             const delayNode = ctx.createDelay(2.5);
             delayNode.delayTime.value = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(delayDivision, bpm)));
             const delayShadowNodeA = ctx.createDelay(2.5);
-            delayShadowNodeA.delayTime.value = Math.max(0.03, Math.min(2.5, delayNode.delayTime.value * (filteredDelayTail ? 0.9 : 0.72) + 0.013));
+            delayShadowNodeA.delayTime.value = Math.max(0.03, Math.min(2.5, delayNode.delayTime.value * 0.72 + 0.013));
             const delayShadowNodeB = ctx.createDelay(2.5);
-            delayShadowNodeB.delayTime.value = Math.max(0.04, Math.min(2.5, delayNode.delayTime.value * (filteredDelayTail ? 1.42 : 1.18) + 0.021));
+            delayShadowNodeB.delayTime.value = Math.max(0.04, Math.min(2.5, delayNode.delayTime.value * 1.18 + 0.021));
             const delayFeedbackGain = ctx.createGain();
             delayFeedbackGain.gain.value = delayFeedback * (filteredDelayTail ? (postFilterFx ? 0.58 : 0.74) : (postFilterFx ? 0 : 0.46));
             const delayFeedbackHighpass = ctx.createBiquadFilter();
