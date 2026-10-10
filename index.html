@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-09-22-build-v2026.10.10.10';
+            const cacheBuster = '2026-10-10-09-35-build-v2026.10.10.11';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4438,7 +4438,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.10</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.11</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4451,9 +4451,13 @@
             <span class="section-jump-handle-text">Jump</span>
         </button>
         <button class="section-jump-quick" id="sectionJumpKeyboardBtn" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
+        <button class="section-jump-quick" id="sectionJumpTransportBtn" type="button">Stop All</button>
+        <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega Randomise</button>
         <div class="section-jump-panel" id="sectionJumpPanel">
             <div class="section-jump-title">Jump To</div>
             <div class="section-jump-grid">
+                <button class="section-jump-option" id="sectionJumpTransportPanelBtn" type="button">Stop All</button>
+                <button class="section-jump-option" id="sectionJumpMegaRandomPanelBtn" type="button">Mega Randomise</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-toolbar">Top</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop controls']">Loop A</button>
@@ -4493,7 +4497,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.10</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.11</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -18527,41 +18531,65 @@
             syncDrumMachineUi();
         }
 
-        async function loadDrumMachineSample(kind) {
+        async function loadDrumMachineSample(kind, options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading drum samples.');
             }
 
             const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
-            const response = await fetch(DROPBOX_SAMPLE_SOURCE_API_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    source: sourceKey,
-                    seed: `${Date.now()}-${kind}-${Math.random().toString(36).slice(2, 8)}`
-                })
-            });
+            const currentMetadata = getDrumMachineTrackMetadata(kind);
+            const requireDifferentSample = options.requireDifferentSample === true
+                && Boolean(currentMetadata?.fileName || currentMetadata?.relativePath);
+            const maxAttempts = requireDifferentSample ? 6 : 1;
+            let selectedPayload = null;
 
-            if (!response.ok) {
-                const payload = await response.json().catch(() => ({}));
-                throw new Error(payload.error || `${kind} load failed with status ${response.status}`);
+            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                const response = await fetch(DROPBOX_SAMPLE_SOURCE_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        source: sourceKey,
+                        seed: `${Date.now()}-${kind}-${attempt}-${Math.random().toString(36).slice(2, 8)}`
+                    })
+                });
+
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => ({}));
+                    throw new Error(payload.error || `${kind} load failed with status ${response.status}`);
+                }
+
+                const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || `${kind}.wav`;
+                const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || '';
+                const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || sourceKey;
+                const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || sourceKey;
+                const arrayBuffer = await response.arrayBuffer();
+                selectedPayload = {
+                    arrayBuffer,
+                    metadata: {
+                        sourceKey: responseSourceKey,
+                        sourceLabel: responseSourceLabel,
+                        fileName: sourceName,
+                        relativePath
+                    }
+                };
+
+                const sameFileName = sourceName && currentMetadata?.fileName && sourceName === currentMetadata.fileName;
+                const sameRelativePath = relativePath && currentMetadata?.relativePath && relativePath === currentMetadata.relativePath;
+                const sameSample = sameRelativePath || (sameFileName && !relativePath && !currentMetadata?.relativePath);
+                if (!requireDifferentSample || !sameSample) {
+                    break;
+                }
             }
 
-            const sourceName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || `${kind}.wav`;
-            const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || '';
-            const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || sourceKey;
-            const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || sourceKey;
-            const arrayBuffer = await response.arrayBuffer();
-            const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-            await applyLoadedDrumMachineSampleBuffer(kind, decoded, {
-                sourceKey: responseSourceKey,
-                sourceLabel: responseSourceLabel,
-                fileName: sourceName,
-                relativePath
-            });
+            if (!selectedPayload) {
+                throw new Error(`No ${kind} sample could be loaded.`);
+            }
+
+            const decoded = await audioContext.decodeAudioData(selectedPayload.arrayBuffer.slice(0));
+            await applyLoadedDrumMachineSampleBuffer(kind, decoded, selectedPayload.metadata);
         }
 
         async function loadDrumMachineSampleFromSourceRelativePath(kind, sourceKey, relativePath, fileName = '') {
@@ -18617,9 +18645,9 @@
                 const hadSnareBuffer = Boolean(drumMachineSnareBuffer);
                 const hadHatBuffer = Boolean(drumMachineHatBuffer);
                 const [kickResult, snareResult, hatResult] = await Promise.allSettled([
-                    loadDrumMachineSample('kick'),
-                    loadDrumMachineSample('snare'),
-                    loadDrumMachineSample('hat')
+                    loadDrumMachineSample('kick', { requireDifferentSample: true }),
+                    loadDrumMachineSample('snare', { requireDifferentSample: true }),
+                    loadDrumMachineSample('hat', { requireDifferentSample: true })
                 ]);
                 const failures = [kickResult, snareResult, hatResult]
                     .filter((result) => result.status === 'rejected')
@@ -33051,6 +33079,10 @@
         const performanceRecordBtn = document.getElementById('performanceRecordBtn');
         const performanceKeyboardRecordBtn = document.getElementById('performanceKeyboardRecordBtn');
         const performancePanicBtn = document.getElementById('performancePanicBtn');
+        const sectionJumpTransportBtn = document.getElementById('sectionJumpTransportBtn');
+        const sectionJumpTransportPanelBtn = document.getElementById('sectionJumpTransportPanelBtn');
+        const sectionJumpMegaRandomBtn = document.getElementById('sectionJumpMegaRandomBtn');
+        const sectionJumpMegaRandomPanelBtn = document.getElementById('sectionJumpMegaRandomPanelBtn');
         const performanceSourceMix = document.getElementById('performanceSourceMix');
         const performanceOscVolume = document.getElementById('performanceOscVolume');
         const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
@@ -33739,6 +33771,25 @@
                 performanceMainStopAllBtn.disabled = !anythingRunning;
             }
 
+            [
+                sectionJumpTransportBtn,
+                sectionJumpTransportPanelBtn
+            ].forEach((button) => {
+                if (!button) return;
+                const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
+                button.textContent = anythingRunning ? 'Stop All' : 'Restart All';
+                button.setAttribute('aria-label', anythingRunning ? 'Stop all playback' : 'Restart all playback and LFO phases');
+            });
+
+            [
+                sectionJumpMegaRandomBtn,
+                sectionJumpMegaRandomPanelBtn
+            ].forEach((button) => {
+                if (!button) return;
+                button.disabled = megaRandomizeInFlight;
+                button.textContent = megaRandomizeInFlight ? 'Mega Random…' : 'Mega Randomise';
+            });
+
             if (performanceOscToggleBtn) {
                 performanceOscToggleBtn.classList.toggle('osc-off', !oscillatorsEnabled);
                 performanceOscToggleBtn.textContent = oscillatorsEnabled ? 'Osc On' : 'Osc Off';
@@ -33887,6 +33938,40 @@
                 console.error(error);
                 setStatus(`Mega random failed: ${error.message}`, 'error');
             }
+        });
+
+        async function handleSidebarMegaRandom() {
+            try {
+                await runMegaRandomization();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Mega random failed: ${error.message}`, 'error');
+            }
+        }
+
+        function handleSidebarTransportToggle() {
+            const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
+            if (anythingRunning) {
+                stopAllPerformancePlayback();
+                return;
+            }
+            restartAllTransport();
+        }
+
+        sectionJumpMegaRandomBtn?.addEventListener('click', () => {
+            handleSidebarMegaRandom();
+        });
+
+        sectionJumpMegaRandomPanelBtn?.addEventListener('click', () => {
+            handleSidebarMegaRandom();
+        });
+
+        sectionJumpTransportBtn?.addEventListener('click', () => {
+            handleSidebarTransportToggle();
+        });
+
+        sectionJumpTransportPanelBtn?.addEventListener('click', () => {
+            handleSidebarTransportToggle();
         });
 
         performanceResetPatchBtn?.addEventListener('click', () => {
