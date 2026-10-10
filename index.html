@@ -12912,18 +12912,14 @@
 
         function getFinalCompressorSettings(amount = 0) {
             const safeAmount = Math.max(0, Math.min(1, Number(amount) || 0));
-            const subtleAmount = Math.min(1, safeAmount / 0.4);
-            const effectAmount = safeAmount > 0.4
-                ? Math.pow((safeAmount - 0.4) / 0.6, 1.16)
-                : 0;
-            const effectDrive = 1 + (subtleAmount * 8) + (effectAmount * 72);
+            const curveAmount = Math.pow(safeAmount, 0.92);
             return {
-                threshold: safeAmount > 0.001 ? -10 - (subtleAmount * 20) - (effectAmount * 78) : 0,
-                knee: safeAmount > 0.001 ? Math.max(0, 16 - (subtleAmount * 7) - (effectAmount * 12)) : 0,
-                ratio: 1 + (subtleAmount * 8) + (effectAmount * 20),
-                attack: Math.max(0.00005, 0.016 - (subtleAmount * 0.008) - (effectAmount * 0.0075)),
+                threshold: safeAmount > 0.001 ? -4 - (curveAmount * 22) : 0,
+                knee: safeAmount > 0.001 ? Math.max(6, 18 - (curveAmount * 12)) : 0,
+                ratio: 1 + (curveAmount * 5.2),
+                attack: Math.max(0.004, 0.018 - (curveAmount * 0.012)),
                 release: getFinalCompressorReleaseSeconds(),
-                drive: effectDrive
+                drive: 1 + (curveAmount * 0.18)
             };
         }
 
@@ -14902,7 +14898,7 @@
         }
 
         function getBastardLoopOutputGain(level = getBastardLoopLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.92;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.92;
         }
 
         function normalizeLoopLayerSolo(value) {
@@ -16085,7 +16081,7 @@
         }
 
         function getDropboxSampleLayerOutputGain(level = getDropboxSampleLayerLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
 
         function getDropboxSampleLayerPlaybackRate() {
@@ -16423,7 +16419,7 @@
         }
 
         function getBastardLoop2OutputGain(level = getBastardLoop2LevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
 
         function getBastardLoop2PlaybackRate() {
@@ -16681,7 +16677,7 @@
         }
 
         function getBastardLoop3OutputGain(level = getBastardLoop3LevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
 
         function getBastardLoop3PlaybackRate() {
@@ -16929,7 +16925,7 @@
         }
 
         function getBastardLoopVOutputGain(level = getBastardLoopVLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
 
         function getBastardLoopVPlaybackRate() {
@@ -17190,7 +17186,7 @@
         }
 
         function getBastardLoopPOutputGain(level = getBastardLoopPLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
 
         function getBastardLoopPPlaybackRate() {
@@ -17443,7 +17439,7 @@
         }
 
         function getBastardLoopOOutputGain(level = getBastardLoopOLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * 0.88;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
 
         function getBastardLoopOPlaybackRate() {
@@ -18188,7 +18184,7 @@
         }
 
         function getDrumMachineOutputGain(level = getDrumMachineLevelValue()) {
-            return Math.sqrt(Math.max(0, level)) * MIX_HEADROOM * DRUM_MACHINE_OUTPUT_GAIN_MULTIPLIER;
+            return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * DRUM_MACHINE_OUTPUT_GAIN_MULTIPLIER;
         }
 
         function shouldRouteDrumMachineDirectToOutput() {
@@ -30474,6 +30470,8 @@
             reverbShimmerDelay.delayTime.value = shimmer.delay;
             const reverbShimmerGain = ctx.createGain();
             reverbShimmerGain.gain.value = finalReverbEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0;
+            const compressorDriveGain = ctx.createGain();
+            compressorDriveGain.gain.value = compressorSettings.drive;
             const compressorNode = ctx.createDynamicsCompressor();
             compressorNode.threshold.value = compressorSettings.threshold;
             compressorNode.knee.value = compressorSettings.knee;
@@ -30516,7 +30514,8 @@
             reverbShimmerLowpass.connect(reverbShimmerDelay);
             reverbShimmerDelay.connect(reverbShimmerGain);
             reverbShimmerGain.connect(output);
-            output.connect(compressorNode);
+            output.connect(compressorDriveGain);
+            compressorDriveGain.connect(compressorNode);
             compressorNode.connect(finalDestination);
 
             return input;
