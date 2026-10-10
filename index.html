@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-10-54-build-v2026.10.10.20';
+            const cacheBuster = '2026-10-10-11-35-build-v2026.10.10.21';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -134,6 +134,7 @@
         body.wav-repository-browser-open #wavRepositoryBrowserOverlay,
         body.patch-repository-browser-open #patchRepositoryBrowserOverlay,
         body.performance-take-browser-open #performanceTakeBrowserOverlay,
+        body.stem-repository-browser-open #stemRepositoryBrowserOverlay,
         body.bastardloop-samples-open #bastardLoopSamplesOverlay {
             display: flex;
         }
@@ -341,6 +342,45 @@
         }
 
         .sample-browser-feedback-status {
+            color: rgba(214, 232, 255, 0.72);
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .stem-export-card-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .stem-export-progress-shell {
+            display: grid;
+            gap: 8px;
+        }
+
+        .stem-export-progress {
+            width: 100%;
+            height: 14px;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .stem-export-progress::-webkit-progress-bar {
+            background: rgba(18, 24, 36, 0.96);
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .stem-export-progress::-webkit-progress-value {
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.85), rgba(105, 255, 154, 0.92));
+        }
+
+        .stem-export-progress::-moz-progress-bar {
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.85), rgba(105, 255, 154, 0.92));
+        }
+
+        .stem-export-status {
             color: rgba(214, 232, 255, 0.72);
             font-size: 12px;
             overflow-wrap: anywhere;
@@ -4463,7 +4503,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.20</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.21</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4499,6 +4539,7 @@
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Filter controls']">Filter</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-actions-card">Actions</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-export-card">Export</button>
+                <button class="section-jump-option" type="button" data-jump-target="#performanceStemExportCard">Stem Export</button>
                 <button class="section-jump-option" type="button" data-jump-target="#performanceGrainControlsCard">Grain</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Mix controls']">Mix</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='LFO controls']">LFO</button>
@@ -4522,7 +4563,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.20</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.21</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -5671,6 +5712,36 @@
                             <span class="value" id="performanceExportBarsValue">4 bars</span>
                         </label>
                         <input type="number" id="performanceExportBars" min="1" max="64" value="4" step="1" inputmode="numeric">
+                    </div>
+                </div>
+            </div>
+            <div class="performance-feature-card performance-stem-export-card" id="performanceStemExportCard" aria-label="Stem export controls">
+                <div class="performance-feature-head">
+                    <div class="performance-feature-copy">
+                        <div class="performance-chip">Beta</div>
+                        <h3 class="performance-feature-title">Stem Export</h3>
+                        <p class="performance-feature-note">Render dry stems from bar zero, bundle a separate FX stem, and upload the ZIP to its own repository.</p>
+                    </div>
+                </div>
+                <div class="stem-export-card-grid">
+                    <label class="performance-patch-name-group" for="performanceStemExportName">
+                        <span class="performance-patch-name-label">Stem Export Name</span>
+                        <input class="performance-patch-name-input" id="performanceStemExportName" type="text" placeholder="Leave blank for timestamped name" maxlength="120" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </label>
+                    <div class="performance-sound-card">
+                        <label for="performanceStemExportNotes">
+                            <span>Export Notes</span>
+                            <span class="value" id="performanceStemExportBpmLabel">Orig BPM</span>
+                        </label>
+                        <textarea class="sample-browser-feedback-textarea" id="performanceStemExportNotes" placeholder="Notes saved into the stem bundle and repo entry." maxlength="2000"></textarea>
+                    </div>
+                    <div class="stem-export-progress-shell">
+                        <progress class="stem-export-progress" id="performanceStemExportProgress" value="0" max="1"></progress>
+                        <div class="stem-export-status" id="performanceStemExportStatus">Ready to render stems to the separate repository.</div>
+                    </div>
+                    <div class="performance-actions">
+                        <button class="performance-btn primary" id="performanceStemExportBtn" type="button">Export Stems</button>
+                        <button class="performance-btn" id="performanceStemBrowserBtn" type="button">Stem Browser</button>
                     </div>
                 </div>
             </div>
@@ -7956,6 +8027,27 @@
                 </div>
                 <div class="sample-browser-status" id="performanceTakeBrowserStatus">Capture a take from the main panel to see it here.</div>
                 <div class="sample-browser-list" id="performanceTakeBrowserList"></div>
+            </div>
+        </div>
+
+        <div class="sample-browser-overlay" id="stemRepositoryBrowserOverlay" hidden aria-hidden="true">
+            <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="stemRepositoryBrowserTitle">
+                <div class="sample-browser-head">
+                    <div class="sample-browser-copy">
+                        <h3 id="stemRepositoryBrowserTitle">Stem Repository Browser</h3>
+                        <p id="stemRepositoryBrowserSubtitle">Download, rename, delete, and annotate bundled stem ZIP exports.</p>
+                    </div>
+                    <button class="performance-btn" id="stemRepositoryBrowserCloseBtn" type="button">Close</button>
+                </div>
+                <div class="sample-browser-controls">
+                    <div class="sample-browser-filter-group">
+                        <label class="sample-browser-filter-label" for="stemRepositoryBrowserFilter">Search Stem Bundles</label>
+                        <input class="sample-browser-filter-input" id="stemRepositoryBrowserFilter" type="search" placeholder="Filter stem ZIPs" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <button class="performance-btn" id="stemRepositoryBrowserRefreshBtn" type="button">Refresh</button>
+                </div>
+                <div class="sample-browser-status" id="stemRepositoryBrowserStatus">Browse saved stem ZIP exports.</div>
+                <div class="sample-browser-list" id="stemRepositoryBrowserList"></div>
             </div>
         </div>
 
@@ -28505,6 +28597,10 @@
                     lfo3Inverted: {}
                 },
                 selects: {},
+                stemExportDraft: {
+                    name: getStemExportDraftName(),
+                    notes: getStemExportDraftNotes()
+                },
                 modes: {
                     lfoMode: lfoMode,
                     lfo2Mode: lfo2Mode,
@@ -28744,6 +28840,15 @@
                         }
                         select.value = state.selects[id];
                     });
+                }
+                if (state.stemExportDraft) {
+                    if (performanceStemExportName) {
+                        performanceStemExportName.value = String(state.stemExportDraft.name || '').slice(0, 120);
+                    }
+                    if (performanceStemExportNotes) {
+                        performanceStemExportNotes.value = String(state.stemExportDraft.notes || '').replace(/\r\n?/g, '\n').slice(0, 2000);
+                        autosizeSampleBrowserFeedbackTextarea(performanceStemExportNotes);
+                    }
                 }
                 normalizeGranularLayerSourceSelects();
                 ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync', 'oscNoiseType'].forEach((id) => {
@@ -30019,11 +30124,44 @@
             return sliced;
         }
 
-        async function renderDawReadyBarsExport() {
+        function audioBufferHasSignal(audioBuffer, threshold = 0.0005) {
+            if (!audioBuffer || !audioBuffer.length) return false;
+            for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+                const channel = audioBuffer.getChannelData(channelIndex);
+                for (let frame = 0; frame < channel.length; frame += 1) {
+                    if (Math.abs(channel[frame]) > threshold) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function subtractAudioBuffers(wetBuffer, dryBuffer) {
+            if (!wetBuffer || !dryBuffer || !audioContext) {
+                throw new Error('Could not build the FX stem.');
+            }
+            const channelCount = Math.max(wetBuffer.numberOfChannels, dryBuffer.numberOfChannels);
+            const frameCount = Math.min(wetBuffer.length, dryBuffer.length);
+            const sampleRate = wetBuffer.sampleRate;
+            const output = audioContext.createBuffer(channelCount, frameCount, sampleRate);
+            for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+                const wetChannel = wetBuffer.getChannelData(Math.min(channelIndex, wetBuffer.numberOfChannels - 1));
+                const dryChannel = dryBuffer.getChannelData(Math.min(channelIndex, dryBuffer.numberOfChannels - 1));
+                const target = output.getChannelData(channelIndex);
+                for (let frame = 0; frame < frameCount; frame += 1) {
+                    target[frame] = wetChannel[frame] - dryChannel[frame];
+                }
+            }
+            return output;
+        }
+
+        async function renderLiveOutputBarsBuffer(options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
-            if (!canPlayGrains() && !bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer && !bastardLoopVBuffer && !bastardLoopPBuffer && !bastardLoopOBuffer && !dropboxSampleLayerBuffer) {
+            const forcedRender = Boolean(options.forceSequencer || options.forceArp || options.forceBastardLoops || options.forceDrumMachine);
+            if (!canPlayGrains() && !bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer && !bastardLoopVBuffer && !bastardLoopPBuffer && !bastardLoopOBuffer && !dropboxSampleLayerBuffer && !forcedRender) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
 
@@ -30043,7 +30181,18 @@
             const wasBastardLoopPLive = Boolean(bastardLoopPSource);
             const wasBastardLoopOLive = Boolean(bastardLoopOSource);
             const wasDropboxSampleLayerLive = Boolean(dropboxSampleLayerSource);
-            const shouldRestartFreshPlayback = wasSequencerPlaying || wasArpPlaying || wasBastardLoopPlaying || wasDrumMachinePlaying;
+            const forceSequencer = Boolean(options.forceSequencer);
+            const forceArp = Boolean(options.forceArp);
+            const forceBastardLoops = Boolean(options.forceBastardLoops);
+            const forceDrumMachine = Boolean(options.forceDrumMachine);
+            const canStartBastardLoopA = bastardLoopEnabled && Boolean(bastardLoopBuffer);
+            const canStartBastardLoopB = bastardLoop2Enabled && Boolean(bastardLoop2Buffer);
+            const canStartBastardLoopC = bastardLoop3Enabled && Boolean(bastardLoop3Buffer);
+            const canStartBastardLoopV = bastardLoopVEnabled && Boolean(bastardLoopVBuffer);
+            const canStartBastardLoopP = bastardLoopPEnabled && Boolean(bastardLoopPBuffer);
+            const canStartBastardLoopO = bastardLoopOEnabled && Boolean(bastardLoopOBuffer);
+            const canStartDropboxSampleLayer = dropboxSampleLayerEnabled && Boolean(dropboxSampleLayerRawBuffer);
+            const shouldRestartFreshPlayback = wasSequencerPlaying || wasArpPlaying || wasBastardLoopPlaying || wasDrumMachinePlaying || forceSequencer || forceArp || forceBastardLoops || forceDrumMachine;
             try {
                 if (shouldRestartFreshPlayback) {
                     if (wasSequencerPlaying) {
@@ -30080,43 +30229,43 @@
                 }
 
                 if (shouldRestartFreshPlayback) {
-                    if (wasSequencerPlaying) {
+                    if (wasSequencerPlaying || forceSequencer) {
                         startSequencer(restartTime);
-                    } else if (wasArpPlaying) {
+                    } else if (wasArpPlaying || forceArp) {
                         transportLoopStartTime = restartTime;
                     }
 
-                    if (wasBastardLoopPlaying) {
+                    if (wasBastardLoopPlaying || forceBastardLoops) {
                         bastardLoopTransportStartTime = restartTime;
-                        if (wasBastardLoopALive) {
+                        if (wasBastardLoopALive || canStartBastardLoopA) {
                             startBastardLoop(restartTime, { skipUi: true });
                         }
-                        if (wasBastardLoopBLive) {
+                        if (wasBastardLoopBLive || canStartBastardLoopB) {
                             startBastardLoop2(restartTime, { skipUi: true });
                         }
-                        if (wasBastardLoopCLive) {
+                        if (wasBastardLoopCLive || canStartBastardLoopC) {
                             startBastardLoop3(restartTime, { skipUi: true });
                         }
-                        if (wasBastardLoopVLive) {
+                        if (wasBastardLoopVLive || canStartBastardLoopV) {
                             startBastardLoopV(restartTime, { skipUi: true });
                         }
-                        if (wasBastardLoopPLive) {
+                        if (wasBastardLoopPLive || canStartBastardLoopP) {
                             startBastardLoopP(restartTime, { skipUi: true });
                         }
-                        if (wasBastardLoopOLive) {
+                        if (wasBastardLoopOLive || canStartBastardLoopO) {
                             startBastardLoopO(restartTime, { skipUi: true });
                         }
-                        if (wasDropboxSampleLayerLive) {
+                        if (wasDropboxSampleLayerLive || canStartDropboxSampleLayer) {
                             startDropboxSampleLayer(restartTime, { skipUi: true });
                         }
                     }
 
-                    if (wasDrumMachinePlaying) {
+                    if (wasDrumMachinePlaying || forceDrumMachine) {
                         drumMachineTransportStartTime = restartTime;
                         startDrumMachine(restartTime, { skipUi: true, silent: true });
                     }
 
-                    if (wasArpPlaying) {
+                    if (wasArpPlaying || forceArp) {
                         startArpeggiatorPlayback(restartTime);
                     }
                 } else {
@@ -30132,13 +30281,11 @@
                 const { audioBuffer: fullMix, captureStartTime: actualCaptureStartTime } = await recordingPromise;
                 const exactStart = Math.max(0, restartTime - actualCaptureStartTime);
                 const exactDuration = Math.max(0.01, durationSeconds);
-                const exportMix = sliceAudioBuffer(fullMix, exactStart, exactDuration);
-                const filename = createBpmWavFilename(bpm);
                 return {
                     bars,
                     bpm,
-                    filename,
-                    blob: new Blob([audioBufferToWav24bit(exportMix)], { type: 'audio/wav' }),
+                    durationSeconds,
+                    audioBuffer: sliceAudioBuffer(fullMix, exactStart, exactDuration),
                 };
             } finally {
                 if (!shouldRestartFreshPlayback) {
@@ -30146,6 +30293,16 @@
                     stopArpeggiatorPlayback({ restoreHeldPlayback: true });
                 }
             }
+        }
+
+        async function renderDawReadyBarsExport() {
+            const rendered = await renderLiveOutputBarsBuffer();
+            return {
+                bars: rendered.bars,
+                bpm: rendered.bpm,
+                filename: createBpmWavFilename(rendered.bpm),
+                blob: new Blob([audioBufferToWav24bit(rendered.audioBuffer)], { type: 'audio/wav' }),
+            };
         }
 
         async function exportDawReadyBars() {
@@ -30172,6 +30329,11 @@
         const WAV_REPOSITORY_FEEDBACK_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/file-feedback`;
         const WAV_REPOSITORY_RENAME_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/rename`;
         const WAV_REPOSITORY_DELETE_API_URL = `${WAV_REPOSITORY_BASE_URL}/api/delete`;
+        const STEM_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-stems';
+        const STEM_REPOSITORY_LIST_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/list`;
+        const STEM_REPOSITORY_FEEDBACK_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/file-feedback`;
+        const STEM_REPOSITORY_RENAME_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/rename`;
+        const STEM_REPOSITORY_DELETE_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/delete`;
         const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
         const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
         const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-files`;
@@ -30221,6 +30383,19 @@
                 .replace(/-+/g, '-')
                 .replace(/^[-_.]+|[-_.]+$/g, '');
             return `${cleaned || fallbackBase}.wav`;
+        }
+
+        function sanitizeStemRepositoryFilename(value, fallbackBase = 'mygrain-stems') {
+            const fallback = `${fallbackBase}.zip`;
+            const input = String(value || '').trim();
+            if (!input) return fallback;
+            const lastSegment = input.replace(/\\/g, '/').split('/').pop() || '';
+            const cleaned = lastSegment
+                .replace(/\.zip$/i, '')
+                .replace(/[^A-Za-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^[-_.]+|[-_.]+$/g, '');
+            return `${cleaned || fallbackBase}.zip`;
         }
 
         async function uploadWavToRepository(blob, filename) {
@@ -32056,6 +32231,795 @@
             }
         }
 
+        let stemRepositoryBrowserFiles = [];
+        let stemRepositoryBrowserLoading = false;
+        let performanceStemExportInFlight = false;
+
+        const STEM_EXPORT_COMPONENTS = [
+            { key: 'osc', label: 'Osc', stemBase: 'osc', renderGroup: 'sequencer' },
+            { key: 'grainMain', label: 'Grain Main', stemBase: 'grain-main', renderGroup: 'sequencer' },
+            { key: 'grainA', label: 'Grain A', stemBase: 'grain-a', renderGroup: 'sequencer' },
+            { key: 'grainB', label: 'Grain B', stemBase: 'grain-b', renderGroup: 'sequencer' },
+            { key: 'generatedLayer', label: 'Generated Layer', stemBase: 'generated-layer', renderGroup: 'sequencer' },
+            { key: 'dryLoop', label: 'Dry Loop', stemBase: 'dry-loop', renderGroup: 'sequencer' },
+            { key: 'dropboxSample', label: 'Dropbox Sample', stemBase: 'dropbox-sample', renderGroup: 'bastardloops' },
+            { key: 'drumMachine', label: 'Drum Machine', stemBase: 'drum-machine', renderGroup: 'drums' },
+            { key: 'bastardA', label: 'Bastardloop A', stemBase: 'bastardloop-a', renderGroup: 'bastardloops' },
+            { key: 'bastardB', label: 'Bastardloop B', stemBase: 'bastardloop-b', renderGroup: 'bastardloops' },
+            { key: 'bastardC', label: 'Bastardloop C', stemBase: 'bastardloop-c', renderGroup: 'bastardloops' },
+            { key: 'bastardV', label: 'Bastardloop V', stemBase: 'bastardloop-v', renderGroup: 'bastardloops' },
+            { key: 'bastardP', label: 'Bastardloop P', stemBase: 'bastardloop-p', renderGroup: 'bastardloops' },
+            { key: 'bastardO', label: 'Bastardloop O', stemBase: 'bastardloop-o', renderGroup: 'bastardloops' }
+        ];
+
+        function updatePerformanceStemBpmLabel() {
+            if (!performanceStemExportBpmLabel) return;
+            performanceStemExportBpmLabel.textContent = `${getSharedBpmClockValue()} BPM orig`;
+        }
+
+        function setPerformanceStemExportStatus(message = '') {
+            if (performanceStemExportStatus) {
+                performanceStemExportStatus.textContent = message;
+            }
+        }
+
+        function setPerformanceStemExportProgress(value = 0, max = 1, message = '') {
+            if (performanceStemExportProgress) {
+                performanceStemExportProgress.max = Math.max(1, Number(max) || 1);
+                performanceStemExportProgress.value = Math.max(0, Math.min(performanceStemExportProgress.max, Number(value) || 0));
+            }
+            if (message) {
+                setPerformanceStemExportStatus(message);
+            }
+        }
+
+        function syncPerformanceStemExportControls() {
+            updatePerformanceStemBpmLabel();
+            if (performanceStemExportBtn) {
+                performanceStemExportBtn.disabled = performanceStemExportInFlight;
+                performanceStemExportBtn.textContent = performanceStemExportInFlight ? 'Rendering Stems...' : 'Export Stems';
+            }
+            if (performanceStemBrowserBtn) {
+                performanceStemBrowserBtn.disabled = performanceStemExportInFlight;
+            }
+        }
+
+        function buildStemExportDefaultBaseName(bpmValue = null) {
+            const bpm = clampBpmValue(bpmValue || getSharedBpmClockValue());
+            return `${createBpmFilenameBase(bpm)}-orig-${bpm}bpm-stems`;
+        }
+
+        function getStemExportDraftName() {
+            return String(performanceStemExportName?.value || '').trim();
+        }
+
+        function getStemExportDraftNotes() {
+            return String(performanceStemExportNotes?.value || '').replace(/\r\n?/g, '\n').slice(0, 2000);
+        }
+
+        function buildStemExportFileName() {
+            const bpm = clampBpmValue(getSharedBpmClockValue());
+            const requested = getStemExportDraftName();
+            return sanitizeStemRepositoryFilename(requested || buildStemExportDefaultBaseName(bpm), buildStemExportDefaultBaseName(bpm));
+        }
+
+        async function uploadStemZipToRepository(blob, filename) {
+            const response = await fetch(`${STEM_REPOSITORY_BASE_URL}/api/upload?filename=${encodeURIComponent(filename)}`, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/zip',
+                    'X-Filename': filename
+                },
+                body: blob
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Stem upload failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function renameStemZipInRepository(oldName, newName) {
+            const response = await fetch(STEM_REPOSITORY_RENAME_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    oldName,
+                    newName
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Stem rename failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function deleteStemZipFromRepository(filename) {
+            const response = await fetch(`${STEM_REPOSITORY_DELETE_API_URL}?filename=${encodeURIComponent(filename)}`, {
+                method: 'DELETE',
+                mode: 'cors',
+                cache: 'no-store'
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `Stem delete failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        function normalizeStemRepositoryFeedback(feedback = {}, file = {}) {
+            return {
+                routeBase: String(feedback?.routeBase || '/mygrain-stems').trim(),
+                fileName: String(feedback?.fileName || file.name || '').trim(),
+                comment: String(feedback?.comment ?? '').replace(/\r\n?/g, '\n').slice(0, 2000),
+                updatedAt: String(feedback?.updatedAt || '').trim()
+            };
+        }
+
+        function ensureStemRepositoryFeedbackDraft(file) {
+            file.feedback = normalizeStemRepositoryFeedback(file.feedback, file);
+            if (!file.feedbackDraft) {
+                file.feedbackDraft = {
+                    comment: file.feedback.comment
+                };
+            } else {
+                file.feedbackDraft = {
+                    comment: String(file.feedbackDraft.comment ?? file.feedback.comment).replace(/\r\n?/g, '\n').slice(0, 2000)
+                };
+            }
+            return file.feedbackDraft;
+        }
+
+        function isStemRepositoryFeedbackDirty(file) {
+            const saved = normalizeStemRepositoryFeedback(file.feedback, file);
+            const draft = ensureStemRepositoryFeedbackDraft(file);
+            return saved.comment !== draft.comment;
+        }
+
+        function getStemRepositoryFeedbackStatusText(file, saving = false) {
+            if (saving) return 'Saving to repo…';
+            if (isStemRepositoryFeedbackDirty(file)) return 'Unsaved changes.';
+            if (file.feedback?.updatedAt) return `Saved to repo · ${file.feedback.updatedAt}`;
+            return 'No notes saved yet.';
+        }
+
+        function syncStemRepositoryFeedbackUi(file, controls, options = {}) {
+            const draft = ensureStemRepositoryFeedbackDraft(file);
+            const { textarea, saveButton, status } = controls;
+            if (textarea && textarea.value !== draft.comment) textarea.value = draft.comment;
+            autosizeSampleBrowserFeedbackTextarea(textarea);
+            if (saveButton) saveButton.disabled = Boolean(options.saving) || !isStemRepositoryFeedbackDirty(file);
+            if (status) status.textContent = options.error || getStemRepositoryFeedbackStatusText(file, options.saving);
+        }
+
+        async function saveStemRepositoryFeedback(file, controls) {
+            const draft = ensureStemRepositoryFeedbackDraft(file);
+            syncStemRepositoryFeedbackUi(file, controls, { saving: true });
+            try {
+                const response = await fetch(STEM_REPOSITORY_FEEDBACK_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        comment: draft.comment
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Could not save stem note (${response.status})`);
+                }
+                file.feedback = normalizeStemRepositoryFeedback(payload.feedback, file);
+                file.feedbackDraft = {
+                    comment: file.feedback.comment
+                };
+                controls?.textarea?.blur?.();
+                syncStemRepositoryFeedbackUi(file, controls);
+                setStemRepositoryBrowserStatus(`Saved note for ${file.name}.`);
+            } catch (error) {
+                syncStemRepositoryFeedbackUi(file, controls, { error: `Save failed: ${error.message}` });
+                throw error;
+            }
+        }
+
+        function formatStemRepositoryFileMeta(file = {}) {
+            const parts = [];
+            const size = Number(file.size);
+            if (Number.isFinite(size) && size > 0) {
+                if (size >= 1024 * 1024) {
+                    parts.push(`${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`);
+                } else if (size >= 1024) {
+                    parts.push(`${Math.max(1, Math.round(size / 1024))} KB`);
+                } else {
+                    parts.push(`${size} B`);
+                }
+            }
+            const modified = Number(file.modified);
+            if (Number.isFinite(modified) && modified > 0) {
+                const date = new Date(modified * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    parts.push(date.toLocaleString());
+                }
+            }
+            return parts.join(' · ') || 'Saved stem ZIP';
+        }
+
+        function setStemRepositoryBrowserStatus(message = '') {
+            const status = document.getElementById('stemRepositoryBrowserStatus');
+            if (status) status.textContent = message;
+        }
+
+        async function promptRenameStemRepositoryFile(currentName, options = {}) {
+            const sourceName = String(currentName || '').trim();
+            if (!sourceName) return null;
+            const fallbackBase = sourceName.replace(/\.zip$/i, '') || 'mygrain-stems';
+            const requestedName = prompt(options.message || 'Rename stem ZIP:', fallbackBase);
+            if (!requestedName) return null;
+            const nextName = sanitizeStemRepositoryFilename(requestedName, fallbackBase);
+            if (nextName === sourceName) {
+                return {
+                    ok: true,
+                    unchanged: true,
+                    oldName: sourceName,
+                    savedName: sourceName,
+                    url: `${STEM_REPOSITORY_BASE_URL}/${encodeURIComponent(sourceName)}`
+                };
+            }
+            return renameStemZipInRepository(sourceName, nextName);
+        }
+
+        function renderStemRepositoryBrowserFiles() {
+            if (!stemRepositoryBrowserList) return;
+            const query = String(stemRepositoryBrowserFilter?.value || '').trim().toLowerCase();
+            const visibleFiles = stemRepositoryBrowserFiles.filter((file) => {
+                const haystack = `${file.name}`.toLowerCase();
+                return !query || haystack.includes(query);
+            });
+            stemRepositoryBrowserList.innerHTML = '';
+
+            if (!visibleFiles.length) {
+                const empty = document.createElement('div');
+                empty.className = 'sample-browser-empty';
+                empty.textContent = stemRepositoryBrowserLoading
+                    ? 'Loading saved stem ZIPs…'
+                    : (stemRepositoryBrowserFiles.length ? 'No stem bundles match that filter.' : 'No saved stem ZIPs were found.');
+                stemRepositoryBrowserList.appendChild(empty);
+                return;
+            }
+
+            visibleFiles.forEach((file) => {
+                const card = document.createElement('article');
+                card.className = 'sample-browser-card';
+
+                const head = document.createElement('div');
+                head.className = 'sample-browser-card-head';
+
+                const name = document.createElement('div');
+                name.className = 'sample-browser-name';
+                name.textContent = file.name;
+
+                const downloadButton = document.createElement('button');
+                downloadButton.className = 'performance-btn';
+                downloadButton.type = 'button';
+                downloadButton.textContent = 'Download ZIP';
+
+                const renameButton = document.createElement('button');
+                renameButton.className = 'performance-btn';
+                renameButton.type = 'button';
+                renameButton.textContent = 'Rename ZIP';
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'performance-btn danger';
+                deleteButton.type = 'button';
+                deleteButton.textContent = 'Delete ZIP';
+
+                const meta = document.createElement('div');
+                meta.className = 'sample-browser-path';
+                meta.textContent = formatStemRepositoryFileMeta(file);
+
+                const actions = document.createElement('div');
+                actions.className = 'sample-browser-card-actions';
+
+                const repositoryHint = document.createElement('div');
+                repositoryHint.className = 'sample-browser-path';
+                repositoryHint.textContent = 'Stored in MYGRAIN Stem Repository';
+
+                const feedback = document.createElement('div');
+                feedback.className = 'sample-browser-feedback';
+
+                const feedbackLabel = document.createElement('div');
+                feedbackLabel.className = 'sample-browser-feedback-label';
+                feedbackLabel.textContent = 'Repo Notes';
+
+                const textarea = document.createElement('textarea');
+                textarea.className = 'sample-browser-feedback-textarea';
+                textarea.placeholder = 'Add a permanent note for this stem bundle…';
+                textarea.maxLength = 2000;
+
+                const feedbackRow = document.createElement('div');
+                feedbackRow.className = 'sample-browser-feedback-row';
+
+                const saveButton = document.createElement('button');
+                saveButton.className = 'performance-btn primary';
+                saveButton.type = 'button';
+                saveButton.textContent = 'Save Notes';
+
+                const feedbackStatus = document.createElement('div');
+                feedbackStatus.className = 'sample-browser-feedback-status';
+
+                const feedbackControls = {
+                    textarea,
+                    saveButton,
+                    status: feedbackStatus
+                };
+
+                ensureStemRepositoryFeedbackDraft(file);
+                syncStemRepositoryFeedbackUi(file, feedbackControls);
+
+                textarea.addEventListener('input', () => {
+                    const draft = ensureStemRepositoryFeedbackDraft(file);
+                    draft.comment = textarea.value.replace(/\r\n?/g, '\n').slice(0, 2000);
+                    if (textarea.value !== draft.comment) textarea.value = draft.comment;
+                    syncStemRepositoryFeedbackUi(file, feedbackControls);
+                });
+
+                textarea.addEventListener('keydown', async (event) => {
+                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                        event.preventDefault();
+                        try {
+                            await saveStemRepositoryFeedback(file, feedbackControls);
+                        } catch (error) {
+                            console.error(error);
+                            setStatus(`Stem note save failed: ${error.message}`, 'error');
+                        }
+                    }
+                });
+
+                saveButton.addEventListener('click', async () => {
+                    try {
+                        await saveStemRepositoryFeedback(file, feedbackControls);
+                    } catch (error) {
+                        console.error(error);
+                        setStatus(`Stem note save failed: ${error.message}`, 'error');
+                    }
+                });
+
+                downloadButton.addEventListener('click', async () => {
+                    const originalLabel = downloadButton.textContent;
+                    downloadButton.disabled = true;
+                    downloadButton.textContent = 'Preparing...';
+                    try {
+                        const response = await fetch(file.url, {
+                            mode: 'cors',
+                            cache: 'no-store'
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Download failed (${response.status})`);
+                        }
+                        const blob = await response.blob();
+                        await downloadBlob(blob, file.name || 'mygrain-stems.zip');
+                        setStemRepositoryBrowserStatus(`Download ready: ${file.name}.`);
+                    } catch (error) {
+                        console.error(error);
+                        setStemRepositoryBrowserStatus(`Download failed: ${error.message}`);
+                        setStatus(`Stem ZIP download failed: ${error.message}`, 'error');
+                    } finally {
+                        downloadButton.disabled = false;
+                        downloadButton.textContent = originalLabel;
+                    }
+                });
+
+                renameButton.addEventListener('click', async () => {
+                    const originalLabel = renameButton.textContent;
+                    renameButton.disabled = true;
+                    downloadButton.disabled = true;
+                    deleteButton.disabled = true;
+                    saveButton.disabled = true;
+                    renameButton.textContent = 'Renaming...';
+                    try {
+                        const result = await promptRenameStemRepositoryFile(file.name);
+                        if (!result) {
+                            setStemRepositoryBrowserStatus('Rename cancelled.');
+                            return;
+                        }
+                        const savedName = result.savedName || file.name;
+                        setStemRepositoryBrowserStatus(
+                            result.unchanged
+                                ? `${savedName} kept the same name.`
+                                : `Renamed ${file.name} to ${savedName}.`
+                        );
+                        await refreshStemRepositoryBrowser({ forceRefresh: true, silent: true });
+                    } catch (error) {
+                        console.error(error);
+                        setStemRepositoryBrowserStatus(`Rename failed: ${error.message}`);
+                        setStatus(`Stem ZIP rename failed: ${error.message}`, 'error');
+                    } finally {
+                        renameButton.disabled = false;
+                        downloadButton.disabled = false;
+                        deleteButton.disabled = false;
+                        saveButton.disabled = false;
+                        renameButton.textContent = originalLabel;
+                    }
+                });
+
+                deleteButton.addEventListener('click', async () => {
+                    if (!confirm(`Delete ${file.name}?`)) return;
+                    const originalLabel = deleteButton.textContent;
+                    deleteButton.disabled = true;
+                    renameButton.disabled = true;
+                    downloadButton.disabled = true;
+                    saveButton.disabled = true;
+                    deleteButton.textContent = 'Deleting...';
+                    try {
+                        await deleteStemZipFromRepository(file.name);
+                        stemRepositoryBrowserFiles = stemRepositoryBrowserFiles.filter((entry) => entry.name !== file.name);
+                        renderStemRepositoryBrowserFiles();
+                        setStemRepositoryBrowserStatus(`Deleted ${file.name}.`);
+                        await refreshStemRepositoryBrowser({ forceRefresh: true, silent: true });
+                    } catch (error) {
+                        console.error(error);
+                        setStemRepositoryBrowserStatus(`Delete failed: ${error.message}`);
+                        setStatus(`Stem ZIP delete failed: ${error.message}`, 'error');
+                    } finally {
+                        deleteButton.disabled = false;
+                        renameButton.disabled = false;
+                        downloadButton.disabled = false;
+                        saveButton.disabled = false;
+                        deleteButton.textContent = originalLabel;
+                    }
+                });
+
+                feedbackRow.append(feedbackStatus, saveButton);
+                feedback.append(feedbackLabel, textarea, feedbackRow);
+                actions.append(downloadButton, renameButton, deleteButton, repositoryHint);
+                head.append(name);
+                card.append(head, meta, actions, feedback);
+                stemRepositoryBrowserList.appendChild(card);
+            });
+        }
+
+        async function refreshStemRepositoryBrowser(options = {}) {
+            stemRepositoryBrowserLoading = true;
+            if (!options.silent) setStemRepositoryBrowserStatus('Loading saved stem ZIPs…');
+            renderStemRepositoryBrowserFiles();
+            try {
+                const response = await fetch(STEM_REPOSITORY_LIST_API_URL, {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Stem list failed with status ${response.status}`);
+                }
+                stemRepositoryBrowserFiles = Array.isArray(payload.files) ? payload.files : [];
+                setStemRepositoryBrowserStatus(stemRepositoryBrowserFiles.length
+                    ? `${stemRepositoryBrowserFiles.length} stem ZIP${stemRepositoryBrowserFiles.length === 1 ? '' : 's'} in the repository.`
+                    : 'No stem ZIPs were found.');
+            } catch (error) {
+                console.error(error);
+                setStemRepositoryBrowserStatus(`Stem browser failed: ${error.message}`);
+                if (!options.silent) setStatus(`Stem browser failed: ${error.message}`, 'error');
+            } finally {
+                stemRepositoryBrowserLoading = false;
+                renderStemRepositoryBrowserFiles();
+            }
+        }
+
+        function openStemRepositoryBrowser() {
+            if (!stemRepositoryBrowserOverlay) return;
+            stemRepositoryBrowserOverlay.hidden = false;
+            stemRepositoryBrowserOverlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('stem-repository-browser-open');
+            refreshStemRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+            });
+        }
+
+        function closeStemRepositoryBrowser() {
+            if (!stemRepositoryBrowserOverlay) return;
+            stemRepositoryBrowserOverlay.hidden = true;
+            stemRepositoryBrowserOverlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('stem-repository-browser-open');
+        }
+
+        function getStemRenderOptions(component) {
+            if (component.renderGroup === 'bastardloops') {
+                return { forceBastardLoops: true };
+            }
+            if (component.renderGroup === 'drums') {
+                return { forceDrumMachine: true };
+            }
+            return {
+                forceSequencer: true,
+                forceArp: Boolean(arpEnabled && holdEnabled)
+            };
+        }
+
+        function captureStemExportState() {
+            return {
+                fxMuted,
+                finalReverbEnabled,
+                oscillatorsEnabled,
+                granularLayersEnabled,
+                generatedSampleLayerEnabled,
+                generatedDryLoopEnabled,
+                bastardLoopEnabled,
+                bastardLoop2Enabled,
+                bastardLoop3Enabled,
+                bastardLoopVEnabled,
+                bastardLoopPEnabled,
+                bastardLoopOEnabled,
+                dropboxSampleLayerEnabled,
+                drumMachineEnabled,
+                generatedSampleSolo,
+                loopLayerSolo,
+                grainLayerSolo,
+                grainMute: {
+                    main: grainMainMuted,
+                    A: grainAMuted,
+                    B: grainBMuted
+                },
+                drumMachineDirectOutput,
+                drumMachineDirectDelaySendEnabled,
+                drumMachineDirectReverbSendEnabled
+            };
+        }
+
+        function restoreStemExportState(snapshot) {
+            if (!snapshot) return;
+            setGeneratedSampleSolo(snapshot.generatedSampleSolo, { silent: true, skipSave: true });
+            setLoopLayerSolo(snapshot.loopLayerSolo, { silent: true, skipSave: true });
+            setGrainLayerSolo(snapshot.grainLayerSolo, { silent: true, skipSave: true });
+            setOscillatorsEnabled(snapshot.oscillatorsEnabled, { silent: true, skipSave: true });
+            setGranularLayersEnabled(snapshot.granularLayersEnabled, { silent: true, skipSave: true });
+            setGeneratedSampleLayerEnabled(snapshot.generatedSampleLayerEnabled, { silent: true, skipSave: true });
+            setGeneratedDryLoopEnabled(snapshot.generatedDryLoopEnabled, { silent: true, skipSave: true });
+            setBastardLoopEnabled(snapshot.bastardLoopEnabled, { silent: true, skipSave: true });
+            setBastardLoop2Enabled(snapshot.bastardLoop2Enabled, { silent: true, skipSave: true });
+            setBastardLoop3Enabled(snapshot.bastardLoop3Enabled, { silent: true, skipSave: true });
+            setBastardLoopVEnabled(snapshot.bastardLoopVEnabled, { silent: true, skipSave: true });
+            setBastardLoopPEnabled(snapshot.bastardLoopPEnabled, { silent: true, skipSave: true });
+            setBastardLoopOEnabled(snapshot.bastardLoopOEnabled, { silent: true, skipSave: true });
+            setDropboxSampleLayerEnabled(snapshot.dropboxSampleLayerEnabled, { silent: true, skipSave: true });
+            setDrumMachineEnabled(snapshot.drumMachineEnabled, { silent: true, skipSave: true });
+            setGranularLayerMuted('main', snapshot.grainMute.main, { silent: true, skipSave: true });
+            setGranularLayerMuted('A', snapshot.grainMute.A, { silent: true, skipSave: true });
+            setGranularLayerMuted('B', snapshot.grainMute.B, { silent: true, skipSave: true });
+            setDrumMachineDirectOutput(snapshot.drumMachineDirectOutput, { silent: true, skipSave: true });
+            setDrumMachineDirectDelaySend(snapshot.drumMachineDirectDelaySendEnabled, { silent: true, skipSave: true });
+            setDrumMachineDirectReverbSend(snapshot.drumMachineDirectReverbSendEnabled, { silent: true, skipSave: true });
+            setFinalReverbEnabled(snapshot.finalReverbEnabled, { silent: true, skipSave: true });
+            setFxMuted(snapshot.fxMuted, { silent: true });
+            updateEffects();
+            syncPerformanceControlState();
+            saveState();
+        }
+
+        function resetStemIsolationState() {
+            setGeneratedSampleSolo(false, { silent: true, skipSave: true });
+            setLoopLayerSolo('none', { silent: true, skipSave: true });
+            setGrainLayerSolo('none', { silent: true, skipSave: true });
+            setOscillatorsEnabled(false, { silent: true, skipSave: true });
+            setGranularLayersEnabled(false, { silent: true, skipSave: true });
+            setGeneratedSampleLayerEnabled(false, { silent: true, skipSave: true });
+            setGeneratedDryLoopEnabled(false, { silent: true, skipSave: true });
+            setBastardLoopEnabled(false, { silent: true, skipSave: true });
+            setBastardLoop2Enabled(false, { silent: true, skipSave: true });
+            setBastardLoop3Enabled(false, { silent: true, skipSave: true });
+            setBastardLoopVEnabled(false, { silent: true, skipSave: true });
+            setBastardLoopPEnabled(false, { silent: true, skipSave: true });
+            setBastardLoopOEnabled(false, { silent: true, skipSave: true });
+            setDropboxSampleLayerEnabled(false, { silent: true, skipSave: true });
+            setDrumMachineEnabled(false, { silent: true, skipSave: true });
+            setGranularLayerMuted('main', true, { silent: true, skipSave: true });
+            setGranularLayerMuted('A', true, { silent: true, skipSave: true });
+            setGranularLayerMuted('B', true, { silent: true, skipSave: true });
+            setFxMuted(true, { silent: true });
+        }
+
+        function applyStemIsolation(componentKey) {
+            resetStemIsolationState();
+            switch (componentKey) {
+                case 'osc':
+                    setOscillatorsEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'grainMain':
+                    setGranularLayersEnabled(true, { silent: true, skipSave: true });
+                    setGranularLayerMuted('main', false, { silent: true, skipSave: true });
+                    break;
+                case 'grainA':
+                    setGranularLayersEnabled(true, { silent: true, skipSave: true });
+                    setGranularLayerMuted('A', false, { silent: true, skipSave: true });
+                    break;
+                case 'grainB':
+                    setGranularLayersEnabled(true, { silent: true, skipSave: true });
+                    setGranularLayerMuted('B', false, { silent: true, skipSave: true });
+                    break;
+                case 'generatedLayer':
+                    setGranularLayersEnabled(true, { silent: true, skipSave: true });
+                    setGeneratedSampleLayerEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'dryLoop':
+                    setGeneratedDryLoopEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'dropboxSample':
+                    setDropboxSampleLayerEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'drumMachine':
+                    setDrumMachineEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardA':
+                    setBastardLoopEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardB':
+                    setBastardLoop2Enabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardC':
+                    setBastardLoop3Enabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardV':
+                    setBastardLoopVEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardP':
+                    setBastardLoopPEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardO':
+                    setBastardLoopOEnabled(true, { silent: true, skipSave: true });
+                    break;
+                default:
+                    break;
+            }
+            updateEffects();
+            syncPerformanceControlState();
+        }
+
+        async function renderStemComponent(component, bundleBaseName) {
+            applyStemIsolation(component.key);
+            await delayMs(EXPORT_RENDER_SETTLE_MS);
+            const rendered = await renderLiveOutputBarsBuffer(getStemRenderOptions(component));
+            if (!audioBufferHasSignal(rendered.audioBuffer)) {
+                return null;
+            }
+            return {
+                key: component.key,
+                label: component.label,
+                filename: `${bundleBaseName}--${component.stemBase}.wav`,
+                audioBuffer: rendered.audioBuffer,
+                bpm: rendered.bpm,
+                bars: rendered.bars
+            };
+        }
+
+        function buildStemExportZipBlob(filename, notes, originalBpm, bars, stems) {
+            const manifest = {
+                app: 'MYGRAIN',
+                format: 'mygrain-stem-export',
+                formatVersion: 1,
+                createdAt: new Date().toISOString(),
+                filename,
+                originalBpm,
+                bars,
+                notes,
+                stems: stems.map((stem) => ({
+                    key: stem.key,
+                    label: stem.label,
+                    filename: stem.filename,
+                    channels: stem.audioBuffer.numberOfChannels,
+                    sampleRate: stem.audioBuffer.sampleRate,
+                    durationSeconds: Number(stem.audioBuffer.duration.toFixed(4))
+                }))
+            };
+            const entries = [
+                { path: 'manifest.json', data: JSON.stringify(manifest, null, 2) },
+                { path: 'notes.txt', data: notes || '' }
+            ];
+            stems.forEach((stem) => {
+                entries.push({
+                    path: `stems/${stem.filename}`,
+                    data: audioBufferToWav24bit(stem.audioBuffer)
+                });
+            });
+            return createStoredZip(entries);
+        }
+
+        async function exportStemBundle() {
+            if (performanceStemExportInFlight) return;
+            performanceStemExportInFlight = true;
+            syncPerformanceStemExportControls();
+            const originalBpm = clampBpmValue(getSharedBpmClockValue());
+            const bundleFilename = buildStemExportFileName();
+            const bundleBaseName = bundleFilename.replace(/\.zip$/i, '');
+            const bundleNotes = getStemExportDraftNotes();
+            const exportState = captureStemExportState();
+            try {
+                const totalProgressSteps = STEM_EXPORT_COMPONENTS.length + 3;
+                let progressStep = 0;
+                setPerformanceStemExportProgress(progressStep, totalProgressSteps, 'Preparing stem export…');
+                const renderedStems = [];
+
+                for (const component of STEM_EXPORT_COMPONENTS) {
+                    progressStep += 1;
+                    setPerformanceStemExportProgress(progressStep, totalProgressSteps, `Rendering ${component.label}…`);
+                    const renderedStem = await renderStemComponent(component, bundleBaseName);
+                    if (renderedStem) {
+                        renderedStems.push(renderedStem);
+                    }
+                }
+
+                restoreStemExportState(exportState);
+                await delayMs(EXPORT_RENDER_SETTLE_MS);
+
+                progressStep += 1;
+                setPerformanceStemExportProgress(progressStep, totalProgressSteps, 'Rendering wet reference…');
+                const wetReference = await renderLiveOutputBarsBuffer();
+
+                setFxMuted(true, { silent: true });
+                updateEffects();
+                await delayMs(EXPORT_RENDER_SETTLE_MS);
+
+                progressStep += 1;
+                setPerformanceStemExportProgress(progressStep, totalProgressSteps, 'Rendering dry FX reference…');
+                const dryReference = await renderLiveOutputBarsBuffer();
+
+                restoreStemExportState(exportState);
+
+                const fxStemBuffer = subtractAudioBuffers(wetReference.audioBuffer, dryReference.audioBuffer);
+                if (audioBufferHasSignal(fxStemBuffer)) {
+                    renderedStems.push({
+                        key: 'effects',
+                        label: 'Effects',
+                        filename: `${bundleBaseName}--effects.wav`,
+                        audioBuffer: fxStemBuffer,
+                        bpm: wetReference.bpm,
+                        bars: wetReference.bars
+                    });
+                }
+
+                if (!renderedStems.length) {
+                    throw new Error('No audible stems were rendered from the current MYGRAIN state.');
+                }
+
+                progressStep += 1;
+                setPerformanceStemExportProgress(progressStep, totalProgressSteps, `Bundling ${renderedStems.length} stems…`);
+                const zipBlob = await buildStemExportZipBlob(bundleFilename, bundleNotes, originalBpm, wetReference.bars, renderedStems);
+                const uploadResult = await uploadStemZipToRepository(zipBlob, bundleFilename);
+                if (bundleNotes) {
+                    try {
+                        await fetch(STEM_REPOSITORY_FEEDBACK_API_URL, {
+                            method: 'POST',
+                            mode: 'cors',
+                            cache: 'no-store',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                filename: uploadResult.savedName || bundleFilename,
+                                comment: bundleNotes
+                            })
+                        });
+                    } catch (error) {
+                        console.warn('Could not save initial stem export note:', error);
+                    }
+                }
+                setPerformanceStemExportProgress(totalProgressSteps, totalProgressSteps, `Uploaded ${uploadResult.savedName || bundleFilename} to the stem repository.`);
+                setStatus(`Stem export uploaded: ${uploadResult.savedName || bundleFilename}.`);
+                await refreshStemRepositoryBrowser({ forceRefresh: true, silent: true });
+            } finally {
+                restoreStemExportState(exportState);
+                performanceStemExportInFlight = false;
+                syncPerformanceStemExportControls();
+            }
+        }
+
         let patchRepositoryBrowserFiles = [];
         let patchRepositoryBrowserLoading = false;
 
@@ -33745,6 +34709,11 @@
         const performanceTakeBrowserUploadBtn = document.getElementById('performanceTakeBrowserUploadBtn');
         const performanceTakeBrowserStatus = document.getElementById('performanceTakeBrowserStatus');
         const performanceTakeBrowserList = document.getElementById('performanceTakeBrowserList');
+        const stemRepositoryBrowserOverlay = document.getElementById('stemRepositoryBrowserOverlay');
+        const stemRepositoryBrowserCloseBtn = document.getElementById('stemRepositoryBrowserCloseBtn');
+        const stemRepositoryBrowserRefreshBtn = document.getElementById('stemRepositoryBrowserRefreshBtn');
+        const stemRepositoryBrowserFilter = document.getElementById('stemRepositoryBrowserFilter');
+        const stemRepositoryBrowserList = document.getElementById('stemRepositoryBrowserList');
         const dropboxSampleBrowserOverlay = document.getElementById('dropboxSampleBrowserOverlay');
         const dropboxSampleBrowserCloseBtn = document.getElementById('dropboxSampleBrowserCloseBtn');
         const dropboxSampleBrowserRefreshBtn = document.getElementById('dropboxSampleBrowserRefreshBtn');
@@ -33799,6 +34768,13 @@
         const performanceExportBars = document.getElementById('performanceExportBars');
         const performanceExportBtn = document.getElementById('performanceExportBtn');
         const performanceRepoExportBtn = document.getElementById('performanceRepoExportBtn');
+        const performanceStemExportName = document.getElementById('performanceStemExportName');
+        const performanceStemExportNotes = document.getElementById('performanceStemExportNotes');
+        const performanceStemExportBpmLabel = document.getElementById('performanceStemExportBpmLabel');
+        const performanceStemExportProgress = document.getElementById('performanceStemExportProgress');
+        const performanceStemExportStatus = document.getElementById('performanceStemExportStatus');
+        const performanceStemExportBtn = document.getElementById('performanceStemExportBtn');
+        const performanceStemBrowserBtn = document.getElementById('performanceStemBrowserBtn');
         const performanceWavBrowserBtn = document.getElementById('performanceWavBrowserBtn');
         const performanceTakeSlot1Btn = document.getElementById('performanceTakeSlot1Btn');
         const performanceTakeSlot2Btn = document.getElementById('performanceTakeSlot2Btn');
@@ -35473,6 +36449,27 @@
             }
         });
 
+        stemRepositoryBrowserCloseBtn?.addEventListener('click', () => {
+            closeStemRepositoryBrowser();
+        });
+
+        stemRepositoryBrowserRefreshBtn?.addEventListener('click', () => {
+            refreshStemRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+                setStemRepositoryBrowserStatus(`Stem list failed: ${error.message}`);
+            });
+        });
+
+        stemRepositoryBrowserFilter?.addEventListener('input', () => {
+            renderStemRepositoryBrowserFiles();
+        });
+
+        stemRepositoryBrowserOverlay?.addEventListener('click', (event) => {
+            if (event.target === stemRepositoryBrowserOverlay) {
+                closeStemRepositoryBrowser();
+            }
+        });
+
         [
             ['pointerdown', { capture: true }],
             ['touchend', { capture: true, passive: false }],
@@ -35815,6 +36812,32 @@
             }
         });
 
+        performanceStemExportBtn?.addEventListener('click', async () => {
+            try {
+                await exportStemBundle();
+            } catch (error) {
+                console.error(error);
+                setPerformanceStemExportStatus(`Stem export failed: ${error.message}`);
+                setStatus(`Stem export failed: ${error.message}`, 'error');
+            }
+        });
+
+        performanceStemBrowserBtn?.addEventListener('click', () => {
+            openStemRepositoryBrowser();
+        });
+
+        performanceStemExportName?.addEventListener('input', () => {
+            saveState();
+        });
+
+        performanceStemExportNotes?.addEventListener('input', () => {
+            autosizeSampleBrowserFeedbackTextarea(performanceStemExportNotes);
+            saveState();
+        });
+
+        document.getElementById('globalBpmSlider')?.addEventListener('input', updatePerformanceStemBpmLabel);
+        document.getElementById('globalBpmNumber')?.addEventListener('input', updatePerformanceStemBpmLabel);
+
         performanceWavBrowserBtn?.addEventListener('click', () => {
             openWavRepositoryBrowser();
         });
@@ -36020,6 +37043,10 @@
         restoreRememberedBpmFromStorage({ applySharedClock: true });
         verifyTempoLockedPitchDirection();
         syncFinalPanControlDisplays();
+        updatePerformanceStemBpmLabel();
+        autosizeSampleBrowserFeedbackTextarea(performanceStemExportNotes);
+        setPerformanceStemExportProgress(0, 1, 'Ready to render stems to the separate repository.');
+        syncPerformanceStemExportControls();
         syncPerformanceControlState();
 
     </script>
