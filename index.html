@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-07-18-build-v2026.10.10.3';
+            const cacheBuster = '2026-10-10-07-24-build-v2026.10.10.4';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -133,7 +133,8 @@
         body.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,
         body.wav-repository-browser-open #wavRepositoryBrowserOverlay,
         body.patch-repository-browser-open #patchRepositoryBrowserOverlay,
-        body.performance-take-browser-open #performanceTakeBrowserOverlay {
+        body.performance-take-browser-open #performanceTakeBrowserOverlay,
+        body.bastardloop-samples-open #bastardLoopSamplesOverlay {
             display: flex;
         }
 
@@ -4314,7 +4315,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.4</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4367,7 +4368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.4</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -15012,7 +15013,7 @@
                     : (bastardLoopBuffer ? 'Rebuild Bastardloop A' : 'Generate Bastardloop A');
             }
             if (samplesButton) {
-                samplesButton.disabled = bastardLoopGenerationInFlight || !bastardLoopBuffer;
+                samplesButton.disabled = bastardLoopGenerationInFlight || (!bastardLoopBuffer && getBastardLoopSampleNames('A').length === 0);
             }
             playButtons.forEach((playButton) => {
                 playButton.disabled = anyGenerationInFlight || !anyBufferReady;
@@ -15275,7 +15276,7 @@
                     : (bastardLoop2Buffer ? 'Rebuild Bastardloop B' : 'Generate Bastardloop B');
             }
             if (samplesButton) {
-                samplesButton.disabled = bastardLoop2GenerationInFlight || !bastardLoop2Buffer;
+                samplesButton.disabled = bastardLoop2GenerationInFlight || (!bastardLoop2Buffer && getBastardLoopSampleNames('B').length === 0);
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoop2Reverse);
@@ -15532,7 +15533,7 @@
                     : (bastardLoop3Buffer ? 'Rebuild Bastardloop C' : 'Generate Bastardloop C');
             }
             if (samplesButton) {
-                samplesButton.disabled = bastardLoop3GenerationInFlight || !bastardLoop3Buffer;
+                samplesButton.disabled = bastardLoop3GenerationInFlight || (!bastardLoop3Buffer && getBastardLoopSampleNames('C').length === 0);
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoop3Reverse);
@@ -15779,7 +15780,7 @@
                     : (bastardLoopVBuffer ? 'Rebuild Bastardloop V' : 'Generate Bastardloop V');
             }
             if (samplesButton) {
-                samplesButton.disabled = bastardLoopVGenerationInFlight || !bastardLoopVBuffer;
+                samplesButton.disabled = bastardLoopVGenerationInFlight || (!bastardLoopVBuffer && getBastardLoopSampleNames('V').length === 0);
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoopVReverse);
@@ -16033,7 +16034,7 @@
                     : (bastardLoopPBuffer ? 'Rebuild Bastardloop P' : 'Generate Bastardloop P');
             }
             if (samplesButton) {
-                samplesButton.disabled = bastardLoopPGenerationInFlight || !bastardLoopPBuffer;
+                samplesButton.disabled = bastardLoopPGenerationInFlight || (!bastardLoopPBuffer && getBastardLoopSampleNames('P').length === 0);
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoopPReverse);
@@ -16279,7 +16280,7 @@
                     : (bastardLoopOBuffer ? 'Rebuild Bastardloop O' : 'Generate Bastardloop O');
             }
             if (samplesButton) {
-                samplesButton.disabled = bastardLoopOGenerationInFlight || !bastardLoopOBuffer;
+                samplesButton.disabled = bastardLoopOGenerationInFlight || (!bastardLoopOBuffer && getBastardLoopSampleNames('O').length === 0);
             }
             if (reverseButton) {
                 reverseButton.classList.toggle('active', bastardLoopOReverse);
@@ -31706,11 +31707,17 @@
         function openBastardLoopSamplesDialog(layer = 'A') {
             const overlay = document.getElementById('bastardLoopSamplesOverlay');
             if (!overlay) return;
+            if (overlay.parentElement !== document.body) {
+                document.body.appendChild(overlay);
+            }
             activeBastardLoopSamplesLayer = String(layer || 'A').toUpperCase();
             renderBastardLoopSamplesDialog();
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-samples-open');
+            appendBastardLoopTrace(activeBastardLoopSamplesLayer, 'used-samples-open', {
+                sampleNames: getBastardLoopSampleNames(activeBastardLoopSamplesLayer).slice(0, 8)
+            });
         }
 
         function closeBastardLoopSamplesDialog() {
