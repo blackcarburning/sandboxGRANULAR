@@ -6182,29 +6182,41 @@
                     <input type="range" id="finalRingDepth" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="finalReverbRoomPreset">
+                        <span>Room Type</span>
+                    </label>
+                    <select id="finalReverbRoomPreset" class="performance-select">
+                        <option value="cloud" selected>Cloud / Manual</option>
+                        <option value="smallRoom">Small Room</option>
+                        <option value="largeRoom">Large Room</option>
+                        <option value="hall">Hall</option>
+                        <option value="cathedral">Cathedral</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
                     <label for="finalReverbSize">
-                        <span>Cloud Size</span>
+                        <span>Room Size</span>
                         <span class="value" id="finalReverbSizeValue">45%</span>
                     </label>
                     <input type="range" id="finalReverbSize" min="0" max="100" value="45" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbDecay">
-                        <span>Cloud Decay</span>
+                        <span>Room Decay</span>
                         <span class="value" id="finalReverbDecayValue">55%</span>
                     </label>
                     <input type="range" id="finalReverbDecay" min="0" max="100" value="55" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbLowpass">
-                        <span>Cloud Tone</span>
+                        <span>Room Tone</span>
                         <span class="value" id="finalReverbLowpassValue">6400Hz</span>
                     </label>
                     <input type="range" id="finalReverbLowpass" min="800" max="12000" value="6400" step="100">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbMix">
-                        <span>Cloud Mix</span>
+                        <span>Room Mix</span>
                         <span class="value" id="finalReverbMixValue">0%</span>
                     </label>
                     <input type="range" id="finalReverbMix" min="0" max="100" value="0" step="1">
@@ -6227,6 +6239,13 @@
                         <span class="value" id="finalReverbShimmerMixValue">0%</span>
                     </label>
                     <input type="range" id="finalReverbShimmerMix" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="finalReverbDrumSend">
+                        <span>Drum Verb Send</span>
+                        <span class="value" id="finalReverbDrumSendValue">135%</span>
+                    </label>
+                    <input type="range" id="finalReverbDrumSend" min="0" max="200" value="135" step="1">
                 </div>
                 <div class="performance-sound-card performance-octave-card">
                     <label>
@@ -6256,9 +6275,9 @@
                     </section>
                     <section class="internal-effects-card reverb-card" id="internalReverbCard" aria-label="Reverb controls">
                         <div class="internal-effects-card-head">
-                            <span class="performance-chip">Cloud</span>
+                            <span class="performance-chip">Room</span>
                             <h4 class="internal-effects-card-title">Reverb</h4>
-                            <p class="internal-effects-card-note">Big-sky style bloom with a softer front edge, longer tail, and a cleaner cloud bed instead of the old extra reverb path.</p>
+                            <p class="internal-effects-card-note">Normal room, hall, and cathedral spaces plus the old cloud mode, all feeding the shared reverb bus.</p>
                         </div>
                         <div class="internal-effects-grid" id="internalReverbGrid"></div>
                     </section>
@@ -12116,10 +12135,10 @@
             finalReverbShimmerGain = audioContext.createGain();
             finalReverbShimmerGain.gain.value = 0;
             finalReverbImpulseKey = '';
-            const initialReverbImpulse = createFinalReverbImpulseForContext(audioContext, 0.45, 0.55);
+            const initialReverbImpulse = createFinalReverbImpulseForContext(audioContext, 0.45, 0.55, 'cloud');
             finalReverbNode.buffer = initialReverbImpulse;
             finalReverbShimmerNode.buffer = null;
-            finalReverbImpulseKey = '45:55:off';
+            finalReverbImpulseKey = 'cloud:45:55:off';
 
             masterGain.connect(finalFxInput);
             finalFxInput.connect(finalDistortionNodes[0]);
@@ -12600,6 +12619,101 @@
             return curve;
         }
 
+        const FINAL_REVERB_ROOM_PRESETS = {
+            cloud: {
+                label: 'Cloud / Manual',
+                size: 45,
+                decay: 55,
+                lowpass: 6400,
+                mix: 22,
+                predelay: 0.024,
+                seconds: null,
+                damping: 1.65,
+                earlyScale: 1
+            },
+            smallRoom: {
+                label: 'Small Room',
+                size: 16,
+                decay: 24,
+                lowpass: 7800,
+                mix: 28,
+                predelay: 0.006,
+                seconds: 0.82,
+                damping: 5.2,
+                earlyScale: 1.35
+            },
+            largeRoom: {
+                label: 'Large Room',
+                size: 34,
+                decay: 42,
+                lowpass: 6800,
+                mix: 34,
+                predelay: 0.012,
+                seconds: 1.75,
+                damping: 3.2,
+                earlyScale: 1.18
+            },
+            hall: {
+                label: 'Hall',
+                size: 58,
+                decay: 64,
+                lowpass: 5900,
+                mix: 40,
+                predelay: 0.026,
+                seconds: 3.6,
+                damping: 2.15,
+                earlyScale: 0.86
+            },
+            cathedral: {
+                label: 'Cathedral',
+                size: 88,
+                decay: 86,
+                lowpass: 5200,
+                mix: 46,
+                predelay: 0.052,
+                seconds: 7.8,
+                damping: 1.18,
+                earlyScale: 0.62
+            }
+        };
+
+        function normalizeFinalReverbRoomPreset(value) {
+            return Object.prototype.hasOwnProperty.call(FINAL_REVERB_ROOM_PRESETS, value) ? value : 'cloud';
+        }
+
+        function getFinalReverbRoomPreset() {
+            return normalizeFinalReverbRoomPreset(document.getElementById('finalReverbRoomPreset')?.value || 'cloud');
+        }
+
+        function getFinalReverbDrumSendAmount() {
+            const value = Number(document.getElementById('finalReverbDrumSend')?.value);
+            return Math.max(0, Math.min(2, Number.isFinite(value) ? value / 100 : 1.35));
+        }
+
+        function applyFinalReverbRoomPreset(value, options = {}) {
+            const presetKey = normalizeFinalReverbRoomPreset(value);
+            const preset = FINAL_REVERB_ROOM_PRESETS[presetKey];
+            const select = document.getElementById('finalReverbRoomPreset');
+            if (select) select.value = presetKey;
+
+            if (presetKey !== 'cloud') {
+                setSliderValue('finalReverbSize', preset.size, { dispatch: options.dispatch !== false });
+                setSliderValue('finalReverbDecay', preset.decay, { dispatch: options.dispatch !== false });
+                setSliderValue('finalReverbLowpass', preset.lowpass, { dispatch: options.dispatch !== false });
+                setSliderValue('finalReverbMix', preset.mix, { dispatch: options.dispatch !== false });
+                setFinalReverbEnabled(true, { silent: true, skipSave: true });
+            }
+
+            updateEffects();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(`${preset.label} reverb selected.`);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function getFinalReverbShimmerRatio(mode = 'off') {
             switch (String(mode || 'off')) {
                 case '-24': return 0.25;
@@ -12633,7 +12747,57 @@
             };
         }
 
-        function createFinalReverbImpulseForContext(ctx, sizeAmount, decayAmount) {
+        function createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'smallRoom') {
+            const presetKey = normalizeFinalReverbRoomPreset(roomPreset);
+            const preset = FINAL_REVERB_ROOM_PRESETS[presetKey] || FINAL_REVERB_ROOM_PRESETS.smallRoom;
+            const sampleRate = ctx.sampleRate;
+            const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
+            const decay = Math.max(0, Math.min(1, Number(decayAmount) || 0));
+            const seconds = Math.max(0.18, Math.min(9.5, (preset.seconds || 1.5) * (0.72 + size * 0.56) * (0.72 + decay * 0.56)));
+            const length = Math.max(1, Math.round(sampleRate * seconds));
+            const impulse = ctx.createBuffer(2, length, sampleRate);
+            const decayPower = Math.max(0.9, preset.damping - decay * 0.82);
+            const earlyReflections = Math.round((20 + size * 64) * (preset.earlyScale || 1));
+            const roomToneHz = {
+                smallRoom: 680,
+                largeRoom: 430,
+                hall: 260,
+                cathedral: 140
+            }[presetKey] || 430;
+
+            for (let channel = 0; channel < 2; channel++) {
+                const data = impulse.getChannelData(channel);
+                let diffusionA = 0;
+                let diffusionB = 0;
+                for (let i = 0; i < length; i += 1) {
+                    const progress = i / length;
+                    const time = i / sampleRate;
+                    const tail = Math.pow(1 - progress, decayPower);
+                    const raw = Math.random() * 2 - 1;
+                    diffusionA = diffusionA * (0.78 + size * 0.12) + raw * (0.22 - size * 0.05);
+                    diffusionB = diffusionB * (0.64 + size * 0.2) + diffusionA * (0.36 - size * 0.08);
+                    const flutter = Math.sin(2 * Math.PI * (roomToneHz + channel * 23) * time) * (0.006 + size * 0.01) * (1 - progress);
+                    const air = Math.sin(2 * Math.PI * (roomToneHz * 2.17 + channel * 41) * time) * 0.004 * (1 - progress);
+                    data[i] = (diffusionA * 0.28 + diffusionB * 0.72 + flutter + air) * tail * (0.82 - size * 0.08);
+                }
+
+                for (let r = 0; r < earlyReflections; r += 1) {
+                    const earlySeconds = (0.003 + r * (0.0015 + size * 0.0028) + Math.random() * (0.005 + size * 0.014))
+                        * (presetKey === 'cathedral' ? 1.7 : presetKey === 'hall' ? 1.35 : 1);
+                    const pos = Math.min(length - 1, Math.round(earlySeconds * sampleRate));
+                    const polarity = Math.random() < 0.5 ? -1 : 1;
+                    data[pos] += polarity * (0.34 / (1 + r * (0.16 + size * 0.18)));
+                }
+            }
+
+            return impulse;
+        }
+
+        function createFinalReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'cloud') {
+            const presetKey = normalizeFinalReverbRoomPreset(roomPreset);
+            if (presetKey !== 'cloud') {
+                return createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, presetKey);
+            }
             const sampleRate = ctx.sampleRate;
             const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
             const decay = Math.max(0, Math.min(1, Number(decayAmount) || 0));
@@ -12669,8 +12833,8 @@
             return impulse;
         }
 
-        function createFinalReverbImpulse(sizeAmount, decayAmount) {
-            return createFinalReverbImpulseForContext(audioContext, sizeAmount, decayAmount);
+        function createFinalReverbImpulse(sizeAmount, decayAmount, roomPreset = getFinalReverbRoomPreset()) {
+            return createFinalReverbImpulseForContext(audioContext, sizeAmount, decayAmount, roomPreset);
         }
 
         function createFinalReverbShimmerImpulseForContext(ctx, baseImpulse, shimmerMode = 'off') {
@@ -12680,13 +12844,14 @@
             return pitchShiftBufferByRatioKeepDuration(baseImpulse, ratio, ctx);
         }
 
-        function updateFinalReverbImpulse(sizeAmount, decayAmount, shimmerMode = 'off') {
+        function updateFinalReverbImpulse(sizeAmount, decayAmount, shimmerMode = 'off', roomPreset = getFinalReverbRoomPreset()) {
             if (!audioContext || !finalReverbNode) return;
+            const presetKey = normalizeFinalReverbRoomPreset(roomPreset);
             const sizeBucket = Math.round(Math.max(0, Math.min(1, sizeAmount)) * 100);
             const decayBucket = Math.round(Math.max(0, Math.min(1, decayAmount)) * 100);
-            const key = `${sizeBucket}:${decayBucket}:${String(shimmerMode || 'off')}`;
+            const key = `${presetKey}:${sizeBucket}:${decayBucket}:${String(shimmerMode || 'off')}`;
             if (finalReverbImpulseKey === key && finalReverbNode.buffer) return;
-            const baseImpulse = createFinalReverbImpulse(sizeAmount, decayAmount);
+            const baseImpulse = createFinalReverbImpulse(sizeAmount, decayAmount, presetKey);
             finalReverbNode.buffer = baseImpulse;
             if (finalReverbShimmerNode) {
                 finalReverbShimmerNode.buffer = createFinalReverbShimmerImpulseForContext(audioContext, baseImpulse, shimmerMode);
@@ -13121,9 +13286,11 @@
             const reverbDecay = getSliderPercent('finalReverbDecay');
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const reverbLowpass = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
+            const reverbRoomPreset = getFinalReverbRoomPreset();
+            const reverbRoom = FINAL_REVERB_ROOM_PRESETS[reverbRoomPreset] || FINAL_REVERB_ROOM_PRESETS.cloud;
             const shimmer = getFinalReverbShimmerSettings();
-            updateFinalReverbImpulse(reverbSize, reverbDecay, shimmer.mode);
-            smoothRamp(finalReverbPreDelay?.delayTime, 0.004 + reverbSize * 0.086);
+            updateFinalReverbImpulse(reverbSize, reverbDecay, shimmer.mode, reverbRoomPreset);
+            smoothRamp(finalReverbPreDelay?.delayTime, reverbRoom.predelay ?? (0.004 + reverbSize * 0.086));
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
             smoothRamp(finalReverbWetGain?.gain, reverbMix * (0.68 + reverbSize * 0.18));
             if (finalReverbShimmerDrive) {
@@ -18133,7 +18300,7 @@
             });
 
             const directDelaySendGain = shouldRouteDrumMachineDirectToOutput() && drumMachineDirectDelaySendEnabled ? 1 : 0;
-            const directReverbSendGain = shouldRouteDrumMachineDirectToOutput() && drumMachineDirectReverbSendEnabled ? 1 : 0;
+            const directReverbSendGain = drumMachineDirectReverbSendEnabled ? getFinalReverbDrumSendAmount() : 0;
             [
                 { bus: drumMachineDirectDelaySendGainNode, gain: directDelaySendGain },
                 { bus: drumMachineDirectReverbSendGainNode, gain: directReverbSendGain }
@@ -18709,12 +18876,10 @@
 
             directReverbButtons.forEach((button) => {
                 if (!button) return;
-                button.classList.toggle('active', drumMachineDirectReverbSendEnabled && drumMachineDirectOutput);
+                button.classList.toggle('active', drumMachineDirectReverbSendEnabled);
                 button.textContent = drumMachineDirectReverbSendEnabled ? 'Reverb Send On' : 'Reverb Send Off';
                 button.setAttribute('aria-pressed', String(drumMachineDirectReverbSendEnabled));
-                button.title = drumMachineDirectOutput
-                    ? 'Send direct-output drums into the shared reverb bus.'
-                    : 'Enable this, then turn Direct Out on to feed drums into the shared reverb bus.';
+                button.title = 'Send the drum machine into the shared reverb bus.';
             });
 
             browserButtons.forEach((button) => {
@@ -19095,8 +19260,8 @@
             syncDrumMachineUi();
             if (!options.silent) {
                 setStatus(drumMachineDirectReverbSendEnabled
-                    ? 'Drum machine direct output routed to reverb.'
-                    : 'Drum machine direct reverb send off.');
+                    ? 'Drum machine routed to reverb.'
+                    : 'Drum machine reverb send off.');
             }
             if (!options.skipSave) {
                 saveState();
@@ -24103,7 +24268,7 @@
                         } else if (e.target.id === 'performanceClickGuard') {
                             labelSpan.textContent = `${Math.round(Number(e.target.value) || 0)}ms`;
                             return;
-                        } else if (e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' || e.target.id === 'finalReverbShimmerMix') suffix = '%';
+                        } else if (e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' || e.target.id === 'finalReverbShimmerMix' || e.target.id === 'finalReverbDrumSend') suffix = '%';
                         else if (lowerId.includes('size') || lowerId.includes('attack') || lowerId.includes('release') || lowerId.includes('decay')) suffix = 'ms';
                         else if (e.target.id === 'density') suffix = ' gr/s';
                         else if (e.target.id === 'lpfCutoff' || e.target.id === 'hpfCutoff' || e.target.id === 'finalReverbLowpass') suffix = 'Hz';
@@ -24124,7 +24289,7 @@
                     e.target.id === 'finalDelayDepth' || e.target.id === 'finalRingDepth' ||
                     e.target.id === 'finalReverbSize' || e.target.id === 'finalReverbDecay' ||
                     e.target.id === 'finalReverbLowpass' || e.target.id === 'finalReverbMix' ||
-                    e.target.id === 'finalReverbShimmerMix') {
+                    e.target.id === 'finalReverbShimmerMix' || e.target.id === 'finalReverbDrumSend') {
                     updateEffects();
                 }
                 if (e.target.id === 'sampleStart' || e.target.id === 'sampleEnd') drawWaveform();
@@ -24568,6 +24733,10 @@
 
         document.getElementById('finalReverbShimmerShift')?.addEventListener('change', () => {
             updateEffects();
+        });
+
+        document.getElementById('finalReverbRoomPreset')?.addEventListener('change', (event) => {
+            applyFinalReverbRoomPreset(event.target.value);
         });
 
         // --- LFO3 Waveform Selector ---
@@ -27928,6 +28097,7 @@
                 finalReverbDecay: 55,
                 finalReverbLowpass: 6400,
                 finalReverbMix: 0,
+                finalReverbDrumSend: 135,
                 finalPanCenter: 0,
                 finalPanWidth: 100,
                 finalPanLfoRate: 90,
@@ -28124,6 +28294,7 @@
             document.getElementById('finalDelayDivision').value = '4';
             document.getElementById('finalDelayTailMode').value = 'clean';
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
+            document.getElementById('finalReverbRoomPreset').value = 'cloud';
             document.getElementById('finalReverbShimmerShift').value = 'off';
             document.getElementById('osc1Wave').value = 'sawtooth';
             document.getElementById('osc2Wave').value = 'square';
@@ -28234,6 +28405,7 @@
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
                 finalReverbEnabled: finalReverbEnabled,
+                finalReverbRoomPreset: getFinalReverbRoomPreset(),
                 finalCompressorSidechainSource: finalCompressorSidechainSource,
                 finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
                 finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
@@ -28372,6 +28544,7 @@
             preset.lfoWaveform = document.getElementById('lfoWaveform').value;
             preset.lfo2Waveform = document.getElementById('lfo2Waveform').value;
             preset.lfo3Waveform = document.getElementById('lfo3Waveform').value;
+            preset.finalReverbRoomPreset = getFinalReverbRoomPreset();
             preset.grainMainSource = normalizeGranularLayerSourceMode(document.getElementById('grainMainSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.main, { layer: 'main' });
             preset.grainSynthASource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthASource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.A, { layer: 'A' });
             preset.grainSynthBSource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthBSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.B, { layer: 'B' });
@@ -28762,6 +28935,13 @@
             setSourceWaveformSolo(importedSourceWaveformSolo, { silent: true, skipSave: true });
             if (safePreset.finalReverbEnabled !== undefined) {
                 setFinalReverbEnabled(safePreset.finalReverbEnabled, { silent: true, skipSave: true });
+            }
+            const importedFinalReverbRoomPreset = safePreset.finalReverbRoomPreset ?? preset.finalReverbRoomPreset;
+            if (importedFinalReverbRoomPreset !== undefined) {
+                const reverbRoomSelect = document.getElementById('finalReverbRoomPreset');
+                if (reverbRoomSelect) {
+                    reverbRoomSelect.value = normalizeFinalReverbRoomPreset(importedFinalReverbRoomPreset);
+                }
             }
             if (safePreset.finalCompressorSidechainSource !== undefined) {
                 setFinalCompressorSidechainSource(safePreset.finalCompressorSidechainSource, { silent: true, skipSave: true });
@@ -30267,10 +30447,12 @@
             const reverbDecay = getSliderPercent('finalReverbDecay');
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const shimmer = getFinalReverbShimmerSettings();
+            const reverbRoomPreset = getFinalReverbRoomPreset();
+            const reverbRoom = FINAL_REVERB_ROOM_PRESETS[reverbRoomPreset] || FINAL_REVERB_ROOM_PRESETS.cloud;
             const reverbPreDelay = ctx.createDelay(0.18);
-            reverbPreDelay.delayTime.value = 0.004 + reverbSize * 0.086;
+            reverbPreDelay.delayTime.value = reverbRoom.predelay ?? (0.004 + reverbSize * 0.086);
             const reverbNode = ctx.createConvolver();
-            const reverbImpulse = createFinalReverbImpulseForContext(ctx, reverbSize, reverbDecay);
+            const reverbImpulse = createFinalReverbImpulseForContext(ctx, reverbSize, reverbDecay, reverbRoomPreset);
             reverbNode.buffer = reverbImpulse;
             const reverbShimmerNode = ctx.createConvolver();
             reverbShimmerNode.buffer = createFinalReverbShimmerImpulseForContext(ctx, reverbImpulse, shimmer.mode);
@@ -31350,6 +31532,7 @@
             return {
                 fxMuted,
                 finalReverbEnabled,
+                finalReverbRoomPreset: getFinalReverbRoomPreset(),
                 finalCompressorSidechainSource,
                 finalFxPlacementLfoEnabled,
                 finalFxPlacementLfoDivision: document.getElementById('finalFxPlacementLfoDivision')?.value || '1bar',
@@ -35513,12 +35696,14 @@
             'finalDelayTailMode'
         ];
         const INTERNAL_REVERB_CARD_IDS = [
+            'finalReverbRoomPreset',
             'finalReverbSize',
             'finalReverbDecay',
             'finalReverbLowpass',
             'finalReverbMix',
             'finalReverbShimmerShift',
-            'finalReverbShimmerMix'
+            'finalReverbShimmerMix',
+            'finalReverbDrumSend'
         ];
         let performanceGenerateStateTimer = null;
 
