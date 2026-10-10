@@ -23107,6 +23107,32 @@
             return true;
         }
 
+        function restartTrackedLoopPlaybackFromStart(options = {}) {
+            if (!audioContext) return false;
+
+            const shouldRestartSequencer = options.sequencer === true;
+            const shouldRestartBastardLoop = options.bastardLoop === true;
+            const shouldRestartDrumMachine = options.drumMachine === true;
+            if (!shouldRestartSequencer && !shouldRestartBastardLoop && !shouldRestartDrumMachine) {
+                return false;
+            }
+
+            const restartTime = getBufferedTransportStartTime();
+            if (shouldRestartSequencer) {
+                startSequencer(restartTime);
+            }
+            if (shouldRestartBastardLoop) {
+                bastardLoopTransportStartTime = restartTime;
+                startAllBastardLoopLayers(restartTime, { skipUi: true });
+            }
+            if (shouldRestartDrumMachine) {
+                drumMachineTransportStartTime = restartTime;
+                startDrumMachine(restartTime, { skipUi: true, silent: true });
+            }
+            syncPerformanceControlState();
+            return true;
+        }
+
         function pausePerformanceForFocusLoss() {
             if (restartPerformanceOnFocusReturn || restartBastardLoopOnFocusReturn || restartDrumMachineOnFocusReturn) return;
             try {
@@ -27600,6 +27626,7 @@
 
             const failures = [];
             let patchResult = null;
+            let shouldRestartAfterMegaRandom = false;
 
             try {
                 try {
@@ -27642,6 +27669,7 @@
                 }
 
                 await waitForMegaRandomLoadsToSettle();
+                shouldRestartAfterMegaRandom = true;
                 saveState();
                 const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
                 if (failures.length > 0) {
@@ -27657,6 +27685,9 @@
                 if (performanceMegaRandomBtn) {
                     performanceMegaRandomBtn.disabled = false;
                     performanceMegaRandomBtn.textContent = 'Mega Random';
+                }
+                if (shouldRestartAfterMegaRandom && audioContext) {
+                    restartAllTransport({ silent: true });
                 }
             }
         }
@@ -31981,7 +32012,7 @@
             const divisions = getSelectedBastardLoopDivisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
-            const restartTime = getBufferedTransportStartTime();
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const previousBuffer = bastardLoopBuffer;
             const previousMetadata = bastardLoopMetadata;
             const previousSourceBpm = bastardLoopSourceBpm;
@@ -32000,6 +32031,9 @@
                     stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
                 } else if (!shouldRestartSequencer) {
                     stopBastardLoop({ preserveTransportState: false, skipUi: true });
+                }
+                if (shouldRestartDrumMachine) {
+                    stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -32035,13 +32069,11 @@
                 await applyLoadedBastardLoopBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('A');
 
-                if (shouldRestartSequencer) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop) {
-                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
-                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -32054,12 +32086,11 @@
                 bastardLoopMetadata = previousMetadata;
                 bastardLoopSourceBpm = previousSourceBpm;
                 bastardLoopTransportStartTime = previousTransportStartTime;
-                if (shouldRestartSequencer && !sequencerPlaying) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop && (previousBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer)) {
-                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer && !sequencerPlaying,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
                 throw error;
             } finally {
                 bastardLoopGenerationInFlight = false;
@@ -32081,7 +32112,7 @@
             const divisions = getSelectedBastardLoop2Divisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
-            const restartTime = getBufferedTransportStartTime();
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const previousBuffer = bastardLoop2Buffer;
             const previousMetadata = bastardLoop2Metadata;
             const previousSourceBpm = bastardLoop2SourceBpm;
@@ -32100,6 +32131,9 @@
                     stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
                 } else if (!shouldRestartSequencer) {
                     stopBastardLoop2({ skipUi: true });
+                }
+                if (shouldRestartDrumMachine) {
+                    stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -32136,13 +32170,11 @@
                 await applyLoadedBastardLoop2Buffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop B ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('B');
 
-                if (shouldRestartSequencer) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop) {
-                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
-                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -32154,12 +32186,11 @@
                 bastardLoop2Buffer = previousBuffer;
                 bastardLoop2Metadata = previousMetadata;
                 bastardLoop2SourceBpm = previousSourceBpm;
-                if (shouldRestartSequencer && !sequencerPlaying) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || previousBuffer)) {
-                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer && !sequencerPlaying,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
                 throw error;
             } finally {
                 bastardLoop2GenerationInFlight = false;
@@ -32181,7 +32212,7 @@
             const divisions = getSelectedBastardLoop3Divisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
-            const restartTime = getBufferedTransportStartTime();
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const previousBuffer = bastardLoop3Buffer;
             const previousMetadata = bastardLoop3Metadata;
             const previousSourceBpm = bastardLoop3SourceBpm;
@@ -32201,6 +32232,9 @@
                     stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
                 } else if (!shouldRestartSequencer) {
                     stopBastardLoop3({ skipUi: true });
+                }
+                if (shouldRestartDrumMachine) {
+                    stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -32237,13 +32271,11 @@
                 await applyLoadedBastardLoop3Buffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop C ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('C');
 
-                if (shouldRestartSequencer) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop) {
-                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
-                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -32255,12 +32287,11 @@
                 bastardLoop3Buffer = previousBuffer;
                 bastardLoop3Metadata = previousMetadata;
                 bastardLoop3SourceBpm = previousSourceBpm;
-                if (shouldRestartSequencer && !sequencerPlaying) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop2Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || previousBuffer)) {
-                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer && !sequencerPlaying,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
                 throw error;
             } finally {
                 bastardLoop3GenerationInFlight = false;
@@ -32287,7 +32318,7 @@
             }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
-            const restartTime = getBufferedTransportStartTime();
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const previousBuffer = bastardLoopVBuffer;
             const previousMetadata = bastardLoopVMetadata;
             const previousSourceBpm = bastardLoopVSourceBpm;
@@ -32310,6 +32341,9 @@
                     stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
                 } else if (!shouldRestartSequencer) {
                     stopBastardLoopV({ skipUi: true });
+                }
+                if (shouldRestartDrumMachine) {
+                    stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -32347,13 +32381,11 @@
                 await applyLoadedBastardLoopVBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop V ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('V');
 
-                if (shouldRestartSequencer) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop) {
-                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
-                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -32365,12 +32397,11 @@
                 bastardLoopVBuffer = previousBuffer;
                 bastardLoopVMetadata = previousMetadata;
                 bastardLoopVSourceBpm = previousSourceBpm;
-                if (shouldRestartSequencer && !sequencerPlaying) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || previousBuffer)) {
-                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer && !sequencerPlaying,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
                 throw error;
             } finally {
                 bastardLoopVGenerationInFlight = false;
@@ -32396,7 +32427,7 @@
             }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
-            const restartTime = getBufferedTransportStartTime();
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const previousBuffer = bastardLoopPBuffer;
             const previousMetadata = bastardLoopPMetadata;
             const previousSourceBpm = bastardLoopPSourceBpm;
@@ -32417,6 +32448,9 @@
                     stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
                 } else if (!shouldRestartSequencer) {
                     stopBastardLoopP({ skipUi: true });
+                }
+                if (shouldRestartDrumMachine) {
+                    stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -32454,13 +32488,11 @@
                 await applyLoadedBastardLoopPBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop P ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('P');
 
-                if (shouldRestartSequencer) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop) {
-                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
-                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -32472,12 +32504,11 @@
                 bastardLoopPBuffer = previousBuffer;
                 bastardLoopPMetadata = previousMetadata;
                 bastardLoopPSourceBpm = previousSourceBpm;
-                if (shouldRestartSequencer && !sequencerPlaying) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || previousBuffer)) {
-                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer && !sequencerPlaying,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
                 throw error;
             } finally {
                 bastardLoopPGenerationInFlight = false;
@@ -32501,7 +32532,7 @@
             }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
-            const restartTime = getBufferedTransportStartTime();
+            const shouldRestartDrumMachine = drumMachinePlaying;
             const previousBuffer = bastardLoopOBuffer;
             const previousMetadata = bastardLoopOMetadata;
             const previousSourceBpm = bastardLoopOSourceBpm;
@@ -32522,6 +32553,9 @@
                     stopAllBastardLoopLayers({ preserveTransportState: true, skipUi: true });
                 } else if (!shouldRestartSequencer) {
                     stopBastardLoopO({ skipUi: true });
+                }
+                if (shouldRestartDrumMachine) {
+                    stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
                 const response = await fetch(BASTARD_LOOP_API_URL, {
@@ -32559,13 +32593,11 @@
                 await applyLoadedBastardLoopOBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop O ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('O');
 
-                if (shouldRestartSequencer) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop) {
-                    bastardLoopTransportStartTime = shouldRestartSequencer ? restartTime : getBufferedTransportStartTime();
-                    startAllBastardLoopLayers(bastardLoopTransportStartTime, { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
 
                 const names = Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 4).join(', ') : '';
                 setStatus(names
@@ -32577,12 +32609,11 @@
                 bastardLoopOBuffer = previousBuffer;
                 bastardLoopOMetadata = previousMetadata;
                 bastardLoopOSourceBpm = previousSourceBpm;
-                if (shouldRestartSequencer && !sequencerPlaying) {
-                    startSequencer(restartTime);
-                }
-                if (shouldRestartBastardLoop && (bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || previousBuffer)) {
-                    startAllBastardLoopLayers(shouldRestartSequencer ? restartTime : getBufferedTransportStartTime(), { skipUi: true });
-                }
+                restartTrackedLoopPlaybackFromStart({
+                    sequencer: shouldRestartSequencer && !sequencerPlaying,
+                    bastardLoop: shouldRestartBastardLoop,
+                    drumMachine: shouldRestartDrumMachine
+                });
                 throw error;
             } finally {
                 bastardLoopOGenerationInFlight = false;
