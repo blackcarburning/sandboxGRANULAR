@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-09-37-build-v2026.10.10.12';
+            const cacheBuster = '2026-10-10-09-39-build-v2026.10.10.13';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4320,11 +4320,10 @@
 
         .section-jump-quick {
             position: absolute;
-            top: calc(50% + 128px);
             left: 0;
             width: 30px;
             min-width: 30px;
-            min-height: 86px;
+            min-height: 72px;
             padding: 8px 2px;
             transform: translateY(-50%);
             display: grid;
@@ -4339,9 +4338,21 @@
             touch-action: manipulation;
             writing-mode: vertical-rl;
             text-transform: uppercase;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 900;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
+        }
+
+        #sectionJumpMegaRandomBtn {
+            top: calc(50% + 122px);
+        }
+
+        #sectionJumpKeyboardBtn {
+            top: calc(50% + 202px);
+        }
+
+        #sectionJumpTransportBtn {
+            top: calc(50% + 282px);
         }
 
         .section-jump-arrow {
@@ -4438,7 +4449,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.12</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.13</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4450,16 +4461,16 @@
             <span class="section-jump-arrow" id="sectionJumpArrow" aria-hidden="true">&lsaquo;</span>
             <span class="section-jump-handle-text">Jump</span>
         </button>
-        <button class="section-jump-quick" id="sectionJumpKeyboardBtn" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
-        <button class="section-jump-quick" id="sectionJumpTransportBtn" type="button">Stop All</button>
         <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega Randomise</button>
+        <button class="section-jump-quick" id="sectionJumpKeyboardBtn" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
+        <button class="section-jump-quick" id="sectionJumpTransportBtn" type="button">Start All</button>
         <div class="section-jump-panel" id="sectionJumpPanel">
             <div class="section-jump-title">Jump To</div>
             <div class="section-jump-grid">
-                <button class="section-jump-option" id="sectionJumpTransportPanelBtn" type="button">Stop All</button>
                 <button class="section-jump-option" id="sectionJumpMegaRandomPanelBtn" type="button">Mega Randomise</button>
-                <button class="section-jump-option" type="button" data-jump-target=".performance-toolbar">Top</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
+                <button class="section-jump-option" id="sectionJumpTransportPanelBtn" type="button">Start All</button>
+                <button class="section-jump-option" type="button" data-jump-target=".performance-toolbar">Top</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop controls']">Loop A</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop B controls']">Loop B</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop C controls']">Loop C</button>
@@ -4497,7 +4508,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.12</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.13</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -33901,8 +33912,8 @@
             ].forEach((button) => {
                 if (!button) return;
                 const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
-                button.textContent = anythingRunning ? 'Stop All' : 'Restart All';
-                button.setAttribute('aria-label', anythingRunning ? 'Stop all playback' : 'Restart all playback and LFO phases');
+                button.textContent = anythingRunning ? 'Stop All' : 'Start All';
+                button.setAttribute('aria-label', anythingRunning ? 'Stop all playback' : 'Start all playback and restart transport phases');
             });
 
             [
