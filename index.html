@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-10-00-build-v2026.10.10.15';
+            const cacheBuster = '2026-10-10-10-08-build-v2026.10.10.16';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4450,7 +4450,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.15</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.16</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4509,7 +4509,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.15</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.16</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -9067,8 +9067,9 @@
         let finalDelayShadowPanA = null;
         let finalDelayShadowPanB = null;
         let finalDelayDryGain = null;
-        let finalReverbNode = null;
         let finalReverbPreDelay = null;
+        let finalReverbNode = null;
+        let finalReverbShimmerNode = null;
         let finalReverbLowpass = null;
         let finalReverbWetGain = null;
         let finalReverbShimmerHighpass = null;
@@ -11816,6 +11817,7 @@
             finalReverbPreDelay = audioContext.createDelay(0.18);
             finalReverbPreDelay.delayTime.value = 0.024;
             finalReverbNode = audioContext.createConvolver();
+            finalReverbShimmerNode = audioContext.createConvolver();
             finalReverbLowpass = audioContext.createBiquadFilter();
             finalReverbLowpass.type = 'lowpass';
             finalReverbLowpass.frequency.value = 6400;
@@ -11835,8 +11837,10 @@
             finalReverbShimmerGain = audioContext.createGain();
             finalReverbShimmerGain.gain.value = 0;
             finalReverbImpulseKey = '';
-            finalReverbNode.buffer = createFinalReverbImpulseForContext(audioContext, 0.45, 0.55);
-            finalReverbImpulseKey = '45:55';
+            const initialReverbImpulse = createFinalReverbImpulseForContext(audioContext, 0.45, 0.55);
+            finalReverbNode.buffer = initialReverbImpulse;
+            finalReverbShimmerNode.buffer = null;
+            finalReverbImpulseKey = '45:55:off';
 
             masterGain.connect(finalFxInput);
             finalFxInput.connect(finalDistortionNodes[0]);
@@ -11864,10 +11868,11 @@
             finalDelayShadowGainB.connect(finalDelayShadowPanB);
             finalDelayShadowPanB.connect(finalFxOutput);
             finalReverbPreDelay.connect(finalReverbNode);
+            finalReverbPreDelay.connect(finalReverbShimmerNode);
             finalReverbNode.connect(finalReverbLowpass);
             finalReverbLowpass.connect(finalReverbWetGain);
             finalReverbWetGain.connect(finalFxOutput);
-            finalReverbNode.connect(finalReverbShimmerDrive);
+            finalReverbShimmerNode.connect(finalReverbShimmerDrive);
             finalReverbShimmerDrive.connect(finalReverbShimmerHighpass);
             finalReverbShimmerHighpass.connect(finalReverbShimmerLowpass);
             finalReverbShimmerLowpass.connect(finalReverbShimmerDelay);
@@ -12307,24 +12312,34 @@
         function makeFinalShimmerCurve(amount = 0) {
             const depth = Math.max(0, Math.min(1, Number(amount) || 0));
             const curve = new Float32Array(2048);
-            const drive = 1 + depth * 3.8;
+            const drive = 1 + depth * 6.5;
             for (let i = 0; i < curve.length; i++) {
                 const x = (i * 2 / (curve.length - 1)) - 1;
                 const shaped = Math.tanh(x * drive);
-                curve[i] = Math.max(-1, Math.min(1, (x * (1 - depth * 0.42)) + (shaped * depth * 0.94)));
+                curve[i] = Math.max(-1, Math.min(1, (x * (1 - depth * 0.26)) + (shaped * depth * 1.18)));
             }
             return curve;
+        }
+
+        function getFinalReverbShimmerRatio(mode = 'off') {
+            switch (String(mode || 'off')) {
+                case '-24': return 0.25;
+                case '-12': return 0.5;
+                case '12': return 2;
+                case '24': return 4;
+                default: return 1;
+            }
         }
 
         function getFinalReverbShimmerSettings() {
             const mode = String(document.getElementById('finalReverbShimmerShift')?.value || 'off');
             const shimmerMix = getSliderPercent('finalReverbShimmerMix');
             const config = {
-                off: { label: 'Off', highpass: 20, lowpass: 12000, drive: 0, delay: 0.012, gain: 0 },
-                '-24': { label: '-2 Oct', highpass: 30, lowpass: 360, drive: 0.12, delay: 0.034, gain: 0.42 },
-                '-12': { label: '-1 Oct', highpass: 45, lowpass: 760, drive: 0.16, delay: 0.028, gain: 0.48 },
-                '12': { label: '+1 Oct', highpass: 1800, lowpass: 9200, drive: 0.46, delay: 0.019, gain: 0.36 },
-                '24': { label: '+2 Oct', highpass: 3600, lowpass: 12000, drive: 0.72, delay: 0.013, gain: 0.28 }
+                off: { label: 'Off', highpass: 20, lowpass: 12000, drive: 0, delay: 0.012, gain: 0, ratio: 1 },
+                '-24': { label: '-2 Oct', highpass: 25, lowpass: 320, drive: 0.34, delay: 0.034, gain: 0.94, ratio: 0.25 },
+                '-12': { label: '-1 Oct', highpass: 40, lowpass: 760, drive: 0.42, delay: 0.028, gain: 0.9, ratio: 0.5 },
+                '12': { label: '+1 Oct', highpass: 1600, lowpass: 9800, drive: 0.72, delay: 0.021, gain: 0.82, ratio: 2 },
+                '24': { label: '+2 Oct', highpass: 3200, lowpass: 12000, drive: 0.96, delay: 0.015, gain: 0.74, ratio: 4 }
             };
             const resolved = config[mode] || config.off;
             return {
@@ -12334,6 +12349,7 @@
                 lowpass: resolved.lowpass,
                 drive: resolved.drive,
                 delay: resolved.delay,
+                ratio: resolved.ratio,
                 gain: shimmerMix * resolved.gain
             };
         }
@@ -12342,11 +12358,11 @@
             const sampleRate = ctx.sampleRate;
             const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
             const decay = Math.max(0, Math.min(1, Number(decayAmount) || 0));
-            const seconds = 1.2 + size * 6.8;
+            const seconds = 0.18 + (size * 2.4) + (decay * 8.4);
             const length = Math.max(1, Math.round(sampleRate * seconds));
             const impulse = ctx.createBuffer(2, length, sampleRate);
-            const decayPower = 1.08 + (1 - decay) * 2.6;
-            const earlyReflections = Math.round(14 + size * 34);
+            const decayPower = 0.82 + (1 - decay) * 3.1;
+            const earlyReflections = Math.round(18 + size * 52);
             for (let channel = 0; channel < 2; channel++) {
                 const data = impulse.getChannelData(channel);
                 let stageA = 0;
@@ -12356,19 +12372,19 @@
                     const progress = i / length;
                     const time = i / sampleRate;
                     const tail = Math.pow(1 - progress, decayPower);
-                    const drift = Math.sin((time * (0.17 + channel * 0.04) * Math.PI * 2) + channel * 0.8) * 0.18;
+                    const drift = Math.sin((time * (0.11 + size * 0.19 + channel * 0.04) * Math.PI * 2) + channel * 0.8) * (0.08 + size * 0.2);
                     const raw = (Math.random() * 2 - 1) + drift;
-                    stageA = stageA * 0.86 + raw * 0.14;
-                    stageB = stageB * 0.76 + stageA * 0.24;
-                    stageC = stageC * 0.64 + stageB * 0.36;
-                    const airy = (stageA * 0.46) + (stageB * 0.34) + (stageC * 0.2);
-                    const shimmer = Math.sin(2 * Math.PI * (220 + channel * 37) * time) * 0.014 * size * (1 - progress);
-                    data[i] = (airy + shimmer) * tail * 0.78;
+                    stageA = stageA * (0.92 - size * 0.12) + raw * (0.08 + size * 0.08);
+                    stageB = stageB * (0.84 - size * 0.1) + stageA * (0.16 + size * 0.08);
+                    stageC = stageC * (0.72 - size * 0.08) + stageB * (0.28 + size * 0.08);
+                    const airy = (stageA * (0.28 + size * 0.18)) + (stageB * 0.34) + (stageC * (0.38 - size * 0.08));
+                    const chamberTone = Math.sin(2 * Math.PI * (160 + channel * 29 + size * 120) * time) * (0.004 + size * 0.02) * (1 - progress);
+                    data[i] = (airy + chamberTone) * tail * (0.88 - size * 0.12);
                 }
                 for (let r = 0; r < earlyReflections; r++) {
-                    const spread = 0.005 + (r * 0.0065) + Math.random() * 0.016;
-                    const pos = Math.min(length - 1, Math.round(spread * sampleRate * (0.85 + size * 0.9)));
-                    data[pos] += (Math.random() * 2 - 1) * (0.18 / (1 + r * 0.45));
+                    const spread = 0.0018 + (r * (0.0012 + size * 0.0026)) + Math.random() * (0.003 + size * 0.012);
+                    const pos = Math.min(length - 1, Math.round(spread * sampleRate * (0.85 + size * 1.15)));
+                    data[pos] += (Math.random() * 2 - 1) * ((0.26 - size * 0.08) / (1 + r * (0.22 + size * 0.16)));
                 }
             }
             return impulse;
@@ -12378,13 +12394,24 @@
             return createFinalReverbImpulseForContext(audioContext, sizeAmount, decayAmount);
         }
 
-        function updateFinalReverbImpulse(sizeAmount, decayAmount) {
+        function createFinalReverbShimmerImpulseForContext(ctx, baseImpulse, shimmerMode = 'off') {
+            if (!ctx || !baseImpulse || shimmerMode === 'off') return null;
+            const ratio = getFinalReverbShimmerRatio(shimmerMode);
+            if (Math.abs(ratio - 1) < 0.0001) return null;
+            return pitchShiftBufferByRatioKeepDuration(baseImpulse, ratio, ctx);
+        }
+
+        function updateFinalReverbImpulse(sizeAmount, decayAmount, shimmerMode = 'off') {
             if (!audioContext || !finalReverbNode) return;
             const sizeBucket = Math.round(Math.max(0, Math.min(1, sizeAmount)) * 100);
             const decayBucket = Math.round(Math.max(0, Math.min(1, decayAmount)) * 100);
-            const key = `${sizeBucket}:${decayBucket}`;
+            const key = `${sizeBucket}:${decayBucket}:${String(shimmerMode || 'off')}`;
             if (finalReverbImpulseKey === key && finalReverbNode.buffer) return;
-            finalReverbNode.buffer = createFinalReverbImpulse(sizeAmount, decayAmount);
+            const baseImpulse = createFinalReverbImpulse(sizeAmount, decayAmount);
+            finalReverbNode.buffer = baseImpulse;
+            if (finalReverbShimmerNode) {
+                finalReverbShimmerNode.buffer = createFinalReverbShimmerImpulseForContext(audioContext, baseImpulse, shimmerMode);
+            }
             finalReverbImpulseKey = key;
         }
 
@@ -12816,17 +12843,17 @@
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const reverbLowpass = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             const shimmer = getFinalReverbShimmerSettings();
-            updateFinalReverbImpulse(reverbSize, reverbDecay);
-            smoothRamp(finalReverbPreDelay?.delayTime, 0.012 + reverbSize * 0.07);
+            updateFinalReverbImpulse(reverbSize, reverbDecay, shimmer.mode);
+            smoothRamp(finalReverbPreDelay?.delayTime, 0.004 + reverbSize * 0.086);
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
-            smoothRamp(finalReverbWetGain?.gain, reverbMix * 0.76);
+            smoothRamp(finalReverbWetGain?.gain, reverbMix * (0.68 + reverbSize * 0.18));
             if (finalReverbShimmerDrive) {
                 finalReverbShimmerDrive.curve = makeFinalShimmerCurve(shimmer.drive);
             }
             smoothRamp(finalReverbShimmerHighpass?.frequency, shimmer.highpass);
             smoothRamp(finalReverbShimmerLowpass?.frequency, shimmer.lowpass);
             smoothRamp(finalReverbShimmerDelay?.delayTime, shimmer.delay);
-            smoothRamp(finalReverbShimmerGain?.gain, finalReverbEnabled ? shimmer.gain : 0);
+            smoothRamp(finalReverbShimmerGain?.gain, finalReverbEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0);
 
             const compressorIdleBypass = shouldIdleBypassFinalBusCompressor();
             const compressorAmount = fxMuted || compressorIdleBypass ? 0 : getFinalCompressorAmount();
@@ -22189,8 +22216,12 @@
         }
 
         function stopAllPerformancePlayback(options = {}) {
-            const hadPlayback = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
-            panicAllNotes({ preserveStatus: true });
+            const hadPlayback = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying;
+            stopSequencer();
+            stopArpeggiatorPlayback({ restoreHeldPlayback: true });
+            stopAllBastardLoopLayers({ preserveTransportState: false, skipUi: true });
+            stopDrumMachine({ preserveTransportState: false, skipUi: true, silent: true });
+            stopSourceCardAudition({ preserveKind: false, skipSync: false });
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus(hadPlayback ? 'All playback stopped.' : 'Nothing was playing.');
@@ -29138,14 +29169,17 @@
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const shimmer = getFinalReverbShimmerSettings();
             const reverbPreDelay = ctx.createDelay(0.18);
-            reverbPreDelay.delayTime.value = 0.012 + reverbSize * 0.07;
+            reverbPreDelay.delayTime.value = 0.004 + reverbSize * 0.086;
             const reverbNode = ctx.createConvolver();
-            reverbNode.buffer = createFinalReverbImpulseForContext(ctx, reverbSize, reverbDecay);
+            const reverbImpulse = createFinalReverbImpulseForContext(ctx, reverbSize, reverbDecay);
+            reverbNode.buffer = reverbImpulse;
+            const reverbShimmerNode = ctx.createConvolver();
+            reverbShimmerNode.buffer = createFinalReverbShimmerImpulseForContext(ctx, reverbImpulse, shimmer.mode);
             const reverbLowpass = ctx.createBiquadFilter();
             reverbLowpass.type = 'lowpass';
             reverbLowpass.frequency.value = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             const reverbWetGain = ctx.createGain();
-            reverbWetGain.gain.value = reverbMix * 0.76;
+            reverbWetGain.gain.value = reverbMix * (0.68 + reverbSize * 0.18);
             const reverbShimmerDrive = ctx.createWaveShaper();
             reverbShimmerDrive.curve = makeFinalShimmerCurve(shimmer.drive);
             reverbShimmerDrive.oversample = '4x';
@@ -29158,7 +29192,7 @@
             const reverbShimmerDelay = ctx.createDelay(0.08);
             reverbShimmerDelay.delayTime.value = shimmer.delay;
             const reverbShimmerGain = ctx.createGain();
-            reverbShimmerGain.gain.value = finalReverbEnabled ? shimmer.gain : 0;
+            reverbShimmerGain.gain.value = finalReverbEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0;
             const compressorNode = ctx.createDynamicsCompressor();
             compressorNode.threshold.value = compressorSettings.threshold;
             compressorNode.knee.value = compressorSettings.knee;
@@ -29191,10 +29225,11 @@
             delayShadowGainB.connect(delayShadowPanB);
             delayShadowPanB.connect(output);
             reverbPreDelay.connect(reverbNode);
+            reverbPreDelay.connect(reverbShimmerNode);
             reverbNode.connect(reverbLowpass);
             reverbLowpass.connect(reverbWetGain);
             reverbWetGain.connect(output);
-            reverbNode.connect(reverbShimmerDrive);
+            reverbShimmerNode.connect(reverbShimmerDrive);
             reverbShimmerDrive.connect(reverbShimmerHighpass);
             reverbShimmerHighpass.connect(reverbShimmerLowpass);
             reverbShimmerLowpass.connect(reverbShimmerDelay);
@@ -34132,7 +34167,7 @@
         }
 
         function handleSidebarTransportToggle() {
-            const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
+            const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying;
             if (anythingRunning) {
                 stopAllPerformancePlayback();
                 return;
