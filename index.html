@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-08-23-16-build-v2026.10.08.24';
+            const cacheBuster = '2026-10-10-06-53-build-v2026.10.10.1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4268,7 +4268,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.08.24</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.1</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4320,7 +4320,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.09.01</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.1</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -7703,7 +7703,10 @@
                                 <div class="performance-chip">Kick</div>
                                 <p id="drumMachineKickMeta">Source: SAMPLES_KICKS · Empty</p>
                             </div>
-                            <button class="performance-btn" id="drumMachineKickBrowseBtn" type="button">Browse Kicks</button>
+                            <div class="drum-machine-track-actions">
+                                <button class="performance-btn" id="drumMachineKickBrowseBtn" type="button">Browse Kicks</button>
+                                <button class="performance-btn" id="drumMachineKickRandomBtn" type="button">Random Kick</button>
+                            </div>
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineKickPitch">
@@ -7745,7 +7748,10 @@
                                 <div class="performance-chip">Snare</div>
                                 <p id="drumMachineSnareMeta">Source: SAMPLES_SNARES · Empty</p>
                             </div>
-                            <button class="performance-btn" id="drumMachineSnareBrowseBtn" type="button">Browse Snares</button>
+                            <div class="drum-machine-track-actions">
+                                <button class="performance-btn" id="drumMachineSnareBrowseBtn" type="button">Browse Snares</button>
+                                <button class="performance-btn" id="drumMachineSnareRandomBtn" type="button">Random Snare</button>
+                            </div>
                         </div>
                         <div class="performance-sound-card">
                             <label for="drumMachineSnarePitch">
@@ -7796,6 +7802,7 @@
                             </div>
                             <div class="drum-machine-track-actions">
                                 <button class="performance-btn" id="drumMachineHatBrowseBtn" type="button">Browse Hats</button>
+                                <button class="performance-btn" id="drumMachineHatRandomBtn" type="button">Random Hat</button>
                                 <button class="performance-btn" id="drumMachineHatTimingModeBtn" type="button">Straight Hats</button>
                             </div>
                         </div>
@@ -17326,6 +17333,11 @@
                 document.getElementById('drumMachineSnareBrowseBtn'),
                 document.getElementById('drumMachineHatBrowseBtn')
             ];
+            const singleRandomButtons = [
+                document.getElementById('drumMachineKickRandomBtn'),
+                document.getElementById('drumMachineSnareRandomBtn'),
+                document.getElementById('drumMachineHatRandomBtn')
+            ];
 
             if (mixerSlider) mixerSlider.value = String(level);
             if (mixerLabel) mixerLabel.textContent = `${level}%`;
@@ -17359,6 +17371,11 @@
             });
 
             browserButtons.forEach((button) => {
+                if (!button) return;
+                button.disabled = drumMachineLoadInFlight;
+            });
+
+            singleRandomButtons.forEach((button) => {
                 if (!button) return;
                 button.disabled = drumMachineLoadInFlight;
             });
@@ -18026,6 +18043,26 @@
 
         async function loadRandomDrumMachineSamplesOnly() {
             await loadDrumMachineSampleSet({ randomizePattern: false });
+        }
+
+        async function loadRandomSingleDrumMachineSample(kind) {
+            if (drumMachineLoadInFlight) return;
+            const label = kind === 'kick' ? 'Kick' : (kind === 'snare' ? 'Snare' : 'Hat');
+            drumMachineLoadInFlight = true;
+            syncDrumMachineUi();
+            setStatus(`Loading random ${label.toLowerCase()} sample…`);
+            try {
+                await loadDrumMachineSample(kind);
+                saveState();
+                const metadata = kind === 'kick'
+                    ? drumMachineKickMetadata
+                    : (kind === 'snare' ? drumMachineSnareMetadata : drumMachineHatMetadata);
+                setStatus(`${label} sample ready: ${metadata?.fileName || `${kind}.wav`}. Pattern kept.`);
+            } finally {
+                drumMachineLoadInFlight = false;
+                syncDrumMachineUi();
+                syncPerformanceControlState();
+            }
         }
 
         function openDrumMachineOverlay() {
@@ -32342,8 +32379,11 @@
         const drumMachineDirectOutBtn = document.getElementById('drumMachineDirectOutBtn');
         const drumMachinePlayBtn = document.getElementById('drumMachinePlayBtn');
         const drumMachineKickBrowseBtn = document.getElementById('drumMachineKickBrowseBtn');
+        const drumMachineKickRandomBtn = document.getElementById('drumMachineKickRandomBtn');
         const drumMachineSnareBrowseBtn = document.getElementById('drumMachineSnareBrowseBtn');
+        const drumMachineSnareRandomBtn = document.getElementById('drumMachineSnareRandomBtn');
         const drumMachineHatBrowseBtn = document.getElementById('drumMachineHatBrowseBtn');
+        const drumMachineHatRandomBtn = document.getElementById('drumMachineHatRandomBtn');
         const drumMachineHatTimingModeBtn = document.getElementById('drumMachineHatTimingModeBtn');
         const drumMachineKickPitch = document.getElementById('drumMachineKickPitch');
         const drumMachineKickLevel = document.getElementById('drumMachineKickLevel');
@@ -33802,12 +33842,39 @@
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineKick);
         });
 
+        drumMachineKickRandomBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomSingleDrumMachineSample('kick');
+            } catch (error) {
+                console.error(error);
+                setStatus(`Kick sample load failed: ${error.message}`, 'error');
+            }
+        });
+
         drumMachineSnareBrowseBtn?.addEventListener('click', () => {
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineSnare);
         });
 
+        drumMachineSnareRandomBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomSingleDrumMachineSample('snare');
+            } catch (error) {
+                console.error(error);
+                setStatus(`Snare sample load failed: ${error.message}`, 'error');
+            }
+        });
+
         drumMachineHatBrowseBtn?.addEventListener('click', () => {
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.drumMachineHat);
+        });
+
+        drumMachineHatRandomBtn?.addEventListener('click', async () => {
+            try {
+                await loadRandomSingleDrumMachineSample('hat');
+            } catch (error) {
+                console.error(error);
+                setStatus(`Hat sample load failed: ${error.message}`, 'error');
+            }
         });
 
         drumMachineHatTimingModeBtn?.addEventListener('click', () => {
