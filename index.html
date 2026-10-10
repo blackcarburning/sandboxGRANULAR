@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-08-09-build-v2026.10.10.8';
+            const cacheBuster = '2026-10-10-09-03-build-v2026.10.10.9';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3324,6 +3324,59 @@
             gap: 10px;
         }
 
+        .simplified-ui .internal-effects-feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .simplified-ui .internal-effects-card {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background:
+                radial-gradient(circle at top right, rgba(126, 246, 255, 0.12), transparent 38%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .simplified-ui .internal-effects-card.reverb-card {
+            background:
+                radial-gradient(circle at top right, rgba(126, 246, 255, 0.14), transparent 42%),
+                radial-gradient(circle at bottom left, rgba(175, 128, 255, 0.1), transparent 38%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+        }
+
+        .simplified-ui .internal-effects-card.delay-card {
+            background:
+                radial-gradient(circle at top left, rgba(126, 255, 178, 0.12), transparent 40%),
+                radial-gradient(circle at bottom right, rgba(126, 246, 255, 0.08), transparent 34%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+        }
+
+        .simplified-ui .internal-effects-card-head {
+            display: grid;
+            gap: 4px;
+        }
+
+        .simplified-ui .internal-effects-card-title {
+            margin: 0;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .internal-effects-card-note {
+            margin: 0;
+            color: rgba(230, 240, 255, 0.66);
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
         .simplified-ui .final-pan-section {
             order: 4;
             display: grid;
@@ -4070,7 +4123,8 @@
             }
 
             .simplified-ui .performance-mixer-grid,
-            .simplified-ui .performance-filter-grid {
+            .simplified-ui .performance-filter-grid,
+            .simplified-ui .internal-effects-feature-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -4384,7 +4438,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.8</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.9</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4420,6 +4474,8 @@
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Mix controls']">Mix</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='LFO controls']">LFO</button>
                 <button class="section-jump-option" type="button" data-jump-target="#internalEffectsPanel">FX</button>
+                <button class="section-jump-option" type="button" data-jump-target="#internalDelayCard">Delay</button>
+                <button class="section-jump-option" type="button" data-jump-target="#internalReverbCard">Reverb</button>
                 <button class="section-jump-option" type="button" data-jump-target=".recording-section">Sources</button>
                 <button class="section-jump-option" type="button" data-jump-target="#grainWaveformEditors">Waveforms</button>
                 <button class="section-jump-option" type="button" data-jump-target="#grainMainWaveformEditor">Main Wave</button>
@@ -4437,7 +4493,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.8</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.9</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -5874,21 +5930,21 @@
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalDelayDepth">
-                        <span>Delay Mix</span>
+                        <span>Echo Mix</span>
                         <span class="value" id="finalDelayDepthValue">0%</span>
                     </label>
                     <input type="range" id="finalDelayDepth" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalDelayFeedback">
-                        <span>Delay Feedback</span>
+                        <span>Echo Feedback</span>
                         <span class="value" id="finalDelayFeedbackValue">30%</span>
                     </label>
                     <input type="range" id="finalDelayFeedback" min="0" max="100" value="30" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalDelayDivision">
-                        <span>Delay Timing</span>
+                        <span>Echo Timing</span>
                     </label>
                     <select id="finalDelayDivision" class="performance-select">
                         <option value="1">1/4</option>
@@ -5923,28 +5979,28 @@
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbSize">
-                        <span>Verb Size</span>
+                        <span>Cloud Size</span>
                         <span class="value" id="finalReverbSizeValue">45%</span>
                     </label>
                     <input type="range" id="finalReverbSize" min="0" max="100" value="45" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbDecay">
-                        <span>Verb Decay</span>
+                        <span>Cloud Decay</span>
                         <span class="value" id="finalReverbDecayValue">55%</span>
                     </label>
                     <input type="range" id="finalReverbDecay" min="0" max="100" value="55" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbLowpass">
-                        <span>Verb LPF</span>
+                        <span>Cloud Tone</span>
                         <span class="value" id="finalReverbLowpassValue">6400Hz</span>
                     </label>
                     <input type="range" id="finalReverbLowpass" min="800" max="12000" value="6400" step="100">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalReverbMix">
-                        <span>Verb Mix</span>
+                        <span>Cloud Mix</span>
                         <span class="value" id="finalReverbMixValue">0%</span>
                     </label>
                     <input type="range" id="finalReverbMix" min="0" max="100" value="0" step="1">
@@ -5962,16 +6018,33 @@
             </div>
             <div class="performance-feature-card internal-effects-panel" id="internalEffectsPanel" aria-label="Internal effects">
                 <div class="internal-effects-header">
-                    <span class="performance-chip">Internal Effects</span>
-                    <h3 class="internal-effects-title">Internal Effects</h3>
-                    <p class="internal-effects-note">Advanced effect controls for the final chain and the FX-muted path.</p>
+                    <span class="performance-chip">Space & Echo</span>
+                    <h3 class="internal-effects-title">Shared Delay And Reverb</h3>
+                    <p class="internal-effects-note">One tempo delay and one lush cloud reverb for the whole app, both riding the main FX mute switch instead of a separate muted branch.</p>
+                </div>
+                <div class="internal-effects-feature-grid">
+                    <section class="internal-effects-card delay-card" id="internalDelayCard" aria-label="Delay controls">
+                        <div class="internal-effects-card-head">
+                            <span class="performance-chip">Echo</span>
+                            <h4 class="internal-effects-card-title">Delay</h4>
+                            <p class="internal-effects-card-note">Valhalla-style tempo repeats with filtered feedback and wide shadow taps, all following the project BPM.</p>
+                        </div>
+                        <div class="internal-effects-grid" id="internalDelayGrid"></div>
+                    </section>
+                    <section class="internal-effects-card reverb-card" id="internalReverbCard" aria-label="Reverb controls">
+                        <div class="internal-effects-card-head">
+                            <span class="performance-chip">Cloud</span>
+                            <h4 class="internal-effects-card-title">Reverb</h4>
+                            <p class="internal-effects-card-note">Big-sky style bloom with a softer front edge, longer tail, and a cleaner cloud bed instead of the old extra reverb path.</p>
+                        </div>
+                        <div class="internal-effects-grid" id="internalReverbGrid"></div>
+                    </section>
+                </div>
+                <div class="internal-effects-header">
+                    <span class="performance-chip">Advanced</span>
+                    <p class="internal-effects-note">Drive, ring, sidechain, and placement controls for the final bus. Delay and reverb only live in the cards above.</p>
                 </div>
                 <div class="internal-effects-grid" id="internalEffectsGrid"></div>
-                <div class="internal-effects-header">
-                    <span class="performance-chip">FX-muted path</span>
-                    <p class="internal-effects-note">Delay and reverb controls that sit behind the FX on/off toggle.</p>
-                </div>
-                <div class="internal-effects-grid" id="internalFxMutedGrid"></div>
             </div>
         </div>
         <div class="top-section">
@@ -8935,12 +9008,19 @@
         let finalCompressorSidechainSource = 'off';
         let finalSidechainKickEvents = [];
         let finalDelayNode = null;
+        let finalDelayShadowNodeA = null;
+        let finalDelayShadowNodeB = null;
         let finalDelayFeedbackGain = null;
         let finalDelayFeedbackHighpass = null;
         let finalDelayFeedbackLowpass = null;
         let finalDelayWetGain = null;
+        let finalDelayShadowGainA = null;
+        let finalDelayShadowGainB = null;
+        let finalDelayShadowPanA = null;
+        let finalDelayShadowPanB = null;
         let finalDelayDryGain = null;
         let finalReverbNode = null;
+        let finalReverbPreDelay = null;
         let finalReverbLowpass = null;
         let finalReverbWetGain = null;
         let finalReverbEnabled = false;
@@ -11651,6 +11731,10 @@
 
             finalDelayNode = audioContext.createDelay(2.5);
             finalDelayNode.delayTime.value = 60 / getSharedBpmClockValue();
+            finalDelayShadowNodeA = audioContext.createDelay(2.5);
+            finalDelayShadowNodeA.delayTime.value = 0.21;
+            finalDelayShadowNodeB = audioContext.createDelay(2.5);
+            finalDelayShadowNodeB.delayTime.value = 0.37;
             finalDelayFeedbackGain = audioContext.createGain();
             finalDelayFeedbackGain.gain.value = 0;
             finalDelayFeedbackHighpass = audioContext.createBiquadFilter();
@@ -11661,9 +11745,19 @@
             finalDelayFeedbackLowpass.frequency.value = 4200;
             finalDelayWetGain = audioContext.createGain();
             finalDelayWetGain.gain.value = 0;
+            finalDelayShadowGainA = audioContext.createGain();
+            finalDelayShadowGainA.gain.value = 0;
+            finalDelayShadowGainB = audioContext.createGain();
+            finalDelayShadowGainB.gain.value = 0;
+            finalDelayShadowPanA = audioContext.createStereoPanner();
+            finalDelayShadowPanA.pan.value = -0.58;
+            finalDelayShadowPanB = audioContext.createStereoPanner();
+            finalDelayShadowPanB.pan.value = 0.58;
             finalDelayDryGain = audioContext.createGain();
             finalDelayDryGain.gain.value = 1;
 
+            finalReverbPreDelay = audioContext.createDelay(0.18);
+            finalReverbPreDelay.delayTime.value = 0.024;
             finalReverbNode = audioContext.createConvolver();
             finalReverbLowpass = audioContext.createBiquadFilter();
             finalReverbLowpass.type = 'lowpass';
@@ -11671,7 +11765,7 @@
             finalReverbWetGain = audioContext.createGain();
             finalReverbWetGain.gain.value = 0;
             finalReverbImpulseKey = '';
-            finalReverbNode.buffer = createFinalReverbImpulse(0.45, 0.55);
+            finalReverbNode.buffer = createFinalReverbImpulseForContext(audioContext, 0.45, 0.55);
             finalReverbImpulseKey = '45:55';
 
             masterGain.connect(finalFxInput);
@@ -11683,7 +11777,9 @@
             finalDistortionTrim.connect(finalRingGain);
             finalRingGain.connect(finalDelayDryGain);
             finalRingGain.connect(finalDelayNode);
-            finalRingGain.connect(finalReverbNode);
+            finalRingGain.connect(finalDelayShadowNodeA);
+            finalRingGain.connect(finalDelayShadowNodeB);
+            finalRingGain.connect(finalReverbPreDelay);
             finalDelayDryGain.connect(finalFxOutput);
             finalDelayNode.connect(finalDelayWetGain);
             finalDelayNode.connect(finalDelayFeedbackGain);
@@ -11691,6 +11787,13 @@
             finalDelayFeedbackHighpass.connect(finalDelayFeedbackLowpass);
             finalDelayFeedbackLowpass.connect(finalDelayNode);
             finalDelayWetGain.connect(finalFxOutput);
+            finalDelayShadowNodeA.connect(finalDelayShadowGainA);
+            finalDelayShadowGainA.connect(finalDelayShadowPanA);
+            finalDelayShadowPanA.connect(finalFxOutput);
+            finalDelayShadowNodeB.connect(finalDelayShadowGainB);
+            finalDelayShadowGainB.connect(finalDelayShadowPanB);
+            finalDelayShadowPanB.connect(finalFxOutput);
+            finalReverbPreDelay.connect(finalReverbNode);
             finalReverbNode.connect(finalReverbLowpass);
             finalReverbLowpass.connect(finalReverbWetGain);
             finalReverbWetGain.connect(finalFxOutput);
@@ -11822,17 +11925,9 @@
             makeupGain.connect(distortionNode);
             distortionNode.connect(phaserNodes[0]);
             phaserNodes[3].connect(tremoloGain);
-            tremoloGain.connect(delayDryGain);
-            tremoloGain.connect(delayNode);
-            tremoloGain.connect(reverbNode);
+            tremoloGain.connect(dryGainNode);
             delayDryGain.connect(dryGainNode);
-            delayNode.connect(delayWetGain);
-            delayNode.connect(delayFeedbackGain);
-            delayFeedbackGain.connect(delayNode); // Feedback loop
-            delayWetGain.connect(dryGainNode);
             dryGainNode.connect(masterGain);
-            reverbNode.connect(wetGainNode);
-            wetGainNode.connect(masterGain);
 
             // Generate noise buffers
             createNoiseBuffers();
@@ -12133,32 +12228,44 @@
             return curve;
         }
 
-        function createFinalReverbImpulse(sizeAmount, decayAmount) {
-            const sampleRate = audioContext.sampleRate;
+        function createFinalReverbImpulseForContext(ctx, sizeAmount, decayAmount) {
+            const sampleRate = ctx.sampleRate;
             const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
             const decay = Math.max(0, Math.min(1, Number(decayAmount) || 0));
-            const seconds = 0.75 + size * 5.25;
+            const seconds = 1.2 + size * 6.8;
             const length = Math.max(1, Math.round(sampleRate * seconds));
-            const impulse = audioContext.createBuffer(2, length, sampleRate);
-            const decayPower = 1.35 + (1 - decay) * 3.8;
-            const earlyReflections = Math.round(8 + size * 18);
+            const impulse = ctx.createBuffer(2, length, sampleRate);
+            const decayPower = 1.08 + (1 - decay) * 2.6;
+            const earlyReflections = Math.round(14 + size * 34);
             for (let channel = 0; channel < 2; channel++) {
                 const data = impulse.getChannelData(channel);
-                let lowState = 0;
+                let stageA = 0;
+                let stageB = 0;
+                let stageC = 0;
                 for (let i = 0; i < length; i++) {
-                    const t = i / length;
-                    const tail = Math.pow(1 - t, decayPower);
-                    const diffusion = Math.sin(i * (0.017 + channel * 0.003)) * 0.18;
-                    const raw = (Math.random() * 2 - 1) + diffusion;
-                    lowState = lowState * 0.62 + raw * 0.38;
-                    data[i] = lowState * tail * 0.72;
+                    const progress = i / length;
+                    const time = i / sampleRate;
+                    const tail = Math.pow(1 - progress, decayPower);
+                    const drift = Math.sin((time * (0.17 + channel * 0.04) * Math.PI * 2) + channel * 0.8) * 0.18;
+                    const raw = (Math.random() * 2 - 1) + drift;
+                    stageA = stageA * 0.86 + raw * 0.14;
+                    stageB = stageB * 0.76 + stageA * 0.24;
+                    stageC = stageC * 0.64 + stageB * 0.36;
+                    const airy = (stageA * 0.46) + (stageB * 0.34) + (stageC * 0.2);
+                    const shimmer = Math.sin(2 * Math.PI * (220 + channel * 37) * time) * 0.014 * size * (1 - progress);
+                    data[i] = (airy + shimmer) * tail * 0.78;
                 }
                 for (let r = 0; r < earlyReflections; r++) {
-                    const pos = Math.min(length - 1, Math.round((0.006 + r * 0.011 + Math.random() * 0.018) * sampleRate * (0.8 + size)));
-                    data[pos] += (Math.random() * 2 - 1) * (0.16 / (r + 1));
+                    const spread = 0.005 + (r * 0.0065) + Math.random() * 0.016;
+                    const pos = Math.min(length - 1, Math.round(spread * sampleRate * (0.85 + size * 0.9)));
+                    data[pos] += (Math.random() * 2 - 1) * (0.18 / (1 + r * 0.45));
                 }
             }
             return impulse;
+        }
+
+        function createFinalReverbImpulse(sizeAmount, decayAmount) {
+            return createFinalReverbImpulseForContext(audioContext, sizeAmount, decayAmount);
         }
 
         function updateFinalReverbImpulse(sizeAmount, decayAmount) {
@@ -12563,12 +12670,19 @@
             const delayTime = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(division, bpm)));
             const postFilterFx = finalFxPlacement !== 'pre';
             const feedbackCap = postFilterFx ? 0 : 0.46;
-            const wetCap = postFilterFx ? 0.18 : 0.62;
+            const wetCap = postFilterFx ? 0.16 : 0.58;
+            const shadowMix = Math.sin(delayMix * Math.PI / 2) * (postFilterFx ? 0.08 : 0.2);
+            const shadowTimeA = Math.max(0.03, Math.min(2.5, delayTime * 0.72 + 0.013));
+            const shadowTimeB = Math.max(0.04, Math.min(2.5, delayTime * 1.18 + 0.021));
             smoothRamp(finalDelayNode?.delayTime, delayTime);
+            smoothRamp(finalDelayShadowNodeA?.delayTime, shadowTimeA);
+            smoothRamp(finalDelayShadowNodeB?.delayTime, shadowTimeB);
             smoothRamp(finalDelayFeedbackGain?.gain, delayFeedback * feedbackCap);
             smoothRamp(finalDelayFeedbackHighpass?.frequency, postFilterFx ? 260 + delayFeedback * 520 : 140 + delayFeedback * 220);
             smoothRamp(finalDelayFeedbackLowpass?.frequency, postFilterFx ? 2400 - delayFeedback * 900 : 5200 - delayFeedback * 2600);
             smoothRamp(finalDelayWetGain?.gain, Math.sin(delayMix * Math.PI / 2) * wetCap);
+            smoothRamp(finalDelayShadowGainA?.gain, shadowMix * 0.8);
+            smoothRamp(finalDelayShadowGainB?.gain, shadowMix * 0.54);
             smoothRamp(finalDelayDryGain?.gain, 1 - (delayMix * (postFilterFx ? 0.08 : 0.12)));
 
             const reverbSize = getSliderPercent('finalReverbSize');
@@ -12576,8 +12690,9 @@
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const reverbLowpass = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             updateFinalReverbImpulse(reverbSize, reverbDecay);
+            smoothRamp(finalReverbPreDelay?.delayTime, 0.012 + reverbSize * 0.07);
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
-            smoothRamp(finalReverbWetGain?.gain, reverbMix * 0.72);
+            smoothRamp(finalReverbWetGain?.gain, reverbMix * 0.76);
 
             const compressorIdleBypass = shouldIdleBypassFinalBusCompressor();
             const compressorAmount = fxMuted || compressorIdleBypass ? 0 : getFinalCompressorAmount();
@@ -12641,14 +12756,15 @@
                 audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
             }
 
-            const reverbAmt = fxMuted ? 0 : getModulatedValue('reverb') / 100;
             const volAmt = (getModulatedValue('volume') / 100) * dbToLinear(getMasterTrimDb());
             const placementSwitchDuck = getFinalFxPlacementSwitchDuck(now);
             const postBusGain = Math.min(1, volAmt) * placementSwitchDuck;
 
-            // Dry/Wet gains
-            smoothRamp(dryGainNode.gain, 1.0 - (reverbAmt * 0.28));
-            smoothRamp(wetGainNode.gain, Math.min(1.25, reverbAmt * 1.18));
+            // Legacy dry handoff now stays dry; the single shared delay/reverb live on the final bus.
+            smoothRamp(dryGainNode.gain, 1.0);
+            if (wetGainNode) {
+                smoothRamp(wetGainNode.gain, 0);
+            }
 
             // Master and output gain
             smoothRamp(masterGain.gain, Math.min(1, volAmt));
@@ -12690,17 +12806,10 @@
 
             // Delay parameters
             if (delayNode && delayFeedbackGain && delayWetGain && delayDryGain) {
-                const bpm = getSharedBpmClockValue();
-                const division = document.getElementById('delayDivision')?.value || '4';
-                const feedback = fxMuted ? 0 : getModulatedValue('delayFeedback') / 100;
-                const mix = fxMuted ? 0 : getModulatedValue('delayMix') / 100;
-                let delayTime = getBpmDelaySeconds(division, bpm);
-                delayTime = Math.max(0.01, Math.min(5.0, delayTime));
-
-                smoothRamp(delayNode.delayTime, delayTime);
-                smoothRamp(delayFeedbackGain.gain, feedback * MAX_DELAY_FEEDBACK);
-                smoothRamp(delayWetGain.gain, Math.sin(mix * Math.PI / 2));
-                smoothRamp(delayDryGain.gain, Math.cos(mix * Math.PI / 2));
+                smoothRamp(delayNode.delayTime, 0.25);
+                smoothRamp(delayFeedbackGain.gain, 0);
+                smoothRamp(delayWetGain.gain, 0);
+                smoothRamp(delayDryGain.gain, 1);
             }
 
             // Phaser depth
@@ -24315,8 +24424,8 @@
             setSliderValue('osc3Release', randomIntegerInRange(140, 820));
             const noiseEnabled = maybe(0.5);
             setSliderValue('noiseMix', noiseEnabled ? randomIntegerInRange(1, 20) : 0);
-            setSliderValue('delayMix', randomIntegerInRange(0, 54));
-            setSliderValue('reverb', randomIntegerInRange(0, 58));
+            setSliderValue('delayMix', 0);
+            setSliderValue('reverb', 0);
             setSliderValue('finalDriveSoft', 0);
             setSliderValue('finalDriveHard', 0);
             setSliderValue('finalDriveFold', 0);
@@ -24341,7 +24450,7 @@
             setSliderValue('preFilterGain', randomIntegerInRange(-12, 3));
             setSliderValue('postFilterGain', randomIntegerInRange(-10, 8));
 
-            setSelectValue('delayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
+            setSelectValue('delayDivision', '1');
             setSelectValue('finalDelayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
             setSelectValue('finalPanLfoWaveform', chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']));
             setSelectValue('finalPanAudioDivider', chooseRandom(['4', '8', '16', '32', '64', '128']));
@@ -28667,6 +28776,10 @@
             const delayDivision = document.getElementById('finalDelayDivision')?.value || '4';
             const delayNode = ctx.createDelay(2.5);
             delayNode.delayTime.value = Math.max(0.04, Math.min(2.5, getBpmDelaySeconds(delayDivision, bpm)));
+            const delayShadowNodeA = ctx.createDelay(2.5);
+            delayShadowNodeA.delayTime.value = Math.max(0.03, Math.min(2.5, delayNode.delayTime.value * 0.72 + 0.013));
+            const delayShadowNodeB = ctx.createDelay(2.5);
+            delayShadowNodeB.delayTime.value = Math.max(0.04, Math.min(2.5, delayNode.delayTime.value * 1.18 + 0.021));
             const delayFeedbackGain = ctx.createGain();
             delayFeedbackGain.gain.value = delayFeedback * (postFilterFx ? 0 : 0.46);
             const delayFeedbackHighpass = ctx.createBiquadFilter();
@@ -28677,19 +28790,29 @@
             delayFeedbackLowpass.frequency.value = postFilterFx ? 2400 - delayFeedback * 900 : 5200 - delayFeedback * 2600;
             const delayWetGain = ctx.createGain();
             delayWetGain.gain.value = Math.sin(delayMix * Math.PI / 2) * (postFilterFx ? 0.18 : 0.62);
+            const delayShadowGainA = ctx.createGain();
+            delayShadowGainA.gain.value = Math.sin(delayMix * Math.PI / 2) * (postFilterFx ? 0.08 : 0.2) * 0.8;
+            const delayShadowGainB = ctx.createGain();
+            delayShadowGainB.gain.value = Math.sin(delayMix * Math.PI / 2) * (postFilterFx ? 0.08 : 0.2) * 0.54;
+            const delayShadowPanA = ctx.createStereoPanner();
+            delayShadowPanA.pan.value = -0.58;
+            const delayShadowPanB = ctx.createStereoPanner();
+            delayShadowPanB.pan.value = 0.58;
             const delayDryGain = ctx.createGain();
             delayDryGain.gain.value = 1 - (delayMix * (postFilterFx ? 0.08 : 0.12));
 
             const reverbSize = getSliderPercent('finalReverbSize');
             const reverbDecay = getSliderPercent('finalReverbDecay');
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
+            const reverbPreDelay = ctx.createDelay(0.18);
+            reverbPreDelay.delayTime.value = 0.012 + reverbSize * 0.07;
             const reverbNode = ctx.createConvolver();
-            reverbNode.buffer = createFinalReverbImpulse(reverbSize, reverbDecay);
+            reverbNode.buffer = createFinalReverbImpulseForContext(ctx, reverbSize, reverbDecay);
             const reverbLowpass = ctx.createBiquadFilter();
             reverbLowpass.type = 'lowpass';
             reverbLowpass.frequency.value = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             const reverbWetGain = ctx.createGain();
-            reverbWetGain.gain.value = reverbMix * 0.72;
+            reverbWetGain.gain.value = reverbMix * 0.76;
             const compressorNode = ctx.createDynamicsCompressor();
             compressorNode.threshold.value = compressorSettings.threshold;
             compressorNode.knee.value = compressorSettings.knee;
@@ -28705,7 +28828,9 @@
             distortionTrim.connect(ringGain);
             ringGain.connect(delayDryGain);
             ringGain.connect(delayNode);
-            ringGain.connect(reverbNode);
+            ringGain.connect(delayShadowNodeA);
+            ringGain.connect(delayShadowNodeB);
+            ringGain.connect(reverbPreDelay);
             delayDryGain.connect(output);
             delayNode.connect(delayWetGain);
             delayNode.connect(delayFeedbackGain);
@@ -28713,6 +28838,13 @@
             delayFeedbackHighpass.connect(delayFeedbackLowpass);
             delayFeedbackLowpass.connect(delayNode);
             delayWetGain.connect(output);
+            delayShadowNodeA.connect(delayShadowGainA);
+            delayShadowGainA.connect(delayShadowPanA);
+            delayShadowPanA.connect(output);
+            delayShadowNodeB.connect(delayShadowGainB);
+            delayShadowGainB.connect(delayShadowPanB);
+            delayShadowPanB.connect(output);
+            reverbPreDelay.connect(reverbNode);
             reverbNode.connect(reverbLowpass);
             reverbLowpass.connect(reverbWetGain);
             reverbWetGain.connect(output);
@@ -32954,8 +33086,9 @@
         const synthPopupMount = document.getElementById('synthPopupMount');
         const internalEffectsPanel = document.getElementById('internalEffectsPanel');
         const internalEffectsGrid = document.getElementById('internalEffectsGrid');
-        const internalFxMutedGrid = document.getElementById('internalFxMutedGrid');
-        const INTERNAL_EFFECT_PANEL_CARD_IDS = [
+        const internalDelayGrid = document.getElementById('internalDelayGrid');
+        const internalReverbGrid = document.getElementById('internalReverbGrid');
+        const INTERNAL_ADVANCED_EFFECT_CARD_IDS = [
             'finalDriveSoft',
             'finalDriveHard',
             'finalDriveFold',
@@ -32965,39 +33098,45 @@
             'performanceFinalSidechainBtn',
             'finalSidechainAmount',
             'finalSidechainKickLevel',
+            'finalFxPlacementLfoDivision',
+            'finalRingDepth'
+        ];
+        const INTERNAL_DELAY_CARD_IDS = [
             'finalDelayDepth',
             'finalDelayFeedback',
-            'finalDelayDivision',
-            'finalFxPlacementLfoDivision',
-            'finalRingDepth',
+            'finalDelayDivision'
+        ];
+        const INTERNAL_REVERB_CARD_IDS = [
             'finalReverbSize',
             'finalReverbDecay',
             'finalReverbLowpass',
             'finalReverbMix'
         ];
-        const INTERNAL_FX_MUTED_CONTROL_IDS = [
-            'reverb',
-            'delayBpm',
-            'delayDivision',
-            'delayFeedback',
-            'delayMix'
-        ];
         let performanceGenerateStateTimer = null;
 
         function mountInternalEffectsPanel() {
-            if (!internalEffectsPanel || !internalEffectsGrid || !internalFxMutedGrid) return;
-            INTERNAL_EFFECT_PANEL_CARD_IDS.forEach((id) => {
+            if (!internalEffectsPanel || !internalEffectsGrid || !internalDelayGrid || !internalReverbGrid) return;
+            INTERNAL_ADVANCED_EFFECT_CARD_IDS.forEach((id) => {
                 const control = document.getElementById(id);
                 const card = control?.closest('.performance-sound-card');
                 if (card && card.parentElement !== internalEffectsGrid) {
                     internalEffectsGrid.appendChild(card);
                 }
             });
-            INTERNAL_FX_MUTED_CONTROL_IDS.forEach((id) => {
+
+            INTERNAL_DELAY_CARD_IDS.forEach((id) => {
                 const control = document.getElementById(id);
-                const group = control?.closest('.control-group');
-                if (group && group.parentElement !== internalFxMutedGrid) {
-                    internalFxMutedGrid.appendChild(group);
+                const card = control?.closest('.performance-sound-card');
+                if (card && card.parentElement !== internalDelayGrid) {
+                    internalDelayGrid.appendChild(card);
+                }
+            });
+
+            INTERNAL_REVERB_CARD_IDS.forEach((id) => {
+                const control = document.getElementById(id);
+                const card = control?.closest('.performance-sound-card');
+                if (card && card.parentElement !== internalReverbGrid) {
+                    internalReverbGrid.appendChild(card);
                 }
             });
         }
