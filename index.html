@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-07-24-build-v2026.10.10.4';
+            const cacheBuster = '2026-10-10-07-47-build-v2026.10.10.5';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4315,7 +4315,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.4</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.5</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4368,7 +4368,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.4</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.5</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -7890,8 +7890,8 @@
                             <input type="range" id="drumMachineHatAccentAmount" min="0" max="100" value="35" step="1">
                         </div>
                         <div class="drum-machine-track-meta">
-                            <span>Accent above · tap = step</span>
-                            <span>Double tap = 1/32 ratchet</span>
+                            <span>Accent + ratchet above</span>
+                            <span>Tap = step</span>
                         </div>
                         <div class="drum-machine-step-grid" id="drumMachineHatGrid" role="group" aria-label="Hi-hat pattern grid"></div>
                     </article>
@@ -9060,7 +9060,7 @@
         let drumMachineKickRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => 0);
         let drumMachineSnareRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => 0);
         let drumMachineHatAccentPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false);
-        let drumMachineHatRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false);
+        let drumMachineHatRatchetPattern = Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => 0);
         let drumMachineHatTimingMode = 'straight';
         let bastardLoopPlaying = false;
         let bastardLoopTransportStartTime = null;
@@ -17032,8 +17032,12 @@
             const source = Array.isArray(pattern) ? pattern : [];
             return Array.from({ length: steps }, (_, index) => {
                 const rawValue = index < source.length ? source[index] : (source.length > 0 ? source[index % source.length] : 0);
-                if (rawValue === 3 || rawValue === '3' || rawValue === 'triple') return 3;
-                if (rawValue === 2 || rawValue === '2' || rawValue === true || rawValue === 'double') return 2;
+                const numeric = Number(rawValue);
+                if (Number.isFinite(numeric) && numeric >= 2) {
+                    return Math.max(2, Math.min(8, Math.round(numeric)));
+                }
+                if (rawValue === true || rawValue === 'double') return 2;
+                if (rawValue === 'triple') return 3;
                 return 0;
             });
         }
@@ -17046,7 +17050,7 @@
             drumMachineKickRatchetPattern = normalizeDrumMachineRatchetPattern(drumMachineKickRatchetPattern, steps);
             drumMachineSnareRatchetPattern = normalizeDrumMachineRatchetPattern(drumMachineSnareRatchetPattern, steps);
             drumMachineHatAccentPattern = normalizeDrumMachinePattern(drumMachineHatAccentPattern, steps);
-            drumMachineHatRatchetPattern = normalizeDrumMachinePattern(drumMachineHatRatchetPattern, steps);
+            drumMachineHatRatchetPattern = normalizeDrumMachineRatchetPattern(drumMachineHatRatchetPattern, steps);
             renderDrumMachineStepGrid('kick');
             renderDrumMachineStepGrid('snare');
             renderDrumMachineStepGrid('hat');
@@ -17135,7 +17139,7 @@
             setDrumMachinePattern('snare', snarePattern, { skipSave: true });
             setDrumMachinePattern('hat', hatPattern, { skipSave: true });
             const accentPattern = hatPattern.map((active, index) => active && (index % 4 === 0 || Math.random() < 0.18));
-            const ratchetPattern = hatPattern.map((active, index) => active && (index % 4 !== 0) && Math.random() < 0.16);
+            const ratchetPattern = hatPattern.map((active, index) => (active && (index % 4 !== 0) && Math.random() < 0.16) ? 2 : 0);
             drumMachineHatAccentPattern = accentPattern;
             drumMachineHatRatchetPattern = ratchetPattern;
             drumMachineHatTimingMode = ['straight', 'dotted', 'triplet'][Math.floor(Math.random() * 3)] || 'straight';
@@ -17160,27 +17164,17 @@
             saveState();
         }
 
-        function toggleDrumMachineHatRatchetStep(index) {
-            if (index < 0 || index >= drumMachineHatRatchetPattern.length) return;
-            const nextPattern = drumMachineHatRatchetPattern.slice();
-            nextPattern[index] = !nextPattern[index];
-            drumMachineHatRatchetPattern = nextPattern;
-            const pattern = drumMachineHatPattern.slice();
-            if (!pattern[index]) {
-                pattern[index] = true;
-                drumMachineHatPattern = pattern;
-            }
-            renderDrumMachineStepGrid('hat');
-            saveState();
-        }
-
         function cycleDrumMachineRatchetStep(track, index) {
-            const sourcePattern = track === 'snare' ? drumMachineSnareRatchetPattern : drumMachineKickRatchetPattern;
+            const sourcePattern = track === 'hat'
+                ? drumMachineHatRatchetPattern
+                : (track === 'snare' ? drumMachineSnareRatchetPattern : drumMachineKickRatchetPattern);
             if (index < 0 || index >= sourcePattern.length) return;
             const nextPattern = sourcePattern.slice();
-            const currentValue = nextPattern[index] === 3 ? 3 : (nextPattern[index] === 2 ? 2 : 0);
-            nextPattern[index] = currentValue === 0 ? 2 : (currentValue === 2 ? 3 : 0);
-            if (track === 'snare') {
+            const currentValue = Math.max(0, Math.min(8, Number(nextPattern[index]) || 0));
+            nextPattern[index] = currentValue === 0 ? 2 : (currentValue >= 8 ? 0 : currentValue + 1);
+            if (track === 'hat') {
+                drumMachineHatRatchetPattern = nextPattern;
+            } else if (track === 'snare') {
                 drumMachineSnareRatchetPattern = nextPattern;
             } else {
                 drumMachineKickRatchetPattern = nextPattern;
@@ -17188,7 +17182,9 @@
             const stepPattern = getDrumMachinePattern(track).slice();
             if (nextPattern[index] > 0 && !stepPattern[index]) {
                 stepPattern[index] = true;
-                if (track === 'snare') {
+                if (track === 'hat') {
+                    drumMachineHatPattern = stepPattern;
+                } else if (track === 'snare') {
                     drumMachineSnarePattern = stepPattern;
                 } else {
                     drumMachineKickPattern = stepPattern;
@@ -17209,33 +17205,6 @@
             if (!options.skipSave) {
                 saveState();
             }
-        }
-
-        function queueDrumMachineHatStepToggle(index) {
-            const now = performance.now();
-            const isDoubleTap = drumMachineHatTapIndex === index && (now - drumMachineHatTapAt) < 320;
-            const existingTimer = drumMachineHatTapTimers.get(index);
-            if (existingTimer) {
-                clearTimeout(existingTimer);
-                drumMachineHatTapTimers.delete(index);
-            }
-
-            if (isDoubleTap) {
-                drumMachineHatTapIndex = -1;
-                drumMachineHatTapAt = 0;
-                toggleDrumMachineHatRatchetStep(index);
-                return;
-            }
-
-            drumMachineHatTapIndex = index;
-            drumMachineHatTapAt = now;
-            const timer = setTimeout(() => {
-                drumMachineHatTapTimers.delete(index);
-                drumMachineHatTapIndex = -1;
-                drumMachineHatTapAt = 0;
-                toggleDrumMachineStep('hat', index);
-            }, 220);
-            drumMachineHatTapTimers.set(index, timer);
         }
 
         function renderDrumMachineStepGrid(track) {
@@ -17264,15 +17233,23 @@
                         accentButton.addEventListener('click', () => {
                             toggleDrumMachineHatAccentStep(index);
                         });
+                        const ratchetButton = document.createElement('button');
+                        ratchetButton.type = 'button';
+                        ratchetButton.className = 'drum-machine-ratchet-btn';
+                        ratchetButton.dataset.track = 'hat';
+                        ratchetButton.dataset.stepIndex = String(index);
+                        ratchetButton.addEventListener('click', () => {
+                            cycleDrumMachineRatchetStep('hat', index);
+                        });
                         const button = document.createElement('button');
                         button.type = 'button';
                         button.className = 'drum-machine-step-btn';
                         button.dataset.track = track;
                         button.dataset.stepIndex = String(index);
                         button.addEventListener('click', () => {
-                            queueDrumMachineHatStepToggle(index);
+                            toggleDrumMachineStep('hat', index);
                         });
-                        cell.append(accentButton, button);
+                        cell.append(accentButton, ratchetButton, button);
                         container.appendChild(cell);
                         continue;
                     }
@@ -17303,20 +17280,25 @@
                 if (track === 'hat') {
                     const cell = button;
                     const accentButton = cell.children[0];
-                    const stepButton = cell.children[1];
+                    const ratchetButton = cell.children[1];
+                    const stepButton = cell.children[2];
                     const active = Boolean(pattern[index]);
                     const accented = Boolean(drumMachineHatAccentPattern[index]);
-                    const ratchet = Boolean(drumMachineHatRatchetPattern[index]);
+                    const ratchetCount = Math.max(0, Math.min(8, Number(drumMachineHatRatchetPattern[index]) || 0));
                     accentButton.textContent = accented ? 'Accent' : 'Accent';
                     accentButton.classList.toggle('active', accented);
                     accentButton.setAttribute('aria-pressed', String(accented));
                     accentButton.title = `Hat accent step ${index + 1}${accented ? ' on' : ' off'}`;
+                    ratchetButton.textContent = ratchetCount > 0 ? `x${ratchetCount}` : '-';
+                    ratchetButton.classList.toggle('active', ratchetCount > 0);
+                    ratchetButton.setAttribute('aria-pressed', String(ratchetCount > 0));
+                    ratchetButton.title = `Hat ratchet step ${index + 1}${ratchetCount > 0 ? ` · x${ratchetCount}` : ' off'}`;
                     stepButton.textContent = String(index + 1).padStart(2, '0');
                     stepButton.classList.toggle('active', active);
                     stepButton.classList.toggle('current', drumMachinePlaying && drumMachineCurrentVisualStep === index);
-                    stepButton.classList.toggle('ratchet', ratchet);
+                    stepButton.classList.toggle('ratchet', ratchetCount > 0);
                     stepButton.setAttribute('aria-pressed', String(active));
-                    stepButton.title = `Hat step ${index + 1}${active ? ' on' : ' off'}${ratchet ? ' · 1/32 ratchet' : ''}`;
+                    stepButton.title = `Hat step ${index + 1}${active ? ' on' : ' off'}${ratchetCount > 0 ? ` · x${ratchetCount}` : ''}`;
                     return;
                 }
                 const cell = button;
@@ -17708,11 +17690,11 @@
         function scheduleDrumMachineHatStep(stepIndex, scheduledTime, stepDuration) {
             if (!drumMachineHatPattern[stepIndex]) return;
             const accent = Boolean(drumMachineHatAccentPattern[stepIndex]);
-            const ratchet = Boolean(drumMachineHatRatchetPattern[stepIndex]);
+            const ratchetCount = Math.max(1, Math.min(8, Number(drumMachineHatRatchetPattern[stepIndex]) || 1));
             const firstHitTime = scheduledTime + getDrumMachineHatSwingOffset(stepIndex, stepDuration);
-            playDrumMachineHatHit(firstHitTime, { accent, ratchet: false });
-            if (ratchet) {
-                playDrumMachineHatHit(firstHitTime + (stepDuration / 2), { accent, ratchet: true });
+            for (let hitIndex = 0; hitIndex < ratchetCount; hitIndex += 1) {
+                const offset = hitIndex === 0 ? 0 : (stepDuration * (hitIndex / ratchetCount));
+                playDrumMachineHatHit(firstHitTime + offset, { accent, ratchet: hitIndex > 0 });
             }
         }
 
@@ -17819,7 +17801,7 @@
                     drumMachineKickRatchetPattern = Array.from({ length: patternLength }, () => 0);
                     drumMachineSnareRatchetPattern = Array.from({ length: patternLength }, () => 0);
                     drumMachineHatAccentPattern = Array.from({ length: patternLength }, () => false);
-                    drumMachineHatRatchetPattern = Array.from({ length: patternLength }, () => false);
+                    drumMachineHatRatchetPattern = Array.from({ length: patternLength }, () => 0);
                     drumMachineHatTimingMode = 'straight';
                 }
 
