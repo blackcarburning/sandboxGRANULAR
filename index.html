@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-10-08-build-v2026.10.10.16';
+            const cacheBuster = '2026-10-10-10-26-build-v2026.10.10.17';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4450,7 +4450,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.16</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.17</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4509,7 +4509,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.16</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.17</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -6179,7 +6179,8 @@
                             <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
                             <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
                         </div>
-                        <div class="source-seed-buttons">
+                        <div class="source-seed-buttons source-seed-buttons-stack">
+                            <button type="button" class="grain-layer-browser-btn" id="micSampleBrowseBtn" data-grain-browser-target="grainMainMic">Browse Sample Folders</button>
                             <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Selection</button>
                         </div>
                     </div>
@@ -6505,6 +6506,10 @@
                                 </label>
                                 <input type="range" id="grainMainWidth" min="0" max="100" value="24" step="1">
                             </div>
+                            <div class="control-group">
+                                <label><span class="param-name">Duration</span></label>
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainMainPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                            </div>
                             <div class="control-group highlight">
                                 <label>
                                     <span class="param-name">Volume</span>
@@ -6602,6 +6607,10 @@
                                 </label>
                                 <input type="range" id="grainSynthAWidth" min="0" max="100" value="58" step="1">
                             </div>
+                            <div class="control-group">
+                                <label><span class="param-name">Duration</span></label>
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainAPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
+                            </div>
                             <div class="control-group highlight">
                                 <label>
                                     <span class="param-name">Volume</span>
@@ -6698,6 +6707,10 @@
                                     <span class="value" id="grainSynthBWidthValue">76%</span>
                                 </label>
                                 <input type="range" id="grainSynthBWidth" min="0" max="100" value="76" step="1">
+                            </div>
+                            <div class="control-group">
+                                <label><span class="param-name">Duration</span></label>
+                                <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" id="grainBPreserveDurationBtn" aria-pressed="true">Preserve Duration</button>
                             </div>
                             <div class="control-group highlight">
                                 <label>
@@ -8778,6 +8791,7 @@
                 blendId: 'grainMainBlend',
                 smoothingId: 'grainMainSmoothing',
                 widthId: 'grainMainWidth',
+                preserveDurationButtonId: 'grainMainPreserveDurationBtn',
                 volumeId: 'grainMainVolume',
                 soloKey: 'main',
                 panBias: 0
@@ -8796,6 +8810,7 @@
                 blendId: 'grainSynthAMix',
                 smoothingId: 'grainSynthASmoothing',
                 widthId: 'grainSynthAWidth',
+                preserveDurationButtonId: 'grainAPreserveDurationBtn',
                 volumeId: 'grainSynthAVolume',
                 soloKey: 'A',
                 panBias: -0.22
@@ -8814,6 +8829,7 @@
                 blendId: 'grainSynthBMix',
                 smoothingId: 'grainSynthBSmoothing',
                 widthId: 'grainSynthBWidth',
+                preserveDurationButtonId: 'grainBPreserveDurationBtn',
                 volumeId: 'grainSynthBVolume',
                 soloKey: 'B',
                 panBias: 0.22
@@ -8933,16 +8949,24 @@
             drumMachineSnare: 'drumMachineSnare',
             drumMachineHat: 'drumMachineHat',
             drumMachinePerc: 'drumMachinePerc',
+            grainMainMic: 'grainMainMic',
             grainMain: 'grainMain',
             grainA: 'grainA',
             grainB: 'grainB'
         };
         const GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS = {
+            [SAMPLE_BROWSER_TARGETS.grainMainMic]: 'sampledrop',
             [SAMPLE_BROWSER_TARGETS.grainMain]: 'sampledrop',
             [SAMPLE_BROWSER_TARGETS.grainA]: 'sampledrop2',
             [SAMPLE_BROWSER_TARGETS.grainB]: 'splice_claw'
         };
         const GRAIN_SAMPLE_BROWSER_TARGET_DETAILS = {
+            [SAMPLE_BROWSER_TARGETS.grainMainMic]: {
+                layerLabel: 'Main Mic',
+                slotKind: 'mic',
+                sourceSelectId: 'grainMainSource',
+                sourceMode: 'mic'
+            },
             [SAMPLE_BROWSER_TARGETS.grainMain]: {
                 layerLabel: 'Main Grain',
                 slotKind: 'grainMainSample',
@@ -8963,6 +8987,7 @@
             }
         };
         const GRAIN_SAMPLE_SLOT_TARGETS = {
+            mic: SAMPLE_BROWSER_TARGETS.grainMainMic,
             grainMainSample: SAMPLE_BROWSER_TARGETS.grainMain,
             grainASample: SAMPLE_BROWSER_TARGETS.grainA,
             grainBSample: SAMPLE_BROWSER_TARGETS.grainB
@@ -9365,9 +9390,13 @@
         let grainSampleBrowserSourceKeys = {
             ...GRAIN_SAMPLE_BROWSER_DEFAULT_SOURCE_KEYS
         };
+        let micSampleMetadata = null;
         let grainMainSampleMetadata = null;
         let grainASampleMetadata = null;
         let grainBSampleMetadata = null;
+        let grainMainPreserveDuration = true;
+        let grainAPreserveDuration = true;
+        let grainBPreserveDuration = true;
         let drumMachineKickBuffer = null;
         let drumMachineSnareBuffer = null;
         let drumMachineHatBuffer = null;
@@ -13762,6 +13791,7 @@
                     smoothing,
                     width,
                     volume,
+                    preserveDuration: getGranularLayerPreserveDuration(definition.key),
                     pitchRatio,
                     intervalSeconds: getGranularLayerIntervalSeconds(sizeSeconds, blend, smoothing),
                     jitterSeconds: getGranularLayerJitterSeconds(sizeSeconds, blend, smoothing)
@@ -15167,6 +15197,7 @@
         }
 
         function getGrainSampleMetadata(kind) {
+            if (kind === 'mic') return micSampleMetadata;
             if (kind === 'grainMainSample') return grainMainSampleMetadata;
             if (kind === 'grainASample') return grainASampleMetadata;
             if (kind === 'grainBSample') return grainBSampleMetadata;
@@ -15188,7 +15219,9 @@
                 };
             }
 
-            if (kind === 'grainMainSample') {
+            if (kind === 'mic') {
+                micSampleMetadata = normalizedMetadata;
+            } else if (kind === 'grainMainSample') {
                 grainMainSampleMetadata = normalizedMetadata;
             } else if (kind === 'grainASample') {
                 grainASampleMetadata = normalizedMetadata;
@@ -15197,6 +15230,59 @@
             }
 
             return normalizedMetadata;
+        }
+
+        function normalizeGranularLayerKey(layerKey) {
+            return layerKey === 'A' || layerKey === 'B' ? layerKey : 'main';
+        }
+
+        function getGranularLayerPreserveDuration(layerKey) {
+            const normalized = normalizeGranularLayerKey(layerKey);
+            if (normalized === 'A') return grainAPreserveDuration;
+            if (normalized === 'B') return grainBPreserveDuration;
+            return grainMainPreserveDuration;
+        }
+
+        function syncGranularPreserveDurationButtons() {
+            GRANULAR_LAYER_DEFINITIONS.forEach((definition) => {
+                const buttonId = definition.preserveDurationButtonId;
+                if (!buttonId) return;
+                const button = document.getElementById(buttonId);
+                if (!button) return;
+                const preserveDuration = getGranularLayerPreserveDuration(definition.key);
+                button.classList.toggle('active', preserveDuration);
+                button.setAttribute('aria-pressed', String(preserveDuration));
+                button.textContent = preserveDuration ? 'Preserve Duration' : 'Pitch Changes Length';
+                button.title = preserveDuration
+                    ? `${definition.label} keeps grain duration steady while pitch changes.`
+                    : `${definition.label} follows sampler-style pitch and duration together.`;
+            });
+        }
+
+        function setGranularLayerPreserveDuration(layerKey, enabled, options = {}) {
+            const normalized = normalizeGranularLayerKey(layerKey);
+            const nextValue = Boolean(enabled);
+            if (normalized === 'A') {
+                grainAPreserveDuration = nextValue;
+            } else if (normalized === 'B') {
+                grainBPreserveDuration = nextValue;
+            } else {
+                grainMainPreserveDuration = nextValue;
+            }
+            syncGranularPreserveDurationButtons();
+            if (audioContext && activeGrains.size > 0) {
+                restartActiveGrainStreamsFromNow();
+            }
+            if (!options.silent) {
+                setStatus(
+                    nextValue
+                        ? `${normalized === 'main' ? 'Main Grain' : `Grain ${normalized}`} duration preserved across pitch.`
+                        : `${normalized === 'main' ? 'Main Grain' : `Grain ${normalized}`} now follows pitch-dependent duration.`
+                );
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
         }
 
         function getSourceWaveformMetaText(kind, buffer) {
@@ -20558,6 +20644,7 @@
             generatedLoopBuffer = null;
             generatedLoopBaseBuffer = null;
             micAudioBuffer = null;
+            micSampleMetadata = null;
             grainMainSampleBuffer = null;
             grainMainSampleMetadata = null;
             grainASampleBuffer = null;
@@ -20656,6 +20743,11 @@
                         const blob = new Blob(recordedChunks, { type: mimeType || mediaRecorder.mimeType || 'audio/webm' });
                         const arrayBuffer = await blob.arrayBuffer();
                         await loadAudioFromArrayBuffer(arrayBuffer, getRecordingLabelForKind(targetKind), targetKind);
+                        if (targetKind === 'mic') {
+                            setGrainSampleMetadata('mic', null);
+                            updateSourceAvailability();
+                            saveState();
+                        }
                     } catch (err) {
                         console.error(err);
                         getSourceSlotConfig(targetKind).setBuffer(previousBuffer);
@@ -21000,7 +21092,11 @@
                 0.0625,
                 Math.min(16, layer.pitchRatio * Math.pow(2, (Number(sourceInfo.tuneSemitones) || 0) / 12))
             );
-            const sourceDuration = Math.max(0.001, Math.min(loopDuration, sourceShape.sizeSeconds * playbackRate));
+            const preserveDuration = layer.preserveDuration !== false;
+            const requestedSourceDuration = preserveDuration
+                ? sourceShape.sizeSeconds * playbackRate
+                : sourceShape.sizeSeconds;
+            const sourceDuration = Math.max(0.001, Math.min(loopDuration, requestedSourceDuration));
             const grainDuration = Math.max(minimumFadeSeconds * 2, sourceDuration / playbackRate);
             const maxOffsetSpan = Math.max(0, loopDuration - sourceDuration);
             const baseOffset = wrapUnitInterval(sourceShape.positionPct) * maxOffsetSpan;
@@ -27486,6 +27582,11 @@
             preset.grainMainSource = normalizeGranularLayerSourceMode(document.getElementById('grainMainSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.main, { layer: 'main' });
             preset.grainSynthASource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthASource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.A, { layer: 'A' });
             preset.grainSynthBSource = normalizeGranularLayerSourceMode(document.getElementById('grainSynthBSource')?.value || GRANULAR_LAYER_SOURCE_DEFAULTS.B, { layer: 'B' });
+            preset.grainPreserveDuration = {
+                main: grainMainPreserveDuration,
+                A: grainAPreserveDuration,
+                B: grainBPreserveDuration
+            };
             preset.grainTimingMode = getGrainTimingMode();
             preset.noiseType = document.getElementById('noiseType').value;
 
@@ -27557,6 +27658,18 @@
                 if (sourceSelect) sourceSelect.value = normalizeGranularLayerSourceMode(importedGrainSynthBSource, { layer: 'B' });
             }
             normalizeGranularLayerSourceSelects();
+            const importedGrainPreserveDuration = safePreset.grainPreserveDuration ?? preset.grainPreserveDuration;
+            if (importedGrainPreserveDuration) {
+                if (importedGrainPreserveDuration.main !== undefined) {
+                    setGranularLayerPreserveDuration('main', importedGrainPreserveDuration.main, { silent: true, skipSave: true });
+                }
+                if (importedGrainPreserveDuration.A !== undefined) {
+                    setGranularLayerPreserveDuration('A', importedGrainPreserveDuration.A, { silent: true, skipSave: true });
+                }
+                if (importedGrainPreserveDuration.B !== undefined) {
+                    setGranularLayerPreserveDuration('B', importedGrainPreserveDuration.B, { silent: true, skipSave: true });
+                }
+            }
             const importedGrainTimingMode = safePreset.grainTimingMode ?? preset.grainTimingMode ?? 'synth';
             setGrainTimingMode(importedGrainTimingMode, { silent: true, skipSave: true, skipRestart: true });
             if (safePreset.noiseType) {
@@ -28260,6 +28373,13 @@
                     dropboxSampleLayerSourceBpm: dropboxSampleLayerSourceBpm,
                     dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
                     patternLength: getPatternLengthSteps(),
+                    grainMainPreserveDuration: grainMainPreserveDuration,
+                    grainAPreserveDuration: grainAPreserveDuration,
+                    grainBPreserveDuration: grainBPreserveDuration,
+                    grainMainMicBrowserSourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMainMic),
+                    grainMainMicSourceKey: micSampleMetadata?.sourceKey || '',
+                    grainMainMicFileName: micSampleMetadata?.fileName || '',
+                    grainMainMicRelativePath: micSampleMetadata?.relativePath || '',
                     grainMainSampleBrowserSourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain),
                     grainMainSampleSourceKey: grainMainSampleMetadata?.sourceKey || '',
                     grainMainSampleFileName: grainMainSampleMetadata?.fileName || '',
@@ -28617,6 +28737,23 @@
                             dropboxStretchToggle.checked = dropboxSampleLayerStretchToLoop;
                         }
                     }
+                    if (state.modes.grainMainPreserveDuration !== undefined) {
+                        setGranularLayerPreserveDuration('main', state.modes.grainMainPreserveDuration, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainAPreserveDuration !== undefined) {
+                        setGranularLayerPreserveDuration('A', state.modes.grainAPreserveDuration, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainBPreserveDuration !== undefined) {
+                        setGranularLayerPreserveDuration('B', state.modes.grainBPreserveDuration, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.grainMainMicBrowserSourceKey !== undefined) {
+                        setGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMainMic, state.modes.grainMainMicBrowserSourceKey);
+                    }
+                    setGrainSampleMetadata('mic', {
+                        sourceKey: state.modes.grainMainMicSourceKey || getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMainMic),
+                        fileName: state.modes.grainMainMicFileName || '',
+                        relativePath: state.modes.grainMainMicRelativePath || ''
+                    });
                     if (state.modes.grainMainSampleBrowserSourceKey !== undefined) {
                         setGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain, state.modes.grainMainSampleBrowserSourceKey);
                     }
@@ -35248,6 +35385,17 @@
                 saveState();
             });
         });
+
+        [
+            ['grainMainPreserveDurationBtn', 'main'],
+            ['grainAPreserveDurationBtn', 'A'],
+            ['grainBPreserveDurationBtn', 'B']
+        ].forEach(([id, layerKey]) => {
+            document.getElementById(id)?.addEventListener('click', () => {
+                setGranularLayerPreserveDuration(layerKey, !getGranularLayerPreserveDuration(layerKey));
+            });
+        });
+        syncGranularPreserveDurationButtons();
 
         document.querySelectorAll('[data-grain-layer-solo]').forEach((button) => {
             button.addEventListener('click', () => {
