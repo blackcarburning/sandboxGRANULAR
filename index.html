@@ -4869,6 +4869,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopVBtn">Generate Bastardloop V</button>
+                        <button class="performance-btn" id="performanceBastardLoopVRecutBtn">Re-cut Same Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopVBrowserBtn">Bastardloop Browser</button>
                         <button class="performance-btn" id="performanceBastardLoopVSamplesBtn">Used Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopVSoloBtn" aria-pressed="false">Solo Off</button>
@@ -4968,6 +4969,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopPBtn">Generate Bastardloop P</button>
+                        <button class="performance-btn" id="performanceBastardLoopPRecutBtn">Re-cut Same Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopPBrowserBtn">Bastardloop Browser</button>
                         <button class="performance-btn" id="performanceBastardLoopPSamplesBtn">Used Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopPSoloBtn" aria-pressed="false">Solo Off</button>
@@ -5067,6 +5069,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopOBtn">Generate Bastardloop O</button>
+                        <button class="performance-btn" id="performanceBastardLoopORecutBtn">Re-cut Same Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopOBrowserBtn">Bastardloop Browser</button>
                         <button class="performance-btn" id="performanceBastardLoopOSamplesBtn">Used Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopOSoloBtn" aria-pressed="false">Solo Off</button>
@@ -5206,6 +5209,23 @@
                         <input type="checkbox" id="performanceDropboxSampleStretchToLoop">
                         <span>Stretch To Loop</span>
                     </label>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceDropboxSampleSemitone">
+                        <span>Dropbox Semitone</span>
+                        <span class="value" id="performanceDropboxSampleSemitoneValue">0 st</span>
+                    </label>
+                    <input type="range" id="performanceDropboxSampleSemitone" min="-12" max="12" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceDropboxSampleFineTune">
+                        <span>Dropbox Fine Tune</span>
+                        <span class="value" id="performanceDropboxSampleFineTuneValue">0 c</span>
+                    </label>
+                    <input type="range" id="performanceDropboxSampleFineTune" min="-100" max="100" value="0" step="1">
+                </div>
+                <div class="performance-layer-switches" aria-label="Dropbox sample pitch controls">
+                    <button class="performance-btn active" id="performanceDropboxSamplePreserveDurationBtn" type="button" aria-pressed="true">Preserve Duration On</button>
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceDropboxSampleMeta">Empty</div>
             </div>
@@ -8501,6 +8521,12 @@
             return Array.isArray(metadata?.sampleNames) ? metadata.sampleNames.filter(Boolean) : [];
         }
 
+        function getBastardLoopSampleRefs(layer) {
+            const metadata = getBastardLoopTraceState(layer).metadata;
+            const paths = Array.isArray(metadata?.samplePaths) ? metadata.samplePaths.filter(Boolean) : [];
+            return paths.length ? paths : getBastardLoopSampleNames(layer);
+        }
+
         function appendBastardLoopTrace(layer, stage, details = {}) {
             const snapshot = getBastardLoopTraceState(layer);
             appendDebugConsoleEvent(
@@ -8887,6 +8913,9 @@
         let dropboxSampleLayerBuffer = null;
         let dropboxSampleLayerMetadata = null;
         let dropboxSampleLayerSourceBpm = 120;
+        let dropboxSampleLayerPitchSemitones = 0;
+        let dropboxSampleLayerFineCents = 0;
+        let dropboxSampleLayerPreserveDuration = true;
         let sourceMutationSerial = 0;
         let lastSourceWriteAt = 0;
         let lastGeneratedSourceWriteAt = 0;
@@ -14704,6 +14733,9 @@
                 sourceLabel: String(metadata.sourceLabel || fallbackSourceLabel || '').trim(),
                 sampleNames: Array.isArray(metadata.sampleNames)
                     ? metadata.sampleNames.map((name) => String(name || '').trim()).filter(Boolean).slice(0, 64)
+                    : [],
+                samplePaths: Array.isArray(metadata.samplePaths)
+                    ? metadata.samplePaths.map((name) => String(name || '').trim()).filter(Boolean).slice(0, 64)
                     : []
             };
         }
@@ -15580,6 +15612,53 @@
             return Boolean(dropboxSampleLayerStretchToLoop);
         }
 
+        function updateDropboxSampleLayerPitchControls() {
+            syncBastardLoopPitchControl(
+                'performanceDropboxSampleSemitone',
+                'performanceDropboxSampleSemitoneValue',
+                clampBastardLoopPitchSemitones(dropboxSampleLayerPitchSemitones),
+                formatBastardLoopPitchSemitones
+            );
+            syncBastardLoopPitchControl(
+                'performanceDropboxSampleFineTune',
+                'performanceDropboxSampleFineTuneValue',
+                clampBastardLoopFineCents(dropboxSampleLayerFineCents),
+                formatBastardLoopFineCents
+            );
+            const preserveButton = document.getElementById('performanceDropboxSamplePreserveDurationBtn');
+            if (preserveButton) {
+                preserveButton.classList.toggle('active', dropboxSampleLayerPreserveDuration);
+                preserveButton.textContent = dropboxSampleLayerPreserveDuration ? 'Preserve Duration On' : 'Preserve Duration Off';
+                preserveButton.setAttribute('aria-pressed', String(dropboxSampleLayerPreserveDuration));
+            }
+        }
+
+        function getDropboxSampleLayerPitchSemitones() {
+            const slider = document.getElementById('performanceDropboxSampleSemitone');
+            dropboxSampleLayerPitchSemitones = clampBastardLoopPitchSemitones(slider?.value ?? dropboxSampleLayerPitchSemitones);
+            updateDropboxSampleLayerPitchControls();
+            return dropboxSampleLayerPitchSemitones;
+        }
+
+        function getDropboxSampleLayerFineCents() {
+            const slider = document.getElementById('performanceDropboxSampleFineTune');
+            dropboxSampleLayerFineCents = clampBastardLoopFineCents(slider?.value ?? dropboxSampleLayerFineCents);
+            updateDropboxSampleLayerPitchControls();
+            return dropboxSampleLayerFineCents;
+        }
+
+        function getDropboxSampleLayerPitchRatio() {
+            return getBastardLoopPitchRatioFromParts(
+                0,
+                getDropboxSampleLayerPitchSemitones(),
+                getDropboxSampleLayerFineCents()
+            );
+        }
+
+        function getDropboxSampleLayerPreserveDuration() {
+            return Boolean(dropboxSampleLayerPreserveDuration);
+        }
+
         function getDropboxSampleLayerBarDuration(sourceBpm = null) {
             return getLoopBarDurationSeconds(sourceBpm);
         }
@@ -15617,7 +15696,11 @@
                 }
             }
 
-            return rendered;
+            return getBastardLoopPlaybackBufferForMode(
+                rendered,
+                getDropboxSampleLayerPitchRatio(),
+                { preserveDuration: getDropboxSampleLayerPreserveDuration() }
+            );
         }
 
         function getDropboxSampleLayerLevelValue(options = {}) {
@@ -15634,7 +15717,8 @@
         }
 
         function getDropboxSampleLayerPlaybackRate() {
-            return getBastardLoopTempoRate(dropboxSampleLayerSourceBpm);
+            const pitchRatio = getDropboxSampleLayerPreserveDuration() ? 1 : getDropboxSampleLayerPitchRatio();
+            return getBastardLoopTempoRate(dropboxSampleLayerSourceBpm) * pitchRatio;
         }
 
         function getResolvedDropboxSampleLayerDuration(playbackBuffer = dropboxSampleLayerBuffer) {
@@ -15653,8 +15737,10 @@
             if (dropboxSampleLayerLoadInFlight) return 'Loading...';
             if (!dropboxSampleLayerRawBuffer || !dropboxSampleLayerBuffer) return 'Empty';
             const modeTag = getDropboxSampleLayerStretchToLoop() ? ' · stretched' : ' · hit';
-            if (dropboxSampleLayerMetadata?.summary) return `${dropboxSampleLayerMetadata.summary}${modeTag}`;
-            return `${dropboxSampleLayerBuffer.duration.toFixed(2)}s loop${modeTag}`;
+            const pitchTag = `${formatBastardLoopPitchSemitones(dropboxSampleLayerPitchSemitones)} ${formatBastardLoopFineCents(dropboxSampleLayerFineCents)}`;
+            const durationTag = getDropboxSampleLayerPreserveDuration() ? ' · preserve duration' : ' · sampler pitch';
+            if (dropboxSampleLayerMetadata?.summary) return `${dropboxSampleLayerMetadata.summary}${modeTag} · ${pitchTag}${durationTag}`;
+            return `${dropboxSampleLayerBuffer.duration.toFixed(2)}s loop${modeTag} · ${pitchTag}${durationTag}`;
         }
 
         function syncDropboxSampleLayerUi() {
@@ -15679,6 +15765,7 @@
             if (label) label.textContent = `${value}%`;
             if (meta) meta.textContent = describeDropboxSampleLayerMeta();
             if (checkbox) checkbox.checked = getDropboxSampleLayerStretchToLoop();
+            updateDropboxSampleLayerPitchControls();
         }
 
         function rerenderDropboxSampleLayerFromRaw(options = {}) {
@@ -16504,6 +16591,7 @@
             const filterLabel = document.getElementById('performanceBastardLoopVFilterCutoffValue');
             const meta = document.getElementById('performanceBastardLoopVMeta');
             const button = document.getElementById('performanceGenerateBastardLoopVBtn');
+            const recutButton = document.getElementById('performanceBastardLoopVRecutBtn');
             const samplesButton = document.getElementById('performanceBastardLoopVSamplesBtn');
             const reverseButton = document.getElementById('performanceBastardLoopVReverseBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoopVPitchAffectsDuration');
@@ -16522,6 +16610,11 @@
                 button.textContent = bastardLoopVGenerationInFlight
                     ? 'Building Bastardloop V...'
                     : (bastardLoopVBuffer ? 'Rebuild Bastardloop V' : 'Generate Bastardloop V');
+            }
+            if (recutButton) {
+                const canRecut = getBastardLoopSampleRefs('V').length > 0;
+                recutButton.disabled = bastardLoopVGenerationInFlight || !canRecut;
+                recutButton.textContent = bastardLoopVGenerationInFlight ? 'Re-cutting...' : 'Re-cut Same Samples';
             }
             if (samplesButton) {
                 samplesButton.disabled = bastardLoopVGenerationInFlight || (!bastardLoopVBuffer && getBastardLoopSampleNames('V').length === 0);
@@ -16758,6 +16851,7 @@
             const filterLabel = document.getElementById('performanceBastardLoopPFilterCutoffValue');
             const meta = document.getElementById('performanceBastardLoopPMeta');
             const button = document.getElementById('performanceGenerateBastardLoopPBtn');
+            const recutButton = document.getElementById('performanceBastardLoopPRecutBtn');
             const samplesButton = document.getElementById('performanceBastardLoopPSamplesBtn');
             const reverseButton = document.getElementById('performanceBastardLoopPReverseBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoopPPitchAffectsDuration');
@@ -16776,6 +16870,11 @@
                 button.textContent = bastardLoopPGenerationInFlight
                     ? 'Building Bastardloop P...'
                     : (bastardLoopPBuffer ? 'Rebuild Bastardloop P' : 'Generate Bastardloop P');
+            }
+            if (recutButton) {
+                const canRecut = getBastardLoopSampleRefs('P').length > 0;
+                recutButton.disabled = bastardLoopPGenerationInFlight || !canRecut;
+                recutButton.textContent = bastardLoopPGenerationInFlight ? 'Re-cutting...' : 'Re-cut Same Samples';
             }
             if (samplesButton) {
                 samplesButton.disabled = bastardLoopPGenerationInFlight || (!bastardLoopPBuffer && getBastardLoopSampleNames('P').length === 0);
@@ -17004,6 +17103,7 @@
             const filterLabel = document.getElementById('performanceBastardLoopOFilterCutoffValue');
             const meta = document.getElementById('performanceBastardLoopOMeta');
             const button = document.getElementById('performanceGenerateBastardLoopOBtn');
+            const recutButton = document.getElementById('performanceBastardLoopORecutBtn');
             const samplesButton = document.getElementById('performanceBastardLoopOSamplesBtn');
             const reverseButton = document.getElementById('performanceBastardLoopOReverseBtn');
             const durationCheckbox = document.getElementById('performanceBastardLoopOPitchAffectsDuration');
@@ -17022,6 +17122,11 @@
                 button.textContent = bastardLoopOGenerationInFlight
                     ? 'Building Bastardloop O...'
                     : (bastardLoopOBuffer ? 'Rebuild Bastardloop O' : 'Generate Bastardloop O');
+            }
+            if (recutButton) {
+                const canRecut = getBastardLoopSampleRefs('O').length > 0;
+                recutButton.disabled = bastardLoopOGenerationInFlight || !canRecut;
+                recutButton.textContent = bastardLoopOGenerationInFlight ? 'Re-cutting...' : 'Re-cut Same Samples';
             }
             if (samplesButton) {
                 samplesButton.disabled = bastardLoopOGenerationInFlight || (!bastardLoopOBuffer && getBastardLoopSampleNames('O').length === 0);
@@ -17439,6 +17544,45 @@
             }
             if (!options.skipSave) {
                 saveState();
+            }
+        }
+
+        function refreshDropboxSampleLayerPitch(options = {}) {
+            if (dropboxSampleLayerRawBuffer) {
+                rerenderDropboxSampleLayerFromRaw({ skipUi: true });
+            } else if (bastardLoopPlaying) {
+                syncDropboxSampleLayerTempo();
+            }
+            syncDropboxSampleLayerUi();
+            syncPerformanceControlState();
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
+        function setDropboxSampleLayerPitchSemitones(value, options = {}) {
+            dropboxSampleLayerPitchSemitones = clampBastardLoopPitchSemitones(value);
+            refreshDropboxSampleLayerPitch(options);
+            if (!options.silent) {
+                setStatus(`Dropbox sample semitone ${formatBastardLoopPitchSemitones(dropboxSampleLayerPitchSemitones)}.`);
+            }
+        }
+
+        function setDropboxSampleLayerFineCents(value, options = {}) {
+            dropboxSampleLayerFineCents = clampBastardLoopFineCents(value);
+            refreshDropboxSampleLayerPitch(options);
+            if (!options.silent) {
+                setStatus(`Dropbox sample fine tune ${formatBastardLoopFineCents(dropboxSampleLayerFineCents)}.`);
+            }
+        }
+
+        function setDropboxSampleLayerPreserveDuration(enabled, options = {}) {
+            dropboxSampleLayerPreserveDuration = Boolean(enabled);
+            refreshDropboxSampleLayerPitch(options);
+            if (!options.silent) {
+                setStatus(dropboxSampleLayerPreserveDuration
+                    ? 'Dropbox sample duration-preserved pitch enabled.'
+                    : 'Dropbox sample sampler pitch mode enabled.');
             }
         }
 
@@ -27453,6 +27597,8 @@
                 performanceBastardLoopOFineTune: 0,
                 performanceBastardLoopOLevel: 50,
                 performanceDropboxSampleLevel: 45,
+                performanceDropboxSampleSemitone: 0,
+                performanceDropboxSampleFineTune: 0,
                 performanceGeneratedDryTrim: 0,
                 performanceGeneratedSwing: 0,
                 performanceGeneratedTranspose: 0,
@@ -27552,6 +27698,7 @@
             setBastardLoopOReverse(false, { silent: true, skipSave: true });
             setArpMode('up', { skipSave: true, skipRestart: true });
             dropboxSampleLayerStretchToLoop = false;
+            setDropboxSampleLayerPreserveDuration(true, { silent: true, skipSave: true });
             applyBastardLoopDivisionSelection(['1/16'], { save: false });
             applyBastardLoop2DivisionSelection(['1/16'], { save: false });
             applyBastardLoop3DivisionSelection(['1/16'], { save: false });
@@ -27723,6 +27870,9 @@
                 bastardLoopOReverse: bastardLoopOReverse,
                 dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
                 dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
+                dropboxSampleLayerPitchSemitones: dropboxSampleLayerPitchSemitones,
+                dropboxSampleLayerFineCents: dropboxSampleLayerFineCents,
+                dropboxSampleLayerPreserveDuration: dropboxSampleLayerPreserveDuration,
                 dropboxSampleSourceKey: getDropboxSampleLayerSourceKey(),
                 drumMachineEnabled: drumMachineEnabled,
                 drumMachineDirectOutput: drumMachineDirectOutput,
@@ -28069,6 +28219,18 @@
             const importedDropboxSampleLayerStretchToLoop = safePreset.dropboxSampleLayerStretchToLoop ?? preset.dropboxSampleLayerStretchToLoop;
             if (importedDropboxSampleLayerStretchToLoop !== undefined) {
                 dropboxSampleLayerStretchToLoop = Boolean(importedDropboxSampleLayerStretchToLoop);
+            }
+            const importedDropboxSampleLayerPitchSemitones = safePreset.dropboxSampleLayerPitchSemitones ?? preset.dropboxSampleLayerPitchSemitones;
+            if (importedDropboxSampleLayerPitchSemitones !== undefined) {
+                setDropboxSampleLayerPitchSemitones(importedDropboxSampleLayerPitchSemitones, { silent: true, skipSave: true });
+            }
+            const importedDropboxSampleLayerFineCents = safePreset.dropboxSampleLayerFineCents ?? preset.dropboxSampleLayerFineCents;
+            if (importedDropboxSampleLayerFineCents !== undefined) {
+                setDropboxSampleLayerFineCents(importedDropboxSampleLayerFineCents, { silent: true, skipSave: true });
+            }
+            const importedDropboxSampleLayerPreserveDuration = safePreset.dropboxSampleLayerPreserveDuration ?? preset.dropboxSampleLayerPreserveDuration;
+            if (importedDropboxSampleLayerPreserveDuration !== undefined) {
+                setDropboxSampleLayerPreserveDuration(importedDropboxSampleLayerPreserveDuration, { silent: true, skipSave: true });
             }
             const importedDropboxSampleSourceKey = safePreset.dropboxSampleSourceKey ?? preset.dropboxSampleSourceKey;
             if (importedDropboxSampleSourceKey) {
@@ -28654,6 +28816,9 @@
                     dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
                     dropboxSampleLayerSourceBpm: dropboxSampleLayerSourceBpm,
                     dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
+                    dropboxSampleLayerPitchSemitones: dropboxSampleLayerPitchSemitones,
+                    dropboxSampleLayerFineCents: dropboxSampleLayerFineCents,
+                    dropboxSampleLayerPreserveDuration: dropboxSampleLayerPreserveDuration,
                     patternLength: getPatternLengthSteps(),
                     grainMainPreserveDuration: grainMainPreserveDuration,
                     grainAPreserveDuration: grainAPreserveDuration,
@@ -29033,6 +29198,15 @@
                         if (dropboxStretchToggle) {
                             dropboxStretchToggle.checked = dropboxSampleLayerStretchToLoop;
                         }
+                    }
+                    if (state.modes.dropboxSampleLayerPitchSemitones !== undefined) {
+                        setDropboxSampleLayerPitchSemitones(state.modes.dropboxSampleLayerPitchSemitones, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.dropboxSampleLayerFineCents !== undefined) {
+                        setDropboxSampleLayerFineCents(state.modes.dropboxSampleLayerFineCents, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.dropboxSampleLayerPreserveDuration !== undefined) {
+                        setDropboxSampleLayerPreserveDuration(state.modes.dropboxSampleLayerPreserveDuration, { silent: true, skipSave: true });
                     }
                     if (state.modes.grainMainPreserveDuration !== undefined) {
                         setGranularLayerPreserveDuration('main', state.modes.grainMainPreserveDuration, { silent: true, skipSave: true });
@@ -31818,13 +31992,18 @@
             }
         }
 
-        async function generateBastardLoopVWithPlaybackRestart() {
+        async function generateBastardLoopVWithPlaybackRestart(options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating a bastardloop.');
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const divisions = getSelectedBastardLoopVDivisions();
+            const reuseSamples = options.reuseSamples === true;
+            const sourceFiles = reuseSamples ? getBastardLoopSampleRefs('V') : [];
+            if (reuseSamples && !sourceFiles.length) {
+                throw new Error('Build Bastardloop V first so MYGRAIN knows which samples to re-cut.');
+            }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
             const restartTime = getBufferedTransportStartTime();
@@ -31838,9 +32017,9 @@
             syncBastardLoopVUi();
             syncBastardLoopPUi();
             syncBastardLoopOUi();
-            setStatus(`Building Bastardloop V from SAMPLES_VOCAL at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`${reuseSamples ? 'Re-cutting' : 'Building'} Bastardloop V from ${reuseSamples ? `${sourceFiles.length} same SAMPLES_VOCAL files` : 'SAMPLES_VOCAL'} at ${bpm} BPM using ${divisions.join(', ')}…`);
             clearLoopLayerSoloForBastardLoop('bastardv');
-            appendBastardLoopTrace('V', 'build-request', { bpm, divisions, source: 'samples_vocal' });
+            appendBastardLoopTrace('V', reuseSamples ? 'recut-request' : 'build-request', { bpm, divisions, source: 'samples_vocal', sourceFileCount: sourceFiles.length });
 
             try {
                 if (shouldRestartSequencer) {
@@ -31863,6 +32042,7 @@
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-v`,
                         divisions,
                         source: 'samples_vocal',
+                        sourceFiles,
                         patternLength: getBastardLoopPatternLengthPayload()
                     })
                 });
@@ -31921,13 +32101,18 @@
             syncBastardLoopOUi();
             }
         }
-        async function generateBastardLoopPWithPlaybackRestart() {
+        async function generateBastardLoopPWithPlaybackRestart(options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating a bastardloop.');
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const divisions = getSelectedBastardLoopPDivisions();
+            const reuseSamples = options.reuseSamples === true;
+            const sourceFiles = reuseSamples ? getBastardLoopSampleRefs('P') : [];
+            if (reuseSamples && !sourceFiles.length) {
+                throw new Error('Build Bastardloop P first so MYGRAIN knows which samples to re-cut.');
+            }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
             const restartTime = getBufferedTransportStartTime();
@@ -31939,9 +32124,9 @@
             syncBastardLoop2Ui();
             syncBastardLoop3Ui();
             syncBastardLoopPUi();
-            setStatus(`Building Bastardloop P from SAMPLES_PIANO at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`${reuseSamples ? 'Re-cutting' : 'Building'} Bastardloop P from ${reuseSamples ? `${sourceFiles.length} same SAMPLES_PIANO files` : 'SAMPLES_PIANO'} at ${bpm} BPM using ${divisions.join(', ')}…`);
             clearLoopLayerSoloForBastardLoop('bastardp');
-            appendBastardLoopTrace('P', 'build-request', { bpm, divisions, source: 'samples_piano' });
+            appendBastardLoopTrace('P', reuseSamples ? 'recut-request' : 'build-request', { bpm, divisions, source: 'samples_piano', sourceFileCount: sourceFiles.length });
 
             try {
                 if (shouldRestartSequencer) {
@@ -31964,6 +32149,7 @@
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-p`,
                         divisions,
                         source: 'samples_piano',
+                        sourceFiles,
                         patternLength: getBastardLoopPatternLengthPayload()
                     })
                 });
@@ -32020,13 +32206,18 @@
                 syncBastardLoopPUi();
             }
         }
-        async function generateBastardLoopOWithPlaybackRestart() {
+        async function generateBastardLoopOWithPlaybackRestart(options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before generating a bastardloop.');
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const divisions = getSelectedBastardLoopODivisions();
+            const reuseSamples = options.reuseSamples === true;
+            const sourceFiles = reuseSamples ? getBastardLoopSampleRefs('O') : [];
+            if (reuseSamples && !sourceFiles.length) {
+                throw new Error('Build Bastardloop O first so MYGRAIN knows which samples to re-cut.');
+            }
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
             const restartTime = getBufferedTransportStartTime();
@@ -32038,9 +32229,9 @@
             syncBastardLoop2Ui();
             syncBastardLoop3Ui();
             syncBastardLoopOUi();
-            setStatus(`Building Bastardloop O from SAMPLES_ORCH at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`${reuseSamples ? 'Re-cutting' : 'Building'} Bastardloop O from ${reuseSamples ? `${sourceFiles.length} same SAMPLES_ORCH files` : 'SAMPLES_ORCH'} at ${bpm} BPM using ${divisions.join(', ')}…`);
             clearLoopLayerSoloForBastardLoop('bastardo');
-            appendBastardLoopTrace('O', 'build-request', { bpm, divisions, source: 'samples_orch' });
+            appendBastardLoopTrace('O', reuseSamples ? 'recut-request' : 'build-request', { bpm, divisions, source: 'samples_orch', sourceFileCount: sourceFiles.length });
 
             try {
                 if (shouldRestartSequencer) {
@@ -32063,6 +32254,7 @@
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-o`,
                         divisions,
                         source: 'samples_orch',
+                        sourceFiles,
                         patternLength: getBastardLoopPatternLengthPayload()
                     })
                 });
@@ -34629,6 +34821,7 @@
         const performanceBastardLoopVFilterCutoff = document.getElementById('performanceBastardLoopVFilterCutoff');
         const performanceBastardLoopVSoloBtn = document.getElementById('performanceBastardLoopVSoloBtn');
         const performanceBastardLoopVReverseBtn = document.getElementById('performanceBastardLoopVReverseBtn');
+        const performanceBastardLoopVRecutBtn = document.getElementById('performanceBastardLoopVRecutBtn');
         const performanceBastardLoopVSemitone = document.getElementById('performanceBastardLoopVSemitone');
         const performanceBastardLoopVFineTune = document.getElementById('performanceBastardLoopVFineTune');
         const performanceBastardLoopPPitch = document.getElementById('performanceBastardLoopPPitch');
@@ -34637,6 +34830,7 @@
         const performanceBastardLoopPFilterCutoff = document.getElementById('performanceBastardLoopPFilterCutoff');
         const performanceBastardLoopPSoloBtn = document.getElementById('performanceBastardLoopPSoloBtn');
         const performanceBastardLoopPReverseBtn = document.getElementById('performanceBastardLoopPReverseBtn');
+        const performanceBastardLoopPRecutBtn = document.getElementById('performanceBastardLoopPRecutBtn');
         const performanceBastardLoopPSemitone = document.getElementById('performanceBastardLoopPSemitone');
         const performanceBastardLoopPFineTune = document.getElementById('performanceBastardLoopPFineTune');
         const performanceBastardLoopOPitch = document.getElementById('performanceBastardLoopOPitch');
@@ -34645,6 +34839,7 @@
         const performanceBastardLoopOFilterCutoff = document.getElementById('performanceBastardLoopOFilterCutoff');
         const performanceBastardLoopOSoloBtn = document.getElementById('performanceBastardLoopOSoloBtn');
         const performanceBastardLoopOReverseBtn = document.getElementById('performanceBastardLoopOReverseBtn');
+        const performanceBastardLoopORecutBtn = document.getElementById('performanceBastardLoopORecutBtn');
         const performanceBastardLoopOSemitone = document.getElementById('performanceBastardLoopOSemitone');
         const performanceBastardLoopOFineTune = document.getElementById('performanceBastardLoopOFineTune');
         const performanceDropboxSampleBrowseBtn = document.getElementById('performanceDropboxSampleBrowseBtn');
@@ -34652,6 +34847,9 @@
         const performanceDropboxSampleSoloBtn = document.getElementById('performanceDropboxSampleSoloBtn');
         const performanceDropboxSampleSource = document.getElementById('performanceDropboxSampleSource');
         const performanceDropboxSampleStretchToLoop = document.getElementById('performanceDropboxSampleStretchToLoop');
+        const performanceDropboxSampleSemitone = document.getElementById('performanceDropboxSampleSemitone');
+        const performanceDropboxSampleFineTune = document.getElementById('performanceDropboxSampleFineTune');
+        const performanceDropboxSamplePreserveDurationBtn = document.getElementById('performanceDropboxSamplePreserveDurationBtn');
         const performanceDropboxSampleLevel = document.getElementById('performanceDropboxSampleLevel');
         const performanceDrumMachineRandomBtn = document.getElementById('performanceDrumMachineRandomBtn');
         const performanceDrumMachineSamplesOnlyBtn = document.getElementById('performanceDrumMachineSamplesOnlyBtn');
@@ -35612,6 +35810,16 @@
         performanceBastardLoopVSamplesBtn?.addEventListener('click', () => {
             openBastardLoopSamplesDialog('V');
         });
+        performanceBastardLoopVRecutBtn?.addEventListener('click', async () => {
+            if (bastardLoopVGenerationInFlight) return;
+            showSettlePopup();
+            try {
+                await generateBastardLoopVWithPlaybackRestart({ reuseSamples: true });
+            } catch (error) {
+                console.error(error);
+                setStatus(`Bastardloop V re-cut failed: ${error.message}`, 'error');
+            }
+        });
 
         performanceGenerateBastardLoopPBtn?.addEventListener('click', async () => {
             if (bastardLoopPGenerationInFlight) return;
@@ -35630,6 +35838,16 @@
         performanceBastardLoopPSamplesBtn?.addEventListener('click', () => {
             openBastardLoopSamplesDialog('P');
         });
+        performanceBastardLoopPRecutBtn?.addEventListener('click', async () => {
+            if (bastardLoopPGenerationInFlight) return;
+            showSettlePopup();
+            try {
+                await generateBastardLoopPWithPlaybackRestart({ reuseSamples: true });
+            } catch (error) {
+                console.error(error);
+                setStatus(`Bastardloop P re-cut failed: ${error.message}`, 'error');
+            }
+        });
 
         performanceGenerateBastardLoopOBtn?.addEventListener('click', async () => {
             if (bastardLoopOGenerationInFlight) return;
@@ -35647,6 +35865,16 @@
         });
         performanceBastardLoopOSamplesBtn?.addEventListener('click', () => {
             openBastardLoopSamplesDialog('O');
+        });
+        performanceBastardLoopORecutBtn?.addEventListener('click', async () => {
+            if (bastardLoopOGenerationInFlight) return;
+            showSettlePopup();
+            try {
+                await generateBastardLoopOWithPlaybackRestart({ reuseSamples: true });
+            } catch (error) {
+                console.error(error);
+                setStatus(`Bastardloop O re-cut failed: ${error.message}`, 'error');
+            }
         });
 
         getBastardLoopDivisionInputs().forEach(({ input, value }) => {
@@ -36129,6 +36357,18 @@
                 syncDropboxSampleLayerUi();
             }
             saveState();
+        });
+
+        performanceDropboxSampleSemitone?.addEventListener('input', (event) => {
+            setDropboxSampleLayerPitchSemitones(event.target.value);
+        });
+
+        performanceDropboxSampleFineTune?.addEventListener('input', (event) => {
+            setDropboxSampleLayerFineCents(event.target.value);
+        });
+
+        performanceDropboxSamplePreserveDurationBtn?.addEventListener('click', () => {
+            setDropboxSampleLayerPreserveDuration(!dropboxSampleLayerPreserveDuration);
         });
 
         performanceDropboxSampleLevel?.addEventListener('input', (event) => {
