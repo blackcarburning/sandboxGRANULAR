@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-09-39-build-v2026.10.10.13';
+            const cacheBuster = '2026-10-10-09-48-build-v2026.10.10.14';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4274,13 +4274,14 @@
 
         .simplified-ui .section-jump-drawer {
             position: fixed;
-            top: 50%;
+            top: 0;
             right: 0;
             z-index: 9990;
             display: block;
             width: min(78vw, 258px);
-            max-height: min(78svh, 560px);
-            transform: translate(calc(100% - 30px), -50%);
+            height: 100svh;
+            max-height: none;
+            transform: translate(calc(100% - 30px), 0);
             opacity: 0.72;
             transition: transform 0.24s ease, opacity 0.24s ease;
             pointer-events: none;
@@ -4288,7 +4289,7 @@
 
         .simplified-ui .section-jump-drawer.is-open,
         .simplified-ui .section-jump-drawer:focus-within {
-            transform: translate(0, -50%);
+            transform: translate(0, 0);
             opacity: 1;
         }
 
@@ -4298,7 +4299,7 @@
 
         .section-jump-handle {
             position: absolute;
-            top: 50%;
+            top: 18svh;
             left: 0;
             width: 30px;
             min-width: 30px;
@@ -4344,15 +4345,15 @@
         }
 
         #sectionJumpMegaRandomBtn {
-            top: calc(50% + 122px);
+            top: 40svh;
         }
 
         #sectionJumpKeyboardBtn {
-            top: calc(50% + 202px);
+            top: 62svh;
         }
 
         #sectionJumpTransportBtn {
-            top: calc(50% + 282px);
+            top: 84svh;
         }
 
         .section-jump-arrow {
@@ -4449,7 +4450,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.10.13</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.10.14</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4508,7 +4509,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.10.13</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.10.14</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -5114,6 +5115,8 @@
                         <button class="performance-btn" id="performanceDrumMachineSamplesOnlyBtn">Random Samples</button>
                         <button class="performance-btn" id="performanceDrumMachineOpenBtn">Open Drum Machine</button>
                         <button class="performance-btn" id="performanceDrumMachineDirectOutBtn" type="button" aria-pressed="false">Direct Out Off</button>
+                        <button class="performance-btn" id="performanceDrumMachineDirectDelayBtn" type="button" aria-pressed="false">Delay Send Off</button>
+                        <button class="performance-btn" id="performanceDrumMachineDirectReverbBtn" type="button" aria-pressed="false">Reverb Send Off</button>
                     </div>
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceDrumMachineMeta">Kick empty · Snare empty</div>
@@ -17655,6 +17658,23 @@
             }
         }
 
+        function randomizeDrumMachineEnvelopeShape(options = {}) {
+            const minimumPercent = Math.max(50, Number(options.minimumPercent) || 50);
+            const maximumPercent = Math.max(minimumPercent, Math.min(100, Number(options.maximumPercent) || 100));
+            [
+                'drumMachineKickDecay',
+                'drumMachineKickLength',
+                'drumMachineSnareDecay',
+                'drumMachineSnareLength',
+                'drumMachineHatDecay',
+                'drumMachineHatLength',
+                'drumMachinePercDecay',
+                'drumMachinePercLength'
+            ].forEach((id) => {
+                setSliderValue(id, randomIntegerInRange(minimumPercent, maximumPercent));
+            });
+        }
+
         function toggleDrumMachineStep(track, index) {
             const pattern = getDrumMachinePattern(track).slice();
             if (index < 0 || index >= pattern.length) return;
@@ -17950,9 +17970,11 @@
                 document.getElementById('drumMachineDirectOutBtn')
             ];
             const directDelayButtons = [
+                document.getElementById('performanceDrumMachineDirectDelayBtn'),
                 document.getElementById('drumMachineDirectDelayBtn')
             ];
             const directReverbButtons = [
+                document.getElementById('performanceDrumMachineDirectReverbBtn'),
                 document.getElementById('drumMachineDirectReverbBtn')
             ];
             const browserButtons = [
@@ -18780,6 +18802,7 @@
                     forceFinalSidechainKickRandomLevel();
                     setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
                     randomizeDrumMachinePatterns();
+                    randomizeDrumMachineEnvelopeShape({ minimumPercent: 50, maximumPercent: 100 });
                 }
                 syncDrumMachineUi();
                 const successMessage = randomizePattern
@@ -33280,11 +33303,15 @@
         const performanceDrumMachineLevel = document.getElementById('performanceDrumMachineLevel');
         const performanceDrumMachineLayerBtn = document.getElementById('performanceDrumMachineLayerBtn');
         const performanceDrumMachineDirectOutBtn = document.getElementById('performanceDrumMachineDirectOutBtn');
+        const performanceDrumMachineDirectDelayBtn = document.getElementById('performanceDrumMachineDirectDelayBtn');
+        const performanceDrumMachineDirectReverbBtn = document.getElementById('performanceDrumMachineDirectReverbBtn');
         const drumMachineOverlay = document.getElementById('drumMachineOverlay');
         const drumMachineCloseBtn = document.getElementById('drumMachineCloseBtn');
         const drumMachineRandomizeBtn = document.getElementById('drumMachineRandomizeBtn');
         const drumMachineSamplesOnlyBtn = document.getElementById('drumMachineSamplesOnlyBtn');
         const drumMachineDirectOutBtn = document.getElementById('drumMachineDirectOutBtn');
+        const drumMachineDirectDelayBtn = document.getElementById('drumMachineDirectDelayBtn');
+        const drumMachineDirectReverbBtn = document.getElementById('drumMachineDirectReverbBtn');
         const drumMachinePlayBtn = document.getElementById('drumMachinePlayBtn');
         const drumMachineKickBrowseBtn = document.getElementById('drumMachineKickBrowseBtn');
         const drumMachineKickRandomBtn = document.getElementById('drumMachineKickRandomBtn');
@@ -34774,6 +34801,14 @@
 
         performanceDrumMachineDirectOutBtn?.addEventListener('click', () => {
             setDrumMachineDirectOutput(!drumMachineDirectOutput);
+        });
+
+        performanceDrumMachineDirectDelayBtn?.addEventListener('click', () => {
+            setDrumMachineDirectDelaySend(!drumMachineDirectDelaySendEnabled);
+        });
+
+        performanceDrumMachineDirectReverbBtn?.addEventListener('click', () => {
+            setDrumMachineDirectReverbSend(!drumMachineDirectReverbSendEnabled);
         });
 
         performanceDrumMachineLevel?.addEventListener('input', (event) => {
