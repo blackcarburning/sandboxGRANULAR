@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-20-08-build-v2026.10.11.17';
+            const cacheBuster = '2026-10-11-20-18-build-v2026.10.11.18';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4917,7 +4917,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.17</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.18</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -33505,7 +33505,7 @@
                 throw new Error('Start MYGRAIN before exporting.');
             }
             const forcedRender = Boolean(options.forceSequencer || options.forceArp || options.forceBastardLoops || options.forceDrumMachine);
-            if (!canPlayGrains() && !bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer && !bastardLoopVBuffer && !bastardLoopPBuffer && !bastardLoopOBuffer && !dropboxSampleLayerBuffer && !forcedRender) {
+            if (!canPlayGrains() && !bastardLoopBuffer && !bastardLoop2Buffer && !bastardLoop3Buffer && !bastardLoopVBuffer && !bastardLoopPBuffer && !bastardLoopOBuffer && !bastardLoopLSampleBuffer && !dropboxSampleLayerBuffer && !forcedRender) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
 
@@ -33524,6 +33524,7 @@
             const wasBastardLoopVLive = Boolean(bastardLoopVSource);
             const wasBastardLoopPLive = Boolean(bastardLoopPSource);
             const wasBastardLoopOLive = Boolean(bastardLoopOSource);
+            const wasBastardLoopLLive = Boolean(bastardLoopLTransportActive || bastardLoopLSchedulerTimerId);
             const wasDropboxSampleLayerLive = Boolean(dropboxSampleLayerSource);
             const forceSequencer = Boolean(options.forceSequencer);
             const forceArp = Boolean(options.forceArp);
@@ -33535,6 +33536,7 @@
             const canStartBastardLoopV = bastardLoopVEnabled && Boolean(bastardLoopVBuffer);
             const canStartBastardLoopP = bastardLoopPEnabled && Boolean(bastardLoopPBuffer);
             const canStartBastardLoopO = bastardLoopOEnabled && Boolean(bastardLoopOBuffer);
+            const canStartBastardLoopL = bastardLoopLEnabled && Boolean(bastardLoopLSampleBuffer) && hasPlayableBastardLoopLSequence();
             const canStartDropboxSampleLayer = dropboxSampleLayerEnabled && Boolean(dropboxSampleLayerRawBuffer);
             const shouldRestartFreshPlayback = wasSequencerPlaying || wasArpPlaying || wasBastardLoopPlaying || wasDrumMachinePlaying || forceSequencer || forceArp || forceBastardLoops || forceDrumMachine;
             try {
@@ -33598,6 +33600,9 @@
                         }
                         if (wasBastardLoopOLive || canStartBastardLoopO) {
                             startBastardLoopO(restartTime, { skipUi: true });
+                        }
+                        if (wasBastardLoopLLive || canStartBastardLoopL) {
+                            startBastardLoopL(restartTime, { skipUi: true });
                         }
                         if (wasDropboxSampleLayerLive || canStartDropboxSampleLayer) {
                             startDropboxSampleLayer(restartTime, { skipUi: true });
@@ -35677,7 +35682,8 @@
             { key: 'bastardC', label: 'Bastardloop C', stemBase: 'bastardloop-c', renderGroup: 'bastardloops' },
             { key: 'bastardV', label: 'Bastardloop V', stemBase: 'bastardloop-v', renderGroup: 'bastardloops' },
             { key: 'bastardP', label: 'Bastardloop P', stemBase: 'bastardloop-p', renderGroup: 'bastardloops' },
-            { key: 'bastardO', label: 'Bastardloop O', stemBase: 'bastardloop-o', renderGroup: 'bastardloops' }
+            { key: 'bastardO', label: 'Bastardloop O', stemBase: 'bastardloop-o', renderGroup: 'bastardloops' },
+            { key: 'bastardL', label: 'Bastardloop L', stemBase: 'bastardloop-l', renderGroup: 'bastardloops' }
         ];
 
         function updatePerformanceStemBpmLabel() {
@@ -36186,6 +36192,7 @@
                 bastardLoopVEnabled,
                 bastardLoopPEnabled,
                 bastardLoopOEnabled,
+                bastardLoopLEnabled,
                 dropboxSampleLayerEnabled,
                 drumMachineEnabled,
                 generatedSampleSolo,
@@ -36217,6 +36224,7 @@
             setBastardLoopVEnabled(snapshot.bastardLoopVEnabled, { silent: true, skipSave: true });
             setBastardLoopPEnabled(snapshot.bastardLoopPEnabled, { silent: true, skipSave: true });
             setBastardLoopOEnabled(snapshot.bastardLoopOEnabled, { silent: true, skipSave: true });
+            setBastardLoopLEnabled(snapshot.bastardLoopLEnabled, { silent: true, skipSave: true });
             setDropboxSampleLayerEnabled(snapshot.dropboxSampleLayerEnabled, { silent: true, skipSave: true });
             setDrumMachineEnabled(snapshot.drumMachineEnabled, { silent: true, skipSave: true });
             setGranularLayerMuted('main', snapshot.grainMute.main, { silent: true, skipSave: true });
@@ -36246,6 +36254,7 @@
             setBastardLoopVEnabled(false, { silent: true, skipSave: true });
             setBastardLoopPEnabled(false, { silent: true, skipSave: true });
             setBastardLoopOEnabled(false, { silent: true, skipSave: true });
+            setBastardLoopLEnabled(false, { silent: true, skipSave: true });
             setDropboxSampleLayerEnabled(false, { silent: true, skipSave: true });
             setDrumMachineEnabled(false, { silent: true, skipSave: true });
             setGranularLayerMuted('main', true, { silent: true, skipSave: true });
@@ -36302,6 +36311,9 @@
                     break;
                 case 'bastardO':
                     setBastardLoopOEnabled(true, { silent: true, skipSave: true });
+                    break;
+                case 'bastardL':
+                    setBastardLoopLEnabled(true, { silent: true, skipSave: true });
                     break;
                 default:
                     break;
