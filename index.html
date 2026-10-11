@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-11-36-build-v2026.10.11.8';
+            const cacheBuster = '2026-10-11-17-53-build-v2026.10.11.9';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4859,7 +4859,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.8</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.9</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -8636,6 +8636,9 @@
                             <button class="performance-btn" id="bastardLoopLRateDownBtn" type="button">Rate -</button>
                             <button class="performance-btn" id="bastardLoopLRateUpBtn" type="button">Rate +</button>
                             <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
+                            <button class="performance-btn" id="bastardLoopLCopyBtn" type="button">Copy</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopLStatus">Choose a lead sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
@@ -10113,6 +10116,10 @@
         let bastardLoopLRecordArmed = true;
         let bastardLoopLLastStepTapIndex = -1;
         let bastardLoopLLastStepTapAt = 0;
+        let bastardLoopLCopyMode = 'idle';
+        let bastardLoopLCopyStartIndex = -1;
+        let bastardLoopLCopyEndIndex = -1;
+        let bastardLoopLCopyBuffer = [];
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -21783,6 +21790,96 @@
             bastardLoopLLastStepTapAt = 0;
         }
 
+        function resetBastardLoopLCopyState(options = {}) {
+            bastardLoopLCopyMode = 'idle';
+            bastardLoopLCopyStartIndex = -1;
+            bastardLoopLCopyEndIndex = -1;
+            if (!options.preserveBuffer) {
+                bastardLoopLCopyBuffer = [];
+            }
+        }
+
+        function getBastardLoopLCopyPrompt() {
+            if (bastardLoopLCopyMode === 'selectStart') return 'Loop L copy: press start step.';
+            if (bastardLoopLCopyMode === 'selectEnd') return `Loop L copy: start step ${bastardLoopLCopyStartIndex + 1}. Press end step.`;
+            if (bastardLoopLCopyMode === 'selectPaste') {
+                const startStep = bastardLoopLCopyStartIndex + 1;
+                const endStep = bastardLoopLCopyEndIndex + 1;
+                return `Loop L copy: ${startStep}-${endStep} ready. Press paste step.`;
+            }
+            return '';
+        }
+
+        function beginBastardLoopLCopyFlow() {
+            if (bastardLoopLCopyMode !== 'idle') {
+                resetBastardLoopLCopyState();
+                syncBastardLoopLEditorUi();
+                updateBastardLoopLStatus('Loop L copy cancelled.');
+                return;
+            }
+            resetBastardLoopLCopyState();
+            resetBastardLoopLStepTapMemory();
+            bastardLoopLCopyMode = 'selectStart';
+            syncBastardLoopLEditorUi();
+            updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
+        }
+
+        function pasteBastardLoopLCopiedRangeAt(index) {
+            const safeIndex = Math.max(0, Math.min(getBastardLoopLPatternLength() - 1, Number(index) || 0));
+            if (!Array.isArray(bastardLoopLCopyBuffer) || bastardLoopLCopyBuffer.length === 0) {
+                resetBastardLoopLCopyState();
+                syncBastardLoopLEditorUi();
+                updateBastardLoopLStatus('Loop L copy buffer was empty.');
+                return;
+            }
+            let applied = 0;
+            bastardLoopLCopyBuffer.forEach((step, offset) => {
+                const targetIndex = safeIndex + offset;
+                if (targetIndex >= getBastardLoopLPatternLength()) return;
+                setBastardLoopLStep(targetIndex, normalizeBastardLoopLStep({ ...step }));
+                applied += 1;
+            });
+            setBastardLoopLEditStepIndex(safeIndex);
+            const sourceStartStep = bastardLoopLCopyStartIndex + 1;
+            const sourceEndStep = bastardLoopLCopyEndIndex + 1;
+            resetBastardLoopLCopyState({ preserveBuffer: true });
+            syncBastardLoopLEditorUi();
+            restartBastardLoopLPlaybackIfNeeded();
+            saveState();
+            updateBastardLoopLStatus(`Loop L copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`);
+        }
+
+        function handleBastardLoopLCopyStepSelection(index) {
+            const safeIndex = Math.max(0, Math.min(getBastardLoopLPatternLength() - 1, Number(index) || 0));
+            if (bastardLoopLCopyMode === 'selectStart') {
+                bastardLoopLCopyStartIndex = safeIndex;
+                bastardLoopLCopyMode = 'selectEnd';
+                setBastardLoopLEditStepIndex(safeIndex);
+                syncBastardLoopLEditorUi();
+                updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
+                return true;
+            }
+            if (bastardLoopLCopyMode === 'selectEnd') {
+                const startIndex = Math.min(bastardLoopLCopyStartIndex, safeIndex);
+                const endIndex = Math.max(bastardLoopLCopyStartIndex, safeIndex);
+                bastardLoopLCopyStartIndex = startIndex;
+                bastardLoopLCopyEndIndex = endIndex;
+                bastardLoopLCopyBuffer = bastardLoopLSequence
+                    .slice(startIndex, endIndex + 1)
+                    .map((step) => normalizeBastardLoopLStep({ ...step }));
+                bastardLoopLCopyMode = 'selectPaste';
+                setBastardLoopLEditStepIndex(endIndex);
+                syncBastardLoopLEditorUi();
+                updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
+                return true;
+            }
+            if (bastardLoopLCopyMode === 'selectPaste') {
+                pasteBastardLoopLCopiedRangeAt(safeIndex);
+                return true;
+            }
+            return false;
+        }
+
         function computeBastardLoopLStepTapState(lastIndex, lastAt, index, now = Date.now()) {
             const safeIndex = Math.max(0, Math.min(63, Number(index) || 0));
             const safeNow = Number(now);
@@ -22072,15 +22169,18 @@
                 const step = getBastardLoopLStep(index);
                 const isSelected = index === bastardLoopLEditStepIndex;
                 const isCurrent = isBastardLoopLRunning() && index === bastardLoopLCurrentStepIndex;
+                const isCopyStart = bastardLoopLCopyStartIndex >= 0 && index === bastardLoopLCopyStartIndex;
+                const isCopyEnd = bastardLoopLCopyEndIndex >= 0 && index === bastardLoopLCopyEndIndex;
                 const isRest = Boolean(step.rest);
                 const isEmpty = !step.rest && !step.note;
                 const ratchet = getBastardLoopLStepRatchet(step);
                 button.classList.toggle('is-selected', isSelected);
                 button.classList.toggle('is-current', isCurrent);
+                button.classList.toggle('has-ratchet', ratchet > 1);
                 button.classList.toggle('is-rest', isRest);
                 button.classList.toggle('is-empty', isEmpty);
-                button.classList.toggle('has-ratchet', ratchet > 1);
                 button.classList.toggle('is-ratchet-edit', index === bastardLoopLRatchetEditStepIndex);
+                button.classList.toggle('active', isCopyStart || isCopyEnd);
                 const noteNode = button.querySelector('.lead-sequencer-step-note');
                 const flagNode = button.querySelector('.lead-sequencer-step-flags');
                 if (noteNode) {
@@ -22098,6 +22198,11 @@
             const runHandler = (event, options = {}) => {
                 event?.preventDefault?.();
                 event?.stopPropagation?.();
+                if (bastardLoopLCopyMode !== 'idle') {
+                    resetBastardLoopLStepTapMemory();
+                    handleBastardLoopLCopyStepSelection(index);
+                    return;
+                }
                 const now = Date.now();
                 const isDoubleTap = Boolean(options.allowDoubleTap) && detectBastardLoopLStepDoubleTap(index, now);
                 if (isDoubleTap) {
@@ -22283,7 +22388,8 @@
                 const summary = step.rest ? 'REST' : (step.note || 'empty');
                 const ratchetLabel = getBastardLoopLStepRatchet(step) > 1 ? ` · ratchet x${getBastardLoopLStepRatchet(step)}` : '';
                 const ratchetEditLabel = bastardLoopLRatchetEditStepIndex === bastardLoopLEditStepIndex ? ' · ratchet edit' : '';
-                cursor.textContent = `Editing step ${bastardLoopLEditStepIndex + 1} · ${summary} · time ${getBastardLoopLTimingLabel()}${ratchetLabel}${ratchetEditLabel}`;
+                const copyLabel = getBastardLoopLCopyPrompt();
+                cursor.textContent = `Editing step ${bastardLoopLEditStepIndex + 1} · ${summary} · time ${getBastardLoopLTimingLabel()}${ratchetLabel}${ratchetEditLabel}${copyLabel ? ` · ${copyLabel}` : ''}`;
             }
             if (accentButton) {
                 accentButton.classList.toggle('active', step.accent);
@@ -22343,6 +22449,7 @@
             const meta = document.getElementById('performanceBastardLoopLMeta');
             const transportButton = document.getElementById('bastardLoopLTransportBtn');
             const recordButton = document.getElementById('bastardLoopLRecordBtn');
+            const copyButton = document.getElementById('bastardLoopLCopyBtn');
             const filterSlider = document.getElementById('performanceBastardLoopLFilterCutoff');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopLFilterEnvelope');
             const delayDivisionSelect = document.getElementById('performanceBastardLoopLDelayDivision');
@@ -22383,6 +22490,12 @@
                 recordButton.classList.toggle('active', bastardLoopLRecordArmed);
                 recordButton.textContent = bastardLoopLRecordArmed ? 'Record On' : 'Practice';
                 recordButton.setAttribute('aria-pressed', String(bastardLoopLRecordArmed));
+            }
+            if (copyButton) {
+                const copyActive = bastardLoopLCopyMode !== 'idle';
+                copyButton.classList.toggle('active', copyActive);
+                copyButton.textContent = copyActive ? 'Cancel Copy' : 'Copy';
+                copyButton.setAttribute('aria-pressed', String(copyActive));
             }
             syncBastardLoopLEditorUi();
         }
@@ -22844,6 +22957,7 @@
             const overlay = document.getElementById('bastardLoopLOverlay');
             if (!overlay) return;
             resetBastardLoopLStepTapMemory();
+            resetBastardLoopLCopyState({ preserveBuffer: true });
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-l-open');
@@ -22858,6 +22972,7 @@
             const overlay = document.getElementById('bastardLoopLOverlay');
             if (!overlay) return;
             resetBastardLoopLStepTapMemory();
+            resetBastardLoopLCopyState({ preserveBuffer: true });
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('bastardloop-l-open');
@@ -22928,6 +23043,7 @@
             bastardLoopLSequence = Array.from({ length: 64 }, () => createEmptyBastardLoopLStep());
             bastardLoopLRatchetEditStepIndex = -1;
             resetBastardLoopLStepTapMemory();
+            resetBastardLoopLCopyState();
             setBastardLoopLEditStepIndex(0);
             syncBastardLoopLUi();
             restartBastardLoopLPlaybackIfNeeded();
@@ -37754,6 +37870,7 @@
         const bastardLoopLAccentAmountValueLabel = document.getElementById('bastardLoopLAccentAmountValue');
         const bastardLoopLRatchetButtons = Array.from(document.querySelectorAll('#bastardLoopLRatchetButtons .lead-sequencer-ratchet-btn'));
         const bastardLoopLClearStepBtn = document.getElementById('bastardLoopLClearStepBtn');
+        const bastardLoopLCopyBtn = document.getElementById('bastardLoopLCopyBtn');
         const bastardLoopLClearAllBtn = document.getElementById('bastardLoopLClearAllBtn');
         const drumMachineOverlay = document.getElementById('drumMachineOverlay');
         const drumMachineCloseBtn = document.getElementById('drumMachineCloseBtn');
@@ -39252,6 +39369,10 @@
             clearBastardLoopLStep(bastardLoopLEditStepIndex);
             updateBastardLoopLStatus(`Cleared step ${bastardLoopLEditStepIndex + 1}.`);
             restartBastardLoopLPlaybackIfNeeded();
+        });
+
+        bindBastardLoopLMobileTap(bastardLoopLCopyBtn, () => {
+            beginBastardLoopLCopyFlow();
         });
 
         bindBastardLoopLMobileTap(bastardLoopLClearAllBtn, () => {
