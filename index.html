@@ -11983,6 +11983,7 @@
                 setTimeout(async () => {
                     const restoreStartedAt = Date.now();
                     const restored = restoreState();
+                    const state = readStoredStateSnapshot() || {};
                     if (restored) {
                         console.log('State restored from localStorage');
                     }
@@ -12115,7 +12116,7 @@
                     if (shouldRestoreBastardLoopP) {
                         bastardLoopPBuffer = restoredBastardLoopPBuffer;
                         bastardLoopPMetadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.V,
+                            state.bastardLoopTrace?.P,
                             restoredBastardLoopPBuffer.duration,
                             bastardLoopPSourceBpm,
                             'SAMPLES_PIANO'
@@ -12124,7 +12125,7 @@
                     if (shouldRestoreBastardLoopO) {
                         bastardLoopOBuffer = restoredBastardLoopOBuffer;
                         bastardLoopOMetadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.V,
+                            state.bastardLoopTrace?.O,
                             restoredBastardLoopOBuffer.duration,
                             bastardLoopOSourceBpm,
                             'SAMPLES_ORCH'
