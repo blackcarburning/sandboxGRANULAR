@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-19-32-build-v2026.10.11.14';
+            const cacheBuster = '2026-10-11-19-36-build-v2026.10.11.15';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4917,7 +4917,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.14</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.15</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -15591,7 +15591,7 @@
 
         function normalizeLoopLayerSolo(value) {
             const normalized = String(value || 'none').trim().toLowerCase();
-            return ['none', 'bastarda', 'bastardb', 'bastardc', 'bastardv', 'bastardp', 'bastardo', 'dropbox'].includes(normalized) ? normalized : 'none';
+            return ['none', 'bastarda', 'bastardb', 'bastardc', 'bastardv', 'bastardp', 'bastardo', 'bastardl', 'dropbox'].includes(normalized) ? normalized : 'none';
         }
 
         function syncLoopLayerSoloButtons() {
@@ -15625,6 +15625,7 @@
             updateBastardLoopVMix();
             updateBastardLoopPMix();
             updateBastardLoopOMix();
+            updateBastardLoopLMix();
             updateDropboxSampleLayerMix();
             syncPerformanceControlState();
             if (!options.silent) {
@@ -15635,6 +15636,7 @@
                     bastardv: 'Bastardloop V',
                     bastardp: 'Bastardloop P',
                     bastardo: 'Bastardloop O',
+                    bastardl: 'Bastardloop L',
                     dropbox: 'Dropbox sample'
                 };
                 setStatus(loopLayerSolo === 'none' ? 'All loop layers active.' : `${labels[loopLayerSolo] || 'Loop layer'} soloed.`);
@@ -15649,7 +15651,7 @@
             if (loopLayerSolo === 'none' || loopLayerSolo === target) return false;
             const previousSolo = loopLayerSolo;
             setLoopLayerSolo('none', { silent: true });
-            appendBastardLoopTrace(target === 'bastardb' ? 'B' : (target === 'bastardc' ? 'C' : (target === 'bastardv' ? 'V' : (target === 'bastardp' ? 'P' : (target === 'bastardo' ? 'O' : 'A')))), 'solo-cleared', {
+            appendBastardLoopTrace(target === 'bastardb' ? 'B' : (target === 'bastardc' ? 'C' : (target === 'bastardv' ? 'V' : (target === 'bastardp' ? 'P' : (target === 'bastardo' ? 'O' : (target === 'bastardl' ? 'L' : 'A'))))), 'solo-cleared', {
                 previousSolo
             });
             return true;
@@ -21987,7 +21989,7 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             bastardLoopLLevel = clamped / 100;
             if (options.applyLayerToggle === false) return bastardLoopLLevel;
-            return bastardLoopLEnabled ? bastardLoopLLevel * MIX_HEADROOM * 0.88 : 0;
+            return bastardLoopLEnabled ? bastardLoopLLevel * getLoopLayerSoloGain('bastardl') * MIX_HEADROOM * 0.88 : 0;
         }
 
         function setBastardLoopLLevelPercent(value, options = {}) {
