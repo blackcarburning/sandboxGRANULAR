@@ -9771,8 +9771,10 @@
         let bastardLoopOSourceBpm = 120;
         let bastardLoopLSampleBuffer = null;
         let bastardLoopLSampleMetadata = null;
+        let bastardLoopLSampleRestorePromise = null;
         let bastardLoopXSampleBuffer = null;
         let bastardLoopXSampleMetadata = null;
+        let bastardLoopXSampleRestorePromise = null;
         let activeBastardLoopSamplesLayer = 'A';
         let dropboxSampleLayerRawBuffer = null;
         let dropboxSampleLayerBuffer = null;
@@ -21719,8 +21721,14 @@
                 setLoopLayerSolo('none', { silent: true, skipSave: true });
                 uiStateChanged = true;
             }
+            if (!bastardLoopLSampleBuffer && hasPlayableBastardLoopLSequence() && hasRestorableBastardLoopLSampleReference()) {
+                await ensureBastardLoopLSampleBufferReady({ silent: options.silent });
+            }
             if (bastardLoopLSampleBuffer && hasPlayableBastardLoopLSequence()) {
                 uiStateChanged = ensureBastardLoopLReadyForTransport() || uiStateChanged;
+            }
+            if (!bastardLoopXSampleBuffer && hasPlayableBastardLoopXSequence() && hasRestorableBastardLoopXSampleReference()) {
+                await ensureBastardLoopXSampleBufferReady({ silent: options.silent });
             }
             if (bastardLoopXSampleBuffer && hasPlayableBastardLoopXSequence()) {
                 uiStateChanged = ensureBastardLoopXReadyForTransport() || uiStateChanged;
@@ -23099,6 +23107,49 @@
             return `${sampleName || 'lead sample'} · root ${rootNote} · ${stepCount} steps${rememberedSuffix}`;
         }
 
+        function hasRestorableBastardLoopLSampleReference() {
+            return Boolean(String(bastardLoopLSampleMetadata?.relativePath || '').trim());
+        }
+
+        async function ensureBastardLoopLSampleBufferReady(options = {}) {
+            if (bastardLoopLSampleBuffer) return true;
+            if (!hasRestorableBastardLoopLSampleReference()) return false;
+            if (bastardLoopLSampleRestorePromise) {
+                return bastardLoopLSampleRestorePromise;
+            }
+            const metadata = { ...(bastardLoopLSampleMetadata || {}) };
+            bastardLoopLSampleRestorePromise = (async () => {
+                const audioReady = await ensureAudioReadyForKeyInteraction();
+                if (!audioReady) {
+                    if (!options.silent) {
+                        updateBastardLoopLStatus('Audio is not ready to reload the remembered Loop L sample yet.');
+                    }
+                    return false;
+                }
+                const sourceKey = String(metadata.sourceKey || 'samples_leads').trim() || 'samples_leads';
+                const sourceLabel = metadata.sourceLabel || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLES_LEADS';
+                const relativePath = String(metadata.relativePath || '').trim();
+                const fileName = String(metadata.fileName || relativePath.split('/').pop() || 'lead.wav').trim();
+                try {
+                    if (!options.silent) {
+                        updateBastardLoopLStatus(`Reloading ${fileName} from ${sourceLabel}…`);
+                    }
+                    await loadBastardLoopLSampleFromSourceRelativePath(sourceKey, relativePath, fileName);
+                    return Boolean(bastardLoopLSampleBuffer);
+                } catch (error) {
+                    console.error(error);
+                    if (!options.silent) {
+                        updateBastardLoopLStatus(`Loop L sample reload failed: ${error.message}`);
+                    }
+                    syncBastardLoopLUi();
+                    return false;
+                } finally {
+                    bastardLoopLSampleRestorePromise = null;
+                }
+            })();
+            return bastardLoopLSampleRestorePromise;
+        }
+
         function syncBastardLoopLUi(options = {}) {
             const levelValue = Math.round(getBastardLoopLLevelValue({ applyLayerToggle: false }) * 100);
             const lengthValue = Math.round(getBastardLoopLStepLengthRatio() * 100);
@@ -23154,12 +23205,13 @@
             if (filterEnvelopeLabel) filterEnvelopeLabel.textContent = `${filterEnvelopeValue}%`;
             if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
             if (meta) meta.textContent = describeBastardLoopLMeta();
+            const hasSampleSelection = Boolean(bastardLoopLSampleBuffer || hasRestorableBastardLoopLSampleReference());
             if (loadButton) loadButton.textContent = (bastardLoopLSampleBuffer || bastardLoopLSampleMetadata?.fileName || bastardLoopLSampleMetadata?.relativePath) ? 'Change Lead Sample' : 'Choose Lead Sample';
-            if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
+            if (editButton) editButton.disabled = !hasSampleSelection;
             syncBastardLoopLAccentAmountUi();
             if (transportButton) {
                 const transportRunning = bastardLoopPlaying && isBastardLoopLRunning();
-                transportButton.disabled = !bastardLoopLSampleBuffer;
+                transportButton.disabled = !hasSampleSelection;
                 transportButton.classList.toggle('active', transportRunning);
                 transportButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
                 transportButton.setAttribute('aria-pressed', String(transportRunning));
@@ -23603,11 +23655,6 @@
                 syncBastardLoopLUi();
                 return;
             }
-            if (!bastardLoopLSampleBuffer) {
-                updateBastardLoopLStatus('Choose a lead sample before starting Bastardloops from Loop L.');
-                syncBastardLoopLUi();
-                return;
-            }
             if (!hasPlayableBastardLoopLSequence()) {
                 updateBastardLoopLStatus('Enter at least one Loop L note before starting Bastardloops.');
                 syncBastardLoopLUi();
@@ -23617,6 +23664,16 @@
             if (!audioReady) {
                 updateBastardLoopLStatus('Audio is not ready for Bastardloop L transport yet.');
                 return;
+            }
+            if (!bastardLoopLSampleBuffer) {
+                const reloaded = await ensureBastardLoopLSampleBufferReady();
+                if (!reloaded) {
+                    updateBastardLoopLStatus(hasRestorableBastardLoopLSampleReference()
+                        ? 'Loop L could not reload its remembered lead sample.'
+                        : 'Choose a lead sample before starting Bastardloops from Loop L.');
+                    syncBastardLoopLUi();
+                    return;
+                }
             }
             clearLoopLayerSoloForBastardLoop('bastardl');
             ensureBastardLoopLReadyForTransport();
@@ -24609,6 +24666,49 @@
             return `${sampleName || 'bass sample'} · root ${rootNote} · ${stepCount} steps${rememberedSuffix}`;
         }
 
+        function hasRestorableBastardLoopXSampleReference() {
+            return Boolean(String(bastardLoopXSampleMetadata?.relativePath || '').trim());
+        }
+
+        async function ensureBastardLoopXSampleBufferReady(options = {}) {
+            if (bastardLoopXSampleBuffer) return true;
+            if (!hasRestorableBastardLoopXSampleReference()) return false;
+            if (bastardLoopXSampleRestorePromise) {
+                return bastardLoopXSampleRestorePromise;
+            }
+            const metadata = { ...(bastardLoopXSampleMetadata || {}) };
+            bastardLoopXSampleRestorePromise = (async () => {
+                const audioReady = await ensureAudioReadyForKeyInteraction();
+                if (!audioReady) {
+                    if (!options.silent) {
+                        updateBastardLoopXStatus('Audio is not ready to reload the remembered Loop X sample yet.');
+                    }
+                    return false;
+                }
+                const sourceKey = String(metadata.sourceKey || 'samples_bass').trim() || 'samples_bass';
+                const sourceLabel = metadata.sourceLabel || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLES_BASS';
+                const relativePath = String(metadata.relativePath || '').trim();
+                const fileName = String(metadata.fileName || relativePath.split('/').pop() || 'bass.wav').trim();
+                try {
+                    if (!options.silent) {
+                        updateBastardLoopXStatus(`Reloading ${fileName} from ${sourceLabel}…`);
+                    }
+                    await loadBastardLoopXSampleFromSourceRelativePath(sourceKey, relativePath, fileName);
+                    return Boolean(bastardLoopXSampleBuffer);
+                } catch (error) {
+                    console.error(error);
+                    if (!options.silent) {
+                        updateBastardLoopXStatus(`Loop X sample reload failed: ${error.message}`);
+                    }
+                    syncBastardLoopXUi();
+                    return false;
+                } finally {
+                    bastardLoopXSampleRestorePromise = null;
+                }
+            })();
+            return bastardLoopXSampleRestorePromise;
+        }
+
         function syncBastardLoopXUi(options = {}) {
             const levelValue = Math.round(getBastardLoopXLevelValue({ applyLayerToggle: false }) * 100);
             const lengthValue = Math.round(getBastardLoopXStepLengthRatio() * 100);
@@ -24664,12 +24764,13 @@
             if (filterEnvelopeLabel) filterEnvelopeLabel.textContent = `${filterEnvelopeValue}%`;
             if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
             if (meta) meta.textContent = describeBastardLoopXMeta();
+            const hasSampleSelection = Boolean(bastardLoopXSampleBuffer || hasRestorableBastardLoopXSampleReference());
             if (loadButton) loadButton.textContent = (bastardLoopXSampleBuffer || bastardLoopXSampleMetadata?.fileName || bastardLoopXSampleMetadata?.relativePath) ? 'Change Bass Sample' : 'Choose Bass Sample';
-            if (editButton) editButton.disabled = !bastardLoopXSampleBuffer;
+            if (editButton) editButton.disabled = !hasSampleSelection;
             syncBastardLoopXAccentAmountUi();
             if (transportButton) {
                 const transportRunning = bastardLoopPlaying && isBastardLoopXRunning();
-                transportButton.disabled = !bastardLoopXSampleBuffer;
+                transportButton.disabled = !hasSampleSelection;
                 transportButton.classList.toggle('active', transportRunning);
                 transportButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
                 transportButton.setAttribute('aria-pressed', String(transportRunning));
@@ -25113,11 +25214,6 @@
                 syncBastardLoopXUi();
                 return;
             }
-            if (!bastardLoopXSampleBuffer) {
-                updateBastardLoopXStatus('Choose a bass sample before starting Bastardloops from Loop X.');
-                syncBastardLoopXUi();
-                return;
-            }
             if (!hasPlayableBastardLoopXSequence()) {
                 updateBastardLoopXStatus('Enter at least one Loop X note before starting Bastardloops.');
                 syncBastardLoopXUi();
@@ -25127,6 +25223,16 @@
             if (!audioReady) {
                 updateBastardLoopXStatus('Audio is not ready for Bastardloop X transport yet.');
                 return;
+            }
+            if (!bastardLoopXSampleBuffer) {
+                const reloaded = await ensureBastardLoopXSampleBufferReady();
+                if (!reloaded) {
+                    updateBastardLoopXStatus(hasRestorableBastardLoopXSampleReference()
+                        ? 'Loop X could not reload its remembered bass sample.'
+                        : 'Choose a bass sample before starting Bastardloops from Loop X.');
+                    syncBastardLoopXUi();
+                    return;
+                }
             }
             clearLoopLayerSoloForBastardLoop('bastardx');
             ensureBastardLoopXReadyForTransport();

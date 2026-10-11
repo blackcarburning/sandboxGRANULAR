@@ -353,3 +353,72 @@ test('Global Bastardloop start clears loop solo and refreshes shared transport w
     assert.equal(startContext.saved, true);
     assert.ok(startContext.synced >= 1);
 });
+
+test('Global Bastardloop start reloads a remembered Loop L sample before transport start', async () => {
+    const startContext = {
+        loopLayerSolo: 'none',
+        bastardLoopPlaying: false,
+        bastardLoopLSampleBuffer: null,
+        bastardLoopXSampleBuffer: null,
+        ensureAudioReadyForKeyInteraction() {
+            return Promise.resolve(true);
+        },
+        syncPerformanceControlState() {
+            startContext.synced = (startContext.synced || 0) + 1;
+        },
+        setStatus() {},
+        hasPlayableBastardLoopLSequence() {
+            return true;
+        },
+        hasPlayableBastardLoopXSequence() {
+            return false;
+        },
+        hasRestorableBastardLoopLSampleReference() {
+            return true;
+        },
+        async ensureBastardLoopLSampleBufferReady() {
+            startContext.reloadedL = true;
+            startContext.bastardLoopLSampleBuffer = { id: 'reloaded-l' };
+            return true;
+        },
+        ensureBastardLoopLReadyForTransport() {
+            startContext.preparedL = true;
+            return true;
+        },
+        ensureBastardLoopXReadyForTransport() {
+            throw new Error('Loop X should not be prepared in this scenario.');
+        },
+        setLoopLayerSolo() {
+            throw new Error('Solo state should already be clear.');
+        },
+        setBastardLoopPlaying(nextValue, options) {
+            startContext.restartCall = {
+                nextValue,
+                options: plain(options),
+                bufferReadyAtStart: Boolean(startContext.bastardLoopLSampleBuffer)
+            };
+            startContext.syncPerformanceControlState();
+            if (!options?.skipSave) {
+                startContext.saved = true;
+            }
+            return true;
+        },
+        saveState() {
+            startContext.saved = true;
+        }
+    };
+    vm.runInNewContext(`${extractFunctionSource('startAllBastardLoopsFromUi')}\nglobalThis.startAllBastardLoopsFromUi = startAllBastardLoopsFromUi;`, startContext);
+
+    const started = await startContext.startAllBastardLoopsFromUi();
+
+    assert.equal(started, true);
+    assert.equal(startContext.reloadedL, true);
+    assert.equal(startContext.preparedL, true);
+    assert.deepEqual(startContext.restartCall, {
+        nextValue: true,
+        options: {},
+        bufferReadyAtStart: true
+    });
+    assert.equal(startContext.saved, true);
+    assert.ok(startContext.synced >= 1);
+});
