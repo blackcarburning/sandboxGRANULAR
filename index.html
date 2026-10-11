@@ -5650,7 +5650,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopLLoadBtn">Choose Lead Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopLEditBtn">Edit Sequence</button>
-                        <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
+                        <button class="performance-btn" id="performanceBastardLoopLStartBtn" type="button">Start Bastardloops</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
@@ -5754,7 +5754,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopXLoadBtn">Choose Bass Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
-                        <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
+                        <button class="performance-btn" id="performanceBastardLoopXStartBtn" type="button">Start Bastardloops</button>
                     </div>
                 </div>
                 <div class="performance-sound-card">
@@ -23193,6 +23193,7 @@
             const editButton = document.getElementById('performanceBastardLoopLEditBtn');
             const meta = document.getElementById('performanceBastardLoopLMeta');
             const transportButton = document.getElementById('bastardLoopLTransportBtn');
+            const cardStartButton = document.getElementById('performanceBastardLoopLStartBtn');
             const recordButton = document.getElementById('bastardLoopLRecordBtn');
             const copyButton = document.getElementById('bastardLoopLCopyBtn');
             const filterSlider = document.getElementById('performanceBastardLoopLFilterCutoff');
@@ -23239,6 +23240,12 @@
                 transportButton.classList.toggle('active', transportRunning);
                 transportButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
                 transportButton.setAttribute('aria-pressed', String(transportRunning));
+                if (cardStartButton) {
+                    cardStartButton.disabled = !hasSampleSelection;
+                    cardStartButton.classList.toggle('active', transportRunning);
+                    cardStartButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
+                    cardStartButton.setAttribute('aria-pressed', String(transportRunning));
+                }
             }
             if (recordButton) {
                 recordButton.classList.toggle('active', bastardLoopLRecordArmed);
@@ -24752,6 +24759,7 @@
             const editButton = document.getElementById('performanceBastardLoopXEditBtn');
             const meta = document.getElementById('performanceBastardLoopXMeta');
             const transportButton = document.getElementById('bastardLoopXTransportBtn');
+            const cardStartButton = document.getElementById('performanceBastardLoopXStartBtn');
             const recordButton = document.getElementById('bastardLoopXRecordBtn');
             const copyButton = document.getElementById('bastardLoopXCopyBtn');
             const filterSlider = document.getElementById('performanceBastardLoopXFilterCutoff');
@@ -24798,6 +24806,12 @@
                 transportButton.classList.toggle('active', transportRunning);
                 transportButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
                 transportButton.setAttribute('aria-pressed', String(transportRunning));
+                if (cardStartButton) {
+                    cardStartButton.disabled = !hasSampleSelection;
+                    cardStartButton.classList.toggle('active', transportRunning);
+                    cardStartButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
+                    cardStartButton.setAttribute('aria-pressed', String(transportRunning));
+                }
             }
             if (recordButton) {
                 recordButton.classList.toggle('active', bastardLoopXRecordArmed);
@@ -40308,6 +40322,7 @@
         const performanceBastardLoopOToggleBtn = document.getElementById('performanceBastardLoopOToggleBtn');
         const performanceBastardLoopLLoadBtn = document.getElementById('performanceBastardLoopLLoadBtn');
         const performanceBastardLoopLEditBtn = document.getElementById('performanceBastardLoopLEditBtn');
+        const performanceBastardLoopLStartBtn = document.getElementById('performanceBastardLoopLStartBtn');
         const performanceBastardLoopLToggleBtn = document.getElementById('performanceBastardLoopLToggleBtn');
         const performanceBastardLoopLLevel = document.getElementById('performanceBastardLoopLLevel');
         const performanceBastardLoopLLength = document.getElementById('performanceBastardLoopLLength');
@@ -40322,6 +40337,7 @@
         const performanceBastardLoopLLevelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
         const performanceBastardLoopXLoadBtn = document.getElementById('performanceBastardLoopXLoadBtn');
         const performanceBastardLoopXEditBtn = document.getElementById('performanceBastardLoopXEditBtn');
+        const performanceBastardLoopXStartBtn = document.getElementById('performanceBastardLoopXStartBtn');
         const performanceBastardLoopXToggleBtn = document.getElementById('performanceBastardLoopXToggleBtn');
         const performanceBastardLoopXLevel = document.getElementById('performanceBastardLoopXLevel');
         const performanceBastardLoopXLength = document.getElementById('performanceBastardLoopXLength');
@@ -41929,6 +41945,14 @@
                 runHandler(event, 'keydown');
             });
         }
+
+        bindBastardLoopLMobileTap(performanceBastardLoopLStartBtn, async () => {
+            await toggleBastardLoopLTransportFromUi();
+        });
+
+        bindBastardLoopLMobileTap(performanceBastardLoopXStartBtn, async () => {
+            await toggleBastardLoopXTransportFromUi();
+        });
 
         bindBastardLoopLMobileTap(bastardLoopLCloseBtn, () => {
             closeBastardLoopLOverlay();

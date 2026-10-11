@@ -325,6 +325,23 @@ test('Loop X keyboard binding owns X guard state instead of leftover L markers',
     assert.doesNotMatch(bindSource, /loopLBound|loopLTriggering/);
 });
 
+test('Loop L and X performance start buttons use layer-specific mobile transport wiring', () => {
+    const lButtonMarkup = indexHtml.match(/<button class="performance-btn" id="performanceBastardLoopLStartBtn"[^>]*>/)?.[0] || '';
+    const xButtonMarkup = indexHtml.match(/<button class="performance-btn" id="performanceBastardLoopXStartBtn"[^>]*>/)?.[0] || '';
+
+    assert.match(lButtonMarkup, /type="button"/);
+    assert.match(xButtonMarkup, /type="button"/);
+    assert.doesNotMatch(lButtonMarkup, /data-bastardloop-start/);
+    assert.doesNotMatch(xButtonMarkup, /data-bastardloop-start/);
+
+    assert.match(indexHtml, /const performanceBastardLoopLStartBtn = document\.getElementById\('performanceBastardLoopLStartBtn'\);/);
+    assert.match(indexHtml, /const performanceBastardLoopXStartBtn = document\.getElementById\('performanceBastardLoopXStartBtn'\);/);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(performanceBastardLoopLStartBtn,\s*async \(\) => \{\s*await toggleBastardLoopLTransportFromUi\(\);\s*\}\);/s);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(performanceBastardLoopXStartBtn,\s*async \(\) => \{\s*await toggleBastardLoopXTransportFromUi\(\);\s*\}\);/s);
+    assert.match(extractFunctionSource('syncBastardLoopLUi'), /performanceBastardLoopLStartBtn/);
+    assert.match(extractFunctionSource('syncBastardLoopXUi'), /performanceBastardLoopXStartBtn/);
+});
+
 test('Global Bastardloop start clears loop solo and refreshes shared transport when already running', async () => {
     const startContext = {
         loopLayerSolo: 'bastardb',
