@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-11-03-build-v2026.10.11.5';
+            const cacheBuster = '2026-10-11-11-08-build-v2026.10.11.6';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4740,7 +4740,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.5</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.6</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -8473,7 +8473,9 @@
                             <button class="performance-btn" id="bastardLoopLTransposeDownBtn" type="button">Seq -</button>
                             <button class="performance-btn" id="bastardLoopLTransposeUpBtn" type="button">Seq +</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row">
+                        <div class="lead-sequencer-toolbar-row compact-four">
+                            <button class="performance-btn" id="bastardLoopLRateDownBtn" type="button">Rate -</button>
+                            <button class="performance-btn" id="bastardLoopLRateUpBtn" type="button">Rate +</button>
                             <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
                             <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
                         </div>
@@ -9757,6 +9759,15 @@
             'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
             'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'
         ];
+        const BASTARD_LOOP_L_TIMING_OPTIONS = [
+            { label: '/8', multiplier: 0.125 },
+            { label: '/4', multiplier: 0.25 },
+            { label: '/2', multiplier: 0.5 },
+            { label: 'x1', multiplier: 1 },
+            { label: 'x2', multiplier: 2 },
+            { label: 'x4', multiplier: 4 },
+            { label: 'x8', multiplier: 8 }
+        ];
         // LFO State
         let lfoStartTime = 0;
         let lfoEnabled = {};
@@ -9908,6 +9919,7 @@
         let bastardLoopLSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false }));
         let bastardLoopLEditStepIndex = 0;
         let bastardLoopLCurrentStepIndex = -1;
+        let bastardLoopLTimingIndex = 3;
         let bastardLoopLPreviewPlaying = false;
         let bastardLoopLRecordArmed = true;
         let dropboxSampleLayerLevel = 0.45;
@@ -21457,6 +21469,18 @@
             return `${pitchClass}${octave}`;
         }
 
+        function clampBastardLoopLTimingIndex(index) {
+            return Math.max(0, Math.min(BASTARD_LOOP_L_TIMING_OPTIONS.length - 1, Math.round(Number(index) || 0)));
+        }
+
+        function getBastardLoopLTimingConfig(index = bastardLoopLTimingIndex) {
+            return BASTARD_LOOP_L_TIMING_OPTIONS[clampBastardLoopLTimingIndex(index)] || BASTARD_LOOP_L_TIMING_OPTIONS[3];
+        }
+
+        function getBastardLoopLTimingLabel(index = bastardLoopLTimingIndex) {
+            return getBastardLoopLTimingConfig(index).label;
+        }
+
         function getBastardLoopLLevelValue(options = {}) {
             const primary = document.getElementById('performanceBastardLoopLLevel');
             const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
@@ -21492,7 +21516,7 @@
 
         function getBastardLoopLStepDurationSeconds() {
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-            return 60 / bpm / 4;
+            return (60 / bpm / 4) * getBastardLoopLTimingConfig().multiplier;
         }
 
         function isBastardLoopLRunning() {
@@ -21566,7 +21590,10 @@
                         button.dataset.ignoreClickOnce = 'true';
                         event.preventDefault();
                     }
-                    applyBastardLoopLNoteEntry(button.dataset.note);
+                    previewBastardLoopLNoteFromInput(button.dataset.note).catch((error) => {
+                        console.error('Loop L note preview failed:', error);
+                        updateBastardLoopLStatus(`Loop L note preview failed: ${error.message}`);
+                    });
                 };
                 button.addEventListener('pointerdown', triggerNoteEntry);
                 button.addEventListener('click', triggerNoteEntry);
@@ -21586,9 +21613,11 @@
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
             const accentButton = document.getElementById('bastardLoopLAccentBtn');
             const slideButton = document.getElementById('bastardLoopLSlideBtn');
+            const rateDownButton = document.getElementById('bastardLoopLRateDownBtn');
+            const rateUpButton = document.getElementById('bastardLoopLRateUpBtn');
             if (cursor) {
                 const summary = step.rest ? 'REST' : (step.note || 'empty');
-                cursor.textContent = `Editing step ${bastardLoopLEditStepIndex + 1} · ${summary}`;
+                cursor.textContent = `Editing step ${bastardLoopLEditStepIndex + 1} · ${summary} · time ${getBastardLoopLTimingLabel()}`;
             }
             if (accentButton) {
                 accentButton.classList.toggle('active', step.accent);
@@ -21599,6 +21628,16 @@
                 slideButton.classList.toggle('active', step.slide);
                 slideButton.textContent = step.slide ? 'Slide On' : 'Slide Off';
                 slideButton.setAttribute('aria-pressed', String(step.slide));
+            }
+            if (rateDownButton) {
+                const canStepDown = bastardLoopLTimingIndex > 0;
+                rateDownButton.disabled = !canStepDown;
+                rateDownButton.textContent = canStepDown ? getBastardLoopLTimingLabel(bastardLoopLTimingIndex - 1) : getBastardLoopLTimingLabel();
+            }
+            if (rateUpButton) {
+                const canStepUp = bastardLoopLTimingIndex < BASTARD_LOOP_L_TIMING_OPTIONS.length - 1;
+                rateUpButton.disabled = !canStepUp;
+                rateUpButton.textContent = canStepUp ? getBastardLoopLTimingLabel(bastardLoopLTimingIndex + 1) : getBastardLoopLTimingLabel();
             }
             syncBastardLoopLStepButtonStates();
         }
@@ -21912,6 +21951,41 @@
             } else {
                 updateBastardLoopLStatus('Loop L transpose had nothing to move.');
             }
+        }
+
+        function stepBastardLoopLTiming(delta) {
+            const nextIndex = clampBastardLoopLTimingIndex(bastardLoopLTimingIndex + Math.trunc(Number(delta) || 0));
+            if (nextIndex === bastardLoopLTimingIndex) {
+                updateBastardLoopLStatus(`Loop L timing is already ${getBastardLoopLTimingLabel()}.`);
+                return;
+            }
+            bastardLoopLTimingIndex = nextIndex;
+            syncBastardLoopLUi();
+            saveState();
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
+            }
+            updateBastardLoopLStatus(`Loop L timing set to ${getBastardLoopLTimingLabel()}.`);
+        }
+
+        async function previewBastardLoopLNoteFromInput(note) {
+            const audioReady = await ensureAudioReadyForKeyInteraction();
+            if (!audioReady) {
+                updateBastardLoopLStatus('Audio is not ready for Loop L preview yet.');
+                return false;
+            }
+            return applyBastardLoopLNoteEntry(note);
+        }
+
+        async function toggleBastardLoopLPreviewPlayingFromUi() {
+            if (!bastardLoopLPreviewPlaying) {
+                const audioReady = await ensureAudioReadyForKeyInteraction();
+                if (!audioReady) {
+                    updateBastardLoopLStatus('Audio is not ready for Loop L solo preview yet.');
+                    return;
+                }
+            }
+            setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
         }
 
         function setBastardLoopLEnabled(enabled, options = {}) {
@@ -30535,6 +30609,7 @@
                     bastardLoopLLength: bastardLoopLLength,
                     bastardLoopLDecay: bastardLoopLDecay,
                     bastardLoopLPitchSemitones: bastardLoopLPitchSemitones,
+                    bastardLoopLTimingIndex: bastardLoopLTimingIndex,
                     bastardLoopLRootNote: bastardLoopLRootNote,
                     bastardLoopLSourceKey: bastardLoopLSampleMetadata?.sourceKey || 'samples_leads',
                     bastardLoopLFileName: bastardLoopLSampleMetadata?.fileName || '',
@@ -30957,6 +31032,9 @@
                     }
                     if (state.modes.bastardLoopLPitchSemitones !== undefined) {
                         setBastardLoopLPitchSemitoneOffset(state.modes.bastardLoopLPitchSemitones, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoopLTimingIndex !== undefined) {
+                        bastardLoopLTimingIndex = clampBastardLoopLTimingIndex(state.modes.bastardLoopLTimingIndex);
                     }
                     if (state.modes.bastardLoopLRootNote !== undefined) {
                         bastardLoopLRootNote = parseNoteName(state.modes.bastardLoopLRootNote) ? state.modes.bastardLoopLRootNote : 'C3';
@@ -36737,6 +36815,8 @@
         const bastardLoopLNextStepBtn = document.getElementById('bastardLoopLNextStepBtn');
         const bastardLoopLTransposeDownBtn = document.getElementById('bastardLoopLTransposeDownBtn');
         const bastardLoopLTransposeUpBtn = document.getElementById('bastardLoopLTransposeUpBtn');
+        const bastardLoopLRateDownBtn = document.getElementById('bastardLoopLRateDownBtn');
+        const bastardLoopLRateUpBtn = document.getElementById('bastardLoopLRateUpBtn');
         const bastardLoopLRestBtn = document.getElementById('bastardLoopLRestBtn');
         const bastardLoopLAccentBtn = document.getElementById('bastardLoopLAccentBtn');
         const bastardLoopLSlideBtn = document.getElementById('bastardLoopLSlideBtn');
@@ -38069,7 +38149,13 @@
                     button.dataset.ignoreClickOnce = 'true';
                     event.preventDefault();
                 }
-                handler();
+                const result = handler();
+                if (result && typeof result.then === 'function') {
+                    result.catch((error) => {
+                        console.error('Loop L control action failed:', error);
+                        updateBastardLoopLStatus(`Loop L control failed: ${error.message}`);
+                    });
+                }
             };
             button.addEventListener('pointerdown', trigger);
             button.addEventListener('click', trigger);
@@ -38089,8 +38175,8 @@
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopL);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLTransportBtn, () => {
-            setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
+        bindBastardLoopLImmediateButton(bastardLoopLTransportBtn, async () => {
+            await toggleBastardLoopLPreviewPlayingFromUi();
         });
 
         bindBastardLoopLImmediateButton(bastardLoopLRecordBtn, () => {
@@ -38111,6 +38197,14 @@
 
         bindBastardLoopLImmediateButton(bastardLoopLTransposeUpBtn, () => {
             transposeBastardLoopLSequence(1);
+        });
+
+        bindBastardLoopLImmediateButton(bastardLoopLRateDownBtn, () => {
+            stepBastardLoopLTiming(-1);
+        });
+
+        bindBastardLoopLImmediateButton(bastardLoopLRateUpBtn, () => {
+            stepBastardLoopLTiming(1);
         });
 
         bindBastardLoopLImmediateButton(bastardLoopLRestBtn, () => {
