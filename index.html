@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-11-14-build-v2026.10.11.7';
+            const cacheBuster = '2026-10-11-11-36-build-v2026.10.11.8';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4740,7 +4740,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.7</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.8</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -21578,7 +21578,7 @@
                     <span class="lead-sequencer-step-note">${step.rest ? 'REST' : (step.note || '—')}</span>
                     <span class="lead-sequencer-step-flags">${[step.accent ? 'A' : '', step.slide ? 'S' : ''].filter(Boolean).join('')}</span>
                 `;
-                button.addEventListener('click', () => {
+                bindBastardLoopLMobileTap(button, () => {
                     setBastardLoopLEditStepIndex(index);
                     auditionBastardLoopLCurrentStepWithReady({ silentWhenEmpty: true }).catch((error) => {
                         console.error('Loop L step preview failed:', error);
@@ -21598,23 +21598,13 @@
                 return `<button type="button" class="lead-sequencer-key ${isBlack ? 'black' : 'white'}" data-note="${note}">${note}</button>`;
             }).join('');
             keyboard.querySelectorAll('[data-note]').forEach((button) => {
-                const triggerNoteEntry = (event) => {
-                    if (event?.type === 'click' && button.dataset.ignoreClickOnce === 'true') {
-                        button.dataset.ignoreClickOnce = 'false';
-                        event.preventDefault();
-                        return;
-                    }
-                    if (event?.type === 'pointerdown') {
-                        button.dataset.ignoreClickOnce = 'true';
-                        event.preventDefault();
-                    }
+                const triggerNoteEntry = () => {
                     previewBastardLoopLNoteFromInput(button.dataset.note).catch((error) => {
                         console.error('Loop L note preview failed:', error);
                         updateBastardLoopLStatus(`Loop L note preview failed: ${error.message}`);
                     });
                 };
-                button.addEventListener('pointerdown', triggerNoteEntry);
-                button.addEventListener('click', triggerNoteEntry);
+                bindBastardLoopLMobileTap(button, triggerNoteEntry, { preview: true });
             });
             keyboard.dataset.initialized = 'true';
         }
@@ -38190,18 +38180,10 @@
             }
         });
 
-        function bindBastardLoopLImmediateButton(button, handler) {
+        function bindBastardLoopLMobileTap(button, handler, options = {}) {
             if (!button || typeof handler !== 'function') return;
-            const trigger = (event) => {
-                if (event?.type === 'click' && button.dataset.ignoreClickOnce === 'true') {
-                    button.dataset.ignoreClickOnce = 'false';
-                    event.preventDefault();
-                    return;
-                }
-                if (event?.type === 'pointerdown') {
-                    button.dataset.ignoreClickOnce = 'true';
-                    event.preventDefault();
-                }
+            const duplicateWindowMs = options.preview ? 900 : 700;
+            const runHandler = () => {
                 const result = handler();
                 if (result && typeof result.then === 'function') {
                     result.catch((error) => {
@@ -38210,11 +38192,41 @@
                     });
                 }
             };
+            const trigger = (event) => {
+                const now = Date.now();
+                const eventType = event?.type || '';
+                const lastTouchAt = Number(button.dataset.loopLTouchAt || 0);
+                if (eventType === 'touchstart' || eventType === 'touchend') {
+                    button.dataset.loopLTouchAt = String(now);
+                    event.preventDefault();
+                    runHandler();
+                    return;
+                }
+                if (eventType === 'pointerdown' && event?.pointerType === 'touch') {
+                    if (now - lastTouchAt < duplicateWindowMs) {
+                        event.preventDefault();
+                        return;
+                    }
+                    button.dataset.loopLTouchAt = String(now);
+                    event.preventDefault();
+                    runHandler();
+                    return;
+                }
+                if (eventType === 'pointerdown') {
+                    return;
+                }
+                if (eventType === 'click' && now - lastTouchAt < duplicateWindowMs) {
+                    event.preventDefault();
+                    return;
+                }
+                runHandler();
+            };
+            button.addEventListener(options.preview ? 'touchstart' : 'touchend', trigger, { passive: false });
             button.addEventListener('pointerdown', trigger);
             button.addEventListener('click', trigger);
         }
 
-        bindBastardLoopLImmediateButton(bastardLoopLCloseBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLCloseBtn, () => {
             closeBastardLoopLOverlay();
         });
 
@@ -38224,55 +38236,55 @@
             }
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLChooseSampleBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLChooseSampleBtn, () => {
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopL);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLTransportBtn, async () => {
+        bindBastardLoopLMobileTap(bastardLoopLTransportBtn, async () => {
             await toggleBastardLoopLPreviewPlayingFromUi();
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLRecordBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLRecordBtn, () => {
             toggleBastardLoopLRecordArmed();
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLPrevStepBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLPrevStepBtn, () => {
             moveBastardLoopLStep(-1);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLNextStepBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLNextStepBtn, () => {
             moveBastardLoopLStep(1);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLTransposeDownBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLTransposeDownBtn, () => {
             transposeBastardLoopLSequence(-1);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLTransposeUpBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLTransposeUpBtn, () => {
             transposeBastardLoopLSequence(1);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLRateDownBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLRateDownBtn, () => {
             stepBastardLoopLTiming(-1);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLRateUpBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLRateUpBtn, () => {
             stepBastardLoopLTiming(1);
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLRestBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLRestBtn, () => {
             applyBastardLoopLRestEntry();
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLAccentBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLAccentBtn, () => {
             toggleBastardLoopLAccentForSelectedStep();
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLSlideBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLSlideBtn, () => {
             toggleBastardLoopLSlideForSelectedStep();
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLClearStepBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLClearStepBtn, () => {
             clearBastardLoopLStep(bastardLoopLEditStepIndex);
             updateBastardLoopLStatus(`Cleared step ${bastardLoopLEditStepIndex + 1}.`);
             if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
@@ -38280,7 +38292,7 @@
             }
         });
 
-        bindBastardLoopLImmediateButton(bastardLoopLClearAllBtn, () => {
+        bindBastardLoopLMobileTap(bastardLoopLClearAllBtn, () => {
             clearAllBastardLoopLSteps();
             updateBastardLoopLStatus('Cleared the full L sequence.');
         });
