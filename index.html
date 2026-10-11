@@ -38682,18 +38682,53 @@
             }
         });
 
+        function computeBastardLoopLMobileTapState(lastHandledAt, suppressClickUntil, triggerType, now = Date.now(), options = {}) {
+            const duplicateWindowMs = Math.max(80, Math.min(1000, Number(options.duplicateWindowMs) || 180));
+            const touchFollowupMs = Math.max(duplicateWindowMs, Math.min(1400, Number(options.touchFollowupMs) || 650));
+            const normalizedNow = Math.max(0, Number(now) || 0);
+            const normalizedLastHandledAt = Math.max(0, Number(lastHandledAt) || 0);
+            const normalizedSuppressClickUntil = Math.max(0, Number(suppressClickUntil) || 0);
+            const normalizedTriggerType = String(triggerType || '').toLowerCase();
+            const isFollowupPointer = normalizedTriggerType === 'click' || normalizedTriggerType === 'mousedown';
+            const shouldSuppressFollowup = isFollowupPointer && normalizedNow < normalizedSuppressClickUntil;
+            const shouldSuppressDuplicate = !shouldSuppressFollowup
+                && (normalizedNow - normalizedLastHandledAt) < duplicateWindowMs;
+            const handled = !shouldSuppressFollowup && !shouldSuppressDuplicate;
+            let nextLastHandledAt = normalizedLastHandledAt;
+            let nextSuppressClickUntil = normalizedSuppressClickUntil;
+            if (handled) {
+                nextLastHandledAt = normalizedNow;
+                if (normalizedTriggerType === 'touchstart' || normalizedTriggerType === 'pointertouch') {
+                    nextSuppressClickUntil = normalizedNow + touchFollowupMs;
+                }
+            }
+            return {
+                handled,
+                nextLastHandledAt,
+                nextSuppressClickUntil
+            };
+        }
+
         function bindBastardLoopLMobileTap(button, handler, options = {}) {
             if (!button || typeof handler !== 'function') return;
-            const duplicateWindowMs = 180;
             let lastHandledAt = 0;
-            const runHandler = (event) => {
-                const now = Date.now();
-                if (now - lastHandledAt < duplicateWindowMs) {
+            let suppressClickUntil = 0;
+            const runHandler = (event, triggerType = 'generic') => {
+                const tapState = computeBastardLoopLMobileTapState(
+                    lastHandledAt,
+                    suppressClickUntil,
+                    triggerType,
+                    Date.now(),
+                    options
+                );
+                lastHandledAt = tapState.nextLastHandledAt;
+                suppressClickUntil = tapState.nextSuppressClickUntil;
+                if (!tapState.handled) {
                     event?.preventDefault?.();
                     return;
                 }
-                lastHandledAt = now;
                 event?.preventDefault?.();
+                event?.stopPropagation?.();
                 const result = handler();
                 if (result && typeof result.then === 'function') {
                     result.catch((error) => {
@@ -38706,18 +38741,26 @@
             if (window.PointerEvent) {
                 button.addEventListener('pointerdown', (event) => {
                     if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event);
+                    const triggerType = String(event.pointerType || '').toLowerCase() === 'touch'
+                        ? 'pointertouch'
+                        : 'pointerdown';
+                    runHandler(event, triggerType);
                 });
             } else {
-                button.addEventListener('touchstart', runHandler, { passive: false });
+                button.addEventListener('touchstart', (event) => {
+                    runHandler(event, 'touchstart');
+                }, { passive: false });
                 button.addEventListener('mousedown', (event) => {
                     if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event);
+                    runHandler(event, 'mousedown');
                 });
             }
             button.addEventListener('click', (event) => {
-                if (window.PointerEvent && event.detail !== 0) return;
-                runHandler(event);
+                runHandler(event, 'click');
+            });
+            button.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                runHandler(event, 'keydown');
             });
         }
 

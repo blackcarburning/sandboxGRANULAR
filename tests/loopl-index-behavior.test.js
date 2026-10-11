@@ -64,6 +64,7 @@ vm.runInNewContext([
     extractFunctionSource('createEmptyBastardLoopLStep'),
     extractFunctionSource('normalizeBastardLoopLStep'),
     extractFunctionSource('computeBastardLoopLStepTapState'),
+    extractFunctionSource('computeBastardLoopLMobileTapState'),
     extractFunctionSource('computeBastardLoopLAccentGainMultiplier'),
     `globalThis.loopLExports = {
         normalizeLeadSamplePitchClass,
@@ -71,6 +72,7 @@ vm.runInNewContext([
         createEmptyBastardLoopLStep,
         normalizeBastardLoopLStep,
         computeBastardLoopLStepTapState,
+        computeBastardLoopLMobileTapState,
         computeBastardLoopLAccentGainMultiplier
     };`
 ].join('\n\n'), context);
@@ -81,6 +83,7 @@ const {
     createEmptyBastardLoopLStep,
     normalizeBastardLoopLStep,
     computeBastardLoopLStepTapState,
+    computeBastardLoopLMobileTapState,
     computeBastardLoopLAccentGainMultiplier
 } = context.loopLExports;
 
@@ -156,6 +159,36 @@ test('Loop L accent multiplier can both cut and strongly boost accented notes', 
     assert.ok(computeBastardLoopLAccentGainMultiplier(-0.5) < 1);
     assert.ok(computeBastardLoopLAccentGainMultiplier(0.35) > 1.35);
     assert.ok(computeBastardLoopLAccentGainMultiplier(1) >= 3.3);
+});
+
+test('Loop L mobile tap state suppresses delayed synthetic click after touchstart', () => {
+    const firstTouch = plain(computeBastardLoopLMobileTapState(0, 0, 'touchstart', 1000));
+    assert.deepEqual(firstTouch, {
+        handled: true,
+        nextLastHandledAt: 1000,
+        nextSuppressClickUntil: 1650
+    });
+
+    const delayedClick = plain(computeBastardLoopLMobileTapState(
+        firstTouch.nextLastHandledAt,
+        firstTouch.nextSuppressClickUntil,
+        'click',
+        1300
+    ));
+    assert.deepEqual(delayedClick, {
+        handled: false,
+        nextLastHandledAt: 1000,
+        nextSuppressClickUntil: 1650
+    });
+
+    const freshClick = plain(computeBastardLoopLMobileTapState(
+        firstTouch.nextLastHandledAt,
+        firstTouch.nextSuppressClickUntil,
+        'click',
+        1760
+    ));
+    assert.equal(freshClick.handled, true);
+    assert.equal(freshClick.nextLastHandledAt, 1760);
 });
 
 test('Loop L back/forward step moves request audible tone preview', async () => {
