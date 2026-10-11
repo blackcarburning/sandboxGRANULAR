@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-10-58-build-v2026.10.11.3';
+            const cacheBuster = '2026-10-11-11-01-build-v2026.10.11.4';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4740,7 +4740,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.4</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -21694,13 +21694,17 @@
             if (!audioContext || !preFilterGainNode || !bastardLoopLSampleBuffer || !step?.note || step.rest) {
                 return false;
             }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume().catch(() => {});
-            }
             const currentIndex = Math.max(0, Math.min(63, Number(options.index) || bastardLoopLEditStepIndex));
             const nextStep = options.nextStep || getBastardLoopLStep((currentIndex + 1) % getBastardLoopLPatternLength());
-            const scheduledTime = (audioContext.currentTime || 0) + 0.01;
-            scheduleBastardLoopLVoice(step, scheduledTime, getBastardLoopLStepDurationSeconds(), nextStep);
+            const playVoice = () => {
+                const scheduledTime = (audioContext.currentTime || 0) + 0.01;
+                scheduleBastardLoopLVoice(step, scheduledTime, getBastardLoopLStepDurationSeconds(), nextStep);
+            };
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(playVoice).catch(() => {});
+                return true;
+            }
+            playVoice();
             return true;
         }
 
@@ -38052,7 +38056,24 @@
             }
         });
 
-        bastardLoopLCloseBtn?.addEventListener('click', () => {
+        function bindBastardLoopLImmediateButton(button, handler) {
+            if (!button || typeof handler !== 'function') return;
+            let lastTriggeredAt = 0;
+            const trigger = (event) => {
+                const now = Date.now();
+                if (now - lastTriggeredAt < 220) {
+                    if (event?.type === 'pointerdown') event.preventDefault();
+                    return;
+                }
+                lastTriggeredAt = now;
+                if (event?.type === 'pointerdown') event.preventDefault();
+                handler();
+            };
+            button.addEventListener('pointerdown', trigger);
+            button.addEventListener('click', trigger);
+        }
+
+        bindBastardLoopLImmediateButton(bastardLoopLCloseBtn, () => {
             closeBastardLoopLOverlay();
         });
 
@@ -38062,47 +38083,47 @@
             }
         });
 
-        bastardLoopLChooseSampleBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLChooseSampleBtn, () => {
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopL);
         });
 
-        bastardLoopLTransportBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLTransportBtn, () => {
             setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
         });
 
-        bastardLoopLRecordBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLRecordBtn, () => {
             toggleBastardLoopLRecordArmed();
         });
 
-        bastardLoopLPrevStepBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLPrevStepBtn, () => {
             moveBastardLoopLStep(-1);
         });
 
-        bastardLoopLNextStepBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLNextStepBtn, () => {
             moveBastardLoopLStep(1);
         });
 
-        bastardLoopLTransposeDownBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLTransposeDownBtn, () => {
             transposeBastardLoopLSequence(-1);
         });
 
-        bastardLoopLTransposeUpBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLTransposeUpBtn, () => {
             transposeBastardLoopLSequence(1);
         });
 
-        bastardLoopLRestBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLRestBtn, () => {
             applyBastardLoopLRestEntry();
         });
 
-        bastardLoopLAccentBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLAccentBtn, () => {
             toggleBastardLoopLAccentForSelectedStep();
         });
 
-        bastardLoopLSlideBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLSlideBtn, () => {
             toggleBastardLoopLSlideForSelectedStep();
         });
 
-        bastardLoopLClearStepBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLClearStepBtn, () => {
             clearBastardLoopLStep(bastardLoopLEditStepIndex);
             updateBastardLoopLStatus(`Cleared step ${bastardLoopLEditStepIndex + 1}.`);
             if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
@@ -38110,7 +38131,7 @@
             }
         });
 
-        bastardLoopLClearAllBtn?.addEventListener('click', () => {
+        bindBastardLoopLImmediateButton(bastardLoopLClearAllBtn, () => {
             clearAllBastardLoopLSteps();
             updateBastardLoopLStatus('Cleared the full L sequence.');
         });
