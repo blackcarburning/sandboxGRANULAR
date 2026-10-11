@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-11-08-build-v2026.10.11.6';
+            const cacheBuster = '2026-10-11-11-14-build-v2026.10.11.7';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4740,7 +4740,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.6</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.7</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -21481,6 +21481,21 @@
             return getBastardLoopLTimingConfig(index).label;
         }
 
+        function findBastardLoopLPreviewStartIndex() {
+            const selectedStep = getBastardLoopLStep(bastardLoopLEditStepIndex);
+            if (selectedStep?.note && !selectedStep.rest) {
+                return bastardLoopLEditStepIndex;
+            }
+            const stepCount = getBastardLoopLPatternLength();
+            for (let index = 0; index < stepCount; index += 1) {
+                const step = getBastardLoopLStep(index);
+                if (step?.note && !step.rest) {
+                    return index;
+                }
+            }
+            return 0;
+        }
+
         function getBastardLoopLLevelValue(options = {}) {
             const primary = document.getElementById('performanceBastardLoopLLevel');
             const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
@@ -21565,7 +21580,10 @@
                 `;
                 button.addEventListener('click', () => {
                     setBastardLoopLEditStepIndex(index);
-                    auditionBastardLoopLCurrentStep({ silentWhenEmpty: true });
+                    auditionBastardLoopLCurrentStepWithReady({ silentWhenEmpty: true }).catch((error) => {
+                        console.error('Loop L step preview failed:', error);
+                        updateBastardLoopLStatus(`Loop L step preview failed: ${error.message}`);
+                    });
                 });
                 list.appendChild(button);
             }
@@ -21734,18 +21752,7 @@
             if (!audioContext || !preFilterGainNode || !bastardLoopLSampleBuffer || !step?.note || step.rest) {
                 return false;
             }
-            const currentIndex = Math.max(0, Math.min(63, Number(options.index) || bastardLoopLEditStepIndex));
-            const nextStep = options.nextStep || getBastardLoopLStep((currentIndex + 1) % getBastardLoopLPatternLength());
-            const playVoice = () => {
-                const scheduledTime = (audioContext.currentTime || 0) + 0.01;
-                scheduleBastardLoopLVoice(step, scheduledTime, getBastardLoopLStepDurationSeconds(), nextStep);
-            };
-            if (audioContext.state === 'suspended') {
-                audioContext.resume().then(playVoice).catch(() => {});
-                return true;
-            }
-            playVoice();
-            return true;
+            return previewBastardLoopLStep(step);
         }
 
         function auditionBastardLoopLCurrentStep(options = {}) {
@@ -21763,6 +21770,15 @@
                 updateBastardLoopLStatus(`Played ${step.note} from step ${bastardLoopLEditStepIndex + 1}.`);
             }
             return played;
+        }
+
+        async function auditionBastardLoopLCurrentStepWithReady(options = {}) {
+            const audioReady = await ensureAudioReadyForKeyInteraction();
+            if (!audioReady) {
+                updateBastardLoopLStatus('Audio is not ready for Loop L preview yet.');
+                return false;
+            }
+            return auditionBastardLoopLCurrentStep(options);
         }
 
         function scheduleBastardLoopLVoice(step, scheduledTime, stepDuration, nextStep) {
@@ -21808,6 +21824,36 @@
             };
             source.start(scheduledTime);
             source.stop(endTime + 0.02);
+        }
+
+        function previewBastardLoopLStep(step) {
+            if (!audioContext || !preFilterGainNode || !bastardLoopLSampleBuffer || !step?.note || step.rest) return false;
+            const source = audioContext.createBufferSource();
+            const gain = audioContext.createGain();
+            const level = getBastardLoopLLevelValue();
+            if (level <= 0) return false;
+            const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
+            const accentBoost = step.accent ? 1.35 : 1;
+            const now = (audioContext.currentTime || 0) + 0.002;
+            const previewDuration = Math.max(0.08, Math.min(1.4, (bastardLoopLSampleBuffer.duration / pitchRatio) * Math.max(0.18, getBastardLoopLStepLengthRatio())));
+            const fadeEndTime = now + Math.max(0.05, previewDuration * Math.max(0.16, getBastardLoopLDecayRatio()));
+            const stopTime = now + previewDuration;
+            source.buffer = bastardLoopLSampleBuffer;
+            source.playbackRate.setValueAtTime(pitchRatio, now);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(Math.max(0.0001, level * accentBoost), now + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
+            source.connect(gain);
+            gain.connect(preFilterGainNode);
+            source.onended = () => {
+                try {
+                    source.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+            };
+            source.start(now);
+            source.stop(stopTime + 0.02);
+            return true;
         }
 
         function scheduleBastardLoopLSteps() {
@@ -21858,7 +21904,7 @@
             let nextStepIndex = 0;
             if (options.previewOnly) {
                 nextStepTime = requestedStartTime;
-                nextStepIndex = 0;
+                nextStepIndex = Math.max(0, Math.min(stepCount - 1, Number(options.previewStartIndex) || findBastardLoopLPreviewStartIndex()));
             } else if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
                 nextStepTime = requestedStartTime;
                 nextStepIndex = 0;
@@ -21906,7 +21952,11 @@
             }
             bastardLoopLPreviewPlaying = nextValue;
             if (bastardLoopLPreviewPlaying) {
-                startBastardLoopL(null, { skipUi: true, previewOnly: true });
+                startBastardLoopL(null, {
+                    skipUi: true,
+                    previewOnly: true,
+                    previewStartIndex: findBastardLoopLPreviewStartIndex()
+                });
                 updateBastardLoopLStatus('Loop L solo preview started.');
             } else {
                 stopBastardLoopL({ skipUi: true });
@@ -21923,7 +21973,10 @@
 
         function moveBastardLoopLStep(delta) {
             setBastardLoopLEditStepIndex(bastardLoopLEditStepIndex + delta);
-            auditionBastardLoopLCurrentStep();
+            auditionBastardLoopLCurrentStepWithReady().catch((error) => {
+                console.error('Loop L step move preview failed:', error);
+                updateBastardLoopLStatus(`Loop L step move preview failed: ${error.message}`);
+            });
         }
 
         function transposeBastardLoopLSequence(delta) {
