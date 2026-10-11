@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-10-49-build-v2026.10.11.2';
+            const cacheBuster = '2026-10-11-10-58-build-v2026.10.11.3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -455,6 +455,15 @@
             align-items: stretch;
         }
 
+        .lead-sequencer-toolbar-row.compact-four {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .lead-sequencer-toolbar-row.accent-row .performance-btn {
+            min-height: 42px;
+            font-size: 0.72rem;
+        }
+
         .lead-sequencer-toolbar-row .performance-btn:only-child {
             grid-column: 1 / -1;
         }
@@ -799,18 +808,30 @@
 
             .lead-sequencer-toolbar-row {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 6px;
+            }
+
+            .lead-sequencer-toolbar-row.compact-four {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
             }
 
             .lead-sequencer-toolbar .performance-btn {
-                min-height: 34px;
-                padding: 7px 8px;
+                min-height: 31px;
+                padding: 6px 6px;
+                font-size: 0.56rem;
+                border-radius: 9px;
+                letter-spacing: 0.08em;
+            }
+
+            .lead-sequencer-toolbar-row.accent-row .performance-btn {
+                min-height: 38px;
                 font-size: 0.62rem;
-                border-radius: 10px;
+                padding: 7px 8px;
             }
 
             .lead-sequencer-status,
             .sample-browser-status#bastardLoopLStepCursor {
-                font-size: 0.7rem;
+                font-size: 0.66rem;
                 line-height: 1.18;
             }
 
@@ -907,13 +928,15 @@
             }
 
             .lead-sequencer-keyboard {
-                grid-template-columns: repeat(6, minmax(0, 1fr));
-                gap: 6px;
+                grid-template-columns: repeat(12, minmax(0, 1fr));
+                gap: 4px;
             }
 
             .lead-sequencer-key {
-                min-height: 44px;
-                font-size: 0.7rem;
+                min-height: 35px;
+                font-size: 0.55rem;
+                border-radius: 9px;
+                letter-spacing: 0.02em;
             }
 
             .sample-browser-controls {
@@ -4717,7 +4740,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.3</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -8444,23 +8467,27 @@
                             <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Solo</button>
                             <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row">
+                        <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopLPrevStepBtn" type="button">Back</button>
                             <button class="performance-btn" id="bastardLoopLNextStepBtn" type="button">Forward</button>
-                            <button class="performance-btn" id="bastardLoopLRestBtn" type="button">Rest</button>
+                            <button class="performance-btn" id="bastardLoopLTransposeDownBtn" type="button">Seq -</button>
+                            <button class="performance-btn" id="bastardLoopLTransposeUpBtn" type="button">Seq +</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row">
-                            <button class="performance-btn" id="bastardLoopLAccentBtn" type="button" aria-pressed="false">Accent Off</button>
-                            <button class="performance-btn" id="bastardLoopLSlideBtn" type="button" aria-pressed="false">Slide Off</button>
                             <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
-                        </div>
-                        <div class="lead-sequencer-toolbar-row">
                             <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopLStatus">Select a step, then enter notes from the lead keyboard.</div>
                     </div>
                     <div class="sample-browser-status" id="bastardLoopLStepCursor">Editing step 1.</div>
                     <div class="lead-sequencer-step-grid" id="bastardLoopLStepGrid"></div>
+                    <div class="lead-sequencer-toolbar">
+                        <div class="lead-sequencer-toolbar-row accent-row">
+                            <button class="performance-btn" id="bastardLoopLRestBtn" type="button">Rest</button>
+                            <button class="performance-btn" id="bastardLoopLAccentBtn" type="button" aria-pressed="false">Accent Off</button>
+                            <button class="performance-btn" id="bastardLoopLSlideBtn" type="button" aria-pressed="false">Slide Off</button>
+                        </div>
+                    </div>
                     <div class="lead-sequencer-keyboard" id="bastardLoopLKeyboard"></div>
                 </div>
             </div>
@@ -21422,6 +21449,14 @@
             return ((parsed.octave + 1) * 12) + noteSemitoneOffsets[parsed.pitchClass];
         }
 
+        function midiToNoteName(midi) {
+            const safeMidi = Math.max(0, Math.min(127, Math.round(Number(midi) || 60)));
+            const pitchClasses = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const pitchClass = pitchClasses[safeMidi % 12];
+            const octave = Math.floor(safeMidi / 12) - 1;
+            return `${pitchClass}${octave}`;
+        }
+
         function getBastardLoopLLevelValue(options = {}) {
             const primary = document.getElementById('performanceBastardLoopLLevel');
             const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
@@ -21521,9 +21556,19 @@
                 return `<button type="button" class="lead-sequencer-key ${isBlack ? 'black' : 'white'}" data-note="${note}">${note}</button>`;
             }).join('');
             keyboard.querySelectorAll('[data-note]').forEach((button) => {
-                button.addEventListener('click', () => {
+                const triggerNoteEntry = (event) => {
+                    const now = Date.now();
+                    const lastTrigger = Number(button.dataset.lastTriggeredAt || 0);
+                    if (now - lastTrigger < 220) {
+                        if (event?.type === 'pointerdown') event.preventDefault();
+                        return;
+                    }
+                    button.dataset.lastTriggeredAt = String(now);
+                    if (event?.type === 'pointerdown') event.preventDefault();
                     applyBastardLoopLNoteEntry(button.dataset.note);
-                });
+                };
+                button.addEventListener('pointerdown', triggerNoteEntry);
+                button.addEventListener('click', triggerNoteEntry);
             });
             keyboard.dataset.initialized = 'true';
         }
@@ -21835,6 +21880,33 @@
         function moveBastardLoopLStep(delta) {
             setBastardLoopLEditStepIndex(bastardLoopLEditStepIndex + delta);
             auditionBastardLoopLCurrentStep();
+        }
+
+        function transposeBastardLoopLSequence(delta) {
+            const semitoneDelta = Math.trunc(Number(delta) || 0);
+            if (!semitoneDelta) return;
+            ensureBastardLoopLSequenceCapacity();
+            let changed = 0;
+            bastardLoopLSequence = bastardLoopLSequence.map((step) => {
+                if (step.rest || !step.note) return normalizeBastardLoopLStep(step);
+                const transposedNote = midiToNoteName(noteNameToMidi(step.note) + semitoneDelta);
+                if (transposedNote !== step.note) changed += 1;
+                return normalizeBastardLoopLStep({
+                    ...step,
+                    note: transposedNote
+                });
+            });
+            syncBastardLoopLUi();
+            saveState();
+            if (changed > 0) {
+                updateBastardLoopLStatus(`Shifted ${changed} Loop L step${changed === 1 ? '' : 's'} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`);
+                auditionBastardLoopLCurrentStep({ silentStatus: true, silentWhenEmpty: true });
+                if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                    startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
+                }
+            } else {
+                updateBastardLoopLStatus('Loop L transpose had nothing to move.');
+            }
         }
 
         function setBastardLoopLEnabled(enabled, options = {}) {
@@ -36658,6 +36730,8 @@
         const bastardLoopLRecordBtn = document.getElementById('bastardLoopLRecordBtn');
         const bastardLoopLPrevStepBtn = document.getElementById('bastardLoopLPrevStepBtn');
         const bastardLoopLNextStepBtn = document.getElementById('bastardLoopLNextStepBtn');
+        const bastardLoopLTransposeDownBtn = document.getElementById('bastardLoopLTransposeDownBtn');
+        const bastardLoopLTransposeUpBtn = document.getElementById('bastardLoopLTransposeUpBtn');
         const bastardLoopLRestBtn = document.getElementById('bastardLoopLRestBtn');
         const bastardLoopLAccentBtn = document.getElementById('bastardLoopLAccentBtn');
         const bastardLoopLSlideBtn = document.getElementById('bastardLoopLSlideBtn');
@@ -38006,6 +38080,14 @@
 
         bastardLoopLNextStepBtn?.addEventListener('click', () => {
             moveBastardLoopLStep(1);
+        });
+
+        bastardLoopLTransposeDownBtn?.addEventListener('click', () => {
+            transposeBastardLoopLSequence(-1);
+        });
+
+        bastardLoopLTransposeUpBtn?.addEventListener('click', () => {
+            transposeBastardLoopLSequence(1);
         });
 
         bastardLoopLRestBtn?.addEventListener('click', () => {
