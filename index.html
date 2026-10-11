@@ -12293,241 +12293,247 @@
 
                 // Restore state from localStorage and setup state saving
                 const restoreSourceSerial = sourceMutationSerial;
+                stateSaveSuspended = true;
                 setTimeout(async () => {
-                    const restoreStartedAt = Date.now();
-                    const restored = restoreState();
-                    const state = readStoredStateSnapshot() || {};
-                    if (restored) {
-                        console.log('State restored from localStorage');
-                    }
-                    setupStateSaving();
+                    try {
+                        const restoreStartedAt = Date.now();
+                        const restored = restoreState();
+                        const state = readStoredStateSnapshot() || {};
+                        if (restored) {
+                            console.log('State restored from localStorage');
+                        }
+                        setupStateSaving();
 
-                    // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
-                    const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
-                    const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
-                    const restoredGrainMainSampleBuffer = await loadAudioBufferFromDB(GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY);
-                    const restoredGrainASampleBuffer = await loadAudioBufferFromDB(GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY);
-                    const restoredGrainBSampleBuffer = await loadAudioBufferFromDB(GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY);
-                    const restoredGrainAMicBuffer = await loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY);
-                    const restoredGrainBMicBuffer = await loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY);
-                    const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoopBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoop2Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoop3Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoopVBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_V_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoopPBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_P_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoopOBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_O_AUDIO_BUFFER_KEY);
-                    const restoredBastardLoopLBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_L_AUDIO_BUFFER_KEY);
-                    const restoredDropboxSampleLayerBuffer = await loadAudioBufferFromDB(DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY);
-                    const restoredDrumMachineKickBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
-                    const restoredDrumMachineSnareBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
-                    const restoredDrumMachineHatBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY);
-                    const restoredDrumMachinePercBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY);
-                    const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
-                    const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
-                    const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
-                    const shouldRestoreGrainMainSample = restoredGrainMainSampleBuffer && restoreStillCurrent;
-                    const shouldRestoreGrainASample = restoredGrainASampleBuffer && restoreStillCurrent;
-                    const shouldRestoreGrainBSample = restoredGrainBSampleBuffer && restoreStillCurrent;
-                    const shouldRestoreGrainAMic = restoredGrainAMicBuffer && restoreStillCurrent;
-                    const shouldRestoreGrainBMic = restoredGrainBMicBuffer && restoreStillCurrent;
-                    const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoop = restoredBastardLoopBuffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoop2 = restoredBastardLoop2Buffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoop3 = restoredBastardLoop3Buffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoopV = restoredBastardLoopVBuffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoopP = restoredBastardLoopPBuffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoopO = restoredBastardLoopOBuffer && restoreStillCurrent;
-                    const shouldRestoreBastardLoopL = restoredBastardLoopLBuffer && restoreStillCurrent;
-                    const shouldRestoreDropboxSampleLayer = restoredDropboxSampleLayerBuffer && restoreStillCurrent;
-                    const shouldRestoreDrumMachineKick = restoredDrumMachineKickBuffer && restoreStillCurrent;
-                    const shouldRestoreDrumMachineSnare = restoredDrumMachineSnareBuffer && restoreStillCurrent;
-                    const shouldRestoreDrumMachineHat = restoredDrumMachineHatBuffer && restoreStillCurrent;
-                    const shouldRestoreDrumMachinePerc = restoredDrumMachinePercBuffer && restoreStillCurrent;
-                    if (shouldRestoreGenerated) {
-                        generatedLoopBuffer = restoredGeneratedBuffer;
-                        generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
-                    }
-                    if (shouldRestoreMic) {
-                        micAudioBuffer = normalizeSourceBufferChannels('mic', restoredMicBuffer);
-                    }
-                    if (shouldRestoreGrainMainSample) {
-                        grainMainSampleBuffer = restoredGrainMainSampleBuffer;
-                        if (!grainMainSampleMetadata?.fileName) {
-                            setGrainSampleMetadata('grainMainSample', {
-                                sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain),
-                                fileName: 'restored-main-grain.wav',
-                                relativePath: ''
+                        // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
+                        const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
+                        const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
+                        const restoredGrainMainSampleBuffer = await loadAudioBufferFromDB(GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY);
+                        const restoredGrainASampleBuffer = await loadAudioBufferFromDB(GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY);
+                        const restoredGrainBSampleBuffer = await loadAudioBufferFromDB(GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY);
+                        const restoredGrainAMicBuffer = await loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY);
+                        const restoredGrainBMicBuffer = await loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY);
+                        const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoopBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoop2Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoop3Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoopVBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_V_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoopPBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_P_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoopOBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_O_AUDIO_BUFFER_KEY);
+                        const restoredBastardLoopLBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_L_AUDIO_BUFFER_KEY);
+                        const restoredDropboxSampleLayerBuffer = await loadAudioBufferFromDB(DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY);
+                        const restoredDrumMachineKickBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
+                        const restoredDrumMachineSnareBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
+                        const restoredDrumMachineHatBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY);
+                        const restoredDrumMachinePercBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY);
+                        const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
+                        const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
+                        const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
+                        const shouldRestoreGrainMainSample = restoredGrainMainSampleBuffer && restoreStillCurrent;
+                        const shouldRestoreGrainASample = restoredGrainASampleBuffer && restoreStillCurrent;
+                        const shouldRestoreGrainBSample = restoredGrainBSampleBuffer && restoreStillCurrent;
+                        const shouldRestoreGrainAMic = restoredGrainAMicBuffer && restoreStillCurrent;
+                        const shouldRestoreGrainBMic = restoredGrainBMicBuffer && restoreStillCurrent;
+                        const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoop = restoredBastardLoopBuffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoop2 = restoredBastardLoop2Buffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoop3 = restoredBastardLoop3Buffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoopV = restoredBastardLoopVBuffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoopP = restoredBastardLoopPBuffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoopO = restoredBastardLoopOBuffer && restoreStillCurrent;
+                        const shouldRestoreBastardLoopL = restoredBastardLoopLBuffer && restoreStillCurrent;
+                        const shouldRestoreDropboxSampleLayer = restoredDropboxSampleLayerBuffer && restoreStillCurrent;
+                        const shouldRestoreDrumMachineKick = restoredDrumMachineKickBuffer && restoreStillCurrent;
+                        const shouldRestoreDrumMachineSnare = restoredDrumMachineSnareBuffer && restoreStillCurrent;
+                        const shouldRestoreDrumMachineHat = restoredDrumMachineHatBuffer && restoreStillCurrent;
+                        const shouldRestoreDrumMachinePerc = restoredDrumMachinePercBuffer && restoreStillCurrent;
+                        if (shouldRestoreGenerated) {
+                            generatedLoopBuffer = restoredGeneratedBuffer;
+                            generatedLoopBaseBuffer = cloneAudioBufferForCurrentContext(restoredGeneratedBuffer);
+                        }
+                        if (shouldRestoreMic) {
+                            micAudioBuffer = normalizeSourceBufferChannels('mic', restoredMicBuffer);
+                        }
+                        if (shouldRestoreGrainMainSample) {
+                            grainMainSampleBuffer = restoredGrainMainSampleBuffer;
+                            if (!grainMainSampleMetadata?.fileName) {
+                                setGrainSampleMetadata('grainMainSample', {
+                                    sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainMain),
+                                    fileName: 'restored-main-grain.wav',
+                                    relativePath: ''
+                                });
+                            }
+                        }
+                        if (shouldRestoreGrainASample) {
+                            grainASampleBuffer = restoredGrainASampleBuffer;
+                            if (!grainASampleMetadata?.fileName) {
+                                setGrainSampleMetadata('grainASample', {
+                                    sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainA),
+                                    fileName: 'restored-grain-a.wav',
+                                    relativePath: ''
+                                });
+                            }
+                        }
+                        if (shouldRestoreGrainBSample) {
+                            grainBSampleBuffer = restoredGrainBSampleBuffer;
+                            if (!grainBSampleMetadata?.fileName) {
+                                setGrainSampleMetadata('grainBSample', {
+                                    sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainB),
+                                    fileName: 'restored-grain-b.wav',
+                                    relativePath: ''
+                                });
+                            }
+                        }
+                        if (shouldRestoreGrainAMic) {
+                            grainSynthAMicBuffer = normalizeSourceBufferChannels('grainAMic', restoredGrainAMicBuffer);
+                        }
+                        if (shouldRestoreGrainBMic) {
+                            grainSynthBMicBuffer = normalizeSourceBufferChannels('grainBMic', restoredGrainBMicBuffer);
+                        }
+                        if (shouldRestoreOutput) {
+                            outputSourceBuffer = restoredOutputBuffer;
+                        }
+                        if (shouldRestoreBastardLoop) {
+                            bastardLoopBuffer = restoredBastardLoopBuffer;
+                            bastardLoopMetadata = restoreBastardLoopMetadata(
+                                state.bastardLoopTrace?.A,
+                                restoredBastardLoopBuffer.duration,
+                                bastardLoopSourceBpm,
+                                'SAMPLEDROP'
+                            );
+                        }
+                        if (shouldRestoreBastardLoop2) {
+                            bastardLoop2Buffer = restoredBastardLoop2Buffer;
+                            bastardLoop2Metadata = restoreBastardLoopMetadata(
+                                state.bastardLoopTrace?.B,
+                                restoredBastardLoop2Buffer.duration,
+                                bastardLoop2SourceBpm,
+                                'SAMPLEDROP_2'
+                            );
+                        }
+                        if (shouldRestoreBastardLoop3) {
+                            bastardLoop3Buffer = restoredBastardLoop3Buffer;
+                            bastardLoop3Metadata = restoreBastardLoopMetadata(
+                                state.bastardLoopTrace?.C,
+                                restoredBastardLoop3Buffer.duration,
+                                bastardLoop3SourceBpm,
+                                'SPLICE_CLAW'
+                            );
+                        }
+                        if (shouldRestoreBastardLoopV) {
+                            bastardLoopVBuffer = restoredBastardLoopVBuffer;
+                            bastardLoopVMetadata = restoreBastardLoopMetadata(
+                                state.bastardLoopTrace?.V,
+                                restoredBastardLoopVBuffer.duration,
+                                bastardLoopVSourceBpm,
+                                'SAMPLES_VOCAL'
+                            );
+                        }
+                        if (shouldRestoreBastardLoopP) {
+                            bastardLoopPBuffer = restoredBastardLoopPBuffer;
+                            bastardLoopPMetadata = restoreBastardLoopMetadata(
+                                state.bastardLoopTrace?.P,
+                                restoredBastardLoopPBuffer.duration,
+                                bastardLoopPSourceBpm,
+                                'SAMPLES_PIANO'
+                            );
+                        }
+                        if (shouldRestoreBastardLoopO) {
+                            bastardLoopOBuffer = restoredBastardLoopOBuffer;
+                            bastardLoopOMetadata = restoreBastardLoopMetadata(
+                                state.bastardLoopTrace?.O,
+                                restoredBastardLoopOBuffer.duration,
+                                bastardLoopOSourceBpm,
+                                'SAMPLES_ORCH'
+                            );
+                        }
+                        if (shouldRestoreBastardLoopL) {
+                            bastardLoopLSampleBuffer = restoredBastardLoopLBuffer;
+                            restoreBastardLoopLSampleSelectionFromState(state.modes || {}, {
+                                fallbackMetadata: {
+                                    sourceKey: state.modes?.bastardLoopLSourceKey || bastardLoopLSampleMetadata?.sourceKey || 'samples_leads',
+                                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes?.bastardLoopLSourceKey || bastardLoopLSampleMetadata?.sourceKey || 'samples_leads'] || 'SAMPLES_LEADS',
+                                    fileName: state.modes?.bastardLoopLFileName || bastardLoopLSampleMetadata?.fileName || 'restored-lead.wav',
+                                    relativePath: state.modes?.bastardLoopLRelativePath || bastardLoopLSampleMetadata?.relativePath || '',
+                                    rootNote: state.modes?.bastardLoopLRootNote || bastardLoopLSampleMetadata?.rootNote || '',
+                                    durationSeconds: restoredBastardLoopLBuffer.duration
+                                },
+                                durationSeconds: restoredBastardLoopLBuffer.duration
                             });
                         }
-                    }
-                    if (shouldRestoreGrainASample) {
-                        grainASampleBuffer = restoredGrainASampleBuffer;
-                        if (!grainASampleMetadata?.fileName) {
-                            setGrainSampleMetadata('grainASample', {
-                                sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainA),
-                                fileName: 'restored-grain-a.wav',
-                                relativePath: ''
-                            });
-                        }
-                    }
-                    if (shouldRestoreGrainBSample) {
-                        grainBSampleBuffer = restoredGrainBSampleBuffer;
-                        if (!grainBSampleMetadata?.fileName) {
-                            setGrainSampleMetadata('grainBSample', {
-                                sourceKey: getGrainSampleBrowserSourceKey(SAMPLE_BROWSER_TARGETS.grainB),
-                                fileName: 'restored-grain-b.wav',
-                                relativePath: ''
-                            });
-                        }
-                    }
-                    if (shouldRestoreGrainAMic) {
-                        grainSynthAMicBuffer = normalizeSourceBufferChannels('grainAMic', restoredGrainAMicBuffer);
-                    }
-                    if (shouldRestoreGrainBMic) {
-                        grainSynthBMicBuffer = normalizeSourceBufferChannels('grainBMic', restoredGrainBMicBuffer);
-                    }
-                    if (shouldRestoreOutput) {
-                        outputSourceBuffer = restoredOutputBuffer;
-                    }
-                    if (shouldRestoreBastardLoop) {
-                        bastardLoopBuffer = restoredBastardLoopBuffer;
-                        bastardLoopMetadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.A,
-                            restoredBastardLoopBuffer.duration,
-                            bastardLoopSourceBpm,
-                            'SAMPLEDROP'
-                        );
-                    }
-                    if (shouldRestoreBastardLoop2) {
-                        bastardLoop2Buffer = restoredBastardLoop2Buffer;
-                        bastardLoop2Metadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.B,
-                            restoredBastardLoop2Buffer.duration,
-                            bastardLoop2SourceBpm,
-                            'SAMPLEDROP_2'
-                        );
-                    }
-                    if (shouldRestoreBastardLoop3) {
-                        bastardLoop3Buffer = restoredBastardLoop3Buffer;
-                        bastardLoop3Metadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.C,
-                            restoredBastardLoop3Buffer.duration,
-                            bastardLoop3SourceBpm,
-                            'SPLICE_CLAW'
-                        );
-                    }
-                    if (shouldRestoreBastardLoopV) {
-                        bastardLoopVBuffer = restoredBastardLoopVBuffer;
-                        bastardLoopVMetadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.V,
-                            restoredBastardLoopVBuffer.duration,
-                            bastardLoopVSourceBpm,
-                            'SAMPLES_VOCAL'
-                        );
-                    }
-                    if (shouldRestoreBastardLoopP) {
-                        bastardLoopPBuffer = restoredBastardLoopPBuffer;
-                        bastardLoopPMetadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.P,
-                            restoredBastardLoopPBuffer.duration,
-                            bastardLoopPSourceBpm,
-                            'SAMPLES_PIANO'
-                        );
-                    }
-                    if (shouldRestoreBastardLoopO) {
-                        bastardLoopOBuffer = restoredBastardLoopOBuffer;
-                        bastardLoopOMetadata = restoreBastardLoopMetadata(
-                            state.bastardLoopTrace?.O,
-                            restoredBastardLoopOBuffer.duration,
-                            bastardLoopOSourceBpm,
-                            'SAMPLES_ORCH'
-                        );
-                    }
-                    if (shouldRestoreBastardLoopL) {
-                        bastardLoopLSampleBuffer = restoredBastardLoopLBuffer;
-                        bastardLoopLRootNote = resolveLeadSampleRootNote(
-                            state.modes?.bastardLoopLFileName || 'restored-lead.wav',
-                            state.modes?.bastardLoopLRootNote || ''
-                        );
-                        bastardLoopLSampleMetadata = {
-                            sourceKey: state.modes?.bastardLoopLSourceKey || 'samples_leads',
-                            sourceLabel: BASTARD_LOOP_SOURCE_LABELS[state.modes?.bastardLoopLSourceKey || 'samples_leads'] || 'SAMPLES_LEADS',
-                            fileName: state.modes?.bastardLoopLFileName || 'restored-lead.wav',
-                            relativePath: state.modes?.bastardLoopLRelativePath || '',
-                            rootNote: bastardLoopLRootNote,
-                            durationSeconds: restoredBastardLoopLBuffer.duration,
-                            summary: `${state.modes?.bastardLoopLFileName || 'restored-lead.wav'} · ${restoredBastardLoopLBuffer.duration.toFixed(2)}s · root ${bastardLoopLRootNote}`
-                        };
-                    }
-                    if (shouldRestoreDropboxSampleLayer) {
-                        dropboxSampleLayerRawBuffer = restoredDropboxSampleLayerBuffer;
-                        dropboxSampleLayerMetadata = {
-                            summary: `${restoredDropboxSampleLayerBuffer.duration.toFixed(2)}s source · restored`,
-                            durationSeconds: restoredDropboxSampleLayerBuffer.duration,
-                            bpm: dropboxSampleLayerSourceBpm
-                        };
-                        rerenderDropboxSampleLayerFromRaw({ skipUi: true });
-                    }
-                    if (shouldRestoreDrumMachineKick) {
-                        drumMachineKickBuffer = restoredDrumMachineKickBuffer;
-                        if (!drumMachineKickMetadata?.fileName) {
-                            drumMachineKickMetadata = {
-                                sourceKey: DRUM_MACHINE_SOURCE_KEYS.kick,
-                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
-                                fileName: 'restored-kick.wav',
-                                relativePath: ''
+                        if (shouldRestoreDropboxSampleLayer) {
+                            dropboxSampleLayerRawBuffer = restoredDropboxSampleLayerBuffer;
+                            dropboxSampleLayerMetadata = {
+                                summary: `${restoredDropboxSampleLayerBuffer.duration.toFixed(2)}s source · restored`,
+                                durationSeconds: restoredDropboxSampleLayerBuffer.duration,
+                                bpm: dropboxSampleLayerSourceBpm
                             };
+                            rerenderDropboxSampleLayerFromRaw({ skipUi: true });
                         }
-                    }
-                    if (shouldRestoreDrumMachineSnare) {
-                        drumMachineSnareBuffer = restoredDrumMachineSnareBuffer;
-                        if (!drumMachineSnareMetadata?.fileName) {
-                            drumMachineSnareMetadata = {
-                                sourceKey: DRUM_MACHINE_SOURCE_KEYS.snare,
-                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
-                                fileName: 'restored-snare.wav',
-                                relativePath: ''
-                            };
+                        if (shouldRestoreDrumMachineKick) {
+                            drumMachineKickBuffer = restoredDrumMachineKickBuffer;
+                            if (!drumMachineKickMetadata?.fileName) {
+                                drumMachineKickMetadata = {
+                                    sourceKey: DRUM_MACHINE_SOURCE_KEYS.kick,
+                                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.kick],
+                                    fileName: 'restored-kick.wav',
+                                    relativePath: ''
+                                };
+                            }
                         }
-                    }
-                    if (shouldRestoreDrumMachineHat) {
-                        drumMachineHatBuffer = restoredDrumMachineHatBuffer;
-                        if (!drumMachineHatMetadata?.fileName) {
-                            drumMachineHatMetadata = {
-                                sourceKey: DRUM_MACHINE_SOURCE_KEYS.hat,
-                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.hat],
-                                fileName: 'restored-hat.wav',
-                                relativePath: ''
-                            };
+                        if (shouldRestoreDrumMachineSnare) {
+                            drumMachineSnareBuffer = restoredDrumMachineSnareBuffer;
+                            if (!drumMachineSnareMetadata?.fileName) {
+                                drumMachineSnareMetadata = {
+                                    sourceKey: DRUM_MACHINE_SOURCE_KEYS.snare,
+                                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.snare],
+                                    fileName: 'restored-snare.wav',
+                                    relativePath: ''
+                                };
+                            }
                         }
-                    }
-                    if (shouldRestoreDrumMachinePerc) {
-                        drumMachinePercBuffer = restoredDrumMachinePercBuffer;
-                        if (!drumMachinePercMetadata?.fileName) {
-                            const sourceKey = getDrumMachinePercBrowserSourceKey();
-                            drumMachinePercMetadata = {
-                                sourceKey,
-                                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLEDROP',
-                                fileName: 'restored-perc.wav',
-                                relativePath: ''
-                            };
+                        if (shouldRestoreDrumMachineHat) {
+                            drumMachineHatBuffer = restoredDrumMachineHatBuffer;
+                            if (!drumMachineHatMetadata?.fileName) {
+                                drumMachineHatMetadata = {
+                                    sourceKey: DRUM_MACHINE_SOURCE_KEYS.hat,
+                                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS[DRUM_MACHINE_SOURCE_KEYS.hat],
+                                    fileName: 'restored-hat.wav',
+                                    relativePath: ''
+                                };
+                            }
                         }
-                    }
-                    if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainMainSample || shouldRestoreGrainASample || shouldRestoreGrainBSample || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreBastardLoopV || shouldRestoreBastardLoopP || shouldRestoreBastardLoopO || shouldRestoreBastardLoopL || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare || shouldRestoreDrumMachineHat || shouldRestoreDrumMachinePerc) {
-                        syncLegacyAudioBuffer();
-                        drawWaveforms();
-                        updateSourceAvailability();
-                        syncBastardLoopUi();
-                        syncBastardLoop2Ui();
-                        syncBastardLoop3Ui();
-                        syncBastardLoopVUi();
-                        syncBastardLoopPUi();
-                        syncBastardLoopOUi();
-                        syncBastardLoopLUi();
-                        syncDropboxSampleLayerUi();
-                        syncDrumMachineUi();
-                        setStatus('Audio sources restored.');
+                        if (shouldRestoreDrumMachinePerc) {
+                            drumMachinePercBuffer = restoredDrumMachinePercBuffer;
+                            if (!drumMachinePercMetadata?.fileName) {
+                                const sourceKey = getDrumMachinePercBrowserSourceKey();
+                                drumMachinePercMetadata = {
+                                    sourceKey,
+                                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLEDROP',
+                                    fileName: 'restored-perc.wav',
+                                    relativePath: ''
+                                };
+                            }
+                        }
+                        if (shouldRestoreGenerated || shouldRestoreMic || shouldRestoreGrainMainSample || shouldRestoreGrainASample || shouldRestoreGrainBSample || shouldRestoreGrainAMic || shouldRestoreGrainBMic || shouldRestoreOutput || shouldRestoreBastardLoop || shouldRestoreBastardLoop2 || shouldRestoreBastardLoop3 || shouldRestoreBastardLoopV || shouldRestoreBastardLoopP || shouldRestoreBastardLoopO || shouldRestoreBastardLoopL || shouldRestoreDropboxSampleLayer || shouldRestoreDrumMachineKick || shouldRestoreDrumMachineSnare || shouldRestoreDrumMachineHat || shouldRestoreDrumMachinePerc) {
+                            syncLegacyAudioBuffer();
+                            drawWaveforms();
+                            updateSourceAvailability();
+                            syncBastardLoopUi();
+                            syncBastardLoop2Ui();
+                            syncBastardLoop3Ui();
+                            syncBastardLoopVUi();
+                            syncBastardLoopPUi();
+                            syncBastardLoopOUi();
+                            syncBastardLoopLUi();
+                            syncDropboxSampleLayerUi();
+                            syncDrumMachineUi();
+                            setStatus('Audio sources restored.');
+                        }
+                    } catch (restoreError) {
+                        console.error('Failed to restore stored audio sources:', restoreError);
+                    } finally {
+                        stateSaveSuspended = false;
+                        saveState({ force: true });
                     }
                 }, 500);
             } catch (e) {
@@ -22305,11 +22311,12 @@
         }
 
         function describeBastardLoopLMeta() {
-            if (!bastardLoopLSampleBuffer) return 'Choose a lead sample to begin.';
-            const sampleName = bastardLoopLSampleMetadata?.fileName || 'lead sample';
+            const sampleName = bastardLoopLSampleMetadata?.fileName || bastardLoopLSampleMetadata?.relativePath?.split('/').pop() || '';
+            if (!bastardLoopLSampleBuffer && !sampleName) return 'Choose a lead sample to begin.';
             const rootNote = getBastardLoopLRootNote();
             const stepCount = getBastardLoopLPatternLength();
-            return `${sampleName} · root ${rootNote} · ${stepCount} steps`;
+            const rememberedSuffix = bastardLoopLSampleBuffer ? '' : ' · sample reference remembered';
+            return `${sampleName || 'lead sample'} · root ${rootNote} · ${stepCount} steps${rememberedSuffix}`;
         }
 
         function syncBastardLoopLUi() {
@@ -22355,7 +22362,7 @@
             if (filterEnvelopeLabel) filterEnvelopeLabel.textContent = `${filterEnvelopeValue}%`;
             if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
             if (meta) meta.textContent = describeBastardLoopLMeta();
-            if (loadButton) loadButton.textContent = bastardLoopLSampleBuffer ? 'Change Lead Sample' : 'Choose Lead Sample';
+            if (loadButton) loadButton.textContent = (bastardLoopLSampleBuffer || bastardLoopLSampleMetadata?.fileName || bastardLoopLSampleMetadata?.relativePath) ? 'Change Lead Sample' : 'Choose Lead Sample';
             if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
             syncBastardLoopLAccentAmountUi();
             if (transportButton) {
@@ -31345,9 +31352,68 @@
 
         // --- STATE MEMORY SYSTEM ---
         const STATE_STORAGE_KEY = 'granularSynthState';
+        let stateSaveSuspended = true;
+
+        function buildStoredBastardLoopLSampleMetadata(savedModes = {}, options = {}) {
+            const fallbackMetadata = options.fallbackMetadata && typeof options.fallbackMetadata === 'object'
+                ? options.fallbackMetadata
+                : null;
+            const sourceKey = String(savedModes.bastardLoopLSourceKey || fallbackMetadata?.sourceKey || 'samples_leads').trim() || 'samples_leads';
+            const relativePath = String(savedModes.bastardLoopLRelativePath || fallbackMetadata?.relativePath || '').trim();
+            const fileName = String(
+                savedModes.bastardLoopLFileName ||
+                fallbackMetadata?.fileName ||
+                (relativePath ? relativePath.split('/').pop() : '')
+            ).trim();
+            if (!fileName && !relativePath) {
+                return null;
+            }
+            const rootNote = resolveLeadSampleRootNote(
+                fileName,
+                savedModes.bastardLoopLRootNote || fallbackMetadata?.rootNote || ''
+            );
+            const durationSeconds = Number.isFinite(options.durationSeconds) && options.durationSeconds > 0
+                ? options.durationSeconds
+                : (Number.isFinite(fallbackMetadata?.durationSeconds) && fallbackMetadata.durationSeconds > 0
+                    ? fallbackMetadata.durationSeconds
+                    : null);
+            const summaryParts = [fileName || 'lead sample'];
+            if (durationSeconds) {
+                summaryParts.push(`${durationSeconds.toFixed(2)}s`);
+            }
+            summaryParts.push(`root ${rootNote}`);
+            return {
+                sourceKey,
+                sourceLabel: BASTARD_LOOP_SOURCE_LABELS[sourceKey] || fallbackMetadata?.sourceLabel || 'SAMPLES_LEADS',
+                fileName: fileName || 'lead sample',
+                relativePath,
+                rootNote,
+                durationSeconds: durationSeconds || undefined,
+                summary: summaryParts.join(' · ')
+            };
+        }
+
+        function restoreBastardLoopLSampleSelectionFromState(savedModes = {}, options = {}) {
+            const restoredMetadata = buildStoredBastardLoopLSampleMetadata(savedModes, {
+                fallbackMetadata: options.fallbackMetadata || bastardLoopLSampleMetadata,
+                durationSeconds: options.durationSeconds
+            });
+            if (!restoredMetadata) {
+                if (options.clearWhenMissing) {
+                    bastardLoopLSampleMetadata = null;
+                }
+                return null;
+            }
+            bastardLoopLSampleMetadata = restoredMetadata;
+            bastardLoopLRootNote = restoredMetadata.rootNote;
+            return restoredMetadata;
+        }
 
         // Function to save current state to localStorage
-        function saveState() {
+        function saveState(options = {}) {
+            if (stateSaveSuspended && !options.force) {
+                return false;
+            }
             const state = {
                 version: '1.5',
                 bpmOnlyLfos: true,
@@ -31582,8 +31648,10 @@
 
             try {
                 localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
+                return true;
             } catch (e) {
                 console.error('Failed to save state to localStorage:', e);
+                return false;
             }
         }
 
@@ -31881,7 +31949,10 @@
                     if (state.modes.bastardLoopLTimingIndex !== undefined) {
                         bastardLoopLTimingIndex = clampBastardLoopLTimingIndex(state.modes.bastardLoopLTimingIndex);
                     }
-                    if (state.modes.bastardLoopLRootNote !== undefined) {
+                    const restoredBastardLoopLSampleSelection = restoreBastardLoopLSampleSelectionFromState(state.modes, {
+                        fallbackMetadata: bastardLoopLSampleMetadata
+                    });
+                    if (!restoredBastardLoopLSampleSelection && state.modes.bastardLoopLRootNote !== undefined) {
                         bastardLoopLRootNote = resolveLeadSampleRootNote(
                             state.modes.bastardLoopLFileName || bastardLoopLSampleMetadata?.fileName || '',
                             state.modes.bastardLoopLRootNote
@@ -32182,6 +32253,7 @@
                 syncFinalPanControlDisplays();
                 updateFinalOutputPanning();
                 syncPerformanceControlState();
+                syncBastardLoopLUi();
                 return true;
             } catch (e) {
                 console.error('Failed to restore state from localStorage:', e);

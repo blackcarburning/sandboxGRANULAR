@@ -42,6 +42,9 @@ function extractFunctionSource(name) {
 
 const context = {
     BASTARD_LOOP_L_STEP_DOUBLE_TAP_MS: 320,
+    BASTARD_LOOP_SOURCE_LABELS: {
+        samples_leads: 'SAMPLES_LEADS'
+    },
     noteSemitoneOffsets: {
         C: 0,
         'C#': 1,
@@ -61,8 +64,11 @@ const context = {
 vm.runInNewContext([
     extractFunctionSource('normalizeLeadSamplePitchClass'),
     extractFunctionSource('detectLeadSampleRootNote'),
+    extractFunctionSource('parseNoteName'),
+    extractFunctionSource('resolveLeadSampleRootNote'),
     extractFunctionSource('createEmptyBastardLoopLStep'),
     extractFunctionSource('normalizeBastardLoopLStep'),
+    extractFunctionSource('buildStoredBastardLoopLSampleMetadata'),
     extractFunctionSource('computeBastardLoopLStepTapState'),
     extractFunctionSource('computeBastardLoopLMobileTapState'),
     extractFunctionSource('computeBastardLoopLAccentGainMultiplier'),
@@ -72,8 +78,11 @@ vm.runInNewContext([
     `globalThis.loopLExports = {
         normalizeLeadSamplePitchClass,
         detectLeadSampleRootNote,
+        parseNoteName,
+        resolveLeadSampleRootNote,
         createEmptyBastardLoopLStep,
         normalizeBastardLoopLStep,
+        buildStoredBastardLoopLSampleMetadata,
         computeBastardLoopLStepTapState,
         computeBastardLoopLMobileTapState,
         computeBastardLoopLAccentGainMultiplier,
@@ -86,8 +95,11 @@ vm.runInNewContext([
 const {
     normalizeLeadSamplePitchClass,
     detectLeadSampleRootNote,
+    parseNoteName,
+    resolveLeadSampleRootNote,
     createEmptyBastardLoopLStep,
     normalizeBastardLoopLStep,
+    buildStoredBastardLoopLSampleMetadata,
     computeBastardLoopLStepTapState,
     computeBastardLoopLMobileTapState,
     computeBastardLoopLAccentGainMultiplier,
@@ -116,6 +128,24 @@ test('Loop L pitch-class normalization keeps B natural intact and normalizes fla
     assert.equal(normalizeLeadSamplePitchClass('B'), 'B');
     assert.equal(normalizeLeadSamplePitchClass('Bb'), 'A#');
     assert.equal(normalizeLeadSamplePitchClass('Gb'), 'F#');
+});
+
+test('Loop L remembered sample metadata can be rebuilt from stored browser state without the buffer', () => {
+    assert.deepEqual(plain(buildStoredBastardLoopLSampleMetadata({
+        bastardLoopLSourceKey: 'samples_leads',
+        bastardLoopLFileName: 'OS_MS_C4_80s_Lead.wav',
+        bastardLoopLRelativePath: 'SAMPLES_LEADS/OS_MS_C4_80s_Lead.wav',
+        bastardLoopLRootNote: ''
+    })), {
+        sourceKey: 'samples_leads',
+        sourceLabel: 'SAMPLES_LEADS',
+        fileName: 'OS_MS_C4_80s_Lead.wav',
+        relativePath: 'SAMPLES_LEADS/OS_MS_C4_80s_Lead.wav',
+        rootNote: 'C4',
+        summary: 'OS_MS_C4_80s_Lead.wav · root C4'
+    });
+    assert.equal(buildStoredBastardLoopLSampleMetadata({ bastardLoopLRootNote: 'D3' }), null);
+    assert.equal(resolveLeadSampleRootNote('OS_MS_C4_80s_Lead.wav', ''), 'C4');
 });
 
 test('Loop L step normalization defaults ratchet to x1 and clamps explicit ratchets', () => {
