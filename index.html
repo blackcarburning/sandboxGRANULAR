@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-18-20-build-v2026.10.11.11';
+            const cacheBuster = '2026-10-11-18-52-build-v2026.10.11.12';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -918,13 +918,34 @@
             }
 
             .lead-sequencer-shell {
-                gap: 10px;
-                padding: 14px;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            #bastardLoopLOverlay .sample-browser-head {
+                gap: 8px;
+                align-items: flex-start;
+            }
+
+            #bastardLoopLOverlay .sample-browser-copy h3 {
+                font-size: 1.22rem;
+                line-height: 1.05;
+            }
+
+            #bastardLoopLOverlay .sample-browser-copy p {
+                font-size: 0.74rem;
+                line-height: 1.15;
+            }
+
+            #bastardLoopLOverlay #bastardLoopLCloseBtn {
+                min-height: 31px;
+                padding: 6px 9px;
+                font-size: 0.6rem;
             }
 
             .lead-sequencer-toolbar-row {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 6px;
+                gap: 5px;
             }
 
             .lead-sequencer-toolbar-row.compact-four {
@@ -936,76 +957,76 @@
             }
 
             .lead-sequencer-toolbar-row.ratchet-grid {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-columns: repeat(8, minmax(0, 1fr));
             }
 
             .lead-sequencer-toolbar .performance-btn {
-                min-height: 27px;
-                padding: 4px 5px;
-                font-size: 0.5rem;
-                border-radius: 9px;
-                letter-spacing: 0.05em;
+                min-height: 24px;
+                padding: 3px 4px;
+                font-size: 0.45rem;
+                border-radius: 8px;
+                letter-spacing: 0.04em;
             }
 
             .lead-sequencer-toolbar-row.accent-row .performance-btn {
-                min-height: 30px;
-                font-size: 0.54rem;
+                min-height: 28px;
+                font-size: 0.5rem;
                 padding: 5px 6px;
             }
 
             .lead-sequencer-toolbar-row.transport-row .performance-btn {
-                min-height: 32px;
-                font-size: 0.56rem;
+                min-height: 29px;
+                font-size: 0.5rem;
             }
 
             .lead-sequencer-inline-slider {
-                padding: 8px 10px;
-                gap: 5px;
-                border-radius: 10px;
+                padding: 7px 9px;
+                gap: 4px;
+                border-radius: 9px;
             }
 
             .lead-sequencer-inline-slider-head {
-                font-size: 0.56rem;
-                gap: 8px;
+                font-size: 0.5rem;
+                gap: 6px;
             }
 
             .lead-sequencer-status,
             .sample-browser-status#bastardLoopLStepCursor {
-                font-size: 0.66rem;
-                line-height: 1.18;
+                font-size: 0.58rem;
+                line-height: 1.12;
             }
 
             .lead-sequencer-copy-popup {
-                top: 70px;
+                top: 62px;
                 left: 12px;
                 right: 12px;
-                padding: 12px 14px;
-                font-size: 0.92rem;
-                border-radius: 14px;
+                padding: 11px 13px;
+                font-size: 0.82rem;
+                border-radius: 12px;
             }
 
             .lead-sequencer-step-grid {
                 grid-template-columns: repeat(8, minmax(0, 1fr));
-                gap: 5px;
+                gap: 4px;
             }
 
             .lead-sequencer-step-btn {
-                min-height: 42px;
-                border-radius: 10px;
-                padding: 3px 1px;
+                min-height: 36px;
+                border-radius: 9px;
+                padding: 2px 1px;
             }
 
             .lead-sequencer-step-index {
-                font-size: 0.48rem;
+                font-size: 0.42rem;
             }
 
             .lead-sequencer-step-note {
-                font-size: 0.66rem;
+                font-size: 0.58rem;
             }
 
             .lead-sequencer-step-flags {
-                min-height: 0.58rem;
-                font-size: 0.48rem;
+                min-height: 0.46rem;
+                font-size: 0.4rem;
             }
 
             .sample-browser-card-head,
@@ -1078,20 +1099,21 @@
 
             .lead-sequencer-keyboard {
                 grid-template-columns: repeat(12, minmax(0, 1fr));
-                gap: 4px;
+                gap: 3px;
             }
 
             .lead-sequencer-key {
-                min-height: 48px;
-                font-size: 0.68rem;
-                border-radius: 9px;
+                min-height: 40px;
+                font-size: 0.58rem;
+                border-radius: 8px;
                 letter-spacing: 0.02em;
             }
 
             .lead-sequencer-ratchet-btn {
-                min-height: 24px;
-                padding: 3px 3px;
-                font-size: 0.48rem;
+                min-height: 20px;
+                padding: 2px 1px;
+                font-size: 0.38rem;
+                letter-spacing: 0.02em;
             }
 
             .sample-browser-controls {
@@ -4895,7 +4917,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.11</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.12</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
