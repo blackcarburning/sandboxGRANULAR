@@ -11873,6 +11873,9 @@
             return Math.max(MIN_PATTERN_LENGTH_STEPS, Math.min(MAX_PATTERN_LENGTH_STEPS, Math.round(numeric)));
         }
 
+        // This is needed before the early top-level remembered-state reads run.
+        const STATE_STORAGE_KEY = 'granularSynthState';
+
         function resolveStoredPatternLength(state = readStoredStateSnapshot()) {
             const remembered = state?.patternLength ?? state?.modes?.patternLength;
             return clampPatternLengthSteps(remembered, DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS);
@@ -33790,7 +33793,6 @@
         }
 
         // --- STATE MEMORY SYSTEM ---
-        const STATE_STORAGE_KEY = 'granularSynthState';
         let stateSaveSuspended = true;
 
         function buildStoredBastardLoopLSampleMetadata(savedModes = {}, options = {}) {
