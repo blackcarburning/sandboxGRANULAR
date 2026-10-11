@@ -21664,8 +21664,9 @@
                 }
                 button.dataset.loopLTriggering = 'true';
                 flashBastardLoopLKeyboardKey(button);
+                const tonePrimed = primeBastardLoopLNoteEntryTone(button.dataset.note);
                 try {
-                    await previewBastardLoopLNoteFromInput(button.dataset.note);
+                    await previewBastardLoopLNoteFromInput(button.dataset.note, { tonePrimed });
                 } catch (error) {
                     console.error('Loop L keyboard note failed:', error);
                     updateBastardLoopLStatus(`Loop L keyboard failed: ${error.message}`);
@@ -21839,17 +21840,18 @@
 
         function playBastardLoopLFeedbackTone(note, options = {}) {
             if (!audioContext || !note) return false;
-            const destination = getBastardLoopLDirectDestination();
+            const destination = options.destination || getBastardLoopLDirectDestination();
             if (!destination) return false;
             const oscillator = audioContext.createOscillator();
             const gain = audioContext.createGain();
             const now = Math.max(audioContext.currentTime || 0, Number(options.startTime) || 0);
             const frequency = Math.max(40, Math.min(5000, getNoteFrequency(note)));
             const duration = Math.max(0.08, Math.min(0.35, Number(options.duration) || 0.16));
+            const peakGain = Math.max(0.04, Math.min(0.32, Number(options.gain) || 0.16));
             oscillator.type = 'triangle';
             oscillator.frequency.setValueAtTime(frequency, now);
             gain.gain.setValueAtTime(0.0001, now);
-            gain.gain.linearRampToValueAtTime(0.16, now + 0.006);
+            gain.gain.linearRampToValueAtTime(peakGain, now + 0.006);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
             oscillator.connect(gain);
             gain.connect(destination);
@@ -21865,6 +21867,22 @@
             oscillator.start(now);
             oscillator.stop(now + duration + 0.02);
             return true;
+        }
+
+        function primeBastardLoopLNoteEntryTone(note) {
+            if (!audioContext || !note || !engineInitialized || engineStarting) {
+                return false;
+            }
+            if (audioContext.state === 'suspended') {
+                try {
+                    void audioContext.resume();
+                } catch (error) {}
+            }
+            return playBastardLoopLFeedbackTone(note, {
+                duration: 0.14,
+                gain: 0.22,
+                destination: audioContext.destination
+            });
         }
 
         function auditionBastardLoopLCurrentStep(options = {}) {
@@ -22104,13 +22122,13 @@
             updateBastardLoopLStatus(`Loop L timing set to ${getBastardLoopLTimingLabel()}.`);
         }
 
-        async function previewBastardLoopLNoteFromInput(note) {
+        async function previewBastardLoopLNoteFromInput(note, options = {}) {
             const audioReady = await ensureAudioReadyForKeyInteraction();
             if (!audioReady) {
                 updateBastardLoopLStatus('Audio is not ready for Loop L playback yet.');
                 return false;
             }
-            return applyBastardLoopLNoteEntry(note);
+            return applyBastardLoopLNoteEntry(note, options);
         }
 
         function ensureBastardLoopLReadyForTransport() {
@@ -22218,7 +22236,7 @@
             setBastardLoopLStep(bastardLoopLEditStepIndex, { ...step, slide: !step.slide });
         }
 
-        function applyBastardLoopLNoteEntry(note) {
+        function applyBastardLoopLNoteEntry(note, options = {}) {
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
             const playedStep = {
                 ...step,
@@ -22229,12 +22247,17 @@
             const played = canTrySample
                 ? auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex })
                 : false;
-            if (!played) {
-                const tonePlayed = playBastardLoopLFeedbackTone(note);
-                if (!tonePlayed) {
-                    updateBastardLoopLStatus('Loop L note could not play. Check the audio engine.');
-                    return false;
-                }
+            let tonePlayed = options.tonePrimed === true;
+            if (!played && !tonePlayed) {
+                tonePlayed = playBastardLoopLFeedbackTone(note, {
+                    duration: 0.14,
+                    gain: 0.22,
+                    destination: audioContext?.destination || undefined
+                });
+            }
+            if (!played && !tonePlayed) {
+                updateBastardLoopLStatus('Loop L note could not play. Check the audio engine.');
+                return false;
             }
             if (!bastardLoopLRecordArmed) {
                 updateBastardLoopLStatus(`${played ? 'Played' : 'Tone previewed'} ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
