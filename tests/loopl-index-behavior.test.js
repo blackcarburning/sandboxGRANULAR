@@ -66,6 +66,9 @@ vm.runInNewContext([
     extractFunctionSource('computeBastardLoopLStepTapState'),
     extractFunctionSource('computeBastardLoopLMobileTapState'),
     extractFunctionSource('computeBastardLoopLAccentGainMultiplier'),
+    extractFunctionSource('normalizeBastardLoopLDelayDivision'),
+    extractFunctionSource('computeBastardLoopLDelayMixLevels'),
+    extractFunctionSource('computeBastardLoopLFilterEnvelopePeakCutoff'),
     `globalThis.loopLExports = {
         normalizeLeadSamplePitchClass,
         detectLeadSampleRootNote,
@@ -73,7 +76,10 @@ vm.runInNewContext([
         normalizeBastardLoopLStep,
         computeBastardLoopLStepTapState,
         computeBastardLoopLMobileTapState,
-        computeBastardLoopLAccentGainMultiplier
+        computeBastardLoopLAccentGainMultiplier,
+        normalizeBastardLoopLDelayDivision,
+        computeBastardLoopLDelayMixLevels,
+        computeBastardLoopLFilterEnvelopePeakCutoff
     };`
 ].join('\n\n'), context);
 
@@ -84,7 +90,10 @@ const {
     normalizeBastardLoopLStep,
     computeBastardLoopLStepTapState,
     computeBastardLoopLMobileTapState,
-    computeBastardLoopLAccentGainMultiplier
+    computeBastardLoopLAccentGainMultiplier,
+    normalizeBastardLoopLDelayDivision,
+    computeBastardLoopLDelayMixLevels,
+    computeBastardLoopLFilterEnvelopePeakCutoff
 } = context.loopLExports;
 
 function plain(value) {
@@ -215,4 +224,32 @@ test('Loop L back/forward step moves request audible tone preview', async () => 
         silentWhenEmpty: true,
         forceTone: true
     });
+});
+
+test('Loop L delay division normalizer accepts new straight dotted and triplet values', () => {
+    assert.equal(normalizeBastardLoopLDelayDivision('0.5'), '0.5');
+    assert.equal(normalizeBastardLoopLDelayDivision('1d'), '1d');
+    assert.equal(normalizeBastardLoopLDelayDivision('4t'), '4t');
+    assert.equal(normalizeBastardLoopLDelayDivision('weird'), '2');
+});
+
+test('Loop L delay mix levels keep dry at zero mix and favor wet/send at high mix', () => {
+    assert.deepEqual(plain(computeBastardLoopLDelayMixLevels(0)), {
+        dryGain: 1,
+        sendGain: 0,
+        wetGain: 0,
+        feedbackGain: 0
+    });
+    const heavyMix = computeBastardLoopLDelayMixLevels(1);
+    assert.ok(heavyMix.dryGain < 0.001);
+    assert.ok(heavyMix.sendGain > 0.99);
+    assert.ok(heavyMix.wetGain > 0.9);
+    assert.ok(heavyMix.feedbackGain >= 0.34);
+});
+
+test('Loop L filter envelope peak cutoff opens upward but stays clamped', () => {
+    assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0), 1200);
+    assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(18000, 1), 18000);
+    assert.ok(computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0.5) > 1200);
+    assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(50, 1), 18000);
 });

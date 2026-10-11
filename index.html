@@ -5587,6 +5587,46 @@
                     </label>
                     <input type="range" id="performanceBastardLoopLSemitone" min="-24" max="24" value="0" step="1">
                 </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLFilterCutoff">
+                        <span>LP Filter 48 dB</span>
+                        <span class="value" id="performanceBastardLoopLFilterCutoffValue">18kHz</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLFilterCutoff" min="300" max="18000" value="18000" step="10">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLFilterEnvelope">
+                        <span>Filter Env</span>
+                        <span class="value" id="performanceBastardLoopLFilterEnvelopeValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLFilterEnvelope" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLDelayDivision">
+                        <span>Delay Time</span>
+                    </label>
+                    <select id="performanceBastardLoopLDelayDivision" class="performance-select">
+                        <option value="0.5">1/2</option>
+                        <option value="1">1/4</option>
+                        <option value="2" selected>1/8</option>
+                        <option value="4">1/16</option>
+                        <option value="0.5d">1/2 Dot</option>
+                        <option value="1d">1/4 Dot</option>
+                        <option value="2d">1/8 Dot</option>
+                        <option value="4d">1/16 Dot</option>
+                        <option value="0.5t">1/2 Trip</option>
+                        <option value="1t">1/4 Trip</option>
+                        <option value="2t">1/8 Trip</option>
+                        <option value="4t">1/16 Trip</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLDelayMix">
+                        <span>Delay Mix</span>
+                        <span class="value" id="performanceBastardLoopLDelayMixValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLDelayMix" min="0" max="100" value="0" step="1">
+                </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopLMeta">Choose a lead sample to begin.</div>
             </div>
             <div class="performance-feature-card" aria-label="Drum machine controls">
@@ -10027,6 +10067,10 @@
         let bastardLoopLDecay = 0.75;
         let bastardLoopLAccentAmount = 0.35;
         let bastardLoopLPitchSemitones = 0;
+        let bastardLoopLFilterCutoff = 18000;
+        let bastardLoopLFilterEnvelopeAmount = 0;
+        let bastardLoopLDelayDivision = '2';
+        let bastardLoopLDelayMix = 0;
         let bastardLoopLRootNote = 'C3';
         let bastardLoopLSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false, ratchet: 1 }));
         let bastardLoopLEditStepIndex = 0;
@@ -10105,6 +10149,14 @@
         let bastardLoopLNextStepIndex = 0;
         let bastardLoopLSlideCarryIndex = -1;
         const bastardLoopLActiveVoices = new Set();
+        let bastardLoopLDelayBusContext = null;
+        let bastardLoopLDelayDestinationNode = null;
+        let bastardLoopLDelayInputGainNode = null;
+        let bastardLoopLDelayDryGainNode = null;
+        let bastardLoopLDelaySendGainNode = null;
+        let bastardLoopLDelayNode = null;
+        let bastardLoopLDelayFeedbackGainNode = null;
+        let bastardLoopLDelayWetGainNode = null;
         let dropboxSampleLayerSource = null;
         let dropboxSampleLayerGainNode = null;
         let bastardLoopGenerationInFlight = false;
@@ -15571,6 +15623,32 @@
             const slider = document.getElementById('performanceBastardLoopOFilterCutoff');
             bastardLoopOFilterCutoff = clampBastardLoopFilterCutoff(slider?.value ?? bastardLoopOFilterCutoff);
             return bastardLoopOFilterCutoff;
+        }
+
+        function normalizeBastardLoopLDelayDivision(value) {
+            const allowed = ['0.5', '1', '2', '4', '0.5d', '1d', '2d', '4d', '0.5t', '1t', '2t', '4t'];
+            const normalized = String(value ?? '').trim();
+            return allowed.includes(normalized) ? normalized : '2';
+        }
+
+        function computeBastardLoopLDelayMixLevels(mixValue = 0) {
+            const mix = Math.max(0, Math.min(1, Number(mixValue) || 0));
+            const wetCurve = Math.sin(mix * Math.PI / 2);
+            return {
+                dryGain: Math.cos(mix * Math.PI / 2),
+                sendGain: wetCurve,
+                wetGain: wetCurve * 0.92,
+                feedbackGain: wetCurve > 0.001 ? 0.34 : 0
+            };
+        }
+
+        function computeBastardLoopLFilterEnvelopePeakCutoff(baseCutoff, envelopeAmount = 0) {
+            const safeBase = Math.max(300, Math.min(18000, Math.round(Number(baseCutoff) || 18000)));
+            const safeEnvelopeAmount = Math.max(0, Math.min(1, Number(envelopeAmount) || 0));
+            return Math.max(
+                300,
+                Math.min(18000, Math.round(safeBase + ((18000 - safeBase) * safeEnvelopeAmount)))
+            );
         }
 
         function makeBastardLoopDivisionInputGetter(optionList) {
@@ -21753,6 +21831,152 @@
             return bastardLoopLPitchSemitones;
         }
 
+        function getBastardLoopLFilterCutoff() {
+            const slider = document.getElementById('performanceBastardLoopLFilterCutoff');
+            bastardLoopLFilterCutoff = clampBastardLoopFilterCutoff(slider?.value ?? bastardLoopLFilterCutoff);
+            return bastardLoopLFilterCutoff;
+        }
+
+        function getBastardLoopLFilterEnvelopeAmount() {
+            const slider = document.getElementById('performanceBastardLoopLFilterEnvelope');
+            const rawValue = Number(slider?.value ?? (bastardLoopLFilterEnvelopeAmount * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? Math.round(rawValue) : 0));
+            bastardLoopLFilterEnvelopeAmount = clamped / 100;
+            return bastardLoopLFilterEnvelopeAmount;
+        }
+
+        function getBastardLoopLDelayDivision() {
+            const select = document.getElementById('performanceBastardLoopLDelayDivision');
+            bastardLoopLDelayDivision = normalizeBastardLoopLDelayDivision(select?.value ?? bastardLoopLDelayDivision);
+            return bastardLoopLDelayDivision;
+        }
+
+        function getBastardLoopLDelayMix() {
+            const slider = document.getElementById('performanceBastardLoopLDelayMix');
+            const rawValue = Number(slider?.value ?? (bastardLoopLDelayMix * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoopLDelayMix = clamped / 100;
+            return bastardLoopLDelayMix;
+        }
+
+        function getBastardLoopLDelayTimeSeconds() {
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            return getBpmDelaySeconds(getBastardLoopLDelayDivision(), bpm);
+        }
+
+        function getBastardLoopLPlaybackDestination() {
+            return preFilterGainNode || masterGain || audioContext?.destination || null;
+        }
+
+        function rampBastardLoopLDelayParam(audioParam, targetValue, rampTime = 0.04) {
+            if (!audioParam) return;
+            if (!audioContext || audioContext.state !== 'running') {
+                audioParam.value = targetValue;
+                return;
+            }
+            const now = audioContext.currentTime;
+            audioParam.cancelScheduledValues(now);
+            audioParam.setValueAtTime(audioParam.value, now);
+            audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
+        }
+
+        function destroyBastardLoopLDelayBus() {
+            [
+                bastardLoopLDelayInputGainNode,
+                bastardLoopLDelayDryGainNode,
+                bastardLoopLDelaySendGainNode,
+                bastardLoopLDelayNode,
+                bastardLoopLDelayFeedbackGainNode,
+                bastardLoopLDelayWetGainNode
+            ].forEach((node) => {
+                safeDisconnectNode(node);
+            });
+            bastardLoopLDelayBusContext = null;
+            bastardLoopLDelayDestinationNode = null;
+            bastardLoopLDelayInputGainNode = null;
+            bastardLoopLDelayDryGainNode = null;
+            bastardLoopLDelaySendGainNode = null;
+            bastardLoopLDelayNode = null;
+            bastardLoopLDelayFeedbackGainNode = null;
+            bastardLoopLDelayWetGainNode = null;
+        }
+
+        function updateBastardLoopLDelayBusSettings() {
+            if (!audioContext || !bastardLoopLDelayNode) return;
+            const delayTime = getBastardLoopLDelayTimeSeconds();
+            const mixLevels = computeBastardLoopLDelayMixLevels(getBastardLoopLDelayMix());
+            rampBastardLoopLDelayParam(bastardLoopLDelayNode.delayTime, delayTime, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelayDryGainNode?.gain, mixLevels.dryGain, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelaySendGainNode?.gain, mixLevels.sendGain, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelayWetGainNode?.gain, mixLevels.wetGain, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelayFeedbackGainNode?.gain, mixLevels.feedbackGain, 0.03);
+        }
+
+        function ensureBastardLoopLDelayBus(destination = getBastardLoopLPlaybackDestination()) {
+            if (!audioContext || !destination) return null;
+            const needsNewBus = !bastardLoopLDelayInputGainNode
+                || bastardLoopLDelayBusContext !== audioContext
+                || bastardLoopLDelayDestinationNode !== destination;
+            if (needsNewBus) {
+                destroyBastardLoopLDelayBus();
+                bastardLoopLDelayInputGainNode = audioContext.createGain();
+                bastardLoopLDelayDryGainNode = audioContext.createGain();
+                bastardLoopLDelaySendGainNode = audioContext.createGain();
+                bastardLoopLDelayNode = audioContext.createDelay(3.2);
+                bastardLoopLDelayFeedbackGainNode = audioContext.createGain();
+                bastardLoopLDelayWetGainNode = audioContext.createGain();
+
+                bastardLoopLDelayInputGainNode.connect(bastardLoopLDelayDryGainNode);
+                bastardLoopLDelayDryGainNode.connect(destination);
+                bastardLoopLDelayInputGainNode.connect(bastardLoopLDelaySendGainNode);
+                bastardLoopLDelaySendGainNode.connect(bastardLoopLDelayNode);
+                bastardLoopLDelayNode.connect(bastardLoopLDelayWetGainNode);
+                bastardLoopLDelayWetGainNode.connect(destination);
+                bastardLoopLDelayNode.connect(bastardLoopLDelayFeedbackGainNode);
+                bastardLoopLDelayFeedbackGainNode.connect(bastardLoopLDelayNode);
+
+                bastardLoopLDelayBusContext = audioContext;
+                bastardLoopLDelayDestinationNode = destination;
+            }
+            updateBastardLoopLDelayBusSettings();
+            return bastardLoopLDelayInputGainNode;
+        }
+
+        function applyBastardLoopLFilterEnvelope(filterNodes, scheduledTime, noteDuration) {
+            if (!Array.isArray(filterNodes) || filterNodes.length === 0) return;
+            const baseCutoff = getBastardLoopLFilterCutoff();
+            const envelopeAmount = getBastardLoopLFilterEnvelopeAmount();
+            const peakCutoff = computeBastardLoopLFilterEnvelopePeakCutoff(baseCutoff, envelopeAmount);
+            const attackTime = Math.max(0.004, Math.min(0.012, noteDuration * 0.14));
+            const decayRatio = getBastardLoopLDecayRatio();
+            const decayTime = Math.max(attackTime + 0.03, Math.min(noteDuration, noteDuration * Math.max(0.18, decayRatio)));
+            filterNodes.forEach((filterNode) => {
+                if (!audioContext || audioContext.state !== 'running') {
+                    filterNode.frequency.value = baseCutoff;
+                    return;
+                }
+                filterNode.frequency.cancelScheduledValues(scheduledTime);
+                filterNode.frequency.setValueAtTime(baseCutoff, scheduledTime);
+                if (peakCutoff > baseCutoff + 2) {
+                    filterNode.frequency.linearRampToValueAtTime(peakCutoff, scheduledTime + attackTime);
+                    filterNode.frequency.exponentialRampToValueAtTime(
+                        Math.max(300, baseCutoff),
+                        scheduledTime + decayTime
+                    );
+                }
+            });
+        }
+
+        function updateBastardLoopLVoiceFx() {
+            updateBastardLoopLDelayBusSettings();
+            const cutoff = getBastardLoopLFilterCutoff();
+            bastardLoopLActiveVoices.forEach((voice) => {
+                if (voice?.filterNodes?.length) {
+                    smoothBastardLoopFilterCutoff(voice.filterNodes, cutoff, 0.03);
+                }
+            });
+        }
+
         function getBastardLoopLStepDurationSeconds() {
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             return (60 / bpm / 4) * getBastardLoopLTimingConfig().multiplier;
@@ -22062,6 +22286,10 @@
             const lengthValue = Math.round(getBastardLoopLStepLengthRatio() * 100);
             const decayValue = Math.round(getBastardLoopLDecayRatio() * 100);
             const semitoneValue = getBastardLoopLPitchSemitones();
+            const filterCutoffValue = getBastardLoopLFilterCutoff();
+            const filterEnvelopeValue = Math.round(getBastardLoopLFilterEnvelopeAmount() * 100);
+            const delayMixValue = Math.round(getBastardLoopLDelayMix() * 100);
+            const delayDivisionValue = getBastardLoopLDelayDivision();
             const levelSlider = document.getElementById('performanceBastardLoopLLevel');
             const levelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
             const loadButton = document.getElementById('performanceBastardLoopLLoadBtn');
@@ -22069,18 +22297,32 @@
             const meta = document.getElementById('performanceBastardLoopLMeta');
             const transportButton = document.getElementById('bastardLoopLTransportBtn');
             const recordButton = document.getElementById('bastardLoopLRecordBtn');
+            const filterSlider = document.getElementById('performanceBastardLoopLFilterCutoff');
+            const filterEnvelopeSlider = document.getElementById('performanceBastardLoopLFilterEnvelope');
+            const delayDivisionSelect = document.getElementById('performanceBastardLoopLDelayDivision');
+            const delayMixSlider = document.getElementById('performanceBastardLoopLDelayMix');
             if (levelSlider) levelSlider.value = String(levelValue);
             if (levelMixer) levelMixer.value = String(levelValue);
+            if (filterSlider) filterSlider.value = String(filterCutoffValue);
+            if (filterEnvelopeSlider) filterEnvelopeSlider.value = String(filterEnvelopeValue);
+            if (delayDivisionSelect) delayDivisionSelect.value = delayDivisionValue;
+            if (delayMixSlider) delayMixSlider.value = String(delayMixValue);
             const levelLabel = document.getElementById('performanceBastardLoopLLevelValue');
             const mixerLabel = document.getElementById('performanceBastardLoopLLevelMixerValue');
             const lengthLabel = document.getElementById('performanceBastardLoopLLengthValue');
             const decayLabel = document.getElementById('performanceBastardLoopLDecayValue');
             const semitoneLabel = document.getElementById('performanceBastardLoopLSemitoneValue');
+            const filterLabel = document.getElementById('performanceBastardLoopLFilterCutoffValue');
+            const filterEnvelopeLabel = document.getElementById('performanceBastardLoopLFilterEnvelopeValue');
+            const delayMixLabel = document.getElementById('performanceBastardLoopLDelayMixValue');
             if (levelLabel) levelLabel.textContent = `${levelValue}%`;
             if (mixerLabel) mixerLabel.textContent = `${levelValue}%`;
             if (lengthLabel) lengthLabel.textContent = `${lengthValue}%`;
             if (decayLabel) decayLabel.textContent = `${decayValue}%`;
             if (semitoneLabel) semitoneLabel.textContent = `${semitoneValue > 0 ? '+' : ''}${semitoneValue} st`;
+            if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoffValue);
+            if (filterEnvelopeLabel) filterEnvelopeLabel.textContent = `${filterEnvelopeValue}%`;
+            if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
             if (meta) meta.textContent = describeBastardLoopLMeta();
             if (loadButton) loadButton.textContent = bastardLoopLSampleBuffer ? 'Change Lead Sample' : 'Choose Lead Sample';
             if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
@@ -22232,9 +22474,10 @@
             if (!audioContext || !bastardLoopLSampleBuffer || !step?.note) return;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
+            const filters = createBastardLoopLowpassFilters(getBastardLoopLFilterCutoff());
             const level = getBastardLoopLLevelValue();
             if (level <= 0) return;
-            const destination = preFilterGainNode;
+            const destination = ensureBastardLoopLDelayBus(getBastardLoopLPlaybackDestination());
             if (!destination) return;
             const accentBoost = getBastardLoopLAccentGainMultiplier(step);
             const levelScale = Math.max(0.32, Math.min(1, Number(options.levelScale) || 1));
@@ -22262,15 +22505,17 @@
             gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(endTime, decayEndTime));
 
             source.connect(gain);
-            gain.connect(destination);
+            connectBastardLoopFilterChain(gain, filters, destination);
+            applyBastardLoopLFilterEnvelope(filters, scheduledTime, duration);
 
-            const voice = { source, gain };
+            const voice = { source, gain, filterNodes: filters };
             bastardLoopLActiveVoices.add(voice);
             source.onended = () => {
                 bastardLoopLActiveVoices.delete(voice);
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
             };
             source.start(scheduledTime);
@@ -22298,8 +22543,9 @@
             if (!audioContext || !bastardLoopLSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
+            const filters = createBastardLoopLowpassFilters(getBastardLoopLFilterCutoff());
             const level = getBastardLoopLAuditionLevel();
-            const destination = getBastardLoopLDirectDestination();
+            const destination = ensureBastardLoopLDelayBus(getBastardLoopLPlaybackDestination());
             if (!destination) return false;
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
             const accentBoost = getBastardLoopLAccentGainMultiplier(step);
@@ -22313,11 +22559,16 @@
             gain.gain.linearRampToValueAtTime(Math.max(0.0001, level * accentBoost), now + 0.005);
             gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
             source.connect(gain);
-            gain.connect(destination);
+            connectBastardLoopFilterChain(gain, filters, destination);
+            applyBastardLoopLFilterEnvelope(filters, now, previewDuration);
+            const voice = { source, gain, filterNodes: filters };
+            bastardLoopLActiveVoices.add(voice);
             source.onended = () => {
+                bastardLoopLActiveVoices.delete(voice);
                 try {
                     source.disconnect();
                     gain.disconnect();
+                    disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
             };
             source.start(now);
@@ -22351,7 +22602,7 @@
         }
 
         function startBastardLoopL(startTime = null, options = {}) {
-            if (!audioContext || !bastardLoopLSampleBuffer || !preFilterGainNode) {
+            if (!audioContext || !bastardLoopLSampleBuffer || !getBastardLoopLPlaybackDestination()) {
                 return false;
             }
             if (getBastardLoopLLevelValue() <= 0) {
@@ -22392,10 +22643,12 @@
         }
 
         function syncBastardLoopLTempo() {
+            updateBastardLoopLDelayBusSettings();
             restartBastardLoopLPlaybackIfNeeded();
         }
 
         function updateBastardLoopLMix() {
+            updateBastardLoopLVoiceFx();
             if (!shouldRestartBastardLoopLPlayback() || !bastardLoopLSampleBuffer) {
                 stopBastardLoopL({ skipUi: true });
             } else if (getBastardLoopLLevelValue() <= 0) {
@@ -31151,6 +31404,10 @@
                     bastardLoopLDecay: bastardLoopLDecay,
                     bastardLoopLAccentAmount: getBastardLoopLAccentAmount(),
                     bastardLoopLPitchSemitones: bastardLoopLPitchSemitones,
+                    bastardLoopLFilterCutoff: getBastardLoopLFilterCutoff(),
+                    bastardLoopLFilterEnvelopeAmount: getBastardLoopLFilterEnvelopeAmount(),
+                    bastardLoopLDelayDivision: getBastardLoopLDelayDivision(),
+                    bastardLoopLDelayMix: getBastardLoopLDelayMix(),
                     bastardLoopLTimingIndex: bastardLoopLTimingIndex,
                     bastardLoopLRootNote: bastardLoopLRootNote,
                     bastardLoopLSourceKey: bastardLoopLSampleMetadata?.sourceKey || 'samples_leads',
@@ -31577,6 +31834,18 @@
                     }
                     if (state.modes.bastardLoopLPitchSemitones !== undefined) {
                         setBastardLoopLPitchSemitoneOffset(state.modes.bastardLoopLPitchSemitones, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.bastardLoopLFilterCutoff !== undefined) {
+                        bastardLoopLFilterCutoff = clampBastardLoopFilterCutoff(state.modes.bastardLoopLFilterCutoff);
+                    }
+                    if (state.modes.bastardLoopLFilterEnvelopeAmount !== undefined) {
+                        bastardLoopLFilterEnvelopeAmount = Math.max(0, Math.min(1, Number(state.modes.bastardLoopLFilterEnvelopeAmount) || 0));
+                    }
+                    if (state.modes.bastardLoopLDelayDivision !== undefined) {
+                        bastardLoopLDelayDivision = normalizeBastardLoopLDelayDivision(state.modes.bastardLoopLDelayDivision);
+                    }
+                    if (state.modes.bastardLoopLDelayMix !== undefined) {
+                        bastardLoopLDelayMix = Math.max(0, Math.min(1, Number(state.modes.bastardLoopLDelayMix) || 0));
                     }
                     if (state.modes.bastardLoopLTimingIndex !== undefined) {
                         bastardLoopLTimingIndex = clampBastardLoopLTimingIndex(state.modes.bastardLoopLTimingIndex);
@@ -37256,6 +37525,10 @@
         const performanceBastardLoopLLength = document.getElementById('performanceBastardLoopLLength');
         const performanceBastardLoopLDecay = document.getElementById('performanceBastardLoopLDecay');
         const performanceBastardLoopLSemitone = document.getElementById('performanceBastardLoopLSemitone');
+        const performanceBastardLoopLFilterCutoff = document.getElementById('performanceBastardLoopLFilterCutoff');
+        const performanceBastardLoopLFilterEnvelope = document.getElementById('performanceBastardLoopLFilterEnvelope');
+        const performanceBastardLoopLDelayDivision = document.getElementById('performanceBastardLoopLDelayDivision');
+        const performanceBastardLoopLDelayMix = document.getElementById('performanceBastardLoopLDelayMix');
         const performanceBastardLoopLLevelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
         const performanceDropboxSampleLayerBtn = document.getElementById('performanceDropboxSampleLayerBtn');
         const performanceLayerOscBtn = document.getElementById('performanceLayerOscBtn');
@@ -38604,6 +38877,35 @@
 
         performanceBastardLoopLSemitone?.addEventListener('input', (event) => {
             setBastardLoopLPitchSemitoneOffset(event.target.value, { silent: true });
+        });
+
+        performanceBastardLoopLFilterCutoff?.addEventListener('input', (event) => {
+            bastardLoopLFilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
+            updateBastardLoopLVoiceFx();
+            syncBastardLoopLUi();
+            saveState();
+        });
+
+        performanceBastardLoopLFilterEnvelope?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopLFilterEnvelopeAmount = value / 100;
+            syncBastardLoopLUi();
+            saveState();
+        });
+
+        performanceBastardLoopLDelayDivision?.addEventListener('change', (event) => {
+            bastardLoopLDelayDivision = normalizeBastardLoopLDelayDivision(event.target.value);
+            updateBastardLoopLDelayBusSettings();
+            syncBastardLoopLUi();
+            saveState();
+        });
+
+        performanceBastardLoopLDelayMix?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopLDelayMix = value / 100;
+            updateBastardLoopLDelayBusSettings();
+            syncBastardLoopLUi();
+            saveState();
         });
 
         performanceDropboxSampleLayerBtn?.addEventListener('click', () => {
