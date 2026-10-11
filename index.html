@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-19-14-build-v2026.10.11.13';
+            const cacheBuster = '2026-10-11-19-32-build-v2026.10.11.14';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4917,7 +4917,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.13</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.14</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -21988,6 +21988,22 @@
             bastardLoopLLevel = clamped / 100;
             if (options.applyLayerToggle === false) return bastardLoopLLevel;
             return bastardLoopLEnabled ? bastardLoopLLevel * MIX_HEADROOM * 0.88 : 0;
+        }
+
+        function setBastardLoopLLevelPercent(value, options = {}) {
+            const { skipSave = false } = options;
+            const clamped = Math.max(0, Math.min(100, Number(value) || 0));
+            bastardLoopLLevel = clamped / 100;
+            const primary = document.getElementById('performanceBastardLoopLLevel');
+            const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
+            const primaryLabel = document.getElementById('performanceBastardLoopLLevelValue');
+            const mixerLabel = document.getElementById('performanceBastardLoopLLevelMixerValue');
+            if (primary) primary.value = String(clamped);
+            if (mixer) mixer.value = String(clamped);
+            if (primaryLabel) primaryLabel.textContent = `${Math.round(clamped)}%`;
+            if (mixerLabel) mixerLabel.textContent = `${Math.round(clamped)}%`;
+            updateBastardLoopLMix();
+            if (!skipSave) saveState();
         }
 
         function getBastardLoopLAuditionLevel() {
@@ -39257,16 +39273,12 @@
 
         performanceBastardLoopLLevel?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
-            bastardLoopLLevel = value / 100;
-            updateBastardLoopLMix();
-            saveState();
+            setBastardLoopLLevelPercent(value);
         });
 
         performanceBastardLoopLLevelMixer?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
-            bastardLoopLLevel = value / 100;
-            updateBastardLoopLMix();
-            saveState();
+            setBastardLoopLLevelPercent(value);
         });
 
         performanceBastardLoopLLength?.addEventListener('input', (event) => {
