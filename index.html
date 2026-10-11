@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-17-56-build-v2026.10.11.10';
+            const cacheBuster = '2026-10-11-18-20-build-v2026.10.11.11';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4895,7 +4895,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.10</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.11</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -5692,6 +5692,12 @@
                         <span class="value" id="performanceBastardLoopLDelayMixValue">0%</span>
                     </label>
                     <input type="range" id="performanceBastardLoopLDelayMix" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>Delay Mode</span>
+                    </label>
+                    <button class="performance-btn" id="performanceBastardLoopLDelayPingPongBtn" type="button" aria-pressed="false">Ping Pong Off</button>
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopLMeta">Choose a lead sample to begin.</div>
             </div>
@@ -10143,6 +10149,7 @@
         let bastardLoopLFilterEnvelopeAmount = 0;
         let bastardLoopLDelayDivision = '2';
         let bastardLoopLDelayMix = 0;
+        let bastardLoopLDelayPingPongEnabled = false;
         let bastardLoopLRootNote = 'C3';
         let bastardLoopLSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false, ratchet: 1 }));
         let bastardLoopLEditStepIndex = 0;
@@ -10233,6 +10240,12 @@
         let bastardLoopLDelayNode = null;
         let bastardLoopLDelayFeedbackGainNode = null;
         let bastardLoopLDelayWetGainNode = null;
+        let bastardLoopLDelayRightNode = null;
+        let bastardLoopLDelayRightFeedbackGainNode = null;
+        let bastardLoopLDelayRightWetGainNode = null;
+        let bastardLoopLDelayLeftPannerNode = null;
+        let bastardLoopLDelayRightPannerNode = null;
+        let bastardLoopLDelayRoutingMode = '';
         let dropboxSampleLayerSource = null;
         let dropboxSampleLayerGainNode = null;
         let bastardLoopGenerationInFlight = false;
@@ -22038,6 +22051,24 @@
             return bastardLoopLDelayMix;
         }
 
+        function setBastardLoopLDelayPingPongEnabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (bastardLoopLDelayPingPongEnabled === nextValue) {
+                syncBastardLoopLUi();
+                return;
+            }
+            bastardLoopLDelayPingPongEnabled = nextValue;
+            if (bastardLoopLDelayInputGainNode) {
+                configureBastardLoopLDelayBusRouting();
+                updateBastardLoopLDelayBusSettings();
+            }
+            syncBastardLoopLUi();
+            if (!options.silent) {
+                updateBastardLoopLStatus(`Loop L delay ${bastardLoopLDelayPingPongEnabled ? 'ping pong on' : 'ping pong off'}.`);
+            }
+            if (!options.skipSave) saveState();
+        }
+
         function getBastardLoopLDelayTimeSeconds() {
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             return getBpmDelaySeconds(getBastardLoopLDelayDivision(), bpm);
@@ -22066,7 +22097,12 @@
                 bastardLoopLDelaySendGainNode,
                 bastardLoopLDelayNode,
                 bastardLoopLDelayFeedbackGainNode,
-                bastardLoopLDelayWetGainNode
+                bastardLoopLDelayWetGainNode,
+                bastardLoopLDelayRightNode,
+                bastardLoopLDelayRightFeedbackGainNode,
+                bastardLoopLDelayRightWetGainNode,
+                bastardLoopLDelayLeftPannerNode,
+                bastardLoopLDelayRightPannerNode
             ].forEach((node) => {
                 safeDisconnectNode(node);
             });
@@ -22078,6 +22114,12 @@
             bastardLoopLDelayNode = null;
             bastardLoopLDelayFeedbackGainNode = null;
             bastardLoopLDelayWetGainNode = null;
+            bastardLoopLDelayRightNode = null;
+            bastardLoopLDelayRightFeedbackGainNode = null;
+            bastardLoopLDelayRightWetGainNode = null;
+            bastardLoopLDelayLeftPannerNode = null;
+            bastardLoopLDelayRightPannerNode = null;
+            bastardLoopLDelayRoutingMode = '';
         }
 
         function updateBastardLoopLDelayBusSettings() {
@@ -22085,10 +22127,53 @@
             const delayTime = getBastardLoopLDelayTimeSeconds();
             const mixLevels = computeBastardLoopLDelayMixLevels(getBastardLoopLDelayMix());
             rampBastardLoopLDelayParam(bastardLoopLDelayNode.delayTime, delayTime, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelayRightNode?.delayTime, delayTime, 0.03);
             rampBastardLoopLDelayParam(bastardLoopLDelayDryGainNode?.gain, mixLevels.dryGain, 0.03);
             rampBastardLoopLDelayParam(bastardLoopLDelaySendGainNode?.gain, mixLevels.sendGain, 0.03);
             rampBastardLoopLDelayParam(bastardLoopLDelayWetGainNode?.gain, mixLevels.wetGain, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelayRightWetGainNode?.gain, mixLevels.wetGain, 0.03);
             rampBastardLoopLDelayParam(bastardLoopLDelayFeedbackGainNode?.gain, mixLevels.feedbackGain, 0.03);
+            rampBastardLoopLDelayParam(bastardLoopLDelayRightFeedbackGainNode?.gain, mixLevels.feedbackGain, 0.03);
+        }
+
+        function configureBastardLoopLDelayBusRouting() {
+            if (!bastardLoopLDelaySendGainNode || !bastardLoopLDelayNode || !bastardLoopLDelayRightNode || !bastardLoopLDelayFeedbackGainNode || !bastardLoopLDelayRightFeedbackGainNode || !bastardLoopLDelayWetGainNode || !bastardLoopLDelayRightWetGainNode) {
+                return;
+            }
+            const mode = bastardLoopLDelayPingPongEnabled ? 'pingpong' : 'stereo';
+            if (bastardLoopLDelayRoutingMode === mode) {
+                return;
+            }
+
+            [
+                bastardLoopLDelaySendGainNode,
+                bastardLoopLDelayNode,
+                bastardLoopLDelayRightNode,
+                bastardLoopLDelayFeedbackGainNode,
+                bastardLoopLDelayRightFeedbackGainNode
+            ].forEach((node) => {
+                safeDisconnectNode(node);
+            });
+
+            bastardLoopLDelayNode.connect(bastardLoopLDelayWetGainNode);
+            bastardLoopLDelayRightNode.connect(bastardLoopLDelayRightWetGainNode);
+
+            if (bastardLoopLDelayPingPongEnabled) {
+                bastardLoopLDelaySendGainNode.connect(bastardLoopLDelayNode);
+                bastardLoopLDelayNode.connect(bastardLoopLDelayFeedbackGainNode);
+                bastardLoopLDelayFeedbackGainNode.connect(bastardLoopLDelayRightNode);
+                bastardLoopLDelayRightNode.connect(bastardLoopLDelayRightFeedbackGainNode);
+                bastardLoopLDelayRightFeedbackGainNode.connect(bastardLoopLDelayNode);
+            } else {
+                bastardLoopLDelaySendGainNode.connect(bastardLoopLDelayNode);
+                bastardLoopLDelaySendGainNode.connect(bastardLoopLDelayRightNode);
+                bastardLoopLDelayNode.connect(bastardLoopLDelayFeedbackGainNode);
+                bastardLoopLDelayFeedbackGainNode.connect(bastardLoopLDelayNode);
+                bastardLoopLDelayRightNode.connect(bastardLoopLDelayRightFeedbackGainNode);
+                bastardLoopLDelayRightFeedbackGainNode.connect(bastardLoopLDelayRightNode);
+            }
+
+            bastardLoopLDelayRoutingMode = mode;
         }
 
         function ensureBastardLoopLDelayBus(destination = getBastardLoopLPlaybackDestination()) {
@@ -22102,21 +22187,37 @@
                 bastardLoopLDelayDryGainNode = audioContext.createGain();
                 bastardLoopLDelaySendGainNode = audioContext.createGain();
                 bastardLoopLDelayNode = audioContext.createDelay(3.2);
+                bastardLoopLDelayRightNode = audioContext.createDelay(3.2);
                 bastardLoopLDelayFeedbackGainNode = audioContext.createGain();
+                bastardLoopLDelayRightFeedbackGainNode = audioContext.createGain();
                 bastardLoopLDelayWetGainNode = audioContext.createGain();
+                bastardLoopLDelayRightWetGainNode = audioContext.createGain();
+                bastardLoopLDelayLeftPannerNode = typeof audioContext.createStereoPanner === 'function'
+                    ? audioContext.createStereoPanner()
+                    : audioContext.createGain();
+                bastardLoopLDelayRightPannerNode = typeof audioContext.createStereoPanner === 'function'
+                    ? audioContext.createStereoPanner()
+                    : audioContext.createGain();
 
                 bastardLoopLDelayInputGainNode.connect(bastardLoopLDelayDryGainNode);
                 bastardLoopLDelayDryGainNode.connect(destination);
                 bastardLoopLDelayInputGainNode.connect(bastardLoopLDelaySendGainNode);
-                bastardLoopLDelaySendGainNode.connect(bastardLoopLDelayNode);
-                bastardLoopLDelayNode.connect(bastardLoopLDelayWetGainNode);
-                bastardLoopLDelayWetGainNode.connect(destination);
-                bastardLoopLDelayNode.connect(bastardLoopLDelayFeedbackGainNode);
-                bastardLoopLDelayFeedbackGainNode.connect(bastardLoopLDelayNode);
+                bastardLoopLDelayWetGainNode.connect(bastardLoopLDelayLeftPannerNode);
+                bastardLoopLDelayRightWetGainNode.connect(bastardLoopLDelayRightPannerNode);
+                bastardLoopLDelayLeftPannerNode.connect(destination);
+                bastardLoopLDelayRightPannerNode.connect(destination);
+                if ('pan' in bastardLoopLDelayLeftPannerNode) {
+                    bastardLoopLDelayLeftPannerNode.pan.value = -0.72;
+                }
+                if ('pan' in bastardLoopLDelayRightPannerNode) {
+                    bastardLoopLDelayRightPannerNode.pan.value = 0.72;
+                }
 
                 bastardLoopLDelayBusContext = audioContext;
                 bastardLoopLDelayDestinationNode = destination;
+                bastardLoopLDelayRoutingMode = '';
             }
+            configureBastardLoopLDelayBusRouting();
             updateBastardLoopLDelayBusSettings();
             return bastardLoopLDelayInputGainNode;
         }
@@ -22501,6 +22602,7 @@
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopLFilterEnvelope');
             const delayDivisionSelect = document.getElementById('performanceBastardLoopLDelayDivision');
             const delayMixSlider = document.getElementById('performanceBastardLoopLDelayMix');
+            const delayPingPongButton = document.getElementById('performanceBastardLoopLDelayPingPongBtn');
             if (levelSlider) levelSlider.value = String(levelValue);
             if (levelMixer) levelMixer.value = String(levelValue);
             if (filterSlider) filterSlider.value = String(filterCutoffValue);
@@ -22543,6 +22645,11 @@
                 copyButton.classList.toggle('active', copyActive);
                 copyButton.textContent = 'Copy';
                 copyButton.setAttribute('aria-pressed', String(copyActive));
+            }
+            if (delayPingPongButton) {
+                delayPingPongButton.classList.toggle('active', bastardLoopLDelayPingPongEnabled);
+                delayPingPongButton.textContent = bastardLoopLDelayPingPongEnabled ? 'Ping Pong On' : 'Ping Pong Off';
+                delayPingPongButton.setAttribute('aria-pressed', String(bastardLoopLDelayPingPongEnabled));
             }
             syncBastardLoopLEditorUi();
         }
@@ -31676,6 +31783,7 @@
                     bastardLoopLFilterEnvelopeAmount: getBastardLoopLFilterEnvelopeAmount(),
                     bastardLoopLDelayDivision: getBastardLoopLDelayDivision(),
                     bastardLoopLDelayMix: getBastardLoopLDelayMix(),
+                    bastardLoopLDelayPingPongEnabled: bastardLoopLDelayPingPongEnabled,
                     bastardLoopLTimingIndex: bastardLoopLTimingIndex,
                     bastardLoopLRootNote: bastardLoopLRootNote,
                     bastardLoopLSourceKey: bastardLoopLSampleMetadata?.sourceKey || 'samples_leads',
@@ -32116,6 +32224,9 @@
                     }
                     if (state.modes.bastardLoopLDelayMix !== undefined) {
                         bastardLoopLDelayMix = Math.max(0, Math.min(1, Number(state.modes.bastardLoopLDelayMix) || 0));
+                    }
+                    if (state.modes.bastardLoopLDelayPingPongEnabled !== undefined) {
+                        bastardLoopLDelayPingPongEnabled = Boolean(state.modes.bastardLoopLDelayPingPongEnabled);
                     }
                     if (state.modes.bastardLoopLTimingIndex !== undefined) {
                         bastardLoopLTimingIndex = clampBastardLoopLTimingIndex(state.modes.bastardLoopLTimingIndex);
@@ -37919,6 +38030,7 @@
         const bastardLoopLClearStepBtn = document.getElementById('bastardLoopLClearStepBtn');
         const bastardLoopLCopyBtn = document.getElementById('bastardLoopLCopyBtn');
         const bastardLoopLClearAllBtn = document.getElementById('bastardLoopLClearAllBtn');
+        const performanceBastardLoopLDelayPingPongBtn = document.getElementById('performanceBastardLoopLDelayPingPongBtn');
         const drumMachineOverlay = document.getElementById('drumMachineOverlay');
         const drumMachineCloseBtn = document.getElementById('drumMachineCloseBtn');
         const drumMachineRandomizeBtn = document.getElementById('drumMachineRandomizeBtn');
@@ -39181,6 +39293,10 @@
             updateBastardLoopLDelayBusSettings();
             syncBastardLoopLUi();
             saveState();
+        });
+
+        performanceBastardLoopLDelayPingPongBtn?.addEventListener('click', () => {
+            setBastardLoopLDelayPingPongEnabled(!bastardLoopLDelayPingPongEnabled);
         });
 
         performanceDropboxSampleLayerBtn?.addEventListener('click', () => {
