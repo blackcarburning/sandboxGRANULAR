@@ -277,9 +277,9 @@ test('Loop L delay mix levels keep dry at zero mix and favor wet/send at high mi
     assert.ok(heavyMix.feedbackGain >= 0.34);
 });
 
-test('Loop L filter envelope peak cutoff opens upward but stays clamped', () => {
+test('Loop L filter envelope peak cutoff opens upward from the chosen cutoff and stays clamped', () => {
     assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0), 1200);
     assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(18000, 1), 18000);
-    assert.ok(computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0.5) > 1200);
-    assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(50, 1), 18000);
+    assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0.5), 4800);
+    assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(50, 1), 4800);
 });

@@ -5629,6 +5629,7 @@
                         <span class="value" id="performanceBastardLoopLFilterEnvelopeValue">0%</span>
                     </label>
                     <input type="range" id="performanceBastardLoopLFilterEnvelope" min="0" max="100" value="0" step="1">
+                    <p style="margin: 8px 0 0; color: rgba(214, 232, 255, 0.72); font-size: 0.78rem; line-height: 1.35;">Accented notes add +50% to Filter Env for a stronger VCF sweep.</p>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopLDelayDivision">
@@ -15682,9 +15683,10 @@
         function computeBastardLoopLFilterEnvelopePeakCutoff(baseCutoff, envelopeAmount = 0) {
             const safeBase = Math.max(300, Math.min(18000, Math.round(Number(baseCutoff) || 18000)));
             const safeEnvelopeAmount = Math.max(0, Math.min(1, Number(envelopeAmount) || 0));
+            const octaveLift = safeEnvelopeAmount * 4;
             return Math.max(
                 300,
-                Math.min(18000, Math.round(safeBase + ((18000 - safeBase) * safeEnvelopeAmount)))
+                Math.min(18000, Math.round(safeBase * Math.pow(2, octaveLift)))
             );
         }
 
@@ -21882,6 +21884,12 @@
             return bastardLoopLFilterEnvelopeAmount;
         }
 
+        function getBastardLoopLFilterEnvelopeAmountForStep(step) {
+            const baseEnvelopeAmount = getBastardLoopLFilterEnvelopeAmount();
+            const accentBoost = step?.accent ? 0.5 : 0;
+            return Math.max(0, Math.min(1, baseEnvelopeAmount + accentBoost));
+        }
+
         function getBastardLoopLDelayDivision() {
             const select = document.getElementById('performanceBastardLoopLDelayDivision');
             bastardLoopLDelayDivision = normalizeBastardLoopLDelayDivision(select?.value ?? bastardLoopLDelayDivision);
@@ -21979,10 +21987,10 @@
             return bastardLoopLDelayInputGainNode;
         }
 
-        function applyBastardLoopLFilterEnvelope(filterNodes, scheduledTime, noteDuration) {
+        function applyBastardLoopLFilterEnvelope(filterNodes, scheduledTime, noteDuration, step = null) {
             if (!Array.isArray(filterNodes) || filterNodes.length === 0) return;
             const baseCutoff = getBastardLoopLFilterCutoff();
-            const envelopeAmount = getBastardLoopLFilterEnvelopeAmount();
+            const envelopeAmount = getBastardLoopLFilterEnvelopeAmountForStep(step);
             const peakCutoff = computeBastardLoopLFilterEnvelopePeakCutoff(baseCutoff, envelopeAmount);
             const attackTime = Math.max(0.004, Math.min(0.012, noteDuration * 0.14));
             const decayRatio = getBastardLoopLDecayRatio();
@@ -21994,7 +22002,7 @@
                 }
                 filterNode.frequency.cancelScheduledValues(scheduledTime);
                 filterNode.frequency.setValueAtTime(baseCutoff, scheduledTime);
-                if (peakCutoff > baseCutoff + 2) {
+                if (envelopeAmount > 0.001 && peakCutoff > baseCutoff + 2) {
                     filterNode.frequency.linearRampToValueAtTime(peakCutoff, scheduledTime + attackTime);
                     filterNode.frequency.exponentialRampToValueAtTime(
                         Math.max(300, baseCutoff),
@@ -22544,7 +22552,7 @@
 
             source.connect(gain);
             connectBastardLoopFilterChain(gain, filters, destination);
-            applyBastardLoopLFilterEnvelope(filters, scheduledTime, duration);
+            applyBastardLoopLFilterEnvelope(filters, scheduledTime, duration, step);
 
             const voice = { source, gain, filterNodes: filters };
             bastardLoopLActiveVoices.add(voice);
@@ -22598,7 +22606,7 @@
             gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
             source.connect(gain);
             connectBastardLoopFilterChain(gain, filters, destination);
-            applyBastardLoopLFilterEnvelope(filters, now, previewDuration);
+            applyBastardLoopLFilterEnvelope(filters, now, previewDuration, step);
             const voice = { source, gain, filterNodes: filters };
             bastardLoopLActiveVoices.add(voice);
             source.onended = () => {
