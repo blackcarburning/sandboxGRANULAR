@@ -9921,7 +9921,9 @@
         let bastardLoopLCurrentStepIndex = -1;
         let bastardLoopLTimingIndex = 3;
         let bastardLoopLPreviewPlaying = false;
+        let bastardLoopLTransportActive = false;
         let bastardLoopLRecordArmed = true;
+        let bastardLoopLPreviewTogglePending = false;
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -21496,6 +21498,17 @@
             return 0;
         }
 
+        function hasPlayableBastardLoopLSequence() {
+            const stepCount = getBastardLoopLPatternLength();
+            for (let index = 0; index < stepCount; index += 1) {
+                const step = getBastardLoopLStep(index);
+                if (step?.note && !step.rest) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         function getBastardLoopLLevelValue(options = {}) {
             const primary = document.getElementById('performanceBastardLoopLLevel');
             const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
@@ -21535,7 +21548,7 @@
         }
 
         function isBastardLoopLRunning() {
-            return bastardLoopPlaying || bastardLoopLPreviewPlaying;
+            return bastardLoopLTransportActive || bastardLoopPlaying || bastardLoopLPreviewPlaying;
         }
 
         function syncBastardLoopLStepButtonStates() {
@@ -21732,6 +21745,7 @@
             bastardLoopLNextStepTime = null;
             bastardLoopLSlideCarryIndex = -1;
             bastardLoopLCurrentStepIndex = -1;
+            bastardLoopLTransportActive = false;
             stopAllBastardLoopLVoices(options);
             if (!options.skipUi) {
                 syncBastardLoopLUi();
@@ -21909,6 +21923,7 @@
             bastardLoopLCurrentStepIndex = nextStepIndex;
             bastardLoopLNextStepIndex = nextStepIndex;
             bastardLoopLNextStepTime = nextStepTime;
+            bastardLoopLTransportActive = true;
             scheduleBastardLoopLSteps();
             if (!options.skipUi) {
                 syncBastardLoopLUi();
@@ -21940,15 +21955,28 @@
                 syncBastardLoopLUi();
                 return;
             }
-            bastardLoopLPreviewPlaying = nextValue;
-            if (bastardLoopLPreviewPlaying) {
-                startBastardLoopL(null, {
+            if (nextValue) {
+                if (!hasPlayableBastardLoopLSequence()) {
+                    updateBastardLoopLStatus('Enter at least one Loop L note before starting solo.');
+                    syncBastardLoopLUi();
+                    return;
+                }
+                bastardLoopLPreviewPlaying = true;
+                const started = startBastardLoopL(null, {
                     skipUi: true,
                     previewOnly: true,
                     previewStartIndex: findBastardLoopLPreviewStartIndex()
                 });
+                if (!started) {
+                    bastardLoopLPreviewPlaying = false;
+                    stopBastardLoopL({ skipUi: true, fade: false });
+                    updateBastardLoopLStatus('Loop L solo could not start. Check the loaded sample and Loop L volume.');
+                    syncBastardLoopLUi();
+                    return;
+                }
                 updateBastardLoopLStatus('Loop L solo preview started.');
             } else {
+                bastardLoopLPreviewPlaying = false;
                 stopBastardLoopL({ skipUi: true });
                 updateBastardLoopLStatus('Loop L solo preview stopped.');
             }
@@ -22021,14 +22049,20 @@
         }
 
         async function toggleBastardLoopLPreviewPlayingFromUi() {
-            if (!bastardLoopLPreviewPlaying) {
-                const audioReady = await ensureAudioReadyForKeyInteraction();
-                if (!audioReady) {
-                    updateBastardLoopLStatus('Audio is not ready for Loop L solo preview yet.');
-                    return;
+            if (bastardLoopLPreviewTogglePending) return;
+            bastardLoopLPreviewTogglePending = true;
+            try {
+                if (!bastardLoopLPreviewPlaying) {
+                    const audioReady = await ensureAudioReadyForKeyInteraction();
+                    if (!audioReady) {
+                        updateBastardLoopLStatus('Audio is not ready for Loop L solo preview yet.');
+                        return;
+                    }
                 }
+                setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
+            } finally {
+                bastardLoopLPreviewTogglePending = false;
             }
-            setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
         }
 
         function setBastardLoopLEnabled(enabled, options = {}) {
@@ -22090,16 +22124,28 @@
         }
 
         function applyBastardLoopLNoteEntry(note) {
+            if (!bastardLoopLSampleBuffer) {
+                updateBastardLoopLStatus('Choose a Loop L sample before entering notes.');
+                return false;
+            }
+            if (getBastardLoopLLevelValue() <= 0) {
+                updateBastardLoopLStatus('Turn up Bastardloop L volume before previewing notes.');
+                return false;
+            }
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
             const playedStep = {
                 ...step,
                 note,
                 rest: false
             };
-            auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex });
+            const played = auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex });
+            if (!played) {
+                updateBastardLoopLStatus('Loop L note could not play. Check the audio engine and loaded sample.');
+                return false;
+            }
             if (!bastardLoopLRecordArmed) {
                 updateBastardLoopLStatus(`Practiced ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
-                return;
+                return true;
             }
             setBastardLoopLStep(bastardLoopLEditStepIndex, playedStep);
             updateBastardLoopLStatus(`Stored ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
@@ -22107,6 +22153,7 @@
             if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
                 startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
+            return true;
         }
 
         function applyBastardLoopLRestEntry() {
@@ -38182,8 +38229,16 @@
 
         function bindBastardLoopLMobileTap(button, handler, options = {}) {
             if (!button || typeof handler !== 'function') return;
-            const duplicateWindowMs = options.preview ? 900 : 700;
-            const runHandler = () => {
+            const duplicateWindowMs = 350;
+            let lastHandledAt = 0;
+            const runHandler = (event) => {
+                const now = Date.now();
+                if (now - lastHandledAt < duplicateWindowMs) {
+                    event?.preventDefault?.();
+                    return;
+                }
+                lastHandledAt = now;
+                event?.preventDefault?.();
                 const result = handler();
                 if (result && typeof result.then === 'function') {
                     result.catch((error) => {
@@ -38192,38 +38247,16 @@
                     });
                 }
             };
-            const trigger = (event) => {
-                const now = Date.now();
-                const eventType = event?.type || '';
-                const lastTouchAt = Number(button.dataset.loopLTouchAt || 0);
-                if (eventType === 'touchstart' || eventType === 'touchend') {
-                    button.dataset.loopLTouchAt = String(now);
-                    event.preventDefault();
-                    runHandler();
-                    return;
-                }
-                if (eventType === 'pointerdown' && event?.pointerType === 'touch') {
-                    if (now - lastTouchAt < duplicateWindowMs) {
-                        event.preventDefault();
-                        return;
-                    }
-                    button.dataset.loopLTouchAt = String(now);
-                    event.preventDefault();
-                    runHandler();
-                    return;
-                }
-                if (eventType === 'pointerdown') {
-                    return;
-                }
-                if (eventType === 'click' && now - lastTouchAt < duplicateWindowMs) {
-                    event.preventDefault();
-                    return;
-                }
-                runHandler();
-            };
-            button.addEventListener(options.preview ? 'touchstart' : 'touchend', trigger, { passive: false });
-            button.addEventListener('pointerdown', trigger);
-            button.addEventListener('click', trigger);
+            button.style.touchAction = 'manipulation';
+            if (window.PointerEvent) {
+                button.addEventListener('pointerdown', (event) => {
+                    if (event.pointerType === 'mouse') return;
+                    runHandler(event);
+                });
+            } else {
+                button.addEventListener(options.preview ? 'touchstart' : 'touchend', runHandler, { passive: false });
+            }
+            button.addEventListener('click', runHandler);
         }
 
         bindBastardLoopLMobileTap(bastardLoopLCloseBtn, () => {
