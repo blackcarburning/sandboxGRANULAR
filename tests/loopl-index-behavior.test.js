@@ -7,8 +7,12 @@ const vm = require('vm');
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
 function extractFunctionSource(name) {
-    const signature = `function ${name}`;
-    const start = indexHtml.indexOf(signature);
+    const asyncSignature = `async function ${name}`;
+    const syncSignature = `function ${name}`;
+    const asyncStart = indexHtml.indexOf(asyncSignature);
+    const syncStart = indexHtml.indexOf(syncSignature);
+    const signature = asyncStart !== -1 ? asyncSignature : syncSignature;
+    const start = asyncStart !== -1 ? asyncStart : syncStart;
     assert.notEqual(start, -1, `Expected ${name} in index.html`);
     let parenDepth = 0;
     let sawOpeningParen = false;
@@ -282,4 +286,70 @@ test('Loop L filter envelope peak cutoff opens upward from the chosen cutoff and
     assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(18000, 1), 18000);
     assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0.5), 4800);
     assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(50, 1), 4800);
+});
+
+test('Global Bastardloop start clears loop solo and refreshes shared transport when already running', async () => {
+    const startContext = {
+        loopLayerSolo: 'bastardb',
+        bastardLoopPlaying: true,
+        bastardLoopLSampleBuffer: { id: 'loop-l' },
+        bastardLoopXSampleBuffer: { id: 'loop-x' },
+        ensureAudioReadyForKeyInteraction() {
+            return Promise.resolve(true);
+        },
+        syncPerformanceControlState() {
+            startContext.synced = (startContext.synced || 0) + 1;
+        },
+        setStatus() {},
+        hasPlayableBastardLoopLSequence() {
+            return true;
+        },
+        hasPlayableBastardLoopXSequence() {
+            return true;
+        },
+        ensureBastardLoopLReadyForTransport() {
+            startContext.preparedL = true;
+            return true;
+        },
+        ensureBastardLoopXReadyForTransport() {
+            startContext.preparedX = true;
+            return true;
+        },
+        setLoopLayerSolo(layer, options) {
+            startContext.loopLayerSolo = layer;
+            startContext.soloCall = { layer, options: plain(options) };
+        },
+        startAllBastardLoopLayers(startTime, options) {
+            startContext.restartCall = { startTime, options: plain(options) };
+            return true;
+        },
+        saveState() {
+            startContext.saved = true;
+        },
+        setBastardLoopPlaying() {
+            throw new Error('Expected running transport to refresh in place.');
+        }
+    };
+    vm.runInNewContext(`${extractFunctionSource('startAllBastardLoopsFromUi')}\nglobalThis.startAllBastardLoopsFromUi = startAllBastardLoopsFromUi;`, startContext);
+
+    const started = await startContext.startAllBastardLoopsFromUi();
+
+    assert.equal(started, true);
+    assert.deepEqual(startContext.soloCall, {
+        layer: 'none',
+        options: {
+            silent: true,
+            skipSave: true
+        }
+    });
+    assert.equal(startContext.preparedL, true);
+    assert.equal(startContext.preparedX, true);
+    assert.deepEqual(startContext.restartCall, {
+        startTime: null,
+        options: {
+            skipUi: true
+        }
+    });
+    assert.equal(startContext.saved, true);
+    assert.ok(startContext.synced >= 1);
 });

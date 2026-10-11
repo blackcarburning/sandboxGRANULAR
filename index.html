@@ -12654,28 +12654,52 @@
                         }
                         setupStateSaving();
 
-                        // Restore source buffers from IndexedDB. Older single-buffer saves restore as the generated source.
-                        const restoredGeneratedBuffer = await loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY) || await loadAudioBufferFromDB(AUDIO_BUFFER_KEY);
-                        const restoredMicBuffer = await loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY);
-                        const restoredGrainMainSampleBuffer = await loadAudioBufferFromDB(GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY);
-                        const restoredGrainASampleBuffer = await loadAudioBufferFromDB(GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY);
-                        const restoredGrainBSampleBuffer = await loadAudioBufferFromDB(GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY);
-                        const restoredGrainAMicBuffer = await loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY);
-                        const restoredGrainBMicBuffer = await loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY);
-                        const restoredOutputBuffer = await loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoopBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoop2Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoop3Buffer = await loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoopVBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_V_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoopPBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_P_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoopOBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_O_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoopLBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_L_AUDIO_BUFFER_KEY);
-                        const restoredBastardLoopXBuffer = await loadAudioBufferFromDB(BASTARD_LOOP_X_AUDIO_BUFFER_KEY);
-                        const restoredDropboxSampleLayerBuffer = await loadAudioBufferFromDB(DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY);
-                        const restoredDrumMachineKickBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY);
-                        const restoredDrumMachineSnareBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY);
-                        const restoredDrumMachineHatBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY);
-                        const restoredDrumMachinePercBuffer = await loadAudioBufferFromDB(DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY);
+                        // Restore source buffers from IndexedDB in parallel so startup does not stall as layers grow.
+                        const [
+                            restoredGeneratedBuffer,
+                            restoredMicBuffer,
+                            restoredGrainMainSampleBuffer,
+                            restoredGrainASampleBuffer,
+                            restoredGrainBSampleBuffer,
+                            restoredGrainAMicBuffer,
+                            restoredGrainBMicBuffer,
+                            restoredOutputBuffer,
+                            restoredBastardLoopBuffer,
+                            restoredBastardLoop2Buffer,
+                            restoredBastardLoop3Buffer,
+                            restoredBastardLoopVBuffer,
+                            restoredBastardLoopPBuffer,
+                            restoredBastardLoopOBuffer,
+                            restoredBastardLoopLBuffer,
+                            restoredBastardLoopXBuffer,
+                            restoredDropboxSampleLayerBuffer,
+                            restoredDrumMachineKickBuffer,
+                            restoredDrumMachineSnareBuffer,
+                            restoredDrumMachineHatBuffer,
+                            restoredDrumMachinePercBuffer
+                        ] = await Promise.all([
+                            loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY).then((buffer) => buffer || loadAudioBufferFromDB(AUDIO_BUFFER_KEY)),
+                            loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_V_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_P_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_O_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_L_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(BASTARD_LOOP_X_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY),
+                            loadAudioBufferFromDB(DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY)
+                        ]);
                         const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                         const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                         const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
@@ -17248,9 +17272,12 @@
                 samplesButton.disabled = bastardLoopGenerationInFlight || (!bastardLoopBuffer && getBastardLoopSampleNames('A').length === 0);
             }
             playButtons.forEach((playButton) => {
+                const isDedicatedStartButton = playButton.id === 'performanceBastardLoopPlayBtn';
                 playButton.disabled = anyGenerationInFlight || !anyBufferReady;
-                playButton.textContent = bastardLoopPlaying ? 'Stop Bastardloops' : 'Start Bastardloops';
-                playButton.setAttribute('aria-pressed', bastardLoopPlaying ? 'true' : 'false');
+                playButton.textContent = isDedicatedStartButton
+                    ? 'Start Bastardloops'
+                    : (bastardLoopPlaying ? 'Stop Bastardloops' : 'Start Bastardloops');
+                playButton.setAttribute('aria-pressed', isDedicatedStartButton ? 'false' : (bastardLoopPlaying ? 'true' : 'false'));
             });
             if (stopButton) {
                 stopButton.disabled = anyGenerationInFlight || !bastardLoopPlaying;
@@ -21677,6 +21704,48 @@
             return true;
         }
 
+        async function startAllBastardLoopsFromUi(options = {}) {
+            const audioReady = await ensureAudioReadyForKeyInteraction();
+            if (!audioReady) {
+                syncPerformanceControlState();
+                if (!options.silent) {
+                    setStatus('Audio is not ready for Bastardloops yet.', 'error');
+                }
+                return false;
+            }
+
+            let uiStateChanged = false;
+            if (loopLayerSolo !== 'none') {
+                setLoopLayerSolo('none', { silent: true, skipSave: true });
+                uiStateChanged = true;
+            }
+            if (bastardLoopLSampleBuffer && hasPlayableBastardLoopLSequence()) {
+                uiStateChanged = ensureBastardLoopLReadyForTransport() || uiStateChanged;
+            }
+            if (bastardLoopXSampleBuffer && hasPlayableBastardLoopXSequence()) {
+                uiStateChanged = ensureBastardLoopXReadyForTransport() || uiStateChanged;
+            }
+
+            if (bastardLoopPlaying) {
+                const restarted = startAllBastardLoopLayers(null, { skipUi: true });
+                syncPerformanceControlState();
+                if (restarted && !options.skipSave) {
+                    saveState();
+                }
+                if (!restarted && !options.silent) {
+                    setStatus('Enable or turn up a Bastardloop or Dropbox sample layer before playing it.', 'error');
+                } else if (restarted && !options.silent && uiStateChanged) {
+                    setStatus('Bastardloops refreshed.');
+                }
+                return restarted;
+            }
+
+            return setBastardLoopPlaying(true, {
+                silent: options.silent,
+                skipSave: options.skipSave
+            });
+        }
+
         function setBastardLoopPitchOctaves(value, options = {}) {
             const nextValue = clampBastardLoopPitchOctaves(value);
             bastardLoopPitchOctaves = nextValue;
@@ -22844,11 +22913,23 @@
             updateBastardLoopLStatus(`Step ${bastardLoopLRatchetEditStepIndex + 1} ratchet ${ratchet > 1 ? `x${ratchet}` : 'off'}.`);
         }
 
-        function renderBastardLoopLStepGrid() {
+        function isBastardLoopLOverlayVisible() {
+            const overlay = document.getElementById('bastardLoopLOverlay');
+            return Boolean(overlay && !overlay.hidden && overlay.getAttribute('aria-hidden') !== 'true');
+        }
+
+        function renderBastardLoopLStepGrid(force = false) {
             const list = document.getElementById('bastardLoopLStepGrid');
             if (!list) return;
             ensureBastardLoopLSequenceCapacity();
             const stepCount = getBastardLoopLPatternLength();
+            const needsFullRender = Boolean(force)
+                || Number(list.dataset.stepCount || 0) !== stepCount
+                || list.childElementCount !== stepCount;
+            if (!needsFullRender) {
+                syncBastardLoopLStepButtonStates();
+                return;
+            }
             list.innerHTML = '';
             for (let index = 0; index < stepCount; index += 1) {
                 const step = getBastardLoopLStep(index);
@@ -22864,6 +22945,7 @@
                 bindBastardLoopLStepButton(button, index);
                 list.appendChild(button);
             }
+            list.dataset.stepCount = String(stepCount);
             syncBastardLoopLStepButtonStates();
         }
 
@@ -22956,7 +23038,10 @@
             popup.textContent = prompt;
         }
 
-        function syncBastardLoopLEditorUi() {
+        function syncBastardLoopLEditorUi(options = {}) {
+            if (!options.force && !isBastardLoopLOverlayVisible()) {
+                return;
+            }
             renderBastardLoopLKeyboard();
             renderBastardLoopLStepGrid();
             const cursor = document.getElementById('bastardLoopLStepCursor');
@@ -23014,7 +23099,7 @@
             return `${sampleName || 'lead sample'} · root ${rootNote} · ${stepCount} steps${rememberedSuffix}`;
         }
 
-        function syncBastardLoopLUi() {
+        function syncBastardLoopLUi(options = {}) {
             const levelValue = Math.round(getBastardLoopLLevelValue({ applyLayerToggle: false }) * 100);
             const lengthValue = Math.round(getBastardLoopLStepLengthRatio() * 100);
             const startTrimValue = Math.round(getBastardLoopLStartTrimRatio() * 100);
@@ -23073,10 +23158,11 @@
             if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
             syncBastardLoopLAccentAmountUi();
             if (transportButton) {
+                const transportRunning = bastardLoopPlaying && isBastardLoopLRunning();
                 transportButton.disabled = !bastardLoopLSampleBuffer;
-                transportButton.classList.toggle('active', bastardLoopPlaying);
-                transportButton.textContent = bastardLoopPlaying ? 'Stop Bastardloops' : 'Start Bastardloops';
-                transportButton.setAttribute('aria-pressed', String(bastardLoopPlaying));
+                transportButton.classList.toggle('active', transportRunning);
+                transportButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
+                transportButton.setAttribute('aria-pressed', String(transportRunning));
             }
             if (recordButton) {
                 recordButton.classList.toggle('active', bastardLoopLRecordArmed);
@@ -23094,7 +23180,7 @@
                 delayPingPongButton.textContent = bastardLoopLDelayPingPongEnabled ? 'Ping Pong On' : 'Ping Pong Off';
                 delayPingPongButton.setAttribute('aria-pressed', String(bastardLoopLDelayPingPongEnabled));
             }
-            syncBastardLoopLEditorUi();
+            syncBastardLoopLEditorUi({ force: options.forceEditor === true });
         }
 
         function getBastardLoopLPitchRatioForNote(note) {
@@ -23509,7 +23595,9 @@
         }
 
         async function toggleBastardLoopLTransportFromUi() {
-            if (bastardLoopPlaying) {
+            const sharedTransportWasRunning = bastardLoopPlaying;
+            const loopLWasRunning = sharedTransportWasRunning && isBastardLoopLRunning();
+            if (loopLWasRunning) {
                 setBastardLoopPlaying(false, { silent: true });
                 updateBastardLoopLStatus('Bastardloops stopped.');
                 syncBastardLoopLUi();
@@ -23532,9 +23620,9 @@
             }
             clearLoopLayerSoloForBastardLoop('bastardl');
             ensureBastardLoopLReadyForTransport();
-            const started = setBastardLoopPlaying(true, { silent: true });
+            const started = await startAllBastardLoopsFromUi({ silent: true });
             updateBastardLoopLStatus(started
-                ? 'Bastardloops started with Loop L.'
+                ? (sharedTransportWasRunning ? 'Loop L rejoined the Bastardloops transport.' : 'Bastardloops started with Loop L.')
                 : 'Loop L could not start the Bastardloops transport.');
             syncBastardLoopLUi();
         }
@@ -23572,8 +23660,7 @@
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-l-open');
-            renderBastardLoopLKeyboard(true);
-            syncBastardLoopLUi();
+            syncBastardLoopLUi({ forceEditor: true });
             requestAnimationFrame(() => {
                 document.getElementById('bastardLoopLChooseSampleBtn')?.focus();
             });
@@ -24336,11 +24423,23 @@
             updateBastardLoopXStatus(`Step ${bastardLoopXRatchetEditStepIndex + 1} ratchet ${ratchet > 1 ? `x${ratchet}` : 'off'}.`);
         }
 
-        function renderBastardLoopXStepGrid() {
+        function isBastardLoopXOverlayVisible() {
+            const overlay = document.getElementById('bastardLoopXOverlay');
+            return Boolean(overlay && !overlay.hidden && overlay.getAttribute('aria-hidden') !== 'true');
+        }
+
+        function renderBastardLoopXStepGrid(force = false) {
             const list = document.getElementById('bastardLoopXStepGrid');
             if (!list) return;
             ensureBastardLoopXSequenceCapacity();
             const stepCount = getBastardLoopXPatternLength();
+            const needsFullRender = Boolean(force)
+                || Number(list.dataset.stepCount || 0) !== stepCount
+                || list.childElementCount !== stepCount;
+            if (!needsFullRender) {
+                syncBastardLoopXStepButtonStates();
+                return;
+            }
             list.innerHTML = '';
             for (let index = 0; index < stepCount; index += 1) {
                 const step = getBastardLoopXStep(index);
@@ -24356,6 +24455,7 @@
                 bindBastardLoopXStepButton(button, index);
                 list.appendChild(button);
             }
+            list.dataset.stepCount = String(stepCount);
             syncBastardLoopXStepButtonStates();
         }
 
@@ -24448,7 +24548,10 @@
             popup.textContent = prompt;
         }
 
-        function syncBastardLoopXEditorUi() {
+        function syncBastardLoopXEditorUi(options = {}) {
+            if (!options.force && !isBastardLoopXOverlayVisible()) {
+                return;
+            }
             renderBastardLoopXKeyboard();
             renderBastardLoopXStepGrid();
             const cursor = document.getElementById('bastardLoopXStepCursor');
@@ -24506,7 +24609,7 @@
             return `${sampleName || 'bass sample'} · root ${rootNote} · ${stepCount} steps${rememberedSuffix}`;
         }
 
-        function syncBastardLoopXUi() {
+        function syncBastardLoopXUi(options = {}) {
             const levelValue = Math.round(getBastardLoopXLevelValue({ applyLayerToggle: false }) * 100);
             const lengthValue = Math.round(getBastardLoopXStepLengthRatio() * 100);
             const startTrimValue = Math.round(getBastardLoopXStartTrimRatio() * 100);
@@ -24565,10 +24668,11 @@
             if (editButton) editButton.disabled = !bastardLoopXSampleBuffer;
             syncBastardLoopXAccentAmountUi();
             if (transportButton) {
+                const transportRunning = bastardLoopPlaying && isBastardLoopXRunning();
                 transportButton.disabled = !bastardLoopXSampleBuffer;
-                transportButton.classList.toggle('active', bastardLoopPlaying);
-                transportButton.textContent = bastardLoopPlaying ? 'Stop Bastardloops' : 'Start Bastardloops';
-                transportButton.setAttribute('aria-pressed', String(bastardLoopPlaying));
+                transportButton.classList.toggle('active', transportRunning);
+                transportButton.textContent = transportRunning ? 'Stop Bastardloops' : 'Start Bastardloops';
+                transportButton.setAttribute('aria-pressed', String(transportRunning));
             }
             if (recordButton) {
                 recordButton.classList.toggle('active', bastardLoopXRecordArmed);
@@ -24586,7 +24690,7 @@
                 delayPingPongButton.textContent = bastardLoopXDelayPingPongEnabled ? 'Ping Pong On' : 'Ping Pong Off';
                 delayPingPongButton.setAttribute('aria-pressed', String(bastardLoopXDelayPingPongEnabled));
             }
-            syncBastardLoopXEditorUi();
+            syncBastardLoopXEditorUi({ force: options.forceEditor === true });
         }
 
         function getBastardLoopXPitchRatioForNote(note) {
@@ -24722,7 +24826,7 @@
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note) return;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const filters = createBastardLoopXowpassFilters(getBastardLoopXFilterCutoff());
+            const filters = createBastardLoopLowpassFilters(getBastardLoopXFilterCutoff());
             const level = getBastardLoopXLevelValue();
             if (level <= 0) return;
             const destination = ensureBastardLoopXDelayBus(getBastardLoopXPlaybackDestination());
@@ -24796,7 +24900,7 @@
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const filters = createBastardLoopXowpassFilters(getBastardLoopXFilterCutoff());
+            const filters = createBastardLoopLowpassFilters(getBastardLoopXFilterCutoff());
             const level = getBastardLoopXAuditionLevel();
             const destination = ensureBastardLoopXDelayBus(getBastardLoopXPlaybackDestination());
             if (!destination) return false;
@@ -25001,7 +25105,9 @@
         }
 
         async function toggleBastardLoopXTransportFromUi() {
-            if (bastardLoopPlaying) {
+            const sharedTransportWasRunning = bastardLoopPlaying;
+            const loopXWasRunning = sharedTransportWasRunning && isBastardLoopXRunning();
+            if (loopXWasRunning) {
                 setBastardLoopPlaying(false, { silent: true });
                 updateBastardLoopXStatus('Bastardloops stopped.');
                 syncBastardLoopXUi();
@@ -25024,9 +25130,9 @@
             }
             clearLoopLayerSoloForBastardLoop('bastardx');
             ensureBastardLoopXReadyForTransport();
-            const started = setBastardLoopPlaying(true, { silent: true });
+            const started = await startAllBastardLoopsFromUi({ silent: true });
             updateBastardLoopXStatus(started
-                ? 'Bastardloops started with Loop X.'
+                ? (sharedTransportWasRunning ? 'Loop X rejoined the Bastardloops transport.' : 'Bastardloops started with Loop X.')
                 : 'Loop X could not start the Bastardloops transport.');
             syncBastardLoopXUi();
         }
@@ -25064,8 +25170,7 @@
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-x-open');
-            renderBastardLoopXKeyboard(true);
-            syncBastardLoopXUi();
+            syncBastardLoopXUi({ forceEditor: true });
             requestAnimationFrame(() => {
                 document.getElementById('bastardLoopXChooseSampleBtn')?.focus();
             });
@@ -40846,6 +40951,8 @@
             syncBastardLoopVUi();
             syncBastardLoopPUi();
             syncBastardLoopOUi();
+            syncBastardLoopLUi();
+            syncBastardLoopXUi();
             syncDropboxSampleLayerUi();
             syncDrumMachineUi();
 
@@ -41313,8 +41420,21 @@
         });
 
         document.querySelectorAll('[data-bastardloop-start]').forEach((button) => {
-            button.addEventListener('click', () => {
-                setBastardLoopPlaying(!bastardLoopPlaying);
+            button.addEventListener('click', async () => {
+                try {
+                    if (button.id === 'performanceBastardLoopPlayBtn') {
+                        await startAllBastardLoopsFromUi();
+                        return;
+                    }
+                    if (bastardLoopPlaying) {
+                        setBastardLoopPlaying(false);
+                        return;
+                    }
+                    await startAllBastardLoopsFromUi();
+                } catch (error) {
+                    console.error(error);
+                    setStatus(`Bastardloop transport failed: ${error.message}`, 'error');
+                }
             });
         });
 
