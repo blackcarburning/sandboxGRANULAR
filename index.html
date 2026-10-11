@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-10-11-41-build-v2026.10.10.22';
+            const cacheBuster = '2026-10-11-10-49-build-v2026.10.11.2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -444,33 +444,50 @@
         }
 
         .lead-sequencer-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
+            display: grid;
             gap: 8px;
         }
 
+        .lead-sequencer-toolbar-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .lead-sequencer-toolbar-row .performance-btn:only-child {
+            grid-column: 1 / -1;
+        }
+
+        .lead-sequencer-toolbar .performance-btn {
+            min-width: 0;
+            min-height: 38px;
+            padding: 8px 10px;
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+        }
+
         .lead-sequencer-status {
-            flex: 1 1 100%;
             min-height: 1.2em;
             color: rgba(214, 232, 255, 0.72);
-            font-size: 0.84rem;
+            font-size: 0.76rem;
             line-height: 1.25;
         }
 
         .lead-sequencer-step-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(16, minmax(0, 1fr));
+            gap: 6px;
         }
 
         .lead-sequencer-step-btn {
-            min-height: 66px;
+            min-height: 52px;
             display: grid;
-            gap: 4px;
+            gap: 2px;
             align-content: center;
             justify-items: center;
-            border-radius: 14px;
+            padding: 4px 2px;
+            border-radius: 11px;
             border: 1px solid rgba(255, 255, 255, 0.12);
             background: rgba(14, 20, 32, 0.96);
             color: rgba(255, 255, 255, 0.84);
@@ -496,24 +513,26 @@
         }
 
         .lead-sequencer-step-index {
-            font-size: 0.62rem;
+            font-size: 0.54rem;
             letter-spacing: 0.12em;
             text-transform: uppercase;
             color: rgba(214, 232, 255, 0.52);
         }
 
         .lead-sequencer-step-note {
-            font-size: 0.92rem;
+            font-size: 0.74rem;
             font-weight: 800;
             letter-spacing: 0.04em;
+            line-height: 1;
         }
 
         .lead-sequencer-step-flags {
-            min-height: 0.9rem;
-            font-size: 0.66rem;
-            letter-spacing: 0.12em;
+            min-height: 0.72rem;
+            font-size: 0.54rem;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: rgba(255, 198, 81, 0.82);
+            line-height: 1;
         }
 
         .lead-sequencer-keyboard {
@@ -778,6 +797,47 @@
                 padding: 14px;
             }
 
+            .lead-sequencer-toolbar-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .lead-sequencer-toolbar .performance-btn {
+                min-height: 34px;
+                padding: 7px 8px;
+                font-size: 0.62rem;
+                border-radius: 10px;
+            }
+
+            .lead-sequencer-status,
+            .sample-browser-status#bastardLoopLStepCursor {
+                font-size: 0.7rem;
+                line-height: 1.18;
+            }
+
+            .lead-sequencer-step-grid {
+                grid-template-columns: repeat(8, minmax(0, 1fr));
+                gap: 5px;
+            }
+
+            .lead-sequencer-step-btn {
+                min-height: 42px;
+                border-radius: 10px;
+                padding: 3px 1px;
+            }
+
+            .lead-sequencer-step-index {
+                font-size: 0.48rem;
+            }
+
+            .lead-sequencer-step-note {
+                font-size: 0.66rem;
+            }
+
+            .lead-sequencer-step-flags {
+                min-height: 0.58rem;
+                font-size: 0.48rem;
+            }
+
             .sample-browser-card-head,
             .sample-browser-card-actions {
                 flex-direction: column;
@@ -848,6 +908,12 @@
 
             .lead-sequencer-keyboard {
                 grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 6px;
+            }
+
+            .lead-sequencer-key {
+                min-height: 44px;
+                font-size: 0.7rem;
             }
 
             .sample-browser-controls {
@@ -4651,7 +4717,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.2</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -8367,26 +8433,34 @@
                 <div class="sample-browser-head">
                     <div class="sample-browser-copy">
                         <h3 id="bastardLoopLTitle">Bastardloop L Sequencer</h3>
-                        <p id="bastardLoopLSubtitle">Enter notes, rests, accent, and slide into the lead line.</p>
+                        <p id="bastardLoopLSubtitle">Record or practice lead notes step-by-step.</p>
                     </div>
                     <button class="performance-btn" id="bastardLoopLCloseBtn" type="button">Close</button>
                 </div>
                 <div class="lead-sequencer-layout">
                     <div class="lead-sequencer-toolbar">
-                        <button class="performance-btn primary" id="bastardLoopLChooseSampleBtn" type="button">Choose Lead Sample</button>
-                        <button class="performance-btn" id="bastardLoopLRestBtn" type="button">Rest</button>
-                        <button class="performance-btn" id="bastardLoopLAccentBtn" type="button" aria-pressed="false">Accent Off</button>
-                        <button class="performance-btn" id="bastardLoopLSlideBtn" type="button" aria-pressed="false">Slide Off</button>
-                        <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
-                        <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
+                        <div class="lead-sequencer-toolbar-row">
+                            <button class="performance-btn primary" id="bastardLoopLChooseSampleBtn" type="button">Sample</button>
+                            <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Solo</button>
+                            <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row">
+                            <button class="performance-btn" id="bastardLoopLPrevStepBtn" type="button">Back</button>
+                            <button class="performance-btn" id="bastardLoopLNextStepBtn" type="button">Forward</button>
+                            <button class="performance-btn" id="bastardLoopLRestBtn" type="button">Rest</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row">
+                            <button class="performance-btn" id="bastardLoopLAccentBtn" type="button" aria-pressed="false">Accent Off</button>
+                            <button class="performance-btn" id="bastardLoopLSlideBtn" type="button" aria-pressed="false">Slide Off</button>
+                            <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row">
+                            <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
+                        </div>
                         <div class="lead-sequencer-status" id="bastardLoopLStatus">Select a step, then enter notes from the lead keyboard.</div>
                     </div>
                     <div class="sample-browser-status" id="bastardLoopLStepCursor">Editing step 1.</div>
                     <div class="lead-sequencer-step-grid" id="bastardLoopLStepGrid"></div>
-                    <div class="sample-browser-copy">
-                        <h3>Lead Keyboard</h3>
-                        <p>Each note stores into the selected step, then moves to the next step.</p>
-                    </div>
                     <div class="lead-sequencer-keyboard" id="bastardLoopLKeyboard"></div>
                 </div>
             </div>
@@ -9807,6 +9881,8 @@
         let bastardLoopLSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false }));
         let bastardLoopLEditStepIndex = 0;
         let bastardLoopLCurrentStepIndex = -1;
+        let bastardLoopLPreviewPlaying = false;
+        let bastardLoopLRecordArmed = true;
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -20037,6 +20113,7 @@
             const resolvedStartTime = Number.isFinite(startTime)
                 ? startTime
                 : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
+            bastardLoopLPreviewPlaying = false;
             const startedA = startBastardLoop(resolvedStartTime, { skipUi: true });
             const startedB = startBastardLoop2(resolvedStartTime, { skipUi: true });
             const startedC = startBastardLoop3(resolvedStartTime, { skipUi: true });
@@ -21383,12 +21460,16 @@
             return 60 / bpm / 4;
         }
 
+        function isBastardLoopLRunning() {
+            return bastardLoopPlaying || bastardLoopLPreviewPlaying;
+        }
+
         function syncBastardLoopLStepButtonStates() {
             document.querySelectorAll('#bastardLoopLStepGrid .lead-sequencer-step-btn').forEach((button) => {
                 const index = Number(button.dataset.stepIndex);
                 const step = getBastardLoopLStep(index);
                 const isSelected = index === bastardLoopLEditStepIndex;
-                const isCurrent = bastardLoopPlaying && index === bastardLoopLCurrentStepIndex;
+                const isCurrent = isBastardLoopLRunning() && index === bastardLoopLCurrentStepIndex;
                 const isRest = Boolean(step.rest);
                 const isEmpty = !step.rest && !step.note;
                 button.classList.toggle('is-selected', isSelected);
@@ -21401,7 +21482,7 @@
                     noteNode.textContent = isRest ? 'REST' : (step.note || '—');
                 }
                 if (flagNode) {
-                    flagNode.textContent = [step.accent ? 'ACC' : '', step.slide ? 'SLD' : ''].filter(Boolean).join(' · ');
+                    flagNode.textContent = [step.accent ? 'A' : '', step.slide ? 'S' : ''].filter(Boolean).join('');
                 }
             });
         }
@@ -21421,10 +21502,11 @@
                 button.innerHTML = `
                     <span class="lead-sequencer-step-index">${index + 1}</span>
                     <span class="lead-sequencer-step-note">${step.rest ? 'REST' : (step.note || '—')}</span>
-                    <span class="lead-sequencer-step-flags">${[step.accent ? 'ACC' : '', step.slide ? 'SLD' : ''].filter(Boolean).join(' · ')}</span>
+                    <span class="lead-sequencer-step-flags">${[step.accent ? 'A' : '', step.slide ? 'S' : ''].filter(Boolean).join('')}</span>
                 `;
                 button.addEventListener('click', () => {
                     setBastardLoopLEditStepIndex(index);
+                    auditionBastardLoopLCurrentStep({ silentWhenEmpty: true });
                 });
                 list.appendChild(button);
             }
@@ -21493,6 +21575,8 @@
             const loadButton = document.getElementById('performanceBastardLoopLLoadBtn');
             const editButton = document.getElementById('performanceBastardLoopLEditBtn');
             const meta = document.getElementById('performanceBastardLoopLMeta');
+            const transportButton = document.getElementById('bastardLoopLTransportBtn');
+            const recordButton = document.getElementById('bastardLoopLRecordBtn');
             if (levelSlider) levelSlider.value = String(levelValue);
             if (levelMixer) levelMixer.value = String(levelValue);
             const levelLabel = document.getElementById('performanceBastardLoopLLevelValue');
@@ -21508,6 +21592,17 @@
             if (meta) meta.textContent = describeBastardLoopLMeta();
             if (loadButton) loadButton.textContent = bastardLoopLSampleBuffer ? 'Change Lead Sample' : 'Choose Lead Sample';
             if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
+            if (transportButton) {
+                transportButton.disabled = !bastardLoopLSampleBuffer || bastardLoopPlaying;
+                transportButton.classList.toggle('active', bastardLoopLPreviewPlaying && !bastardLoopPlaying);
+                transportButton.textContent = bastardLoopPlaying ? 'Global Running' : (bastardLoopLPreviewPlaying ? 'Stop Solo' : 'Start Solo');
+                transportButton.setAttribute('aria-pressed', String(bastardLoopLPreviewPlaying && !bastardLoopPlaying));
+            }
+            if (recordButton) {
+                recordButton.classList.toggle('active', bastardLoopLRecordArmed);
+                recordButton.textContent = bastardLoopLRecordArmed ? 'Record On' : 'Practice';
+                recordButton.setAttribute('aria-pressed', String(bastardLoopLRecordArmed));
+            }
             syncBastardLoopLEditorUi();
         }
 
@@ -21548,6 +21643,37 @@
             if (!options.skipUi) {
                 syncBastardLoopLUi();
             }
+        }
+
+        function auditionBastardLoopLVoice(step, options = {}) {
+            if (!audioContext || !preFilterGainNode || !bastardLoopLSampleBuffer || !step?.note || step.rest) {
+                return false;
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().catch(() => {});
+            }
+            const currentIndex = Math.max(0, Math.min(63, Number(options.index) || bastardLoopLEditStepIndex));
+            const nextStep = options.nextStep || getBastardLoopLStep((currentIndex + 1) % getBastardLoopLPatternLength());
+            const scheduledTime = (audioContext.currentTime || 0) + 0.01;
+            scheduleBastardLoopLVoice(step, scheduledTime, getBastardLoopLStepDurationSeconds(), nextStep);
+            return true;
+        }
+
+        function auditionBastardLoopLCurrentStep(options = {}) {
+            const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
+            if (step.rest) {
+                if (!options.silentWhenEmpty) updateBastardLoopLStatus(`Step ${bastardLoopLEditStepIndex + 1} is a rest.`);
+                return false;
+            }
+            if (!step.note) {
+                if (!options.silentWhenEmpty) updateBastardLoopLStatus(`Step ${bastardLoopLEditStepIndex + 1} is empty.`);
+                return false;
+            }
+            const played = auditionBastardLoopLVoice(step, { index: bastardLoopLEditStepIndex });
+            if (played && !options.silentStatus) {
+                updateBastardLoopLStatus(`Played ${step.note} from step ${bastardLoopLEditStepIndex + 1}.`);
+            }
+            return played;
         }
 
         function scheduleBastardLoopLVoice(step, scheduledTime, stepDuration, nextStep) {
@@ -21596,7 +21722,7 @@
         }
 
         function scheduleBastardLoopLSteps() {
-            if (!bastardLoopPlaying || !audioContext || !bastardLoopLSampleBuffer) return;
+            if (!isBastardLoopLRunning() || !audioContext || !bastardLoopLSampleBuffer) return;
             const lookaheadUntil = audioContext.currentTime + 0.16;
             const stepCount = getBastardLoopLPatternLength();
             const stepDuration = getBastardLoopLStepDurationSeconds();
@@ -21631,15 +21757,20 @@
             }
             stopBastardLoopL({ skipUi: true, fade: false });
             const now = audioContext.currentTime;
-            const requestedStartTime = Number.isFinite(startTime)
-                ? startTime
-                : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
+            const requestedStartTime = options.previewOnly
+                ? (now + 0.01)
+                : (Number.isFinite(startTime)
+                    ? startTime
+                    : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime()));
             const stepDuration = getBastardLoopLStepDurationSeconds();
             const stepCount = getBastardLoopLPatternLength();
             const cycleDuration = stepDuration * stepCount;
             let nextStepTime = now + 0.01;
             let nextStepIndex = 0;
-            if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
+            if (options.previewOnly) {
+                nextStepTime = requestedStartTime;
+                nextStepIndex = 0;
+            } else if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
                 nextStepTime = requestedStartTime;
                 nextStepIndex = 0;
             } else if (Number.isFinite(requestedStartTime)) {
@@ -21661,20 +21792,49 @@
         }
 
         function syncBastardLoopLTempo() {
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
         }
 
         function updateBastardLoopLMix() {
-            if (!bastardLoopPlaying || !bastardLoopLSampleBuffer) {
+            if (!isBastardLoopLRunning() || !bastardLoopLSampleBuffer) {
                 stopBastardLoopL({ skipUi: true });
             } else if (getBastardLoopLLevelValue() <= 0) {
                 stopBastardLoopL({ skipUi: true });
             } else if (!bastardLoopLSchedulerTimerId) {
-                startBastardLoopL(null, { skipUi: true });
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
             syncBastardLoopLUi();
+        }
+
+        function setBastardLoopLPreviewPlaying(enabled) {
+            const nextValue = Boolean(enabled);
+            if (bastardLoopPlaying) {
+                updateBastardLoopLStatus('Loop L is already running with the main Bastardloops.');
+                syncBastardLoopLUi();
+                return;
+            }
+            bastardLoopLPreviewPlaying = nextValue;
+            if (bastardLoopLPreviewPlaying) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: true });
+                updateBastardLoopLStatus('Loop L solo preview started.');
+            } else {
+                stopBastardLoopL({ skipUi: true });
+                updateBastardLoopLStatus('Loop L solo preview stopped.');
+            }
+            syncBastardLoopLUi();
+        }
+
+        function toggleBastardLoopLRecordArmed() {
+            bastardLoopLRecordArmed = !bastardLoopLRecordArmed;
+            updateBastardLoopLStatus(bastardLoopLRecordArmed ? 'Record enabled for Loop L steps.' : 'Practice mode: notes play without being stored.');
+            syncBastardLoopLUi();
+        }
+
+        function moveBastardLoopLStep(delta) {
+            setBastardLoopLEditStepIndex(bastardLoopLEditStepIndex + delta);
+            auditionBastardLoopLCurrentStep();
         }
 
         function setBastardLoopLEnabled(enabled, options = {}) {
@@ -21694,8 +21854,8 @@
 
         function setBastardLoopLPitchSemitoneOffset(value, options = {}) {
             bastardLoopLPitchSemitones = Math.max(-24, Math.min(24, Math.round(Number(value) || 0)));
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
             syncBastardLoopLUi();
             if (!options.silent) {
@@ -21737,20 +21897,30 @@
 
         function applyBastardLoopLNoteEntry(note) {
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
-            setBastardLoopLStep(bastardLoopLEditStepIndex, {
+            const playedStep = {
                 ...step,
                 note,
                 rest: false
-            });
+            };
+            auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex });
+            if (!bastardLoopLRecordArmed) {
+                updateBastardLoopLStatus(`Practiced ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
+                return;
+            }
+            setBastardLoopLStep(bastardLoopLEditStepIndex, playedStep);
             updateBastardLoopLStatus(`Stored ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
             advanceBastardLoopLEditStep();
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
         }
 
         function applyBastardLoopLRestEntry() {
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
+            if (!bastardLoopLRecordArmed) {
+                updateBastardLoopLStatus(`Practice mode is on. Rest was not stored on step ${bastardLoopLEditStepIndex + 1}.`);
+                return;
+            }
             setBastardLoopLStep(bastardLoopLEditStepIndex, {
                 ...step,
                 note: '',
@@ -21758,8 +21928,8 @@
             });
             updateBastardLoopLStatus(`Stored rest on step ${bastardLoopLEditStepIndex + 1}.`);
             advanceBastardLoopLEditStep();
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
         }
 
@@ -21767,8 +21937,8 @@
             bastardLoopLSequence = Array.from({ length: 64 }, () => createEmptyBastardLoopLStep());
             setBastardLoopLEditStepIndex(0);
             syncBastardLoopLUi();
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
             if (!options.skipSave) saveState();
         }
@@ -33237,6 +33407,9 @@
             syncPerformanceControlState();
             saveState();
             setStatus(`${sourceLabel} ready for Bastardloop L.`);
+            if (isBastardLoopLRunning()) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
+            }
         }
 
         async function loadBastardLoopLSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
@@ -33261,9 +33434,6 @@
                 relativePath,
                 rootNote: detectLeadSampleRootNote(fileName)
             });
-            if (bastardLoopPlaying) {
-                startBastardLoopL(null, { skipUi: true });
-            }
         }
 
         async function loadDropboxSampleLayerFromSource() {
@@ -36484,6 +36654,10 @@
         const bastardLoopLOverlay = document.getElementById('bastardLoopLOverlay');
         const bastardLoopLCloseBtn = document.getElementById('bastardLoopLCloseBtn');
         const bastardLoopLChooseSampleBtn = document.getElementById('bastardLoopLChooseSampleBtn');
+        const bastardLoopLTransportBtn = document.getElementById('bastardLoopLTransportBtn');
+        const bastardLoopLRecordBtn = document.getElementById('bastardLoopLRecordBtn');
+        const bastardLoopLPrevStepBtn = document.getElementById('bastardLoopLPrevStepBtn');
+        const bastardLoopLNextStepBtn = document.getElementById('bastardLoopLNextStepBtn');
         const bastardLoopLRestBtn = document.getElementById('bastardLoopLRestBtn');
         const bastardLoopLAccentBtn = document.getElementById('bastardLoopLAccentBtn');
         const bastardLoopLSlideBtn = document.getElementById('bastardLoopLSlideBtn');
@@ -37707,8 +37881,8 @@
         performanceBastardLoopLLength?.addEventListener('input', (event) => {
             const value = Math.max(5, Math.min(100, Number(event.target.value) || 90));
             bastardLoopLLength = value / 100;
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
             syncBastardLoopLUi();
             saveState();
@@ -37717,8 +37891,8 @@
         performanceBastardLoopLDecay?.addEventListener('input', (event) => {
             const value = Math.max(5, Math.min(100, Number(event.target.value) || 75));
             bastardLoopLDecay = value / 100;
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
             syncBastardLoopLUi();
             saveState();
@@ -37818,6 +37992,22 @@
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopL);
         });
 
+        bastardLoopLTransportBtn?.addEventListener('click', () => {
+            setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
+        });
+
+        bastardLoopLRecordBtn?.addEventListener('click', () => {
+            toggleBastardLoopLRecordArmed();
+        });
+
+        bastardLoopLPrevStepBtn?.addEventListener('click', () => {
+            moveBastardLoopLStep(-1);
+        });
+
+        bastardLoopLNextStepBtn?.addEventListener('click', () => {
+            moveBastardLoopLStep(1);
+        });
+
         bastardLoopLRestBtn?.addEventListener('click', () => {
             applyBastardLoopLRestEntry();
         });
@@ -37833,8 +38023,8 @@
         bastardLoopLClearStepBtn?.addEventListener('click', () => {
             clearBastardLoopLStep(bastardLoopLEditStepIndex);
             updateBastardLoopLStatus(`Cleared step ${bastardLoopLEditStepIndex + 1}.`);
-            if (bastardLoopPlaying && bastardLoopLSampleBuffer) {
-                startBastardLoopL(null, { skipUi: true });
+            if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
+                startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
             }
         });
 
