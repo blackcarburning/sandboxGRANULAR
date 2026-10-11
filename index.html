@@ -468,6 +468,40 @@
             font-size: 0.72rem;
         }
 
+        .lead-sequencer-toolbar-row.slider-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .lead-sequencer-inline-slider {
+            display: grid;
+            gap: 6px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(14, 20, 32, 0.92);
+            color: rgba(214, 232, 255, 0.82);
+        }
+
+        .lead-sequencer-inline-slider-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.66rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .lead-sequencer-inline-slider-value {
+            color: rgba(255, 198, 81, 0.9);
+            font-weight: 700;
+        }
+
+        .lead-sequencer-inline-slider input[type="range"] {
+            width: 100%;
+            margin: 0;
+        }
+
         .lead-sequencer-toolbar-row .performance-btn:only-child {
             grid-column: 1 / -1;
         }
@@ -872,6 +906,17 @@
                 min-height: 38px;
                 font-size: 0.62rem;
                 padding: 7px 8px;
+            }
+
+            .lead-sequencer-inline-slider {
+                padding: 8px 10px;
+                gap: 5px;
+                border-radius: 10px;
+            }
+
+            .lead-sequencer-inline-slider-head {
+                font-size: 0.56rem;
+                gap: 8px;
             }
 
             .lead-sequencer-status,
@@ -8534,6 +8579,15 @@
                             <button class="performance-btn" id="bastardLoopLAccentBtn" type="button" aria-pressed="false">Accent Off</button>
                             <button class="performance-btn" id="bastardLoopLSlideBtn" type="button" aria-pressed="false">Slide Off</button>
                         </div>
+                        <div class="lead-sequencer-toolbar-row slider-row">
+                            <label class="lead-sequencer-inline-slider" for="bastardLoopLAccentAmount">
+                                <span class="lead-sequencer-inline-slider-head">
+                                    <span>Accent Amount</span>
+                                    <span class="lead-sequencer-inline-slider-value" id="bastardLoopLAccentAmountValue">+35%</span>
+                                </span>
+                                <input type="range" id="bastardLoopLAccentAmount" min="-100" max="100" step="1" value="35">
+                            </label>
+                        </div>
                         <div class="lead-sequencer-toolbar-row ratchet-grid" id="bastardLoopLRatchetButtons">
                             <button class="performance-btn lead-sequencer-ratchet-btn" type="button" data-ratchet="1">Off</button>
                             <button class="performance-btn lead-sequencer-ratchet-btn" type="button" data-ratchet="2">x2</button>
@@ -9971,6 +10025,7 @@
         let bastardLoopLLevel = 0.5;
         let bastardLoopLLength = 0.9;
         let bastardLoopLDecay = 0.75;
+        let bastardLoopLAccentAmount = 0.35;
         let bastardLoopLPitchSemitones = 0;
         let bastardLoopLRootNote = 'C3';
         let bastardLoopLSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false, ratchet: 1 }));
@@ -9980,6 +10035,8 @@
         let bastardLoopLTimingIndex = 3;
         let bastardLoopLTransportActive = false;
         let bastardLoopLRecordArmed = true;
+        let bastardLoopLLastStepTapIndex = -1;
+        let bastardLoopLLastStepTapAt = 0;
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -21604,6 +21661,38 @@
             ].filter(Boolean).join(' ');
         }
 
+        function resetBastardLoopLStepTapMemory() {
+            bastardLoopLLastStepTapIndex = -1;
+            bastardLoopLLastStepTapAt = 0;
+        }
+
+        function computeBastardLoopLStepTapState(lastIndex, lastAt, index, now = Date.now()) {
+            const safeIndex = Math.max(0, Math.min(63, Number(index) || 0));
+            const safeNow = Number(now);
+            const normalizedNow = Number.isFinite(safeNow) ? safeNow : 0;
+            const normalizedLastIndex = Math.max(-1, Math.min(63, Number(lastIndex) || -1));
+            const normalizedLastAt = Math.max(0, Number(lastAt) || 0);
+            const isDoubleTap = normalizedLastIndex === safeIndex
+                && (normalizedNow - normalizedLastAt) <= BASTARD_LOOP_L_STEP_DOUBLE_TAP_MS;
+            return {
+                isDoubleTap,
+                nextIndex: isDoubleTap ? -1 : safeIndex,
+                nextAt: isDoubleTap ? 0 : normalizedNow
+            };
+        }
+
+        function detectBastardLoopLStepDoubleTap(index, now = Date.now()) {
+            const tapState = computeBastardLoopLStepTapState(
+                bastardLoopLLastStepTapIndex,
+                bastardLoopLLastStepTapAt,
+                index,
+                now
+            );
+            bastardLoopLLastStepTapIndex = tapState.nextIndex;
+            bastardLoopLLastStepTapAt = tapState.nextAt;
+            return tapState.isDoubleTap;
+        }
+
         function getBastardLoopLLevelValue(options = {}) {
             const primary = document.getElementById('performanceBastardLoopLLevel');
             const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
@@ -21633,6 +21722,28 @@
             const clamped = Math.max(5, Math.min(100, Number.isFinite(rawValue) ? rawValue : 75));
             bastardLoopLDecay = clamped / 100;
             return bastardLoopLDecay;
+        }
+
+        function getBastardLoopLAccentAmount() {
+            const slider = document.getElementById('bastardLoopLAccentAmount');
+            const fallbackValue = Math.round(bastardLoopLAccentAmount * 100);
+            const rawValue = Number(slider?.value ?? fallbackValue);
+            const clamped = Math.max(-100, Math.min(100, Number.isFinite(rawValue) ? Math.round(rawValue) : 35));
+            bastardLoopLAccentAmount = clamped / 100;
+            return bastardLoopLAccentAmount;
+        }
+
+        function computeBastardLoopLAccentGainMultiplier(value = 0) {
+            const normalized = Math.max(-1, Math.min(1, Number(value) || 0));
+            if (normalized >= 0) {
+                return 1 + (normalized * 0.6) + (normalized * normalized * 1.8);
+            }
+            return Math.max(0.08, 1 + (normalized * 0.92));
+        }
+
+        function getBastardLoopLAccentGainMultiplier(step) {
+            if (!step?.accent) return 1;
+            return computeBastardLoopLAccentGainMultiplier(getBastardLoopLAccentAmount());
         }
 
         function getBastardLoopLPitchSemitones() {
@@ -21715,13 +21826,11 @@
 
         function bindBastardLoopLStepButton(button, index) {
             if (!button) return;
-            let lastTapAt = 0;
             const runHandler = (event, options = {}) => {
                 event?.preventDefault?.();
                 event?.stopPropagation?.();
                 const now = Date.now();
-                const isDoubleTap = Boolean(options.allowDoubleTap) && (now - lastTapAt) <= BASTARD_LOOP_L_STEP_DOUBLE_TAP_MS;
-                lastTapAt = now;
+                const isDoubleTap = Boolean(options.allowDoubleTap) && detectBastardLoopLStepDoubleTap(index, now);
                 if (isDoubleTap) {
                     toggleBastardLoopLRatchetEdit(index);
                     return;
@@ -21749,7 +21858,7 @@
             }
             button.addEventListener('keydown', (event) => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
-                lastTapAt = 0;
+                resetBastardLoopLStepTapMemory();
                 runHandler(event, { allowDoubleTap: false });
             });
             button.addEventListener('click', (event) => event.preventDefault());
@@ -21757,6 +21866,7 @@
 
         function toggleBastardLoopLRatchetEdit(index) {
             const step = getBastardLoopLStep(index);
+            resetBastardLoopLStepTapMemory();
             setBastardLoopLEditStepIndex(index);
             if (!step?.note || step.rest) {
                 bastardLoopLRatchetEditStepIndex = -1;
@@ -21929,6 +22039,16 @@
             syncBastardLoopLStepButtonStates();
         }
 
+        function syncBastardLoopLAccentAmountUi() {
+            const percentValue = Math.round(getBastardLoopLAccentAmount() * 100);
+            if (bastardLoopLAccentAmountSlider) {
+                bastardLoopLAccentAmountSlider.value = String(percentValue);
+            }
+            if (bastardLoopLAccentAmountValueLabel) {
+                bastardLoopLAccentAmountValueLabel.textContent = `${percentValue > 0 ? '+' : ''}${percentValue}%`;
+            }
+        }
+
         function describeBastardLoopLMeta() {
             if (!bastardLoopLSampleBuffer) return 'Choose a lead sample to begin.';
             const sampleName = bastardLoopLSampleMetadata?.fileName || 'lead sample';
@@ -21964,6 +22084,7 @@
             if (meta) meta.textContent = describeBastardLoopLMeta();
             if (loadButton) loadButton.textContent = bastardLoopLSampleBuffer ? 'Change Lead Sample' : 'Choose Lead Sample';
             if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
+            syncBastardLoopLAccentAmountUi();
             if (transportButton) {
                 transportButton.disabled = !bastardLoopLSampleBuffer;
                 transportButton.classList.toggle('active', bastardLoopPlaying);
@@ -22087,10 +22208,15 @@
                 return false;
             }
             const played = auditionBastardLoopLVoice(step, { index: bastardLoopLEditStepIndex });
-            if (played && !options.silentStatus) {
+            const tonePlayed = Boolean(options.forceTone) && playBastardLoopLFeedbackTone(step.note, {
+                duration: 0.14,
+                gain: step.accent ? 0.24 : 0.18,
+                destination: audioContext?.destination || undefined
+            });
+            if ((played || tonePlayed) && !options.silentStatus) {
                 updateBastardLoopLStatus(`Played ${step.note} from step ${bastardLoopLEditStepIndex + 1}.`);
             }
-            return played;
+            return played || tonePlayed;
         }
 
         async function auditionBastardLoopLCurrentStepWithReady(options = {}) {
@@ -22110,7 +22236,7 @@
             if (level <= 0) return;
             const destination = preFilterGainNode;
             if (!destination) return;
-            const accentBoost = step.accent ? 1.35 : 1;
+            const accentBoost = getBastardLoopLAccentGainMultiplier(step);
             const levelScale = Math.max(0.32, Math.min(1, Number(options.levelScale) || 1));
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
             const lengthRatio = getBastardLoopLStepLengthRatio();
@@ -22176,7 +22302,7 @@
             const destination = getBastardLoopLDirectDestination();
             if (!destination) return false;
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
-            const accentBoost = step.accent ? 1.35 : 1;
+            const accentBoost = getBastardLoopLAccentGainMultiplier(step);
             const now = (audioContext.currentTime || 0) + 0.002;
             const previewDuration = Math.max(0.08, Math.min(1.4, (bastardLoopLSampleBuffer.duration / pitchRatio) * Math.max(0.18, getBastardLoopLStepLengthRatio())));
             const fadeEndTime = now + Math.max(0.05, previewDuration * Math.max(0.16, getBastardLoopLDecayRatio()));
@@ -22288,7 +22414,7 @@
 
         function moveBastardLoopLStep(delta) {
             setBastardLoopLEditStepIndex(bastardLoopLEditStepIndex + delta);
-            auditionBastardLoopLCurrentStepWithReady().catch((error) => {
+            auditionBastardLoopLCurrentStepWithReady({ silentWhenEmpty: true, forceTone: true }).catch((error) => {
                 console.error('Loop L step move preview failed:', error);
                 updateBastardLoopLStatus(`Loop L step move preview failed: ${error.message}`);
             });
@@ -22418,6 +22544,7 @@
         function openBastardLoopLOverlay() {
             const overlay = document.getElementById('bastardLoopLOverlay');
             if (!overlay) return;
+            resetBastardLoopLStepTapMemory();
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-l-open');
@@ -22431,6 +22558,7 @@
         function closeBastardLoopLOverlay() {
             const overlay = document.getElementById('bastardLoopLOverlay');
             if (!overlay) return;
+            resetBastardLoopLStepTapMemory();
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('bastardloop-l-open');
@@ -22500,6 +22628,7 @@
         function clearAllBastardLoopLSteps(options = {}) {
             bastardLoopLSequence = Array.from({ length: 64 }, () => createEmptyBastardLoopLStep());
             bastardLoopLRatchetEditStepIndex = -1;
+            resetBastardLoopLStepTapMemory();
             setBastardLoopLEditStepIndex(0);
             syncBastardLoopLUi();
             restartBastardLoopLPlaybackIfNeeded();
@@ -31020,6 +31149,7 @@
                     bastardLoopLLevel: bastardLoopLLevel,
                     bastardLoopLLength: bastardLoopLLength,
                     bastardLoopLDecay: bastardLoopLDecay,
+                    bastardLoopLAccentAmount: getBastardLoopLAccentAmount(),
                     bastardLoopLPitchSemitones: bastardLoopLPitchSemitones,
                     bastardLoopLTimingIndex: bastardLoopLTimingIndex,
                     bastardLoopLRootNote: bastardLoopLRootNote,
@@ -31441,6 +31571,9 @@
                     }
                     if (state.modes.bastardLoopLDecay !== undefined) {
                         bastardLoopLDecay = Math.max(0.05, Math.min(1, Number(state.modes.bastardLoopLDecay) || 0.75));
+                    }
+                    if (state.modes.bastardLoopLAccentAmount !== undefined) {
+                        bastardLoopLAccentAmount = Math.max(-1, Math.min(1, Number(state.modes.bastardLoopLAccentAmount) || 0));
                     }
                     if (state.modes.bastardLoopLPitchSemitones !== undefined) {
                         setBastardLoopLPitchSemitoneOffset(state.modes.bastardLoopLPitchSemitones, { silent: true, skipSave: true });
@@ -37233,6 +37366,8 @@
         const bastardLoopLRestBtn = document.getElementById('bastardLoopLRestBtn');
         const bastardLoopLAccentBtn = document.getElementById('bastardLoopLAccentBtn');
         const bastardLoopLSlideBtn = document.getElementById('bastardLoopLSlideBtn');
+        const bastardLoopLAccentAmountSlider = document.getElementById('bastardLoopLAccentAmount');
+        const bastardLoopLAccentAmountValueLabel = document.getElementById('bastardLoopLAccentAmountValue');
         const bastardLoopLRatchetButtons = Array.from(document.querySelectorAll('#bastardLoopLRatchetButtons .lead-sequencer-ratchet-btn'));
         const bastardLoopLClearStepBtn = document.getElementById('bastardLoopLClearStepBtn');
         const bastardLoopLClearAllBtn = document.getElementById('bastardLoopLClearAllBtn');
@@ -38642,6 +38777,13 @@
 
         bindBastardLoopLMobileTap(bastardLoopLSlideBtn, () => {
             toggleBastardLoopLSlideForSelectedStep();
+        });
+
+        bastardLoopLAccentAmountSlider?.addEventListener('input', (event) => {
+            const value = Math.max(-100, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopLAccentAmount = value / 100;
+            syncBastardLoopLAccentAmountUi();
+            saveState();
         });
 
         bastardLoopLRatchetButtons.forEach((button) => {

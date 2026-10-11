@@ -41,6 +41,7 @@ function extractFunctionSource(name) {
 }
 
 const context = {
+    BASTARD_LOOP_L_STEP_DOUBLE_TAP_MS: 320,
     noteSemitoneOffsets: {
         C: 0,
         'C#': 1,
@@ -62,11 +63,15 @@ vm.runInNewContext([
     extractFunctionSource('detectLeadSampleRootNote'),
     extractFunctionSource('createEmptyBastardLoopLStep'),
     extractFunctionSource('normalizeBastardLoopLStep'),
+    extractFunctionSource('computeBastardLoopLStepTapState'),
+    extractFunctionSource('computeBastardLoopLAccentGainMultiplier'),
     `globalThis.loopLExports = {
         normalizeLeadSamplePitchClass,
         detectLeadSampleRootNote,
         createEmptyBastardLoopLStep,
-        normalizeBastardLoopLStep
+        normalizeBastardLoopLStep,
+        computeBastardLoopLStepTapState,
+        computeBastardLoopLAccentGainMultiplier
     };`
 ].join('\n\n'), context);
 
@@ -74,7 +79,9 @@ const {
     normalizeLeadSamplePitchClass,
     detectLeadSampleRootNote,
     createEmptyBastardLoopLStep,
-    normalizeBastardLoopLStep
+    normalizeBastardLoopLStep,
+    computeBastardLoopLStepTapState,
+    computeBastardLoopLAccentGainMultiplier
 } = context.loopLExports;
 
 function plain(value) {
@@ -120,5 +127,59 @@ test('Loop L step normalization defaults ratchet to x1 and clamps explicit ratch
         accent: true,
         slide: true,
         ratchet: 8
+    });
+});
+
+test('Loop L step double-tap state survives a rerender by using shared tap memory', () => {
+    const firstTap = plain(computeBastardLoopLStepTapState(-1, 0, 6, 1000));
+    assert.deepEqual(firstTap, {
+        isDoubleTap: false,
+        nextIndex: 6,
+        nextAt: 1000
+    });
+
+    const secondTap = plain(computeBastardLoopLStepTapState(firstTap.nextIndex, firstTap.nextAt, 6, 1210));
+    assert.deepEqual(secondTap, {
+        isDoubleTap: true,
+        nextIndex: -1,
+        nextAt: 0
+    });
+
+    const differentStep = plain(computeBastardLoopLStepTapState(firstTap.nextIndex, firstTap.nextAt, 7, 1110));
+    assert.equal(differentStep.isDoubleTap, false);
+    assert.equal(differentStep.nextIndex, 7);
+});
+
+test('Loop L accent multiplier can both cut and strongly boost accented notes', () => {
+    assert.equal(computeBastardLoopLAccentGainMultiplier(0), 1);
+    assert.ok(computeBastardLoopLAccentGainMultiplier(-1) <= 0.08);
+    assert.ok(computeBastardLoopLAccentGainMultiplier(-0.5) < 1);
+    assert.ok(computeBastardLoopLAccentGainMultiplier(0.35) > 1.35);
+    assert.ok(computeBastardLoopLAccentGainMultiplier(1) >= 3.3);
+});
+
+test('Loop L back/forward step moves request audible tone preview', async () => {
+    const moveContext = {
+        auditionOptions: null,
+        bastardLoopLEditStepIndex: 4,
+        console: { error() {} },
+        setBastardLoopLEditStepIndex(index) {
+            moveContext.bastardLoopLEditStepIndex = index;
+        },
+        auditionBastardLoopLCurrentStepWithReady(options) {
+            moveContext.auditionOptions = options;
+            return Promise.resolve(true);
+        },
+        updateBastardLoopLStatus() {}
+    };
+    vm.runInNewContext(`${extractFunctionSource('moveBastardLoopLStep')}\nglobalThis.moveBastardLoopLStep = moveBastardLoopLStep;`, moveContext);
+
+    moveContext.moveBastardLoopLStep(1);
+    await Promise.resolve();
+
+    assert.equal(moveContext.bastardLoopLEditStepIndex, 5);
+    assert.deepEqual(plain(moveContext.auditionOptions), {
+        silentWhenEmpty: true,
+        forceTone: true
     });
 });
