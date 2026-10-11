@@ -8466,7 +8466,7 @@
                 <div class="sample-browser-head">
                     <div class="sample-browser-copy">
                         <h3 id="bastardLoopLTitle">Bastardloop L Sequencer</h3>
-                        <p id="bastardLoopLSubtitle">Play the loaded sample from the keybed, record notes into the grid, and solo the sequence.</p>
+                        <p id="bastardLoopLSubtitle">Choose a lead sample, play it from the keybed, record notes into the grid, and start the Bastardloops transport with that lead.</p>
                     </div>
                     <button class="performance-btn" id="bastardLoopLCloseBtn" type="button">Close</button>
                 </div>
@@ -8474,7 +8474,7 @@
                     <div class="lead-sequencer-toolbar">
                         <div class="lead-sequencer-toolbar-row">
                             <button class="performance-btn primary" id="bastardLoopLChooseSampleBtn" type="button">Sample</button>
-                            <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Play Solo</button>
+                            <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                             <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-four">
@@ -8489,7 +8489,7 @@
                             <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
                             <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
                         </div>
-                        <div class="lead-sequencer-status" id="bastardLoopLStatus">Play the keybed to hear the sample, then record notes into the grid.</div>
+                        <div class="lead-sequencer-status" id="bastardLoopLStatus">Choose a lead sample, play the keybed to hear it, then record notes into the grid.</div>
                     </div>
                     <div class="sample-browser-status" id="bastardLoopLStepCursor">Editing step 1.</div>
                     <div class="lead-sequencer-step-grid" id="bastardLoopLStepGrid"></div>
@@ -9769,6 +9769,7 @@
             'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
             'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'
         ];
+        const BASTARD_LOOP_L_KEYBOARD_RENDER_VERSION = '2026-10-11-sample-grid';
         const BASTARD_LOOP_L_TIMING_OPTIONS = [
             { label: '/8', multiplier: 0.125 },
             { label: '/4', multiplier: 0.25 },
@@ -9930,10 +9931,8 @@
         let bastardLoopLEditStepIndex = 0;
         let bastardLoopLCurrentStepIndex = -1;
         let bastardLoopLTimingIndex = 3;
-        let bastardLoopLPreviewPlaying = false;
         let bastardLoopLTransportActive = false;
         let bastardLoopLRecordArmed = true;
-        let bastardLoopLPreviewTogglePending = false;
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -20164,7 +20163,6 @@
             const resolvedStartTime = Number.isFinite(startTime)
                 ? startTime
                 : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
-            bastardLoopLPreviewPlaying = false;
             const startedA = startBastardLoop(resolvedStartTime, { skipUi: true });
             const startedB = startBastardLoop2(resolvedStartTime, { skipUi: true });
             const startedC = startBastardLoop3(resolvedStartTime, { skipUi: true });
@@ -21559,24 +21557,18 @@
         }
 
         function isBastardLoopLRunning() {
-            return bastardLoopLTransportActive || bastardLoopPlaying || bastardLoopLPreviewPlaying;
+            return bastardLoopLTransportActive;
         }
 
-        function isBastardLoopLSoloActive() {
-            return bastardLoopLPreviewPlaying && !bastardLoopPlaying;
+        function shouldRestartBastardLoopLPlayback() {
+            return bastardLoopLTransportActive || bastardLoopPlaying;
         }
 
-        function restartBastardLoopLPlaybackIfNeeded(options = {}) {
-            if (!isBastardLoopLRunning() || !bastardLoopLSampleBuffer) {
+        function restartBastardLoopLPlaybackIfNeeded() {
+            if (!shouldRestartBastardLoopLPlayback() || !bastardLoopLSampleBuffer) {
                 return false;
             }
-            return startBastardLoopL(null, {
-                skipUi: true,
-                previewOnly: isBastardLoopLSoloActive(),
-                previewStartIndex: Number.isFinite(options.previewStartIndex)
-                    ? options.previewStartIndex
-                    : findBastardLoopLPreviewStartIndex()
-            });
+            return startBastardLoopL(null, { skipUi: true });
         }
 
         function syncBastardLoopLStepButtonStates() {
@@ -21631,17 +21623,22 @@
             syncBastardLoopLStepButtonStates();
         }
 
-        function renderBastardLoopLKeyboard() {
+        function renderBastardLoopLKeyboard(force = false) {
             const keyboard = document.getElementById('bastardLoopLKeyboard');
-            if (!keyboard || keyboard.dataset.initialized === 'true') return;
-            keyboard.innerHTML = BASTARD_LOOP_L_KEYBOARD_NOTES.map((note) => {
-                const isBlack = note.includes('#');
-                return `<button type="button" class="lead-sequencer-key ${isBlack ? 'black' : 'white'}" data-note="${note}" aria-label="Play ${note}">${note}</button>`;
-            }).join('');
-            keyboard.querySelectorAll('[data-note]').forEach((button) => {
+            if (!keyboard) return;
+            if (!force && keyboard.dataset.layoutVersion === BASTARD_LOOP_L_KEYBOARD_RENDER_VERSION) return;
+            keyboard.innerHTML = '';
+            BASTARD_LOOP_L_KEYBOARD_NOTES.forEach((note) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `lead-sequencer-key ${note.includes('#') ? 'black' : 'white'}`;
+                button.dataset.note = note;
+                button.setAttribute('aria-label', `Play ${note}`);
+                button.textContent = note;
                 bindBastardLoopLKeyboardKey(button);
+                keyboard.appendChild(button);
             });
-            keyboard.dataset.initialized = 'true';
+            keyboard.dataset.layoutVersion = BASTARD_LOOP_L_KEYBOARD_RENDER_VERSION;
         }
 
         function flashBastardLoopLKeyboardKey(button) {
@@ -21658,35 +21655,45 @@
 
         function bindBastardLoopLKeyboardKey(button) {
             if (!button) return;
-            let lastTriggeredAt = 0;
-            const trigger = (event) => {
-                const now = Date.now();
-                if (now - lastTriggeredAt < 180) {
-                    event?.preventDefault?.();
+            if (button.dataset.loopLBound === 'true') return;
+            const trigger = async (event) => {
+                event?.preventDefault?.();
+                event?.stopPropagation?.();
+                if (button.dataset.loopLTriggering === 'true') {
                     return;
                 }
-                lastTriggeredAt = now;
-                event?.preventDefault?.();
+                button.dataset.loopLTriggering = 'true';
                 flashBastardLoopLKeyboardKey(button);
-                previewBastardLoopLNoteFromInput(button.dataset.note).catch((error) => {
+                try {
+                    await previewBastardLoopLNoteFromInput(button.dataset.note);
+                } catch (error) {
                     console.error('Loop L keyboard note failed:', error);
                     updateBastardLoopLStatus(`Loop L keyboard failed: ${error.message}`);
-                });
+                } finally {
+                    button.dataset.loopLTriggering = 'false';
+                }
             };
             button.style.touchAction = 'manipulation';
             if (window.PointerEvent) {
                 button.addEventListener('pointerdown', (event) => {
                     if (event.button !== undefined && event.button !== 0) return;
-                    trigger(event);
+                    void trigger(event);
                 });
             } else {
-                button.addEventListener('touchstart', trigger, { passive: false });
-                button.addEventListener('mousedown', trigger);
+                button.addEventListener('touchstart', (event) => {
+                    void trigger(event);
+                }, { passive: false });
+                button.addEventListener('mousedown', (event) => {
+                    if (event.button !== undefined && event.button !== 0) return;
+                    void trigger(event);
+                });
             }
-            button.addEventListener('click', (event) => {
-                if (window.PointerEvent && event.detail !== 0) return;
-                trigger(event);
+            button.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                void trigger(event);
             });
+            button.addEventListener('click', (event) => event.preventDefault());
+            button.dataset.loopLBound = 'true';
         }
 
         function updateBastardLoopLStatus(message) {
@@ -21766,10 +21773,10 @@
             if (loadButton) loadButton.textContent = bastardLoopLSampleBuffer ? 'Change Lead Sample' : 'Choose Lead Sample';
             if (editButton) editButton.disabled = !bastardLoopLSampleBuffer;
             if (transportButton) {
-                transportButton.disabled = !bastardLoopLSampleBuffer || bastardLoopPlaying;
-                transportButton.classList.toggle('active', isBastardLoopLSoloActive());
-                transportButton.textContent = bastardLoopPlaying ? 'Global Running' : (isBastardLoopLSoloActive() ? 'Stop Solo' : 'Play Solo');
-                transportButton.setAttribute('aria-pressed', String(isBastardLoopLSoloActive()));
+                transportButton.disabled = !bastardLoopLSampleBuffer;
+                transportButton.classList.toggle('active', bastardLoopPlaying);
+                transportButton.textContent = bastardLoopPlaying ? 'Stop Bastardloops' : 'Start Bastardloops';
+                transportButton.setAttribute('aria-pressed', String(bastardLoopPlaying));
             }
             if (recordButton) {
                 recordButton.classList.toggle('active', bastardLoopLRecordArmed);
@@ -21892,9 +21899,7 @@
             const gain = audioContext.createGain();
             const level = getBastardLoopLLevelValue();
             if (level <= 0) return;
-            const destination = isBastardLoopLSoloActive()
-                ? getBastardLoopLDirectDestination()
-                : preFilterGainNode;
+            const destination = preFilterGainNode;
             if (!destination) return;
             const accentBoost = step.accent ? 1.35 : 1;
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
@@ -21992,9 +21997,7 @@
         }
 
         function startBastardLoopL(startTime = null, options = {}) {
-            const previewOnly = Boolean(options.previewOnly);
-            const destination = previewOnly ? getBastardLoopLDirectDestination() : preFilterGainNode;
-            if (!audioContext || !bastardLoopLSampleBuffer || !destination) {
+            if (!audioContext || !bastardLoopLSampleBuffer || !preFilterGainNode) {
                 return false;
             }
             if (getBastardLoopLLevelValue() <= 0) {
@@ -22004,20 +22007,15 @@
             }
             stopBastardLoopL({ skipUi: true, fade: false });
             const now = audioContext.currentTime;
-            const requestedStartTime = previewOnly
-                ? (now + 0.01)
-                : (Number.isFinite(startTime)
-                    ? startTime
-                    : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime()));
+            const requestedStartTime = Number.isFinite(startTime)
+                ? startTime
+                : (Number.isFinite(bastardLoopTransportStartTime) ? bastardLoopTransportStartTime : getTransportLoopOriginTime());
             const stepDuration = getBastardLoopLStepDurationSeconds();
             const stepCount = getBastardLoopLPatternLength();
             const cycleDuration = stepDuration * stepCount;
             let nextStepTime = now + 0.01;
             let nextStepIndex = 0;
-            if (previewOnly) {
-                nextStepTime = requestedStartTime;
-                nextStepIndex = Math.max(0, Math.min(stepCount - 1, Number(options.previewStartIndex) || findBastardLoopLPreviewStartIndex()));
-            } else if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
+            if (Number.isFinite(requestedStartTime) && requestedStartTime > now) {
                 nextStepTime = requestedStartTime;
                 nextStepIndex = 0;
             } else if (Number.isFinite(requestedStartTime)) {
@@ -22044,47 +22042,12 @@
         }
 
         function updateBastardLoopLMix() {
-            if (!isBastardLoopLRunning() || !bastardLoopLSampleBuffer) {
+            if (!shouldRestartBastardLoopLPlayback() || !bastardLoopLSampleBuffer) {
                 stopBastardLoopL({ skipUi: true });
             } else if (getBastardLoopLLevelValue() <= 0) {
                 stopBastardLoopL({ skipUi: true });
             } else if (!bastardLoopLSchedulerTimerId) {
                 restartBastardLoopLPlaybackIfNeeded();
-            }
-            syncBastardLoopLUi();
-        }
-
-        function setBastardLoopLPreviewPlaying(enabled) {
-            const nextValue = Boolean(enabled);
-            if (bastardLoopPlaying) {
-                updateBastardLoopLStatus('Loop L is already running with the main Bastardloops.');
-                syncBastardLoopLUi();
-                return;
-            }
-            if (nextValue) {
-                if (!hasPlayableBastardLoopLSequence()) {
-                    updateBastardLoopLStatus('Enter at least one Loop L note before starting solo.');
-                    syncBastardLoopLUi();
-                    return;
-                }
-                bastardLoopLPreviewPlaying = true;
-                const started = startBastardLoopL(null, {
-                    skipUi: true,
-                    previewOnly: true,
-                    previewStartIndex: findBastardLoopLPreviewStartIndex()
-                });
-                if (!started) {
-                    bastardLoopLPreviewPlaying = false;
-                    stopBastardLoopL({ skipUi: true, fade: false });
-                    updateBastardLoopLStatus('Loop L solo could not start. Check the loaded sample and Loop L volume.');
-                    syncBastardLoopLUi();
-                    return;
-                }
-                updateBastardLoopLStatus('Loop L solo started.');
-            } else {
-                bastardLoopLPreviewPlaying = false;
-                stopBastardLoopL({ skipUi: true });
-                updateBastardLoopLStatus('Loop L solo stopped.');
             }
             syncBastardLoopLUi();
         }
@@ -22150,21 +22113,53 @@
             return applyBastardLoopLNoteEntry(note);
         }
 
-        async function toggleBastardLoopLPreviewPlayingFromUi() {
-            if (bastardLoopLPreviewTogglePending) return;
-            bastardLoopLPreviewTogglePending = true;
-            try {
-                if (!bastardLoopLPreviewPlaying) {
-                    const audioReady = await ensureAudioReadyForKeyInteraction();
-                    if (!audioReady) {
-                        updateBastardLoopLStatus('Audio is not ready for Loop L solo yet.');
-                        return;
-                    }
-                }
-                setBastardLoopLPreviewPlaying(!bastardLoopLPreviewPlaying);
-            } finally {
-                bastardLoopLPreviewTogglePending = false;
+        function ensureBastardLoopLReadyForTransport() {
+            let changed = false;
+            if (!bastardLoopLEnabled) {
+                bastardLoopLEnabled = true;
+                changed = true;
             }
+            if (!(bastardLoopLLevel > 0.0001)) {
+                bastardLoopLLevel = 0.5;
+                changed = true;
+            }
+            if (!changed) {
+                return false;
+            }
+            syncPerformanceControlState();
+            syncBastardLoopLUi();
+            saveState();
+            return true;
+        }
+
+        async function toggleBastardLoopLTransportFromUi() {
+            if (bastardLoopPlaying) {
+                setBastardLoopPlaying(false, { silent: true });
+                updateBastardLoopLStatus('Bastardloops stopped.');
+                syncBastardLoopLUi();
+                return;
+            }
+            if (!bastardLoopLSampleBuffer) {
+                updateBastardLoopLStatus('Choose a lead sample before starting Bastardloops from Loop L.');
+                syncBastardLoopLUi();
+                return;
+            }
+            if (!hasPlayableBastardLoopLSequence()) {
+                updateBastardLoopLStatus('Enter at least one Loop L note before starting Bastardloops.');
+                syncBastardLoopLUi();
+                return;
+            }
+            const audioReady = await ensureAudioReadyForKeyInteraction();
+            if (!audioReady) {
+                updateBastardLoopLStatus('Audio is not ready for Bastardloop L transport yet.');
+                return;
+            }
+            ensureBastardLoopLReadyForTransport();
+            const started = setBastardLoopPlaying(true, { silent: true });
+            updateBastardLoopLStatus(started
+                ? 'Bastardloops started with Loop L.'
+                : 'Loop L could not start the Bastardloops transport.');
+            syncBastardLoopLUi();
         }
 
         function setBastardLoopLEnabled(enabled, options = {}) {
@@ -22198,7 +22193,7 @@
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-l-open');
-            renderBastardLoopLKeyboard();
+            renderBastardLoopLKeyboard(true);
             syncBastardLoopLUi();
             requestAnimationFrame(() => {
                 document.getElementById('bastardLoopLChooseSampleBtn')?.focus();
@@ -38367,7 +38362,7 @@
         });
 
         bindBastardLoopLMobileTap(bastardLoopLTransportBtn, async () => {
-            await toggleBastardLoopLPreviewPlayingFromUi();
+            await toggleBastardLoopLTransportFromUi();
         });
 
         bindBastardLoopLMobileTap(bastardLoopLRecordBtn, () => {
