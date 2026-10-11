@@ -21523,6 +21523,11 @@
             return bastardLoopLEnabled ? bastardLoopLLevel * MIX_HEADROOM * 0.88 : 0;
         }
 
+        function getBastardLoopLAuditionLevel() {
+            const rawLevel = getBastardLoopLLevelValue({ applyLayerToggle: false });
+            return Math.max(0.18, Math.min(0.85, rawLevel * MIX_HEADROOM * 0.88));
+        }
+
         function getBastardLoopLStepLengthRatio() {
             const slider = document.getElementById('performanceBastardLoopLLength');
             const rawValue = Number(slider?.value ?? (bastardLoopLLength * 100));
@@ -21763,9 +21768,13 @@
             return previewBastardLoopLStep(step);
         }
 
+        function getBastardLoopLDirectDestination() {
+            return masterGain || preFilterGainNode || audioContext?.destination || null;
+        }
+
         function playBastardLoopLFeedbackTone(note, options = {}) {
             if (!audioContext || !note) return false;
-            const destination = preFilterGainNode || masterGain || audioContext.destination;
+            const destination = getBastardLoopLDirectDestination();
             if (!destination) return false;
             const oscillator = audioContext.createOscillator();
             const gain = audioContext.createGain();
@@ -21825,6 +21834,10 @@
             const gain = audioContext.createGain();
             const level = getBastardLoopLLevelValue();
             if (level <= 0) return;
+            const destination = bastardLoopLPreviewPlaying && !bastardLoopPlaying
+                ? getBastardLoopLDirectDestination()
+                : preFilterGainNode;
+            if (!destination) return;
             const accentBoost = step.accent ? 1.35 : 1;
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
             const lengthRatio = getBastardLoopLStepLengthRatio();
@@ -21849,7 +21862,7 @@
             gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(endTime, decayEndTime));
 
             source.connect(gain);
-            gain.connect(preFilterGainNode);
+            gain.connect(destination);
 
             const voice = { source, gain };
             bastardLoopLActiveVoices.add(voice);
@@ -21868,8 +21881,9 @@
             if (!audioContext || !preFilterGainNode || !bastardLoopLSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const level = getBastardLoopLLevelValue();
-            if (level <= 0) return false;
+            const level = getBastardLoopLAuditionLevel();
+            const destination = getBastardLoopLDirectDestination();
+            if (!destination) return false;
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
             const accentBoost = step.accent ? 1.35 : 1;
             const now = (audioContext.currentTime || 0) + 0.002;
@@ -21882,7 +21896,7 @@
             gain.gain.linearRampToValueAtTime(Math.max(0.0001, level * accentBoost), now + 0.005);
             gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
             source.connect(gain);
-            gain.connect(preFilterGainNode);
+            gain.connect(destination);
             source.onended = () => {
                 try {
                     source.disconnect();
@@ -22164,7 +22178,7 @@
                 note,
                 rest: false
             };
-            const canTrySample = Boolean(bastardLoopLSampleBuffer && getBastardLoopLLevelValue() > 0);
+            const canTrySample = Boolean(bastardLoopLSampleBuffer);
             const played = canTrySample
                 ? auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex })
                 : false;
