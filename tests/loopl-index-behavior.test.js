@@ -288,6 +288,43 @@ test('Loop L filter envelope peak cutoff opens upward from the chosen cutoff and
     assert.equal(computeBastardLoopLFilterEnvelopePeakCutoff(50, 1), 4800);
 });
 
+test('Loop X transport helpers stay cloned from Loop L for delay and filter scheduling', () => {
+    const xContext = {};
+    vm.runInNewContext([
+        extractFunctionSource('computeBastardLoopLDelayMixLevels'),
+        extractFunctionSource('computeBastardLoopXDelayMixLevels'),
+        extractFunctionSource('computeBastardLoopLFilterEnvelopePeakCutoff'),
+        extractFunctionSource('computeBastardLoopXFilterEnvelopePeakCutoff'),
+        `globalThis.loopXExports = {
+            computeBastardLoopLDelayMixLevels,
+            computeBastardLoopXDelayMixLevels,
+            computeBastardLoopLFilterEnvelopePeakCutoff,
+            computeBastardLoopXFilterEnvelopePeakCutoff
+        };`
+    ].join('\n\n'), xContext);
+
+    const exported = xContext.loopXExports;
+    assert.deepEqual(
+        plain(exported.computeBastardLoopXDelayMixLevels(0.65)),
+        plain(exported.computeBastardLoopLDelayMixLevels(0.65))
+    );
+    assert.equal(
+        exported.computeBastardLoopXFilterEnvelopePeakCutoff(1200, 0.5),
+        exported.computeBastardLoopLFilterEnvelopePeakCutoff(1200, 0.5)
+    );
+});
+
+test('Loop X keyboard binding owns X guard state instead of leftover L markers', () => {
+    const flashSource = extractFunctionSource('flashBastardLoopXKeyboardKey');
+    const bindSource = extractFunctionSource('bindBastardLoopXKeyboardKey');
+
+    assert.match(flashSource, /_loopXFlashTimer/);
+    assert.doesNotMatch(flashSource, /_loopLFlashTimer/);
+    assert.match(bindSource, /dataset\.loopXBound/);
+    assert.match(bindSource, /dataset\.loopXTriggering/);
+    assert.doesNotMatch(bindSource, /loopLBound|loopLTriggering/);
+});
+
 test('Global Bastardloop start clears loop solo and refreshes shared transport when already running', async () => {
     const startContext = {
         loopLayerSolo: 'bastardb',

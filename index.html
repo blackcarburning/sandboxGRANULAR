@@ -16085,7 +16085,28 @@
             };
         }
 
+        function computeBastardLoopXDelayMixLevels(mixValue = 0) {
+            const mix = Math.max(0, Math.min(1, Number(mixValue) || 0));
+            const wetCurve = Math.sin(mix * Math.PI / 2);
+            return {
+                dryGain: Math.cos(mix * Math.PI / 2),
+                sendGain: wetCurve,
+                wetGain: wetCurve * 0.92,
+                feedbackGain: wetCurve > 0.001 ? 0.34 : 0
+            };
+        }
+
         function computeBastardLoopLFilterEnvelopePeakCutoff(baseCutoff, envelopeAmount = 0) {
+            const safeBase = Math.max(300, Math.min(18000, Math.round(Number(baseCutoff) || 18000)));
+            const safeEnvelopeAmount = Math.max(0, Math.min(1, Number(envelopeAmount) || 0));
+            const octaveLift = safeEnvelopeAmount * 4;
+            return Math.max(
+                300,
+                Math.min(18000, Math.round(safeBase * Math.pow(2, octaveLift)))
+            );
+        }
+
+        function computeBastardLoopXFilterEnvelopePeakCutoff(baseCutoff, envelopeAmount = 0) {
             const safeBase = Math.max(300, Math.min(18000, Math.round(Number(baseCutoff) || 18000)));
             const safeEnvelopeAmount = Math.max(0, Math.min(1, Number(envelopeAmount) || 0));
             const octaveLift = safeEnvelopeAmount * 4;
@@ -24539,26 +24560,26 @@
 
         function flashBastardLoopXKeyboardKey(button) {
             if (!button) return;
-            if (button._loopLFlashTimer) {
-                clearTimeout(button._loopLFlashTimer);
+            if (button._loopXFlashTimer) {
+                clearTimeout(button._loopXFlashTimer);
             }
             button.classList.add('is-active');
-            button._loopLFlashTimer = window.setTimeout(() => {
+            button._loopXFlashTimer = window.setTimeout(() => {
                 button.classList.remove('is-active');
-                button._loopLFlashTimer = null;
+                button._loopXFlashTimer = null;
             }, 130);
         }
 
         function bindBastardLoopXKeyboardKey(button) {
             if (!button) return;
-            if (button.dataset.loopLBound === 'true') return;
+            if (button.dataset.loopXBound === 'true') return;
             const trigger = async (event) => {
                 event?.preventDefault?.();
                 event?.stopPropagation?.();
-                if (button.dataset.loopLTriggering === 'true') {
+                if (button.dataset.loopXTriggering === 'true') {
                     return;
                 }
-                button.dataset.loopLTriggering = 'true';
+                button.dataset.loopXTriggering = 'true';
                 flashBastardLoopXKeyboardKey(button);
                 const tonePrimed = primeBastardLoopXNoteEntryTone(button.dataset.note);
                 try {
@@ -24567,7 +24588,7 @@
                     console.error('Loop X keyboard note failed:', error);
                     updateBastardLoopXStatus(`Loop X keyboard failed: ${error.message}`);
                 } finally {
-                    button.dataset.loopLTriggering = 'false';
+                    button.dataset.loopXTriggering = 'false';
                 }
             };
             button.style.touchAction = 'manipulation';
@@ -24590,7 +24611,7 @@
                 void trigger(event);
             });
             button.addEventListener('click', (event) => event.preventDefault());
-            button.dataset.loopLBound = 'true';
+            button.dataset.loopXBound = 'true';
         }
 
         function updateBastardLoopXStatus(message) {
