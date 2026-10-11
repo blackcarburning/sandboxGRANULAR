@@ -46,6 +46,7 @@ function extractFunctionSource(name) {
 
 const context = {
     BASTARD_LOOP_L_STEP_DOUBLE_TAP_MS: 320,
+    BASTARD_LOOP_X_STEP_DOUBLE_TAP_MS: 320,
     BASTARD_LOOP_SOURCE_LABELS: {
         samples_leads: 'SAMPLES_LEADS'
     },
@@ -74,6 +75,7 @@ vm.runInNewContext([
     extractFunctionSource('normalizeBastardLoopLStep'),
     extractFunctionSource('buildStoredBastardLoopLSampleMetadata'),
     extractFunctionSource('computeBastardLoopLStepTapState'),
+    extractFunctionSource('computeBastardLoopXStepTapState'),
     extractFunctionSource('computeBastardLoopLMobileTapState'),
     extractFunctionSource('computeBastardLoopLAccentGainMultiplier'),
     extractFunctionSource('normalizeBastardLoopLDelayDivision'),
@@ -88,6 +90,7 @@ vm.runInNewContext([
         normalizeBastardLoopLStep,
         buildStoredBastardLoopLSampleMetadata,
         computeBastardLoopLStepTapState,
+        computeBastardLoopXStepTapState,
         computeBastardLoopLMobileTapState,
         computeBastardLoopLAccentGainMultiplier,
         normalizeBastardLoopLDelayDivision,
@@ -105,6 +108,7 @@ const {
     normalizeBastardLoopLStep,
     buildStoredBastardLoopLSampleMetadata,
     computeBastardLoopLStepTapState,
+    computeBastardLoopXStepTapState,
     computeBastardLoopLMobileTapState,
     computeBastardLoopLAccentGainMultiplier,
     normalizeBastardLoopLDelayDivision,
@@ -194,6 +198,32 @@ test('Loop L step double-tap state survives a rerender by using shared tap memor
     const differentStep = plain(computeBastardLoopLStepTapState(firstTap.nextIndex, firstTap.nextAt, 7, 1110));
     assert.equal(differentStep.isDoubleTap, false);
     assert.equal(differentStep.nextIndex, 7);
+});
+
+test('Loop L and X step double-tap state treats step 1 as a valid remembered step', () => {
+    const firstLTap = plain(computeBastardLoopLStepTapState(-1, 0, 0, 1000));
+    assert.deepEqual(firstLTap, {
+        isDoubleTap: false,
+        nextIndex: 0,
+        nextAt: 1000
+    });
+    assert.deepEqual(plain(computeBastardLoopLStepTapState(firstLTap.nextIndex, firstLTap.nextAt, 0, 1210)), {
+        isDoubleTap: true,
+        nextIndex: -1,
+        nextAt: 0
+    });
+
+    const firstXTap = plain(computeBastardLoopXStepTapState(-1, 0, 0, 1000));
+    assert.deepEqual(firstXTap, {
+        isDoubleTap: false,
+        nextIndex: 0,
+        nextAt: 1000
+    });
+    assert.deepEqual(plain(computeBastardLoopXStepTapState(firstXTap.nextIndex, firstXTap.nextAt, 0, 1210)), {
+        isDoubleTap: true,
+        nextIndex: -1,
+        nextAt: 0
+    });
 });
 
 test('Loop L accent multiplier can both cut and strongly boost accented notes', () => {

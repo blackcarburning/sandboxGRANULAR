@@ -22438,7 +22438,10 @@
             const safeIndex = Math.max(0, Math.min(63, Number(index) || 0));
             const safeNow = Number(now);
             const normalizedNow = Number.isFinite(safeNow) ? safeNow : 0;
-            const normalizedLastIndex = Math.max(-1, Math.min(63, Number(lastIndex) || -1));
+            const parsedLastIndex = Number(lastIndex);
+            const normalizedLastIndex = Number.isFinite(parsedLastIndex)
+                ? Math.max(-1, Math.min(63, parsedLastIndex))
+                : -1;
             const normalizedLastAt = Math.max(0, Number(lastAt) || 0);
             const isDoubleTap = normalizedLastIndex === safeIndex
                 && (normalizedNow - normalizedLastAt) <= BASTARD_LOOP_L_STEP_DOUBLE_TAP_MS;
@@ -24004,7 +24007,10 @@
             const safeIndex = Math.max(0, Math.min(63, Number(index) || 0));
             const safeNow = Number(now);
             const normalizedNow = Number.isFinite(safeNow) ? safeNow : 0;
-            const normalizedLastIndex = Math.max(-1, Math.min(63, Number(lastIndex) || -1));
+            const parsedLastIndex = Number(lastIndex);
+            const normalizedLastIndex = Number.isFinite(parsedLastIndex)
+                ? Math.max(-1, Math.min(63, parsedLastIndex))
+                : -1;
             const normalizedLastAt = Math.max(0, Number(lastAt) || 0);
             const isDoubleTap = normalizedLastIndex === safeIndex
                 && (normalizedNow - normalizedLastAt) <= BASTARD_LOOP_X_STEP_DOUBLE_TAP_MS;
