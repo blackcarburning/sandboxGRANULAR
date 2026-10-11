@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-19-36-build-v2026.10.11.15';
+            const cacheBuster = '2026-10-11-20-02-build-v2026.10.11.16';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4917,7 +4917,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.15</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.11.16</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -5660,6 +5660,20 @@
                         <span class="value" id="performanceBastardLoopLLengthValue">90%</span>
                     </label>
                     <input type="range" id="performanceBastardLoopLLength" min="5" max="100" value="90" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLStartTrim">
+                        <span>Bastardloop L Start Trim</span>
+                        <span class="value" id="performanceBastardLoopLStartTrimValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLStartTrim" min="0" max="95" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLAttack">
+                        <span>Bastardloop L Attack</span>
+                        <span class="value" id="performanceBastardLoopLAttackValue">4ms</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopLAttack" min="0" max="250" value="4" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopLDecay">
@@ -10165,6 +10179,8 @@
         let bastardLoopLEnabled = true;
         let bastardLoopLLevel = 0.5;
         let bastardLoopLLength = 0.9;
+        let bastardLoopLStartTrim = 0;
+        let bastardLoopLAttackSeconds = 0.004;
         let bastardLoopLDecay = 0.75;
         let bastardLoopLAccentAmount = 0.35;
         let bastardLoopLPitchSemitones = 0;
@@ -22021,6 +22037,22 @@
             return bastardLoopLLength;
         }
 
+        function getBastardLoopLStartTrimRatio() {
+            const slider = document.getElementById('performanceBastardLoopLStartTrim');
+            const rawValue = Number(slider?.value ?? Math.round(bastardLoopLStartTrim * 100));
+            const clamped = Math.max(0, Math.min(95, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoopLStartTrim = clamped / 100;
+            return bastardLoopLStartTrim;
+        }
+
+        function getBastardLoopLAttackSeconds() {
+            const slider = document.getElementById('performanceBastardLoopLAttack');
+            const rawValue = Number(slider?.value ?? Math.round(bastardLoopLAttackSeconds * 1000));
+            const clamped = Math.max(0, Math.min(250, Number.isFinite(rawValue) ? rawValue : 4));
+            bastardLoopLAttackSeconds = clamped / 1000;
+            return bastardLoopLAttackSeconds;
+        }
+
         function getBastardLoopLDecayRatio() {
             const slider = document.getElementById('performanceBastardLoopLDecay');
             const rawValue = Number(slider?.value ?? (bastardLoopLDecay * 100));
@@ -22625,6 +22657,8 @@
         function syncBastardLoopLUi() {
             const levelValue = Math.round(getBastardLoopLLevelValue({ applyLayerToggle: false }) * 100);
             const lengthValue = Math.round(getBastardLoopLStepLengthRatio() * 100);
+            const startTrimValue = Math.round(getBastardLoopLStartTrimRatio() * 100);
+            const attackValueMs = Math.round(getBastardLoopLAttackSeconds() * 1000);
             const decayValue = Math.round(getBastardLoopLDecayRatio() * 100);
             const semitoneValue = getBastardLoopLPitchSemitones();
             const filterCutoffValue = getBastardLoopLFilterCutoff();
@@ -22633,6 +22667,8 @@
             const delayDivisionValue = getBastardLoopLDelayDivision();
             const levelSlider = document.getElementById('performanceBastardLoopLLevel');
             const levelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
+            const startTrimSlider = document.getElementById('performanceBastardLoopLStartTrim');
+            const attackSlider = document.getElementById('performanceBastardLoopLAttack');
             const loadButton = document.getElementById('performanceBastardLoopLLoadBtn');
             const editButton = document.getElementById('performanceBastardLoopLEditBtn');
             const meta = document.getElementById('performanceBastardLoopLMeta');
@@ -22646,6 +22682,8 @@
             const delayPingPongButton = document.getElementById('performanceBastardLoopLDelayPingPongBtn');
             if (levelSlider) levelSlider.value = String(levelValue);
             if (levelMixer) levelMixer.value = String(levelValue);
+            if (startTrimSlider) startTrimSlider.value = String(startTrimValue);
+            if (attackSlider) attackSlider.value = String(attackValueMs);
             if (filterSlider) filterSlider.value = String(filterCutoffValue);
             if (filterEnvelopeSlider) filterEnvelopeSlider.value = String(filterEnvelopeValue);
             if (delayDivisionSelect) delayDivisionSelect.value = delayDivisionValue;
@@ -22653,6 +22691,8 @@
             const levelLabel = document.getElementById('performanceBastardLoopLLevelValue');
             const mixerLabel = document.getElementById('performanceBastardLoopLLevelMixerValue');
             const lengthLabel = document.getElementById('performanceBastardLoopLLengthValue');
+            const startTrimLabel = document.getElementById('performanceBastardLoopLStartTrimValue');
+            const attackLabel = document.getElementById('performanceBastardLoopLAttackValue');
             const decayLabel = document.getElementById('performanceBastardLoopLDecayValue');
             const semitoneLabel = document.getElementById('performanceBastardLoopLSemitoneValue');
             const filterLabel = document.getElementById('performanceBastardLoopLFilterCutoffValue');
@@ -22661,6 +22701,8 @@
             if (levelLabel) levelLabel.textContent = `${levelValue}%`;
             if (mixerLabel) mixerLabel.textContent = `${levelValue}%`;
             if (lengthLabel) lengthLabel.textContent = `${lengthValue}%`;
+            if (startTrimLabel) startTrimLabel.textContent = `${startTrimValue}%`;
+            if (attackLabel) attackLabel.textContent = `${attackValueMs}ms`;
             if (decayLabel) decayLabel.textContent = `${decayValue}%`;
             if (semitoneLabel) semitoneLabel.textContent = `${semitoneValue > 0 ? '+' : ''}${semitoneValue} st`;
             if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoffValue);
@@ -22838,12 +22880,17 @@
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
             const lengthRatio = getBastardLoopLStepLengthRatio();
             const decayRatio = getBastardLoopLDecayRatio();
-            const rawDuration = Math.max(0.02, bastardLoopLSampleBuffer.duration / pitchRatio);
-            const sustainDuration = Math.max(0.02, rawDuration * lengthRatio);
+            const startTrimRatio = getBastardLoopLStartTrimRatio();
+            const attackTime = Math.max(0.001, getBastardLoopLAttackSeconds());
+            const startOffsetSeconds = Math.max(0, Math.min(Math.max(0, bastardLoopLSampleBuffer.duration - 0.01), bastardLoopLSampleBuffer.duration * startTrimRatio));
+            const remainingDuration = Math.max(0.02, (bastardLoopLSampleBuffer.duration - startOffsetSeconds) / pitchRatio);
+            const sustainDuration = Math.max(0.02, remainingDuration * lengthRatio);
             const voiceWindow = Math.max(0.02, Number(options.stepWindow) || stepDuration);
             const slideDuration = step.slide && nextStep?.note ? voiceWindow * 2 : voiceWindow;
-            const duration = Math.max(sustainDuration, slideDuration * 0.98);
-            const attackTime = 0.004;
+            const allowFullTail = decayRatio >= 0.999;
+            const duration = allowFullTail
+                ? Math.max(remainingDuration, slideDuration * 0.98)
+                : Math.max(sustainDuration, slideDuration * 0.98);
             const decayEndTime = scheduledTime + Math.max(attackTime + 0.02, duration * Math.max(0.08, decayRatio));
             const endTime = scheduledTime + duration;
 
@@ -22872,7 +22919,7 @@
                     disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
             };
-            source.start(scheduledTime);
+            source.start(scheduledTime, startOffsetSeconds);
             source.stop(endTime + 0.02);
         }
 
@@ -22904,13 +22951,21 @@
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopLPitchRatioForNote(step.note)));
             const accentBoost = getBastardLoopLAccentGainMultiplier(step);
             const now = (audioContext.currentTime || 0) + 0.002;
-            const previewDuration = Math.max(0.08, Math.min(1.4, (bastardLoopLSampleBuffer.duration / pitchRatio) * Math.max(0.18, getBastardLoopLStepLengthRatio())));
+            const startTrimRatio = getBastardLoopLStartTrimRatio();
+            const attackTime = Math.max(0.001, getBastardLoopLAttackSeconds());
+            const startOffsetSeconds = Math.max(0, Math.min(Math.max(0, bastardLoopLSampleBuffer.duration - 0.01), bastardLoopLSampleBuffer.duration * startTrimRatio));
+            const remainingDuration = Math.max(0.08, (bastardLoopLSampleBuffer.duration - startOffsetSeconds) / pitchRatio);
+            const decayRatio = getBastardLoopLDecayRatio();
+            const allowFullTail = decayRatio >= 0.999;
+            const previewDuration = allowFullTail
+                ? Math.max(0.08, Math.min(remainingDuration, 4))
+                : Math.max(0.08, Math.min(1.4, remainingDuration * Math.max(0.18, getBastardLoopLStepLengthRatio())));
             const fadeEndTime = now + Math.max(0.05, previewDuration * Math.max(0.16, getBastardLoopLDecayRatio()));
             const stopTime = now + previewDuration;
             source.buffer = bastardLoopLSampleBuffer;
             source.playbackRate.setValueAtTime(pitchRatio, now);
             gain.gain.setValueAtTime(0.0001, now);
-            gain.gain.linearRampToValueAtTime(Math.max(0.0001, level * accentBoost), now + 0.005);
+            gain.gain.linearRampToValueAtTime(Math.max(0.0001, level * accentBoost), now + attackTime);
             gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
             source.connect(gain);
             connectBastardLoopFilterChain(gain, filters, destination);
@@ -22925,7 +22980,7 @@
                     disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
             };
-            source.start(now);
+            source.start(now, startOffsetSeconds);
             source.stop(stopTime + 0.02);
             return true;
         }
@@ -31817,6 +31872,8 @@
                     bastardLoopLEnabled: bastardLoopLEnabled,
                     bastardLoopLLevel: bastardLoopLLevel,
                     bastardLoopLLength: bastardLoopLLength,
+                    bastardLoopLStartTrim: getBastardLoopLStartTrimRatio(),
+                    bastardLoopLAttackSeconds: getBastardLoopLAttackSeconds(),
                     bastardLoopLDecay: bastardLoopLDecay,
                     bastardLoopLAccentAmount: getBastardLoopLAccentAmount(),
                     bastardLoopLPitchSemitones: bastardLoopLPitchSemitones,
@@ -32244,6 +32301,12 @@
                     }
                     if (state.modes.bastardLoopLLength !== undefined) {
                         bastardLoopLLength = Math.max(0.05, Math.min(1, Number(state.modes.bastardLoopLLength) || 0.9));
+                    }
+                    if (state.modes.bastardLoopLStartTrim !== undefined) {
+                        bastardLoopLStartTrim = Math.max(0, Math.min(0.95, Number(state.modes.bastardLoopLStartTrim) || 0));
+                    }
+                    if (state.modes.bastardLoopLAttackSeconds !== undefined) {
+                        bastardLoopLAttackSeconds = Math.max(0, Math.min(0.25, Number(state.modes.bastardLoopLAttackSeconds) || 0));
                     }
                     if (state.modes.bastardLoopLDecay !== undefined) {
                         bastardLoopLDecay = Math.max(0.05, Math.min(1, Number(state.modes.bastardLoopLDecay) || 0.75));
@@ -37949,6 +38012,8 @@
         const performanceBastardLoopLToggleBtn = document.getElementById('performanceBastardLoopLToggleBtn');
         const performanceBastardLoopLLevel = document.getElementById('performanceBastardLoopLLevel');
         const performanceBastardLoopLLength = document.getElementById('performanceBastardLoopLLength');
+        const performanceBastardLoopLStartTrim = document.getElementById('performanceBastardLoopLStartTrim');
+        const performanceBastardLoopLAttack = document.getElementById('performanceBastardLoopLAttack');
         const performanceBastardLoopLDecay = document.getElementById('performanceBastardLoopLDecay');
         const performanceBastardLoopLSemitone = document.getElementById('performanceBastardLoopLSemitone');
         const performanceBastardLoopLFilterCutoff = document.getElementById('performanceBastardLoopLFilterCutoff');
@@ -39286,6 +39351,22 @@
         performanceBastardLoopLLength?.addEventListener('input', (event) => {
             const value = Math.max(5, Math.min(100, Number(event.target.value) || 90));
             bastardLoopLLength = value / 100;
+            restartBastardLoopLPlaybackIfNeeded();
+            syncBastardLoopLUi();
+            saveState();
+        });
+
+        performanceBastardLoopLStartTrim?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(95, Number(event.target.value) || 0));
+            bastardLoopLStartTrim = value / 100;
+            restartBastardLoopLPlaybackIfNeeded();
+            syncBastardLoopLUi();
+            saveState();
+        });
+
+        performanceBastardLoopLAttack?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(250, Number(event.target.value) || 0));
+            bastardLoopLAttackSeconds = value / 1000;
             restartBastardLoopLPlaybackIfNeeded();
             syncBastardLoopLUi();
             saveState();
