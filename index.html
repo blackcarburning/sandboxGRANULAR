@@ -463,9 +463,17 @@
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
+        .lead-sequencer-toolbar-row.compact-two {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .lead-sequencer-toolbar-row.transport-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
         .lead-sequencer-toolbar-row.accent-row .performance-btn {
-            min-height: 42px;
-            font-size: 0.72rem;
+            min-height: 36px;
+            font-size: 0.66rem;
         }
 
         .lead-sequencer-toolbar-row.slider-row {
@@ -508,10 +516,14 @@
 
         .lead-sequencer-toolbar .performance-btn {
             min-width: 0;
-            min-height: 38px;
-            padding: 8px 10px;
-            font-size: 0.68rem;
+            min-height: 33px;
+            padding: 6px 8px;
+            font-size: 0.62rem;
             letter-spacing: 0.1em;
+        }
+
+        .lead-sequencer-toolbar-row.transport-row .performance-btn {
+            min-height: 38px;
         }
 
         .lead-sequencer-status {
@@ -598,7 +610,9 @@
         }
 
         .lead-sequencer-ratchet-btn {
-            min-height: 34px;
+            min-height: 28px;
+            padding: 4px 4px;
+            font-size: 0.56rem;
             border-color: rgba(255, 118, 118, 0.2);
         }
 
@@ -620,10 +634,10 @@
         }
 
         .lead-sequencer-key {
-            min-height: 52px;
+            min-height: 64px;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.12);
-            font-size: 0.74rem;
+            font-size: 0.82rem;
             font-weight: 800;
             letter-spacing: 0.04em;
             transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
@@ -890,22 +904,31 @@
                 grid-template-columns: repeat(4, minmax(0, 1fr));
             }
 
+            .lead-sequencer-toolbar-row.compact-two {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .lead-sequencer-toolbar-row.ratchet-grid {
                 grid-template-columns: repeat(4, minmax(0, 1fr));
             }
 
             .lead-sequencer-toolbar .performance-btn {
-                min-height: 31px;
-                padding: 6px 6px;
-                font-size: 0.56rem;
+                min-height: 27px;
+                padding: 4px 5px;
+                font-size: 0.5rem;
                 border-radius: 9px;
-                letter-spacing: 0.08em;
+                letter-spacing: 0.05em;
             }
 
             .lead-sequencer-toolbar-row.accent-row .performance-btn {
-                min-height: 38px;
-                font-size: 0.62rem;
-                padding: 7px 8px;
+                min-height: 30px;
+                font-size: 0.54rem;
+                padding: 5px 6px;
+            }
+
+            .lead-sequencer-toolbar-row.transport-row .performance-btn {
+                min-height: 32px;
+                font-size: 0.56rem;
             }
 
             .lead-sequencer-inline-slider {
@@ -1023,10 +1046,16 @@
             }
 
             .lead-sequencer-key {
-                min-height: 35px;
-                font-size: 0.55rem;
+                min-height: 48px;
+                font-size: 0.68rem;
                 border-radius: 9px;
                 letter-spacing: 0.02em;
+            }
+
+            .lead-sequencer-ratchet-btn {
+                min-height: 24px;
+                padding: 3px 3px;
+                font-size: 0.48rem;
             }
 
             .sample-browser-controls {
@@ -8592,9 +8621,8 @@
                     </div>
                 <div class="lead-sequencer-layout">
                     <div class="lead-sequencer-toolbar">
-                        <div class="lead-sequencer-toolbar-row">
+                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn primary" id="bastardLoopLChooseSampleBtn" type="button">Sample</button>
-                            <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                             <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-four">
@@ -8637,6 +8665,9 @@
                             <button class="performance-btn lead-sequencer-ratchet-btn" type="button" data-ratchet="6">x6</button>
                             <button class="performance-btn lead-sequencer-ratchet-btn" type="button" data-ratchet="7">x7</button>
                             <button class="performance-btn lead-sequencer-ratchet-btn" type="button" data-ratchet="8">x8</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row transport-row">
+                            <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                         </div>
                     </div>
                     <div class="lead-sequencer-keyboard" id="bastardLoopLKeyboard"></div>
