@@ -140,6 +140,10 @@
             display: flex;
         }
 
+        body.dropbox-sample-browser-open #dropboxSampleBrowserOverlay {
+            z-index: 2147483400;
+        }
+
         .sample-browser-shell {
             width: min(860px, 100%);
             max-width: 100%;
@@ -21759,6 +21763,36 @@
             return previewBastardLoopLStep(step);
         }
 
+        function playBastardLoopLFeedbackTone(note, options = {}) {
+            if (!audioContext || !note) return false;
+            const destination = preFilterGainNode || masterGain || audioContext.destination;
+            if (!destination) return false;
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const now = Math.max(audioContext.currentTime || 0, Number(options.startTime) || 0);
+            const frequency = Math.max(40, Math.min(5000, getNoteFrequency(note)));
+            const duration = Math.max(0.08, Math.min(0.35, Number(options.duration) || 0.16));
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(frequency, now);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(0.16, now + 0.006);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            oscillator.connect(gain);
+            gain.connect(destination);
+            const voice = { source: oscillator, gain };
+            bastardLoopLActiveVoices.add(voice);
+            oscillator.onended = () => {
+                bastardLoopLActiveVoices.delete(voice);
+                try {
+                    oscillator.disconnect();
+                    gain.disconnect();
+                } catch (error) {}
+            };
+            oscillator.start(now);
+            oscillator.stop(now + duration + 0.02);
+            return true;
+        }
+
         function auditionBastardLoopLCurrentStep(options = {}) {
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
             if (step.rest) {
@@ -22124,31 +22158,29 @@
         }
 
         function applyBastardLoopLNoteEntry(note) {
-            if (!bastardLoopLSampleBuffer) {
-                updateBastardLoopLStatus('Choose a Loop L sample before entering notes.');
-                return false;
-            }
-            if (getBastardLoopLLevelValue() <= 0) {
-                updateBastardLoopLStatus('Turn up Bastardloop L volume before previewing notes.');
-                return false;
-            }
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
             const playedStep = {
                 ...step,
                 note,
                 rest: false
             };
-            const played = auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex });
+            const canTrySample = Boolean(bastardLoopLSampleBuffer && getBastardLoopLLevelValue() > 0);
+            const played = canTrySample
+                ? auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex })
+                : false;
             if (!played) {
-                updateBastardLoopLStatus('Loop L note could not play. Check the audio engine and loaded sample.');
-                return false;
+                const tonePlayed = playBastardLoopLFeedbackTone(note);
+                if (!tonePlayed) {
+                    updateBastardLoopLStatus('Loop L note could not play. Check the audio engine.');
+                    return false;
+                }
             }
             if (!bastardLoopLRecordArmed) {
-                updateBastardLoopLStatus(`Practiced ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
+                updateBastardLoopLStatus(`${played ? 'Practiced' : 'Tone preview'} ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
                 return true;
             }
             setBastardLoopLStep(bastardLoopLEditStepIndex, playedStep);
-            updateBastardLoopLStatus(`Stored ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
+            updateBastardLoopLStatus(`${played ? 'Stored' : 'Stored with tone preview'} ${note} on step ${bastardLoopLEditStepIndex + 1}.`);
             advanceBastardLoopLEditStep();
             if (isBastardLoopLRunning() && bastardLoopLSampleBuffer) {
                 startBastardLoopL(null, { skipUi: true, previewOnly: bastardLoopLPreviewPlaying && !bastardLoopPlaying });
