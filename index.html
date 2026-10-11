@@ -42133,10 +42133,6 @@
             setBastardLoopXDelayPingPongEnabled(!bastardLoopXDelayPingPongEnabled);
         });
 
-        performanceDropboxSampleLayerBtn?.addEventListener('click', () => {
-            setDropboxSampleLayerEnabled(!dropboxSampleLayerEnabled);
-        });
-
         performanceSourceMix?.addEventListener('input', (event) => {
             setSliderValue('oscMix', event.target.value);
             syncPerformanceSoundControls();
