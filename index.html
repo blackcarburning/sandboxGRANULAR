@@ -6030,9 +6030,9 @@
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopMCompressorAmount">
                         <span>Comp Amount</span>
-                        <span class="value" id="performanceBastardLoopMCompressorAmountValue">100%</span>
+                        <span class="value" id="performanceBastardLoopMCompressorAmountValue">0%</span>
                     </label>
-                    <input type="range" id="performanceBastardLoopMCompressorAmount" min="0" max="100" value="100" step="1">
+                    <input type="range" id="performanceBastardLoopMCompressorAmount" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopMCompressorThreshold">
@@ -10718,7 +10718,7 @@
         let bastardLoopMDelayMix = 0;
         let bastardLoopMChorusMix = 0;
         let bastardLoopMRoomReverbMix = 0;
-        let bastardLoopMCompressorAmount = 1;
+        let bastardLoopMCompressorAmount = 0;
         let bastardLoopMCompressorThreshold = 0;
         let bastardLoopMCompressorRatio = 1;
         let bastardLoopMCompressorRelease = 260;
@@ -17837,13 +17837,13 @@
 
         function clampBastardLoopMCompressorAmount(value) {
             const safeValue = Number(value);
-            return Math.max(0, Math.min(1, Number.isFinite(safeValue) ? safeValue : 1));
+            return Math.max(0, Math.min(1, Number.isFinite(safeValue) ? safeValue : 0));
         }
 
         function getBastardLoopMCompressorAmount() {
             const slider = document.getElementById('performanceBastardLoopMCompressorAmount');
             const rawValue = Number(slider?.value ?? (bastardLoopMCompressorAmount * 100));
-            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             bastardLoopMCompressorAmount = clamped / 100;
             return bastardLoopMCompressorAmount;
         }
@@ -45831,7 +45831,7 @@
         });
 
         performanceBastardLoopMCompressorAmount?.addEventListener('input', (event) => {
-            const value = Math.max(0, Math.min(100, Number(event.target.value) || 100));
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             bastardLoopMCompressorAmount = value / 100;
             updateBastardLoopMFxBusSettings();
             syncBastardLoopMUi();
