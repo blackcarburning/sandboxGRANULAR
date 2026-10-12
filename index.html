@@ -4955,6 +4955,7 @@
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop O controls']">Loop O</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop L controls']">Loop L</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop X controls']">Loop X</button>
+                <button class="section-jump-option" type="button" data-jump-target="[aria-label='Bastardloop M controls']">Loop M</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Drum machine controls']">Drums</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Dropbox sample layer controls']">Sample</button>
                 <button class="section-jump-option" type="button" data-jump-target="#performanceLayerSwitchesCard">Layer Switch</button>
@@ -4963,7 +4964,7 @@
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Filter controls']">Filter</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-actions-card">Actions</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-export-card">Export</button>
-                <button class="section-jump-option" type="button" data-jump-target="#performanceWavBrowserBtn">WAV Browser</button>
+                <button class="section-jump-option" type="button" data-jump-click="#performanceWavBrowserBtn">WAV Browser</button>
                 <button class="section-jump-option" type="button" data-jump-target="#performanceStemExportCard">Stem Export</button>
                 <button class="section-jump-option" type="button" data-jump-target="#performanceGrainControlsCard">Grain</button>
                 <button class="section-jump-option" type="button" data-jump-target="[aria-label='Mix controls']">Mix</button>
@@ -32169,6 +32170,17 @@
                 if (tabName) {
                     const tabButton = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
                     if (tabButton) activateTab(tabButton);
+                }
+
+                const clickSelector = button.dataset.jumpClick;
+                if (clickSelector) {
+                    const clickTarget = document.querySelector(clickSelector);
+                    if (!clickTarget) return;
+                    clearCloseTimer();
+                    drawer.classList.remove('is-settling');
+                    setDrawerOpen(false);
+                    clickTarget.click();
+                    return;
                 }
 
                 const selector = button.dataset.jumpTarget;

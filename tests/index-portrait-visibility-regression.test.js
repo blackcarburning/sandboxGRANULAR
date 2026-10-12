@@ -1378,6 +1378,12 @@ test('existing wav browser exposes repo-backed comments and like love reactions 
     assert.doesNotMatch(indexHtml, /window\.open\(`\$\{WAV_REPOSITORY_BASE_URL\}\/`, '_blank', 'noopener'\);/);
 });
 
+test('section jump drawer includes Loop M and opens the WAV browser through the real button action', () => {
+    assert.match(indexHtml, /data-jump-target="\[aria-label='Bastardloop M controls'\]">Loop M<\/button>/);
+    assert.match(indexHtml, /data-jump-click="#performanceWavBrowserBtn">WAV Browser<\/button>/);
+    assert.match(indexHtml, /const clickSelector = button\.dataset\.jumpClick;[\s\S]*const clickTarget = document\.querySelector\(clickSelector\);[\s\S]*setDrawerOpen\(false\);[\s\S]*clickTarget\.click\(\);[\s\S]*return;/);
+});
+
 test('mega random button warns and randomizes loops, dropbox sample, and drums together', () => {
     assert.match(indexHtml, /id="performanceMegaRandomBtn">Mega Random<\/button>/);
     assert.match(indexHtml, /let settlePopupPersistent = false;/);
