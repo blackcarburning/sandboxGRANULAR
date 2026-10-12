@@ -7226,30 +7226,6 @@
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
-                    <div class="source-waveform-panel" id="micWaveformEditor" hidden>
-                        <div class="source-waveform-header">
-                            <span>Mic Recording</span>
-                            <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
-                        </div>
-                        <div class="grain-engine-action-row">
-                            <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" data-grain-preserve-duration="main" aria-pressed="true">Preserve Duration</button>
-                            <button type="button" class="source-waveform-solo-btn" data-grain-layer-mute="main" aria-pressed="false">Mute Main</button>
-                        </div>
-                        <canvas id="micWaveformCanvas" class="source-waveform-canvas" data-source="mic"></canvas>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="micLoopStart">Start <span id="micLoopStartValue">0%</span></label>
-                                <label for="micLoopEnd">End <span id="micLoopEndValue">100%</span></label>
-                            </div>
-                            <input type="range" id="micLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="micLoopEnd" min="0" max="100" value="100" step="1">
-                        </div>
-                        <div class="source-seed-buttons source-seed-buttons-stack">
-                            <button type="button" class="grain-layer-browser-btn" id="micSampleBrowseBtn" data-grain-browser-target="grainMainMic">Browse Sample Folders</button>
-                            <button type="button" class="trim-source-btn" data-source-kind="mic">Trim to Selection</button>
-                            <button type="button" class="trim-source-btn" id="clearMainMicBtn">Clear Mic</button>
-                        </div>
-                    </div>
                     <div class="source-waveform-panel" id="grainAWaveformEditor">
                         <div class="source-waveform-header">
                             <span>Grain A</span>
