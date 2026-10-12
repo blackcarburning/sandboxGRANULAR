@@ -494,6 +494,60 @@ test('Loop L and X ready prep preserves a playable level through UI sync', () =>
     }
 });
 
+test('Bastardloop M ready prep preserves a playable level through UI sync', () => {
+    const elements = {
+        performanceBastardLoopMLevel: { value: '0' },
+        performanceBastardLoopMLevelMixer: { value: '0' },
+        performanceBastardLoopMLevelValue: { textContent: '0%' },
+        performanceBastardLoopMLevelMixerValue: { textContent: '0%' }
+    };
+    const readyContext = {
+        MIX_HEADROOM: 1,
+        document: {
+            getElementById(id) {
+                return elements[id] || null;
+            }
+        },
+        getLoopLayerSoloGain() {
+            return 1;
+        },
+        updateBastardLoopMMix() {
+            readyContext.mixUpdates = (readyContext.mixUpdates || 0) + 1;
+        },
+        syncPerformanceControlState() {
+            readyContext.synced = (readyContext.synced || 0) + 1;
+        },
+        syncBastardLoopMUi() {
+            readyContext.levelAfterSync = readyContext.getBastardLoopMLevelValue({ applyLayerToggle: false });
+        },
+        saveState() {
+            readyContext.saved = true;
+        },
+        bastardLoopMEnabled: false,
+        bastardLoopMLevel: 0
+    };
+    vm.runInNewContext([
+        extractFunctionSource('getBastardLoopMLevelValue'),
+        extractFunctionSource('setBastardLoopMLevelPercent'),
+        extractFunctionSource('setBastardLoopMReadyLevelForTransport'),
+        extractFunctionSource('ensureBastardLoopMReadyForTransport'),
+        'globalThis.getBastardLoopMLevelValue = getBastardLoopMLevelValue;',
+        'globalThis.ensureBastardLoopMReadyForTransport = ensureBastardLoopMReadyForTransport;'
+    ].join('\n\n'), readyContext);
+
+    assert.equal(readyContext.ensureBastardLoopMReadyForTransport(), true);
+    assert.equal(readyContext.bastardLoopMEnabled, true);
+    assert.equal(readyContext.bastardLoopMLevel, 0.5);
+    assert.equal(readyContext.levelAfterSync, 0.5);
+    assert.equal(elements.performanceBastardLoopMLevel.value, '50');
+    assert.equal(elements.performanceBastardLoopMLevelMixer.value, '50');
+    assert.equal(elements.performanceBastardLoopMLevelValue.textContent, '50%');
+    assert.equal(elements.performanceBastardLoopMLevelMixerValue.textContent, '50%');
+    assert.equal(readyContext.saved, true);
+    assert.ok(readyContext.synced >= 1);
+    assert.ok(readyContext.mixUpdates >= 1);
+});
+
 test('Global Bastardloop start clears loop solo and refreshes shared transport when already running', async () => {
     const startContext = {
         loopLayerSolo: 'bastardb',
@@ -627,6 +681,96 @@ test('Global Bastardloop start reloads a remembered Loop L sample before transpo
     });
     assert.equal(startContext.saved, true);
     assert.ok(startContext.synced >= 1);
+});
+
+test('Bastardloop M transport button arms the shared Bastardloop transport when a mic loop is ready', async () => {
+    const startContext = {
+        bastardLoopPlaying: false,
+        bastardLoopMBuffer: { id: 'm-loop' },
+        bastardLoopMSource: null,
+        ensureAudioReadyForKeyInteraction() {
+            return Promise.resolve(true);
+        },
+        setLoopLayerSolo(layer, options) {
+            startContext.soloCall = { layer, options: plain(options) };
+        },
+        ensureBastardLoopMReadyForTransport() {
+            startContext.prepared = true;
+            return true;
+        },
+        startAllBastardLoopsFromUi(options) {
+            startContext.startCall = plain(options);
+            return Promise.resolve(true);
+        },
+        setStatus(message) {
+            startContext.status = message;
+        },
+        syncBastardLoopMUi() {
+            startContext.synced = (startContext.synced || 0) + 1;
+        }
+    };
+    vm.runInNewContext([
+        extractFunctionSource('isBastardLoopMRunning'),
+        extractFunctionSource('toggleBastardLoopMTransportFromUi'),
+        'globalThis.toggleBastardLoopMTransportFromUi = toggleBastardLoopMTransportFromUi;'
+    ].join('\n\n'), startContext);
+
+    const started = await startContext.toggleBastardLoopMTransportFromUi();
+
+    assert.equal(started, undefined);
+    assert.deepEqual(startContext.soloCall, {
+        layer: 'none',
+        options: {
+            silent: true,
+            skipSave: true
+        }
+    });
+    assert.equal(startContext.prepared, true);
+    assert.deepEqual(startContext.startCall, { silent: true });
+    assert.equal(startContext.status, 'Bastardloops started with Bastardloop M.');
+    assert.ok(startContext.synced >= 1);
+});
+
+test('Bastardloop M transport button stops the shared Bastardloop transport when M is already running', async () => {
+    const stopContext = {
+        bastardLoopPlaying: true,
+        bastardLoopMSource: { id: 'running-m' },
+        setBastardLoopPlaying(enabled, options) {
+            stopContext.stopCall = {
+                enabled,
+                options: plain(options)
+            };
+        },
+        setStatus(message) {
+            stopContext.status = message;
+        },
+        syncBastardLoopMUi() {
+            stopContext.synced = (stopContext.synced || 0) + 1;
+        }
+    };
+    vm.runInNewContext([
+        extractFunctionSource('isBastardLoopMRunning'),
+        extractFunctionSource('toggleBastardLoopMTransportFromUi'),
+        'globalThis.toggleBastardLoopMTransportFromUi = toggleBastardLoopMTransportFromUi;'
+    ].join('\n\n'), stopContext);
+
+    const stopped = await stopContext.toggleBastardLoopMTransportFromUi();
+
+    assert.equal(stopped, undefined);
+    assert.deepEqual(stopContext.stopCall, {
+        enabled: false,
+        options: {
+            silent: true
+        }
+    });
+    assert.equal(stopContext.status, 'Bastardloops stopped.');
+    assert.ok(stopContext.synced >= 1);
+});
+
+test('Bastardloop M is rebuilt and resynced after audio engine recovery', () => {
+    const rebuildSource = extractFunctionSource('rebuildContextBoundAudioState');
+    assert.match(rebuildSource, /if \(bastardLoopMRawBuffer\) \{\s*rerenderBastardLoopMFromRaw\(\{ skipUi: true \}\);\s*\}/);
+    assert.match(rebuildSource, /syncBastardLoopMUi\(\);/);
 });
 
 test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers', () => {
