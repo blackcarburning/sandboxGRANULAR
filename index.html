@@ -42161,6 +42161,45 @@
             });
         }
 
+        function bindBastardLoopOverlayClose(button, closeOverlay) {
+            if (!button || typeof closeOverlay !== 'function') return;
+            let lastHandledAt = 0;
+            let suppressClickUntil = 0;
+            const runClose = (event, triggerType) => {
+                const tapState = computeBastardLoopLMobileTapState(
+                    lastHandledAt,
+                    suppressClickUntil,
+                    triggerType,
+                    Date.now()
+                );
+                lastHandledAt = tapState.nextLastHandledAt;
+                suppressClickUntil = tapState.nextSuppressClickUntil;
+                if (!tapState.handled) {
+                    event?.preventDefault?.();
+                    event?.stopPropagation?.();
+                    return;
+                }
+                event?.preventDefault?.();
+                event?.stopPropagation?.();
+                closeOverlay();
+            };
+            if (window.PointerEvent) {
+                button.addEventListener('pointerdown', (event) => {
+                    if (event.button !== undefined && event.button !== 0) return;
+                    const pointerType = String(event.pointerType || '').toLowerCase();
+                    if (pointerType !== 'touch') return;
+                    runClose(event, 'pointertouch');
+                }, { capture: true });
+            } else {
+                button.addEventListener('touchstart', (event) => {
+                    runClose(event, 'touchstart');
+                }, { capture: true, passive: false });
+            }
+            button.addEventListener('click', (event) => {
+                runClose(event, 'click');
+            }, { capture: true });
+        }
+
         bindBastardLoopLMobileTap(performanceBastardLoopLStartBtn, async () => {
             await toggleBastardLoopLTransportFromUi();
         });
@@ -42169,9 +42208,7 @@
             await toggleBastardLoopXTransportFromUi();
         });
 
-        bindBastardLoopLMobileTap(bastardLoopLCloseBtn, () => {
-            closeBastardLoopLOverlay();
-        });
+        bindBastardLoopOverlayClose(bastardLoopLCloseBtn, closeBastardLoopLOverlay);
 
         bastardLoopLOverlay?.addEventListener('click', (event) => {
             if (event.target?.id === 'bastardLoopLOverlay') {
@@ -42435,9 +42472,7 @@
             }
         });
 
-        bindBastardLoopLMobileTap(bastardLoopXCloseBtn, () => {
-            closeBastardLoopXOverlay();
-        });
+        bindBastardLoopOverlayClose(bastardLoopXCloseBtn, closeBastardLoopXOverlay);
 
         bastardLoopXOverlay?.addEventListener('click', (event) => {
             if (event.target?.id === 'bastardLoopXOverlay') {
