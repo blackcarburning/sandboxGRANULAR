@@ -17652,6 +17652,22 @@
             return bastardLoopMFilterMode;
         }
 
+        function resetBastardLoopMFilterToDefault(options = {}) {
+            bastardLoopMFilterCutoff = clampBastardLoopFilterCutoff(18000);
+            bastardLoopMFilterMode = normalizeBastardLoopFilterMode('lowpass-48');
+            const slider = document.getElementById('performanceBastardLoopMFilterCutoff');
+            if (slider) {
+                slider.value = String(bastardLoopMFilterCutoff);
+            }
+            const select = document.getElementById('performanceBastardLoopMFilterMode');
+            if (select) {
+                select.value = bastardLoopMFilterMode;
+            }
+            if (!options.skipUi) {
+                syncBastardLoopMUi();
+            }
+        }
+
         function getBastardLoopMOutputGain(level = getBastardLoopMLevelValue()) {
             return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
@@ -18372,6 +18388,7 @@
                 bpm,
                 sourceLabel: 'MIC'
             };
+            resetBastardLoopMFilterToDefault({ skipUi: true });
             rerenderBastardLoopMFromRaw({ skipUi: true });
             await saveAudioBufferToDB(bastardLoopMRawBuffer, BASTARD_LOOP_M_AUDIO_BUFFER_KEY);
             let joinedSharedTransport = false;
@@ -18666,6 +18683,7 @@
             bastardLoopMRawBuffer = null;
             bastardLoopMBuffer = null;
             bastardLoopMMetadata = null;
+            resetBastardLoopMFilterToDefault({ skipUi: true });
             await clearAudioBufferFromDB(BASTARD_LOOP_M_AUDIO_BUFFER_KEY);
             syncBastardLoopMUi();
             syncPerformanceControlState();
