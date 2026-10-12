@@ -5860,7 +5860,9 @@
                         <option value="sine" selected>Sine</option>
                         <option value="triangle">Triangle</option>
                         <option value="sawtooth">Saw</option>
+                        <option value="ramp">Ramp</option>
                         <option value="square">Square</option>
+                        <option value="random-step">Random Step</option>
                     </select>
                 </div>
                 <div class="performance-sound-card">
@@ -5882,6 +5884,12 @@
                         <span class="value" id="performanceBastardLoopXFilterLfoAmountValue">0%</span>
                     </label>
                     <input type="range" id="performanceBastardLoopXFilterLfoAmount" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label>
+                        <span>Filter LFO Invert</span>
+                    </label>
+                    <button class="performance-btn" id="performanceBastardLoopXFilterLfoInvertBtn" type="button" aria-pressed="false">Invert Off</button>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopXDelayDivision">
@@ -10728,6 +10736,7 @@
         let bastardLoopXFilterLfoWaveform = 'sine';
         let bastardLoopXFilterLfoRate = '4';
         let bastardLoopXFilterLfoAmount = 0;
+        let bastardLoopXFilterLfoInvert = false;
         let bastardLoopXDelayDivision = '2';
         let bastardLoopXDelayMix = 0;
         let bastardLoopXDelayPingPongEnabled = false;
@@ -10866,7 +10875,9 @@
         let bastardLoopXDelayRightPannerNode = null;
         let bastardLoopXDelayRoutingMode = '';
         let bastardLoopXFilterLfoContext = null;
-        let bastardLoopXFilterLfoOscillatorNode = null;
+        let bastardLoopXFilterLfoSourceNode = null;
+        let bastardLoopXFilterLfoSourceKind = '';
+        let bastardLoopXFilterLfoSourceWaveform = '';
         let bastardLoopXFilterLfoPendingStartTime = null;
         let bastardLoopMSource = null;
         let bastardLoopMGainNode = null;
@@ -16501,7 +16512,7 @@
         }
 
         function normalizeBastardLoopXFilterLfoWaveform(value) {
-            const allowed = ['sine', 'triangle', 'sawtooth', 'square'];
+            const allowed = ['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'random-step'];
             const normalized = String(value ?? '').trim().toLowerCase();
             return allowed.includes(normalized) ? normalized : 'sine';
         }
@@ -26325,6 +26336,11 @@
             return bastardLoopXFilterLfoAmount;
         }
 
+        function getBastardLoopXFilterLfoInvert() {
+            bastardLoopXFilterLfoInvert = Boolean(bastardLoopXFilterLfoInvert);
+            return bastardLoopXFilterLfoInvert;
+        }
+
         function getBastardLoopXFilterLfoRateHz() {
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             const rateValue = getBastardLoopXFilterLfoRate();
@@ -26337,6 +26353,32 @@
         function getBastardLoopXFilterLfoDepthHz(baseCutoff = getBastardLoopXFilterCutoff()) {
             const safeBaseCutoff = clampBastardLoopFilterCutoff(baseCutoff);
             return Math.max(0, (safeBaseCutoff - 50) * getBastardLoopXFilterLfoAmount());
+        }
+
+        function getBastardLoopXFilterLfoSourceKind(waveform = getBastardLoopXFilterLfoWaveform()) {
+            return ['ramp', 'random-step'].includes(waveform) ? 'buffer' : 'oscillator';
+        }
+
+        function buildBastardLoopXFilterLfoBuffer(waveform) {
+            if (!audioContext) return null;
+            const frameCount = Math.max(4096, Math.round(audioContext.sampleRate));
+            const buffer = audioContext.createBuffer(1, frameCount, audioContext.sampleRate);
+            const channelData = buffer.getChannelData(0);
+            if (waveform === 'random-step') {
+                const stepCount = 8;
+                const stepValues = Array.from({ length: stepCount }, () => Math.random() * 2 - 1);
+                for (let index = 0; index < frameCount; index += 1) {
+                    const phase = index / frameCount;
+                    const stepIndex = Math.min(stepCount - 1, Math.floor(phase * stepCount));
+                    channelData[index] = stepValues[stepIndex];
+                }
+                return buffer;
+            }
+            for (let index = 0; index < frameCount; index += 1) {
+                const phase = index / frameCount;
+                channelData[index] = evaluateLfoWaveform(waveform, phase, 0.5);
+            }
+            return buffer;
         }
 
         function getBastardLoopXDelayDivision() {
@@ -26393,14 +26435,16 @@
         }
 
         function destroyBastardLoopXFilterLfoSource() {
-            if (bastardLoopXFilterLfoOscillatorNode) {
+            if (bastardLoopXFilterLfoSourceNode) {
                 try {
-                    bastardLoopXFilterLfoOscillatorNode.stop();
+                    bastardLoopXFilterLfoSourceNode.stop();
                 } catch (error) {}
-                safeDisconnectNode(bastardLoopXFilterLfoOscillatorNode);
+                safeDisconnectNode(bastardLoopXFilterLfoSourceNode);
             }
             bastardLoopXFilterLfoContext = null;
-            bastardLoopXFilterLfoOscillatorNode = null;
+            bastardLoopXFilterLfoSourceNode = null;
+            bastardLoopXFilterLfoSourceKind = '';
+            bastardLoopXFilterLfoSourceWaveform = '';
         }
 
         function queueBastardLoopXFilterLfoReset(startTime = null) {
@@ -26417,27 +26461,44 @@
 
         function ensureBastardLoopXFilterLfoSource(options = {}) {
             if (!audioContext) return null;
-            const shouldCreate = options.force === true || bastardLoopXActiveVoices.size > 0 || Boolean(bastardLoopXFilterLfoOscillatorNode);
+            const shouldCreate = options.force === true || bastardLoopXActiveVoices.size > 0 || Boolean(bastardLoopXFilterLfoSourceNode);
             if (!shouldCreate) return null;
-            const waveform = getNativeOscillatorWaveform(getBastardLoopXFilterLfoWaveform());
+            const waveform = getBastardLoopXFilterLfoWaveform();
             const rateHz = getBastardLoopXFilterLfoRateHz();
-            const needsNewSource = !bastardLoopXFilterLfoOscillatorNode || bastardLoopXFilterLfoContext !== audioContext;
+            const sourceKind = getBastardLoopXFilterLfoSourceKind(waveform);
+            const needsNewSource = !bastardLoopXFilterLfoSourceNode
+                || bastardLoopXFilterLfoContext !== audioContext
+                || bastardLoopXFilterLfoSourceKind !== sourceKind
+                || bastardLoopXFilterLfoSourceWaveform !== waveform;
             if (needsNewSource) {
                 destroyBastardLoopXFilterLfoSource();
-                bastardLoopXFilterLfoOscillatorNode = audioContext.createOscillator();
-                bastardLoopXFilterLfoOscillatorNode.type = waveform;
-                bastardLoopXFilterLfoOscillatorNode.frequency.value = rateHz;
                 const startAt = Number.isFinite(bastardLoopXFilterLfoPendingStartTime)
                     ? Math.max(audioContext.currentTime, bastardLoopXFilterLfoPendingStartTime)
                     : audioContext.currentTime;
-                bastardLoopXFilterLfoOscillatorNode.start(startAt);
+                if (sourceKind === 'buffer') {
+                    bastardLoopXFilterLfoSourceNode = audioContext.createBufferSource();
+                    bastardLoopXFilterLfoSourceNode.buffer = buildBastardLoopXFilterLfoBuffer(waveform);
+                    bastardLoopXFilterLfoSourceNode.loop = true;
+                    bastardLoopXFilterLfoSourceNode.playbackRate.value = rateHz;
+                } else {
+                    bastardLoopXFilterLfoSourceNode = audioContext.createOscillator();
+                    bastardLoopXFilterLfoSourceNode.type = getNativeOscillatorWaveform(waveform);
+                    bastardLoopXFilterLfoSourceNode.frequency.value = rateHz;
+                }
+                bastardLoopXFilterLfoSourceNode.start(startAt);
                 bastardLoopXFilterLfoContext = audioContext;
+                bastardLoopXFilterLfoSourceKind = sourceKind;
+                bastardLoopXFilterLfoSourceWaveform = waveform;
                 bastardLoopXFilterLfoPendingStartTime = null;
             } else {
-                bastardLoopXFilterLfoOscillatorNode.type = waveform;
-                rampBastardLoopXDelayParam(bastardLoopXFilterLfoOscillatorNode.frequency, rateHz, 0.03);
+                if (sourceKind === 'buffer') {
+                    rampBastardLoopXDelayParam(bastardLoopXFilterLfoSourceNode.playbackRate, rateHz, 0.03);
+                } else {
+                    bastardLoopXFilterLfoSourceNode.type = getNativeOscillatorWaveform(waveform);
+                    rampBastardLoopXDelayParam(bastardLoopXFilterLfoSourceNode.frequency, rateHz, 0.03);
+                }
             }
-            return bastardLoopXFilterLfoOscillatorNode;
+            return bastardLoopXFilterLfoSourceNode;
         }
 
         function destroyBastardLoopXVoiceLfo(voice) {
@@ -26451,13 +26512,14 @@
             safeDisconnectNode(voice.filterLfoOffsetSource);
             voice.filterLfoDepthGain = null;
             voice.filterLfoOffsetSource = null;
+            voice.filterLfoSourceNode = null;
         }
 
         function attachBastardLoopXFilterLfoToVoice(voice, baseCutoff = getBastardLoopXFilterCutoff()) {
             if (!audioContext || !voice?.filterNodes?.length) return;
             const lfoSource = ensureBastardLoopXFilterLfoSource({ force: true });
             if (!lfoSource) return;
-            if (!voice.filterLfoDepthGain || !voice.filterLfoOffsetSource) {
+            if (!voice.filterLfoDepthGain || !voice.filterLfoOffsetSource || voice.filterLfoSourceNode !== lfoSource) {
                 destroyBastardLoopXVoiceLfo(voice);
                 voice.filterLfoDepthGain = audioContext.createGain();
                 voice.filterLfoOffsetSource = audioContext.createConstantSource();
@@ -26467,9 +26529,11 @@
                     voice.filterLfoOffsetSource.connect(filterNode.frequency);
                 });
                 voice.filterLfoOffsetSource.start();
+                voice.filterLfoSourceNode = lfoSource;
             }
             const halfDepthHz = getBastardLoopXFilterLfoDepthHz(baseCutoff) * 0.5;
-            rampBastardLoopXDelayParam(voice.filterLfoDepthGain.gain, halfDepthHz, 0.03);
+            const depthGainValue = getBastardLoopXFilterLfoInvert() ? -halfDepthHz : halfDepthHz;
+            rampBastardLoopXDelayParam(voice.filterLfoDepthGain.gain, depthGainValue, 0.03);
             rampBastardLoopXDelayParam(voice.filterLfoOffsetSource.offset, -halfDepthHz, 0.03);
         }
 
@@ -27038,6 +27102,7 @@
             const filterLfoWaveformValue = getBastardLoopXFilterLfoWaveform();
             const filterLfoRateValue = getBastardLoopXFilterLfoRate();
             const filterLfoAmountValue = Math.round(getBastardLoopXFilterLfoAmount() * 100);
+            const filterLfoInvertValue = getBastardLoopXFilterLfoInvert();
             const delayMixValue = Math.round(getBastardLoopXDelayMix() * 100);
             const delayDivisionValue = getBastardLoopXDelayDivision();
             const levelSlider = document.getElementById('performanceBastardLoopXLevel');
@@ -27057,6 +27122,7 @@
             const filterLfoWaveformSelect = document.getElementById('performanceBastardLoopXFilterLfoWaveform');
             const filterLfoRateSelect = document.getElementById('performanceBastardLoopXFilterLfoRate');
             const filterLfoAmountSlider = document.getElementById('performanceBastardLoopXFilterLfoAmount');
+            const filterLfoInvertButton = document.getElementById('performanceBastardLoopXFilterLfoInvertBtn');
             const delayDivisionSelect = document.getElementById('performanceBastardLoopXDelayDivision');
             const delayMixSlider = document.getElementById('performanceBastardLoopXDelayMix');
             const delayPingPongButton = document.getElementById('performanceBastardLoopXDelayPingPongBtn');
@@ -27116,6 +27182,11 @@
                 recordButton.classList.toggle('active', bastardLoopXRecordArmed);
                 recordButton.textContent = bastardLoopXRecordArmed ? 'Record On' : 'Practice';
                 recordButton.setAttribute('aria-pressed', String(bastardLoopXRecordArmed));
+            }
+            if (filterLfoInvertButton) {
+                filterLfoInvertButton.classList.toggle('active', filterLfoInvertValue);
+                filterLfoInvertButton.textContent = filterLfoInvertValue ? 'Invert On' : 'Invert Off';
+                filterLfoInvertButton.setAttribute('aria-pressed', String(filterLfoInvertValue));
             }
             if (copyButton) {
                 const copyActive = bastardLoopXCopyMode !== 'idle';
@@ -36650,6 +36721,7 @@
                     bastardLoopXFilterLfoWaveform: getBastardLoopXFilterLfoWaveform(),
                     bastardLoopXFilterLfoRate: getBastardLoopXFilterLfoRate(),
                     bastardLoopXFilterLfoAmount: getBastardLoopXFilterLfoAmount(),
+                    bastardLoopXFilterLfoInvert: getBastardLoopXFilterLfoInvert(),
                     bastardLoopXDelayDivision: getBastardLoopXDelayDivision(),
                     bastardLoopXDelayMix: getBastardLoopXDelayMix(),
                     bastardLoopXDelayPingPongEnabled: bastardLoopXDelayPingPongEnabled,
@@ -37185,6 +37257,9 @@
                     }
                     if (state.modes.bastardLoopXFilterLfoAmount !== undefined) {
                         bastardLoopXFilterLfoAmount = Math.max(0, Math.min(1, Number(state.modes.bastardLoopXFilterLfoAmount) || 0));
+                    }
+                    if (state.modes.bastardLoopXFilterLfoInvert !== undefined) {
+                        bastardLoopXFilterLfoInvert = Boolean(state.modes.bastardLoopXFilterLfoInvert);
                     }
                     if (state.modes.bastardLoopXDelayDivision !== undefined) {
                         bastardLoopXDelayDivision = normalizeBastardLoopXDelayDivision(state.modes.bastardLoopXDelayDivision);
@@ -43977,6 +44052,7 @@
         const performanceBastardLoopXFilterLfoWaveform = document.getElementById('performanceBastardLoopXFilterLfoWaveform');
         const performanceBastardLoopXFilterLfoRate = document.getElementById('performanceBastardLoopXFilterLfoRate');
         const performanceBastardLoopXFilterLfoAmount = document.getElementById('performanceBastardLoopXFilterLfoAmount');
+        const performanceBastardLoopXFilterLfoInvertBtn = document.getElementById('performanceBastardLoopXFilterLfoInvertBtn');
         const performanceBastardLoopXDelayDivision = document.getElementById('performanceBastardLoopXDelayDivision');
         const performanceBastardLoopXDelayMix = document.getElementById('performanceBastardLoopXDelayMix');
         const performanceBastardLoopXDelayPingPongBtn = document.getElementById('performanceBastardLoopXDelayPingPongBtn');
@@ -45916,6 +45992,13 @@
         performanceBastardLoopXFilterLfoAmount?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             bastardLoopXFilterLfoAmount = value / 100;
+            updateBastardLoopXVoiceFx();
+            syncBastardLoopXUi();
+            saveState();
+        });
+
+        performanceBastardLoopXFilterLfoInvertBtn?.addEventListener('click', () => {
+            bastardLoopXFilterLfoInvert = !bastardLoopXFilterLfoInvert;
             updateBastardLoopXVoiceFx();
             syncBastardLoopXUi();
             saveState();
