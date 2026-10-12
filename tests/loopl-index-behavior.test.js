@@ -372,6 +372,57 @@ test('Loop L and X performance start buttons use layer-specific mobile transport
     assert.match(extractFunctionSource('syncBastardLoopXUi'), /performanceBastardLoopXStartBtn/);
 });
 
+test('Loop L and X ready prep preserves a playable level through UI sync', () => {
+    for (const prefix of ['L', 'X']) {
+        const elements = {
+            [`performanceBastardLoop${prefix}Level`]: { value: '0' },
+            [`performanceBastardLoop${prefix}LevelMixer`]: { value: '0' },
+            [`performanceBastardLoop${prefix}LevelValue`]: { textContent: '0%' },
+            [`performanceBastardLoop${prefix}LevelMixerValue`]: { textContent: '0%' }
+        };
+        const readyContext = {
+            MIX_HEADROOM: 1,
+            document: {
+                getElementById(id) {
+                    return elements[id] || null;
+                }
+            },
+            getLoopLayerSoloGain() {
+                return 1;
+            },
+            syncPerformanceControlState() {
+                readyContext.synced = (readyContext.synced || 0) + 1;
+            },
+            saveState() {
+                readyContext.saved = true;
+            }
+        };
+        readyContext[`bastardLoop${prefix}Enabled`] = true;
+        readyContext[`bastardLoop${prefix}Level`] = 0.5;
+        readyContext[`syncBastardLoop${prefix}Ui`] = () => {
+            readyContext.levelAfterSync = readyContext[`getBastardLoop${prefix}LevelValue`]({ applyLayerToggle: false });
+        };
+
+        vm.runInNewContext([
+            extractFunctionSource(`getBastardLoop${prefix}LevelValue`),
+            extractFunctionSource(`setBastardLoop${prefix}ReadyLevelForTransport`),
+            extractFunctionSource(`ensureBastardLoop${prefix}ReadyForTransport`),
+            `globalThis.getBastardLoop${prefix}LevelValue = getBastardLoop${prefix}LevelValue;`,
+            `globalThis.ensureBastardLoop${prefix}ReadyForTransport = ensureBastardLoop${prefix}ReadyForTransport;`
+        ].join('\n\n'), readyContext);
+
+        assert.equal(readyContext[`ensureBastardLoop${prefix}ReadyForTransport`](), true);
+        assert.equal(readyContext[`bastardLoop${prefix}Level`], 0.5);
+        assert.equal(readyContext.levelAfterSync, 0.5);
+        assert.equal(elements[`performanceBastardLoop${prefix}Level`].value, '50');
+        assert.equal(elements[`performanceBastardLoop${prefix}LevelMixer`].value, '50');
+        assert.equal(elements[`performanceBastardLoop${prefix}LevelValue`].textContent, '50%');
+        assert.equal(elements[`performanceBastardLoop${prefix}LevelMixerValue`].textContent, '50%');
+        assert.equal(readyContext.saved, true);
+        assert.ok(readyContext.synced >= 1);
+    }
+});
+
 test('Global Bastardloop start clears loop solo and refreshes shared transport when already running', async () => {
     const startContext = {
         loopLayerSolo: 'bastardb',

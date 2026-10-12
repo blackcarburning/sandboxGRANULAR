@@ -22490,6 +22490,19 @@
             if (!skipSave) saveState();
         }
 
+        function setBastardLoopLReadyLevelForTransport() {
+            const readyLevelPercent = 50;
+            bastardLoopLLevel = readyLevelPercent / 100;
+            const primary = document.getElementById('performanceBastardLoopLLevel');
+            const mixer = document.getElementById('performanceBastardLoopLLevelMixer');
+            const primaryLabel = document.getElementById('performanceBastardLoopLLevelValue');
+            const mixerLabel = document.getElementById('performanceBastardLoopLLevelMixerValue');
+            if (primary) primary.value = String(readyLevelPercent);
+            if (mixer) mixer.value = String(readyLevelPercent);
+            if (primaryLabel) primaryLabel.textContent = `${readyLevelPercent}%`;
+            if (mixerLabel) mixerLabel.textContent = `${readyLevelPercent}%`;
+        }
+
         function getBastardLoopLAuditionLevel() {
             const rawLevel = getBastardLoopLLevelValue({ applyLayerToggle: false });
             return Math.max(0.18, Math.min(0.85, rawLevel * MIX_HEADROOM * 0.88));
@@ -23669,8 +23682,8 @@
                 bastardLoopLEnabled = true;
                 changed = true;
             }
-            if (!(bastardLoopLLevel > 0.0001)) {
-                bastardLoopLLevel = 0.5;
+            if (!(getBastardLoopLLevelValue({ applyLayerToggle: false }) > 0.0001)) {
+                setBastardLoopLReadyLevelForTransport();
                 changed = true;
             }
             if (!changed) {
@@ -24057,6 +24070,19 @@
             if (mixerLabel) mixerLabel.textContent = `${Math.round(clamped)}%`;
             updateBastardLoopXMix();
             if (!skipSave) saveState();
+        }
+
+        function setBastardLoopXReadyLevelForTransport() {
+            const readyLevelPercent = 50;
+            bastardLoopXLevel = readyLevelPercent / 100;
+            const primary = document.getElementById('performanceBastardLoopXLevel');
+            const mixer = document.getElementById('performanceBastardLoopXLevelMixer');
+            const primaryLabel = document.getElementById('performanceBastardLoopXLevelValue');
+            const mixerLabel = document.getElementById('performanceBastardLoopXLevelMixerValue');
+            if (primary) primary.value = String(readyLevelPercent);
+            if (mixer) mixer.value = String(readyLevelPercent);
+            if (primaryLabel) primaryLabel.textContent = `${readyLevelPercent}%`;
+            if (mixerLabel) mixerLabel.textContent = `${readyLevelPercent}%`;
         }
 
         function getBastardLoopXAuditionLevel() {
@@ -25238,8 +25264,8 @@
                 bastardLoopXEnabled = true;
                 changed = true;
             }
-            if (!(bastardLoopXLevel > 0.0001)) {
-                bastardLoopXLevel = 0.5;
+            if (!(getBastardLoopXLevelValue({ applyLayerToggle: false }) > 0.0001)) {
+                setBastardLoopXReadyLevelForTransport();
                 changed = true;
             }
             if (!changed) {
