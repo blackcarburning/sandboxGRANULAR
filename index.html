@@ -10867,6 +10867,7 @@
         let bastardLoopXDelayRoutingMode = '';
         let bastardLoopXFilterLfoContext = null;
         let bastardLoopXFilterLfoOscillatorNode = null;
+        let bastardLoopXFilterLfoPendingStartTime = null;
         let bastardLoopMSource = null;
         let bastardLoopMGainNode = null;
         let bastardLoopMFilterNodes = [];
@@ -22919,6 +22920,7 @@
             stopBastardLoopX({ skipUi: true, fade: options.fade });
             stopBastardLoopM({ skipUi: true, fade: options.fade });
             stopDropboxSampleLayer({ skipUi: true, fade: options.fade });
+            queueBastardLoopXFilterLfoReset();
             if (!options.preserveTransportState) {
                 bastardLoopPlaying = false;
                 bastardLoopTransportStartTime = null;
@@ -22941,6 +22943,7 @@
             const resolvedStartTime = Number.isFinite(startTime)
                 ? startTime
                 : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
+            queueBastardLoopXFilterLfoReset(resolvedStartTime);
             const startedA = startBastardLoop(resolvedStartTime, { skipUi: true });
             const startedB = startBastardLoop2(resolvedStartTime, { skipUi: true });
             const startedC = startBastardLoop3(resolvedStartTime, { skipUi: true });
@@ -22949,6 +22952,11 @@
             const startedO = startBastardLoopO(resolvedStartTime, { skipUi: true });
             const startedL = startBastardLoopL(resolvedStartTime, { skipUi: true });
             const startedX = startBastardLoopX(resolvedStartTime, { skipUi: true });
+            if (startedX) {
+                ensureBastardLoopXFilterLfoSource({ force: true });
+            } else {
+                bastardLoopXFilterLfoPendingStartTime = null;
+            }
             const startedM = startBastardLoopM(resolvedStartTime, { skipUi: true });
             const startedSample = startDropboxSampleLayer(resolvedStartTime, { skipUi: true });
             const anyStarted = Boolean(startedA || startedB || startedC || startedV || startedP || startedO || startedL || startedX || startedM || startedSample);
@@ -26395,6 +26403,18 @@
             bastardLoopXFilterLfoOscillatorNode = null;
         }
 
+        function queueBastardLoopXFilterLfoReset(startTime = null) {
+            destroyBastardLoopXFilterLfoSource();
+            if (!audioContext) {
+                bastardLoopXFilterLfoPendingStartTime = null;
+                return;
+            }
+            const numericStartTime = Number(startTime);
+            bastardLoopXFilterLfoPendingStartTime = Number.isFinite(numericStartTime)
+                ? Math.max(audioContext.currentTime, numericStartTime)
+                : null;
+        }
+
         function ensureBastardLoopXFilterLfoSource(options = {}) {
             if (!audioContext) return null;
             const shouldCreate = options.force === true || bastardLoopXActiveVoices.size > 0 || Boolean(bastardLoopXFilterLfoOscillatorNode);
@@ -26407,8 +26427,12 @@
                 bastardLoopXFilterLfoOscillatorNode = audioContext.createOscillator();
                 bastardLoopXFilterLfoOscillatorNode.type = waveform;
                 bastardLoopXFilterLfoOscillatorNode.frequency.value = rateHz;
-                bastardLoopXFilterLfoOscillatorNode.start();
+                const startAt = Number.isFinite(bastardLoopXFilterLfoPendingStartTime)
+                    ? Math.max(audioContext.currentTime, bastardLoopXFilterLfoPendingStartTime)
+                    : audioContext.currentTime;
+                bastardLoopXFilterLfoOscillatorNode.start(startAt);
                 bastardLoopXFilterLfoContext = audioContext;
+                bastardLoopXFilterLfoPendingStartTime = null;
             } else {
                 bastardLoopXFilterLfoOscillatorNode.type = waveform;
                 rampBastardLoopXDelayParam(bastardLoopXFilterLfoOscillatorNode.frequency, rateHz, 0.03);
