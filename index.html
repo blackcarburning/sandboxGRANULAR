@@ -519,14 +519,14 @@
 
         .lead-sequencer-toolbar .performance-btn {
             min-width: 0;
-            min-height: 33px;
-            padding: 6px 8px;
-            font-size: 0.62rem;
-            letter-spacing: 0.1em;
+            min-height: 30px;
+            padding: 5px 7px;
+            font-size: 0.58rem;
+            letter-spacing: 0.08em;
         }
 
         .lead-sequencer-toolbar-row.transport-row .performance-btn {
-            min-height: 38px;
+            min-height: 34px;
         }
 
         .lead-sequencer-status {
@@ -920,8 +920,8 @@
             }
 
             .lead-sequencer-shell {
-                gap: 8px;
-                padding: 12px;
+                gap: 6px;
+                padding: 10px;
             }
 
             #bastardLoopLOverlay .sample-browser-head,
@@ -951,7 +951,7 @@
 
             .lead-sequencer-toolbar-row {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 5px;
+                gap: 4px;
             }
 
             .lead-sequencer-toolbar-row.compact-four {
@@ -967,26 +967,26 @@
             }
 
             .lead-sequencer-toolbar .performance-btn {
-                min-height: 24px;
-                padding: 3px 4px;
-                font-size: 0.45rem;
-                border-radius: 8px;
-                letter-spacing: 0.04em;
+                min-height: 22px;
+                padding: 2px 3px;
+                font-size: 0.41rem;
+                border-radius: 7px;
+                letter-spacing: 0.02em;
             }
 
             .lead-sequencer-toolbar-row.accent-row .performance-btn {
-                min-height: 28px;
-                font-size: 0.5rem;
-                padding: 5px 6px;
+                min-height: 24px;
+                font-size: 0.44rem;
+                padding: 3px 4px;
             }
 
             .lead-sequencer-toolbar-row.transport-row .performance-btn {
-                min-height: 29px;
-                font-size: 0.5rem;
+                min-height: 25px;
+                font-size: 0.45rem;
             }
 
             .lead-sequencer-inline-slider {
-                padding: 7px 9px;
+                padding: 6px 8px;
                 gap: 4px;
                 border-radius: 9px;
             }
@@ -1014,26 +1014,26 @@
 
             .lead-sequencer-step-grid {
                 grid-template-columns: repeat(8, minmax(0, 1fr));
-                gap: 4px;
+                gap: 3px;
             }
 
             .lead-sequencer-step-btn {
-                min-height: 36px;
-                border-radius: 9px;
-                padding: 2px 1px;
+                min-height: 32px;
+                border-radius: 8px;
+                padding: 1px;
             }
 
             .lead-sequencer-step-index {
-                font-size: 0.42rem;
+                font-size: 0.38rem;
             }
 
             .lead-sequencer-step-note {
-                font-size: 0.58rem;
+                font-size: 0.52rem;
             }
 
             .lead-sequencer-step-flags {
-                min-height: 0.46rem;
-                font-size: 0.4rem;
+                min-height: 0.42rem;
+                font-size: 0.36rem;
             }
 
             .sample-browser-card-head,
@@ -1106,20 +1106,20 @@
 
             .lead-sequencer-keyboard {
                 grid-template-columns: repeat(12, minmax(0, 1fr));
-                gap: 3px;
+                gap: 2px;
             }
 
             .lead-sequencer-key {
-                min-height: 40px;
-                font-size: 0.58rem;
-                border-radius: 8px;
+                min-height: 34px;
+                font-size: 0.5rem;
+                border-radius: 7px;
                 letter-spacing: 0.02em;
             }
 
             .lead-sequencer-ratchet-btn {
-                min-height: 20px;
+                min-height: 18px;
                 padding: 2px 1px;
-                font-size: 0.38rem;
+                font-size: 0.34rem;
                 letter-spacing: 0.02em;
             }
 
@@ -9105,7 +9105,7 @@
                     <div class="lead-sequencer-toolbar">
                         <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn primary" id="bastardLoopLChooseSampleBtn" type="button">Sample</button>
-                            <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
+                            <button class="performance-btn" id="bastardLoopLExportMidiBtn" type="button">Export MIDI</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopLPrevStepBtn" type="button">Back</button>
@@ -9116,18 +9116,15 @@
                         <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopLRateDownBtn" type="button">Rate -</button>
                             <button class="performance-btn" id="bastardLoopLRateUpBtn" type="button">Rate +</button>
-                            <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
                             <button class="performance-btn" id="bastardLoopLCopyBtn" type="button">Copy</button>
-                        </div>
-                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
-                            <button class="performance-btn" id="bastardLoopLExportMidiBtn" type="button">Export MIDI</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopLStatus">Choose a lead sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopLCopyPopup" hidden aria-live="polite"></div>
                     </div>
                     <div class="sample-browser-status" id="bastardLoopLStepCursor">Editing step 1.</div>
                     <div class="lead-sequencer-step-grid" id="bastardLoopLStepGrid"></div>
+                    <div class="lead-sequencer-keyboard" id="bastardLoopLKeyboard"></div>
                     <div class="lead-sequencer-toolbar">
                         <div class="lead-sequencer-toolbar-row accent-row">
                             <button class="performance-btn" id="bastardLoopLRestBtn" type="button">Rest</button>
@@ -9156,8 +9153,11 @@
                         <div class="lead-sequencer-toolbar-row transport-row">
                             <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                         </div>
+                        <div class="lead-sequencer-toolbar-row compact-two">
+                            <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
+                            <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
+                        </div>
                     </div>
-                    <div class="lead-sequencer-keyboard" id="bastardLoopLKeyboard"></div>
                 </div>
             </div>
         </div>
@@ -9175,7 +9175,7 @@
                     <div class="lead-sequencer-toolbar">
                         <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn primary" id="bastardLoopXChooseSampleBtn" type="button">Sample</button>
-                            <button class="performance-btn" id="bastardLoopXRecordBtn" type="button" aria-pressed="true">Record On</button>
+                            <button class="performance-btn" id="bastardLoopXExportMidiBtn" type="button">Export MIDI</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopXPrevStepBtn" type="button">Back</button>
@@ -9186,18 +9186,15 @@
                         <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopXRateDownBtn" type="button">Rate -</button>
                             <button class="performance-btn" id="bastardLoopXRateUpBtn" type="button">Rate +</button>
-                            <button class="performance-btn" id="bastardLoopXClearStepBtn" type="button">Clear Step</button>
                             <button class="performance-btn" id="bastardLoopXCopyBtn" type="button">Copy</button>
-                        </div>
-                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopXClearAllBtn" type="button">Clear All</button>
-                            <button class="performance-btn" id="bastardLoopXExportMidiBtn" type="button">Export MIDI</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopXStatus">Choose a bass sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopXCopyPopup" hidden aria-live="polite"></div>
                     </div>
                     <div class="sample-browser-status" id="bastardLoopXStepCursor">Editing step 1.</div>
                     <div class="lead-sequencer-step-grid" id="bastardLoopXStepGrid"></div>
+                    <div class="lead-sequencer-keyboard" id="bastardLoopXKeyboard"></div>
                     <div class="lead-sequencer-toolbar">
                         <div class="lead-sequencer-toolbar-row accent-row">
                             <button class="performance-btn" id="bastardLoopXRestBtn" type="button">Rest</button>
@@ -9226,8 +9223,11 @@
                         <div class="lead-sequencer-toolbar-row transport-row">
                             <button class="performance-btn" id="bastardLoopXTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                         </div>
+                        <div class="lead-sequencer-toolbar-row compact-two">
+                            <button class="performance-btn" id="bastardLoopXRecordBtn" type="button" aria-pressed="true">Record On</button>
+                            <button class="performance-btn" id="bastardLoopXClearStepBtn" type="button">Clear Step</button>
+                        </div>
                     </div>
-                    <div class="lead-sequencer-keyboard" id="bastardLoopXKeyboard"></div>
                 </div>
             </div>
         </div>
