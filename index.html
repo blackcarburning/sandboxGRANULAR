@@ -6128,9 +6128,9 @@
                     <div class="performance-sound-card">
                         <label for="performanceDrumMachineLevel">
                             <span>Drum Machine</span>
-                            <span class="value" id="performanceDrumMachineLevelValue">55%</span>
+                            <span class="value" id="performanceDrumMachineLevelValue">65%</span>
                         </label>
-                        <input type="range" id="performanceDrumMachineLevel" min="0" max="100" value="55" step="1">
+                        <input type="range" id="performanceDrumMachineLevel" min="0" max="100" value="65" step="1">
                     </div>
                     <div class="performance-sound-card performance-vu-card">
                         <label for="performanceMixerVuShell">
@@ -10641,7 +10641,7 @@
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
-        let drumMachineLevel = 0.55;
+        let drumMachineLevel = 0.65;
         let drumMachineEnabled = true;
         let drumMachineDirectOutput = true;
         let drumMachineDirectDelaySendEnabled = false;
@@ -11012,7 +11012,7 @@
         const SYNTH_POPUP_PRESET_MAP = new Map(SYNTH_POPUP_PRESETS.map((preset) => [preset.id, preset]));
         const MIX_HEADROOM = 0.9;
         const DRUM_MACHINE_OUTPUT_GAIN_MULTIPLIER = 1.08;
-        const RANDOM_DRUM_MACHINE_LEVEL_PERCENT = 100;
+        const DEFAULT_DRUM_MACHINE_LEVEL_PERCENT = 65;
         const RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT = 60;
         const MAX_SAFE_FILTER_Q = 2.5;
         const DEFAULT_PERFORMANCE_CUTOFF = 2800;
@@ -21880,7 +21880,7 @@
                 }
 
             if (!(drumMachineLevel > 0.0001)) {
-                drumMachineLevel = 0.55;
+                drumMachineLevel = DEFAULT_DRUM_MACHINE_LEVEL_PERCENT / 100;
             }
             if (!(drumMachineKickTrackLevel > 0.0001)) {
                 drumMachineKickTrackLevel = 1;
@@ -22235,8 +22235,8 @@
                     throw new Error(failures.join(' | '));
                 }
 
+                forceDrumMachineRandomLevel();
                 if (randomizePattern) {
-                    forceDrumMachineRandomLevel();
                     forceFinalSidechainKickRandomLevel();
                     setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
                     randomizeDrumMachinePatterns();
@@ -22275,6 +22275,7 @@
             setStatus(`Loading random ${label.toLowerCase()} sample…`);
             try {
                 await loadDrumMachineSample(kind);
+                forceDrumMachineRandomLevel();
                 saveState();
                 const metadata = getDrumMachineTrackMetadata(kind);
                 setStatus(`${label} sample ready: ${metadata?.fileName || `${kind}.wav`}. Pattern kept.`);
@@ -33723,9 +33724,9 @@
         function forceDrumMachineRandomLevel() {
             const slider = document.getElementById('performanceDrumMachineLevel');
             if (slider) {
-                setSliderValue('performanceDrumMachineLevel', RANDOM_DRUM_MACHINE_LEVEL_PERCENT);
+                setSliderValue('performanceDrumMachineLevel', DEFAULT_DRUM_MACHINE_LEVEL_PERCENT);
             } else {
-                drumMachineLevel = RANDOM_DRUM_MACHINE_LEVEL_PERCENT / 100;
+                drumMachineLevel = DEFAULT_DRUM_MACHINE_LEVEL_PERCENT / 100;
                 updateDrumMachineMix();
             }
         }
@@ -33812,7 +33813,7 @@
         function randomizeMegaDrumMachineSettings() {
             setDrumMachineEnabled(true, { silent: true, skipSave: true });
             setDrumMachineDirectOutput(true, { silent: true, skipSave: true });
-            setSliderValue('performanceDrumMachineLevel', RANDOM_DRUM_MACHINE_LEVEL_PERCENT);
+            setSliderValue('performanceDrumMachineLevel', DEFAULT_DRUM_MACHINE_LEVEL_PERCENT);
             forceFinalSidechainKickRandomLevel();
             setDrumMachineKickPitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
             setDrumMachineSnarePitchSemitones(chooseRandom([-12, -7, -5, 0, 0, 5, 7, 12]), { silent: true, skipSave: true });
@@ -36643,6 +36644,8 @@
                         setGranularModulationAmount(Number(state.modes.granularModulationAmount) * 100, { save: false });
                     }
                 }
+
+                setSliderValue('performanceDrumMachineLevel', DEFAULT_DRUM_MACHINE_LEVEL_PERCENT);
 
                 const usesSharedBpmState = state.bpmOnlyLfos === true || state.globalBpm != null || normalizedStateSliders?.globalBpmSlider != null;
                 const restoredGlobalBpm = state.globalBpm ??
