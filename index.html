@@ -32495,6 +32495,252 @@
             }
         }
 
+        function syncMegaRandomBastardLoopGenerationUi() {
+            syncBastardLoopUi();
+            syncBastardLoop2Ui();
+            syncBastardLoop3Ui();
+            syncBastardLoopVUi();
+            syncBastardLoopPUi();
+            syncBastardLoopOUi();
+        }
+
+        function buildMegaRandomBastardLoopTaskSpecs(bpm) {
+            const patternLength = getBastardLoopPatternLengthPayload();
+            return [
+                {
+                    label: 'Bastardloop A',
+                    traceLayer: 'A',
+                    soloLayer: 'bastarda',
+                    errorLabel: 'Bastardloop build',
+                    fallbackSourceKey: 'sampledrop',
+                    getRequestPayload: () => ({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        divisions: getSelectedBastardLoopDivisions(),
+                        patternLength
+                    }),
+                    readState: () => ({
+                        buffer: bastardLoopBuffer,
+                        metadata: bastardLoopMetadata,
+                        sourceBpm: bastardLoopSourceBpm
+                    }),
+                    restoreState: (state) => {
+                        bastardLoopBuffer = state.buffer;
+                        bastardLoopMetadata = state.metadata;
+                        bastardLoopSourceBpm = state.sourceBpm;
+                    },
+                    applyBuffer: async (buffer, metadata) => {
+                        await applyLoadedBastardLoopBuffer(buffer, `Bastardloop ${bpm} BPM`, metadata);
+                        ensureBastardLoopLayerReady('A');
+                    },
+                    setInFlight: (value) => {
+                        bastardLoopGenerationInFlight = value;
+                        syncMegaRandomBastardLoopGenerationUi();
+                    }
+                },
+                {
+                    label: 'Bastardloop B',
+                    traceLayer: 'B',
+                    soloLayer: 'bastardb',
+                    errorLabel: 'Bastardloop B build',
+                    fallbackSourceKey: 'sampledrop2',
+                    getRequestPayload: () => ({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-b`,
+                        divisions: getSelectedBastardLoop2Divisions(),
+                        source: 'sampledrop2',
+                        patternLength
+                    }),
+                    readState: () => ({
+                        buffer: bastardLoop2Buffer,
+                        metadata: bastardLoop2Metadata,
+                        sourceBpm: bastardLoop2SourceBpm
+                    }),
+                    restoreState: (state) => {
+                        bastardLoop2Buffer = state.buffer;
+                        bastardLoop2Metadata = state.metadata;
+                        bastardLoop2SourceBpm = state.sourceBpm;
+                    },
+                    applyBuffer: async (buffer, metadata) => {
+                        await applyLoadedBastardLoop2Buffer(buffer, `Bastardloop B ${bpm} BPM`, metadata);
+                        ensureBastardLoopLayerReady('B');
+                    },
+                    setInFlight: (value) => {
+                        bastardLoop2GenerationInFlight = value;
+                        syncMegaRandomBastardLoopGenerationUi();
+                    }
+                },
+                {
+                    label: 'Bastardloop C',
+                    traceLayer: 'C',
+                    soloLayer: 'bastardc',
+                    errorLabel: 'Bastardloop C build',
+                    fallbackSourceKey: 'splice_claw',
+                    getRequestPayload: () => ({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-c`,
+                        divisions: getSelectedBastardLoop3Divisions(),
+                        source: 'splice_claw',
+                        patternLength
+                    }),
+                    readState: () => ({
+                        buffer: bastardLoop3Buffer,
+                        metadata: bastardLoop3Metadata,
+                        sourceBpm: bastardLoop3SourceBpm
+                    }),
+                    restoreState: (state) => {
+                        bastardLoop3Buffer = state.buffer;
+                        bastardLoop3Metadata = state.metadata;
+                        bastardLoop3SourceBpm = state.sourceBpm;
+                    },
+                    applyBuffer: async (buffer, metadata) => {
+                        await applyLoadedBastardLoop3Buffer(buffer, `Bastardloop C ${bpm} BPM`, metadata);
+                        ensureBastardLoopLayerReady('C');
+                    },
+                    setInFlight: (value) => {
+                        bastardLoop3GenerationInFlight = value;
+                        syncMegaRandomBastardLoopGenerationUi();
+                    }
+                },
+                {
+                    label: 'Bastardloop V',
+                    traceLayer: 'V',
+                    soloLayer: 'bastardv',
+                    errorLabel: 'Bastardloop V build',
+                    fallbackSourceKey: 'samples_vocal',
+                    getRequestPayload: () => ({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-v`,
+                        divisions: getSelectedBastardLoopVDivisions(),
+                        source: 'samples_vocal',
+                        patternLength
+                    }),
+                    readState: () => ({
+                        buffer: bastardLoopVBuffer,
+                        metadata: bastardLoopVMetadata,
+                        sourceBpm: bastardLoopVSourceBpm
+                    }),
+                    restoreState: (state) => {
+                        bastardLoopVBuffer = state.buffer;
+                        bastardLoopVMetadata = state.metadata;
+                        bastardLoopVSourceBpm = state.sourceBpm;
+                    },
+                    applyBuffer: async (buffer, metadata) => {
+                        await applyLoadedBastardLoopVBuffer(buffer, `Bastardloop V ${bpm} BPM`, metadata);
+                        ensureBastardLoopLayerReady('V');
+                    },
+                    setInFlight: (value) => {
+                        bastardLoopVGenerationInFlight = value;
+                        syncMegaRandomBastardLoopGenerationUi();
+                    }
+                },
+                {
+                    label: 'Bastardloop P',
+                    traceLayer: 'P',
+                    soloLayer: 'bastardp',
+                    errorLabel: 'Bastardloop P build',
+                    fallbackSourceKey: 'samples_piano',
+                    getRequestPayload: () => ({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-p`,
+                        divisions: getSelectedBastardLoopPDivisions(),
+                        source: 'samples_piano',
+                        patternLength
+                    }),
+                    readState: () => ({
+                        buffer: bastardLoopPBuffer,
+                        metadata: bastardLoopPMetadata,
+                        sourceBpm: bastardLoopPSourceBpm
+                    }),
+                    restoreState: (state) => {
+                        bastardLoopPBuffer = state.buffer;
+                        bastardLoopPMetadata = state.metadata;
+                        bastardLoopPSourceBpm = state.sourceBpm;
+                    },
+                    applyBuffer: async (buffer, metadata) => {
+                        await applyLoadedBastardLoopPBuffer(buffer, `Bastardloop P ${bpm} BPM`, metadata);
+                        ensureBastardLoopLayerReady('P');
+                    },
+                    setInFlight: (value) => {
+                        bastardLoopPGenerationInFlight = value;
+                        syncMegaRandomBastardLoopGenerationUi();
+                    }
+                },
+                {
+                    label: 'Bastardloop O',
+                    traceLayer: 'O',
+                    soloLayer: 'bastardo',
+                    errorLabel: 'Bastardloop O build',
+                    fallbackSourceKey: 'samples_orch',
+                    getRequestPayload: () => ({
+                        bpm,
+                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-o`,
+                        divisions: getSelectedBastardLoopODivisions(),
+                        source: 'samples_orch',
+                        patternLength
+                    }),
+                    readState: () => ({
+                        buffer: bastardLoopOBuffer,
+                        metadata: bastardLoopOMetadata,
+                        sourceBpm: bastardLoopOSourceBpm
+                    }),
+                    restoreState: (state) => {
+                        bastardLoopOBuffer = state.buffer;
+                        bastardLoopOMetadata = state.metadata;
+                        bastardLoopOSourceBpm = state.sourceBpm;
+                    },
+                    applyBuffer: async (buffer, metadata) => {
+                        await applyLoadedBastardLoopOBuffer(buffer, `Bastardloop O ${bpm} BPM`, metadata);
+                        ensureBastardLoopLayerReady('O');
+                    },
+                    setInFlight: (value) => {
+                        bastardLoopOGenerationInFlight = value;
+                        syncMegaRandomBastardLoopGenerationUi();
+                    }
+                }
+            ];
+        }
+
+        async function requestMegaRandomBastardLoopBuild(spec) {
+            spec.setInFlight(true);
+            clearLoopLayerSoloForBastardLoop(spec.soloLayer);
+            const requestPayload = spec.getRequestPayload();
+            appendBastardLoopTrace(spec.traceLayer, 'build-request', {
+                bpm: requestPayload.bpm,
+                divisions: Array.isArray(requestPayload.divisions) ? requestPayload.divisions.slice() : [],
+                source: requestPayload.source || spec.fallbackSourceKey
+            });
+
+            try {
+                const { metadata, arrayBuffer } = await requestGeneratedBastardLoopAudio(requestPayload, {
+                    traceLayer: spec.traceLayer,
+                    errorLabel: spec.errorLabel,
+                    fallbackSourceKey: spec.fallbackSourceKey
+                });
+                return { spec, metadata, arrayBuffer };
+            } catch (error) {
+                appendBastardLoopTrace(spec.traceLayer, 'build-error', { error: error.message });
+                spec.setInFlight(false);
+                throw error;
+            }
+        }
+
+        async function applyMegaRandomBastardLoopBuild(buildResult) {
+            const { spec, metadata, arrayBuffer } = buildResult;
+            const previousState = spec.readState();
+
+            try {
+                const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                await spec.applyBuffer(decoded, metadata);
+            } catch (error) {
+                spec.restoreState(previousState);
+                appendBastardLoopTrace(spec.traceLayer, 'build-error', { error: error.message });
+                throw error;
+            } finally {
+                spec.setInFlight(false);
+            }
+        }
+
         async function runMegaRandomization() {
             if (megaRandomizeInFlight) return;
             megaRandomizeInFlight = true;
@@ -32531,34 +32777,52 @@
                     return;
                 }
 
+                const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+                const bastardLoopSpecs = buildMegaRandomBastardLoopTaskSpecs(bpm);
                 const megaTasks = [
-                    { label: 'Bastardloop A', run: () => generateBastardLoopWithPlaybackRestart() },
-                    { label: 'Bastardloop B', run: () => generateBastardLoop2WithPlaybackRestart() },
-                    { label: 'Bastardloop C', run: () => generateBastardLoop3WithPlaybackRestart() },
-                    { label: 'Bastardloop V', run: () => generateBastardLoopVWithPlaybackRestart() },
-                    { label: 'Bastardloop P', run: () => generateBastardLoopPWithPlaybackRestart() },
-                    { label: 'Bastardloop O', run: () => generateBastardLoopOWithPlaybackRestart() },
                     { label: 'Dropbox sample', run: () => loadDropboxSampleLayerFromSource() },
                     { label: 'Drum machine', run: () => loadRandomDrumMachineSamples() }
                 ];
 
-                for (let taskIndex = 0; taskIndex < megaTasks.length; taskIndex += 1) {
-                    const task = megaTasks[taskIndex];
+                setStatus(`Mega random: loading ${bastardLoopSpecs.length + megaTasks.length} layers in parallel…`);
+
+                const bastardLoopBuildResultsPromise = Promise.allSettled(
+                    bastardLoopSpecs.map((spec) => requestMegaRandomBastardLoopBuild(spec))
+                );
+                const megaTaskResultsPromise = Promise.allSettled(
+                    megaTasks.map((task) => task.run())
+                );
+
+                const bastardLoopBuildResults = await bastardLoopBuildResultsPromise;
+                for (let taskIndex = 0; taskIndex < bastardLoopBuildResults.length; taskIndex += 1) {
+                    const spec = bastardLoopSpecs[taskIndex];
+                    const result = bastardLoopBuildResults[taskIndex];
+                    if (result.status === 'rejected') {
+                        console.error(result.reason);
+                        failures.push(`${spec.label}: ${result.reason?.message || String(result.reason)}`);
+                        continue;
+                    }
                     try {
-                        setStatus(`Mega random ${taskIndex + 1}/${megaTasks.length}: ${task.label}…`);
-                        await task.run();
-                        setStatus(`Mega random ${taskIndex + 1}/${megaTasks.length}: ${task.label} ready.`);
-                        await waitForMegaRandomLoadsToSettle();
+                        await applyMegaRandomBastardLoopBuild(result.value);
                     } catch (error) {
                         console.error(error);
-                        failures.push(`${task.label}: ${error.message}`);
+                        failures.push(`${spec.label}: ${error.message}`);
+                    }
+                }
+
+                const megaTaskResults = await megaTaskResultsPromise;
+                for (let taskIndex = 0; taskIndex < megaTaskResults.length; taskIndex += 1) {
+                    const task = megaTasks[taskIndex];
+                    const result = megaTaskResults[taskIndex];
+                    if (result.status === 'rejected') {
+                        console.error(result.reason);
+                        failures.push(`${task.label}: ${result.reason?.message || String(result.reason)}`);
                     }
                 }
 
                 await waitForMegaRandomLoadsToSettle();
                 shouldRestartAfterMegaRandom = true;
                 saveState();
-                const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
                 if (failures.length > 0) {
                     setStatus(`Mega random ready at ${bpm} BPM with warnings: ${failures.join(' | ')}`, 'error');
                 } else {
