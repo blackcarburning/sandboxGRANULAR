@@ -24750,7 +24750,11 @@
                     ? `${prefix}: press section start step.`
                     : `${prefix}: press start step.`;
             }
-            if (bastardLoopLCopyMode === 'selectEnd') return `${prefix}: start step ${bastardLoopLCopyStartIndex + 1}. Press end step.`;
+            if (bastardLoopLCopyMode === 'selectEnd') {
+                return bastardLoopLCopyVariant === 'section'
+                    ? `${prefix}: start step ${bastardLoopLCopyStartIndex + 1}. Press section end step.`
+                    : `${prefix}: start step ${bastardLoopLCopyStartIndex + 1}. Press end step.`;
+            }
             if (bastardLoopLCopyMode === 'selectPaste') {
                 const startStep = bastardLoopLCopyStartIndex + 1;
                 const endStep = bastardLoopLCopyEndIndex + 1;
@@ -24778,22 +24782,32 @@
         }
 
         function pasteBastardLoopLCopiedRangeAt(index) {
-            const safeIndex = Math.max(0, Math.min(getBastardLoopLPatternLength() - 1, Number(index) || 0));
+            const patternLength = getBastardLoopLPatternLength();
+            const safeIndex = Math.max(0, Math.min(patternLength - 1, Number(index) || 0));
             if (!Array.isArray(bastardLoopLCopyBuffer) || bastardLoopLCopyBuffer.length === 0) {
                 resetBastardLoopLCopyState();
                 syncBastardLoopLEditorUi();
                 updateBastardLoopLStatus('Loop L copy buffer was empty.');
                 return;
             }
-            let applied = 0;
-            bastardLoopLCopyBuffer.forEach((step, offset) => {
-                const targetIndex = safeIndex + offset;
-                if (targetIndex >= getBastardLoopLPatternLength()) return;
-                setBastardLoopLStep(targetIndex, normalizeBastardLoopLStep({ ...step }));
-                applied += 1;
-            });
-            setBastardLoopLEditStepIndex(safeIndex);
             const copiedVariant = bastardLoopLCopyVariant;
+            let applied = 0;
+            if (copiedVariant === 'section') {
+                for (let targetIndex = safeIndex; targetIndex < patternLength; targetIndex += 1) {
+                    const offset = targetIndex - safeIndex;
+                    const step = bastardLoopLCopyBuffer[offset % bastardLoopLCopyBuffer.length];
+                    setBastardLoopLStep(targetIndex, normalizeBastardLoopLStep({ ...step }));
+                    applied += 1;
+                }
+            } else {
+                bastardLoopLCopyBuffer.forEach((step, offset) => {
+                    const targetIndex = safeIndex + offset;
+                    if (targetIndex >= patternLength) return;
+                    setBastardLoopLStep(targetIndex, normalizeBastardLoopLStep({ ...step }));
+                    applied += 1;
+                });
+            }
+            setBastardLoopLEditStepIndex(safeIndex);
             const sourceStartStep = bastardLoopLCopyStartIndex + 1;
             const sourceEndStep = bastardLoopLCopyEndIndex + 1;
             resetBastardLoopLCopyState({ preserveBuffer: true });
@@ -24802,7 +24816,7 @@
             saveState();
             updateBastardLoopLStatus(
                 copiedVariant === 'section'
-                    ? `Loop L copied section ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
+                    ? `Loop L copied section ${sourceStartStep}-${sourceEndStep} from step ${safeIndex + 1} to ${patternLength}${applied > 1 ? ` (${applied} steps)` : ''}.`
                     : `Loop L copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
             );
         }
@@ -24811,18 +24825,6 @@
             const safeIndex = Math.max(0, Math.min(getBastardLoopLPatternLength() - 1, Number(index) || 0));
             if (bastardLoopLCopyMode === 'selectStart') {
                 bastardLoopLCopyStartIndex = safeIndex;
-                if (bastardLoopLCopyVariant === 'section') {
-                    const endIndex = getBastardLoopLPatternLength() - 1;
-                    bastardLoopLCopyEndIndex = endIndex;
-                    bastardLoopLCopyBuffer = bastardLoopLSequence
-                        .slice(safeIndex, endIndex + 1)
-                        .map((step) => normalizeBastardLoopLStep({ ...step }));
-                    bastardLoopLCopyMode = 'selectPaste';
-                    setBastardLoopLEditStepIndex(safeIndex);
-                    syncBastardLoopLEditorUi();
-                    updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
-                    return true;
-                }
                 bastardLoopLCopyMode = 'selectEnd';
                 setBastardLoopLEditStepIndex(safeIndex);
                 syncBastardLoopLEditorUi();
@@ -26375,7 +26377,11 @@
                     ? `${prefix}: press section start step.`
                     : `${prefix}: press start step.`;
             }
-            if (bastardLoopXCopyMode === 'selectEnd') return `${prefix}: start step ${bastardLoopXCopyStartIndex + 1}. Press end step.`;
+            if (bastardLoopXCopyMode === 'selectEnd') {
+                return bastardLoopXCopyVariant === 'section'
+                    ? `${prefix}: start step ${bastardLoopXCopyStartIndex + 1}. Press section end step.`
+                    : `${prefix}: start step ${bastardLoopXCopyStartIndex + 1}. Press end step.`;
+            }
             if (bastardLoopXCopyMode === 'selectPaste') {
                 const startStep = bastardLoopXCopyStartIndex + 1;
                 const endStep = bastardLoopXCopyEndIndex + 1;
@@ -26403,22 +26409,32 @@
         }
 
         function pasteBastardLoopXCopiedRangeAt(index) {
-            const safeIndex = Math.max(0, Math.min(getBastardLoopXPatternLength() - 1, Number(index) || 0));
+            const patternLength = getBastardLoopXPatternLength();
+            const safeIndex = Math.max(0, Math.min(patternLength - 1, Number(index) || 0));
             if (!Array.isArray(bastardLoopXCopyBuffer) || bastardLoopXCopyBuffer.length === 0) {
                 resetBastardLoopXCopyState();
                 syncBastardLoopXEditorUi();
                 updateBastardLoopXStatus('Loop X copy buffer was empty.');
                 return;
             }
-            let applied = 0;
-            bastardLoopXCopyBuffer.forEach((step, offset) => {
-                const targetIndex = safeIndex + offset;
-                if (targetIndex >= getBastardLoopXPatternLength()) return;
-                setBastardLoopXStep(targetIndex, normalizeBastardLoopXStep({ ...step }));
-                applied += 1;
-            });
-            setBastardLoopXEditStepIndex(safeIndex);
             const copiedVariant = bastardLoopXCopyVariant;
+            let applied = 0;
+            if (copiedVariant === 'section') {
+                for (let targetIndex = safeIndex; targetIndex < patternLength; targetIndex += 1) {
+                    const offset = targetIndex - safeIndex;
+                    const step = bastardLoopXCopyBuffer[offset % bastardLoopXCopyBuffer.length];
+                    setBastardLoopXStep(targetIndex, normalizeBastardLoopXStep({ ...step }));
+                    applied += 1;
+                }
+            } else {
+                bastardLoopXCopyBuffer.forEach((step, offset) => {
+                    const targetIndex = safeIndex + offset;
+                    if (targetIndex >= patternLength) return;
+                    setBastardLoopXStep(targetIndex, normalizeBastardLoopXStep({ ...step }));
+                    applied += 1;
+                });
+            }
+            setBastardLoopXEditStepIndex(safeIndex);
             const sourceStartStep = bastardLoopXCopyStartIndex + 1;
             const sourceEndStep = bastardLoopXCopyEndIndex + 1;
             resetBastardLoopXCopyState({ preserveBuffer: true });
@@ -26427,7 +26443,7 @@
             saveState();
             updateBastardLoopXStatus(
                 copiedVariant === 'section'
-                    ? `Loop X copied section ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
+                    ? `Loop X copied section ${sourceStartStep}-${sourceEndStep} from step ${safeIndex + 1} to ${patternLength}${applied > 1 ? ` (${applied} steps)` : ''}.`
                     : `Loop X copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
             );
         }
@@ -26436,18 +26452,6 @@
             const safeIndex = Math.max(0, Math.min(getBastardLoopXPatternLength() - 1, Number(index) || 0));
             if (bastardLoopXCopyMode === 'selectStart') {
                 bastardLoopXCopyStartIndex = safeIndex;
-                if (bastardLoopXCopyVariant === 'section') {
-                    const endIndex = getBastardLoopXPatternLength() - 1;
-                    bastardLoopXCopyEndIndex = endIndex;
-                    bastardLoopXCopyBuffer = bastardLoopXSequence
-                        .slice(safeIndex, endIndex + 1)
-                        .map((step) => normalizeBastardLoopXStep({ ...step }));
-                    bastardLoopXCopyMode = 'selectPaste';
-                    setBastardLoopXEditStepIndex(safeIndex);
-                    syncBastardLoopXEditorUi();
-                    updateBastardLoopXStatus(getBastardLoopXCopyPrompt());
-                    return true;
-                }
                 bastardLoopXCopyMode = 'selectEnd';
                 setBastardLoopXEditStepIndex(safeIndex);
                 syncBastardLoopXEditorUi();
@@ -34880,6 +34884,222 @@
             syncPerformanceControlState();
         }
 
+        function resolveMegaRandomBastardLoopRootNote(profile = {}, octave = 3) {
+            const parsed = parseNoteName(profile?.root || '');
+            const pitchClass = parsed?.pitchClass && noteSemitoneOffsets[parsed.pitchClass] !== undefined
+                ? parsed.pitchClass
+                : 'C';
+            const safeOctave = Math.max(1, Math.min(4, Math.round(Number(octave) || 3)));
+            return `${pitchClass}${safeOctave}`;
+        }
+
+        function buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, options = {}) {
+            const rootMidi = noteNameToMidi(rootNote);
+            const baseIntervals = Array.isArray(scaleIntervals) && scaleIntervals.length > 0
+                ? scaleIntervals
+                : LOOP_SCALE_FAMILIES[0].intervals;
+            const minMidi = Math.max(0, Math.min(127, Math.round(Number(options.minMidi) || noteNameToMidi('C2'))));
+            const maxMidi = Math.max(minMidi, Math.min(127, Math.round(Number(options.maxMidi) || noteNameToMidi('C4'))));
+            const preferredOffsets = Array.isArray(options.offsets) && options.offsets.length > 0
+                ? options.offsets
+                : [0];
+            const exactChoices = [...new Set(preferredOffsets
+                .map((offset) => rootMidi + quantizePitchOffsetToScale(offset, baseIntervals))
+                .filter((midi) => Number.isFinite(midi) && midi >= minMidi && midi <= maxMidi)
+                .map((midi) => midiToNoteName(midi)))];
+            if (exactChoices.length > 0) {
+                return exactChoices;
+            }
+            const pooled = new Set();
+            for (let octaveOffset = -3; octaveOffset <= 3; octaveOffset += 1) {
+                baseIntervals.forEach((interval) => {
+                    const midi = rootMidi + Number(interval || 0) + (octaveOffset * 12);
+                    if (!Number.isFinite(midi)) return;
+                    if (midi < minMidi || midi > maxMidi) return;
+                    pooled.add(midiToNoteName(midi));
+                });
+            }
+            return pooled.size > 0 ? [...pooled] : [midiToNoteName(Math.max(minMidi, Math.min(maxMidi, rootMidi)))];
+        }
+
+        function buildMegaRandomBastardLoopXSequence(profile = {}) {
+            const stepCount = Math.max(1, Math.min(64, Math.round(Number(profile.stepCount) || getBastardLoopXPatternLength())));
+            const energy = Math.max(0.35, Math.min(1, Number(profile.energy) || 0.7));
+            const scaleIntervals = Array.isArray(profile.scaleIntervals) && profile.scaleIntervals.length > 0
+                ? profile.scaleIntervals
+                : LOOP_SCALE_FAMILIES[0].intervals;
+            const rootNote = profile.rootNote || 'C2';
+            const sequence = Array.from({ length: 64 }, () => createEmptyBastardLoopXStep());
+            const motifLength = stepCount % 8 === 0 ? 8 : (stepCount % 4 === 0 ? 4 : Math.min(8, stepCount));
+            const noteRange = {
+                minMidi: noteNameToMidi('C2'),
+                maxMidi: noteNameToMidi(energy >= 0.7 ? 'F3' : 'C3')
+            };
+            const anchorChoices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                ...noteRange,
+                offsets: [0, 0, 0, 7, 10, 12]
+            });
+            const motionChoices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                ...noteRange,
+                offsets: [0, 2, 3, 5, 7, 10, 12]
+            });
+            const tailChoices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                ...noteRange,
+                offsets: [5, 7, 10, 12, 14]
+            });
+
+            const motif = Array.from({ length: motifLength }, (_, index) => {
+                const strong = index % 4 === 0;
+                const medium = index % 2 === 0;
+                const tail = index === motifLength - 1;
+                const playProbability = strong ? 1 : (medium ? (0.36 + energy * 0.26) : (0.06 + energy * 0.14));
+                if (Math.random() > playProbability) {
+                    return createEmptyBastardLoopXStep();
+                }
+                return normalizeBastardLoopXStep({
+                    note: chooseRandom(tail ? tailChoices : (strong ? anchorChoices : motionChoices)),
+                    rest: false,
+                    accent: strong || (medium && maybe(0.12 + energy * 0.12)),
+                    slide: false,
+                    ratchet: !strong && maybe(0.06 + energy * 0.08) ? 2 : 1
+                });
+            });
+
+            for (let index = 0; index < stepCount; index += 1) {
+                sequence[index] = normalizeBastardLoopXStep({ ...motif[index % motifLength] });
+            }
+            for (let index = 0; index < stepCount - 1; index += 1) {
+                if (!sequence[index].note || sequence[index].rest) continue;
+                if (!sequence[index + 1].note || sequence[index + 1].rest) continue;
+                if (maybe(0.08 + energy * 0.1)) {
+                    sequence[index] = normalizeBastardLoopXStep({ ...sequence[index], slide: true });
+                }
+            }
+            return sequence;
+        }
+
+        function buildMegaRandomBastardLoopLSequence(profile = {}) {
+            const stepCount = Math.max(1, Math.min(64, Math.round(Number(profile.stepCount) || getBastardLoopLPatternLength())));
+            const energy = Math.max(0.35, Math.min(1, Number(profile.energy) || 0.7));
+            const scaleIntervals = Array.isArray(profile.scaleIntervals) && profile.scaleIntervals.length > 0
+                ? profile.scaleIntervals
+                : LOOP_SCALE_FAMILIES[0].intervals;
+            const rootNote = profile.rootNote || 'C3';
+            const bassSequence = Array.isArray(profile.bassSequence) ? profile.bassSequence : [];
+            const sequence = Array.from({ length: 64 }, () => createEmptyBastardLoopLStep());
+            const motifLength = stepCount % 8 === 0 ? 8 : (stepCount % 4 === 0 ? 4 : Math.min(8, stepCount));
+            const noteRange = {
+                minMidi: noteNameToMidi('C3'),
+                maxMidi: noteNameToMidi(energy >= 0.7 ? 'C5' : 'G4')
+            };
+            const anchorChoices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                ...noteRange,
+                offsets: [0, 2, 5, 7, 12, 14]
+            });
+            const motionChoices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                ...noteRange,
+                offsets: [2, 3, 5, 7, 8, 10, 12, 14, 15, 17]
+            });
+            const responseChoices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                ...noteRange,
+                offsets: [7, 8, 10, 12, 14, 15, 17, 19]
+            });
+
+            const motif = Array.from({ length: motifLength }, (_, index) => {
+                const strong = index % 4 === 0;
+                const medium = index % 2 === 0;
+                const tail = index === motifLength - 1;
+                const pairedBassStep = bassSequence[index] || null;
+                const playProbability = strong
+                    ? (0.55 + energy * 0.18)
+                    : (medium ? (0.3 + energy * 0.26) : (0.14 + energy * 0.16));
+                if (Math.random() > playProbability) {
+                    return createEmptyBastardLoopLStep();
+                }
+                let choices = tail ? responseChoices : (strong ? anchorChoices : motionChoices);
+                if (pairedBassStep?.note && maybe(0.3)) {
+                    choices = buildMegaRandomBastardLoopNoteChoices(rootNote, scaleIntervals, {
+                        ...noteRange,
+                        offsets: [7, 10, 12, 14, 15, 19]
+                    });
+                }
+                return normalizeBastardLoopLStep({
+                    note: chooseRandom(choices),
+                    rest: false,
+                    accent: strong || maybe(0.16 + energy * 0.12),
+                    slide: false,
+                    ratchet: !strong && maybe(0.1 + energy * 0.14) ? chooseRandom([2, 3]) : 1
+                });
+            });
+
+            for (let index = 0; index < stepCount; index += 1) {
+                sequence[index] = normalizeBastardLoopLStep({ ...motif[index % motifLength] });
+                if (
+                    index >= motifLength
+                    && sequence[index].note
+                    && index % motifLength === motifLength - 1
+                    && maybe(0.32)
+                ) {
+                    sequence[index] = normalizeBastardLoopLStep({
+                        ...sequence[index],
+                        note: chooseRandom(responseChoices)
+                    });
+                }
+            }
+            for (let index = 0; index < stepCount - 1; index += 1) {
+                if (!sequence[index].note || sequence[index].rest) continue;
+                if (!sequence[index + 1].note || sequence[index + 1].rest) continue;
+                if (maybe(0.1 + energy * 0.12)) {
+                    sequence[index] = normalizeBastardLoopLStep({ ...sequence[index], slide: true });
+                }
+            }
+            return sequence;
+        }
+
+        function randomizeMegaBastardLoopLeadAndBassSettings(profile = {}) {
+            const scaleIntervals = Array.isArray(profile?.scale?.intervals) && profile.scale.intervals.length > 0
+                ? profile.scale.intervals
+                : LOOP_SCALE_FAMILIES[0].intervals;
+            const sharedTimingIndex = chooseRandom([3, 3, 4]);
+            const bassSequence = buildMegaRandomBastardLoopXSequence({
+                stepCount: getBastardLoopXPatternLength(),
+                rootNote: resolveMegaRandomBastardLoopRootNote(profile, 2),
+                scaleIntervals,
+                energy: profile?.energy
+            });
+            const leadSequence = buildMegaRandomBastardLoopLSequence({
+                stepCount: getBastardLoopLPatternLength(),
+                rootNote: resolveMegaRandomBastardLoopRootNote(profile, 3),
+                scaleIntervals,
+                energy: profile?.energy,
+                bassSequence
+            });
+
+            bastardLoopXSequence = bassSequence;
+            bastardLoopLSequence = leadSequence;
+            bastardLoopXEditStepIndex = 0;
+            bastardLoopLEditStepIndex = 0;
+            bastardLoopXRatchetEditStepIndex = -1;
+            bastardLoopLRatchetEditStepIndex = -1;
+            bastardLoopXTimingIndex = clampBastardLoopXTimingIndex(sharedTimingIndex);
+            bastardLoopLTimingIndex = clampBastardLoopLTimingIndex(sharedTimingIndex);
+
+            setBastardLoopLEnabled(true, { silent: true, skipSave: true });
+            setBastardLoopXEnabled(true, { silent: true, skipSave: true });
+            setBastardLoopLPitchSemitoneOffset(0, { silent: true, skipSave: true });
+            setBastardLoopXPitchSemitoneOffset(0, { silent: true, skipSave: true });
+            setSliderValue('performanceBastardLoopLLevel', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoopXLevel', randomIntegerInRange(24, RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT));
+            setSliderValue('performanceBastardLoopLDelayMix', randomIntegerInRange(0, 32));
+            setSliderValue('performanceBastardLoopXDelayMix', randomIntegerInRange(0, 28));
+            setSliderValue('performanceBastardLoopLFilterEnvelope', randomIntegerInRange(0, 36));
+            setSliderValue('performanceBastardLoopXFilterEnvelope', randomIntegerInRange(0, 28));
+            syncBastardLoopLEditorUi();
+            syncBastardLoopXEditorUi();
+            syncBastardLoopLUi();
+            syncBastardLoopXUi();
+        }
+
         function randomizeMegaBastardLoopSettings() {
             const divisionPool = ['4', '2', '1', '1/2', '1/4', '1/8', '1/16', '1/32'];
             applyBastardLoopDivisionSelection(chooseRandomSubset(divisionPool, { minimum: 1, maximum: 3 }), { save: false });
@@ -35354,7 +35574,7 @@
                 performanceMegaRandomBtn.textContent = 'Mega Random...';
             }
             showSettlePopup('Mega Random is loading samples. This can take a little while.', { persistent: true });
-            setStatus('Mega randomizing patch, bastardloops, Dropbox sample, and drums…');
+            setStatus('Mega randomizing patch, bastardloops, Loop L, Loop X, Dropbox sample, and drums…');
 
             const failures = [];
             let patchResult = null;
@@ -35369,12 +35589,13 @@
                 }
 
                 randomizeMegaBastardLoopSettings();
+                randomizeMegaBastardLoopLeadAndBassSettings(patchResult?.generationProfile || createMusicalGenerationProfile());
                 randomizeMegaDropboxSampleLayerSettings();
                 randomizeMegaDrumMachineSettings();
 
                 if (!audioContext) {
                     const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
-                    setStatus(`Mega random patch set at ${bpm} BPM. Start MYGRAIN to build the Bastardloops, Dropbox sample, and drums.`);
+                    setStatus(`Mega random patch set at ${bpm} BPM. Start MYGRAIN to build the Bastardloops, Loop L, Loop X, Dropbox sample, and drums.`);
                     saveState();
                     return;
                 }
@@ -35382,6 +35603,8 @@
                 const bpm = patchResult?.randomizeState?.bpm || clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
                 const bastardLoopSpecs = buildMegaRandomBastardLoopTaskSpecs(bpm);
                 const megaTasks = [
+                    { label: 'Loop L', run: () => loadBastardLoopLSampleFromSource() },
+                    { label: 'Loop X', run: () => loadBastardLoopXSampleFromSource() },
                     { label: 'Dropbox sample', run: () => loadDropboxSampleLayerFromSource() },
                     { label: 'Drum machine', run: () => loadRandomDrumMachineSamples() }
                 ];

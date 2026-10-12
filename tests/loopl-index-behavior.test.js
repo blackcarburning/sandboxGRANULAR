@@ -225,7 +225,7 @@ test('Loop L and X step double-tap state treats step 1 as a valid remembered ste
     });
 });
 
-test('Loop L copy section captures from the chosen start step through the end and pastes at an insert point', () => {
+test('Loop L copy section captures a chosen range and repeats it from the insert point to the pattern end', () => {
     const sourceSequence = [
         { note: 'C3' },
         { note: 'D3' },
@@ -290,30 +290,141 @@ test('Loop L copy section captures from the chosen start step through the end an
     assert.equal(copyContext.status, 'Loop L copy section: press section start step.');
 
     assert.equal(copyContext.handleBastardLoopLCopyStepSelection(2), true);
+    assert.equal(copyContext.bastardLoopLCopyMode, 'selectEnd');
+    assert.equal(copyContext.bastardLoopLCopyStartIndex, 2);
+    assert.equal(copyContext.bastardLoopLEditStepIndex, 2);
+    assert.equal(copyContext.status, 'Loop L copy section: start step 3. Press section end step.');
+
+    assert.equal(copyContext.handleBastardLoopLCopyStepSelection(4), true);
     assert.equal(copyContext.bastardLoopLCopyMode, 'selectPaste');
     assert.equal(copyContext.bastardLoopLCopyStartIndex, 2);
-    assert.equal(copyContext.bastardLoopLCopyEndIndex, 7);
-    assert.equal(copyContext.bastardLoopLEditStepIndex, 2);
-    assert.equal(copyContext.status, 'Loop L copy section: 3-8 ready. Press insert step.');
+    assert.equal(copyContext.bastardLoopLCopyEndIndex, 4);
+    assert.equal(copyContext.bastardLoopLEditStepIndex, 4);
+    assert.equal(copyContext.status, 'Loop L copy section: 3-5 ready. Press insert step.');
     assert.deepEqual(
         plain(copyContext.bastardLoopLCopyBuffer),
-        plain(originalSequence.slice(2))
+        plain(originalSequence.slice(2, 5))
     );
 
     assert.equal(copyContext.handleBastardLoopLCopyStepSelection(0), true);
     assert.equal(copyContext.bastardLoopLCopyMode, 'idle');
     assert.equal(copyContext.bastardLoopLCopyVariant, 'range');
     assert.equal(copyContext.bastardLoopLEditStepIndex, 0);
-    assert.equal(copyContext.status, 'Loop L copied section 3-8 to step 1 (6 steps).');
+    assert.equal(copyContext.status, 'Loop L copied section 3-5 from step 1 to 8 (8 steps).');
     assert.equal(copyContext.saved, true);
     assert.equal(copyContext.restarted, true);
     assert.deepEqual(
-        plain(copyContext.bastardLoopLSequence.slice(0, 6)),
-        plain(originalSequence.slice(2))
+        plain(copyContext.bastardLoopLSequence),
+        plain([
+            originalSequence[2],
+            originalSequence[3],
+            originalSequence[4],
+            originalSequence[2],
+            originalSequence[3],
+            originalSequence[4],
+            originalSequence[2],
+            originalSequence[3]
+        ])
     );
+});
+
+test('Loop X copy section captures a chosen range and repeats it from the insert point to the pattern end', () => {
+    const sourceSequence = [
+        { note: 'C2' },
+        { note: 'D2', accent: true },
+        { note: 'E2' },
+        { note: 'F2', slide: true },
+        { note: 'G2', ratchet: 2 },
+        { note: 'A2' },
+        { note: 'B2', rest: true },
+        { note: 'C3' }
+    ].map((step) => plain(normalizeBastardLoopLStep(step)));
+    const originalSequence = plain(sourceSequence);
+
+    const copyContext = {
+        bastardLoopXCopyMode: 'idle',
+        bastardLoopXCopyVariant: 'range',
+        bastardLoopXCopyStartIndex: -1,
+        bastardLoopXCopyEndIndex: -1,
+        bastardLoopXCopyBuffer: [],
+        bastardLoopXEditStepIndex: 0,
+        bastardLoopXSequence: sourceSequence,
+        normalizeBastardLoopXStep(step) {
+            return plain(normalizeBastardLoopLStep(step));
+        },
+        getBastardLoopXPatternLength() {
+            return copyContext.bastardLoopXSequence.length;
+        },
+        setBastardLoopXStep(index, step) {
+            copyContext.bastardLoopXSequence[index] = plain(step);
+        },
+        setBastardLoopXEditStepIndex(index) {
+            copyContext.bastardLoopXEditStepIndex = index;
+        },
+        resetBastardLoopXStepTapMemory() {
+            copyContext.tapReset = (copyContext.tapReset || 0) + 1;
+        },
+        syncBastardLoopXEditorUi() {
+            copyContext.syncs = (copyContext.syncs || 0) + 1;
+        },
+        updateBastardLoopXStatus(message) {
+            copyContext.status = message;
+        },
+        restartBastardLoopXPlaybackIfNeeded() {
+            copyContext.restarted = true;
+        },
+        saveState() {
+            copyContext.saved = true;
+        }
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('normalizeBastardLoopCopyVariant'),
+        extractFunctionSource('resetBastardLoopXCopyState'),
+        extractFunctionSource('getBastardLoopXCopyPrompt'),
+        extractFunctionSource('beginBastardLoopXCopyFlow'),
+        extractFunctionSource('pasteBastardLoopXCopiedRangeAt'),
+        extractFunctionSource('handleBastardLoopXCopyStepSelection'),
+        'globalThis.beginBastardLoopXCopyFlow = beginBastardLoopXCopyFlow;',
+        'globalThis.handleBastardLoopXCopyStepSelection = handleBastardLoopXCopyStepSelection;'
+    ].join('\n\n'), copyContext);
+
+    copyContext.beginBastardLoopXCopyFlow('section');
+    assert.equal(copyContext.bastardLoopXCopyMode, 'selectStart');
+    assert.equal(copyContext.bastardLoopXCopyVariant, 'section');
+    assert.equal(copyContext.status, 'Loop X copy section: press section start step.');
+
+    assert.equal(copyContext.handleBastardLoopXCopyStepSelection(1), true);
+    assert.equal(copyContext.bastardLoopXCopyMode, 'selectEnd');
+    assert.equal(copyContext.bastardLoopXCopyStartIndex, 1);
+    assert.equal(copyContext.bastardLoopXEditStepIndex, 1);
+    assert.equal(copyContext.status, 'Loop X copy section: start step 2. Press section end step.');
+
+    assert.equal(copyContext.handleBastardLoopXCopyStepSelection(2), true);
+    assert.equal(copyContext.bastardLoopXCopyMode, 'selectPaste');
+    assert.equal(copyContext.bastardLoopXCopyEndIndex, 2);
+    assert.equal(copyContext.bastardLoopXEditStepIndex, 2);
+    assert.equal(copyContext.status, 'Loop X copy section: 2-3 ready. Press insert step.');
     assert.deepEqual(
-        plain(copyContext.bastardLoopLSequence.slice(6)),
-        plain(originalSequence.slice(6))
+        plain(copyContext.bastardLoopXCopyBuffer),
+        plain(originalSequence.slice(1, 3))
+    );
+
+    assert.equal(copyContext.handleBastardLoopXCopyStepSelection(4), true);
+    assert.equal(copyContext.bastardLoopXCopyMode, 'idle');
+    assert.equal(copyContext.bastardLoopXCopyVariant, 'range');
+    assert.equal(copyContext.bastardLoopXEditStepIndex, 4);
+    assert.equal(copyContext.status, 'Loop X copied section 2-3 from step 5 to 8 (4 steps).');
+    assert.equal(copyContext.saved, true);
+    assert.equal(copyContext.restarted, true);
+    assert.deepEqual(
+        plain(copyContext.bastardLoopXSequence.slice(4, 8)),
+        plain([
+            originalSequence[1],
+            originalSequence[2],
+            originalSequence[1],
+            originalSequence[2]
+        ])
     );
 });
 
@@ -470,6 +581,15 @@ test('Loop L and X sequencers expose copy section buttons wired to the section-c
     assert.match(indexHtml, /const bastardLoopXCopySectionBtn = document\.getElementById\('bastardLoopXCopySectionBtn'\);/);
     assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopLCopySectionBtn,\s*\(\) => \{\s*beginBastardLoopLCopyFlow\('section'\);/s);
     assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopXCopySectionBtn,\s*\(\) => \{\s*beginBastardLoopXCopyFlow\('section'\);/s);
+});
+
+test('Mega Randomize includes coordinated Loop L/X preparation and random sample loads', () => {
+    const megaRandomSource = extractFunctionSource('runMegaRandomization');
+
+    assert.match(megaRandomSource, /randomizeMegaBastardLoopLeadAndBassSettings\(patchResult\?\.generationProfile \|\| createMusicalGenerationProfile\(\)\);/);
+    assert.match(megaRandomSource, /\{ label: 'Loop L', run: \(\) => loadBastardLoopLSampleFromSource\(\) \}/);
+    assert.match(megaRandomSource, /\{ label: 'Loop X', run: \(\) => loadBastardLoopXSampleFromSource\(\) \}/);
+    assert.match(indexHtml, /function randomizeMegaBastardLoopLeadAndBassSettings\(profile = \{\}\)/);
 });
 
 test('Loop L and X cards expose random sample buttons and filter mode selects', () => {
