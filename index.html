@@ -5718,7 +5718,7 @@
                         <span>Filter Cutoff</span>
                         <span class="value" id="performanceBastardLoopLFilterCutoffValue">18kHz</span>
                     </label>
-                    <input type="range" id="performanceBastardLoopLFilterCutoff" min="300" max="18000" value="18000" step="10">
+                    <input type="range" id="performanceBastardLoopLFilterCutoff" min="50" max="18000" value="18000" step="10">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopLFilterEnvelope">
@@ -5838,7 +5838,7 @@
                         <span>Filter Cutoff</span>
                         <span class="value" id="performanceBastardLoopXFilterCutoffValue">18kHz</span>
                     </label>
-                    <input type="range" id="performanceBastardLoopXFilterCutoff" min="300" max="18000" value="18000" step="10">
+                    <input type="range" id="performanceBastardLoopXFilterCutoff" min="50" max="18000" value="18000" step="10">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopXFilterEnvelope">
@@ -16089,7 +16089,7 @@
         function clampBastardLoopFilterCutoff(value) {
             const numeric = Number(value);
             if (!Number.isFinite(numeric)) return 18000;
-            return Math.max(300, Math.min(18000, Math.round(numeric)));
+            return Math.max(50, Math.min(18000, Math.round(numeric)));
         }
 
         function getBastardLoopFilterCutoff() {
