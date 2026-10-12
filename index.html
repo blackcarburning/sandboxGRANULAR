@@ -7118,6 +7118,12 @@
                     <input type="range" id="finalReverbMix" min="0" max="100" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceFinalReverbShimmerBtn">
+                        <span>Shimmer</span>
+                    </label>
+                    <button class="performance-btn" type="button" id="performanceFinalReverbShimmerBtn" aria-pressed="false">Shimmer Off</button>
+                </div>
+                <div class="performance-sound-card">
                     <label for="finalReverbShimmerShift">
                         <span>Shimmer Shift</span>
                     </label>
@@ -10434,7 +10440,11 @@
         let drumMachineDirectDelaySendGainNode = null;
         let drumMachineDirectReverbSendGainNode = null;
         let finalReverbEnabled = false;
+        let finalReverbShimmerEnabled = false;
+        let finalReverbShimmerInputConnected = true;
         let finalReverbImpulseKey = '';
+        let finalDistortionCurveKey = '';
+        let finalReverbShimmerDriveCurveKey = '';
         let finalReverbImpulseUpdatesSuspended = false;
         let finalReverbImpulseUpdatePending = false;
         let finalFxPlacement = 'post';
@@ -13593,6 +13603,7 @@
             finalReverbShimmerDelay.connect(finalReverbShimmerGain);
             finalReverbShimmerGain.connect(finalFxOutput);
             finalFxOutput.connect(splitterNode);
+            configureFinalReverbShimmerRouting(false);
 
             // Create a restrained 24dB maximum filter stack. Higher slopes plus high Q were too easy to push into harsh resonance.
             lpfNodes = [];
@@ -14140,9 +14151,18 @@
             }
         }
 
+        function resolveFinalReverbShimmerEnabled(storedValue) {
+            if (storedValue !== undefined) {
+                return Boolean(storedValue);
+            }
+            const selectedMode = String(document.getElementById('finalReverbShimmerShift')?.value || 'off');
+            return selectedMode !== 'off' && getSliderPercent('finalReverbShimmerMix') > 0.001;
+        }
+
         function getFinalReverbShimmerSettings() {
-            const mode = String(document.getElementById('finalReverbShimmerShift')?.value || 'off');
+            const selectedMode = String(document.getElementById('finalReverbShimmerShift')?.value || 'off');
             const shimmerMix = getSliderPercent('finalReverbShimmerMix');
+            const enabled = Boolean(finalReverbShimmerEnabled);
             const config = {
                 off: { label: 'Off', highpass: 20, lowpass: 12000, drive: 0, delay: 0.012, gain: 0, ratio: 1 },
                 '-24': { label: '-2 Oct', highpass: 25, lowpass: 320, drive: 0.34, delay: 0.034, gain: 0.94, ratio: 0.25 },
@@ -14150,8 +14170,12 @@
                 '12': { label: '+1 Oct', highpass: 1600, lowpass: 9800, drive: 0.72, delay: 0.021, gain: 0.82, ratio: 2 },
                 '24': { label: '+2 Oct', highpass: 3200, lowpass: 12000, drive: 0.96, delay: 0.015, gain: 0.74, ratio: 4 }
             };
+            const mode = enabled && selectedMode !== 'off' && shimmerMix > 0.001 ? selectedMode : 'off';
             const resolved = config[mode] || config.off;
             return {
+                enabled,
+                active: mode !== 'off',
+                selectedMode,
                 mode,
                 label: resolved.label,
                 highpass: resolved.highpass,
@@ -14161,6 +14185,32 @@
                 ratio: resolved.ratio,
                 gain: shimmerMix * resolved.gain
             };
+        }
+
+        function shouldProcessFinalReverbShimmer(shimmer = getFinalReverbShimmerSettings(), reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0) {
+            return Boolean(finalReverbEnabled && shimmer.active && reverbMix > 0.001);
+        }
+
+        function configureFinalReverbShimmerRouting(enabled = false) {
+            if (!finalReverbPreDelay || !finalReverbShimmerNode) return;
+            const shouldEnable = Boolean(enabled);
+            if (shouldEnable === finalReverbShimmerInputConnected) {
+                if (!shouldEnable) {
+                    finalReverbShimmerNode.buffer = null;
+                }
+                return;
+            }
+            try {
+                finalReverbPreDelay.disconnect(finalReverbShimmerNode);
+            } catch (error) {
+                // No-op when the shimmer branch is already disconnected.
+            }
+            if (shouldEnable) {
+                finalReverbPreDelay.connect(finalReverbShimmerNode);
+            } else {
+                finalReverbShimmerNode.buffer = null;
+            }
+            finalReverbShimmerInputConnected = shouldEnable;
         }
 
         function createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'smallRoom') {
@@ -14514,12 +14564,15 @@
         function refreshFinalReverbImpulseFromControls() {
             if (!audioContext || !finalReverbNode) return;
             const shimmer = getFinalReverbShimmerSettings();
+            const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
+            const shimmerEnabled = shouldProcessFinalReverbShimmer(shimmer, reverbMix);
             updateFinalReverbImpulse(
                 getSliderPercent('finalReverbSize'),
                 getSliderPercent('finalReverbDecay'),
-                shimmer.mode,
+                shimmerEnabled ? shimmer.mode : 'off',
                 getFinalReverbRoomPreset()
             );
+            configureFinalReverbShimmerRouting(shimmerEnabled);
         }
 
         function suspendFinalReverbImpulseUpdates() {
@@ -14558,6 +14611,16 @@
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus(finalReverbEnabled ? 'Final reverb enabled.' : 'Final reverb off.');
+            }
+            if (!options.skipSave) saveState();
+        }
+
+        function setFinalReverbShimmerEnabled(enabled, options = {}) {
+            finalReverbShimmerEnabled = Boolean(enabled);
+            updateEffects();
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(finalReverbShimmerEnabled ? 'Shimmer enabled.' : 'Shimmer disabled.');
             }
             if (!options.skipSave) saveState();
         }
@@ -14978,17 +15041,23 @@
             const reverbRoomPreset = getFinalReverbRoomPreset();
             const reverbRoom = FINAL_REVERB_ROOM_PRESETS[reverbRoomPreset] || FINAL_REVERB_ROOM_PRESETS.cloud;
             const shimmer = getFinalReverbShimmerSettings();
-            updateFinalReverbImpulse(reverbSize, reverbDecay, shimmer.mode, reverbRoomPreset);
+            const shimmerProcessingEnabled = shouldProcessFinalReverbShimmer(shimmer, reverbMix);
+            updateFinalReverbImpulse(reverbSize, reverbDecay, shimmerProcessingEnabled ? shimmer.mode : 'off', reverbRoomPreset);
+            configureFinalReverbShimmerRouting(shimmerProcessingEnabled);
             smoothRamp(finalReverbPreDelay?.delayTime, reverbRoom.predelay ?? (0.004 + reverbSize * 0.086));
             smoothRamp(finalReverbLowpass?.frequency, reverbLowpass);
             smoothRamp(finalReverbWetGain?.gain, reverbMix * (0.68 + reverbSize * 0.18));
             if (finalReverbShimmerDrive) {
-                finalReverbShimmerDrive.curve = makeFinalShimmerCurve(shimmer.drive);
+                const shimmerCurveKey = `${shimmer.drive.toFixed(4)}`;
+                if (finalReverbShimmerDriveCurveKey !== shimmerCurveKey) {
+                    finalReverbShimmerDrive.curve = makeFinalShimmerCurve(shimmer.drive);
+                    finalReverbShimmerDriveCurveKey = shimmerCurveKey;
+                }
             }
             smoothRamp(finalReverbShimmerHighpass?.frequency, shimmer.highpass);
             smoothRamp(finalReverbShimmerLowpass?.frequency, shimmer.lowpass);
             smoothRamp(finalReverbShimmerDelay?.delayTime, shimmer.delay);
-            smoothRamp(finalReverbShimmerGain?.gain, finalReverbEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0);
+            smoothRamp(finalReverbShimmerGain?.gain, shimmerProcessingEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0);
 
             const compressorIdleBypass = shouldIdleBypassFinalBusCompressor();
             const compressorAmount = fxMuted || compressorIdleBypass ? 0 : getFinalCompressorAmount();
@@ -15129,7 +15198,11 @@
             // Distortion
             if (distortionNode) {
                 const distAmt = getModulatedValue('distortion') / 100;
-                distortionNode.curve = makeDistortionCurve(distAmt);
+                const distortionCurveKey = `${distAmt.toFixed(4)}`;
+                if (finalDistortionCurveKey !== distortionCurveKey) {
+                    distortionNode.curve = makeDistortionCurve(distAmt);
+                    finalDistortionCurveKey = distortionCurveKey;
+                }
             }
 
             updateFinalMixEffects();
@@ -32958,6 +33031,7 @@
             setSliderValue('finalReverbDecay', randomIntegerInRange(18, 92));
             setSliderValue('finalReverbLowpass', randomIntegerInRange(1800, 9800));
             setSliderValue('finalReverbMix', randomIntegerInRange(0, 54));
+            setSliderValue('finalReverbShimmerMix', 0);
             setSliderValue('finalPanWidth', randomIntegerInRange(58, 100));
             setSliderValue('finalPanLfoRate', randomIntegerInRange(16, 420));
             setSliderValue('finalPanLfoDepth', randomIntegerInRange(0, 56));
@@ -32973,6 +33047,7 @@
 
             setSelectValue('delayDivision', '1');
             setSelectValue('finalDelayDivision', chooseRandom(['1', '2', '4', '1d', '2d', '1t', '2t']));
+            setSelectValue('finalReverbShimmerShift', 'off');
             setSelectValue('finalPanLfoWaveform', chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']));
             setSelectValue('finalPanAudioDivider', chooseRandom(['4', '8', '16', '32', '64', '128']));
             setSelectValue('finalPanAudioMode', chooseRandom(['peak', 'hybrid', 'hybrid', 'centroid']));
@@ -33002,6 +33077,7 @@
             setOscillatorsEnabled(maybe(0.72), { silent: true, skipSave: true });
             setGeneratedSampleSolo(maybe(0.22), { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(maybe(0.68), { silent: true });
+            setFinalReverbShimmerEnabled(false, { silent: true, skipSave: true });
             setFxMuted(false, { silent: true });
             setFilterEnabled('lpf', maybe(0.92));
             setFilterEnabled('hpf', maybe(0.72));
@@ -35967,6 +36043,7 @@
             document.getElementById('finalFxPlacementLfoDivision').value = '1bar';
             document.getElementById('finalReverbRoomPreset').value = 'cloud';
             document.getElementById('finalReverbShimmerShift').value = 'off';
+            setFinalReverbShimmerEnabled(false, { silent: true, skipSave: true });
             document.getElementById('osc1Wave').value = 'sawtooth';
             document.getElementById('osc2Wave').value = 'square';
             document.getElementById('osc3Wave').value = 'triangle';
@@ -36076,6 +36153,7 @@
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 fxMuted: fxMuted,
                 finalReverbEnabled: finalReverbEnabled,
+                finalReverbShimmerEnabled: finalReverbShimmerEnabled,
                 finalReverbRoomPreset: getFinalReverbRoomPreset(),
                 finalCompressorSidechainSource: finalCompressorSidechainSource,
                 finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
@@ -36614,6 +36692,10 @@
                     reverbRoomSelect.value = normalizeFinalReverbRoomPreset(importedFinalReverbRoomPreset);
                 }
             }
+            const importedFinalReverbShimmerEnabled = resolveFinalReverbShimmerEnabled(
+                safePreset.finalReverbShimmerEnabled ?? preset.finalReverbShimmerEnabled
+            );
+            setFinalReverbShimmerEnabled(importedFinalReverbShimmerEnabled, { silent: true, skipSave: true });
             if (safePreset.finalCompressorSidechainSource !== undefined) {
                 setFinalCompressorSidechainSource(safePreset.finalCompressorSidechainSource, { silent: true, skipSave: true });
             }
@@ -37188,6 +37270,7 @@
                     bpmLocked: bpmLocked,
                     fxMuted: fxMuted,
                     finalReverbEnabled: finalReverbEnabled,
+                    finalReverbShimmerEnabled: finalReverbShimmerEnabled,
                     finalCompressorSidechainSource: finalCompressorSidechainSource,
                     finalFxPlacementLfoEnabled: finalFxPlacementLfoEnabled,
                     generatedDryThroughFilters: generatedDryThroughFilters,
@@ -37563,6 +37646,7 @@
                     if (state.modes.finalReverbEnabled !== undefined) {
                         setFinalReverbEnabled(state.modes.finalReverbEnabled, { silent: true, skipSave: true });
                     }
+                    setFinalReverbShimmerEnabled(resolveFinalReverbShimmerEnabled(state.modes.finalReverbShimmerEnabled), { silent: true, skipSave: true });
                     if (state.modes.finalCompressorSidechainSource !== undefined) {
                         setFinalCompressorSidechainSource(state.modes.finalCompressorSidechainSource, { silent: true, skipSave: true });
                     }
@@ -38506,6 +38590,7 @@
             const reverbDecay = getSliderPercent('finalReverbDecay');
             const reverbMix = finalReverbEnabled ? getSliderPercent('finalReverbMix') : 0;
             const shimmer = getFinalReverbShimmerSettings();
+            const shimmerProcessingEnabled = shouldProcessFinalReverbShimmer(shimmer, reverbMix);
             const reverbRoomPreset = getFinalReverbRoomPreset();
             const reverbRoom = FINAL_REVERB_ROOM_PRESETS[reverbRoomPreset] || FINAL_REVERB_ROOM_PRESETS.cloud;
             const reverbPreDelay = ctx.createDelay(0.18);
@@ -38514,14 +38599,14 @@
             const reverbImpulse = createFinalReverbImpulseForContext(ctx, reverbSize, reverbDecay, reverbRoomPreset);
             reverbNode.buffer = reverbImpulse;
             const reverbShimmerNode = ctx.createConvolver();
-            reverbShimmerNode.buffer = createFinalReverbShimmerImpulseForContext(ctx, reverbImpulse, shimmer.mode);
+            reverbShimmerNode.buffer = createFinalReverbShimmerImpulseForContext(ctx, reverbImpulse, shimmerProcessingEnabled ? shimmer.mode : 'off');
             const reverbLowpass = ctx.createBiquadFilter();
             reverbLowpass.type = 'lowpass';
             reverbLowpass.frequency.value = Math.max(800, Math.min(12000, Number(document.getElementById('finalReverbLowpass')?.value) || 6400));
             const reverbWetGain = ctx.createGain();
             reverbWetGain.gain.value = reverbMix * (0.68 + reverbSize * 0.18);
             const reverbShimmerDrive = ctx.createWaveShaper();
-            reverbShimmerDrive.curve = makeFinalShimmerCurve(shimmer.drive);
+            reverbShimmerDrive.curve = makeFinalShimmerCurve(shimmerProcessingEnabled ? shimmer.drive : 0);
             reverbShimmerDrive.oversample = '4x';
             const reverbShimmerHighpass = ctx.createBiquadFilter();
             reverbShimmerHighpass.type = 'highpass';
@@ -38532,7 +38617,7 @@
             const reverbShimmerDelay = ctx.createDelay(0.08);
             reverbShimmerDelay.delayTime.value = shimmer.delay;
             const reverbShimmerGain = ctx.createGain();
-            reverbShimmerGain.gain.value = finalReverbEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0;
+            reverbShimmerGain.gain.value = shimmerProcessingEnabled ? shimmer.gain * (0.45 + reverbMix * 0.9) : 0;
             const compressorDriveGain = ctx.createGain();
             compressorDriveGain.gain.value = compressorSettings.drive;
             const compressorNode = ctx.createDynamicsCompressor();
@@ -39677,6 +39762,7 @@
             return {
                 fxMuted,
                 finalReverbEnabled,
+                finalReverbShimmerEnabled,
                 finalReverbRoomPreset: getFinalReverbRoomPreset(),
                 finalCompressorSidechainSource,
                 finalFxPlacementLfoEnabled,
@@ -42715,6 +42801,7 @@
             return {
                 fxMuted,
                 finalReverbEnabled,
+                finalReverbShimmerEnabled,
                 oscillatorsEnabled,
                 granularLayersEnabled,
                 generatedSampleLayerEnabled,
@@ -42769,6 +42856,7 @@
             setDrumMachineDirectDelaySend(snapshot.drumMachineDirectDelaySendEnabled, { silent: true, skipSave: true });
             setDrumMachineDirectReverbSend(snapshot.drumMachineDirectReverbSendEnabled, { silent: true, skipSave: true });
             setFinalReverbEnabled(snapshot.finalReverbEnabled, { silent: true, skipSave: true });
+            setFinalReverbShimmerEnabled(resolveFinalReverbShimmerEnabled(snapshot.finalReverbShimmerEnabled), { silent: true, skipSave: true });
             setFxMuted(snapshot.fxMuted, { silent: true });
             updateEffects();
             syncPerformanceControlState();
@@ -44904,6 +44992,7 @@
         const performancePatchBrowserBtn = document.getElementById('performancePatchBrowserBtn');
         const performanceFxMuteBtn = document.getElementById('performanceFxMuteBtn');
         const performanceFinalReverbBtn = document.getElementById('performanceFinalReverbBtn');
+        const performanceFinalReverbShimmerBtn = document.getElementById('performanceFinalReverbShimmerBtn');
         const performanceFinalSidechainBtn = document.getElementById('performanceFinalSidechainBtn');
         const performanceDryFilterBtn = document.getElementById('performanceDryFilterBtn');
         const performanceSynthPopupBtn = document.getElementById('performanceSynthPopupBtn');
@@ -44939,6 +45028,7 @@
             'finalReverbDecay',
             'finalReverbLowpass',
             'finalReverbMix',
+            'performanceFinalReverbShimmerBtn',
             'finalReverbShimmerShift',
             'finalReverbShimmerMix',
             'finalReverbDrumSend'
@@ -45604,6 +45694,12 @@
                 performanceFinalReverbBtn.classList.toggle('active', finalReverbEnabled);
                 performanceFinalReverbBtn.textContent = finalReverbEnabled ? 'Reverb On' : 'Reverb Off';
                 performanceFinalReverbBtn.setAttribute('aria-pressed', String(finalReverbEnabled));
+            }
+
+            if (performanceFinalReverbShimmerBtn) {
+                performanceFinalReverbShimmerBtn.classList.toggle('active', finalReverbShimmerEnabled);
+                performanceFinalReverbShimmerBtn.textContent = finalReverbShimmerEnabled ? 'Shimmer On' : 'Shimmer Off';
+                performanceFinalReverbShimmerBtn.setAttribute('aria-pressed', String(finalReverbShimmerEnabled));
             }
 
             syncFinalCompressorSidechainButton();
@@ -47795,6 +47891,10 @@
 
         performanceFinalReverbBtn?.addEventListener('click', () => {
             setFinalReverbEnabled(!finalReverbEnabled);
+        });
+
+        performanceFinalReverbShimmerBtn?.addEventListener('click', () => {
+            setFinalReverbShimmerEnabled(!finalReverbShimmerEnabled);
         });
 
         performanceFinalSidechainBtn?.addEventListener('click', () => {
