@@ -36630,6 +36630,109 @@
             }
         }
 
+        function decodeBase64UrlJsonHeader(value) {
+            if (!value) return null;
+            try {
+                const normalized = String(value).trim().replace(/-/g, '+').replace(/_/g, '/');
+                const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+                const binary = atob(padded);
+                const bytes = new Uint8Array(binary.length);
+                for (let index = 0; index < binary.length; index += 1) {
+                    bytes[index] = binary.charCodeAt(index);
+                }
+                if (typeof TextDecoder === 'function') {
+                    return JSON.parse(new TextDecoder().decode(bytes));
+                }
+                let escaped = '';
+                for (let index = 0; index < bytes.length; index += 1) {
+                    escaped += `%${bytes[index].toString(16).padStart(2, '0')}`;
+                }
+                return JSON.parse(decodeURIComponent(escaped));
+            } catch (error) {
+                console.error('Failed to decode MYGRAIN metadata header:', error);
+                return null;
+            }
+        }
+
+        function readBastardLoopBuildResponseMetadata(response, fallback = {}) {
+            const decoded = decodeBase64UrlJsonHeader(response.headers.get('X-Mygrain-Bastardloop-Meta'));
+            const sourceKey = String(decoded?.sourceKey || fallback.sourceKey || '').trim();
+            const sourceLabel = String(
+                decoded?.sourceLabel
+                || fallback.sourceLabel
+                || BASTARD_LOOP_SOURCE_LABELS[sourceKey]
+                || sourceKey
+            ).trim();
+            const metadata = snapshotBastardLoopMetadata(decoded, sourceLabel) || {
+                summary: '',
+                durationSeconds: 0,
+                bpm: Number(fallback.bpm) || 0,
+                sourceKey,
+                sourceLabel,
+                sampleNames: [],
+                samplePaths: []
+            };
+            metadata.savedName = String(decoded?.savedName || fallback.savedName || '').trim();
+            if (!metadata.sourceKey) metadata.sourceKey = sourceKey;
+            if (!metadata.sourceLabel) metadata.sourceLabel = sourceLabel;
+            if (!(metadata.bpm > 0) && Number.isFinite(Number(decoded?.bpm))) {
+                metadata.bpm = clampBpmValue(decoded.bpm);
+            }
+            if (!(metadata.durationSeconds > 0) && Number.isFinite(Number(decoded?.durationSeconds))) {
+                metadata.durationSeconds = Number(decoded.durationSeconds);
+            }
+            if (!metadata.summary && metadata.durationSeconds > 0) {
+                metadata.summary = `${metadata.durationSeconds.toFixed(2)}s · ready`;
+            }
+            return metadata;
+        }
+
+        async function requestGeneratedBastardLoopAudio(requestPayload, options = {}) {
+            const traceLayer = options.traceLayer || 'A';
+            const errorLabel = options.errorLabel || 'Bastardloop build';
+            const fallbackSourceKey = String(options.fallbackSourceKey || requestPayload?.source || 'sampledrop').trim();
+            const fallbackSourceLabel = String(
+                options.fallbackSourceLabel
+                || BASTARD_LOOP_SOURCE_LABELS[fallbackSourceKey]
+                || fallbackSourceKey
+            ).trim();
+            const response = await fetch(BASTARD_LOOP_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...(requestPayload || {}),
+                    responseFormat: 'audio'
+                })
+            });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `${errorLabel} failed with status ${response.status}`);
+            }
+            const metadata = readBastardLoopBuildResponseMetadata(response, {
+                sourceKey: fallbackSourceKey,
+                sourceLabel: fallbackSourceLabel,
+                bpm: requestPayload?.bpm
+            });
+            appendBastardLoopTrace(traceLayer, 'build-response', {
+                savedName: metadata.savedName || '',
+                sourceKey: metadata.sourceKey || fallbackSourceKey,
+                sampleNames: Array.isArray(metadata.sampleNames) ? metadata.sampleNames.slice(0, 8) : []
+            });
+            const arrayBuffer = await response.arrayBuffer();
+            if (!(arrayBuffer instanceof ArrayBuffer) || arrayBuffer.byteLength <= 0) {
+                throw new Error(`${errorLabel} returned no audio.`);
+            }
+            appendBastardLoopTrace(traceLayer, 'audio-response', {
+                bytes: arrayBuffer.byteLength,
+                savedName: metadata.savedName || ''
+            });
+            return { metadata, arrayBuffer };
+        }
+
         function buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath) {
             const params = new URLSearchParams({
                 source: sourceKey,
@@ -37456,37 +37559,17 @@
                     stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
-                const response = await fetch(BASTARD_LOOP_API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                        divisions,
-                        patternLength: getBastardLoopPatternLengthPayload()
-                    })
+                const { metadata: payload, arrayBuffer } = await requestGeneratedBastardLoopAudio({
+                    bpm,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    divisions,
+                    patternLength: getBastardLoopPatternLengthPayload()
+                }, {
+                    traceLayer: 'A',
+                    errorLabel: 'Bastardloop build',
+                    fallbackSourceKey: 'sampledrop'
                 });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || `Bastardloop build failed with status ${response.status}`);
-                }
-                appendBastardLoopTrace('A', 'build-response', {
-                    savedName: payload.savedName || '',
-                    sourceKey: payload.sourceKey || 'sampledrop',
-                    sampleNames: Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 8) : []
-                });
-
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
-                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
-                if (!audioResponse.ok) {
-                    throw new Error(`Generated bastardloop fetch failed with status ${audioResponse.status}`);
-                }
-                appendBastardLoopTrace('A', 'fetch-ok', { audioUrl });
-                const arrayBuffer = await audioResponse.arrayBuffer();
-                await applyLoadedBastardLoopBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop ${bpm} BPM`, payload);
+                await applyLoadedBastardLoopBuffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('A');
 
                 restartTrackedLoopPlaybackFromStart({
@@ -37556,38 +37639,18 @@
                     stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
-                const response = await fetch(BASTARD_LOOP_API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-b`,
-                        divisions,
-                        source: 'sampledrop2',
-                        patternLength: getBastardLoopPatternLengthPayload()
-                    })
+                const { metadata: payload, arrayBuffer } = await requestGeneratedBastardLoopAudio({
+                    bpm,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-b`,
+                    divisions,
+                    source: 'sampledrop2',
+                    patternLength: getBastardLoopPatternLengthPayload()
+                }, {
+                    traceLayer: 'B',
+                    errorLabel: 'Bastardloop B build',
+                    fallbackSourceKey: 'sampledrop2'
                 });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || `Bastardloop B build failed with status ${response.status}`);
-                }
-                appendBastardLoopTrace('B', 'build-response', {
-                    savedName: payload.savedName || '',
-                    sourceKey: payload.sourceKey || 'sampledrop2',
-                    sampleNames: Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 8) : []
-                });
-
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
-                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
-                if (!audioResponse.ok) {
-                    throw new Error(`Generated Bastardloop B fetch failed with status ${audioResponse.status}`);
-                }
-                appendBastardLoopTrace('B', 'fetch-ok', { audioUrl });
-                const arrayBuffer = await audioResponse.arrayBuffer();
-                await applyLoadedBastardLoop2Buffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop B ${bpm} BPM`, payload);
+                await applyLoadedBastardLoop2Buffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop B ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('B');
 
                 restartTrackedLoopPlaybackFromStart({
@@ -37657,38 +37720,18 @@
                     stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
-                const response = await fetch(BASTARD_LOOP_API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-c`,
-                        divisions,
-                        source: 'splice_claw',
-                        patternLength: getBastardLoopPatternLengthPayload()
-                    })
+                const { metadata: payload, arrayBuffer } = await requestGeneratedBastardLoopAudio({
+                    bpm,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-c`,
+                    divisions,
+                    source: 'splice_claw',
+                    patternLength: getBastardLoopPatternLengthPayload()
+                }, {
+                    traceLayer: 'C',
+                    errorLabel: 'Bastardloop C build',
+                    fallbackSourceKey: 'splice_claw'
                 });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || `Bastardloop C build failed with status ${response.status}`);
-                }
-                appendBastardLoopTrace('C', 'build-response', {
-                    savedName: payload.savedName || '',
-                    sourceKey: payload.sourceKey || 'splice_claw',
-                    sampleNames: Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 8) : []
-                });
-
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
-                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
-                if (!audioResponse.ok) {
-                    throw new Error(`Generated Bastardloop C fetch failed with status ${audioResponse.status}`);
-                }
-                appendBastardLoopTrace('C', 'fetch-ok', { audioUrl });
-                const arrayBuffer = await audioResponse.arrayBuffer();
-                await applyLoadedBastardLoop3Buffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop C ${bpm} BPM`, payload);
+                await applyLoadedBastardLoop3Buffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop C ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('C');
 
                 restartTrackedLoopPlaybackFromStart({
@@ -37766,39 +37809,19 @@
                     stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
-                const response = await fetch(BASTARD_LOOP_API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-v`,
-                        divisions,
-                        source: 'samples_vocal',
-                        sourceFiles,
-                        patternLength: getBastardLoopPatternLengthPayload()
-                    })
+                const { metadata: payload, arrayBuffer } = await requestGeneratedBastardLoopAudio({
+                    bpm,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-v`,
+                    divisions,
+                    source: 'samples_vocal',
+                    sourceFiles,
+                    patternLength: getBastardLoopPatternLengthPayload()
+                }, {
+                    traceLayer: 'V',
+                    errorLabel: 'Bastardloop V build',
+                    fallbackSourceKey: 'samples_vocal'
                 });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || `Bastardloop V build failed with status ${response.status}`);
-                }
-                appendBastardLoopTrace('V', 'build-response', {
-                    savedName: payload.savedName || '',
-                    sourceKey: payload.sourceKey || 'samples_vocal',
-                    sampleNames: Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 8) : []
-                });
-
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
-                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
-                if (!audioResponse.ok) {
-                    throw new Error(`Generated Bastardloop V fetch failed with status ${audioResponse.status}`);
-                }
-                appendBastardLoopTrace('V', 'fetch-ok', { audioUrl });
-                const arrayBuffer = await audioResponse.arrayBuffer();
-                await applyLoadedBastardLoopVBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop V ${bpm} BPM`, payload);
+                await applyLoadedBastardLoopVBuffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop V ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('V');
 
                 restartTrackedLoopPlaybackFromStart({
@@ -37873,39 +37896,19 @@
                     stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
-                const response = await fetch(BASTARD_LOOP_API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-p`,
-                        divisions,
-                        source: 'samples_piano',
-                        sourceFiles,
-                        patternLength: getBastardLoopPatternLengthPayload()
-                    })
+                const { metadata: payload, arrayBuffer } = await requestGeneratedBastardLoopAudio({
+                    bpm,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-p`,
+                    divisions,
+                    source: 'samples_piano',
+                    sourceFiles,
+                    patternLength: getBastardLoopPatternLengthPayload()
+                }, {
+                    traceLayer: 'P',
+                    errorLabel: 'Bastardloop P build',
+                    fallbackSourceKey: 'samples_piano'
                 });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || `Bastardloop P build failed with status ${response.status}`);
-                }
-                appendBastardLoopTrace('P', 'build-response', {
-                    savedName: payload.savedName || '',
-                    sourceKey: payload.sourceKey || 'samples_piano',
-                    sampleNames: Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 8) : []
-                });
-
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
-                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
-                if (!audioResponse.ok) {
-                    throw new Error(`Generated Bastardloop P fetch failed with status ${audioResponse.status}`);
-                }
-                appendBastardLoopTrace('P', 'fetch-ok', { audioUrl });
-                const arrayBuffer = await audioResponse.arrayBuffer();
-                await applyLoadedBastardLoopPBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop P ${bpm} BPM`, payload);
+                await applyLoadedBastardLoopPBuffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop P ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('P');
 
                 restartTrackedLoopPlaybackFromStart({
@@ -37978,39 +37981,19 @@
                     stopDrumMachine({ preserveTransportState: true, skipUi: true, silent: true });
                 }
 
-                const response = await fetch(BASTARD_LOOP_API_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        bpm,
-                        seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-o`,
-                        divisions,
-                        source: 'samples_orch',
-                        sourceFiles,
-                        patternLength: getBastardLoopPatternLengthPayload()
-                    })
+                const { metadata: payload, arrayBuffer } = await requestGeneratedBastardLoopAudio({
+                    bpm,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-o`,
+                    divisions,
+                    source: 'samples_orch',
+                    sourceFiles,
+                    patternLength: getBastardLoopPatternLengthPayload()
+                }, {
+                    traceLayer: 'O',
+                    errorLabel: 'Bastardloop O build',
+                    fallbackSourceKey: 'samples_orch'
                 });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.ok) {
-                    throw new Error(payload.error || `Bastardloop O build failed with status ${response.status}`);
-                }
-                appendBastardLoopTrace('O', 'build-response', {
-                    savedName: payload.savedName || '',
-                    sourceKey: payload.sourceKey || 'samples_orch',
-                    sampleNames: Array.isArray(payload.sampleNames) ? payload.sampleNames.slice(0, 8) : []
-                });
-
-                const audioUrl = payload.absoluteUrl || new URL(payload.url, `${BASTARD_LOOP_REPOSITORY_BASE_URL}/`).toString();
-                const audioResponse = await fetch(audioUrl, { mode: 'cors' });
-                if (!audioResponse.ok) {
-                    throw new Error(`Generated Bastardloop O fetch failed with status ${audioResponse.status}`);
-                }
-                appendBastardLoopTrace('O', 'fetch-ok', { audioUrl });
-                const arrayBuffer = await audioResponse.arrayBuffer();
-                await applyLoadedBastardLoopOBuffer(arrayBuffer ? await audioContext.decodeAudioData(arrayBuffer.slice(0)) : null, `Bastardloop O ${bpm} BPM`, payload);
+                await applyLoadedBastardLoopOBuffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop O ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('O');
 
                 restartTrackedLoopPlaybackFromStart({
