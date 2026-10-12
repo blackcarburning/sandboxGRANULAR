@@ -7408,33 +7408,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="source-waveform-panel" id="outputWaveformEditor" hidden>
-                        <div class="source-waveform-header">
-                            <span>Output Source</span>
-                            <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
-                        </div>
-                        <div class="grain-engine-action-row">
-                            <button type="button" class="source-waveform-solo-btn grain-preserve-duration-btn" data-grain-preserve-duration="main" aria-pressed="true">Preserve Duration</button>
-                            <button type="button" class="source-waveform-solo-btn" data-grain-layer-mute="main" aria-pressed="false">Mute Main</button>
-                        </div>
-                        <canvas id="outputWaveformCanvas" class="source-waveform-canvas" data-source="output"></canvas>
-                        <div class="source-seed-buttons">
-                            <button id="recordOutputSourcePanelBtn" class="primary" data-idle-text="Record Output to Source">Record Output to Source</button>
-                        </div>
-                        <div class="source-loop-controls">
-                            <div class="source-loop-labels">
-                                <label for="outputLoopStart">Start <span id="outputLoopStartValue">0%</span></label>
-                                <label for="outputLoopEnd">End <span id="outputLoopEndValue">100%</span></label>
-                            </div>
-                            <input type="range" id="outputLoopStart" min="0" max="100" value="0" step="1">
-                            <input type="range" id="outputLoopEnd" min="0" max="100" value="100" step="1">
-                        </div>
-                        <div class="source-seed-buttons source-seed-buttons-stack">
-                            <button type="button" class="trim-source-btn" data-source-kind="output">Trim to Selection</button>
-                            <button type="button" class="trim-source-btn" id="clearOutputSourceBtn">Clear Output</button>
-                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="output" aria-pressed="false" disabled>Audition</button>
-                        </div>
-                    </div>
                 </div>
                 <div class="source-waveform-control-grid legacy-source-waveform-mixer" aria-label="Source waveform solo and tune controls">
                     <div class="section-title">Source Waveform Solo + Tune</div>
@@ -7498,7 +7471,6 @@
                     <div class="section-title">Record Output</div>
                     <div class="recording-buttons">
                         <button id="startOutputRecBtn">Start</button>
-                        <button id="recordOutputSourceBtn" data-idle-text="Rec Output Source" hidden>Rec Output Source</button>
                         <button id="stopOutputRecBtn" disabled>Stop</button>
                         <button id="armOutputRecBtn">Arm</button>
                     </div>
@@ -7536,7 +7508,6 @@
                                     <option value="grainMainSample">Main Grain Sample</option>
                                     <option value="generated">Generated Loop</option>
                                     <option value="mic" selected>Main Mic</option>
-                                    <option value="output">Output Source</option>
                                     <option value="grainAMic">Grain A Mic</option>
                                     <option value="grainBMic">Grain B Mic</option>
                                     <option value="all">All Sources</option>
@@ -10020,7 +9991,6 @@
         let grainBSampleBuffer = null;
         let grainSynthAMicBuffer = null;
         let grainSynthBMicBuffer = null;
-        let outputSourceBuffer = null;
         let bastardLoopBuffer = null;
         let bastardLoopMetadata = null;
         let bastardLoopSourceBpm = 120;
@@ -11357,8 +11327,6 @@
             'grainBMicLoopEnd',
             'grainBSampleLoopStart',
             'grainBSampleLoopEnd',
-            'outputLoopStart',
-            'outputLoopEnd',
             'lfoPulseWidth',
             'lfo2PulseWidth',
             'lfo3PulseWidth',
@@ -11599,8 +11567,6 @@
             grainAMicLoopEnd: { min: 0, max: 100 },
             grainBMicLoopStart: { min: 0, max: 100 },
             grainBMicLoopEnd: { min: 0, max: 100 },
-            outputLoopStart: { min: 0, max: 100 },
-            outputLoopEnd: { min: 0, max: 100 },
             grainSize: { min: 10, max: 500 },
             grainMainStart: { min: 0, max: 100 },
             grainMainDecay: { min: 1, max: 5000 },
@@ -11733,17 +11699,6 @@
                     attack: { id: 'grainBMicGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
                     release: { id: 'grainBMicGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
                 }
-            },
-            {
-                kind: 'output',
-                label: 'Output',
-                controls: {
-                    position: { id: 'outputGrainPosition', label: 'Pos Offset', min: -50, max: 50, value: 0, step: 1 },
-                    scale: { id: 'outputGrainScale', label: 'Size', min: 25, max: 250, value: 100, step: 1 },
-                    level: { id: 'outputGrainLevel', label: 'Volume', min: 0, max: 200, value: 100, step: 1 },
-                    attack: { id: 'outputGrainAttackScale', label: 'Env Attack', min: 25, max: 250, value: 100, step: 1 },
-                    release: { id: 'outputGrainReleaseScale', label: 'Env Release', min: 25, max: 250, value: 100, step: 1 }
-                }
             }
         ];
         const SOURCE_GRAIN_CONTROL_BY_KIND = Object.fromEntries(
@@ -11760,8 +11715,7 @@
             { kind: 'grainASample', label: 'Grain A Sample', startId: 'grainASampleLoopStart', endId: 'grainASampleLoopEnd' },
             { kind: 'grainAMic', label: 'Grain A', startId: 'grainAMicLoopStart', endId: 'grainAMicLoopEnd' },
             { kind: 'grainBSample', label: 'Grain B Sample', startId: 'grainBSampleLoopStart', endId: 'grainBSampleLoopEnd' },
-            { kind: 'grainBMic', label: 'Grain B', startId: 'grainBMicLoopStart', endId: 'grainBMicLoopEnd' },
-            { kind: 'output', label: 'Output', startId: 'outputLoopStart', endId: 'outputLoopEnd' }
+            { kind: 'grainBMic', label: 'Grain B', startId: 'grainBMicLoopStart', endId: 'grainBMicLoopEnd' }
         ];
         const SOURCE_LOOP_START_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.map((definition) => definition.startId);
         const SOURCE_LOOP_END_IDS = SOURCE_LOOP_CONTROL_DEFINITIONS.map((definition) => definition.endId);
@@ -11773,17 +11727,15 @@
             grainASample: 'Grain A Sample',
             grainAMic: 'Grain A Mic',
             grainBSample: 'Grain B Sample',
-            grainBMic: 'Grain B Mic',
-            output: 'Output Source'
+            grainBMic: 'Grain B Mic'
         };
-        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample', 'grainAMic', 'grainBMic', 'output']);
-        const DISABLED_SOURCE_WAVEFORM_SOLO_KINDS = new Set(['mic', 'output']);
+        const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample', 'grainAMic', 'grainBMic']);
+        const DISABLED_SOURCE_WAVEFORM_SOLO_KINDS = new Set(['mic']);
         const SOURCE_TUNE_CONTROL_IDS = {
             generated: 'generatedSourceTune',
             mic: 'micSourceTune',
             grainAMic: 'grainAMicSourceTune',
-            grainBMic: 'grainBMicSourceTune',
-            output: 'outputSourceTune'
+            grainBMic: 'grainBMicSourceTune'
         };
         const ACTIVE_GRAIN_REALTIME_CONTROL_IDS = new Set([
             'grainSize',
@@ -11902,7 +11854,6 @@
             'sampleStart', 'sampleEnd', 'grainSize', 'grainMainStart', 'grainMainDecay', 'grainMainBlend', 'grainMainSmoothing', 'attack', 'release',
             'generatedLoopStart', 'generatedLoopEnd', 'micLoopStart', 'micLoopEnd',
             'grainAMicLoopStart', 'grainAMicLoopEnd', 'grainBMicLoopStart', 'grainBMicLoopEnd',
-            'outputLoopStart', 'outputLoopEnd',
             'pitchVar', 'grainTune', 'grainPlaybackSpeed',
             'grainMainTune', 'grainMainFineTune', 'grainMainWidth', 'grainMainSmoothing',
             'grainSynthAStart', 'grainSynthAAttack', 'grainSynthADecay', 'grainSynthARelease', 'grainSynthAFineTune', 'grainSynthASmoothing', 'grainSynthAWidth',
@@ -13060,7 +13011,6 @@
                             restoredGrainBSampleBuffer,
                             restoredGrainAMicBuffer,
                             restoredGrainBMicBuffer,
-                            restoredOutputBuffer,
                             restoredBastardLoopBuffer,
                             restoredBastardLoop2Buffer,
                             restoredBastardLoop3Buffer,
@@ -13083,7 +13033,6 @@
                             loadAudioBufferFromDB(GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(GRAIN_A_MIC_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(GRAIN_B_MIC_AUDIO_BUFFER_KEY),
-                            loadAudioBufferFromDB(OUTPUT_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(BASTARD_LOOP_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(BASTARD_LOOP_2_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(BASTARD_LOOP_3_AUDIO_BUFFER_KEY),
@@ -13107,7 +13056,6 @@
                         const shouldRestoreGrainBSample = restoredGrainBSampleBuffer && restoreStillCurrent;
                         const shouldRestoreGrainAMic = restoredGrainAMicBuffer && restoreStillCurrent;
                         const shouldRestoreGrainBMic = restoredGrainBMicBuffer && restoreStillCurrent;
-                        const shouldRestoreOutput = restoredOutputBuffer && restoreStillCurrent;
                         const shouldRestoreBastardLoop = restoredBastardLoopBuffer && restoreStillCurrent;
                         const shouldRestoreBastardLoop2 = restoredBastardLoop2Buffer && restoreStillCurrent;
                         const shouldRestoreBastardLoop3 = restoredBastardLoop3Buffer && restoreStillCurrent;
@@ -13164,9 +13112,6 @@
                         }
                         if (shouldRestoreGrainBMic) {
                             grainSynthBMicBuffer = normalizeSourceBufferChannels('grainBMic', restoredGrainBMicBuffer);
-                        }
-                        if (shouldRestoreOutput) {
-                            outputSourceBuffer = restoredOutputBuffer;
                         }
                         if (shouldRestoreBastardLoop) {
                             bastardLoopBuffer = restoredBastardLoopBuffer;
@@ -15382,17 +15327,6 @@
                     dbKey: () => GRAIN_B_MIC_AUDIO_BUFFER_KEY,
                     emptyText: 'Record Grain B mic to fill this source',
                     color: '#ff8ad6'
-                },
-                output: {
-                    buffer: () => outputSourceBuffer,
-                    setBuffer: (buffer) => { outputSourceBuffer = buffer; },
-                    startId: 'outputLoopStart',
-                    endId: 'outputLoopEnd',
-                    canvas: outputWaveformCanvas,
-                    metaId: 'outputWaveformMeta',
-                    dbKey: () => OUTPUT_AUDIO_BUFFER_KEY,
-                    emptyText: 'Record synth output to fill this source',
-                    color: '#b9a7ff'
                 }
             };
             return configs[kind] || configs.generated;
@@ -15409,7 +15343,6 @@
                 || grainASampleBuffer
                 || grainBSampleBuffer
                 || micAudioBuffer
-                || outputSourceBuffer
                 || grainSynthAMicBuffer
                 || grainSynthBMicBuffer
                 || null;
@@ -15422,7 +15355,6 @@
                 || grainASampleBuffer
                 || grainBSampleBuffer
                 || micAudioBuffer
-                || outputSourceBuffer
                 || grainSynthAMicBuffer
                 || grainSynthBMicBuffer
                 || audioBuffer
@@ -15822,8 +15754,6 @@
                 sources = [makeGranularSource('grainAMic')].filter(Boolean);
             } else if (mode === 'grainBMic') {
                 sources = [makeGranularSource('grainBMic')].filter(Boolean);
-            } else if (mode === 'output') {
-                sources = [makeGranularSource('output')].filter(Boolean);
             } else {
                 sources = getAllGranularSources();
             }
@@ -28733,7 +28663,6 @@
             grainBSampleMetadata = null;
             grainSynthAMicBuffer = null;
             grainSynthBMicBuffer = null;
-            outputSourceBuffer = null;
             bastardLoopBuffer = null;
             bastardLoopMetadata = null;
             bastardLoop2Buffer = null;
@@ -31266,8 +31195,7 @@
                 grainASample: 'Grain A sample',
                 grainBSample: 'Grain B sample',
                 grainAMic: 'Grain A mic',
-                grainBMic: 'Grain B mic',
-                output: 'Output source'
+                grainBMic: 'Grain B mic'
             };
             return labels[kind] || 'Source';
         }
@@ -33909,7 +33837,6 @@
             const previousGrainBSampleBuffer = grainBSampleBuffer;
             const previousGrainAMicBuffer = grainSynthAMicBuffer;
             const previousGrainBMicBuffer = grainSynthBMicBuffer;
-            const previousOutputBuffer = outputSourceBuffer;
             setStatus(`Loading ${sourceLabel}…`);
             const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
 
@@ -33928,7 +33855,6 @@
                 grainBSampleBuffer = previousGrainBSampleBuffer;
                 grainSynthAMicBuffer = previousGrainAMicBuffer;
                 grainSynthBMicBuffer = previousGrainBMicBuffer;
-                outputSourceBuffer = previousOutputBuffer;
                 syncLegacyAudioBuffer();
                 throw error;
             }
@@ -35735,8 +35661,6 @@
                 grainAMicLoopEnd: 100,
                 grainBMicLoopStart: 0,
                 grainBMicLoopEnd: 100,
-                outputLoopStart: 0,
-                outputLoopEnd: 100,
                 grainSize: 180,
                 grainMainStart: 0,
                 grainMainDecay: 120,
@@ -35914,8 +35838,7 @@
                 generatedSourceTune: 0,
                 micSourceTune: 0,
                 grainAMicSourceTune: 0,
-                grainBMicSourceTune: 0,
-                outputSourceTune: 0
+                grainBMicSourceTune: 0
             };
             const bpmResetIds = new Set(['delayBpm', 'lfoRate', 'lfo2Rate', 'lfo3Rate', 'seqBpm', 'globalBpmSlider']);
             applyGlobalBpm(defaults.delayBpm);
@@ -36232,7 +36155,6 @@
                     hasGrainBSample: Boolean(grainBSampleBuffer),
                     hasGrainAMicSample: Boolean(grainSynthAMicBuffer),
                     hasGrainBMicSample: Boolean(grainSynthBMicBuffer),
-                    hasOutputSample: Boolean(outputSourceBuffer),
                     hasBastardLoop: Boolean(bastardLoopBuffer),
                     hasBastardLoop2: Boolean(bastardLoop2Buffer),
                     hasBastardLoop3: Boolean(bastardLoop3Buffer),
@@ -36247,7 +36169,7 @@
                     hasDrumMachineHats: drumMachineHatPattern.some(Boolean),
                     hasLegacySample: Boolean(audioBuffer)
                 },
-                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainMainSampleBuffer || grainASampleBuffer || grainBSampleBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || outputSourceBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || drumMachineHatBuffer || drumMachinePercBuffer || audioBuffer)
+                requiresSampleReload: Boolean(generatedLoopBuffer || micAudioBuffer || grainMainSampleBuffer || grainASampleBuffer || grainBSampleBuffer || grainSynthAMicBuffer || grainSynthBMicBuffer || bastardLoopBuffer || bastardLoop2Buffer || bastardLoop3Buffer || bastardLoopVBuffer || bastardLoopPBuffer || bastardLoopOBuffer || dropboxSampleLayerRawBuffer || drumMachineKickBuffer || drumMachineSnareBuffer || drumMachineHatBuffer || drumMachinePercBuffer || audioBuffer)
             };
 
             // Gather all slider values
@@ -36955,7 +36877,6 @@
         const GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY = 'grainBSampleBuffer';
         const GRAIN_A_MIC_AUDIO_BUFFER_KEY = 'grainSynthAMicBuffer';
         const GRAIN_B_MIC_AUDIO_BUFFER_KEY = 'grainSynthBMicBuffer';
-        const OUTPUT_AUDIO_BUFFER_KEY = 'outputSourceBuffer';
         const BASTARD_LOOP_AUDIO_BUFFER_KEY = 'bastardLoopBuffer';
         const BASTARD_LOOP_2_AUDIO_BUFFER_KEY = 'bastardLoopBuffer2';
         const BASTARD_LOOP_3_AUDIO_BUFFER_KEY = 'bastardLoopBuffer3';
@@ -39342,7 +39263,6 @@
             { key: 'grainBSample', label: 'Grain B sample', role: 'source', path: 'audio/grain-b-sample.wav', getBuffer: () => grainBSampleBuffer },
             { key: 'grainAMic', label: 'Grain A mic recording', role: 'recorded-mic', path: 'audio/grain-a-mic.wav', getBuffer: () => grainSynthAMicBuffer },
             { key: 'grainBMic', label: 'Grain B mic recording', role: 'recorded-mic', path: 'audio/grain-b-mic.wav', getBuffer: () => grainSynthBMicBuffer },
-            { key: 'output', label: 'Recorded output capture', role: 'output-capture', path: 'audio/output-capture.wav', getBuffer: () => outputSourceBuffer },
             { key: 'bastardA', label: 'Bastardloop A rendered buffer', role: 'bastardloop-render', layer: 'A', path: 'bastardloops/bastardloop-a.wav', getBuffer: () => bastardLoopBuffer, getMetadata: () => bastardLoopMetadata, apply: applyLoadedBastardLoopBuffer },
             { key: 'bastardB', label: 'Bastardloop B rendered buffer', role: 'bastardloop-render', layer: 'B', path: 'bastardloops/bastardloop-b.wav', getBuffer: () => bastardLoop2Buffer, getMetadata: () => bastardLoop2Metadata, apply: applyLoadedBastardLoop2Buffer },
             { key: 'bastardC', label: 'Bastardloop C rendered buffer', role: 'bastardloop-render', layer: 'C', path: 'bastardloops/bastardloop-c.wav', getBuffer: () => bastardLoop3Buffer, getMetadata: () => bastardLoop3Metadata, apply: applyLoadedBastardLoop3Buffer },
@@ -44297,22 +44217,11 @@
 
         function setOutputRecordingButtons(recording, target = outputRecordingTarget) {
             const startBtn = document.getElementById('startOutputRecBtn');
-            const sourceBtns = [
-                document.getElementById('recordOutputSourceBtn'),
-                document.getElementById('recordOutputSourcePanelBtn')
-            ].filter(Boolean);
             const stopBtn = document.getElementById('stopOutputRecBtn');
             if (startBtn) {
                 startBtn.disabled = recording;
                 startBtn.classList.toggle('recording', recording && target === 'file');
             }
-            sourceBtns.forEach((sourceBtn) => {
-                sourceBtn.disabled = recording && target !== 'source';
-                sourceBtn.classList.toggle('recording', recording && target === 'source');
-                sourceBtn.textContent = recording && target === 'source'
-                    ? 'Stop Source'
-                    : (sourceBtn.dataset.idleText || 'Rec Output Source');
-            });
             if (stopBtn) {
                 stopBtn.disabled = !recording;
             }
@@ -44402,10 +44311,7 @@
                                 resetRecordingUI(true);
                                 return;
                             }
-                            if (outputRecordingTarget === 'source') {
-                                await applyLoadedAudioBuffer(audioBuffer, 'Output source recording', 'output');
-                                console.log('Output recording loaded into granular output source slot');
-                            } else if (outputRecordingTarget === 'keyboard-repo') {
+                            if (outputRecordingTarget === 'keyboard-repo') {
                                 console.log('Uploading keyboard recording to repository...');
                                 await saveKeyboardRepositoryRecording(audioBuffer);
                             } else {
@@ -44419,9 +44325,7 @@
                                 console.log('saveWavFile completed');
                             }
 
-                            document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
-                                ? 'Output source recorded'
-                                : outputRecordingTarget === 'keyboard-repo'
+                            document.getElementById('outputRecText').textContent = outputRecordingTarget === 'keyboard-repo'
                                     ? 'Keyboard recording done'
                                     : 'Recording saved';
                             setTimeout(() => {
@@ -44449,9 +44353,7 @@
                     setOutputRecordingButtons(true, outputRecordingTarget);
                     document.getElementById('outputRecStatus').classList.add('active');
                     document.getElementById('outputRecDot').classList.add('active');
-                    document.getElementById('outputRecText').textContent = outputRecordingTarget === 'source'
-                        ? 'Recording output source...'
-                        : outputRecordingTarget === 'keyboard-repo'
+                    document.getElementById('outputRecText').textContent = outputRecordingTarget === 'keyboard-repo'
                             ? 'Recording keyboard...'
                             : 'Recording...';
 
@@ -44467,17 +44369,6 @@
         document.getElementById('startOutputRecBtn')?.addEventListener('click', () => {
             startOutputRecording('file');
         });
-
-        const handleOutputSourceRecordClick = () => {
-            if (isOutputRecording && outputRecordingTarget === 'source') {
-                stopOutputRecording();
-            } else {
-                startOutputRecording('source');
-            }
-        };
-
-        document.getElementById('recordOutputSourceBtn')?.addEventListener('click', handleOutputSourceRecordClick);
-        document.getElementById('recordOutputSourcePanelBtn')?.addEventListener('click', handleOutputSourceRecordClick);
 
         // Helper function to reset recording UI
         function resetRecordingUI(skipMediaRecorderStop = false) {
@@ -47816,8 +47707,7 @@
             ['clearGrainAMicBtn', 'grainAMic', 'Grain A mic'],
             ['clearGrainASampleBtn', 'grainASample', 'Grain A sample'],
             ['clearGrainBMicBtn', 'grainBMic', 'Grain B mic'],
-            ['clearGrainBSampleBtn', 'grainBSample', 'Grain B sample'],
-            ['clearOutputSourceBtn', 'output', 'Output source']
+            ['clearGrainBSampleBtn', 'grainBSample', 'Grain B sample']
         ].forEach(([id, kind, label]) => {
             document.getElementById(id)?.addEventListener('click', async () => {
                 await clearGranularSourceSlot(kind, label);
