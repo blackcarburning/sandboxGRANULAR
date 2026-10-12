@@ -132,6 +132,7 @@
 
         body.dropbox-sample-browser-open #dropboxSampleBrowserOverlay,
         body.wav-repository-browser-open #wavRepositoryBrowserOverlay,
+        body.midi-repository-browser-open #midiRepositoryBrowserOverlay,
         body.patch-repository-browser-open #patchRepositoryBrowserOverlay,
         body.performance-take-browser-open #performanceTakeBrowserOverlay,
         body.stem-repository-browser-open #stemRepositoryBrowserOverlay,
@@ -6431,6 +6432,7 @@
                     <button class="performance-btn" id="performanceExportBtn">Export WAV</button>
                     <button class="performance-btn" id="performanceRepoExportBtn">Export Final Mix to Repo</button>
                     <button class="performance-btn" id="performanceWavBrowserBtn">WAV Browser</button>
+                    <button class="performance-btn" id="performanceMidiBrowserBtn">MIDI Browser</button>
                     <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                     <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                     <button class="performance-btn" id="performanceKeyboardRecordBtn" type="button">Key Record</button>
@@ -8828,6 +8830,27 @@
             </div>
         </div>
 
+        <div class="sample-browser-overlay" id="midiRepositoryBrowserOverlay" hidden aria-hidden="true">
+            <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="midiRepositoryBrowserTitle">
+                <div class="sample-browser-head">
+                    <div class="sample-browser-copy">
+                        <h3 id="midiRepositoryBrowserTitle">MIDI Browser</h3>
+                        <p id="midiRepositoryBrowserSubtitle">Download, rename, and annotate exported MIDI files.</p>
+                    </div>
+                    <button class="performance-btn" id="midiRepositoryBrowserCloseBtn" type="button">Close</button>
+                </div>
+                <div class="sample-browser-controls">
+                    <div class="sample-browser-filter-group">
+                        <label class="sample-browser-filter-label" for="midiRepositoryBrowserFilter">Search MIDI Files</label>
+                        <input class="sample-browser-filter-input" id="midiRepositoryBrowserFilter" type="search" placeholder="Filter MIDI exports" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <button class="performance-btn" id="midiRepositoryBrowserRefreshBtn" type="button">Refresh</button>
+                </div>
+                <div class="sample-browser-status" id="midiRepositoryBrowserStatus">Browse saved MIDI exports.</div>
+                <div class="sample-browser-list" id="midiRepositoryBrowserList"></div>
+            </div>
+        </div>
+
         <div class="sample-browser-overlay" id="bastardLoopSamplesOverlay" hidden aria-hidden="true">
             <div class="sample-browser-shell" role="dialog" aria-modal="true" aria-labelledby="bastardLoopSamplesTitle">
                 <div class="sample-browser-head">
@@ -8871,6 +8894,7 @@
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
+                            <button class="performance-btn" id="bastardLoopLExportMidiBtn" type="button">Export MIDI</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopLStatus">Choose a lead sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopLCopyPopup" hidden aria-live="polite"></div>
@@ -8940,6 +8964,7 @@
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopXClearAllBtn" type="button">Clear All</button>
+                            <button class="performance-btn" id="bastardLoopXExportMidiBtn" type="button">Export MIDI</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopXStatus">Choose a bass sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopXCopyPopup" hidden aria-live="polite"></div>
@@ -8996,6 +9021,7 @@
                     <button class="performance-btn" id="drumMachineDirectDelayBtn" type="button" aria-pressed="false">Delay Send Off</button>
                     <button class="performance-btn" id="drumMachineDirectReverbBtn" type="button" aria-pressed="false">Reverb Send Off</button>
                     <button class="performance-btn" id="drumMachinePlayBtn" type="button">Start Drums</button>
+                    <button class="performance-btn" id="drumMachineMidiExportBtn" type="button">Export MIDI</button>
                     <div class="drum-machine-status" id="drumMachineStatus">Kick empty · Snare empty · Synth hats · Hats empty</div>
                 </div>
                 <div class="drum-machine-layout">
@@ -36313,11 +36339,29 @@
         const STEM_REPOSITORY_FEEDBACK_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/file-feedback`;
         const STEM_REPOSITORY_RENAME_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/rename`;
         const STEM_REPOSITORY_DELETE_API_URL = `${STEM_REPOSITORY_BASE_URL}/api/delete`;
+        const MIDI_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-midi';
+        const MIDI_REPOSITORY_LIST_API_URL = `${MIDI_REPOSITORY_BASE_URL}/api/list`;
+        const MIDI_REPOSITORY_UPLOAD_API_URL = `${MIDI_REPOSITORY_BASE_URL}/api/upload`;
+        const MIDI_REPOSITORY_FEEDBACK_API_URL = `${MIDI_REPOSITORY_BASE_URL}/api/file-feedback`;
+        const MIDI_REPOSITORY_RENAME_API_URL = `${MIDI_REPOSITORY_BASE_URL}/api/rename`;
         const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https://openclaw.blackcarburning.com/mygrain-bastardloops';
         const BASTARD_LOOP_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/bastardloop`;
         const DROPBOX_SAMPLE_SOURCE_FILES_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-files`;
         const DROPBOX_SAMPLE_SOURCE_FEEDBACK_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-file-feedback`;
         const DROPBOX_SAMPLE_SOURCE_API_URL = `${BASTARD_LOOP_REPOSITORY_BASE_URL}/api/source-sample`;
+        const MIDI_EXPORT_TICKS_PER_BEAT = 480;
+        const MIDI_EXPORT_DRUM_CHANNELS = {
+            kick: 0,
+            snare: 1,
+            hat: 2,
+            perc: 3
+        };
+        const MIDI_EXPORT_DRUM_NOTES = {
+            kick: 36,
+            snare: 38,
+            hat: 42,
+            perc: 39
+        };
 
         function getBastardLoopPatternLengthPayload() {
             return getPatternLengthSteps();
@@ -36377,6 +36421,19 @@
             return `${cleaned || fallbackBase}.zip`;
         }
 
+        function sanitizeMidiRepositoryFilename(value, fallbackBase = 'mygrain-midi') {
+            const fallback = `${fallbackBase}.mid`;
+            const input = String(value || '').trim();
+            if (!input) return fallback;
+            const lastSegment = input.replace(/\\/g, '/').split('/').pop() || '';
+            const cleaned = lastSegment
+                .replace(/\.mid(?:i)?$/i, '')
+                .replace(/[^A-Za-z0-9._-]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^[-_.]+|[-_.]+$/g, '');
+            return `${cleaned || fallbackBase}.mid`;
+        }
+
         async function uploadWavToRepository(blob, filename) {
             const uploadUrl = `${WAV_REPOSITORY_BASE_URL}/api/upload?filename=${encodeURIComponent(filename)}`;
             const response = await fetch(uploadUrl, {
@@ -36411,6 +36468,43 @@
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.ok) {
                 throw new Error(payload.error || `WAV rename failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function uploadMidiToRepository(blob, filename) {
+            const response = await fetch(`${MIDI_REPOSITORY_UPLOAD_API_URL}?filename=${encodeURIComponent(filename)}`, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'audio/midi',
+                    'X-Filename': filename
+                },
+                body: blob
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `MIDI upload failed with status ${response.status}`);
+            }
+            return payload;
+        }
+
+        async function renameMidiInRepository(oldName, newName) {
+            const response = await fetch(MIDI_REPOSITORY_RENAME_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: oldName,
+                    to: newName
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || `MIDI rename failed with status ${response.status}`);
             }
             return payload;
         }
@@ -36828,6 +36922,449 @@
                 document.body.removeChild(anchor);
                 URL.revokeObjectURL(url);
             }, 100);
+            return true;
+        }
+
+        function clampMidiExportVelocity(value, fallback = 96) {
+            const numeric = Number(value);
+            return Math.max(1, Math.min(127, Math.round(Number.isFinite(numeric) ? numeric : fallback)));
+        }
+
+        function encodeMidiVariableLength(value) {
+            let buffer = Math.max(0, Math.floor(Number(value) || 0)) & 0x0FFFFFFF;
+            const bytes = [buffer & 0x7F];
+            while ((buffer >>= 7) > 0) {
+                bytes.unshift((buffer & 0x7F) | 0x80);
+            }
+            return bytes;
+        }
+
+        function createMidiChunk(type, payloadBytes = []) {
+            const typeBytes = Array.from(String(type || 'MTrk').slice(0, 4)).map((char) => char.charCodeAt(0));
+            while (typeBytes.length < 4) typeBytes.push(0x20);
+            const length = payloadBytes.length >>> 0;
+            return Uint8Array.from([
+                ...typeBytes.slice(0, 4),
+                (length >>> 24) & 0xFF,
+                (length >>> 16) & 0xFF,
+                (length >>> 8) & 0xFF,
+                length & 0xFF,
+                ...payloadBytes
+            ]);
+        }
+
+        function concatMidiChunks(chunks = []) {
+            const totalLength = chunks.reduce((sum, chunk) => sum + (chunk?.length || 0), 0);
+            const output = new Uint8Array(totalLength);
+            let offset = 0;
+            chunks.forEach((chunk) => {
+                if (!(chunk instanceof Uint8Array) || !chunk.length) return;
+                output.set(chunk, offset);
+                offset += chunk.length;
+            });
+            return output;
+        }
+
+        function createMidiTextMetaEvent(type, text, tick = 0, order = -20) {
+            const data = Array.from(new TextEncoder().encode(String(text || '')));
+            return {
+                tick: Math.max(0, Math.round(Number(tick) || 0)),
+                order,
+                bytes: [0xFF, type, ...encodeMidiVariableLength(data.length), ...data]
+            };
+        }
+
+        function createMidiTrackChunk(events = [], options = {}) {
+            const trackEvents = [];
+            if (options.trackName) {
+                trackEvents.push(createMidiTextMetaEvent(0x03, options.trackName, 0, -40));
+            }
+            if (options.description) {
+                trackEvents.push(createMidiTextMetaEvent(0x01, options.description, 0, -30));
+            }
+            trackEvents.push(...events);
+            trackEvents.sort((left, right) => {
+                const leftTick = Math.max(0, Math.round(Number(left?.tick) || 0));
+                const rightTick = Math.max(0, Math.round(Number(right?.tick) || 0));
+                if (leftTick !== rightTick) return leftTick - rightTick;
+                return (Number(left?.order) || 0) - (Number(right?.order) || 0);
+            });
+
+            const payload = [];
+            let lastTick = 0;
+            trackEvents.forEach((event) => {
+                const tick = Math.max(0, Math.round(Number(event?.tick) || 0));
+                const delta = Math.max(0, tick - lastTick);
+                payload.push(...encodeMidiVariableLength(delta), ...Array.from(event?.bytes || []));
+                lastTick = tick;
+            });
+            payload.push(0x00, 0xFF, 0x2F, 0x00);
+            return createMidiChunk('MTrk', payload);
+        }
+
+        function createMidiTempoTrackChunk(bpm = 120) {
+            const clampedBpm = clampBpmValue(bpm);
+            const microsecondsPerQuarter = Math.max(1, Math.round(60000000 / clampedBpm));
+            return createMidiTrackChunk([
+                {
+                    tick: 0,
+                    order: -20,
+                    bytes: [0xFF, 0x51, 0x03, (microsecondsPerQuarter >> 16) & 0xFF, (microsecondsPerQuarter >> 8) & 0xFF, microsecondsPerQuarter & 0xFF]
+                },
+                {
+                    tick: 0,
+                    order: -10,
+                    bytes: [0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08]
+                }
+            ], { trackName: 'Tempo' });
+        }
+
+        function createMidiFileBlob(trackChunks = [], options = {}) {
+            const validTracks = trackChunks.filter((chunk) => chunk instanceof Uint8Array && chunk.length > 0);
+            const trackCount = validTracks.length;
+            const format = Number.isFinite(Number(options.format))
+                ? Math.max(0, Math.min(2, Math.round(Number(options.format))))
+                : (trackCount > 1 ? 1 : 0);
+            const ticksPerBeat = Math.max(1, Math.min(0x7FFF, Math.round(Number(options.ticksPerBeat) || MIDI_EXPORT_TICKS_PER_BEAT)));
+            const header = createMidiChunk('MThd', [
+                (format >> 8) & 0xFF,
+                format & 0xFF,
+                (trackCount >> 8) & 0xFF,
+                trackCount & 0xFF,
+                (ticksPerBeat >> 8) & 0xFF,
+                ticksPerBeat & 0xFF
+            ]);
+            return new Blob([concatMidiChunks([header, ...validTracks])], { type: 'audio/midi' });
+        }
+
+        function secondsToMidiTicks(seconds, bpm = getSharedBpmClockValue(), ticksPerBeat = MIDI_EXPORT_TICKS_PER_BEAT) {
+            const durationSeconds = Math.max(0, Number(seconds) || 0);
+            const safeBpm = Math.max(1, clampBpmValue(bpm));
+            return Math.max(1, Math.round((durationSeconds * safeBpm * ticksPerBeat) / 60));
+        }
+
+        function addMidiNoteEvents(events, channel, noteNumber, startTick, durationTicks, velocity, orderBase = 0) {
+            const safeChannel = Math.max(0, Math.min(15, Math.round(Number(channel) || 0)));
+            const safeNote = Math.max(0, Math.min(127, Math.round(Number(noteNumber) || 60)));
+            const safeStartTick = Math.max(0, Math.round(Number(startTick) || 0));
+            const safeDurationTicks = Math.max(1, Math.round(Number(durationTicks) || 1));
+            events.push({
+                tick: safeStartTick,
+                order: orderBase + 1,
+                bytes: [0x90 | safeChannel, safeNote, clampMidiExportVelocity(velocity)]
+            });
+            events.push({
+                tick: safeStartTick + safeDurationTicks,
+                order: orderBase,
+                bytes: [0x80 | safeChannel, safeNote, 0]
+            });
+        }
+
+        function getMidiExportFilenameBase(kind = 'midi') {
+            const bpm = clampBpmValue(getSharedBpmClockValue());
+            return `mygrain-${String(kind || 'midi').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}-${bpm}bpm`;
+        }
+
+        function getMidiExportRequestedFilename(defaultBase, promptLabel) {
+            const requested = prompt(promptLabel, defaultBase);
+            if (!requested) return '';
+            return sanitizeMidiRepositoryFilename(requested, defaultBase);
+        }
+
+        function computeMidiNoteLengthTicks(stepTicks, lengthRatio, decayRatio, options = {}) {
+            const safeStepTicks = Math.max(1, Math.round(Number(stepTicks) || 1));
+            const normalizedLength = Math.max(0.05, Math.min(1, Number(lengthRatio) || 0.9));
+            const normalizedDecay = Math.max(0.05, Math.min(1, Number(decayRatio) || 0.75));
+            let durationTicks = normalizedDecay >= 0.999
+                ? Math.max(1, safeStepTicks - 1)
+                : Math.max(1, Math.round(safeStepTicks * Math.max(0.12, Math.min(0.98, normalizedLength * Math.max(0.45, normalizedDecay)))));
+            if (options.slide) {
+                durationTicks = Math.max(durationTicks, (safeStepTicks * 2) - 1);
+            }
+            return durationTicks;
+        }
+
+        function buildBastardLoopMidiTrackChunk(options = {}) {
+            const bpm = clampBpmValue(options.bpm ?? getSharedBpmClockValue());
+            const stepCount = Math.max(1, Math.min(64, Math.round(Number(options.stepCount) || getPatternLengthSteps())));
+            const stepTicks = secondsToMidiTicks(options.stepDurationSeconds, bpm);
+            const lengthRatio = Math.max(0.05, Math.min(1, Number(options.lengthRatio) || 0.9));
+            const decayRatio = Math.max(0.05, Math.min(1, Number(options.decayRatio) || 0.75));
+            const pitchSemitones = Math.round(Number(options.pitchSemitones) || 0);
+            const channel = Math.max(0, Math.min(15, Math.round(Number(options.channel) || 0)));
+            const events = [];
+
+            for (let index = 0; index < stepCount; index += 1) {
+                const step = typeof options.getStep === 'function' ? options.getStep(index) : null;
+                if (!step?.note || step.rest) continue;
+
+                const nextStep = typeof options.getStep === 'function'
+                    ? options.getStep((index + 1) % stepCount)
+                    : null;
+                const stepStartTick = index * stepTicks;
+                const ratchetCount = Math.max(1, Math.min(8, Math.round(Number(options.getRatchet?.(step) ?? step.ratchet ?? 1) || 1)));
+                const noteNumber = Math.max(0, Math.min(127, noteNameToMidi(step.note) + pitchSemitones));
+                const accentScale = Math.max(0.4, Math.min(3, Number(options.getAccentVelocityScale?.(step) || 1)));
+                const baseVelocity = clampMidiExportVelocity((Number(options.velocityBase) || 84) * accentScale);
+
+                if (ratchetCount <= 1) {
+                    addMidiNoteEvents(
+                        events,
+                        channel,
+                        noteNumber,
+                        stepStartTick,
+                        computeMidiNoteLengthTicks(stepTicks, lengthRatio, decayRatio, {
+                            slide: Boolean(step.slide && nextStep?.note && !nextStep.rest)
+                        }),
+                        baseVelocity,
+                        index * 4
+                    );
+                    continue;
+                }
+
+                const sliceTicks = Math.max(1, Math.round(stepTicks / ratchetCount));
+                for (let hitIndex = 0; hitIndex < ratchetCount; hitIndex += 1) {
+                    const levelScale = hitIndex === 0 ? 1 : (ratchetCount >= 6 ? 0.58 : (ratchetCount >= 4 ? 0.66 : 0.76));
+                    addMidiNoteEvents(
+                        events,
+                        channel,
+                        noteNumber,
+                        stepStartTick + Math.round(stepTicks * (hitIndex / ratchetCount)),
+                        computeMidiNoteLengthTicks(sliceTicks, lengthRatio, decayRatio),
+                        baseVelocity * levelScale,
+                        (index * 16) + (hitIndex * 2)
+                    );
+                }
+            }
+
+            return createMidiTrackChunk(events, {
+                trackName: options.trackName || 'MYGRAIN MIDI',
+                description: options.description || ''
+            });
+        }
+
+        function buildDrumMachineMidiTrackChunk(options = {}) {
+            const bpm = clampBpmValue(options.bpm ?? getSharedBpmClockValue());
+            const patternLength = getDrumMachinePatternLength();
+            const stepDurationSeconds = getDrumMachineStepDuration();
+            const stepTicks = secondsToMidiTicks(stepDurationSeconds, bpm);
+            const channel = Math.max(0, Math.min(15, Math.round(Number(options.channel) || 0)));
+            const pitchSemitones = Math.round(Number(options.pitchSemitones) || 0);
+            const baseNote = Math.max(0, Math.min(127, Math.round(Number(options.baseNote) || 36) + pitchSemitones));
+            const lengthRatio = Math.max(0.05, Math.min(1, Number(options.lengthRatio) || 1));
+            const decayRatio = Math.max(0.05, Math.min(1, Number(options.decayRatio) || 1));
+            const levelValue = Math.max(0, Math.min(1, Number(options.level) || 0));
+            const baseVelocity = clampMidiExportVelocity(54 + (levelValue * 62));
+            const events = [];
+
+            for (let stepIndex = 0; stepIndex < patternLength; stepIndex += 1) {
+                if (!options.pattern?.[stepIndex]) continue;
+                const ratchetCount = Math.max(1, Math.min(8, Math.round(Number(options.ratchets?.[stepIndex]) || 1)));
+                const accentScale = options.accents?.[stepIndex]
+                    ? 1 + (Math.max(0, Math.min(1, Number(options.accentAmount) || 0.35)) * 1.2)
+                    : 1;
+                const swingOffsetTicks = options.useHatSwing
+                    ? secondsToMidiTicks(getDrumMachineHatSwingOffset(stepIndex, stepDurationSeconds), bpm)
+                    : 0;
+                const stepStartTick = (stepIndex * stepTicks) + swingOffsetTicks;
+
+                if (ratchetCount <= 1) {
+                    addMidiNoteEvents(
+                        events,
+                        channel,
+                        baseNote,
+                        stepStartTick,
+                        computeMidiNoteLengthTicks(stepTicks, lengthRatio, decayRatio),
+                        baseVelocity * accentScale,
+                        stepIndex * 4
+                    );
+                    continue;
+                }
+
+                const sliceTicks = Math.max(1, Math.round(stepTicks / ratchetCount));
+                for (let hitIndex = 0; hitIndex < ratchetCount; hitIndex += 1) {
+                    const levelScale = hitIndex === 0 ? 1 : (ratchetCount >= 4 ? 0.6 : (ratchetCount === 3 ? 0.68 : 0.76));
+                    addMidiNoteEvents(
+                        events,
+                        channel,
+                        baseNote,
+                        stepStartTick + Math.round(stepTicks * (hitIndex / ratchetCount)),
+                        computeMidiNoteLengthTicks(sliceTicks, lengthRatio, decayRatio),
+                        baseVelocity * accentScale * levelScale,
+                        (stepIndex * 16) + (hitIndex * 2)
+                    );
+                }
+            }
+
+            return createMidiTrackChunk(events, {
+                trackName: options.trackName || 'Drum',
+                description: options.description || ''
+            });
+        }
+
+        function buildBastardLoopLMidiBlob() {
+            const bpm = clampBpmValue(getSharedBpmClockValue());
+            const track = buildBastardLoopMidiTrackChunk({
+                trackName: 'Bastardloop L',
+                description: `${getBastardLoopLPatternLength()} steps · ${getBastardLoopLTimingLabel()}`,
+                bpm,
+                channel: 0,
+                stepCount: getBastardLoopLPatternLength(),
+                stepDurationSeconds: getBastardLoopLStepDurationSeconds(),
+                lengthRatio: getBastardLoopLStepLengthRatio(),
+                decayRatio: getBastardLoopLDecayRatio(),
+                pitchSemitones: getBastardLoopLPitchSemitones(),
+                getStep: (index) => getBastardLoopLStep(index),
+                getRatchet: (step) => getBastardLoopLStepRatchet(step),
+                getAccentVelocityScale: (step) => getBastardLoopLAccentGainMultiplier(step),
+                velocityBase: 84
+            });
+            return createMidiFileBlob([createMidiTempoTrackChunk(bpm), track], { format: 1 });
+        }
+
+        function buildBastardLoopXMidiBlob() {
+            const bpm = clampBpmValue(getSharedBpmClockValue());
+            const track = buildBastardLoopMidiTrackChunk({
+                trackName: 'Bastardloop X',
+                description: `${getBastardLoopXPatternLength()} steps · ${getBastardLoopXTimingLabel()}`,
+                bpm,
+                channel: 1,
+                stepCount: getBastardLoopXPatternLength(),
+                stepDurationSeconds: getBastardLoopXStepDurationSeconds(),
+                lengthRatio: getBastardLoopXStepLengthRatio(),
+                decayRatio: getBastardLoopXDecayRatio(),
+                pitchSemitones: getBastardLoopXPitchSemitones(),
+                getStep: (index) => getBastardLoopXStep(index),
+                getRatchet: (step) => getBastardLoopXStepRatchet(step),
+                getAccentVelocityScale: (step) => getBastardLoopXAccentGainMultiplier(step),
+                velocityBase: 82
+            });
+            return createMidiFileBlob([createMidiTempoTrackChunk(bpm), track], { format: 1 });
+        }
+
+        function buildDrumMachineMidiBlob() {
+            const bpm = clampBpmValue(getSharedBpmClockValue());
+            const tracks = [
+                buildDrumMachineMidiTrackChunk({
+                    trackName: 'Kick',
+                    description: `${getDrumMachinePatternLength()} steps`,
+                    bpm,
+                    channel: MIDI_EXPORT_DRUM_CHANNELS.kick,
+                    baseNote: MIDI_EXPORT_DRUM_NOTES.kick,
+                    pitchSemitones: getDrumMachineKickPitchSemitones(),
+                    pattern: drumMachineKickPattern,
+                    ratchets: drumMachineKickRatchetPattern,
+                    level: getDrumMachineKickLevelValue(),
+                    decayRatio: getDrumMachineKickDecayValue(),
+                    lengthRatio: getDrumMachineKickLengthValue()
+                }),
+                buildDrumMachineMidiTrackChunk({
+                    trackName: 'Snare',
+                    description: `${getDrumMachinePatternLength()} steps`,
+                    bpm,
+                    channel: MIDI_EXPORT_DRUM_CHANNELS.snare,
+                    baseNote: MIDI_EXPORT_DRUM_NOTES.snare,
+                    pitchSemitones: getDrumMachineSnarePitchSemitones(),
+                    pattern: drumMachineSnarePattern,
+                    ratchets: drumMachineSnareRatchetPattern,
+                    level: getDrumMachineSnareLevelValue(),
+                    decayRatio: getDrumMachineSnareDecayValue(),
+                    lengthRatio: getDrumMachineSnareLengthValue()
+                }),
+                buildDrumMachineMidiTrackChunk({
+                    trackName: 'Hi-Hat',
+                    description: `${getDrumMachinePatternLength()} steps · ${formatDrumMachineHatTimingMode(getDrumMachineHatTimingMode())}`,
+                    bpm,
+                    channel: MIDI_EXPORT_DRUM_CHANNELS.hat,
+                    baseNote: MIDI_EXPORT_DRUM_NOTES.hat,
+                    pitchSemitones: getDrumMachineHatTuneSemitones(),
+                    pattern: drumMachineHatPattern,
+                    ratchets: drumMachineHatRatchetPattern,
+                    accents: drumMachineHatAccentPattern,
+                    accentAmount: getDrumMachineHatAccentAmount(),
+                    useHatSwing: true,
+                    level: getDrumMachineHatLevelValue(),
+                    decayRatio: getDrumMachineHatDecayValue(),
+                    lengthRatio: getDrumMachineHatLengthValue()
+                }),
+                buildDrumMachineMidiTrackChunk({
+                    trackName: 'Perc',
+                    description: `${getDrumMachinePatternLength()} steps`,
+                    bpm,
+                    channel: MIDI_EXPORT_DRUM_CHANNELS.perc,
+                    baseNote: MIDI_EXPORT_DRUM_NOTES.perc,
+                    pitchSemitones: getDrumMachinePercPitchSemitones(),
+                    pattern: drumMachinePercPattern,
+                    ratchets: drumMachinePercRatchetPattern,
+                    level: getDrumMachinePercLevelValue(),
+                    decayRatio: getDrumMachinePercDecayValue(),
+                    lengthRatio: getDrumMachinePercLengthValue()
+                })
+            ];
+            return createMidiFileBlob([createMidiTempoTrackChunk(bpm), ...tracks], { format: 1 });
+        }
+
+        function hasDrumMachineMidiPattern() {
+            return drumMachineKickPattern.some(Boolean)
+                || drumMachineSnarePattern.some(Boolean)
+                || drumMachineHatPattern.some(Boolean)
+                || drumMachinePercPattern.some(Boolean);
+        }
+
+        async function exportBastardLoopLMidiToRepository() {
+            if (!hasPlayableBastardLoopLSequence()) {
+                throw new Error('Loop L sequence is empty.');
+            }
+            const defaultBase = getMidiExportFilenameBase('bastardloop-l');
+            const filename = getMidiExportRequestedFilename(defaultBase, 'Enter filename for Loop L MIDI export:');
+            if (!filename) {
+                updateBastardLoopLStatus('Loop L MIDI export cancelled.');
+                return false;
+            }
+            const blob = buildBastardLoopLMidiBlob();
+            updateBastardLoopLStatus(`Uploading ${filename} to the MIDI repository…`);
+            const result = await uploadMidiToRepository(blob, filename);
+            await refreshMidiRepositoryBrowser({ forceRefresh: true, silent: true });
+            updateBastardLoopLStatus(`Uploaded ${result.savedName || filename} to the MIDI repository.`);
+            setStatus(`Loop L MIDI exported: ${result.savedName || filename}.`);
+            return true;
+        }
+
+        async function exportBastardLoopXMidiToRepository() {
+            if (!hasPlayableBastardLoopXSequence()) {
+                throw new Error('Loop X sequence is empty.');
+            }
+            const defaultBase = getMidiExportFilenameBase('bastardloop-x');
+            const filename = getMidiExportRequestedFilename(defaultBase, 'Enter filename for Loop X MIDI export:');
+            if (!filename) {
+                updateBastardLoopXStatus('Loop X MIDI export cancelled.');
+                return false;
+            }
+            const blob = buildBastardLoopXMidiBlob();
+            updateBastardLoopXStatus(`Uploading ${filename} to the MIDI repository…`);
+            const result = await uploadMidiToRepository(blob, filename);
+            await refreshMidiRepositoryBrowser({ forceRefresh: true, silent: true });
+            updateBastardLoopXStatus(`Uploaded ${result.savedName || filename} to the MIDI repository.`);
+            setStatus(`Loop X MIDI exported: ${result.savedName || filename}.`);
+            return true;
+        }
+
+        async function exportDrumMachineMidiToRepository() {
+            if (!hasDrumMachineMidiPattern()) {
+                throw new Error('Drum machine pattern is empty.');
+            }
+            const defaultBase = getMidiExportFilenameBase('drum-machine');
+            const filename = getMidiExportRequestedFilename(defaultBase, 'Enter filename for drum machine MIDI export:');
+            if (!filename) {
+                setDrumMachineStatus('Drum machine MIDI export cancelled.');
+                return false;
+            }
+            const blob = buildDrumMachineMidiBlob();
+            setDrumMachineStatus(`Uploading ${filename} to the MIDI repository…`);
+            const result = await uploadMidiToRepository(blob, filename);
+            await refreshMidiRepositoryBrowser({ forceRefresh: true, silent: true });
+            setDrumMachineStatus(`Uploaded ${result.savedName || filename} to the MIDI repository.`);
+            setStatus(`Drum machine MIDI exported: ${result.savedName || filename}.`);
             return true;
         }
 
@@ -38402,6 +38939,8 @@
             }
         }
 
+        let midiRepositoryBrowserFiles = [];
+        let midiRepositoryBrowserLoading = false;
         let stemRepositoryBrowserFiles = [];
         let stemRepositoryBrowserLoading = false;
         let performanceStemExportInFlight = false;
@@ -38902,6 +39441,351 @@
             stemRepositoryBrowserOverlay.hidden = true;
             stemRepositoryBrowserOverlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('stem-repository-browser-open');
+        }
+
+        function formatMidiRepositoryFileMeta(file = {}) {
+            const parts = [];
+            const size = Number(file.size);
+            if (Number.isFinite(size) && size > 0) {
+                if (size >= 1024 * 1024) {
+                    parts.push(`${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`);
+                } else if (size >= 1024) {
+                    parts.push(`${Math.max(1, Math.round(size / 1024))} KB`);
+                } else {
+                    parts.push(`${size} B`);
+                }
+            }
+            const modified = Number(file.modified);
+            if (Number.isFinite(modified) && modified > 0) {
+                const date = new Date(modified * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    parts.push(date.toLocaleString());
+                }
+            }
+            return parts.join(' · ') || 'Saved MIDI';
+        }
+
+        function setMidiRepositoryBrowserStatus(message = '') {
+            const status = document.getElementById('midiRepositoryBrowserStatus');
+            if (status) status.textContent = message;
+        }
+
+        function normalizeMidiRepositoryFeedback(feedback = {}, file = {}) {
+            return {
+                routeBase: String(feedback?.routeBase || '/mygrain-midi').trim(),
+                fileName: String(feedback?.fileName || file.name || '').trim(),
+                comment: String(feedback?.comment ?? '').replace(/\r\n?/g, '\n').slice(0, 2000),
+                updatedAt: String(feedback?.updatedAt || '').trim()
+            };
+        }
+
+        function ensureMidiRepositoryFeedbackDraft(file) {
+            file.feedback = normalizeMidiRepositoryFeedback(file.feedback, file);
+            if (!file.feedbackDraft) {
+                file.feedbackDraft = {
+                    comment: file.feedback.comment
+                };
+            } else {
+                file.feedbackDraft = {
+                    comment: String(file.feedbackDraft.comment ?? file.feedback.comment).replace(/\r\n?/g, '\n').slice(0, 2000)
+                };
+            }
+            return file.feedbackDraft;
+        }
+
+        function isMidiRepositoryFeedbackDirty(file) {
+            const saved = normalizeMidiRepositoryFeedback(file.feedback, file);
+            const draft = ensureMidiRepositoryFeedbackDraft(file);
+            return saved.comment !== draft.comment;
+        }
+
+        function getMidiRepositoryFeedbackStatusText(file, saving = false) {
+            if (saving) return 'Saving to repo…';
+            if (isMidiRepositoryFeedbackDirty(file)) return 'Unsaved changes.';
+            if (file.feedback?.updatedAt) return `Saved to repo · ${file.feedback.updatedAt}`;
+            return 'No notes saved yet.';
+        }
+
+        function syncMidiRepositoryFeedbackUi(file, controls, options = {}) {
+            const draft = ensureMidiRepositoryFeedbackDraft(file);
+            const { textarea, saveButton, status } = controls;
+            if (textarea && textarea.value !== draft.comment) textarea.value = draft.comment;
+            autosizeSampleBrowserFeedbackTextarea(textarea);
+            if (saveButton) saveButton.disabled = Boolean(options.saving) || !isMidiRepositoryFeedbackDirty(file);
+            if (status) status.textContent = options.error || getMidiRepositoryFeedbackStatusText(file, options.saving);
+        }
+
+        async function saveMidiRepositoryFeedback(file, controls) {
+            const draft = ensureMidiRepositoryFeedbackDraft(file);
+            syncMidiRepositoryFeedbackUi(file, controls, { saving: true });
+            try {
+                const response = await fetch(MIDI_REPOSITORY_FEEDBACK_API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        comment: draft.comment
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `Could not save MIDI note (${response.status})`);
+                }
+                file.feedback = normalizeMidiRepositoryFeedback(payload.feedback, file);
+                file.feedbackDraft = {
+                    comment: file.feedback.comment
+                };
+                controls?.textarea?.blur?.();
+                syncMidiRepositoryFeedbackUi(file, controls);
+                setMidiRepositoryBrowserStatus(`Saved note for ${file.name}.`);
+            } catch (error) {
+                syncMidiRepositoryFeedbackUi(file, controls, { error: `Save failed: ${error.message}` });
+                throw error;
+            }
+        }
+
+        async function promptRenameMidiRepositoryFile(currentName, options = {}) {
+            const sourceName = String(currentName || '').trim();
+            if (!sourceName) return null;
+            const fallbackBase = sourceName.replace(/\.mid(?:i)?$/i, '') || 'mygrain-midi';
+            const requestedName = prompt(options.message || 'Rename MIDI file:', fallbackBase);
+            if (!requestedName) return null;
+            const nextName = sanitizeMidiRepositoryFilename(requestedName, fallbackBase);
+            if (nextName === sourceName) {
+                return {
+                    ok: true,
+                    unchanged: true,
+                    oldName: sourceName,
+                    savedName: sourceName,
+                    url: `${MIDI_REPOSITORY_BASE_URL}/${encodeURIComponent(sourceName)}`
+                };
+            }
+            return renameMidiInRepository(sourceName, nextName);
+        }
+
+        function renderMidiRepositoryBrowserFiles() {
+            if (!midiRepositoryBrowserList) return;
+            const query = String(midiRepositoryBrowserFilter?.value || '').trim().toLowerCase();
+            const visibleFiles = midiRepositoryBrowserFiles.filter((file) => {
+                const haystack = `${file.name}`.toLowerCase();
+                return !query || haystack.includes(query);
+            });
+            midiRepositoryBrowserList.innerHTML = '';
+
+            if (!visibleFiles.length) {
+                const empty = document.createElement('div');
+                empty.className = 'sample-browser-empty';
+                empty.textContent = midiRepositoryBrowserLoading
+                    ? 'Loading saved MIDI exports…'
+                    : (midiRepositoryBrowserFiles.length ? 'No MIDI exports match that filter.' : 'No saved MIDI exports were found.');
+                midiRepositoryBrowserList.appendChild(empty);
+                return;
+            }
+
+            visibleFiles.forEach((file) => {
+                const card = document.createElement('article');
+                card.className = 'sample-browser-card';
+
+                const head = document.createElement('div');
+                head.className = 'sample-browser-card-head';
+
+                const name = document.createElement('div');
+                name.className = 'sample-browser-name';
+                name.textContent = file.name;
+
+                const downloadButton = document.createElement('button');
+                downloadButton.className = 'performance-btn';
+                downloadButton.type = 'button';
+                downloadButton.textContent = 'Download MIDI';
+
+                const renameButton = document.createElement('button');
+                renameButton.className = 'performance-btn';
+                renameButton.type = 'button';
+                renameButton.textContent = 'Rename MIDI';
+
+                const meta = document.createElement('div');
+                meta.className = 'sample-browser-path';
+                meta.textContent = formatMidiRepositoryFileMeta(file);
+
+                const actions = document.createElement('div');
+                actions.className = 'sample-browser-card-actions';
+
+                const repositoryHint = document.createElement('div');
+                repositoryHint.className = 'sample-browser-path';
+                repositoryHint.textContent = 'Stored in MYGRAIN MIDI Repository';
+
+                const feedback = document.createElement('div');
+                feedback.className = 'sample-browser-feedback';
+
+                const feedbackLabel = document.createElement('div');
+                feedbackLabel.className = 'sample-browser-feedback-label';
+                feedbackLabel.textContent = 'Repo Notes';
+
+                const textarea = document.createElement('textarea');
+                textarea.className = 'sample-browser-feedback-textarea';
+                textarea.placeholder = 'Add a permanent note for this MIDI export…';
+                textarea.maxLength = 2000;
+
+                const feedbackRow = document.createElement('div');
+                feedbackRow.className = 'sample-browser-feedback-row';
+
+                const saveButton = document.createElement('button');
+                saveButton.className = 'performance-btn primary';
+                saveButton.type = 'button';
+                saveButton.textContent = 'Save Notes';
+
+                const feedbackStatus = document.createElement('div');
+                feedbackStatus.className = 'sample-browser-feedback-status';
+
+                const feedbackControls = {
+                    textarea,
+                    saveButton,
+                    status: feedbackStatus
+                };
+
+                ensureMidiRepositoryFeedbackDraft(file);
+                syncMidiRepositoryFeedbackUi(file, feedbackControls);
+
+                textarea.addEventListener('input', () => {
+                    const draft = ensureMidiRepositoryFeedbackDraft(file);
+                    draft.comment = textarea.value.replace(/\r\n?/g, '\n').slice(0, 2000);
+                    if (textarea.value !== draft.comment) textarea.value = draft.comment;
+                    syncMidiRepositoryFeedbackUi(file, feedbackControls);
+                });
+
+                textarea.addEventListener('keydown', async (event) => {
+                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                        event.preventDefault();
+                        try {
+                            await saveMidiRepositoryFeedback(file, feedbackControls);
+                        } catch (error) {
+                            console.error(error);
+                            setStatus(`MIDI note save failed: ${error.message}`, 'error');
+                        }
+                    }
+                });
+
+                saveButton.addEventListener('click', async () => {
+                    try {
+                        await saveMidiRepositoryFeedback(file, feedbackControls);
+                    } catch (error) {
+                        console.error(error);
+                        setStatus(`MIDI note save failed: ${error.message}`, 'error');
+                    }
+                });
+
+                downloadButton.addEventListener('click', async () => {
+                    const originalLabel = downloadButton.textContent;
+                    downloadButton.disabled = true;
+                    downloadButton.textContent = 'Preparing...';
+                    try {
+                        const response = await fetch(file.url, {
+                            mode: 'cors',
+                            cache: 'no-store'
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Download failed (${response.status})`);
+                        }
+                        const blob = await response.blob();
+                        await downloadBlob(blob, file.name || 'mygrain-midi.mid');
+                        setMidiRepositoryBrowserStatus(`Download ready: ${file.name}.`);
+                    } catch (error) {
+                        console.error(error);
+                        setMidiRepositoryBrowserStatus(`Download failed: ${error.message}`);
+                        setStatus(`MIDI download failed: ${error.message}`, 'error');
+                    } finally {
+                        downloadButton.disabled = false;
+                        downloadButton.textContent = originalLabel;
+                    }
+                });
+
+                renameButton.addEventListener('click', async () => {
+                    const originalLabel = renameButton.textContent;
+                    renameButton.disabled = true;
+                    downloadButton.disabled = true;
+                    saveButton.disabled = true;
+                    renameButton.textContent = 'Renaming...';
+                    try {
+                        const result = await promptRenameMidiRepositoryFile(file.name);
+                        if (!result) {
+                            setMidiRepositoryBrowserStatus('Rename cancelled.');
+                            return;
+                        }
+                        const savedName = result.savedName || file.name;
+                        setMidiRepositoryBrowserStatus(
+                            result.unchanged
+                                ? `${savedName} kept the same name.`
+                                : `Renamed ${file.name} to ${savedName}.`
+                        );
+                        await refreshMidiRepositoryBrowser({ forceRefresh: true, silent: true });
+                    } catch (error) {
+                        console.error(error);
+                        setMidiRepositoryBrowserStatus(`Rename failed: ${error.message}`);
+                        setStatus(`MIDI rename failed: ${error.message}`, 'error');
+                    } finally {
+                        renameButton.disabled = false;
+                        downloadButton.disabled = false;
+                        saveButton.disabled = false;
+                        renameButton.textContent = originalLabel;
+                    }
+                });
+
+                feedbackRow.append(feedbackStatus, saveButton);
+                feedback.append(feedbackLabel, textarea, feedbackRow);
+                actions.append(downloadButton, renameButton, repositoryHint);
+                head.append(name);
+                card.append(head, meta, actions, feedback);
+                midiRepositoryBrowserList.appendChild(card);
+            });
+        }
+
+        async function refreshMidiRepositoryBrowser(options = {}) {
+            midiRepositoryBrowserLoading = true;
+            if (!options.silent) setMidiRepositoryBrowserStatus('Loading saved MIDI exports…');
+            renderMidiRepositoryBrowserFiles();
+            try {
+                const response = await fetch(MIDI_REPOSITORY_LIST_API_URL, {
+                    mode: 'cors',
+                    cache: 'no-store'
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || `MIDI list failed with status ${response.status}`);
+                }
+                midiRepositoryBrowserFiles = Array.isArray(payload.files) ? payload.files : [];
+                setMidiRepositoryBrowserStatus(midiRepositoryBrowserFiles.length
+                    ? `${midiRepositoryBrowserFiles.length} MIDI file${midiRepositoryBrowserFiles.length === 1 ? '' : 's'} in the repository.`
+                    : 'No MIDI exports were found.');
+            } catch (error) {
+                console.error(error);
+                setMidiRepositoryBrowserStatus(`MIDI browser failed: ${error.message}`);
+                if (!options.silent) setStatus(`MIDI browser failed: ${error.message}`, 'error');
+            } finally {
+                midiRepositoryBrowserLoading = false;
+                renderMidiRepositoryBrowserFiles();
+            }
+        }
+
+        function openMidiRepositoryBrowser() {
+            if (!midiRepositoryBrowserOverlay) return;
+            midiRepositoryBrowserOverlay.hidden = false;
+            midiRepositoryBrowserOverlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('midi-repository-browser-open');
+            if (midiRepositoryBrowserFilter) midiRepositoryBrowserFilter.value = '';
+            refreshMidiRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+            });
+        }
+
+        function closeMidiRepositoryBrowser() {
+            if (!midiRepositoryBrowserOverlay) return;
+            midiRepositoryBrowserOverlay.hidden = true;
+            midiRepositoryBrowserOverlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('midi-repository-browser-open');
         }
 
         function getStemRenderOptions(component) {
@@ -40916,6 +41800,7 @@
         const bastardLoopLClearStepBtn = document.getElementById('bastardLoopLClearStepBtn');
         const bastardLoopLCopyBtn = document.getElementById('bastardLoopLCopyBtn');
         const bastardLoopLClearAllBtn = document.getElementById('bastardLoopLClearAllBtn');
+        const bastardLoopLExportMidiBtn = document.getElementById('bastardLoopLExportMidiBtn');
         const performanceBastardLoopLDelayPingPongBtn = document.getElementById('performanceBastardLoopLDelayPingPongBtn');
         const bastardLoopXOverlay = document.getElementById('bastardLoopXOverlay');
         const bastardLoopXCloseBtn = document.getElementById('bastardLoopXCloseBtn');
@@ -40937,6 +41822,7 @@
         const bastardLoopXClearStepBtn = document.getElementById('bastardLoopXClearStepBtn');
         const bastardLoopXCopyBtn = document.getElementById('bastardLoopXCopyBtn');
         const bastardLoopXClearAllBtn = document.getElementById('bastardLoopXClearAllBtn');
+        const bastardLoopXExportMidiBtn = document.getElementById('bastardLoopXExportMidiBtn');
         const drumMachineOverlay = document.getElementById('drumMachineOverlay');
         const drumMachineCloseBtn = document.getElementById('drumMachineCloseBtn');
         const drumMachineRandomizeBtn = document.getElementById('drumMachineRandomizeBtn');
@@ -40945,6 +41831,7 @@
         const drumMachineDirectDelayBtn = document.getElementById('drumMachineDirectDelayBtn');
         const drumMachineDirectReverbBtn = document.getElementById('drumMachineDirectReverbBtn');
         const drumMachinePlayBtn = document.getElementById('drumMachinePlayBtn');
+        const drumMachineMidiExportBtn = document.getElementById('drumMachineMidiExportBtn');
         const drumMachineKickBrowseBtn = document.getElementById('drumMachineKickBrowseBtn');
         const drumMachineKickRandomBtn = document.getElementById('drumMachineKickRandomBtn');
         const drumMachineSnareBrowseBtn = document.getElementById('drumMachineSnareBrowseBtn');
@@ -40977,6 +41864,11 @@
         const wavRepositoryBrowserUploadInput = document.getElementById('wavRepositoryBrowserUploadInput');
         const wavRepositoryBrowserRefreshBtn = document.getElementById('wavRepositoryBrowserRefreshBtn');
         const wavRepositoryBrowserFilter = document.getElementById('wavRepositoryBrowserFilter');
+        const midiRepositoryBrowserOverlay = document.getElementById('midiRepositoryBrowserOverlay');
+        const midiRepositoryBrowserCloseBtn = document.getElementById('midiRepositoryBrowserCloseBtn');
+        const midiRepositoryBrowserRefreshBtn = document.getElementById('midiRepositoryBrowserRefreshBtn');
+        const midiRepositoryBrowserFilter = document.getElementById('midiRepositoryBrowserFilter');
+        const midiRepositoryBrowserList = document.getElementById('midiRepositoryBrowserList');
         const performanceTakeBrowserOverlay = document.getElementById('performanceTakeBrowserOverlay');
         const performanceTakeBrowserCloseBtn = document.getElementById('performanceTakeBrowserCloseBtn');
         const performanceTakeBrowserUploadBtn = document.getElementById('performanceTakeBrowserUploadBtn');
@@ -41049,6 +41941,7 @@
         const performanceStemExportBtn = document.getElementById('performanceStemExportBtn');
         const performanceStemBrowserBtn = document.getElementById('performanceStemBrowserBtn');
         const performanceWavBrowserBtn = document.getElementById('performanceWavBrowserBtn');
+        const performanceMidiBrowserBtn = document.getElementById('performanceMidiBrowserBtn');
         const performanceTakeSlot1Btn = document.getElementById('performanceTakeSlot1Btn');
         const performanceTakeSlot2Btn = document.getElementById('performanceTakeSlot2Btn');
         const performanceTakeSlot3Btn = document.getElementById('performanceTakeSlot3Btn');
@@ -42297,6 +43190,10 @@
                 closeWavRepositoryBrowser();
                 return;
             }
+            if (event.key === 'Escape' && document.body.classList.contains('midi-repository-browser-open')) {
+                closeMidiRepositoryBrowser();
+                return;
+            }
             if (event.key === 'Escape' && document.body.classList.contains('patch-repository-browser-open')) {
                 closePatchRepositoryBrowser();
                 return;
@@ -42542,6 +43439,26 @@
         bindBastardLoopLMobileTap(bastardLoopLClearAllBtn, () => {
             clearAllBastardLoopLSteps();
             updateBastardLoopLStatus('Cleared the full L sequence.');
+        });
+
+        bindBastardLoopLMobileTap(bastardLoopLExportMidiBtn, async () => {
+            const originalLabel = bastardLoopLExportMidiBtn?.textContent || 'Export MIDI';
+            if (bastardLoopLExportMidiBtn) {
+                bastardLoopLExportMidiBtn.disabled = true;
+                bastardLoopLExportMidiBtn.textContent = 'Exporting...';
+            }
+            try {
+                await exportBastardLoopLMidiToRepository();
+            } catch (error) {
+                console.error(error);
+                updateBastardLoopLStatus(`Loop L MIDI export failed: ${error.message}`);
+                setStatus(`Loop L MIDI export failed: ${error.message}`, 'error');
+            } finally {
+                if (bastardLoopLExportMidiBtn) {
+                    bastardLoopLExportMidiBtn.disabled = false;
+                    bastardLoopLExportMidiBtn.textContent = originalLabel;
+                }
+            }
         });
 
         performanceBastardLoopXLoadBtn?.addEventListener('click', () => {
@@ -42806,6 +43723,26 @@
         bindBastardLoopLMobileTap(bastardLoopXClearAllBtn, () => {
             clearAllBastardLoopXSteps();
             updateBastardLoopXStatus('Cleared the full X sequence.');
+        });
+
+        bindBastardLoopLMobileTap(bastardLoopXExportMidiBtn, async () => {
+            const originalLabel = bastardLoopXExportMidiBtn?.textContent || 'Export MIDI';
+            if (bastardLoopXExportMidiBtn) {
+                bastardLoopXExportMidiBtn.disabled = true;
+                bastardLoopXExportMidiBtn.textContent = 'Exporting...';
+            }
+            try {
+                await exportBastardLoopXMidiToRepository();
+            } catch (error) {
+                console.error(error);
+                updateBastardLoopXStatus(`Loop X MIDI export failed: ${error.message}`);
+                setStatus(`Loop X MIDI export failed: ${error.message}`, 'error');
+            } finally {
+                if (bastardLoopXExportMidiBtn) {
+                    bastardLoopXExportMidiBtn.disabled = false;
+                    bastardLoopXExportMidiBtn.textContent = originalLabel;
+                }
+            }
         });
 
         performanceSampleVolume?.addEventListener('input', (event) => {
@@ -43234,6 +44171,22 @@
             }
         });
 
+        drumMachineMidiExportBtn?.addEventListener('click', async () => {
+            const originalLabel = drumMachineMidiExportBtn.textContent;
+            drumMachineMidiExportBtn.disabled = true;
+            drumMachineMidiExportBtn.textContent = 'Exporting...';
+            try {
+                await exportDrumMachineMidiToRepository();
+            } catch (error) {
+                console.error(error);
+                setDrumMachineStatus(`Drum machine MIDI export failed: ${error.message}`);
+                setStatus(`Drum machine MIDI export failed: ${error.message}`, 'error');
+            } finally {
+                drumMachineMidiExportBtn.disabled = false;
+                drumMachineMidiExportBtn.textContent = originalLabel;
+            }
+        });
+
         drumMachineCloseBtn?.addEventListener('click', () => {
             closeDrumMachineOverlay();
         });
@@ -43435,6 +44388,27 @@
         wavRepositoryBrowserOverlay?.addEventListener('click', (event) => {
             if (event.target === wavRepositoryBrowserOverlay) {
                 closeWavRepositoryBrowser();
+            }
+        });
+
+        midiRepositoryBrowserCloseBtn?.addEventListener('click', () => {
+            closeMidiRepositoryBrowser();
+        });
+
+        midiRepositoryBrowserRefreshBtn?.addEventListener('click', () => {
+            refreshMidiRepositoryBrowser({ forceRefresh: true }).catch((error) => {
+                console.error(error);
+                setMidiRepositoryBrowserStatus(`MIDI list failed: ${error.message}`);
+            });
+        });
+
+        midiRepositoryBrowserFilter?.addEventListener('input', () => {
+            renderMidiRepositoryBrowserFiles();
+        });
+
+        midiRepositoryBrowserOverlay?.addEventListener('click', (event) => {
+            if (event.target === midiRepositoryBrowserOverlay) {
+                closeMidiRepositoryBrowser();
             }
         });
 
@@ -43829,6 +44803,10 @@
 
         performanceWavBrowserBtn?.addEventListener('click', () => {
             openWavRepositoryBrowser();
+        });
+
+        performanceMidiBrowserBtn?.addEventListener('click', () => {
+            openMidiRepositoryBrowser();
         });
 
         performanceExportPatchZipBtn?.addEventListener('click', async () => {

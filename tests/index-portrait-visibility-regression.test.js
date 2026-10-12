@@ -246,6 +246,24 @@ test('mobile controls can remove the noise oscillator and its modulation', () =>
     assert.match(indexHtml, /document\.getElementById\('noiseType'\)\?\.addEventListener\('change', syncPerformanceControlState\)/);
 });
 
+test('midi repository browser and loop or drum midi exports are wired into the live UI', () => {
+    assert.match(indexHtml, /id="performanceMidiBrowserBtn">MIDI Browser<\/button>/);
+    assert.match(indexHtml, /id="midiRepositoryBrowserOverlay"[\s\S]*id="midiRepositoryBrowserTitle">MIDI Browser<\/h3>/);
+    assert.match(indexHtml, /const MIDI_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-midi';/);
+    assert.match(indexHtml, /function sanitizeMidiRepositoryFilename\(value, fallbackBase = 'mygrain-midi'\)/);
+    assert.match(indexHtml, /function createMidiFileBlob\(trackChunks = \[\], options = \{\}\)/);
+    assert.match(indexHtml, /id="bastardLoopLExportMidiBtn" type="button">Export MIDI<\/button>/);
+    assert.match(indexHtml, /id="bastardLoopXExportMidiBtn" type="button">Export MIDI<\/button>/);
+    assert.match(indexHtml, /id="drumMachineMidiExportBtn" type="button">Export MIDI<\/button>/);
+    assert.match(indexHtml, /async function exportBastardLoopLMidiToRepository\(\)/);
+    assert.match(indexHtml, /async function exportBastardLoopXMidiToRepository\(\)/);
+    assert.match(indexHtml, /async function exportDrumMachineMidiToRepository\(\)/);
+    assert.match(indexHtml, /performanceMidiBrowserBtn\?\.addEventListener\('click', \(\) => \{\s*openMidiRepositoryBrowser\(\);/);
+    assert.match(indexHtml, /drumMachineMidiExportBtn\?\.addEventListener\('click', async \(\) => \{/);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopLExportMidiBtn, async \(\) => \{/);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopXExportMidiBtn, async \(\) => \{/);
+});
+
 test('generate source has a low-frequency noise-only mode without clicky transient events', () => {
     assert.match(indexHtml, /id="performanceLowNoiseSourceBtn">Low Noise Source<\/button>/);
     assert.match(indexHtml, /let generatedSourceLowNoiseMode = false/);
