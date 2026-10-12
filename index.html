@@ -4255,6 +4255,18 @@
             box-shadow: 0 12px 26px rgba(255, 159, 110, 0.22);
         }
 
+        .simplified-ui #performanceLoopDisableBtn {
+            color: #f8f0ff;
+            background: linear-gradient(135deg, #bf8cff 0%, #8b5cf6 52%, #5b2bb3 100%);
+            border-color: rgba(214, 180, 255, 0.58);
+            box-shadow: 0 12px 26px rgba(139, 92, 246, 0.26);
+        }
+
+        .simplified-ui #performanceLoopDisableBtn.loop-disabled {
+            box-shadow: 0 0 0 2px rgba(214, 180, 255, 0.3), 0 0 24px rgba(139, 92, 246, 0.42);
+            filter: saturate(1.08);
+        }
+
         .simplified-ui #performanceRandomizeBtn,
         .simplified-ui #performanceMegaRandomBtn,
         .simplified-ui #performanceDrumMachineRandomBtn,
@@ -6604,7 +6616,7 @@
                     <button class="performance-btn" data-bastardloop-start="true">Start Bastardloops</button>
                     <button class="performance-btn" id="performanceDrumMachineMainStartBtn">Start Drums</button>
                     <button class="performance-btn" id="performanceSeqPlayBtn">Loop Play</button>
-                    <button class="performance-btn" id="performanceStopAllBtn">Loop Stop</button>
+                    <button class="performance-btn" id="performanceLoopDisableBtn" aria-pressed="false" title="Disable manual and automatic loop playback until re-enabled">Loop Enabled</button>
                     <button class="performance-btn" id="performanceRestartAllBtn">Restart All</button>
                     <button class="performance-btn" id="performanceMainStopAllBtn">Stop All</button>
                     <button class="performance-btn" id="performanceOscToggleBtn" data-osc-layer-toggle="true">Osc On</button>
@@ -7202,6 +7214,7 @@
                         </div>
                         <div class="source-seed-buttons">
                             <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Selection</button>
+                            <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="generated" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
                     <div class="source-waveform-panel" id="grainAWaveformEditor">
@@ -10460,6 +10473,7 @@
         let generatedSampleVolume = 1;
         let generatedSampleLayerEnabled = true;
         let generatedDryLoopEnabled = true;
+        let generatedLoopTransportEnabled = true;
         let generatedSampleSolo = false;
         let grainLayerSolo = 'none';
         let generatedSourceSwing = 0; // 0 = straight generated source timing
@@ -23909,6 +23923,26 @@
             }
         }
 
+        function setGeneratedLoopTransportEnabled(enabled, options = {}) {
+            const nextValue = Boolean(enabled);
+            if (generatedLoopTransportEnabled === nextValue) {
+                syncPerformanceControlState();
+                return;
+            }
+            generatedLoopTransportEnabled = nextValue;
+            if (!generatedLoopTransportEnabled) {
+                restartPerformanceOnFocusReturn = false;
+                stopSequencer();
+            }
+            syncPerformanceControlState();
+            if (!options.silent) {
+                setStatus(generatedLoopTransportEnabled ? 'Loop transport enabled.' : 'Loop transport disabled.');
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+        }
+
         function setBastardLoopEnabled(enabled, options = {}) {
             const nextValue = Boolean(enabled);
             if (bastardLoopEnabled === nextValue) {
@@ -30276,11 +30310,19 @@
                 if (!options.silent) setStatus('Arpeggiator active; loop stays stopped.');
                 return true;
             }
-            startSequencer(transportStartTime);
-            startHeldKeyboardPlayback(transportStartTime);
+            const loopStarted = startSequencer(transportStartTime, { reportDisabled: !options.silent });
+            const keysStarted = startHeldKeyboardPlayback(transportStartTime);
             syncPerformanceControlState();
-            if (!options.silent) setStatus('Loop and selected key playing.');
-            return true;
+            if (!options.silent) {
+                if (!generatedLoopTransportEnabled && keysStarted && heldNotes.size > 0) {
+                    setStatus('Loop disabled; selected key playing.');
+                } else if (!generatedLoopTransportEnabled) {
+                    setStatus('Loop transport is disabled.');
+                } else {
+                    setStatus('Loop and selected key playing.');
+                }
+            }
+            return Boolean(loopStarted || keysStarted);
         }
 
         function stopLoopAndHeldKeys(options = {}) {
@@ -30526,11 +30568,18 @@
         }
 
         // --- Sequencer Functions ---
-        function startSequencer(startTime = null) {
-            if (sequencerPlaying) return;
+        function startSequencer(startTime = null, options = {}) {
+            if (sequencerPlaying) return true;
+            if (!generatedLoopTransportEnabled && options.force !== true) {
+                syncPerformanceControlState();
+                if (options.reportDisabled) {
+                    setStatus('Loop transport is disabled.', 'error');
+                }
+                return false;
+            }
             if (!isAudioGraphReady()) {
                 setStatus('Start MYGRAIN before playing a loop.', 'error');
-                return;
+                return false;
             }
 
             // Check if output recording is armed - if so, trigger recording and disarm
@@ -30583,6 +30632,7 @@
             document.getElementById('seqPlayBtn').classList.add('playing');
 
             scheduleSequencer();
+            return true;
         }
 
         function scheduleSequencer() {
@@ -32297,7 +32347,7 @@
                 alert('stop arp first');
                 return;
             }
-            startSequencer();
+            startSequencer(null, { reportDisabled: true });
         });
 
         document.getElementById('seqResetBtn').addEventListener('click', () => {
@@ -34829,9 +34879,11 @@
             if (!audioContext) {
                 generateInterestingLoop({ profile: generationProfile, blueprint: loopBlueprint });
                 showSettlePopup('effects on, distortion off');
-                statusDiv.textContent = arpEnabled
-                    ? `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample with the loop stopped.`
-                    : `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`;
+                statusDiv.textContent = !generatedLoopTransportEnabled
+                    ? `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample with the loop disabled.`
+                    : (arpEnabled
+                        ? `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample with the loop stopped.`
+                        : `Full patch randomized at ${randomizeState.bpm} BPM; start MYGRAIN to generate the random sample and start the loop.`);
                 return { generationProfile, randomizeState, audioReady: false };
             }
 
@@ -34847,8 +34899,10 @@
                     restartAllTransport({ silent: true });
                     if (arpEnabled) {
                         stopSequencer();
-                    } else {
+                    } else if (generatedLoopTransportEnabled) {
                         startSequencer();
+                    } else {
+                        stopSequencer();
                     }
                 }
                 setPerformanceGenerateButtonState('generated');
@@ -34856,9 +34910,11 @@
                 showSettlePopup('effects on, distortion off');
                 statusDiv.textContent = megaRandomizeInFlight
                     ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, playback held silent for Mega Random.`
-                    : (arpEnabled
+                    : (!generatedLoopTransportEnabled
+                        ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop disabled.`
+                        : (arpEnabled
                         ? `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop stopped because arp is active.`
-                        : `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`);
+                        : `Full patch randomized at ${randomizeState.bpm} BPM with a new sample, loop running.`));
                 return { generationProfile, randomizeState, audioReady: true };
             } catch (error) {
                 console.error(error);
@@ -35632,6 +35688,7 @@
                 granularLayersEnabled: granularLayersEnabled,
                 generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                 generatedDryLoopEnabled: generatedDryLoopEnabled,
+                generatedLoopTransportEnabled: generatedLoopTransportEnabled,
                 bastardLoopEnabled: bastardLoopEnabled,
                 loopLayerSolo: loopLayerSolo,
                 bastardLoopPitchSemitones: getBastardLoopPitchSemitones(),
@@ -35930,6 +35987,10 @@
             const importedGeneratedDryLoopEnabled = safePreset.generatedDryLoopEnabled ?? preset.generatedDryLoopEnabled;
             if (importedGeneratedDryLoopEnabled !== undefined) {
                 setGeneratedDryLoopEnabled(importedGeneratedDryLoopEnabled, { silent: true, skipSave: true });
+            }
+            const importedGeneratedLoopTransportEnabled = safePreset.generatedLoopTransportEnabled ?? preset.generatedLoopTransportEnabled;
+            if (importedGeneratedLoopTransportEnabled !== undefined) {
+                setGeneratedLoopTransportEnabled(importedGeneratedLoopTransportEnabled, { silent: true, skipSave: true });
             }
             const importedBastardLoopEnabled = safePreset.bastardLoopEnabled ?? preset.bastardLoopEnabled;
             if (importedBastardLoopEnabled !== undefined) {
@@ -36744,6 +36805,7 @@
                     generatedSampleSolo: generatedSampleSolo,
                     generatedSampleLayerEnabled: generatedSampleLayerEnabled,
                     generatedDryLoopEnabled: generatedDryLoopEnabled,
+                    generatedLoopTransportEnabled: generatedLoopTransportEnabled,
                     bastardLoopEnabled: bastardLoopEnabled,
                     loopLayerSolo: loopLayerSolo,
                     bastardLoopSourceBpm: bastardLoopSourceBpm,
@@ -37128,6 +37190,9 @@
                     }
                     if (state.modes.generatedDryLoopEnabled !== undefined) {
                         setGeneratedDryLoopEnabled(state.modes.generatedDryLoopEnabled, { silent: true, skipSave: true });
+                    }
+                    if (state.modes.generatedLoopTransportEnabled !== undefined) {
+                        setGeneratedLoopTransportEnabled(state.modes.generatedLoopTransportEnabled, { silent: true, skipSave: true });
                     }
                     if (state.modes.bastardLoopEnabled !== undefined) {
                         setBastardLoopEnabled(state.modes.bastardLoopEnabled, { silent: true, skipSave: true });
@@ -38679,7 +38744,7 @@
 
                 if (shouldRestartFreshPlayback) {
                     if (wasSequencerPlaying || forceSequencer) {
-                        startSequencer(restartTime);
+                        startSequencer(restartTime, { force: true });
                     } else if (wasArpPlaying || forceArp) {
                         transportLoopStartTime = restartTime;
                     }
@@ -38727,7 +38792,7 @@
                         startArpeggiatorPlayback(restartTime);
                     }
                 } else {
-                    startSequencer(restartTime);
+                    startSequencer(restartTime, { force: true });
                     if (arpEnabled && holdEnabled) {
                         startArpeggiatorPlayback(restartTime);
                     }
@@ -44069,7 +44134,7 @@
         const performanceBastardLoopStopBtn = document.getElementById('performanceBastardLoopStopBtn');
         const performanceGenerateJunkBtn = document.getElementById('performanceGenerateJunkBtn');
         const performanceSeqPlayBtn = document.getElementById('performanceSeqPlayBtn');
-        const performanceStopAllBtn = document.getElementById('performanceStopAllBtn');
+        const performanceLoopDisableBtn = document.getElementById('performanceLoopDisableBtn');
         const performanceRestartAllBtn = document.getElementById('performanceRestartAllBtn');
         const performanceMainStopAllBtn = document.getElementById('performanceMainStopAllBtn');
         const performanceGeneratedLayerBtn = document.getElementById('performanceGeneratedLayerBtn');
@@ -44942,13 +45007,19 @@
 
             if (performanceSeqPlayBtn) {
                 performanceSeqPlayBtn.classList.toggle('playing', sequencerPlaying);
-                performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Loop Playing' : 'Loop Play';
-                performanceSeqPlayBtn.disabled = sequencerPlaying || isArpeggiatorPlaying();
+                performanceSeqPlayBtn.textContent = sequencerPlaying ? 'Loop Stop' : 'Loop Play';
+                performanceSeqPlayBtn.disabled = !sequencerPlaying && (isArpeggiatorPlaying() || !generatedLoopTransportEnabled);
+                performanceSeqPlayBtn.setAttribute('aria-disabled', String(performanceSeqPlayBtn.disabled));
+                performanceSeqPlayBtn.title = !generatedLoopTransportEnabled
+                    ? 'Loop transport is disabled.'
+                    : (isArpeggiatorPlaying() ? 'Disabled while arpeggiator is active.' : '');
             }
 
-            if (performanceStopAllBtn) {
-                performanceStopAllBtn.textContent = 'Loop Stop';
-                performanceStopAllBtn.disabled = !sequencerPlaying;
+            if (performanceLoopDisableBtn) {
+                const loopDisabled = !generatedLoopTransportEnabled;
+                performanceLoopDisableBtn.classList.toggle('loop-disabled', loopDisabled);
+                performanceLoopDisableBtn.textContent = loopDisabled ? 'Loop Disabled' : 'Loop Enabled';
+                performanceLoopDisableBtn.setAttribute('aria-pressed', String(loopDisabled));
             }
 
             if (performanceMainStopAllBtn) {
@@ -47617,14 +47688,17 @@
                 alert('stop arp first');
                 return;
             }
-            if (sequencerPlaying) return;
-            startSequencer();
+            if (sequencerPlaying) {
+                stopSequencer();
+                syncPerformanceControlState();
+                return;
+            }
+            startSequencer(null, { reportDisabled: true });
             syncPerformanceControlState();
         });
 
-        performanceStopAllBtn?.addEventListener('click', () => {
-            stopSequencer();
-            syncPerformanceControlState();
+        performanceLoopDisableBtn?.addEventListener('click', () => {
+            setGeneratedLoopTransportEnabled(!generatedLoopTransportEnabled);
         });
 
         performanceRestartAllBtn?.addEventListener('click', () => {
