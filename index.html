@@ -6365,46 +6365,10 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Grains</div>
                         <h3 class="performance-feature-title">Granular Layer Quick Controls</h3>
-                        <p class="performance-feature-note">Keep the grain tuning, stereo width, smoothing, and core LFO depth controls close to the grain waveforms on iPhone without reopening the hidden desktop grain tab.</p>
+                        <p class="performance-feature-note">Keep the Grain A/B tuning, stereo width, smoothing, and core LFO depth controls close to the grain waveforms on iPhone without reopening the hidden desktop grain tab.</p>
                     </div>
                 </div>
                 <div class="performance-grain-layer-grid" aria-label="Granular layer quick controls">
-                    <section class="performance-grain-layer-group" aria-label="Main Grain quick controls" hidden>
-                        <div class="performance-grain-layer-head">
-                            <strong>Main Grain</strong>
-                            <span>Base layer</span>
-                        </div>
-                        <div class="performance-grain-layer-controls">
-                            <div class="performance-sound-card">
-                                <label for="performanceGrainMainTune">
-                                    <span>Coarse Tune</span>
-                                    <span class="value" id="performanceGrainMainTuneValue">0st</span>
-                                </label>
-                                <input type="range" id="performanceGrainMainTune" min="-24" max="24" value="0" step="1">
-                            </div>
-                            <div class="performance-sound-card">
-                                <label for="performanceGrainMainFineTune">
-                                    <span>Fine Tune</span>
-                                    <span class="value" id="performanceGrainMainFineTuneValue">0c</span>
-                                </label>
-                                <input type="range" id="performanceGrainMainFineTune" min="-100" max="100" value="0" step="1">
-                            </div>
-                            <div class="performance-sound-card">
-                                <label for="performanceGrainMainWidth">
-                                    <span>Stereo Width</span>
-                                    <span class="value" id="performanceGrainMainWidthValue">24%</span>
-                                </label>
-                                <input type="range" id="performanceGrainMainWidth" min="0" max="100" value="24" step="1">
-                            </div>
-                            <div class="performance-sound-card">
-                                <label for="performanceGrainMainSmoothing">
-                                    <span>Smoothing</span>
-                                    <span class="value" id="performanceGrainMainSmoothingValue">42%</span>
-                                </label>
-                                <input type="range" id="performanceGrainMainSmoothing" min="0" max="100" value="42" step="1">
-                            </div>
-                        </div>
-                    </section>
                     <section class="performance-grain-layer-group" aria-label="Grain A quick controls">
                         <div class="performance-grain-layer-head">
                             <strong>Grain A</strong>
@@ -44788,10 +44752,6 @@
         const performanceGrainAVolume = document.getElementById('performanceGrainAVolume');
         const performanceGrainBVolume = document.getElementById('performanceGrainBVolume');
         const performanceGrainMixerAmp = document.getElementById('performanceGrainMixerAmp');
-        const performanceGrainMainTune = document.getElementById('performanceGrainMainTune');
-        const performanceGrainMainFineTune = document.getElementById('performanceGrainMainFineTune');
-        const performanceGrainMainWidth = document.getElementById('performanceGrainMainWidth');
-        const performanceGrainMainSmoothing = document.getElementById('performanceGrainMainSmoothing');
         const performanceGrainATune = document.getElementById('performanceGrainATune');
         const performanceGrainAFineTune = document.getElementById('performanceGrainAFineTune');
         const performanceGrainAWidth = document.getElementById('performanceGrainAWidth');
@@ -44983,10 +44943,6 @@
 
         function syncPerformanceGrainQuickControls() {
             [
-                ['grainMainTune', performanceGrainMainTune, 'performanceGrainMainTuneValue', (value) => formatSignedControlValue(value, 'st')],
-                ['grainMainFineTune', performanceGrainMainFineTune, 'performanceGrainMainFineTuneValue', (value) => formatSignedControlValue(value, 'c')],
-                ['grainMainWidth', performanceGrainMainWidth, 'performanceGrainMainWidthValue', formatPerformancePercent],
-                ['grainMainSmoothing', performanceGrainMainSmoothing, 'performanceGrainMainSmoothingValue', formatPerformancePercent],
                 ['grainSynthATune', performanceGrainATune, 'performanceGrainATuneValue', (value) => formatSignedControlValue(value, 'st')],
                 ['grainSynthAFineTune', performanceGrainAFineTune, 'performanceGrainAFineTuneValue', (value) => formatSignedControlValue(value, 'c')],
                 ['grainSynthAWidth', performanceGrainAWidth, 'performanceGrainAWidthValue', formatPerformancePercent],
@@ -47590,14 +47546,6 @@
         bindPerformanceLinkedSlider(performanceGrainAVolume, 'performanceGrainAVolumeValue', 'grainSynthAVolume');
         bindPerformanceLinkedSlider(performanceGrainBVolume, 'performanceGrainBVolumeValue', 'grainSynthBVolume');
         bindPerformanceLinkedSlider(performanceGrainMixerAmp, 'performanceGrainMixerAmpValue', 'grainMixerAmp');
-        bindPerformanceLinkedSlider(performanceGrainMainTune, 'performanceGrainMainTuneValue', 'grainMainTune', {
-            formatter: (value) => formatSignedControlValue(value, 'st')
-        });
-        bindPerformanceLinkedSlider(performanceGrainMainFineTune, 'performanceGrainMainFineTuneValue', 'grainMainFineTune', {
-            formatter: (value) => formatSignedControlValue(value, 'c')
-        });
-        bindPerformanceLinkedSlider(performanceGrainMainWidth, 'performanceGrainMainWidthValue', 'grainMainWidth');
-        bindPerformanceLinkedSlider(performanceGrainMainSmoothing, 'performanceGrainMainSmoothingValue', 'grainMainSmoothing');
         bindPerformanceLinkedSlider(performanceGrainATune, 'performanceGrainATuneValue', 'grainSynthATune', {
             formatter: (value) => formatSignedControlValue(value, 'st')
         });
