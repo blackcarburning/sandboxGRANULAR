@@ -5654,6 +5654,7 @@
                         <button class="performance-btn primary" id="performanceBastardLoopLLoadBtn">Choose Lead Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopLRandomBtn">Load Random Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopLEditBtn">Edit Sequence</button>
+                        <button class="performance-btn" id="performanceBastardLoopLExportMidiBtn" type="button">Export MIDI</button>
                         <button class="performance-btn" id="performanceBastardLoopLStartBtn" type="button">Start Bastardloops</button>
                     </div>
                 </div>
@@ -5774,6 +5775,7 @@
                         <button class="performance-btn primary" id="performanceBastardLoopXLoadBtn">Choose Bass Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXRandomBtn">Load Random Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
+                        <button class="performance-btn" id="performanceBastardLoopXExportMidiBtn" type="button">Export MIDI</button>
                         <button class="performance-btn" id="performanceBastardLoopXStartBtn" type="button">Start Bastardloops</button>
                     </div>
                 </div>
@@ -5894,6 +5896,7 @@
                         <button class="performance-btn primary" id="performanceDrumMachineRandomBtn">Random Drums</button>
                         <button class="performance-btn" id="performanceDrumMachineSamplesOnlyBtn">Random Samples</button>
                         <button class="performance-btn" id="performanceDrumMachineOpenBtn">Open Drum Machine</button>
+                        <button class="performance-btn" id="performanceDrumMachineMidiExportBtn" type="button">Export MIDI</button>
                         <button class="performance-btn" id="performanceDrumMachineDirectOutBtn" type="button" aria-pressed="false">Direct Out Off</button>
                         <button class="performance-btn" id="performanceDrumMachineDirectDelayBtn" type="button" aria-pressed="false">Delay Send Off</button>
                         <button class="performance-btn" id="performanceDrumMachineDirectReverbBtn" type="button" aria-pressed="false">Reverb Send Off</button>
@@ -41653,6 +41656,7 @@
         const performanceBastardLoopLLoadBtn = document.getElementById('performanceBastardLoopLLoadBtn');
         const performanceBastardLoopLRandomBtn = document.getElementById('performanceBastardLoopLRandomBtn');
         const performanceBastardLoopLEditBtn = document.getElementById('performanceBastardLoopLEditBtn');
+        const performanceBastardLoopLExportMidiBtn = document.getElementById('performanceBastardLoopLExportMidiBtn');
         const performanceBastardLoopLStartBtn = document.getElementById('performanceBastardLoopLStartBtn');
         const performanceBastardLoopLToggleBtn = document.getElementById('performanceBastardLoopLToggleBtn');
         const performanceBastardLoopLLevel = document.getElementById('performanceBastardLoopLLevel');
@@ -41670,6 +41674,7 @@
         const performanceBastardLoopXLoadBtn = document.getElementById('performanceBastardLoopXLoadBtn');
         const performanceBastardLoopXRandomBtn = document.getElementById('performanceBastardLoopXRandomBtn');
         const performanceBastardLoopXEditBtn = document.getElementById('performanceBastardLoopXEditBtn');
+        const performanceBastardLoopXExportMidiBtn = document.getElementById('performanceBastardLoopXExportMidiBtn');
         const performanceBastardLoopXStartBtn = document.getElementById('performanceBastardLoopXStartBtn');
         const performanceBastardLoopXToggleBtn = document.getElementById('performanceBastardLoopXToggleBtn');
         const performanceBastardLoopXLevel = document.getElementById('performanceBastardLoopXLevel');
@@ -41772,6 +41777,7 @@
         const performanceDrumMachineRandomBtn = document.getElementById('performanceDrumMachineRandomBtn');
         const performanceDrumMachineSamplesOnlyBtn = document.getElementById('performanceDrumMachineSamplesOnlyBtn');
         const performanceDrumMachineOpenBtn = document.getElementById('performanceDrumMachineOpenBtn');
+        const performanceDrumMachineMidiExportBtn = document.getElementById('performanceDrumMachineMidiExportBtn');
         const performanceDrumMachineStartBtn = document.getElementById('performanceDrumMachineStartBtn');
         const performanceDrumMachineMainOpenBtn = document.getElementById('performanceDrumMachineMainOpenBtn');
         const performanceDrumMachineMainStartBtn = document.getElementById('performanceDrumMachineMainStartBtn');
@@ -43058,6 +43064,13 @@
             openBastardLoopLOverlay();
         });
 
+        bindBastardLoopLMobileTap(performanceBastardLoopLExportMidiBtn, async () => {
+            await runMidiExportButtonAction(performanceBastardLoopLExportMidiBtn, exportBastardLoopLMidiToRepository, (error) => {
+                updateBastardLoopLStatus(`Loop L MIDI export failed: ${error.message}`);
+                setStatus(`Loop L MIDI export failed: ${error.message}`, 'error');
+            });
+        });
+
         performanceBastardLoopLToggleBtn?.addEventListener('click', () => {
             setBastardLoopLEnabled(!bastardLoopLEnabled);
         });
@@ -43349,6 +43362,26 @@
             }, { capture: true });
         }
 
+        async function runMidiExportButtonAction(button, exportAction, onError) {
+            const originalLabel = button?.textContent || 'Export MIDI';
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Exporting...';
+            }
+            try {
+                return await exportAction();
+            } catch (error) {
+                console.error(error);
+                onError?.(error);
+                return false;
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = originalLabel;
+                }
+            }
+        }
+
         bindBastardLoopLMobileTap(performanceBastardLoopLStartBtn, async () => {
             await toggleBastardLoopLTransportFromUi();
         });
@@ -43442,23 +43475,10 @@
         });
 
         bindBastardLoopLMobileTap(bastardLoopLExportMidiBtn, async () => {
-            const originalLabel = bastardLoopLExportMidiBtn?.textContent || 'Export MIDI';
-            if (bastardLoopLExportMidiBtn) {
-                bastardLoopLExportMidiBtn.disabled = true;
-                bastardLoopLExportMidiBtn.textContent = 'Exporting...';
-            }
-            try {
-                await exportBastardLoopLMidiToRepository();
-            } catch (error) {
-                console.error(error);
+            await runMidiExportButtonAction(bastardLoopLExportMidiBtn, exportBastardLoopLMidiToRepository, (error) => {
                 updateBastardLoopLStatus(`Loop L MIDI export failed: ${error.message}`);
                 setStatus(`Loop L MIDI export failed: ${error.message}`, 'error');
-            } finally {
-                if (bastardLoopLExportMidiBtn) {
-                    bastardLoopLExportMidiBtn.disabled = false;
-                    bastardLoopLExportMidiBtn.textContent = originalLabel;
-                }
-            }
+            });
         });
 
         performanceBastardLoopXLoadBtn?.addEventListener('click', () => {
@@ -43477,6 +43497,13 @@
 
         performanceBastardLoopXEditBtn?.addEventListener('click', () => {
             openBastardLoopXOverlay();
+        });
+
+        bindBastardLoopLMobileTap(performanceBastardLoopXExportMidiBtn, async () => {
+            await runMidiExportButtonAction(performanceBastardLoopXExportMidiBtn, exportBastardLoopXMidiToRepository, (error) => {
+                updateBastardLoopXStatus(`Loop X MIDI export failed: ${error.message}`);
+                setStatus(`Loop X MIDI export failed: ${error.message}`, 'error');
+            });
         });
 
         performanceBastardLoopXToggleBtn?.addEventListener('click', () => {
@@ -43726,23 +43753,10 @@
         });
 
         bindBastardLoopLMobileTap(bastardLoopXExportMidiBtn, async () => {
-            const originalLabel = bastardLoopXExportMidiBtn?.textContent || 'Export MIDI';
-            if (bastardLoopXExportMidiBtn) {
-                bastardLoopXExportMidiBtn.disabled = true;
-                bastardLoopXExportMidiBtn.textContent = 'Exporting...';
-            }
-            try {
-                await exportBastardLoopXMidiToRepository();
-            } catch (error) {
-                console.error(error);
+            await runMidiExportButtonAction(bastardLoopXExportMidiBtn, exportBastardLoopXMidiToRepository, (error) => {
                 updateBastardLoopXStatus(`Loop X MIDI export failed: ${error.message}`);
                 setStatus(`Loop X MIDI export failed: ${error.message}`, 'error');
-            } finally {
-                if (bastardLoopXExportMidiBtn) {
-                    bastardLoopXExportMidiBtn.disabled = false;
-                    bastardLoopXExportMidiBtn.textContent = originalLabel;
-                }
-            }
+            });
         });
 
         performanceSampleVolume?.addEventListener('input', (event) => {
@@ -44171,20 +44185,18 @@
             }
         });
 
-        drumMachineMidiExportBtn?.addEventListener('click', async () => {
-            const originalLabel = drumMachineMidiExportBtn.textContent;
-            drumMachineMidiExportBtn.disabled = true;
-            drumMachineMidiExportBtn.textContent = 'Exporting...';
-            try {
-                await exportDrumMachineMidiToRepository();
-            } catch (error) {
-                console.error(error);
+        bindBastardLoopLMobileTap(performanceDrumMachineMidiExportBtn, async () => {
+            await runMidiExportButtonAction(performanceDrumMachineMidiExportBtn, exportDrumMachineMidiToRepository, (error) => {
                 setDrumMachineStatus(`Drum machine MIDI export failed: ${error.message}`);
                 setStatus(`Drum machine MIDI export failed: ${error.message}`, 'error');
-            } finally {
-                drumMachineMidiExportBtn.disabled = false;
-                drumMachineMidiExportBtn.textContent = originalLabel;
-            }
+            });
+        });
+
+        drumMachineMidiExportBtn?.addEventListener('click', async () => {
+            await runMidiExportButtonAction(drumMachineMidiExportBtn, exportDrumMachineMidiToRepository, (error) => {
+                setDrumMachineStatus(`Drum machine MIDI export failed: ${error.message}`);
+                setStatus(`Drum machine MIDI export failed: ${error.message}`, 'error');
+            });
         });
 
         drumMachineCloseBtn?.addEventListener('click', () => {
