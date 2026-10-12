@@ -499,6 +499,46 @@ test('Loop L delay division normalizer accepts new straight dotted and triplet v
     assert.equal(normalizeBastardLoopLDelayDivision('weird'), '2');
 });
 
+test('Loop L source-mode normalizer only preserves synth as the alternate source', () => {
+    const sourceModeContext = {};
+    vm.runInNewContext([
+        extractFunctionSource('normalizeBastardLoopLSourceMode'),
+        'globalThis.normalizeBastardLoopLSourceMode = normalizeBastardLoopLSourceMode;'
+    ].join('\n\n'), sourceModeContext);
+
+    assert.equal(sourceModeContext.normalizeBastardLoopLSourceMode('synth'), 'synth');
+    assert.equal(sourceModeContext.normalizeBastardLoopLSourceMode(' SYNTH '), 'synth');
+    assert.equal(sourceModeContext.normalizeBastardLoopLSourceMode('sample'), 'sample');
+    assert.equal(sourceModeContext.normalizeBastardLoopLSourceMode('mic'), 'sample');
+    assert.equal(sourceModeContext.normalizeBastardLoopLSourceMode(''), 'sample');
+});
+
+test('Loop L synth readiness avoids redundant path refresh once the shared synth is already audible', () => {
+    const synthReadyContext = {
+        audioContext: {},
+        oscillatorsEnabled: true,
+        generatedSampleSolo: false,
+        oscMix: 0.5,
+        oscOutputGain: {},
+        ensureSynthVoicePathAudibleCalls: 0,
+        ensureSynthVoicePathAudible() {
+            synthReadyContext.ensureSynthVoicePathAudibleCalls += 1;
+        }
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('ensureBastardLoopLSynthReady'),
+        'globalThis.ensureBastardLoopLSynthReady = ensureBastardLoopLSynthReady;'
+    ].join('\n\n'), synthReadyContext);
+
+    assert.equal(synthReadyContext.ensureBastardLoopLSynthReady(), true);
+    assert.equal(synthReadyContext.ensureSynthVoicePathAudibleCalls, 0);
+
+    synthReadyContext.oscMix = 0.1;
+    assert.equal(synthReadyContext.ensureBastardLoopLSynthReady({ forceMinimumMix: true, minOscMix: 0.35 }), true);
+    assert.equal(synthReadyContext.ensureSynthVoicePathAudibleCalls, 1);
+});
+
 test('Loop L delay mix levels keep dry at zero mix and favor wet/send at high mix', () => {
     assert.deepEqual(plain(computeBastardLoopLDelayMixLevels(0)), {
         dryGain: 1,
@@ -691,6 +731,10 @@ test('Loop L and X ready prep preserves a playable level through UI sync', () =>
         };
         readyContext[`bastardLoop${prefix}Enabled`] = true;
         readyContext[`bastardLoop${prefix}Level`] = 0.5;
+        if (prefix === 'L') {
+            readyContext.isBastardLoopLUsingSynth = () => false;
+            readyContext.ensureBastardLoopLSynthReady = () => true;
+        }
         readyContext[`syncBastardLoop${prefix}Ui`] = () => {
             readyContext.levelAfterSync = readyContext[`getBastardLoop${prefix}LevelValue`]({ applyLayerToggle: false });
         };
@@ -785,6 +829,12 @@ test('Global Bastardloop start clears loop solo and refreshes shared transport w
         hasPlayableBastardLoopLSequence() {
             return true;
         },
+        isBastardLoopLUsingSynth() {
+            return false;
+        },
+        hasPlayableBastardLoopLTransportSource() {
+            return Boolean(startContext.bastardLoopLSampleBuffer) && startContext.hasPlayableBastardLoopLSequence();
+        },
         hasPlayableBastardLoopXSequence() {
             return true;
         },
@@ -850,6 +900,12 @@ test('Global Bastardloop start reloads a remembered Loop L sample before transpo
         setStatus() {},
         hasPlayableBastardLoopLSequence() {
             return true;
+        },
+        isBastardLoopLUsingSynth() {
+            return false;
+        },
+        hasPlayableBastardLoopLTransportSource() {
+            return Boolean(startContext.bastardLoopLSampleBuffer) && startContext.hasPlayableBastardLoopLSequence();
         },
         hasPlayableBastardLoopXSequence() {
             return false;
@@ -1518,6 +1574,9 @@ test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers'
             isArpeggiatorPlaying() {
                 return false;
             },
+            hasPlayableBastardLoopLTransportSource() {
+                return Boolean(restartContext.bastardLoopLSampleBuffer);
+            },
             setStatus() {}
         };
         restartContext[bufferKey] = { id: bufferKey };
@@ -1587,6 +1646,9 @@ test('Restart All honors an explicit scheduled start time', () => {
         startArpeggiatorPlayback() {},
         isArpeggiatorPlaying() {
             return false;
+        },
+        hasPlayableBastardLoopLTransportSource() {
+            return Boolean(restartContext.bastardLoopLSampleBuffer);
         },
         setStatus() {}
     };
