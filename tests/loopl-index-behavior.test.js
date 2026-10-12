@@ -506,3 +506,75 @@ test('Global Bastardloop start reloads a remembered Loop L sample before transpo
     assert.equal(startContext.saved, true);
     assert.ok(startContext.synced >= 1);
 });
+
+test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers', () => {
+    for (const bufferKey of ['bastardLoopLSampleBuffer', 'bastardLoopXSampleBuffer']) {
+        const restartContext = {
+            sequencerPlaying: false,
+            arpEnabled: false,
+            holdEnabled: false,
+            bastardLoopPlaying: false,
+            drumMachinePlaying: false,
+            bastardLoopBuffer: null,
+            bastardLoop2Buffer: null,
+            bastardLoop3Buffer: null,
+            bastardLoopVBuffer: null,
+            bastardLoopPBuffer: null,
+            bastardLoopOBuffer: null,
+            bastardLoopLSampleBuffer: null,
+            bastardLoopXSampleBuffer: null,
+            dropboxSampleLayerBuffer: null,
+            drumMachineKickPattern: [],
+            drumMachineSnarePattern: [],
+            drumMachineHatPattern: [],
+            finalFxPlacementLfoEnabled: false,
+            isAudioGraphReady() {
+                return true;
+            },
+            getBufferedTransportStartTime() {
+                return 42;
+            },
+            startSequencer(startTime) {
+                restartContext.startedSequencerAt = startTime;
+                restartContext.sequencerPlaying = true;
+            },
+            stopSequencer() {},
+            stopArpeggiatorPlayback() {},
+            stopAllBastardLoopLayers() {},
+            stopDrumMachine() {},
+            restartInternalEffectOscillators(startTime) {
+                restartContext.restartedEffectsAt = startTime;
+                return true;
+            },
+            updateFinalFxPlacementLfo() {},
+            updateEffects() {},
+            syncPerformanceControlState() {
+                restartContext.synced = (restartContext.synced || 0) + 1;
+            },
+            startAllBastardLoopLayers(startTime, options) {
+                restartContext.startedBastardLoop = { startTime, options: plain(options) };
+                return true;
+            },
+            startDrumMachine() {
+                throw new Error('Drum machine should not start for Loop L/X-only restart.');
+            },
+            startArpeggiatorPlayback() {},
+            isArpeggiatorPlaying() {
+                return false;
+            },
+            setStatus() {}
+        };
+        restartContext[bufferKey] = { id: bufferKey };
+        vm.runInNewContext(`${extractFunctionSource('restartAllTransport')}\nglobalThis.restartAllTransport = restartAllTransport;`, restartContext);
+
+        assert.equal(restartContext.restartAllTransport(), true);
+        assert.deepEqual(restartContext.startedBastardLoop, {
+            startTime: 42,
+            options: {
+                skipUi: true,
+                silent: true
+            }
+        }, `${bufferKey} should enter the shared Bastardloop restart path`);
+        assert.ok(restartContext.synced >= 1);
+    }
+});
