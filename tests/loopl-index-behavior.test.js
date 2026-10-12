@@ -767,6 +767,148 @@ test('Bastardloop M transport button stops the shared Bastardloop transport when
     assert.ok(stopContext.synced >= 1);
 });
 
+test('Bastardloop M Record + Loop control is wired into the live card UI', () => {
+    assert.match(indexHtml, /id="performanceBastardLoopMRecordLoopBtn"[^>]*>Record \+ Loop</);
+    assert.match(
+        indexHtml,
+        /performanceBastardLoopMRecordLoopBtn\?\.(?:addEventListener)\('click', async \(\) => \{\s*try \{\s*await handleBastardLoopMRecordButtonPress\(\{ startFullLoop: true \}\);/s
+    );
+});
+
+test('Bastardloop M record plus loop arms the take with a continuous metronome and scheduled transport restart', async () => {
+    class FakeMediaRecorder {
+        constructor(stream) {
+            this.stream = stream;
+            this.state = 'inactive';
+            this.mimeType = 'audio/webm';
+        }
+        start() {
+            this.state = 'recording';
+        }
+        stop() {
+            this.state = 'inactive';
+        }
+    }
+
+    const timers = [];
+    const statuses = [];
+    const beginContext = {
+        window: {
+            isSecureContext: true,
+            setTimeout(fn, delay) {
+                const timer = { fn, delay };
+                timers.push(timer);
+                return timer;
+            }
+        },
+        clearTimeout() {},
+        navigator: {
+            mediaDevices: {
+                getUserMedia() {
+                    beginContext.requestedMic = true;
+                    return Promise.resolve({
+                        getTracks() {
+                            return [{ stop() {} }];
+                        }
+                    });
+                }
+            }
+        },
+        MediaRecorder: FakeMediaRecorder,
+        audioContext: {
+            currentTime: 10,
+            state: 'running',
+            resume() {
+                return Promise.resolve();
+            }
+        },
+        document: {
+            getElementById(id) {
+                if (id === 'globalBpmSlider') {
+                    return { value: '120' };
+                }
+                return null;
+            }
+        },
+        bastardLoopMRecordingToken: 0,
+        bastardLoopMRecordingCancelled: false,
+        bastardLoopMRecordedChunks: [],
+        bastardLoopMRecordingState: 'idle',
+        bastardLoopMCountInBeatsRemaining: 0,
+        bastardLoopMRecordStatus: '',
+        bastardLoopMRecordingStartsFullLoop: false,
+        bastardLoopMMicStream: null,
+        bastardLoopMMediaRecorder: null,
+        bastardLoopMRecordStartTimerId: null,
+        bastardLoopMRecordStopTimerId: null,
+        bastardLoopMRecordLoopTransportTimerId: null,
+        bastardLoopMCountInTimerIds: [],
+        ensureAudioReadyForKeyInteraction() {
+            return Promise.resolve(true);
+        },
+        clampBpmValue(value) {
+            return Number(value) || 120;
+        },
+        getBastardLoopMLoopDurationSeconds() {
+            return 8;
+        },
+        chooseRecordingMimeType() {
+            return '';
+        },
+        stopBastardLoopM() {
+            beginContext.stoppedExistingM = true;
+        },
+        stopAllPerformancePlayback(options) {
+            beginContext.stopAllCall = plain(options);
+        },
+        ensureBastardLoopMReadyForTransport() {
+            beginContext.preparedM = true;
+            return true;
+        },
+        startBastardLoopMMetronome(startTime, beatIntervalSeconds) {
+            beginContext.metronomeStart = { startTime, beatIntervalSeconds };
+        },
+        syncBastardLoopMUi() {
+            beginContext.syncs = (beginContext.syncs || 0) + 1;
+        },
+        restartAllTransport(options) {
+            beginContext.restartCall = plain(options);
+            return true;
+        },
+        setStatus(message) {
+            statuses.push(message);
+        },
+        console,
+        TRANSPORT_START_BUFFER_SECONDS: 0.08
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('beginBastardLoopMRecording'),
+        'globalThis.beginBastardLoopMRecording = beginBastardLoopMRecording;'
+    ].join('\n\n'), beginContext);
+
+    const started = await beginContext.beginBastardLoopMRecording({ startFullLoop: true });
+
+    assert.equal(started, true);
+    assert.equal(beginContext.requestedMic, true);
+    assert.equal(beginContext.preparedM, true);
+    assert.deepEqual(beginContext.stopAllCall, { silent: true });
+    assert.deepEqual(beginContext.metronomeStart, {
+        startTime: 10.08,
+        beatIntervalSeconds: 0.5
+    });
+    assert.equal(beginContext.bastardLoopMRecordingState, 'countin');
+    assert.equal(beginContext.bastardLoopMRecordingStartsFullLoop, true);
+    assert.equal(beginContext.bastardLoopMRecordStatus, 'Count-in: 4 · loop starts on 1');
+    assert.match(statuses[0], /full loop starts with the take/i);
+
+    const transportTimer = timers.find((timer) => timer.delay === 2000);
+    assert.ok(transportTimer, 'expected a scheduled transport start timer');
+    transportTimer.fn();
+    assert.equal(beginContext.restartCall?.silent, true);
+    assert.ok(Math.abs(beginContext.restartCall?.startTime - 12.08) < 1e-9);
+});
+
 test('Bastardloop M is rebuilt and resynced after audio engine recovery', () => {
     const rebuildSource = extractFunctionSource('rebuildContextBoundAudioState');
     assert.match(rebuildSource, /if \(bastardLoopMRawBuffer\) \{\s*rerenderBastardLoopMFromRaw\(\{ skipUi: true \}\);\s*\}/);
@@ -843,4 +985,74 @@ test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers'
         }, `${bufferKey} should enter the shared Bastardloop restart path`);
         assert.ok(restartContext.synced >= 1);
     }
+});
+
+test('Restart All honors an explicit scheduled start time', () => {
+    const restartContext = {
+        audioContext: { currentTime: 10 },
+        sequencerPlaying: false,
+        arpEnabled: false,
+        holdEnabled: false,
+        bastardLoopPlaying: false,
+        drumMachinePlaying: false,
+        bastardLoopBuffer: null,
+        bastardLoop2Buffer: null,
+        bastardLoop3Buffer: null,
+        bastardLoopVBuffer: null,
+        bastardLoopPBuffer: null,
+        bastardLoopOBuffer: null,
+        bastardLoopLSampleBuffer: null,
+        bastardLoopXSampleBuffer: null,
+        bastardLoopMBuffer: { id: 'm-loop' },
+        dropboxSampleLayerBuffer: null,
+        drumMachineKickPattern: [],
+        drumMachineSnarePattern: [],
+        drumMachineHatPattern: [],
+        finalFxPlacementLfoEnabled: false,
+        isAudioGraphReady() {
+            return true;
+        },
+        stopSequencer() {},
+        stopArpeggiatorPlayback() {},
+        stopAllBastardLoopLayers() {},
+        stopDrumMachine() {},
+        restartInternalEffectOscillators(startTime) {
+            restartContext.restartedEffectsAt = startTime;
+            return true;
+        },
+        updateFinalFxPlacementLfo() {},
+        updateEffects() {},
+        syncPerformanceControlState() {
+            restartContext.synced = (restartContext.synced || 0) + 1;
+        },
+        startSequencer(startTime) {
+            restartContext.startedSequencerAt = startTime;
+            restartContext.sequencerPlaying = true;
+        },
+        startAllBastardLoopLayers(startTime, options) {
+            restartContext.startedBastardLoop = { startTime, options: plain(options) };
+            return true;
+        },
+        startDrumMachine() {
+            throw new Error('Drum machine should not start in this scheduled-start check.');
+        },
+        startArpeggiatorPlayback() {},
+        isArpeggiatorPlaying() {
+            return false;
+        },
+        setStatus() {}
+    };
+    vm.runInNewContext(`${extractFunctionSource('restartAllTransport')}\nglobalThis.restartAllTransport = restartAllTransport;`, restartContext);
+
+    assert.equal(restartContext.restartAllTransport({ startTime: 24.5 }), true);
+    assert.equal(restartContext.restartedEffectsAt, 24.5);
+    assert.equal(restartContext.startedSequencerAt, 24.5);
+    assert.deepEqual(restartContext.startedBastardLoop, {
+        startTime: 24.5,
+        options: {
+            skipUi: true,
+            silent: true
+        }
+    });
+    assert.ok(restartContext.synced >= 1);
 });

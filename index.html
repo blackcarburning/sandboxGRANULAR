@@ -5894,6 +5894,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopMRecordBtn" type="button">Record Mic</button>
+                        <button class="performance-btn" id="performanceBastardLoopMRecordLoopBtn" type="button">Record + Loop</button>
                         <button class="performance-btn" id="performanceBastardLoopMClearBtn" type="button">Clear</button>
                         <button class="performance-btn" id="performanceBastardLoopMStartBtn" type="button">Start Bastardloops</button>
                     </div>
@@ -10708,8 +10709,15 @@
         let bastardLoopMRecordedChunks = [];
         let bastardLoopMRecordStartTimerId = null;
         let bastardLoopMRecordStopTimerId = null;
+        let bastardLoopMRecordLoopTransportTimerId = null;
         let bastardLoopMCountInTimerIds = [];
+        let bastardLoopMMetronomeTimerId = null;
+        let bastardLoopMMetronomeNextTime = 0;
+        let bastardLoopMMetronomeBeatIndex = 0;
+        let bastardLoopMMetronomeIntervalSeconds = 0;
+        const bastardLoopMMetronomeNodes = new Set();
         let bastardLoopMRecordingCancelled = false;
+        let bastardLoopMRecordingStartsFullLoop = false;
         let bastardLoopMRecordingToken = 0;
         let dropboxSampleLayerSource = null;
         let dropboxSampleLayerGainNode = null;
@@ -17615,6 +17623,7 @@
             const filterModeValue = getBastardLoopMFilterMode();
             const meta = document.getElementById('performanceBastardLoopMMeta');
             const recordButton = document.getElementById('performanceBastardLoopMRecordBtn');
+            const recordLoopButton = document.getElementById('performanceBastardLoopMRecordLoopBtn');
             const clearButton = document.getElementById('performanceBastardLoopMClearBtn');
             const startButton = document.getElementById('performanceBastardLoopMStartBtn');
             const levelSlider = document.getElementById('performanceBastardLoopMLevel');
@@ -17655,6 +17664,7 @@
             if (recordButton) {
                 recordButton.disabled = bastardLoopMRecordingState === 'processing';
                 recordButton.classList.toggle('active', bastardLoopMRecordingState !== 'idle');
+                recordButton.setAttribute('aria-pressed', String(bastardLoopMRecordingState !== 'idle'));
                 if (bastardLoopMRecordingState === 'processing') {
                     recordButton.textContent = 'Processing…';
                 } else if (bastardLoopMRecordingState === 'countin') {
@@ -17663,6 +17673,19 @@
                     recordButton.textContent = 'Stop Recording';
                 } else {
                     recordButton.textContent = hasRecording ? 'Re-record Mic' : 'Record Mic';
+                }
+            }
+            if (recordLoopButton) {
+                const loopModeActive = bastardLoopMRecordingStartsFullLoop && bastardLoopMRecordingState !== 'idle';
+                recordLoopButton.disabled = isBusy;
+                recordLoopButton.classList.toggle('active', loopModeActive);
+                recordLoopButton.setAttribute('aria-pressed', String(loopModeActive));
+                if (bastardLoopMRecordingState === 'countin' && loopModeActive) {
+                    recordLoopButton.textContent = 'Loop Starts On 1';
+                } else if (bastardLoopMRecordingState === 'recording' && loopModeActive) {
+                    recordLoopButton.textContent = 'Loop Running';
+                } else {
+                    recordLoopButton.textContent = 'Record + Loop';
                 }
             }
             if (clearButton) {
@@ -17916,6 +17939,65 @@
             }
         }
 
+        function scheduleBastardLoopMMetronome() {
+            if ((bastardLoopMRecordingState !== 'countin' && bastardLoopMRecordingState !== 'recording') || !audioContext || audioContext.state !== 'running') {
+                return;
+            }
+            const now = audioContext.currentTime;
+            const lookaheadUntil = now + KEYBOARD_RECORD_METRONOME_LOOKAHEAD_SECONDS;
+            const beatInterval = bastardLoopMMetronomeIntervalSeconds > 0
+                ? bastardLoopMMetronomeIntervalSeconds
+                : getKeyboardRepositoryMetronomeIntervalSeconds();
+            while (bastardLoopMMetronomeNextTime < lookaheadUntil) {
+                playKeyboardRepositoryMetronomeClick(
+                    bastardLoopMMetronomeNextTime,
+                    bastardLoopMMetronomeBeatIndex % 4 === 0,
+                    {
+                        nodeSet: bastardLoopMMetronomeNodes,
+                        accentPeak: 0.22,
+                        regularPeak: 0.14
+                    }
+                );
+                bastardLoopMMetronomeBeatIndex += 1;
+                bastardLoopMMetronomeNextTime += beatInterval;
+            }
+            bastardLoopMMetronomeTimerId = window.setTimeout(
+                scheduleBastardLoopMMetronome,
+                KEYBOARD_RECORD_METRONOME_TIMER_MS
+            );
+        }
+
+        function stopBastardLoopMMetronome() {
+            if (bastardLoopMMetronomeTimerId) {
+                clearTimeout(bastardLoopMMetronomeTimerId);
+                bastardLoopMMetronomeTimerId = null;
+            }
+            bastardLoopMMetronomeNextTime = 0;
+            bastardLoopMMetronomeBeatIndex = 0;
+            bastardLoopMMetronomeIntervalSeconds = 0;
+            bastardLoopMMetronomeNodes.forEach(({ oscillator, gain }) => {
+                try {
+                    const now = gain.context?.currentTime || audioContext?.currentTime || 0;
+                    gain.gain.cancelScheduledValues(now);
+                    gain.gain.setTargetAtTime(0.0001, now, 0.01);
+                    oscillator.stop(now + 0.025);
+                } catch (error) {
+                    console.debug('Bastardloop M metronome stop skipped:', error);
+                }
+            });
+        }
+
+        function startBastardLoopMMetronome(startTime, beatIntervalSeconds) {
+            stopBastardLoopMMetronome();
+            if (!audioContext || audioContext.state !== 'running') return;
+            bastardLoopMMetronomeBeatIndex = 0;
+            bastardLoopMMetronomeIntervalSeconds = Math.max(0.01, Number(beatIntervalSeconds) || getKeyboardRepositoryMetronomeIntervalSeconds());
+            bastardLoopMMetronomeNextTime = Number.isFinite(startTime)
+                ? Math.max(audioContext.currentTime + 0.005, startTime)
+                : (audioContext.currentTime + 0.01);
+            scheduleBastardLoopMMetronome();
+        }
+
         function clearBastardLoopMCountInTimers() {
             bastardLoopMCountInTimerIds.forEach((timerId) => {
                 clearTimeout(timerId);
@@ -17932,7 +18014,12 @@
                 clearTimeout(bastardLoopMRecordStopTimerId);
                 bastardLoopMRecordStopTimerId = null;
             }
+            if (bastardLoopMRecordLoopTransportTimerId) {
+                clearTimeout(bastardLoopMRecordLoopTransportTimerId);
+                bastardLoopMRecordLoopTransportTimerId = null;
+            }
             clearBastardLoopMCountInTimers();
+            stopBastardLoopMMetronome();
         }
 
         function stopBastardLoopMMicCapture() {
@@ -17947,6 +18034,7 @@
             bastardLoopMRecordedChunks = [];
             bastardLoopMMediaRecorder = null;
             bastardLoopMCountInBeatsRemaining = 0;
+            bastardLoopMRecordingStartsFullLoop = false;
             stopBastardLoopMMicCapture();
         }
 
@@ -17972,8 +18060,24 @@
             };
             rerenderBastardLoopMFromRaw({ skipUi: true });
             await saveAudioBufferToDB(bastardLoopMRawBuffer, BASTARD_LOOP_M_AUDIO_BUFFER_KEY);
+            let joinedSharedTransport = false;
+            if (options.joinSharedTransport && !bastardLoopPlaying) {
+                const sharedOrigin = getSharedLoopTransportOriginTime();
+                if (Number.isFinite(sharedOrigin)) {
+                    ensureBastardLoopMReadyForTransport();
+                    joinedSharedTransport = setBastardLoopPlaying(true, {
+                        silent: true,
+                        skipSave: true,
+                        startTime: sharedOrigin
+                    });
+                }
+            }
             syncBastardLoopMUi();
-            setStatus(options.statusMessage || 'Bastardloop M mic loop recorded.');
+            setStatus(
+                joinedSharedTransport
+                    ? (options.joinedStatusMessage || 'Bastardloop M recorded and joined the loop.')
+                    : (options.statusMessage || 'Bastardloop M mic loop recorded.')
+            );
         }
 
         function cancelBastardLoopMRecording(options = {}) {
@@ -17987,6 +18091,7 @@
             bastardLoopMRecordingState = 'idle';
             bastardLoopMRecordStatus = '';
             bastardLoopMCountInBeatsRemaining = 0;
+            bastardLoopMRecordingStartsFullLoop = false;
             if (activeRecorder && activeRecorder.state !== 'inactive') {
                 try {
                     activeRecorder.stop();
@@ -18007,7 +18112,7 @@
             return Boolean(bastardLoopMSource);
         }
 
-        async function beginBastardLoopMRecording() {
+        async function beginBastardLoopMRecording(options = {}) {
             if (!window.isSecureContext) {
                 setStatus('Microphone recording requires HTTPS or localhost.', 'error');
                 return false;
@@ -18032,10 +18137,8 @@
             const countInBeats = 4;
             const countInSeconds = beatDurationSeconds * countInBeats;
             const loopDurationSeconds = getBastardLoopMLoopDurationSeconds(currentBpm);
+            const startFullLoop = options.startFullLoop === true;
             const sessionToken = bastardLoopMRecordingToken + 1;
-            const countInStartTime = audioContext.currentTime + 0.08;
-            const countInStartDelayMs = Math.max(0, Math.round((countInStartTime - audioContext.currentTime) * 1000));
-            const totalDurationMs = Math.max(20, Math.round((countInSeconds + loopDurationSeconds) * 1000));
             const mimeType = chooseRecordingMimeType();
 
             stopBastardLoopM({ skipUi: true, fade: false });
@@ -18061,11 +18164,23 @@
             bastardLoopMRecordingToken = sessionToken;
             bastardLoopMRecordingCancelled = false;
             bastardLoopMRecordedChunks = [];
+            if (startFullLoop) {
+                stopAllPerformancePlayback({ silent: true });
+                ensureBastardLoopMReadyForTransport();
+            }
+            const countInStartTime = audioContext.currentTime + 0.08;
+            const recordingStartTime = countInStartTime + countInSeconds;
+            const countInStartDelayMs = Math.max(0, Math.round((countInStartTime - audioContext.currentTime) * 1000));
+            const totalDurationMs = Math.max(20, Math.round((countInSeconds + loopDurationSeconds) * 1000));
+            const loopStartsStatusSuffix = startFullLoop ? ' · loop starts on 1' : '';
             bastardLoopMRecordingState = 'countin';
             bastardLoopMCountInBeatsRemaining = countInBeats;
-            bastardLoopMRecordStatus = `Count-in: ${countInBeats}`;
+            bastardLoopMRecordingStartsFullLoop = startFullLoop;
+            bastardLoopMRecordStatus = `Count-in: ${countInBeats}${loopStartsStatusSuffix}`;
             syncBastardLoopMUi();
-            setStatus(`Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM.`);
+            setStatus(startFullLoop
+                ? `Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM. The full loop starts with the take.`
+                : `Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM.`);
 
             recorder.ondataavailable = (event) => {
                 if (event.data?.size > 0) {
@@ -18079,6 +18194,7 @@
                 bastardLoopMRecordingToken += 1;
                 bastardLoopMRecordingState = 'idle';
                 bastardLoopMRecordStatus = '';
+                bastardLoopMRecordingStartsFullLoop = false;
                 finalizeBastardLoopMRecordingSession();
                 syncBastardLoopMUi();
             };
@@ -18104,7 +18220,9 @@
                         bpm: currentBpm,
                         durationSeconds: loopDurationSeconds,
                         summary: `${loopDurationSeconds.toFixed(2)}s mic loop · ${currentBpm} BPM`,
-                        statusMessage: 'Bastardloop M recorded and ready.'
+                        statusMessage: 'Bastardloop M recorded and ready.',
+                        joinedStatusMessage: 'Bastardloop M recorded and joined the loop.',
+                        joinSharedTransport: startFullLoop
                     });
                 } catch (error) {
                     console.error(error);
@@ -18133,23 +18251,39 @@
                 return false;
             }
 
+            startBastardLoopMMetronome(countInStartTime, beatDurationSeconds);
+
             for (let beatIndex = 0; beatIndex < countInBeats; beatIndex += 1) {
                 const clickTime = countInStartTime + (beatIndex * beatDurationSeconds);
-                playKeyboardRepositoryMetronomeClick(clickTime, beatIndex === 0);
                 const remaining = countInBeats - beatIndex;
                 bastardLoopMCountInTimerIds.push(window.setTimeout(() => {
                     if (sessionToken !== bastardLoopMRecordingToken) return;
                     bastardLoopMCountInBeatsRemaining = remaining;
-                    bastardLoopMRecordStatus = `Count-in: ${remaining}`;
+                    bastardLoopMRecordStatus = `Count-in: ${remaining}${loopStartsStatusSuffix}`;
                     syncBastardLoopMUi();
                 }, Math.max(0, Math.round((clickTime - audioContext.currentTime) * 1000))));
+            }
+
+            if (startFullLoop) {
+                const transportLeadMs = Math.max(20, Math.round(TRANSPORT_START_BUFFER_SECONDS * 1000));
+                const transportStartDelayMs = Math.max(0, countInStartDelayMs + Math.round(countInSeconds * 1000) - transportLeadMs);
+                bastardLoopMRecordLoopTransportTimerId = window.setTimeout(() => {
+                    if (sessionToken !== bastardLoopMRecordingToken || bastardLoopMRecordingCancelled) return;
+                    bastardLoopMRecordLoopTransportTimerId = null;
+                    restartAllTransport({
+                        silent: true,
+                        startTime: recordingStartTime
+                    });
+                }, transportStartDelayMs);
             }
 
             bastardLoopMRecordStartTimerId = window.setTimeout(() => {
                 if (sessionToken !== bastardLoopMRecordingToken) return;
                 bastardLoopMRecordingState = 'recording';
                 bastardLoopMCountInBeatsRemaining = 0;
-                bastardLoopMRecordStatus = `Recording ${loopDurationSeconds.toFixed(2)}s mic loop…`;
+                bastardLoopMRecordStatus = startFullLoop
+                    ? `Recording ${loopDurationSeconds.toFixed(2)}s mic loop with full loop playback…`
+                    : `Recording ${loopDurationSeconds.toFixed(2)}s mic loop…`;
                 syncBastardLoopMUi();
             }, countInStartDelayMs + Math.round(countInSeconds * 1000));
 
@@ -18165,6 +18299,27 @@
             }, countInStartDelayMs + totalDurationMs);
 
             return true;
+        }
+
+        async function handleBastardLoopMRecordButtonPress(options = {}) {
+            if (bastardLoopMRecordingState === 'processing') {
+                return;
+            }
+            if (bastardLoopMRecordingState === 'countin') {
+                cancelBastardLoopMRecording();
+                return;
+            }
+            if (bastardLoopMRecordingState === 'recording') {
+                clearBastardLoopMRecordTimers();
+                bastardLoopMRecordingState = 'processing';
+                bastardLoopMRecordStatus = 'Processing mic loop…';
+                syncBastardLoopMUi();
+                if (bastardLoopMMediaRecorder && bastardLoopMMediaRecorder.state === 'recording') {
+                    bastardLoopMMediaRecorder.stop();
+                }
+                return;
+            }
+            await beginBastardLoopMRecording(options);
         }
 
         async function clearBastardLoopM(options = {}) {
@@ -28856,7 +29011,9 @@
                 drumMachineSnarePattern.some(Boolean) ||
                 drumMachineHatPattern.some(Boolean)
             );
-            const restartTime = getBufferedTransportStartTime();
+            const restartTime = Number.isFinite(options.startTime)
+                ? Math.max(audioContext.currentTime, options.startTime)
+                : getBufferedTransportStartTime();
 
             if (shouldRestartSequencer) {
                 stopSequencer();
@@ -42084,18 +42241,23 @@
             return 60 / bpm;
         }
 
-        function playKeyboardRepositoryMetronomeClick(time, accent = false) {
+        function playKeyboardRepositoryMetronomeClick(time, accent = false, options = {}) {
             if (!audioContext || audioContext.state !== 'running') return;
             const oscillator = audioContext.createOscillator();
             const gain = audioContext.createGain();
-            const stopAt = time + 0.055;
+            const stopAt = time + (Number.isFinite(options.durationSeconds) ? options.durationSeconds : 0.055);
+            const nodeSet = options.nodeSet && typeof options.nodeSet.add === 'function' && typeof options.nodeSet.delete === 'function'
+                ? options.nodeSet
+                : keyboardRepositoryMetronomeNodes;
+            const accentPeak = Number.isFinite(options.accentPeak) ? options.accentPeak : 0.13;
+            const regularPeak = Number.isFinite(options.regularPeak) ? options.regularPeak : 0.075;
             const nodeRecord = { oscillator, gain };
-            keyboardRepositoryMetronomeNodes.add(nodeRecord);
+            nodeSet.add(nodeRecord);
 
             oscillator.type = 'square';
             oscillator.frequency.setValueAtTime(accent ? 1760 : 1174.66, time);
             gain.gain.setValueAtTime(0.0001, time);
-            gain.gain.exponentialRampToValueAtTime(accent ? 0.13 : 0.075, time + 0.004);
+            gain.gain.exponentialRampToValueAtTime(accent ? accentPeak : regularPeak, time + 0.004);
             gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
 
             oscillator.connect(gain);
@@ -42107,7 +42269,7 @@
                 } catch (error) {
                     console.debug('Keyboard metronome node cleanup skipped:', error);
                 }
-                keyboardRepositoryMetronomeNodes.delete(nodeRecord);
+                nodeSet.delete(nodeRecord);
             }, { once: true });
             oscillator.start(time);
             oscillator.stop(stopAt + 0.01);
@@ -42660,6 +42822,7 @@
         const performanceBastardLoopXDelayPingPongBtn = document.getElementById('performanceBastardLoopXDelayPingPongBtn');
         const performanceBastardLoopXLevelMixer = document.getElementById('performanceBastardLoopXLevelMixer');
         const performanceBastardLoopMRecordBtn = document.getElementById('performanceBastardLoopMRecordBtn');
+        const performanceBastardLoopMRecordLoopBtn = document.getElementById('performanceBastardLoopMRecordLoopBtn');
         const performanceBastardLoopMClearBtn = document.getElementById('performanceBastardLoopMClearBtn');
         const performanceBastardLoopMStartBtn = document.getElementById('performanceBastardLoopMStartBtn');
         const performanceBastardLoopMToggleBtn = document.getElementById('performanceBastardLoopMToggleBtn');
@@ -44586,24 +44749,17 @@
 
         performanceBastardLoopMRecordBtn?.addEventListener('click', async () => {
             try {
-                if (bastardLoopMRecordingState === 'processing') {
-                    return;
-                }
-                if (bastardLoopMRecordingState === 'countin') {
-                    cancelBastardLoopMRecording();
-                    return;
-                }
-                if (bastardLoopMRecordingState === 'recording') {
-                    clearBastardLoopMRecordTimers();
-                    bastardLoopMRecordingState = 'processing';
-                    bastardLoopMRecordStatus = 'Processing mic loop…';
-                    syncBastardLoopMUi();
-                    if (bastardLoopMMediaRecorder && bastardLoopMMediaRecorder.state === 'recording') {
-                        bastardLoopMMediaRecorder.stop();
-                    }
-                    return;
-                }
-                await beginBastardLoopMRecording();
+                await handleBastardLoopMRecordButtonPress();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Bastardloop M recording failed: ${error.message}`, 'error');
+                syncBastardLoopMUi();
+            }
+        });
+
+        performanceBastardLoopMRecordLoopBtn?.addEventListener('click', async () => {
+            try {
+                await handleBastardLoopMRecordButtonPress({ startFullLoop: true });
             } catch (error) {
                 console.error(error);
                 setStatus(`Bastardloop M recording failed: ${error.message}`, 'error');
