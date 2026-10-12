@@ -764,6 +764,23 @@ test('Loop L and X random pattern helpers reuse the existing sequence builders a
     assert.equal(randomPatternContext.saved, 2);
 });
 
+test('Loop L and X mega-random motif length prefers 16 steps when available', () => {
+    const motifContext = {};
+
+    vm.runInNewContext([
+        extractFunctionSource('getMegaRandomBastardLoopMotifLength'),
+        'globalThis.getMegaRandomBastardLoopMotifLength = getMegaRandomBastardLoopMotifLength;'
+    ].join('\n\n'), motifContext);
+
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(64), 16);
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(32), 16);
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(24), 16);
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(16), 16);
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(8), 8);
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(4), 4);
+    assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(3), 3);
+});
+
 test('Loop L and X random sample loaders use their own fixed source folders', async () => {
     for (const [prefix, expectedSource, expectedLabel] of [
         ['L', 'samples_leads', 'SAMPLES_LEADS'],

@@ -34825,6 +34825,20 @@
             return pooled.size > 0 ? [...pooled] : [midiToNoteName(Math.max(minMidi, Math.min(maxMidi, rootMidi)))];
         }
 
+        function getMegaRandomBastardLoopMotifLength(stepCount) {
+            const safeStepCount = Math.max(1, Math.min(64, Math.round(Number(stepCount) || 1)));
+            if (safeStepCount >= 16) {
+                return 16;
+            }
+            if (safeStepCount % 8 === 0) {
+                return 8;
+            }
+            if (safeStepCount % 4 === 0) {
+                return 4;
+            }
+            return Math.min(8, safeStepCount);
+        }
+
         function buildMegaRandomBastardLoopXSequence(profile = {}) {
             const stepCount = Math.max(1, Math.min(64, Math.round(Number(profile.stepCount) || getBastardLoopXPatternLength())));
             const energy = Math.max(0.35, Math.min(1, Number(profile.energy) || 0.7));
@@ -34833,7 +34847,7 @@
                 : LOOP_SCALE_FAMILIES[0].intervals;
             const rootNote = profile.rootNote || 'C2';
             const sequence = Array.from({ length: 64 }, () => createEmptyBastardLoopXStep());
-            const motifLength = stepCount % 8 === 0 ? 8 : (stepCount % 4 === 0 ? 4 : Math.min(8, stepCount));
+            const motifLength = getMegaRandomBastardLoopMotifLength(stepCount);
             const noteRange = {
                 minMidi: noteNameToMidi('C2'),
                 maxMidi: noteNameToMidi(energy >= 0.7 ? 'F3' : 'C3')
@@ -34890,7 +34904,7 @@
             const rootNote = profile.rootNote || 'C3';
             const bassSequence = Array.isArray(profile.bassSequence) ? profile.bassSequence : [];
             const sequence = Array.from({ length: 64 }, () => createEmptyBastardLoopLStep());
-            const motifLength = stepCount % 8 === 0 ? 8 : (stepCount % 4 === 0 ? 4 : Math.min(8, stepCount));
+            const motifLength = getMegaRandomBastardLoopMotifLength(stepCount);
             const noteRange = {
                 minMidi: noteNameToMidi('C3'),
                 maxMidi: noteNameToMidi(energy >= 0.7 ? 'C5' : 'G4')
