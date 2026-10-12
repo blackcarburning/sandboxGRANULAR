@@ -119,6 +119,33 @@ function plain(value) {
     return JSON.parse(JSON.stringify(value));
 }
 
+const TEST_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const TEST_NOTE_SEMITONE_OFFSETS = Object.freeze({
+    C: 0,
+    'C#': 1,
+    D: 2,
+    'D#': 3,
+    E: 4,
+    F: 5,
+    'F#': 6,
+    G: 7,
+    'G#': 8,
+    A: 9,
+    'A#': 10,
+    B: 11
+});
+
+function testNoteNameToMidi(note) {
+    const parsed = parseNoteName(note);
+    assert.ok(parsed, `Expected parseable note: ${note}`);
+    return ((parsed.octave + 1) * 12) + TEST_NOTE_SEMITONE_OFFSETS[parsed.pitchClass];
+}
+
+function testMidiToNoteName(midi) {
+    const safeMidi = Math.max(0, Math.min(127, Math.round(Number(midi) || 0)));
+    return `${TEST_NOTE_NAMES[safeMidi % 12]}${Math.floor(safeMidi / 12) - 1}`;
+}
+
 test('Loop L root-note parsing keeps explicit octave names from lead sample filenames', () => {
     assert.equal(detectLeadSampleRootNote('OS_MS_C4_80s_Lead.wav'), 'C4');
     assert.equal(detectLeadSampleRootNote('DS_VPDH_synth_oneshot_lead_dreamer_C3.wav'), 'C3');
@@ -239,6 +266,8 @@ test('Loop L copy section captures a chosen range and repeats it from the insert
     const originalSequence = plain(sourceSequence);
 
     const copyContext = {
+        bastardLoopLTransposeStartIndex: -1,
+        bastardLoopLTransposeEndIndex: -1,
         bastardLoopLCopyMode: 'idle',
         bastardLoopLCopyVariant: 'range',
         bastardLoopLCopyStartIndex: -1,
@@ -258,6 +287,12 @@ test('Loop L copy section captures a chosen range and repeats it from the insert
         },
         resetBastardLoopLStepTapMemory() {
             copyContext.tapReset = (copyContext.tapReset || 0) + 1;
+        },
+        getBastardLoopLTransposeSectionBounds() {
+            return null;
+        },
+        resetBastardLoopLTransposeSectionState() {
+            copyContext.transposeReset = (copyContext.transposeReset || 0) + 1;
         },
         syncBastardLoopLEditorUi() {
             copyContext.syncs = (copyContext.syncs || 0) + 1;
@@ -342,6 +377,8 @@ test('Loop X copy section captures a chosen range and repeats it from the insert
     const originalSequence = plain(sourceSequence);
 
     const copyContext = {
+        bastardLoopXTransposeStartIndex: -1,
+        bastardLoopXTransposeEndIndex: -1,
         bastardLoopXCopyMode: 'idle',
         bastardLoopXCopyVariant: 'range',
         bastardLoopXCopyStartIndex: -1,
@@ -363,6 +400,12 @@ test('Loop X copy section captures a chosen range and repeats it from the insert
         },
         resetBastardLoopXStepTapMemory() {
             copyContext.tapReset = (copyContext.tapReset || 0) + 1;
+        },
+        getBastardLoopXTransposeSectionBounds() {
+            return null;
+        },
+        resetBastardLoopXTransposeSectionState() {
+            copyContext.transposeReset = (copyContext.transposeReset || 0) + 1;
         },
         syncBastardLoopXEditorUi() {
             copyContext.syncs = (copyContext.syncs || 0) + 1;
@@ -426,6 +469,216 @@ test('Loop X copy section captures a chosen range and repeats it from the insert
             originalSequence[2]
         ])
     );
+});
+
+test('Loop L transpose section marking limits SEQ +/- to the marked steps', () => {
+    const sourceSequence = [
+        { note: 'C3' },
+        { note: 'D3' },
+        { note: 'E3', accent: true },
+        { note: 'F3', slide: true },
+        { note: 'G3' },
+        { rest: true },
+        {},
+        { note: 'A3' }
+    ].map((step) => plain(normalizeBastardLoopLStep(step)));
+
+    const transposeContext = {
+        bastardLoopLTransposeMode: 'idle',
+        bastardLoopLTransposeStartIndex: -1,
+        bastardLoopLTransposeEndIndex: -1,
+        bastardLoopLCopyMode: 'idle',
+        bastardLoopLEditStepIndex: 0,
+        bastardLoopLSequence: sourceSequence,
+        normalizeBastardLoopLStep,
+        noteNameToMidi: testNoteNameToMidi,
+        midiToNoteName: testMidiToNoteName,
+        getBastardLoopLPatternLength() {
+            return transposeContext.bastardLoopLSequence.length;
+        },
+        ensureBastardLoopLSequenceCapacity() {},
+        setBastardLoopLEditStepIndex(index) {
+            transposeContext.bastardLoopLEditStepIndex = index;
+        },
+        resetBastardLoopLCopyState() {
+            transposeContext.copyReset = (transposeContext.copyReset || 0) + 1;
+            transposeContext.bastardLoopLCopyMode = 'idle';
+        },
+        resetBastardLoopLStepTapMemory() {
+            transposeContext.tapReset = (transposeContext.tapReset || 0) + 1;
+        },
+        syncBastardLoopLEditorUi() {
+            transposeContext.editorSyncs = (transposeContext.editorSyncs || 0) + 1;
+        },
+        syncBastardLoopLUi() {
+            transposeContext.uiSyncs = (transposeContext.uiSyncs || 0) + 1;
+        },
+        updateBastardLoopLStatus(message) {
+            transposeContext.status = message;
+        },
+        saveState() {
+            transposeContext.saved = (transposeContext.saved || 0) + 1;
+        },
+        auditionBastardLoopLCurrentStep() {
+            transposeContext.auditioned = true;
+        },
+        restartBastardLoopLPlaybackIfNeeded() {
+            transposeContext.restarted = true;
+        }
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('getNormalizedBastardLoopSectionBounds'),
+        extractFunctionSource('getBastardLoopLTransposeSectionBounds'),
+        extractFunctionSource('resetBastardLoopLTransposeSectionState'),
+        extractFunctionSource('getBastardLoopLTransposeSectionPrompt'),
+        extractFunctionSource('beginBastardLoopLTransposeSectionFlow'),
+        extractFunctionSource('handleBastardLoopLTransposeSectionStepSelection'),
+        extractFunctionSource('transposeBastardLoopLSequence'),
+        'globalThis.beginBastardLoopLTransposeSectionFlow = beginBastardLoopLTransposeSectionFlow;',
+        'globalThis.handleBastardLoopLTransposeSectionStepSelection = handleBastardLoopLTransposeSectionStepSelection;',
+        'globalThis.transposeBastardLoopLSequence = transposeBastardLoopLSequence;'
+    ].join('\n\n'), transposeContext);
+
+    transposeContext.beginBastardLoopLTransposeSectionFlow();
+    assert.equal(transposeContext.bastardLoopLTransposeMode, 'selectStart');
+    assert.equal(transposeContext.status, 'Loop L transpose section: press section start step.');
+
+    assert.equal(transposeContext.handleBastardLoopLTransposeSectionStepSelection(1), true);
+    assert.equal(transposeContext.bastardLoopLTransposeMode, 'selectEnd');
+    assert.equal(transposeContext.bastardLoopLTransposeStartIndex, 1);
+    assert.equal(transposeContext.bastardLoopLEditStepIndex, 1);
+    assert.equal(transposeContext.status, 'Loop L transpose section: start step 2. Press section end step.');
+
+    assert.equal(transposeContext.handleBastardLoopLTransposeSectionStepSelection(3), true);
+    assert.equal(transposeContext.bastardLoopLTransposeMode, 'idle');
+    assert.equal(transposeContext.bastardLoopLTransposeStartIndex, 1);
+    assert.equal(transposeContext.bastardLoopLTransposeEndIndex, 3);
+    assert.equal(transposeContext.bastardLoopLEditStepIndex, 3);
+    assert.equal(transposeContext.status, 'Loop L transpose section 2-4 marked. Seq +/- now affect only that section.');
+    assert.equal(transposeContext.saved, 1);
+
+    transposeContext.transposeBastardLoopLSequence(1);
+    assert.deepEqual(
+        plain(transposeContext.bastardLoopLSequence.map((step) => step.note || '')),
+        ['C3', 'D#3', 'F3', 'F#3', 'G3', '', '', 'A3']
+    );
+    assert.equal(transposeContext.status, 'Shifted 3 Loop L steps in section 2-4 up 1 semitone.');
+    assert.equal(transposeContext.saved, 2);
+    assert.equal(transposeContext.restarted, true);
+    assert.equal(transposeContext.auditioned, true);
+
+    transposeContext.beginBastardLoopLTransposeSectionFlow();
+    assert.equal(transposeContext.bastardLoopLTransposeStartIndex, -1);
+    assert.equal(transposeContext.bastardLoopLTransposeEndIndex, -1);
+    assert.equal(transposeContext.status, 'Loop L transpose section cleared. Seq +/- now affect the full pattern.');
+    assert.equal(transposeContext.saved, 3);
+});
+
+test('Loop X transpose section marking limits SEQ +/- to the marked steps', () => {
+    const sourceSequence = [
+        { note: 'C2' },
+        { note: 'D2' },
+        { note: 'E2', accent: true },
+        { note: 'F2', slide: true },
+        { note: 'G2' },
+        { rest: true },
+        {},
+        { note: 'A2' }
+    ].map((step) => plain(normalizeBastardLoopLStep(step)));
+
+    const transposeContext = {
+        bastardLoopXTransposeMode: 'idle',
+        bastardLoopXTransposeStartIndex: -1,
+        bastardLoopXTransposeEndIndex: -1,
+        bastardLoopXCopyMode: 'idle',
+        bastardLoopXEditStepIndex: 0,
+        bastardLoopXSequence: sourceSequence,
+        normalizeBastardLoopXStep(step) {
+            return plain(normalizeBastardLoopLStep(step));
+        },
+        noteNameToMidi: testNoteNameToMidi,
+        midiToNoteName: testMidiToNoteName,
+        getBastardLoopXPatternLength() {
+            return transposeContext.bastardLoopXSequence.length;
+        },
+        ensureBastardLoopXSequenceCapacity() {},
+        setBastardLoopXEditStepIndex(index) {
+            transposeContext.bastardLoopXEditStepIndex = index;
+        },
+        resetBastardLoopXCopyState() {
+            transposeContext.copyReset = (transposeContext.copyReset || 0) + 1;
+            transposeContext.bastardLoopXCopyMode = 'idle';
+        },
+        resetBastardLoopXStepTapMemory() {
+            transposeContext.tapReset = (transposeContext.tapReset || 0) + 1;
+        },
+        syncBastardLoopXEditorUi() {
+            transposeContext.editorSyncs = (transposeContext.editorSyncs || 0) + 1;
+        },
+        syncBastardLoopXUi() {
+            transposeContext.uiSyncs = (transposeContext.uiSyncs || 0) + 1;
+        },
+        updateBastardLoopXStatus(message) {
+            transposeContext.status = message;
+        },
+        saveState() {
+            transposeContext.saved = (transposeContext.saved || 0) + 1;
+        },
+        auditionBastardLoopXCurrentStep() {
+            transposeContext.auditioned = true;
+        },
+        restartBastardLoopXPlaybackIfNeeded() {
+            transposeContext.restarted = true;
+        }
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('getNormalizedBastardLoopSectionBounds'),
+        extractFunctionSource('getBastardLoopXTransposeSectionBounds'),
+        extractFunctionSource('resetBastardLoopXTransposeSectionState'),
+        extractFunctionSource('getBastardLoopXTransposeSectionPrompt'),
+        extractFunctionSource('beginBastardLoopXTransposeSectionFlow'),
+        extractFunctionSource('handleBastardLoopXTransposeSectionStepSelection'),
+        extractFunctionSource('transposeBastardLoopXSequence'),
+        'globalThis.beginBastardLoopXTransposeSectionFlow = beginBastardLoopXTransposeSectionFlow;',
+        'globalThis.handleBastardLoopXTransposeSectionStepSelection = handleBastardLoopXTransposeSectionStepSelection;',
+        'globalThis.transposeBastardLoopXSequence = transposeBastardLoopXSequence;'
+    ].join('\n\n'), transposeContext);
+
+    transposeContext.beginBastardLoopXTransposeSectionFlow();
+    assert.equal(transposeContext.bastardLoopXTransposeMode, 'selectStart');
+    assert.equal(transposeContext.status, 'Loop X transpose section: press section start step.');
+
+    assert.equal(transposeContext.handleBastardLoopXTransposeSectionStepSelection(2), true);
+    assert.equal(transposeContext.bastardLoopXTransposeMode, 'selectEnd');
+    assert.equal(transposeContext.bastardLoopXTransposeStartIndex, 2);
+    assert.equal(transposeContext.bastardLoopXEditStepIndex, 2);
+    assert.equal(transposeContext.status, 'Loop X transpose section: start step 3. Press section end step.');
+
+    assert.equal(transposeContext.handleBastardLoopXTransposeSectionStepSelection(4), true);
+    assert.equal(transposeContext.bastardLoopXTransposeMode, 'idle');
+    assert.equal(transposeContext.bastardLoopXTransposeStartIndex, 2);
+    assert.equal(transposeContext.bastardLoopXTransposeEndIndex, 4);
+    assert.equal(transposeContext.bastardLoopXEditStepIndex, 4);
+    assert.equal(transposeContext.status, 'Loop X transpose section 3-5 marked. Seq +/- now affect only that section.');
+    assert.equal(transposeContext.saved, 1);
+
+    transposeContext.transposeBastardLoopXSequence(-1);
+    assert.deepEqual(
+        plain(transposeContext.bastardLoopXSequence.map((step) => step.note || '')),
+        ['C2', 'D2', 'D#2', 'E2', 'F#2', '', '', 'A2']
+    );
+    assert.equal(transposeContext.status, 'Shifted 3 Loop X steps in section 3-5 down 1 semitone.');
+    assert.equal(transposeContext.saved, 2);
+    assert.equal(transposeContext.restarted, true);
+    assert.equal(transposeContext.auditioned, true);
+
+    transposeContext.beginBastardLoopXTransposeSectionFlow();
+    assert.equal(transposeContext.bastardLoopXTransposeStartIndex, -1);
+    assert.equal(transposeContext.bastardLoopXTransposeEndIndex, -1);
+    assert.equal(transposeContext.status, 'Loop X transpose section cleared. Seq +/- now affect the full pattern.');
+    assert.equal(transposeContext.saved, 3);
 });
 
 test('Loop L accent multiplier can both cut and strongly boost accented notes', () => {
@@ -623,6 +876,15 @@ test('Loop L and X sequencers expose copy section buttons wired to the section-c
     assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopXCopySectionBtn,\s*\(\) => \{\s*beginBastardLoopXCopyFlow\('section'\);/s);
 });
 
+test('Loop L and X sequencers expose transpose section buttons wired to the marking flow', () => {
+    assert.match(indexHtml, /id="bastardLoopLTransposeSectionBtn"[^>]*>Mark Trans</);
+    assert.match(indexHtml, /id="bastardLoopXTransposeSectionBtn"[^>]*>Mark Trans</);
+    assert.match(indexHtml, /const bastardLoopLTransposeSectionBtn = document\.getElementById\('bastardLoopLTransposeSectionBtn'\);/);
+    assert.match(indexHtml, /const bastardLoopXTransposeSectionBtn = document\.getElementById\('bastardLoopXTransposeSectionBtn'\);/);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopLTransposeSectionBtn,\s*\(\) => \{\s*beginBastardLoopLTransposeSectionFlow\(\);/s);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopXTransposeSectionBtn,\s*\(\) => \{\s*beginBastardLoopXTransposeSectionFlow\(\);/s);
+});
+
 test('Mega Randomize includes coordinated Loop L/X preparation and random sample loads', () => {
     const megaRandomSource = extractFunctionSource('runMegaRandomization');
 
@@ -630,6 +892,17 @@ test('Mega Randomize includes coordinated Loop L/X preparation and random sample
     assert.match(megaRandomSource, /\{ label: 'Loop L', run: \(\) => loadBastardLoopLSampleFromSource\(\) \}/);
     assert.match(megaRandomSource, /\{ label: 'Loop X', run: \(\) => loadBastardLoopXSampleFromSource\(\) \}/);
     assert.match(indexHtml, /function randomizeMegaBastardLoopLeadAndBassSettings\(profile = \{\}\)/);
+});
+
+test('Loop L and X transpose section state is persisted for app restore', () => {
+    const saveStateSource = extractFunctionSource('saveState');
+
+    assert.match(saveStateSource, /bastardLoopLTransposeStartIndex:/);
+    assert.match(saveStateSource, /bastardLoopLTransposeEndIndex:/);
+    assert.match(saveStateSource, /bastardLoopXTransposeStartIndex:/);
+    assert.match(saveStateSource, /bastardLoopXTransposeEndIndex:/);
+    assert.match(indexHtml, /state\.modes\.bastardLoopLTransposeStartIndex !== undefined \|\| state\.modes\.bastardLoopLTransposeEndIndex !== undefined/);
+    assert.match(indexHtml, /state\.modes\.bastardLoopXTransposeStartIndex !== undefined \|\| state\.modes\.bastardLoopXTransposeEndIndex !== undefined/);
 });
 
 test('Loop L and X cards expose random sample and random pattern buttons plus filter mode selects', () => {

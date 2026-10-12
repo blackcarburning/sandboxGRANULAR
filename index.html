@@ -602,6 +602,17 @@
             box-shadow: 0 0 0 1px rgba(255, 118, 118, 0.18), 0 12px 24px rgba(0, 0, 0, 0.3);
         }
 
+        .lead-sequencer-step-btn.is-transpose-section {
+            border-color: rgba(86, 236, 180, 0.4);
+            background: linear-gradient(180deg, rgba(11, 39, 38, 0.98), rgba(8, 28, 30, 0.98));
+            box-shadow: 0 0 0 1px rgba(86, 236, 180, 0.08);
+        }
+
+        .lead-sequencer-step-btn.is-transpose-edge {
+            border-color: rgba(126, 246, 210, 0.84);
+            box-shadow: 0 0 0 1px rgba(126, 246, 210, 0.16), 0 10px 22px rgba(0, 0, 0, 0.22);
+        }
+
         .lead-sequencer-step-btn.is-rest {
             border-color: rgba(255, 255, 255, 0.18);
             color: rgba(214, 232, 255, 0.76);
@@ -8987,11 +8998,14 @@
                             <button class="performance-btn" id="bastardLoopLSynthModeBtn" type="button">Source: Sample</button>
                             <button class="performance-btn" id="bastardLoopLOpenSynthBtn" type="button">Open Synth</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row compact-four">
+                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopLPrevStepBtn" type="button">Back</button>
                             <button class="performance-btn" id="bastardLoopLNextStepBtn" type="button">Forward</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row">
                             <button class="performance-btn" id="bastardLoopLTransposeDownBtn" type="button">Seq -</button>
                             <button class="performance-btn" id="bastardLoopLTransposeUpBtn" type="button">Seq +</button>
+                            <button class="performance-btn" id="bastardLoopLTransposeSectionBtn" type="button">Mark Trans</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopLRateDownBtn" type="button">Rate -</button>
@@ -9058,11 +9072,14 @@
                             <button class="performance-btn primary" id="bastardLoopXChooseSampleBtn" type="button">Sample</button>
                             <button class="performance-btn" id="bastardLoopXExportMidiBtn" type="button">Export MIDI</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row compact-four">
+                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopXPrevStepBtn" type="button">Back</button>
                             <button class="performance-btn" id="bastardLoopXNextStepBtn" type="button">Forward</button>
+                        </div>
+                        <div class="lead-sequencer-toolbar-row">
                             <button class="performance-btn" id="bastardLoopXTransposeDownBtn" type="button">Seq -</button>
                             <button class="performance-btn" id="bastardLoopXTransposeUpBtn" type="button">Seq +</button>
+                            <button class="performance-btn" id="bastardLoopXTransposeSectionBtn" type="button">Mark Trans</button>
                         </div>
                         <div class="lead-sequencer-toolbar-row compact-four">
                             <button class="performance-btn" id="bastardLoopXRateDownBtn" type="button">Rate -</button>
@@ -10586,6 +10603,9 @@
         let bastardLoopLRecordArmed = true;
         let bastardLoopLLastStepTapIndex = -1;
         let bastardLoopLLastStepTapAt = 0;
+        let bastardLoopLTransposeMode = 'idle';
+        let bastardLoopLTransposeStartIndex = -1;
+        let bastardLoopLTransposeEndIndex = -1;
         let bastardLoopLCopyMode = 'idle';
         let bastardLoopLCopyVariant = 'range';
         let bastardLoopLCopyStartIndex = -1;
@@ -10619,6 +10639,9 @@
         let bastardLoopXRecordArmed = true;
         let bastardLoopXLastStepTapIndex = -1;
         let bastardLoopXLastStepTapAt = 0;
+        let bastardLoopXTransposeMode = 'idle';
+        let bastardLoopXTransposeStartIndex = -1;
+        let bastardLoopXTransposeEndIndex = -1;
         let bastardLoopXCopyMode = 'idle';
         let bastardLoopXCopyVariant = 'range';
         let bastardLoopXCopyStartIndex = -1;
@@ -24674,6 +24697,49 @@
             return variant === 'section' ? 'section' : 'range';
         }
 
+        function getNormalizedBastardLoopSectionBounds(startIndex, endIndex, stepCount) {
+            const safeStepCount = Math.max(1, Math.min(64, Math.round(Number(stepCount) || 1)));
+            const parsedStartIndex = Math.trunc(Number(startIndex));
+            const parsedEndIndex = Math.trunc(Number(endIndex));
+            if (!Number.isFinite(parsedStartIndex) || !Number.isFinite(parsedEndIndex)) {
+                return null;
+            }
+            if (parsedStartIndex < 0 || parsedStartIndex >= safeStepCount || parsedEndIndex < parsedStartIndex) {
+                return null;
+            }
+            return {
+                start: parsedStartIndex,
+                end: Math.min(safeStepCount - 1, parsedEndIndex)
+            };
+        }
+
+        function getBastardLoopLTransposeSectionBounds() {
+            return getNormalizedBastardLoopSectionBounds(
+                bastardLoopLTransposeStartIndex,
+                bastardLoopLTransposeEndIndex,
+                getBastardLoopLPatternLength()
+            );
+        }
+
+        function resetBastardLoopLTransposeSectionState(options = {}) {
+            const preserveRange = options.preserveRange === true && Boolean(getBastardLoopLTransposeSectionBounds());
+            bastardLoopLTransposeMode = 'idle';
+            if (!preserveRange) {
+                bastardLoopLTransposeStartIndex = -1;
+                bastardLoopLTransposeEndIndex = -1;
+            }
+        }
+
+        function getBastardLoopLTransposeSectionPrompt() {
+            if (bastardLoopLTransposeMode === 'selectStart') {
+                return 'Loop L transpose section: press section start step.';
+            }
+            if (bastardLoopLTransposeMode === 'selectEnd') {
+                return `Loop L transpose section: start step ${bastardLoopLTransposeStartIndex + 1}. Press section end step.`;
+            }
+            return '';
+        }
+
         function resetBastardLoopLCopyState(options = {}) {
             bastardLoopLCopyMode = 'idle';
             bastardLoopLCopyVariant = 'range';
@@ -24714,12 +24780,36 @@
                 updateBastardLoopLStatus(nextVariant === 'section' ? 'Loop L copy section cancelled.' : 'Loop L copy cancelled.');
                 return;
             }
+            resetBastardLoopLTransposeSectionState({ preserveRange: true });
             resetBastardLoopLCopyState();
             resetBastardLoopLStepTapMemory();
             bastardLoopLCopyVariant = nextVariant;
             bastardLoopLCopyMode = 'selectStart';
             syncBastardLoopLEditorUi();
             updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
+        }
+
+        function beginBastardLoopLTransposeSectionFlow() {
+            if (bastardLoopLTransposeMode !== 'idle') {
+                resetBastardLoopLTransposeSectionState();
+                syncBastardLoopLEditorUi();
+                updateBastardLoopLStatus('Loop L transpose section cancelled.');
+                return;
+            }
+            const existingBounds = getBastardLoopLTransposeSectionBounds();
+            if (existingBounds) {
+                resetBastardLoopLTransposeSectionState();
+                syncBastardLoopLEditorUi();
+                saveState();
+                updateBastardLoopLStatus('Loop L transpose section cleared. Seq +/- now affect the full pattern.');
+                return;
+            }
+            resetBastardLoopLCopyState();
+            resetBastardLoopLStepTapMemory();
+            resetBastardLoopLTransposeSectionState();
+            bastardLoopLTransposeMode = 'selectStart';
+            syncBastardLoopLEditorUi();
+            updateBastardLoopLStatus(getBastardLoopLTransposeSectionPrompt());
         }
 
         function pasteBastardLoopLCopiedRangeAt(index) {
@@ -24788,6 +24878,30 @@
             }
             if (bastardLoopLCopyMode === 'selectPaste') {
                 pasteBastardLoopLCopiedRangeAt(safeIndex);
+                return true;
+            }
+            return false;
+        }
+
+        function handleBastardLoopLTransposeSectionStepSelection(index) {
+            const safeIndex = Math.max(0, Math.min(getBastardLoopLPatternLength() - 1, Number(index) || 0));
+            if (bastardLoopLTransposeMode === 'selectStart') {
+                bastardLoopLTransposeStartIndex = safeIndex;
+                bastardLoopLTransposeEndIndex = -1;
+                bastardLoopLTransposeMode = 'selectEnd';
+                setBastardLoopLEditStepIndex(safeIndex);
+                syncBastardLoopLEditorUi();
+                updateBastardLoopLStatus(getBastardLoopLTransposeSectionPrompt());
+                return true;
+            }
+            if (bastardLoopLTransposeMode === 'selectEnd') {
+                bastardLoopLTransposeStartIndex = Math.min(bastardLoopLTransposeStartIndex, safeIndex);
+                bastardLoopLTransposeEndIndex = Math.max(bastardLoopLTransposeStartIndex, safeIndex);
+                bastardLoopLTransposeMode = 'idle';
+                setBastardLoopLEditStepIndex(bastardLoopLTransposeEndIndex);
+                syncBastardLoopLEditorUi();
+                saveState();
+                updateBastardLoopLStatus(`Loop L transpose section ${bastardLoopLTransposeStartIndex + 1}-${bastardLoopLTransposeEndIndex + 1} marked. Seq +/- now affect only that section.`);
                 return true;
             }
             return false;
@@ -25219,6 +25333,7 @@
         }
 
         function syncBastardLoopLStepButtonStates() {
+            const transposeBounds = getBastardLoopLTransposeSectionBounds();
             document.querySelectorAll('#bastardLoopLStepGrid .lead-sequencer-step-btn').forEach((button) => {
                 const index = Number(button.dataset.stepIndex);
                 const step = getBastardLoopLStep(index);
@@ -25226,12 +25341,16 @@
                 const isCurrent = isBastardLoopLRunning() && index === bastardLoopLCurrentStepIndex;
                 const isCopyStart = bastardLoopLCopyStartIndex >= 0 && index === bastardLoopLCopyStartIndex;
                 const isCopyEnd = bastardLoopLCopyEndIndex >= 0 && index === bastardLoopLCopyEndIndex;
+                const inTransposeSection = Boolean(transposeBounds && index >= transposeBounds.start && index <= transposeBounds.end);
+                const isTransposeEdge = Boolean(transposeBounds && (index === transposeBounds.start || index === transposeBounds.end));
                 const isRest = Boolean(step.rest);
                 const isEmpty = !step.rest && !step.note;
                 const ratchet = getBastardLoopLStepRatchet(step);
                 button.classList.toggle('is-selected', isSelected);
                 button.classList.toggle('is-current', isCurrent);
                 button.classList.toggle('has-ratchet', ratchet > 1);
+                button.classList.toggle('is-transpose-section', inTransposeSection);
+                button.classList.toggle('is-transpose-edge', isTransposeEdge);
                 button.classList.toggle('is-rest', isRest);
                 button.classList.toggle('is-empty', isEmpty);
                 button.classList.toggle('is-ratchet-edit', index === bastardLoopLRatchetEditStepIndex);
@@ -25256,6 +25375,11 @@
                 if (bastardLoopLCopyMode !== 'idle') {
                     resetBastardLoopLStepTapMemory();
                     handleBastardLoopLCopyStepSelection(index);
+                    return;
+                }
+                if (bastardLoopLTransposeMode !== 'idle') {
+                    resetBastardLoopLStepTapMemory();
+                    handleBastardLoopLTransposeSectionStepSelection(index);
                     return;
                 }
                 const now = Date.now();
@@ -25446,7 +25570,7 @@
         function syncBastardLoopLCopyPopupUi() {
             const popup = document.getElementById('bastardLoopLCopyPopup');
             if (!popup) return;
-            const prompt = getBastardLoopLCopyPrompt();
+            const prompt = getBastardLoopLCopyPrompt() || getBastardLoopLTransposeSectionPrompt();
             const active = Boolean(prompt);
             popup.hidden = !active;
             popup.classList.toggle('active', active);
@@ -25465,11 +25589,13 @@
             const slideButton = document.getElementById('bastardLoopLSlideBtn');
             const rateDownButton = document.getElementById('bastardLoopLRateDownBtn');
             const rateUpButton = document.getElementById('bastardLoopLRateUpBtn');
+            const transposeBounds = getBastardLoopLTransposeSectionBounds();
             if (cursor) {
                 const summary = step.rest ? 'REST' : (step.note || 'empty');
                 const ratchetLabel = getBastardLoopLStepRatchet(step) > 1 ? ` · ratchet x${getBastardLoopLStepRatchet(step)}` : '';
                 const ratchetEditLabel = bastardLoopLRatchetEditStepIndex === bastardLoopLEditStepIndex ? ' · ratchet edit' : '';
-                cursor.textContent = `Editing step ${bastardLoopLEditStepIndex + 1} · ${summary} · time ${getBastardLoopLTimingLabel()}${ratchetLabel}${ratchetEditLabel}`;
+                const transposeLabel = transposeBounds ? ` · transpose ${transposeBounds.start + 1}-${transposeBounds.end + 1}` : '';
+                cursor.textContent = `Editing step ${bastardLoopLEditStepIndex + 1} · ${summary} · time ${getBastardLoopLTimingLabel()}${ratchetLabel}${ratchetEditLabel}${transposeLabel}`;
             }
             if (accentButton) {
                 accentButton.classList.toggle('active', step.accent);
@@ -25613,6 +25739,7 @@
             const recordButton = document.getElementById('bastardLoopLRecordBtn');
             const copyButton = document.getElementById('bastardLoopLCopyBtn');
             const copySectionButton = document.getElementById('bastardLoopLCopySectionBtn');
+            const transposeSectionButton = document.getElementById('bastardLoopLTransposeSectionBtn');
             const filterSlider = document.getElementById('performanceBastardLoopLFilterCutoff');
             const filterModeSelect = document.getElementById('performanceBastardLoopLFilterMode');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopLFilterEnvelope');
@@ -25693,6 +25820,15 @@
                 copySectionButton.classList.toggle('active', copySectionActive);
                 copySectionButton.textContent = 'Copy Sec';
                 copySectionButton.setAttribute('aria-pressed', String(copySectionActive));
+            }
+            if (transposeSectionButton) {
+                const transposeBounds = getBastardLoopLTransposeSectionBounds();
+                const transposeSectionActive = bastardLoopLTransposeMode !== 'idle' || Boolean(transposeBounds);
+                transposeSectionButton.classList.toggle('active', transposeSectionActive);
+                transposeSectionButton.textContent = transposeBounds
+                    ? `Trans ${transposeBounds.start + 1}-${transposeBounds.end + 1}`
+                    : 'Mark Trans';
+                transposeSectionButton.setAttribute('aria-pressed', String(transposeSectionActive));
             }
             if (delayPingPongButton) {
                 delayPingPongButton.classList.toggle('active', bastardLoopLDelayPingPongEnabled);
@@ -26166,8 +26302,12 @@
             const semitoneDelta = Math.trunc(Number(delta) || 0);
             if (!semitoneDelta) return;
             ensureBastardLoopLSequenceCapacity();
+            const transposeBounds = getBastardLoopLTransposeSectionBounds();
             let changed = 0;
-            bastardLoopLSequence = bastardLoopLSequence.map((step) => {
+            bastardLoopLSequence = bastardLoopLSequence.map((step, index) => {
+                if (transposeBounds && (index < transposeBounds.start || index > transposeBounds.end)) {
+                    return normalizeBastardLoopLStep(step);
+                }
                 if (step.rest || !step.note) return normalizeBastardLoopLStep(step);
                 const transposedNote = midiToNoteName(noteNameToMidi(step.note) + semitoneDelta);
                 if (transposedNote !== step.note) changed += 1;
@@ -26179,11 +26319,19 @@
             syncBastardLoopLUi();
             saveState();
             if (changed > 0) {
-                updateBastardLoopLStatus(`Shifted ${changed} Loop L step${changed === 1 ? '' : 's'} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`);
+                updateBastardLoopLStatus(
+                    transposeBounds
+                        ? `Shifted ${changed} Loop L step${changed === 1 ? '' : 's'} in section ${transposeBounds.start + 1}-${transposeBounds.end + 1} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`
+                        : `Shifted ${changed} Loop L step${changed === 1 ? '' : 's'} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`
+                );
                 auditionBastardLoopLCurrentStep({ silentStatus: true, silentWhenEmpty: true });
                 restartBastardLoopLPlaybackIfNeeded();
             } else {
-                updateBastardLoopLStatus('Loop L transpose had nothing to move.');
+                updateBastardLoopLStatus(
+                    transposeBounds
+                        ? `Loop L transpose section ${transposeBounds.start + 1}-${transposeBounds.end + 1} had nothing to move.`
+                        : 'Loop L transpose had nothing to move.'
+                );
             }
         }
 
@@ -26371,6 +26519,7 @@
             if (!overlay) return;
             resetBastardLoopLStepTapMemory();
             resetBastardLoopLCopyState({ preserveBuffer: true });
+            resetBastardLoopLTransposeSectionState({ preserveRange: true });
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-l-open');
@@ -26385,6 +26534,7 @@
             if (!overlay) return;
             resetBastardLoopLStepTapMemory();
             resetBastardLoopLCopyState({ preserveBuffer: true });
+            resetBastardLoopLTransposeSectionState({ preserveRange: true });
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('bastardloop-l-open');
@@ -26531,6 +26681,33 @@
             bastardLoopXLastStepTapAt = 0;
         }
 
+        function getBastardLoopXTransposeSectionBounds() {
+            return getNormalizedBastardLoopSectionBounds(
+                bastardLoopXTransposeStartIndex,
+                bastardLoopXTransposeEndIndex,
+                getBastardLoopXPatternLength()
+            );
+        }
+
+        function resetBastardLoopXTransposeSectionState(options = {}) {
+            const preserveRange = options.preserveRange === true && Boolean(getBastardLoopXTransposeSectionBounds());
+            bastardLoopXTransposeMode = 'idle';
+            if (!preserveRange) {
+                bastardLoopXTransposeStartIndex = -1;
+                bastardLoopXTransposeEndIndex = -1;
+            }
+        }
+
+        function getBastardLoopXTransposeSectionPrompt() {
+            if (bastardLoopXTransposeMode === 'selectStart') {
+                return 'Loop X transpose section: press section start step.';
+            }
+            if (bastardLoopXTransposeMode === 'selectEnd') {
+                return `Loop X transpose section: start step ${bastardLoopXTransposeStartIndex + 1}. Press section end step.`;
+            }
+            return '';
+        }
+
         function resetBastardLoopXCopyState(options = {}) {
             bastardLoopXCopyMode = 'idle';
             bastardLoopXCopyVariant = 'range';
@@ -26571,12 +26748,36 @@
                 updateBastardLoopXStatus(nextVariant === 'section' ? 'Loop X copy section cancelled.' : 'Loop X copy cancelled.');
                 return;
             }
+            resetBastardLoopXTransposeSectionState({ preserveRange: true });
             resetBastardLoopXCopyState();
             resetBastardLoopXStepTapMemory();
             bastardLoopXCopyVariant = nextVariant;
             bastardLoopXCopyMode = 'selectStart';
             syncBastardLoopXEditorUi();
             updateBastardLoopXStatus(getBastardLoopXCopyPrompt());
+        }
+
+        function beginBastardLoopXTransposeSectionFlow() {
+            if (bastardLoopXTransposeMode !== 'idle') {
+                resetBastardLoopXTransposeSectionState();
+                syncBastardLoopXEditorUi();
+                updateBastardLoopXStatus('Loop X transpose section cancelled.');
+                return;
+            }
+            const existingBounds = getBastardLoopXTransposeSectionBounds();
+            if (existingBounds) {
+                resetBastardLoopXTransposeSectionState();
+                syncBastardLoopXEditorUi();
+                saveState();
+                updateBastardLoopXStatus('Loop X transpose section cleared. Seq +/- now affect the full pattern.');
+                return;
+            }
+            resetBastardLoopXCopyState();
+            resetBastardLoopXStepTapMemory();
+            resetBastardLoopXTransposeSectionState();
+            bastardLoopXTransposeMode = 'selectStart';
+            syncBastardLoopXEditorUi();
+            updateBastardLoopXStatus(getBastardLoopXTransposeSectionPrompt());
         }
 
         function pasteBastardLoopXCopiedRangeAt(index) {
@@ -26645,6 +26846,30 @@
             }
             if (bastardLoopXCopyMode === 'selectPaste') {
                 pasteBastardLoopXCopiedRangeAt(safeIndex);
+                return true;
+            }
+            return false;
+        }
+
+        function handleBastardLoopXTransposeSectionStepSelection(index) {
+            const safeIndex = Math.max(0, Math.min(getBastardLoopXPatternLength() - 1, Number(index) || 0));
+            if (bastardLoopXTransposeMode === 'selectStart') {
+                bastardLoopXTransposeStartIndex = safeIndex;
+                bastardLoopXTransposeEndIndex = -1;
+                bastardLoopXTransposeMode = 'selectEnd';
+                setBastardLoopXEditStepIndex(safeIndex);
+                syncBastardLoopXEditorUi();
+                updateBastardLoopXStatus(getBastardLoopXTransposeSectionPrompt());
+                return true;
+            }
+            if (bastardLoopXTransposeMode === 'selectEnd') {
+                bastardLoopXTransposeStartIndex = Math.min(bastardLoopXTransposeStartIndex, safeIndex);
+                bastardLoopXTransposeEndIndex = Math.max(bastardLoopXTransposeStartIndex, safeIndex);
+                bastardLoopXTransposeMode = 'idle';
+                setBastardLoopXEditStepIndex(bastardLoopXTransposeEndIndex);
+                syncBastardLoopXEditorUi();
+                saveState();
+                updateBastardLoopXStatus(`Loop X transpose section ${bastardLoopXTransposeStartIndex + 1}-${bastardLoopXTransposeEndIndex + 1} marked. Seq +/- now affect only that section.`);
                 return true;
             }
             return false;
@@ -27246,6 +27471,7 @@
         }
 
         function syncBastardLoopXStepButtonStates() {
+            const transposeBounds = getBastardLoopXTransposeSectionBounds();
             document.querySelectorAll('#bastardLoopXStepGrid .lead-sequencer-step-btn').forEach((button) => {
                 const index = Number(button.dataset.stepIndex);
                 const step = getBastardLoopXStep(index);
@@ -27253,12 +27479,16 @@
                 const isCurrent = isBastardLoopXRunning() && index === bastardLoopXCurrentStepIndex;
                 const isCopyStart = bastardLoopXCopyStartIndex >= 0 && index === bastardLoopXCopyStartIndex;
                 const isCopyEnd = bastardLoopXCopyEndIndex >= 0 && index === bastardLoopXCopyEndIndex;
+                const inTransposeSection = Boolean(transposeBounds && index >= transposeBounds.start && index <= transposeBounds.end);
+                const isTransposeEdge = Boolean(transposeBounds && (index === transposeBounds.start || index === transposeBounds.end));
                 const isRest = Boolean(step.rest);
                 const isEmpty = !step.rest && !step.note;
                 const ratchet = getBastardLoopXStepRatchet(step);
                 button.classList.toggle('is-selected', isSelected);
                 button.classList.toggle('is-current', isCurrent);
                 button.classList.toggle('has-ratchet', ratchet > 1);
+                button.classList.toggle('is-transpose-section', inTransposeSection);
+                button.classList.toggle('is-transpose-edge', isTransposeEdge);
                 button.classList.toggle('is-rest', isRest);
                 button.classList.toggle('is-empty', isEmpty);
                 button.classList.toggle('is-ratchet-edit', index === bastardLoopXRatchetEditStepIndex);
@@ -27283,6 +27513,11 @@
                 if (bastardLoopXCopyMode !== 'idle') {
                     resetBastardLoopXStepTapMemory();
                     handleBastardLoopXCopyStepSelection(index);
+                    return;
+                }
+                if (bastardLoopXTransposeMode !== 'idle') {
+                    resetBastardLoopXStepTapMemory();
+                    handleBastardLoopXTransposeSectionStepSelection(index);
                     return;
                 }
                 const now = Date.now();
@@ -27473,7 +27708,7 @@
         function syncBastardLoopXCopyPopupUi() {
             const popup = document.getElementById('bastardLoopXCopyPopup');
             if (!popup) return;
-            const prompt = getBastardLoopXCopyPrompt();
+            const prompt = getBastardLoopXCopyPrompt() || getBastardLoopXTransposeSectionPrompt();
             const active = Boolean(prompt);
             popup.hidden = !active;
             popup.classList.toggle('active', active);
@@ -27492,11 +27727,13 @@
             const slideButton = document.getElementById('bastardLoopXSlideBtn');
             const rateDownButton = document.getElementById('bastardLoopXRateDownBtn');
             const rateUpButton = document.getElementById('bastardLoopXRateUpBtn');
+            const transposeBounds = getBastardLoopXTransposeSectionBounds();
             if (cursor) {
                 const summary = step.rest ? 'REST' : (step.note || 'empty');
                 const ratchetLabel = getBastardLoopXStepRatchet(step) > 1 ? ` · ratchet x${getBastardLoopXStepRatchet(step)}` : '';
                 const ratchetEditLabel = bastardLoopXRatchetEditStepIndex === bastardLoopXEditStepIndex ? ' · ratchet edit' : '';
-                cursor.textContent = `Editing step ${bastardLoopXEditStepIndex + 1} · ${summary} · time ${getBastardLoopXTimingLabel()}${ratchetLabel}${ratchetEditLabel}`;
+                const transposeLabel = transposeBounds ? ` · transpose ${transposeBounds.start + 1}-${transposeBounds.end + 1}` : '';
+                cursor.textContent = `Editing step ${bastardLoopXEditStepIndex + 1} · ${summary} · time ${getBastardLoopXTimingLabel()}${ratchetLabel}${ratchetEditLabel}${transposeLabel}`;
             }
             if (accentButton) {
                 accentButton.classList.toggle('active', step.accent);
@@ -27612,6 +27849,7 @@
             const recordButton = document.getElementById('bastardLoopXRecordBtn');
             const copyButton = document.getElementById('bastardLoopXCopyBtn');
             const copySectionButton = document.getElementById('bastardLoopXCopySectionBtn');
+            const transposeSectionButton = document.getElementById('bastardLoopXTransposeSectionBtn');
             const filterSlider = document.getElementById('performanceBastardLoopXFilterCutoff');
             const filterModeSelect = document.getElementById('performanceBastardLoopXFilterMode');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopXFilterEnvelope');
@@ -27695,6 +27933,15 @@
                 copySectionButton.classList.toggle('active', copySectionActive);
                 copySectionButton.textContent = 'Copy Sec';
                 copySectionButton.setAttribute('aria-pressed', String(copySectionActive));
+            }
+            if (transposeSectionButton) {
+                const transposeBounds = getBastardLoopXTransposeSectionBounds();
+                const transposeSectionActive = bastardLoopXTransposeMode !== 'idle' || Boolean(transposeBounds);
+                transposeSectionButton.classList.toggle('active', transposeSectionActive);
+                transposeSectionButton.textContent = transposeBounds
+                    ? `Trans ${transposeBounds.start + 1}-${transposeBounds.end + 1}`
+                    : 'Mark Trans';
+                transposeSectionButton.setAttribute('aria-pressed', String(transposeSectionActive));
             }
             if (delayPingPongButton) {
                 delayPingPongButton.classList.toggle('active', bastardLoopXDelayPingPongEnabled);
@@ -28058,8 +28305,12 @@
             const semitoneDelta = Math.trunc(Number(delta) || 0);
             if (!semitoneDelta) return;
             ensureBastardLoopXSequenceCapacity();
+            const transposeBounds = getBastardLoopXTransposeSectionBounds();
             let changed = 0;
-            bastardLoopXSequence = bastardLoopXSequence.map((step) => {
+            bastardLoopXSequence = bastardLoopXSequence.map((step, index) => {
+                if (transposeBounds && (index < transposeBounds.start || index > transposeBounds.end)) {
+                    return normalizeBastardLoopXStep(step);
+                }
                 if (step.rest || !step.note) return normalizeBastardLoopXStep(step);
                 const transposedNote = midiToNoteName(noteNameToMidi(step.note) + semitoneDelta);
                 if (transposedNote !== step.note) changed += 1;
@@ -28071,11 +28322,19 @@
             syncBastardLoopXUi();
             saveState();
             if (changed > 0) {
-                updateBastardLoopXStatus(`Shifted ${changed} Loop X step${changed === 1 ? '' : 's'} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`);
+                updateBastardLoopXStatus(
+                    transposeBounds
+                        ? `Shifted ${changed} Loop X step${changed === 1 ? '' : 's'} in section ${transposeBounds.start + 1}-${transposeBounds.end + 1} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`
+                        : `Shifted ${changed} Loop X step${changed === 1 ? '' : 's'} ${semitoneDelta > 0 ? 'up' : 'down'} ${Math.abs(semitoneDelta)} semitone${Math.abs(semitoneDelta) === 1 ? '' : 's'}.`
+                );
                 auditionBastardLoopXCurrentStep({ silentStatus: true, silentWhenEmpty: true });
                 restartBastardLoopXPlaybackIfNeeded();
             } else {
-                updateBastardLoopXStatus('Loop X transpose had nothing to move.');
+                updateBastardLoopXStatus(
+                    transposeBounds
+                        ? `Loop X transpose section ${transposeBounds.start + 1}-${transposeBounds.end + 1} had nothing to move.`
+                        : 'Loop X transpose had nothing to move.'
+                );
             }
         }
 
@@ -28221,6 +28480,7 @@
             if (!overlay) return;
             resetBastardLoopXStepTapMemory();
             resetBastardLoopXCopyState({ preserveBuffer: true });
+            resetBastardLoopXTransposeSectionState({ preserveRange: true });
             overlay.hidden = false;
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('bastardloop-x-open');
@@ -28235,6 +28495,7 @@
             if (!overlay) return;
             resetBastardLoopXStepTapMemory();
             resetBastardLoopXCopyState({ preserveBuffer: true });
+            resetBastardLoopXTransposeSectionState({ preserveRange: true });
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('bastardloop-x-open');
@@ -37254,6 +37515,8 @@
                     bastardLoopLFileName: bastardLoopLSampleMetadata?.fileName || '',
                     bastardLoopLRelativePath: bastardLoopLSampleMetadata?.relativePath || '',
                     bastardLoopLSequence: bastardLoopLSequence.slice(0, 64).map((step) => normalizeBastardLoopLStep(step)),
+                    bastardLoopLTransposeStartIndex: getBastardLoopLTransposeSectionBounds()?.start ?? -1,
+                    bastardLoopLTransposeEndIndex: getBastardLoopLTransposeSectionBounds()?.end ?? -1,
                     bastardLoopXEnabled: bastardLoopXEnabled,
                     bastardLoopXLevel: bastardLoopXLevel,
                     bastardLoopXLength: bastardLoopXLength,
@@ -37278,6 +37541,8 @@
                     bastardLoopXFileName: bastardLoopXSampleMetadata?.fileName || '',
                     bastardLoopXRelativePath: bastardLoopXSampleMetadata?.relativePath || '',
                     bastardLoopXSequence: bastardLoopXSequence.slice(0, 64).map((step) => normalizeBastardLoopXStep(step)),
+                    bastardLoopXTransposeStartIndex: getBastardLoopXTransposeSectionBounds()?.start ?? -1,
+                    bastardLoopXTransposeEndIndex: getBastardLoopXTransposeSectionBounds()?.end ?? -1,
                     bastardLoopMEnabled: bastardLoopMEnabled,
                     bastardLoopMLevel: bastardLoopMLevel,
                     bastardLoopMInputGain: bastardLoopMInputGain,
@@ -37766,6 +38031,15 @@
                     } else {
                         ensureBastardLoopLSequenceCapacity();
                     }
+                    if (state.modes.bastardLoopLTransposeStartIndex !== undefined || state.modes.bastardLoopLTransposeEndIndex !== undefined) {
+                        bastardLoopLTransposeStartIndex = Math.trunc(Number(state.modes.bastardLoopLTransposeStartIndex));
+                        bastardLoopLTransposeEndIndex = Math.trunc(Number(state.modes.bastardLoopLTransposeEndIndex));
+                        if (!getBastardLoopLTransposeSectionBounds()) {
+                            resetBastardLoopLTransposeSectionState();
+                        }
+                    } else {
+                        resetBastardLoopLTransposeSectionState();
+                    }
                     if (state.modes.bastardLoopXEnabled !== undefined) {
                         setBastardLoopXEnabled(state.modes.bastardLoopXEnabled, { silent: true, skipSave: true });
                     }
@@ -37836,6 +38110,15 @@
                         bastardLoopXSequence = state.modes.bastardLoopXSequence.slice(0, 64).map((step) => normalizeBastardLoopXStep(step));
                     } else {
                         ensureBastardLoopXSequenceCapacity();
+                    }
+                    if (state.modes.bastardLoopXTransposeStartIndex !== undefined || state.modes.bastardLoopXTransposeEndIndex !== undefined) {
+                        bastardLoopXTransposeStartIndex = Math.trunc(Number(state.modes.bastardLoopXTransposeStartIndex));
+                        bastardLoopXTransposeEndIndex = Math.trunc(Number(state.modes.bastardLoopXTransposeEndIndex));
+                        if (!getBastardLoopXTransposeSectionBounds()) {
+                            resetBastardLoopXTransposeSectionState();
+                        }
+                    } else {
+                        resetBastardLoopXTransposeSectionState();
                     }
                     if (state.modes.bastardLoopMEnabled !== undefined) {
                         setBastardLoopMEnabled(state.modes.bastardLoopMEnabled, { silent: true, skipSave: true });
@@ -44730,6 +45013,7 @@
         const bastardLoopLNextStepBtn = document.getElementById('bastardLoopLNextStepBtn');
         const bastardLoopLTransposeDownBtn = document.getElementById('bastardLoopLTransposeDownBtn');
         const bastardLoopLTransposeUpBtn = document.getElementById('bastardLoopLTransposeUpBtn');
+        const bastardLoopLTransposeSectionBtn = document.getElementById('bastardLoopLTransposeSectionBtn');
         const bastardLoopLRateDownBtn = document.getElementById('bastardLoopLRateDownBtn');
         const bastardLoopLRateUpBtn = document.getElementById('bastardLoopLRateUpBtn');
         const bastardLoopLRestBtn = document.getElementById('bastardLoopLRestBtn');
@@ -44753,6 +45037,7 @@
         const bastardLoopXNextStepBtn = document.getElementById('bastardLoopXNextStepBtn');
         const bastardLoopXTransposeDownBtn = document.getElementById('bastardLoopXTransposeDownBtn');
         const bastardLoopXTransposeUpBtn = document.getElementById('bastardLoopXTransposeUpBtn');
+        const bastardLoopXTransposeSectionBtn = document.getElementById('bastardLoopXTransposeSectionBtn');
         const bastardLoopXRateDownBtn = document.getElementById('bastardLoopXRateDownBtn');
         const bastardLoopXRateUpBtn = document.getElementById('bastardLoopXRateUpBtn');
         const bastardLoopXRestBtn = document.getElementById('bastardLoopXRestBtn');
@@ -46441,6 +46726,10 @@
             transposeBastardLoopLSequence(1);
         });
 
+        bindBastardLoopLMobileTap(bastardLoopLTransposeSectionBtn, () => {
+            beginBastardLoopLTransposeSectionFlow();
+        });
+
         bindBastardLoopLMobileTap(bastardLoopLRateDownBtn, () => {
             stepBastardLoopLTiming(-1);
         });
@@ -46925,6 +47214,10 @@
 
         bindBastardLoopLMobileTap(bastardLoopXTransposeUpBtn, () => {
             transposeBastardLoopXSequence(1);
+        });
+
+        bindBastardLoopLMobileTap(bastardLoopXTransposeSectionBtn, () => {
+            beginBastardLoopXTransposeSectionFlow();
         });
 
         bindBastardLoopLMobileTap(bastardLoopXRateDownBtn, () => {
