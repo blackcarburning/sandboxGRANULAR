@@ -7,11 +7,10 @@ const vm = require('vm');
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
 function extractFunctionSource(name) {
-    const asyncSignature = `async function ${name}`;
-    const syncSignature = `function ${name}`;
+    const asyncSignature = `async function ${name}(`;
+    const syncSignature = `function ${name}(`;
     const asyncStart = indexHtml.indexOf(asyncSignature);
     const syncStart = indexHtml.indexOf(syncSignature);
-    const signature = asyncStart !== -1 ? asyncSignature : syncSignature;
     const start = asyncStart !== -1 ? asyncStart : syncStart;
     assert.notEqual(start, -1, `Expected ${name} in index.html`);
     let parenDepth = 0;
@@ -370,6 +369,78 @@ test('Loop L and X performance start buttons use layer-specific mobile transport
     assert.match(indexHtml, /bindBastardLoopLMobileTap\(performanceBastardLoopXStartBtn,\s*async \(\) => \{\s*await toggleBastardLoopXTransportFromUi\(\);\s*\}\);/s);
     assert.match(extractFunctionSource('syncBastardLoopLUi'), /performanceBastardLoopLStartBtn/);
     assert.match(extractFunctionSource('syncBastardLoopXUi'), /performanceBastardLoopXStartBtn/);
+});
+
+test('Loop L and X cards expose random sample buttons and filter mode selects', () => {
+    assert.match(indexHtml, /id="performanceBastardLoopLRandomBtn"[^>]*>Load Random Sample</);
+    assert.match(indexHtml, /id="performanceBastardLoopXRandomBtn"[^>]*>Load Random Sample</);
+    assert.match(indexHtml, /id="performanceBastardLoopLFilterMode"/);
+    assert.match(indexHtml, /id="performanceBastardLoopXFilterMode"/);
+    for (const value of ['lowpass-12', 'lowpass-24', 'lowpass-48', 'lowpass-96', 'highpass-12', 'highpass-24', 'highpass-48', 'highpass-96']) {
+        assert.match(indexHtml, new RegExp(`<option value="${value}"[^>]*>`), `${value} should be offered in the filter dropdowns`);
+    }
+});
+
+test('Loop L and X random sample loaders use their own fixed source folders', async () => {
+    for (const [prefix, expectedSource, expectedLabel] of [
+        ['L', 'samples_leads', 'SAMPLES_LEADS'],
+        ['X', 'samples_bass', 'SAMPLES_BASS']
+    ]) {
+        const loaderContext = {
+            audioContext: {},
+            DROPBOX_SAMPLE_SOURCE_API_URL: 'https://example.invalid/api/source-sample',
+            BASTARD_LOOP_SOURCE_LABELS: {
+                samples_leads: 'SAMPLES_LEADS',
+                samples_bass: 'SAMPLES_BASS'
+            },
+            Date: {
+                now() {
+                    return 1234567890;
+                }
+            },
+            Math: {
+                random() {
+                    return 0.123456789;
+                }
+            },
+            setStatus(message) {
+                loaderContext.status = message;
+            },
+            async fetch(url, options) {
+                loaderContext.request = {
+                    url,
+                    options: {
+                        ...plain(options),
+                        body: JSON.parse(options.body)
+                    }
+                };
+                return { ok: true, headers: { get: () => null } };
+            }
+        };
+        loaderContext[`loadBastardLoop${prefix}SampleFromResponse`] = async (_response, fallback) => {
+            loaderContext.fallback = plain(fallback);
+        };
+        vm.runInNewContext(`${extractFunctionSource(`loadBastardLoop${prefix}SampleFromSource`)}\nglobalThis.loadBastardLoop${prefix}SampleFromSource = loadBastardLoop${prefix}SampleFromSource;`, loaderContext);
+
+        await loaderContext[`loadBastardLoop${prefix}SampleFromSource`]();
+
+        assert.equal(loaderContext.request.url, 'https://example.invalid/api/source-sample');
+        assert.equal(loaderContext.request.options.method, 'POST');
+        assert.equal(loaderContext.request.options.body.source, expectedSource);
+        assert.equal(loaderContext.fallback.sourceKey, expectedSource);
+        assert.equal(loaderContext.fallback.sourceLabel, expectedLabel);
+    }
+});
+
+test('Loop L and X filter mode is persisted and used by preview and scheduled voices', () => {
+    assert.match(extractFunctionSource('saveState'), /bastardLoopLFilterMode:\s*getBastardLoopLFilterMode\(\)/);
+    assert.match(extractFunctionSource('saveState'), /bastardLoopXFilterMode:\s*getBastardLoopXFilterMode\(\)/);
+    assert.match(indexHtml, /state\.modes\.bastardLoopLFilterMode !== undefined/);
+    assert.match(indexHtml, /state\.modes\.bastardLoopXFilterMode !== undefined/);
+    assert.match(extractFunctionSource('scheduleBastardLoopLSingleVoice'), /createBastardLoopConfigurableFilters\(getBastardLoopLFilterCutoff\(\), getBastardLoopLFilterMode\(\)\)/);
+    assert.match(extractFunctionSource('previewBastardLoopLStep'), /createBastardLoopConfigurableFilters\(getBastardLoopLFilterCutoff\(\), getBastardLoopLFilterMode\(\)\)/);
+    assert.match(extractFunctionSource('scheduleBastardLoopXSingleVoice'), /createBastardLoopConfigurableFilters\(getBastardLoopXFilterCutoff\(\), getBastardLoopXFilterMode\(\)\)/);
+    assert.match(extractFunctionSource('previewBastardLoopXStep'), /createBastardLoopConfigurableFilters\(getBastardLoopXFilterCutoff\(\), getBastardLoopXFilterMode\(\)\)/);
 });
 
 test('Loop L and X ready prep preserves a playable level through UI sync', () => {

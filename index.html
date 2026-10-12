@@ -5651,6 +5651,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopLLoadBtn">Choose Lead Sample</button>
+                        <button class="performance-btn" id="performanceBastardLoopLRandomBtn">Load Random Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopLEditBtn">Edit Sequence</button>
                         <button class="performance-btn" id="performanceBastardLoopLStartBtn" type="button">Start Bastardloops</button>
                     </div>
@@ -5698,8 +5699,23 @@
                     <input type="range" id="performanceBastardLoopLSemitone" min="-24" max="24" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLFilterMode">
+                        <span>Filter</span>
+                    </label>
+                    <select id="performanceBastardLoopLFilterMode" class="performance-select">
+                        <option value="lowpass-12">Lowpass 12 dB</option>
+                        <option value="lowpass-24">Lowpass 24 dB</option>
+                        <option value="lowpass-48" selected>Lowpass 48 dB</option>
+                        <option value="lowpass-96">Lowpass 96 dB</option>
+                        <option value="highpass-12">Highpass 12 dB</option>
+                        <option value="highpass-24">Highpass 24 dB</option>
+                        <option value="highpass-48">Highpass 48 dB</option>
+                        <option value="highpass-96">Highpass 96 dB</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceBastardLoopLFilterCutoff">
-                        <span>LP Filter 48 dB</span>
+                        <span>Filter Cutoff</span>
                         <span class="value" id="performanceBastardLoopLFilterCutoffValue">18kHz</span>
                     </label>
                     <input type="range" id="performanceBastardLoopLFilterCutoff" min="300" max="18000" value="18000" step="10">
@@ -5755,6 +5771,7 @@
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopXLoadBtn">Choose Bass Sample</button>
+                        <button class="performance-btn" id="performanceBastardLoopXRandomBtn">Load Random Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
                         <button class="performance-btn" id="performanceBastardLoopXStartBtn" type="button">Start Bastardloops</button>
                     </div>
@@ -5802,8 +5819,23 @@
                     <input type="range" id="performanceBastardLoopXSemitone" min="-24" max="24" value="0" step="1">
                 </div>
                 <div class="performance-sound-card">
+                    <label for="performanceBastardLoopXFilterMode">
+                        <span>Filter</span>
+                    </label>
+                    <select id="performanceBastardLoopXFilterMode" class="performance-select">
+                        <option value="lowpass-12">Lowpass 12 dB</option>
+                        <option value="lowpass-24">Lowpass 24 dB</option>
+                        <option value="lowpass-48" selected>Lowpass 48 dB</option>
+                        <option value="lowpass-96">Lowpass 96 dB</option>
+                        <option value="highpass-12">Highpass 12 dB</option>
+                        <option value="highpass-24">Highpass 24 dB</option>
+                        <option value="highpass-48">Highpass 48 dB</option>
+                        <option value="highpass-96">Highpass 96 dB</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
                     <label for="performanceBastardLoopXFilterCutoff">
-                        <span>LP Filter 48 dB</span>
+                        <span>Filter Cutoff</span>
                         <span class="value" id="performanceBastardLoopXFilterCutoffValue">18kHz</span>
                     </label>
                     <input type="range" id="performanceBastardLoopXFilterCutoff" min="300" max="18000" value="18000" step="10">
@@ -10245,6 +10277,16 @@
             { label: 'x8', multiplier: 8 }
         ];
         const BASTARD_LOOP_X_STEP_DOUBLE_TAP_MS = 320;
+        const BASTARD_LOOP_FILTER_MODE_OPTIONS = [
+            { value: 'lowpass-12', type: 'lowpass', stageCount: 1 },
+            { value: 'lowpass-24', type: 'lowpass', stageCount: 2 },
+            { value: 'lowpass-48', type: 'lowpass', stageCount: 4 },
+            { value: 'lowpass-96', type: 'lowpass', stageCount: 8 },
+            { value: 'highpass-12', type: 'highpass', stageCount: 1 },
+            { value: 'highpass-24', type: 'highpass', stageCount: 2 },
+            { value: 'highpass-48', type: 'highpass', stageCount: 4 },
+            { value: 'highpass-96', type: 'highpass', stageCount: 8 }
+        ];
         // LFO State
         let lfoStartTime = 0;
         let lfoEnabled = {};
@@ -10396,6 +10438,7 @@
         let bastardLoopLAccentAmount = 0.35;
         let bastardLoopLPitchSemitones = 0;
         let bastardLoopLFilterCutoff = 18000;
+        let bastardLoopLFilterMode = 'lowpass-48';
         let bastardLoopLFilterEnvelopeAmount = 0;
         let bastardLoopLDelayDivision = '2';
         let bastardLoopLDelayMix = 0;
@@ -10423,6 +10466,7 @@
         let bastardLoopXAccentAmount = 0.35;
         let bastardLoopXPitchSemitones = 0;
         let bastardLoopXFilterCutoff = 18000;
+        let bastardLoopXFilterMode = 'lowpass-48';
         let bastardLoopXFilterEnvelopeAmount = 0;
         let bastardLoopXDelayDivision = '2';
         let bastardLoopXDelayMix = 0;
@@ -12545,16 +12589,34 @@
             return `${Math.round(safeValue)}Hz`;
         }
 
-        function createBastardLoopLowpassFilters(cutoffHz) {
+        function normalizeBastardLoopFilterMode(value) {
+            const normalized = String(value || '').toLowerCase();
+            return BASTARD_LOOP_FILTER_MODE_OPTIONS.some((option) => option.value === normalized)
+                ? normalized
+                : 'lowpass-48';
+        }
+
+        function getBastardLoopFilterModeConfig(value) {
+            const normalized = normalizeBastardLoopFilterMode(value);
+            return BASTARD_LOOP_FILTER_MODE_OPTIONS.find((option) => option.value === normalized)
+                || BASTARD_LOOP_FILTER_MODE_OPTIONS[2];
+        }
+
+        function createBastardLoopConfigurableFilters(cutoffHz, mode = 'lowpass-48') {
             if (!audioContext) return [];
             const safeCutoff = clampBastardLoopFilterCutoff(cutoffHz);
-            return Array.from({ length: 4 }, () => {
+            const config = getBastardLoopFilterModeConfig(mode);
+            return Array.from({ length: config.stageCount }, () => {
                 const filter = audioContext.createBiquadFilter();
-                filter.type = 'lowpass';
+                filter.type = config.type;
                 filter.Q.value = 0.707;
                 filter.frequency.value = safeCutoff;
                 return filter;
             });
+        }
+
+        function createBastardLoopLowpassFilters(cutoffHz) {
+            return createBastardLoopConfigurableFilters(cutoffHz, 'lowpass-48');
         }
 
         function connectBastardLoopFilterChain(sourceNode, filterNodes, destinationNode) {
@@ -22575,6 +22637,12 @@
             return bastardLoopLFilterCutoff;
         }
 
+        function getBastardLoopLFilterMode() {
+            const select = document.getElementById('performanceBastardLoopLFilterMode');
+            bastardLoopLFilterMode = normalizeBastardLoopFilterMode(select?.value ?? bastardLoopLFilterMode);
+            return bastardLoopLFilterMode;
+        }
+
         function getBastardLoopLFilterEnvelopeAmount() {
             const slider = document.getElementById('performanceBastardLoopLFilterEnvelope');
             const rawValue = Number(slider?.value ?? (bastardLoopLFilterEnvelopeAmount * 100));
@@ -23200,6 +23268,7 @@
             const decayValue = Math.round(getBastardLoopLDecayRatio() * 100);
             const semitoneValue = getBastardLoopLPitchSemitones();
             const filterCutoffValue = getBastardLoopLFilterCutoff();
+            const filterModeValue = getBastardLoopLFilterMode();
             const filterEnvelopeValue = Math.round(getBastardLoopLFilterEnvelopeAmount() * 100);
             const delayMixValue = Math.round(getBastardLoopLDelayMix() * 100);
             const delayDivisionValue = getBastardLoopLDelayDivision();
@@ -23215,6 +23284,7 @@
             const recordButton = document.getElementById('bastardLoopLRecordBtn');
             const copyButton = document.getElementById('bastardLoopLCopyBtn');
             const filterSlider = document.getElementById('performanceBastardLoopLFilterCutoff');
+            const filterModeSelect = document.getElementById('performanceBastardLoopLFilterMode');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopLFilterEnvelope');
             const delayDivisionSelect = document.getElementById('performanceBastardLoopLDelayDivision');
             const delayMixSlider = document.getElementById('performanceBastardLoopLDelayMix');
@@ -23224,6 +23294,7 @@
             if (startTrimSlider) startTrimSlider.value = String(startTrimValue);
             if (attackSlider) attackSlider.value = String(attackValueMs);
             if (filterSlider) filterSlider.value = String(filterCutoffValue);
+            if (filterModeSelect) filterModeSelect.value = filterModeValue;
             if (filterEnvelopeSlider) filterEnvelopeSlider.value = String(filterEnvelopeValue);
             if (delayDivisionSelect) delayDivisionSelect.value = delayDivisionValue;
             if (delayMixSlider) delayMixSlider.value = String(delayMixValue);
@@ -23417,7 +23488,7 @@
             if (!audioContext || !bastardLoopLSampleBuffer || !step?.note) return;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const filters = createBastardLoopLowpassFilters(getBastardLoopLFilterCutoff());
+            const filters = createBastardLoopConfigurableFilters(getBastardLoopLFilterCutoff(), getBastardLoopLFilterMode());
             const level = getBastardLoopLLevelValue();
             if (level <= 0) return;
             const destination = ensureBastardLoopLDelayBus(getBastardLoopLPlaybackDestination());
@@ -23491,7 +23562,7 @@
             if (!audioContext || !bastardLoopLSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const filters = createBastardLoopLowpassFilters(getBastardLoopLFilterCutoff());
+            const filters = createBastardLoopConfigurableFilters(getBastardLoopLFilterCutoff(), getBastardLoopLFilterMode());
             const level = getBastardLoopLAuditionLevel();
             const destination = ensureBastardLoopLDelayBus(getBastardLoopLPlaybackDestination());
             if (!destination) return false;
@@ -24157,6 +24228,12 @@
             return bastardLoopXFilterCutoff;
         }
 
+        function getBastardLoopXFilterMode() {
+            const select = document.getElementById('performanceBastardLoopXFilterMode');
+            bastardLoopXFilterMode = normalizeBastardLoopFilterMode(select?.value ?? bastardLoopXFilterMode);
+            return bastardLoopXFilterMode;
+        }
+
         function getBastardLoopXFilterEnvelopeAmount() {
             const slider = document.getElementById('performanceBastardLoopXFilterEnvelope');
             const rawValue = Number(slider?.value ?? (bastardLoopXFilterEnvelopeAmount * 100));
@@ -24782,6 +24859,7 @@
             const decayValue = Math.round(getBastardLoopXDecayRatio() * 100);
             const semitoneValue = getBastardLoopXPitchSemitones();
             const filterCutoffValue = getBastardLoopXFilterCutoff();
+            const filterModeValue = getBastardLoopXFilterMode();
             const filterEnvelopeValue = Math.round(getBastardLoopXFilterEnvelopeAmount() * 100);
             const delayMixValue = Math.round(getBastardLoopXDelayMix() * 100);
             const delayDivisionValue = getBastardLoopXDelayDivision();
@@ -24797,6 +24875,7 @@
             const recordButton = document.getElementById('bastardLoopXRecordBtn');
             const copyButton = document.getElementById('bastardLoopXCopyBtn');
             const filterSlider = document.getElementById('performanceBastardLoopXFilterCutoff');
+            const filterModeSelect = document.getElementById('performanceBastardLoopXFilterMode');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopXFilterEnvelope');
             const delayDivisionSelect = document.getElementById('performanceBastardLoopXDelayDivision');
             const delayMixSlider = document.getElementById('performanceBastardLoopXDelayMix');
@@ -24806,6 +24885,7 @@
             if (startTrimSlider) startTrimSlider.value = String(startTrimValue);
             if (attackSlider) attackSlider.value = String(attackValueMs);
             if (filterSlider) filterSlider.value = String(filterCutoffValue);
+            if (filterModeSelect) filterModeSelect.value = filterModeValue;
             if (filterEnvelopeSlider) filterEnvelopeSlider.value = String(filterEnvelopeValue);
             if (delayDivisionSelect) delayDivisionSelect.value = delayDivisionValue;
             if (delayMixSlider) delayMixSlider.value = String(delayMixValue);
@@ -24999,7 +25079,7 @@
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note) return;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const filters = createBastardLoopLowpassFilters(getBastardLoopXFilterCutoff());
+            const filters = createBastardLoopConfigurableFilters(getBastardLoopXFilterCutoff(), getBastardLoopXFilterMode());
             const level = getBastardLoopXLevelValue();
             if (level <= 0) return;
             const destination = ensureBastardLoopXDelayBus(getBastardLoopXPlaybackDestination());
@@ -25073,7 +25153,7 @@
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
-            const filters = createBastardLoopLowpassFilters(getBastardLoopXFilterCutoff());
+            const filters = createBastardLoopConfigurableFilters(getBastardLoopXFilterCutoff(), getBastardLoopXFilterMode());
             const level = getBastardLoopXAuditionLevel();
             const destination = ensureBastardLoopXDelayBus(getBastardLoopXPlaybackDestination());
             if (!destination) return false;
@@ -34071,6 +34151,7 @@
                     bastardLoopLAccentAmount: getBastardLoopLAccentAmount(),
                     bastardLoopLPitchSemitones: bastardLoopLPitchSemitones,
                     bastardLoopLFilterCutoff: getBastardLoopLFilterCutoff(),
+                    bastardLoopLFilterMode: getBastardLoopLFilterMode(),
                     bastardLoopLFilterEnvelopeAmount: getBastardLoopLFilterEnvelopeAmount(),
                     bastardLoopLDelayDivision: getBastardLoopLDelayDivision(),
                     bastardLoopLDelayMix: getBastardLoopLDelayMix(),
@@ -34090,6 +34171,7 @@
                     bastardLoopXAccentAmount: getBastardLoopXAccentAmount(),
                     bastardLoopXPitchSemitones: bastardLoopXPitchSemitones,
                     bastardLoopXFilterCutoff: getBastardLoopXFilterCutoff(),
+                    bastardLoopXFilterMode: getBastardLoopXFilterMode(),
                     bastardLoopXFilterEnvelopeAmount: getBastardLoopXFilterEnvelopeAmount(),
                     bastardLoopXDelayDivision: getBastardLoopXDelayDivision(),
                     bastardLoopXDelayMix: getBastardLoopXDelayMix(),
@@ -34532,6 +34614,9 @@
                     if (state.modes.bastardLoopLFilterCutoff !== undefined) {
                         bastardLoopLFilterCutoff = clampBastardLoopFilterCutoff(state.modes.bastardLoopLFilterCutoff);
                     }
+                    if (state.modes.bastardLoopLFilterMode !== undefined) {
+                        bastardLoopLFilterMode = normalizeBastardLoopFilterMode(state.modes.bastardLoopLFilterMode);
+                    }
                     if (state.modes.bastardLoopLFilterEnvelopeAmount !== undefined) {
                         bastardLoopLFilterEnvelopeAmount = Math.max(0, Math.min(1, Number(state.modes.bastardLoopLFilterEnvelopeAmount) || 0));
                     }
@@ -34587,6 +34672,9 @@
                     }
                     if (state.modes.bastardLoopXFilterCutoff !== undefined) {
                         bastardLoopXFilterCutoff = clampBastardLoopFilterCutoff(state.modes.bastardLoopXFilterCutoff);
+                    }
+                    if (state.modes.bastardLoopXFilterMode !== undefined) {
+                        bastardLoopXFilterMode = normalizeBastardLoopFilterMode(state.modes.bastardLoopXFilterMode);
                     }
                     if (state.modes.bastardLoopXFilterEnvelopeAmount !== undefined) {
                         bastardLoopXFilterEnvelopeAmount = Math.max(0, Math.min(1, Number(state.modes.bastardLoopXFilterEnvelopeAmount) || 0));
@@ -37152,6 +37240,26 @@
             restartBastardLoopLPlaybackIfNeeded();
         }
 
+        async function loadBastardLoopLSampleFromResponse(response, fallback = {}) {
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Lead sample load failed with status ${response.status}`);
+            }
+            const sourceKey = response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || 'samples_leads';
+            const sourceLabel = response.headers.get('X-Mygrain-Source-Label') || fallback.sourceLabel || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || BASTARD_LOOP_SOURCE_LABELS.samples_leads;
+            const fileName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'lead.wav';
+            const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            await applyLoadedBastardLoopLSampleBuffer(buffer, sourceLabel, {
+                sourceKey,
+                sourceLabel,
+                fileName,
+                relativePath,
+                rootNote: resolveLeadSampleRootNote(fileName)
+            });
+        }
+
         async function loadBastardLoopLSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop L sample.');
@@ -37162,18 +37270,33 @@
                 mode: 'cors',
                 cache: 'no-store'
             });
-            if (!response.ok) {
-                throw new Error(`Lead sample fetch failed with status ${response.status}`);
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-            await applyLoadedBastardLoopLSampleBuffer(buffer, sourceLabel, {
+            await loadBastardLoopLSampleFromResponse(response, {
                 sourceKey,
                 sourceLabel,
                 fileName,
-                relativePath,
-                rootNote: resolveLeadSampleRootNote(fileName)
+                relativePath
             });
+        }
+
+        async function loadBastardLoopLSampleFromSource() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading a Bastardloop L sample.');
+            }
+            const sourceKey = 'samples_leads';
+            const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLES_LEADS';
+            setStatus(`Loading a random lead sample from ${sourceLabel}…`);
+            const response = await fetch(DROPBOX_SAMPLE_SOURCE_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source: sourceKey,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                })
+            });
+            await loadBastardLoopLSampleFromResponse(response, { sourceKey, sourceLabel });
         }
 
         async function applyLoadedBastardLoopXSampleBuffer(buffer, sourceLabel, metadata = {}) {
@@ -37205,6 +37328,26 @@
             restartBastardLoopXPlaybackIfNeeded();
         }
 
+        async function loadBastardLoopXSampleFromResponse(response, fallback = {}) {
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.error || `Bass sample load failed with status ${response.status}`);
+            }
+            const sourceKey = response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || 'samples_bass';
+            const sourceLabel = response.headers.get('X-Mygrain-Source-Label') || fallback.sourceLabel || BASTARD_LOOP_SOURCE_LABELS[sourceKey] || BASTARD_LOOP_SOURCE_LABELS.samples_bass;
+            const fileName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'bass.wav';
+            const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            await applyLoadedBastardLoopXSampleBuffer(buffer, sourceLabel, {
+                sourceKey,
+                sourceLabel,
+                fileName,
+                relativePath,
+                rootNote: resolveLeadSampleRootNote(fileName)
+            });
+        }
+
         async function loadBastardLoopXSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop X sample.');
@@ -37215,18 +37358,33 @@
                 mode: 'cors',
                 cache: 'no-store'
             });
-            if (!response.ok) {
-                throw new Error(`Bass sample fetch failed with status ${response.status}`);
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-            await applyLoadedBastardLoopXSampleBuffer(buffer, sourceLabel, {
+            await loadBastardLoopXSampleFromResponse(response, {
                 sourceKey,
                 sourceLabel,
                 fileName,
-                relativePath,
-                rootNote: resolveLeadSampleRootNote(fileName)
+                relativePath
             });
+        }
+
+        async function loadBastardLoopXSampleFromSource() {
+            if (!audioContext) {
+                throw new Error('Start MYGRAIN before loading a Bastardloop X sample.');
+            }
+            const sourceKey = 'samples_bass';
+            const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLES_BASS';
+            setStatus(`Loading a random bass sample from ${sourceLabel}…`);
+            const response = await fetch(DROPBOX_SAMPLE_SOURCE_API_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source: sourceKey,
+                    seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                })
+            });
+            await loadBastardLoopXSampleFromResponse(response, { sourceKey, sourceLabel });
         }
 
         async function loadDropboxSampleLayerFromSource() {
@@ -40357,6 +40515,7 @@
         const performanceBastardLoopPToggleBtn = document.getElementById('performanceBastardLoopPToggleBtn');
         const performanceBastardLoopOToggleBtn = document.getElementById('performanceBastardLoopOToggleBtn');
         const performanceBastardLoopLLoadBtn = document.getElementById('performanceBastardLoopLLoadBtn');
+        const performanceBastardLoopLRandomBtn = document.getElementById('performanceBastardLoopLRandomBtn');
         const performanceBastardLoopLEditBtn = document.getElementById('performanceBastardLoopLEditBtn');
         const performanceBastardLoopLStartBtn = document.getElementById('performanceBastardLoopLStartBtn');
         const performanceBastardLoopLToggleBtn = document.getElementById('performanceBastardLoopLToggleBtn');
@@ -40366,12 +40525,14 @@
         const performanceBastardLoopLAttack = document.getElementById('performanceBastardLoopLAttack');
         const performanceBastardLoopLDecay = document.getElementById('performanceBastardLoopLDecay');
         const performanceBastardLoopLSemitone = document.getElementById('performanceBastardLoopLSemitone');
+        const performanceBastardLoopLFilterMode = document.getElementById('performanceBastardLoopLFilterMode');
         const performanceBastardLoopLFilterCutoff = document.getElementById('performanceBastardLoopLFilterCutoff');
         const performanceBastardLoopLFilterEnvelope = document.getElementById('performanceBastardLoopLFilterEnvelope');
         const performanceBastardLoopLDelayDivision = document.getElementById('performanceBastardLoopLDelayDivision');
         const performanceBastardLoopLDelayMix = document.getElementById('performanceBastardLoopLDelayMix');
         const performanceBastardLoopLLevelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
         const performanceBastardLoopXLoadBtn = document.getElementById('performanceBastardLoopXLoadBtn');
+        const performanceBastardLoopXRandomBtn = document.getElementById('performanceBastardLoopXRandomBtn');
         const performanceBastardLoopXEditBtn = document.getElementById('performanceBastardLoopXEditBtn');
         const performanceBastardLoopXStartBtn = document.getElementById('performanceBastardLoopXStartBtn');
         const performanceBastardLoopXToggleBtn = document.getElementById('performanceBastardLoopXToggleBtn');
@@ -40381,6 +40542,7 @@
         const performanceBastardLoopXAttack = document.getElementById('performanceBastardLoopXAttack');
         const performanceBastardLoopXDecay = document.getElementById('performanceBastardLoopXDecay');
         const performanceBastardLoopXSemitone = document.getElementById('performanceBastardLoopXSemitone');
+        const performanceBastardLoopXFilterMode = document.getElementById('performanceBastardLoopXFilterMode');
         const performanceBastardLoopXFilterCutoff = document.getElementById('performanceBastardLoopXFilterCutoff');
         const performanceBastardLoopXFilterEnvelope = document.getElementById('performanceBastardLoopXFilterEnvelope');
         const performanceBastardLoopXDelayDivision = document.getElementById('performanceBastardLoopXDelayDivision');
@@ -41737,6 +41899,16 @@
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopL);
         });
 
+        performanceBastardLoopLRandomBtn?.addEventListener('click', async () => {
+            showSettlePopup();
+            try {
+                await loadBastardLoopLSampleFromSource();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Loop L random sample load failed: ${error.message}`, 'error');
+            }
+        });
+
         performanceBastardLoopLEditBtn?.addEventListener('click', () => {
             openBastardLoopLOverlay();
         });
@@ -41789,6 +41961,13 @@
 
         performanceBastardLoopLSemitone?.addEventListener('input', (event) => {
             setBastardLoopLPitchSemitoneOffset(event.target.value, { silent: true });
+        });
+
+        performanceBastardLoopLFilterMode?.addEventListener('change', (event) => {
+            bastardLoopLFilterMode = normalizeBastardLoopFilterMode(event.target.value);
+            restartBastardLoopLPlaybackIfNeeded();
+            syncBastardLoopLUi();
+            saveState();
         });
 
         performanceBastardLoopLFilterCutoff?.addEventListener('input', (event) => {
@@ -42080,6 +42259,16 @@
             openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopX);
         });
 
+        performanceBastardLoopXRandomBtn?.addEventListener('click', async () => {
+            showSettlePopup();
+            try {
+                await loadBastardLoopXSampleFromSource();
+            } catch (error) {
+                console.error(error);
+                setStatus(`Loop X random sample load failed: ${error.message}`, 'error');
+            }
+        });
+
         performanceBastardLoopXEditBtn?.addEventListener('click', () => {
             openBastardLoopXOverlay();
         });
@@ -42132,6 +42321,13 @@
 
         performanceBastardLoopXSemitone?.addEventListener('input', (event) => {
             setBastardLoopXPitchSemitoneOffset(event.target.value, { silent: true });
+        });
+
+        performanceBastardLoopXFilterMode?.addEventListener('change', (event) => {
+            bastardLoopXFilterMode = normalizeBastardLoopFilterMode(event.target.value);
+            restartBastardLoopXPlaybackIfNeeded();
+            syncBastardLoopXUi();
+            saveState();
         });
 
         performanceBastardLoopXFilterCutoff?.addEventListener('input', (event) => {
