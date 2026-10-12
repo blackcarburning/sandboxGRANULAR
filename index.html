@@ -5671,6 +5671,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopLLoadBtn">Choose Lead Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopLRandomBtn">Load Random Sample</button>
+                        <button class="performance-btn" id="performanceBastardLoopLRandomPatternBtn">Random Pattern</button>
                         <button class="performance-btn" id="performanceBastardLoopLSynthModeBtn">Source: Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopLOpenSynthBtn">Open Synth</button>
                         <button class="performance-btn" id="performanceBastardLoopLEditBtn">Edit Sequence</button>
@@ -5794,6 +5795,7 @@
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopXLoadBtn">Choose Bass Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXRandomBtn">Load Random Sample</button>
+                        <button class="performance-btn" id="performanceBastardLoopXRandomPatternBtn">Random Pattern</button>
                         <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
                         <button class="performance-btn" id="performanceBastardLoopXExportMidiBtn" type="button">Export MIDI</button>
                         <button class="performance-btn" id="performanceBastardLoopXStartBtn" type="button">Start Bastardloops</button>
@@ -26185,6 +26187,43 @@
             }
         }
 
+        function randomizeBastardLoopLPattern(options = {}) {
+            const profile = options.profile || createMusicalGenerationProfile();
+            const stepCount = getBastardLoopLPatternLength();
+            const scaleIntervals = Array.isArray(profile?.scaleIntervals) && profile.scaleIntervals.length > 0
+                ? profile.scaleIntervals
+                : (Array.isArray(profile?.scale?.intervals) && profile.scale.intervals.length > 0
+                    ? profile.scale.intervals
+                    : LOOP_SCALE_FAMILIES[0].intervals);
+            const bassSequence = Array.isArray(bastardLoopXSequence)
+                ? bastardLoopXSequence.slice(0, getBastardLoopXPatternLength())
+                : [];
+            bastardLoopLSequence = buildMegaRandomBastardLoopLSequence({
+                stepCount,
+                rootNote: getBastardLoopLRootNote(),
+                scaleIntervals,
+                energy: profile?.energy,
+                bassSequence
+            });
+            bastardLoopLEditStepIndex = 0;
+            bastardLoopLRatchetEditStepIndex = -1;
+            resetBastardLoopLStepTapMemory();
+            syncBastardLoopLEditorUi();
+            syncBastardLoopLUi();
+            if (!options.skipRestart) {
+                restartBastardLoopLPlaybackIfNeeded();
+            }
+            if (!options.silent) {
+                const message = `Loop L pattern randomized across ${stepCount} steps.`;
+                updateBastardLoopLStatus(message);
+                setStatus(message);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+            return bastardLoopLSequence;
+        }
+
         function stepBastardLoopLTiming(delta) {
             const nextIndex = clampBastardLoopLTimingIndex(bastardLoopLTimingIndex + Math.trunc(Number(delta) || 0));
             if (nextIndex === bastardLoopLTimingIndex) {
@@ -28038,6 +28077,39 @@
             } else {
                 updateBastardLoopXStatus('Loop X transpose had nothing to move.');
             }
+        }
+
+        function randomizeBastardLoopXPattern(options = {}) {
+            const profile = options.profile || createMusicalGenerationProfile();
+            const stepCount = getBastardLoopXPatternLength();
+            const scaleIntervals = Array.isArray(profile?.scaleIntervals) && profile.scaleIntervals.length > 0
+                ? profile.scaleIntervals
+                : (Array.isArray(profile?.scale?.intervals) && profile.scale.intervals.length > 0
+                    ? profile.scale.intervals
+                    : LOOP_SCALE_FAMILIES[0].intervals);
+            bastardLoopXSequence = buildMegaRandomBastardLoopXSequence({
+                stepCount,
+                rootNote: getBastardLoopXRootNote(),
+                scaleIntervals,
+                energy: profile?.energy
+            });
+            bastardLoopXEditStepIndex = 0;
+            bastardLoopXRatchetEditStepIndex = -1;
+            resetBastardLoopXStepTapMemory();
+            syncBastardLoopXEditorUi();
+            syncBastardLoopXUi();
+            if (!options.skipRestart) {
+                restartBastardLoopXPlaybackIfNeeded();
+            }
+            if (!options.silent) {
+                const message = `Loop X pattern randomized across ${stepCount} steps.`;
+                updateBastardLoopXStatus(message);
+                setStatus(message);
+            }
+            if (!options.skipSave) {
+                saveState();
+            }
+            return bastardLoopXSequence;
         }
 
         function stepBastardLoopXTiming(delta) {
@@ -44467,6 +44539,7 @@
         const performanceBastardLoopOToggleBtn = document.getElementById('performanceBastardLoopOToggleBtn');
         const performanceBastardLoopLLoadBtn = document.getElementById('performanceBastardLoopLLoadBtn');
         const performanceBastardLoopLRandomBtn = document.getElementById('performanceBastardLoopLRandomBtn');
+        const performanceBastardLoopLRandomPatternBtn = document.getElementById('performanceBastardLoopLRandomPatternBtn');
         const performanceBastardLoopLSynthModeBtn = document.getElementById('performanceBastardLoopLSynthModeBtn');
         const performanceBastardLoopLOpenSynthBtn = document.getElementById('performanceBastardLoopLOpenSynthBtn');
         const performanceBastardLoopLEditBtn = document.getElementById('performanceBastardLoopLEditBtn');
@@ -44487,6 +44560,7 @@
         const performanceBastardLoopLLevelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
         const performanceBastardLoopXLoadBtn = document.getElementById('performanceBastardLoopXLoadBtn');
         const performanceBastardLoopXRandomBtn = document.getElementById('performanceBastardLoopXRandomBtn');
+        const performanceBastardLoopXRandomPatternBtn = document.getElementById('performanceBastardLoopXRandomPatternBtn');
         const performanceBastardLoopXEditBtn = document.getElementById('performanceBastardLoopXEditBtn');
         const performanceBastardLoopXExportMidiBtn = document.getElementById('performanceBastardLoopXExportMidiBtn');
         const performanceBastardLoopXStartBtn = document.getElementById('performanceBastardLoopXStartBtn');
@@ -45961,6 +46035,10 @@
             }
         });
 
+        performanceBastardLoopLRandomPatternBtn?.addEventListener('click', () => {
+            randomizeBastardLoopLPattern();
+        });
+
         performanceBastardLoopLSynthModeBtn?.addEventListener('click', () => {
             setBastardLoopLSourceMode(isBastardLoopLUsingSynth() ? 'sample' : 'synth', {
                 forceMinimumMix: true,
@@ -46420,6 +46498,10 @@
                 console.error(error);
                 setStatus(`Loop X random sample load failed: ${error.message}`, 'error');
             }
+        });
+
+        performanceBastardLoopXRandomPatternBtn?.addEventListener('click', () => {
+            randomizeBastardLoopXPattern();
         });
 
         performanceBastardLoopXEditBtn?.addEventListener('click', () => {

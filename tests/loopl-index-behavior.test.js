@@ -632,14 +632,136 @@ test('Mega Randomize includes coordinated Loop L/X preparation and random sample
     assert.match(indexHtml, /function randomizeMegaBastardLoopLeadAndBassSettings\(profile = \{\}\)/);
 });
 
-test('Loop L and X cards expose random sample buttons and filter mode selects', () => {
+test('Loop L and X cards expose random sample and random pattern buttons plus filter mode selects', () => {
     assert.match(indexHtml, /id="performanceBastardLoopLRandomBtn"[^>]*>Load Random Sample</);
+    assert.match(indexHtml, /id="performanceBastardLoopLRandomPatternBtn"[^>]*>Random Pattern</);
     assert.match(indexHtml, /id="performanceBastardLoopXRandomBtn"[^>]*>Load Random Sample</);
+    assert.match(indexHtml, /id="performanceBastardLoopXRandomPatternBtn"[^>]*>Random Pattern</);
     assert.match(indexHtml, /id="performanceBastardLoopLFilterMode"/);
     assert.match(indexHtml, /id="performanceBastardLoopXFilterMode"/);
     for (const value of ['lowpass-12', 'lowpass-24', 'lowpass-48', 'lowpass-96', 'highpass-12', 'highpass-24', 'highpass-48', 'highpass-96']) {
         assert.match(indexHtml, new RegExp(`<option value="${value}"[^>]*>`), `${value} should be offered in the filter dropdowns`);
     }
+});
+
+test('Loop L and X random pattern helpers reuse the existing sequence builders and sync state', () => {
+    const randomPatternContext = {
+        LOOP_SCALE_FAMILIES: [{ intervals: [0, 2, 3, 5, 7, 10] }],
+        bastardLoopLEditStepIndex: 5,
+        bastardLoopLRatchetEditStepIndex: 2,
+        bastardLoopLSequence: [],
+        bastardLoopXEditStepIndex: 4,
+        bastardLoopXRatchetEditStepIndex: 3,
+        bastardLoopXSequence: [{ note: 'C2' }, { note: 'G2' }],
+        createMusicalGenerationProfile() {
+            return {
+                energy: 0.82,
+                scale: { intervals: [0, 3, 5, 7, 10] }
+            };
+        },
+        getBastardLoopLPatternLength() {
+            return 8;
+        },
+        getBastardLoopXPatternLength() {
+            return 8;
+        },
+        getBastardLoopLRootNote() {
+            return 'D4';
+        },
+        getBastardLoopXRootNote() {
+            return 'C2';
+        },
+        buildMegaRandomBastardLoopLSequence(options) {
+            randomPatternContext.lOptions = plain(options);
+            return [{ note: 'D4' }, { note: 'F4' }];
+        },
+        buildMegaRandomBastardLoopXSequence(options) {
+            randomPatternContext.xOptions = plain(options);
+            return [{ note: 'C2' }, { note: 'E2' }];
+        },
+        resetBastardLoopLStepTapMemory() {
+            randomPatternContext.lTapReset = true;
+        },
+        resetBastardLoopXStepTapMemory() {
+            randomPatternContext.xTapReset = true;
+        },
+        syncBastardLoopLEditorUi() {
+            randomPatternContext.lEditorSynced = true;
+        },
+        syncBastardLoopLUi() {
+            randomPatternContext.lUiSynced = true;
+        },
+        syncBastardLoopXEditorUi() {
+            randomPatternContext.xEditorSynced = true;
+        },
+        syncBastardLoopXUi() {
+            randomPatternContext.xUiSynced = true;
+        },
+        restartBastardLoopLPlaybackIfNeeded() {
+            randomPatternContext.lRestarted = true;
+        },
+        restartBastardLoopXPlaybackIfNeeded() {
+            randomPatternContext.xRestarted = true;
+        },
+        updateBastardLoopLStatus(message) {
+            randomPatternContext.lStatus = message;
+        },
+        updateBastardLoopXStatus(message) {
+            randomPatternContext.xStatus = message;
+        },
+        setStatus(message) {
+            randomPatternContext.globalStatus = message;
+        },
+        saveState() {
+            randomPatternContext.saved = (randomPatternContext.saved || 0) + 1;
+        }
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('randomizeBastardLoopLPattern'),
+        extractFunctionSource('randomizeBastardLoopXPattern'),
+        'globalThis.randomizeBastardLoopLPattern = randomizeBastardLoopLPattern;',
+        'globalThis.randomizeBastardLoopXPattern = randomizeBastardLoopXPattern;'
+    ].join('\n\n'), randomPatternContext);
+
+    assert.deepEqual(
+        plain(randomPatternContext.randomizeBastardLoopLPattern()),
+        [{ note: 'D4' }, { note: 'F4' }]
+    );
+    assert.deepEqual(randomPatternContext.lOptions, {
+        stepCount: 8,
+        rootNote: 'D4',
+        scaleIntervals: [0, 3, 5, 7, 10],
+        energy: 0.82,
+        bassSequence: [{ note: 'C2' }, { note: 'G2' }]
+    });
+    assert.equal(randomPatternContext.bastardLoopLEditStepIndex, 0);
+    assert.equal(randomPatternContext.bastardLoopLRatchetEditStepIndex, -1);
+    assert.equal(randomPatternContext.lTapReset, true);
+    assert.equal(randomPatternContext.lEditorSynced, true);
+    assert.equal(randomPatternContext.lUiSynced, true);
+    assert.equal(randomPatternContext.lRestarted, true);
+    assert.equal(randomPatternContext.lStatus, 'Loop L pattern randomized across 8 steps.');
+
+    assert.deepEqual(
+        plain(randomPatternContext.randomizeBastardLoopXPattern()),
+        [{ note: 'C2' }, { note: 'E2' }]
+    );
+    assert.deepEqual(randomPatternContext.xOptions, {
+        stepCount: 8,
+        rootNote: 'C2',
+        scaleIntervals: [0, 3, 5, 7, 10],
+        energy: 0.82
+    });
+    assert.equal(randomPatternContext.bastardLoopXEditStepIndex, 0);
+    assert.equal(randomPatternContext.bastardLoopXRatchetEditStepIndex, -1);
+    assert.equal(randomPatternContext.xTapReset, true);
+    assert.equal(randomPatternContext.xEditorSynced, true);
+    assert.equal(randomPatternContext.xUiSynced, true);
+    assert.equal(randomPatternContext.xRestarted, true);
+    assert.equal(randomPatternContext.xStatus, 'Loop X pattern randomized across 8 steps.');
+    assert.equal(randomPatternContext.globalStatus, 'Loop X pattern randomized across 8 steps.');
+    assert.equal(randomPatternContext.saved, 2);
 });
 
 test('Loop L and X random sample loaders use their own fixed source folders', async () => {
