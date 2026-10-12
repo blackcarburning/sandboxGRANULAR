@@ -4974,10 +4974,8 @@
                 <button class="section-jump-option" type="button" data-jump-target="#internalReverbCard">Reverb</button>
                 <button class="section-jump-option" type="button" data-jump-target=".recording-section">Sources</button>
                 <button class="section-jump-option" type="button" data-jump-target="#grainWaveformEditors">Waveforms</button>
-                <button class="section-jump-option" type="button" data-jump-target="#grainMainWaveformEditor">Main Wave</button>
                 <button class="section-jump-option" type="button" data-jump-target="#grainAWaveformEditor">A Wave</button>
                 <button class="section-jump-option" type="button" data-jump-target="#grainBWaveformEditor">B Wave</button>
-                <button class="section-jump-option" type="button" data-jump-target="#outputWaveformEditor">Output Wave</button>
                 <button class="section-jump-option" type="button" data-jump-target="#finalPanSection">Pan Lab</button>
             </div>
         </div>
@@ -6332,7 +6330,7 @@
                         </label>
                         <input type="range" id="performanceBastardLoopMLevelMixer" min="0" max="100" value="50" step="1">
                     </div>
-                    <div class="performance-sound-card">
+                    <div class="performance-sound-card" hidden>
                         <label for="performanceGrainMainVolume">
                             <span>Main Grain</span>
                             <span class="value" id="performanceGrainMainVolumeValue">100%</span>
@@ -6371,7 +6369,7 @@
                     </div>
                 </div>
                 <div class="performance-grain-layer-grid" aria-label="Granular layer quick controls">
-                    <section class="performance-grain-layer-group" aria-label="Main Grain quick controls">
+                    <section class="performance-grain-layer-group" aria-label="Main Grain quick controls" hidden>
                         <div class="performance-grain-layer-head">
                             <strong>Main Grain</strong>
                             <span>Base layer</span>
@@ -7197,7 +7195,7 @@
                     <div>
                         <div class="app-kicker">MYGRAIN</div>
                         <h2 class="app-title">Sample granular instrument</h2>
-                        <p class="app-subtitle">Three granular layers built from your sample buffers, tuned for recognisable playback on the keyboard, sequencer, and arp.</p>
+                        <p class="app-subtitle">Two granular layers built from your sample buffers, tuned for recognisable playback on the keyboard, sequencer, and arp.</p>
                     </div>
                     <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
                 </div>
@@ -7206,7 +7204,7 @@
                     <div class="source-seed-buttons">
                         <button id="generateSourceBtn" class="primary">Generate Source</button>
                         <button id="performanceLowNoiseSourceBtn">Low Noise Source</button>
-                        <button id="recordBtn">Record Mic</button>
+                        <button id="recordBtn" hidden>Record Mic</button>
                         <button id="loadDemoBtn">Load Demo</button>
                         <button id="performanceLoadAudioBtn">Load Audio</button>
                     </div>
@@ -7243,7 +7241,7 @@
                             <button type="button" class="trim-source-btn" data-source-kind="generated">Trim to Selection</button>
                         </div>
                     </div>
-                    <div class="source-waveform-panel" id="grainMainWaveformEditor">
+                    <div class="source-waveform-panel" id="grainMainWaveformEditor" hidden>
                         <div class="source-waveform-header">
                             <span>Main Grain Sample</span>
                             <span class="source-waveform-meta" id="grainMainSampleWaveformMeta">Empty</span>
@@ -7264,7 +7262,7 @@
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-source-card-audition="grainMainSample" aria-pressed="false" disabled>Audition</button>
                         </div>
                     </div>
-                    <div class="source-waveform-panel" id="micWaveformEditor">
+                    <div class="source-waveform-panel" id="micWaveformEditor" hidden>
                         <div class="source-waveform-header">
                             <span>Mic Recording</span>
                             <span class="source-waveform-meta" id="micWaveformMeta">Empty</span>
@@ -7290,7 +7288,7 @@
                     </div>
                     <div class="source-waveform-panel" id="grainAWaveformEditor">
                         <div class="source-waveform-header">
-                            <span>Grain A Mic</span>
+                            <span>Grain A</span>
                             <span class="source-waveform-meta" id="grainAMicWaveformMeta">Empty</span>
                         </div>
                         <div class="grain-engine-action-row">
@@ -7299,12 +7297,12 @@
                         </div>
                         <div class="grain-source-switch-row" data-grain-source-switch-row="A">
                             <div class="grain-source-switch" role="group" aria-label="Grain A source switch">
-                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="A" data-source-mode="grainAMic" aria-pressed="true">Mic</button>
-                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="A" data-source-mode="grainASample" aria-pressed="false">Sample</button>
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="A" data-source-mode="grainAMic" aria-pressed="false">Mic</button>
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="A" data-source-mode="grainASample" aria-pressed="true">Sample</button>
                             </div>
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-grain-layer-audition="A" aria-pressed="false" disabled>Audition</button>
                         </div>
-                        <div class="grain-source-mode-block" data-grain-source-panel="A" data-grain-source-kind="grainAMic">
+                        <div class="grain-source-mode-block" data-grain-source-panel="A" data-grain-source-kind="grainAMic" hidden>
                             <canvas id="grainAMicWaveformCanvas" class="source-waveform-canvas" data-source="grainAMic"></canvas>
                             <div class="source-grain-mode-control" aria-label="Grain A granular engine mode">
                                 <label for="grainAWaveformGrainTimingMode">
@@ -7351,7 +7349,7 @@
                     </div>
                     <div class="source-waveform-panel" id="grainBWaveformEditor">
                         <div class="source-waveform-header">
-                            <span>Grain B Mic</span>
+                            <span>Grain B</span>
                             <span class="source-waveform-meta" id="grainBMicWaveformMeta">Empty</span>
                         </div>
                         <div class="grain-engine-action-row">
@@ -7360,12 +7358,12 @@
                         </div>
                         <div class="grain-source-switch-row" data-grain-source-switch-row="B">
                             <div class="grain-source-switch" role="group" aria-label="Grain B source switch">
-                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBMic" aria-pressed="true">Mic</button>
-                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBSample" aria-pressed="false">Sample</button>
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBMic" aria-pressed="false">Mic</button>
+                                <button type="button" class="grain-source-switch-btn" data-grain-source-mode-btn="B" data-source-mode="grainBSample" aria-pressed="true">Sample</button>
                             </div>
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-grain-layer-audition="B" aria-pressed="false" disabled>Audition</button>
                         </div>
-                        <div class="grain-source-mode-block" data-grain-source-panel="B" data-grain-source-kind="grainBMic">
+                        <div class="grain-source-mode-block" data-grain-source-panel="B" data-grain-source-kind="grainBMic" hidden>
                             <canvas id="grainBMicWaveformCanvas" class="source-waveform-canvas" data-source="grainBMic"></canvas>
                             <div class="source-grain-mode-control" aria-label="Grain B granular engine mode">
                                 <label for="grainBWaveformGrainTimingMode">
@@ -7410,7 +7408,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="source-waveform-panel" id="outputWaveformEditor">
+                    <div class="source-waveform-panel" id="outputWaveformEditor" hidden>
                         <div class="source-waveform-header">
                             <span>Output Source</span>
                             <span class="source-waveform-meta" id="outputWaveformMeta">Empty</span>
@@ -7448,13 +7446,6 @@
                             <input type="range" id="generatedSourceTune" data-source-waveform-tune="generated" min="-24" max="24" value="0" step="1">
                         </label>
 
-                        <span class="source-waveform-control-label">Mic Recording</span>
-                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="mic" aria-pressed="false">Solo</button>
-                        <label class="source-waveform-tune" for="micSourceTune">
-                            Tune <span class="value" id="micSourceTuneValue">0st</span>
-                            <input type="range" id="micSourceTune" data-source-waveform-tune="mic" min="-24" max="24" value="0" step="1">
-                        </label>
-
                         <span class="source-waveform-control-label">Grain A Mic</span>
                         <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="grainAMic" aria-pressed="false">Solo</button>
                         <label class="source-waveform-tune" for="grainAMicSourceTune">
@@ -7469,12 +7460,6 @@
                             <input type="range" id="grainBMicSourceTune" data-source-waveform-tune="grainBMic" min="-24" max="24" value="0" step="1">
                         </label>
 
-                        <span class="source-waveform-control-label">Output Source</span>
-                        <button type="button" class="source-waveform-solo-btn" data-source-waveform-solo="output" aria-pressed="false">Solo</button>
-                        <label class="source-waveform-tune" for="outputSourceTune">
-                            Tune <span class="value" id="outputSourceTuneValue">0st</span>
-                            <input type="range" id="outputSourceTune" data-source-waveform-tune="output" min="-24" max="24" value="0" step="1">
-                        </label>
                     </div>
                 </div>
                 <div class="source-seed-group" aria-label="Huge drum sequencer generator">
@@ -7513,7 +7498,7 @@
                     <div class="section-title">Record Output</div>
                     <div class="recording-buttons">
                         <button id="startOutputRecBtn">Start</button>
-                        <button id="recordOutputSourceBtn" data-idle-text="Rec Output Source">Rec Output Source</button>
+                        <button id="recordOutputSourceBtn" data-idle-text="Rec Output Source" hidden>Rec Output Source</button>
                         <button id="stopOutputRecBtn" disabled>Stop</button>
                         <button id="armOutputRecBtn">Arm</button>
                     </div>
@@ -7540,7 +7525,7 @@
                 <!-- Grain Tab -->
                 <div class="tab-content active" id="grain-tab">
                     <div class="source-waveform-grid" aria-label="Granular synth layers">
-                        <div class="source-waveform-panel">
+                        <div class="source-waveform-panel" hidden>
                             <div class="source-waveform-header">
                                 <span>Main Grain</span>
                                 <span class="source-waveform-meta">Primary layer</span>
@@ -7651,13 +7636,8 @@
                             <div class="control-group">
                                 <label><span>Source</span></label>
                                 <select id="grainSynthASource">
-                                    <option value="grainASample">Grain A Sample</option>
-                                    <option value="grainAMic" selected>Grain A Mic</option>
-                                    <option value="mic">Main Mic</option>
-                                    <option value="generated">Generated Loop</option>
-                                    <option value="output">Output Source</option>
-                                    <option value="grainBMic">Grain B Mic</option>
-                                    <option value="all">All Sources</option>
+                                    <option value="grainASample" selected>Grain A Sample</option>
+                                    <option value="grainAMic">Grain A Mic</option>
                                 </select>
                             </div>
                             <div class="grain-engine-action-row">
@@ -7754,13 +7734,8 @@
                             <div class="control-group">
                                 <label><span>Source</span></label>
                                 <select id="grainSynthBSource">
-                                    <option value="grainBSample">Grain B Sample</option>
-                                    <option value="grainBMic" selected>Grain B Mic</option>
-                                    <option value="mic">Main Mic</option>
-                                    <option value="generated">Generated Loop</option>
-                                    <option value="output">Output Source</option>
-                                    <option value="grainAMic">Grain A Mic</option>
-                                    <option value="all">All Sources</option>
+                                    <option value="grainBSample" selected>Grain B Sample</option>
+                                    <option value="grainBMic">Grain B Mic</option>
                                 </select>
                             </div>
                             <div class="grain-engine-action-row">
@@ -10103,30 +10078,11 @@
             synth: 'Playable'
         };
         const GRANULAR_LAYER_SOURCE_DEFAULTS = {
-            main: 'mic',
-            A: 'grainAMic',
-            B: 'grainBMic'
+            main: 'grainMainSample',
+            A: 'grainASample',
+            B: 'grainBSample'
         };
         const GRANULAR_LAYER_DEFINITIONS = [
-            {
-                key: 'main',
-                label: 'Main Grain',
-                sourceId: 'grainMainSource',
-                startId: 'grainMainStart',
-                sizeId: 'grainSize',
-                pitchId: 'grainMainTune',
-                fineTuneId: 'grainMainFineTune',
-                attackId: 'attack',
-                decayId: 'grainMainDecay',
-                releaseId: 'release',
-                blendId: 'grainMainBlend',
-                smoothingId: 'grainMainSmoothing',
-                widthId: 'grainMainWidth',
-                preserveDurationButtonId: 'grainMainPreserveDurationBtn',
-                volumeId: 'grainMainVolume',
-                soloKey: 'main',
-                panBias: 0
-            },
             {
                 key: 'A',
                 label: 'Grain A',
@@ -10982,7 +10938,7 @@
         let grainMainPreserveDuration = true;
         let grainAPreserveDuration = true;
         let grainBPreserveDuration = true;
-        let grainMainMuted = false;
+        let grainMainMuted = true;
         let grainAMuted = false;
         let grainBMuted = false;
         let drumMachineKickBuffer = null;
@@ -11821,6 +11777,7 @@
             output: 'Output Source'
         };
         const SOURCE_CARD_AUDITION_KINDS = new Set(['grainMainSample', 'grainASample', 'grainBSample', 'grainAMic', 'grainBMic', 'output']);
+        const DISABLED_SOURCE_WAVEFORM_SOLO_KINDS = new Set(['mic', 'output']);
         const SOURCE_TUNE_CONTROL_IDS = {
             generated: 'generatedSourceTune',
             mic: 'micSourceTune',
@@ -15546,7 +15503,7 @@
             const values = Array.isArray(value) ? value : (value === 'none' || value === undefined || value === null ? [] : [value]);
             return values
                 .map((kind) => normalizeSourceWaveformKind(kind))
-                .filter((kind) => kind !== 'none');
+                .filter((kind) => kind !== 'none' && !DISABLED_SOURCE_WAVEFORM_SOLO_KINDS.has(kind));
         }
 
         function getSourceWaveformSoloState() {
@@ -15565,7 +15522,7 @@
                 sourceWaveformSoloKinds = new Set(normalizeSourceWaveformSoloState(kind));
             } else {
                 const requested = normalizeSourceWaveformKind(kind);
-                if (requested === 'none') {
+                if (requested === 'none' || DISABLED_SOURCE_WAVEFORM_SOLO_KINDS.has(requested)) {
                     sourceWaveformSoloKinds.clear();
                 } else if (options.toggle && sourceWaveformSoloKinds.has(requested)) {
                     sourceWaveformSoloKinds.delete(requested);
@@ -15889,8 +15846,11 @@
                 const select = document.getElementById(definition.sourceId);
                 if (!select) return;
                 const normalized = normalizeGranularLayerSourceMode(select.value, { layer: definition.key });
-                if (select.value !== normalized) {
-                    select.value = normalized;
+                const fallback = GRANULAR_LAYER_SOURCE_DEFAULTS[definition.key] || normalized;
+                const availableValues = Array.from(select.options || []).map((option) => option.value);
+                const nextValue = availableValues.includes(normalized) ? normalized : fallback;
+                if (select.value !== nextValue) {
+                    select.value = nextValue;
                 }
             });
             syncGrainSourcePanelModes();
@@ -24414,16 +24374,22 @@
         }
 
         function normalizeGrainLayerSolo(value) {
-            return ['main', 'A', 'B'].includes(value) ? value : 'none';
+            return ['A', 'B'].includes(value) ? value : 'none';
         }
 
         function syncGrainLayerSoloButtons() {
             document.querySelectorAll('[data-grain-layer-solo]').forEach((button) => {
-                const layer = normalizeGrainLayerSolo(button.dataset.grainLayerSolo);
+                const rawLayer = button.dataset.grainLayerSolo;
+                const layer = normalizeGrainLayerSolo(rawLayer);
+                if (layer === 'none' && rawLayer !== 'none') {
+                    button.hidden = true;
+                    return;
+                }
+                button.hidden = false;
                 const active = grainLayerSolo === layer;
                 button.classList.toggle('active', active);
                 button.setAttribute('aria-pressed', String(active));
-                const label = layer === 'main' ? 'Main' : layer;
+                const label = layer;
                 button.textContent = active ? `${label} Solo On` : `Solo ${label}`;
             });
         }
@@ -24436,7 +24402,7 @@
                 rescheduleActiveGrainsFromNow();
             }
             if (!options.silent) {
-                setStatus(grainLayerSolo === 'none' ? 'All grain layers active.' : `${grainLayerSolo === 'main' ? 'Main' : `Grain ${grainLayerSolo}`} layer soloed.`);
+                setStatus(grainLayerSolo === 'none' ? 'All grain layers active.' : `Grain ${grainLayerSolo} layer soloed.`);
             }
             if (!options.skipSave) {
                 saveState();
@@ -41943,7 +41909,6 @@
 
         const STEM_EXPORT_COMPONENTS = [
             { key: 'osc', label: 'Osc', stemBase: 'osc', renderGroup: 'sequencer' },
-            { key: 'grainMain', label: 'Grain Main', stemBase: 'grain-main', renderGroup: 'sequencer' },
             { key: 'grainA', label: 'Grain A', stemBase: 'grain-a', renderGroup: 'sequencer' },
             { key: 'grainB', label: 'Grain B', stemBase: 'grain-b', renderGroup: 'sequencer' },
             { key: 'generatedLayer', label: 'Generated Layer', stemBase: 'generated-layer', renderGroup: 'sequencer' },
