@@ -5980,6 +5980,53 @@
                     </label>
                     <input type="range" id="performanceBastardLoopMFilterCutoff" min="50" max="18000" value="18000" step="10">
                 </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMDelayDivision">
+                        <span>Delay Time</span>
+                    </label>
+                    <select id="performanceBastardLoopMDelayDivision" class="performance-select">
+                        <option value="0.5">1/2</option>
+                        <option value="1">1/4</option>
+                        <option value="2" selected>1/8</option>
+                        <option value="4">1/16</option>
+                        <option value="0.5d">1/2 Dot</option>
+                        <option value="1d">1/4 Dot</option>
+                        <option value="2d">1/8 Dot</option>
+                        <option value="4d">1/16 Dot</option>
+                        <option value="0.5t">1/2 Trip</option>
+                        <option value="1t">1/4 Trip</option>
+                        <option value="2t">1/8 Trip</option>
+                        <option value="4t">1/16 Trip</option>
+                    </select>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMDelayFilterCutoff">
+                        <span>Delay Filter</span>
+                        <span class="value" id="performanceBastardLoopMDelayFilterCutoffValue">18kHz</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMDelayFilterCutoff" min="50" max="18000" value="18000" step="10">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMDelayMix">
+                        <span>Delay Mix</span>
+                        <span class="value" id="performanceBastardLoopMDelayMixValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMDelayMix" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMChorusMix">
+                        <span>Chorus Mix</span>
+                        <span class="value" id="performanceBastardLoopMChorusMixValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMChorusMix" min="0" max="100" value="0" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMRoomReverbMix">
+                        <span>Room Reverb</span>
+                        <span class="value" id="performanceBastardLoopMRoomReverbMixValue">0%</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMRoomReverbMix" min="0" max="100" value="0" step="1">
+                </div>
                 <div class="performance-layer-switches" aria-label="Bastardloop M mode controls">
                     <button class="performance-btn" id="performanceBastardLoopMNormalizeBtn" type="button">Normalize</button>
                     <button class="performance-btn active" id="performanceBastardLoopMPreserveDurationBtn" type="button" aria-pressed="true">Preserve Duration On</button>
@@ -10638,6 +10685,11 @@
         let bastardLoopMReverse = false;
         let bastardLoopMFilterCutoff = 18000;
         let bastardLoopMFilterMode = 'lowpass-48';
+        let bastardLoopMDelayDivision = '2';
+        let bastardLoopMDelayFilterCutoff = 18000;
+        let bastardLoopMDelayMix = 0;
+        let bastardLoopMChorusMix = 0;
+        let bastardLoopMRoomReverbMix = 0;
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -10742,6 +10794,34 @@
         let bastardLoopMSource = null;
         let bastardLoopMGainNode = null;
         let bastardLoopMFilterNodes = [];
+        let bastardLoopMFxBusContext = null;
+        let bastardLoopMFxDestinationNode = null;
+        let bastardLoopMFxInputGainNode = null;
+        let bastardLoopMFxDryGainNode = null;
+        let bastardLoopMDelaySendGainNode = null;
+        let bastardLoopMDelayLeftNode = null;
+        let bastardLoopMDelayRightNode = null;
+        let bastardLoopMDelayLeftFilterNode = null;
+        let bastardLoopMDelayRightFilterNode = null;
+        let bastardLoopMDelayLeftFeedbackGainNode = null;
+        let bastardLoopMDelayRightFeedbackGainNode = null;
+        let bastardLoopMDelayLeftWetGainNode = null;
+        let bastardLoopMDelayRightWetGainNode = null;
+        let bastardLoopMDelayLeftPannerNode = null;
+        let bastardLoopMDelayRightPannerNode = null;
+        let bastardLoopMRoomReverbSendGainNode = null;
+        let bastardLoopMRoomReverbConvolverNode = null;
+        let bastardLoopMRoomReverbWetGainNode = null;
+        let bastardLoopMChorusSendGainNode = null;
+        let bastardLoopMChorusLeftDelayNode = null;
+        let bastardLoopMChorusRightDelayNode = null;
+        let bastardLoopMChorusLeftWetGainNode = null;
+        let bastardLoopMChorusRightWetGainNode = null;
+        let bastardLoopMChorusLeftPannerNode = null;
+        let bastardLoopMChorusRightPannerNode = null;
+        let bastardLoopMChorusOscillatorNode = null;
+        let bastardLoopMChorusLeftDepthNode = null;
+        let bastardLoopMChorusRightDepthNode = null;
         let bastardLoopMRecordingState = 'idle';
         let bastardLoopMRecordStatus = '';
         let bastardLoopMCountInBeatsRemaining = 0;
@@ -16340,6 +16420,12 @@
             return allowed.includes(normalized) ? normalized : '2';
         }
 
+        function normalizeBastardLoopMDelayDivision(value) {
+            const allowed = ['0.5', '1', '2', '4', '0.5d', '1d', '2d', '4d', '0.5t', '1t', '2t', '4t'];
+            const normalized = String(value ?? '').trim();
+            return allowed.includes(normalized) ? normalized : '2';
+        }
+
         function computeBastardLoopLDelayMixLevels(mixValue = 0) {
             const mix = Math.max(0, Math.min(1, Number(mixValue) || 0));
             const wetCurve = Math.sin(mix * Math.PI / 2);
@@ -16359,6 +16445,16 @@
                 sendGain: wetCurve,
                 wetGain: wetCurve * 0.92,
                 feedbackGain: wetCurve > 0.001 ? 0.34 : 0
+            };
+        }
+
+        function computeBastardLoopMDelayMixLevels(mixValue = 0) {
+            const mix = Math.max(0, Math.min(1, Number(mixValue) || 0));
+            const wetCurve = Math.sin(mix * Math.PI / 2);
+            return {
+                sendGain: wetCurve * 0.95,
+                wetGain: wetCurve * 0.78,
+                feedbackGain: wetCurve > 0.001 ? (0.18 + wetCurve * 0.18) : 0
             };
         }
 
@@ -17668,6 +17764,278 @@
             }
         }
 
+        function getBastardLoopMDelayDivision() {
+            const select = document.getElementById('performanceBastardLoopMDelayDivision');
+            bastardLoopMDelayDivision = normalizeBastardLoopMDelayDivision(select?.value ?? bastardLoopMDelayDivision);
+            return bastardLoopMDelayDivision;
+        }
+
+        function getBastardLoopMDelayMix() {
+            const slider = document.getElementById('performanceBastardLoopMDelayMix');
+            const rawValue = Number(slider?.value ?? (bastardLoopMDelayMix * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoopMDelayMix = clamped / 100;
+            return bastardLoopMDelayMix;
+        }
+
+        function getBastardLoopMDelayFilterCutoff() {
+            const slider = document.getElementById('performanceBastardLoopMDelayFilterCutoff');
+            bastardLoopMDelayFilterCutoff = clampBastardLoopFilterCutoff(slider?.value ?? bastardLoopMDelayFilterCutoff);
+            return bastardLoopMDelayFilterCutoff;
+        }
+
+        function getBastardLoopMChorusMix() {
+            const slider = document.getElementById('performanceBastardLoopMChorusMix');
+            const rawValue = Number(slider?.value ?? (bastardLoopMChorusMix * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoopMChorusMix = clamped / 100;
+            return bastardLoopMChorusMix;
+        }
+
+        function getBastardLoopMRoomReverbMix() {
+            const slider = document.getElementById('performanceBastardLoopMRoomReverbMix');
+            const rawValue = Number(slider?.value ?? (bastardLoopMRoomReverbMix * 100));
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
+            bastardLoopMRoomReverbMix = clamped / 100;
+            return bastardLoopMRoomReverbMix;
+        }
+
+        function getBastardLoopMDelayTimeSeconds() {
+            const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            return getBpmDelaySeconds(getBastardLoopMDelayDivision(), bpm);
+        }
+
+        function getBastardLoopMPlaybackDestination() {
+            return preFilterGainNode || masterGain || audioContext?.destination || null;
+        }
+
+        function rampBastardLoopMFxParam(audioParam, targetValue, rampTime = 0.04) {
+            if (!audioParam) return;
+            if (!audioContext || audioContext.state !== 'running') {
+                audioParam.value = targetValue;
+                return;
+            }
+            const now = audioContext.currentTime;
+            audioParam.cancelScheduledValues(now);
+            audioParam.setValueAtTime(audioParam.value, now);
+            audioParam.linearRampToValueAtTime(targetValue, now + rampTime);
+        }
+
+        function destroyBastardLoopMFxBus() {
+            if (bastardLoopMChorusOscillatorNode) {
+                try {
+                    bastardLoopMChorusOscillatorNode.stop();
+                } catch (error) {}
+            }
+            [
+                bastardLoopMFxInputGainNode,
+                bastardLoopMFxDryGainNode,
+                bastardLoopMDelaySendGainNode,
+                bastardLoopMDelayLeftNode,
+                bastardLoopMDelayRightNode,
+                bastardLoopMDelayLeftFilterNode,
+                bastardLoopMDelayRightFilterNode,
+                bastardLoopMDelayLeftFeedbackGainNode,
+                bastardLoopMDelayRightFeedbackGainNode,
+                bastardLoopMDelayLeftWetGainNode,
+                bastardLoopMDelayRightWetGainNode,
+                bastardLoopMDelayLeftPannerNode,
+                bastardLoopMDelayRightPannerNode,
+                bastardLoopMRoomReverbSendGainNode,
+                bastardLoopMRoomReverbConvolverNode,
+                bastardLoopMRoomReverbWetGainNode,
+                bastardLoopMChorusSendGainNode,
+                bastardLoopMChorusLeftDelayNode,
+                bastardLoopMChorusRightDelayNode,
+                bastardLoopMChorusLeftWetGainNode,
+                bastardLoopMChorusRightWetGainNode,
+                bastardLoopMChorusLeftPannerNode,
+                bastardLoopMChorusRightPannerNode,
+                bastardLoopMChorusOscillatorNode,
+                bastardLoopMChorusLeftDepthNode,
+                bastardLoopMChorusRightDepthNode
+            ].forEach((node) => {
+                safeDisconnectNode(node);
+            });
+            bastardLoopMFxBusContext = null;
+            bastardLoopMFxDestinationNode = null;
+            bastardLoopMFxInputGainNode = null;
+            bastardLoopMFxDryGainNode = null;
+            bastardLoopMDelaySendGainNode = null;
+            bastardLoopMDelayLeftNode = null;
+            bastardLoopMDelayRightNode = null;
+            bastardLoopMDelayLeftFilterNode = null;
+            bastardLoopMDelayRightFilterNode = null;
+            bastardLoopMDelayLeftFeedbackGainNode = null;
+            bastardLoopMDelayRightFeedbackGainNode = null;
+            bastardLoopMDelayLeftWetGainNode = null;
+            bastardLoopMDelayRightWetGainNode = null;
+            bastardLoopMDelayLeftPannerNode = null;
+            bastardLoopMDelayRightPannerNode = null;
+            bastardLoopMRoomReverbSendGainNode = null;
+            bastardLoopMRoomReverbConvolverNode = null;
+            bastardLoopMRoomReverbWetGainNode = null;
+            bastardLoopMChorusSendGainNode = null;
+            bastardLoopMChorusLeftDelayNode = null;
+            bastardLoopMChorusRightDelayNode = null;
+            bastardLoopMChorusLeftWetGainNode = null;
+            bastardLoopMChorusRightWetGainNode = null;
+            bastardLoopMChorusLeftPannerNode = null;
+            bastardLoopMChorusRightPannerNode = null;
+            bastardLoopMChorusOscillatorNode = null;
+            bastardLoopMChorusLeftDepthNode = null;
+            bastardLoopMChorusRightDepthNode = null;
+        }
+
+        function updateBastardLoopMFxBusSettings() {
+            if (!audioContext || !bastardLoopMFxInputGainNode) return;
+
+            const delayTime = Math.max(0.04, Math.min(2.5, getBastardLoopMDelayTimeSeconds()));
+            const delayMix = computeBastardLoopMDelayMixLevels(getBastardLoopMDelayMix());
+            const delayFilterCutoff = getBastardLoopMDelayFilterCutoff();
+            const chorusMix = Math.max(0, Math.min(1, getBastardLoopMChorusMix()));
+            const chorusWetCurve = Math.sin(chorusMix * Math.PI / 2);
+            const roomReverbMix = Math.max(0, Math.min(1, getBastardLoopMRoomReverbMix()));
+            const roomReverbWetCurve = Math.sin(roomReverbMix * Math.PI / 2);
+
+            rampBastardLoopMFxParam(bastardLoopMFxDryGainNode?.gain, 1, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMDelayLeftNode?.delayTime, delayTime, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMDelayRightNode?.delayTime, delayTime, 0.03);
+            smoothBastardLoopFilterCutoff(
+                [bastardLoopMDelayLeftFilterNode, bastardLoopMDelayRightFilterNode].filter(Boolean),
+                delayFilterCutoff,
+                0.03
+            );
+            rampBastardLoopMFxParam(bastardLoopMDelaySendGainNode?.gain, delayMix.sendGain, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMDelayLeftWetGainNode?.gain, delayMix.wetGain, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMDelayRightWetGainNode?.gain, delayMix.wetGain, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMDelayLeftFeedbackGainNode?.gain, delayMix.feedbackGain, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMDelayRightFeedbackGainNode?.gain, delayMix.feedbackGain, 0.03);
+
+            rampBastardLoopMFxParam(bastardLoopMRoomReverbSendGainNode?.gain, roomReverbWetCurve * 0.92, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMRoomReverbWetGainNode?.gain, roomReverbWetCurve * 0.56, 0.03);
+
+            rampBastardLoopMFxParam(bastardLoopMChorusSendGainNode?.gain, chorusWetCurve * 0.88, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMChorusLeftWetGainNode?.gain, chorusWetCurve * 0.42, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMChorusRightWetGainNode?.gain, chorusWetCurve * 0.42, 0.03);
+        }
+
+        function ensureBastardLoopMFxBus(destination = getBastardLoopMPlaybackDestination()) {
+            if (!audioContext || !destination) return null;
+            const needsNewBus = !bastardLoopMFxInputGainNode
+                || bastardLoopMFxBusContext !== audioContext
+                || bastardLoopMFxDestinationNode !== destination;
+            if (needsNewBus) {
+                destroyBastardLoopMFxBus();
+                bastardLoopMFxInputGainNode = audioContext.createGain();
+                bastardLoopMFxDryGainNode = audioContext.createGain();
+                bastardLoopMDelaySendGainNode = audioContext.createGain();
+                bastardLoopMDelayLeftNode = audioContext.createDelay(3.2);
+                bastardLoopMDelayRightNode = audioContext.createDelay(3.2);
+                bastardLoopMDelayLeftFilterNode = audioContext.createBiquadFilter();
+                bastardLoopMDelayRightFilterNode = audioContext.createBiquadFilter();
+                bastardLoopMDelayLeftFeedbackGainNode = audioContext.createGain();
+                bastardLoopMDelayRightFeedbackGainNode = audioContext.createGain();
+                bastardLoopMDelayLeftWetGainNode = audioContext.createGain();
+                bastardLoopMDelayRightWetGainNode = audioContext.createGain();
+                bastardLoopMDelayLeftPannerNode = typeof audioContext.createStereoPanner === 'function'
+                    ? audioContext.createStereoPanner()
+                    : audioContext.createGain();
+                bastardLoopMDelayRightPannerNode = typeof audioContext.createStereoPanner === 'function'
+                    ? audioContext.createStereoPanner()
+                    : audioContext.createGain();
+                bastardLoopMRoomReverbSendGainNode = audioContext.createGain();
+                bastardLoopMRoomReverbConvolverNode = audioContext.createConvolver();
+                bastardLoopMRoomReverbWetGainNode = audioContext.createGain();
+                bastardLoopMChorusSendGainNode = audioContext.createGain();
+                bastardLoopMChorusLeftDelayNode = audioContext.createDelay(0.08);
+                bastardLoopMChorusRightDelayNode = audioContext.createDelay(0.08);
+                bastardLoopMChorusLeftWetGainNode = audioContext.createGain();
+                bastardLoopMChorusRightWetGainNode = audioContext.createGain();
+                bastardLoopMChorusLeftPannerNode = typeof audioContext.createStereoPanner === 'function'
+                    ? audioContext.createStereoPanner()
+                    : audioContext.createGain();
+                bastardLoopMChorusRightPannerNode = typeof audioContext.createStereoPanner === 'function'
+                    ? audioContext.createStereoPanner()
+                    : audioContext.createGain();
+                bastardLoopMChorusOscillatorNode = audioContext.createOscillator();
+                bastardLoopMChorusLeftDepthNode = audioContext.createGain();
+                bastardLoopMChorusRightDepthNode = audioContext.createGain();
+
+                bastardLoopMFxInputGainNode.connect(bastardLoopMFxDryGainNode);
+                bastardLoopMFxDryGainNode.connect(destination);
+
+                bastardLoopMFxInputGainNode.connect(bastardLoopMDelaySendGainNode);
+                bastardLoopMDelaySendGainNode.connect(bastardLoopMDelayLeftNode);
+                bastardLoopMDelaySendGainNode.connect(bastardLoopMDelayRightNode);
+                bastardLoopMDelayLeftNode.connect(bastardLoopMDelayLeftFilterNode);
+                bastardLoopMDelayRightNode.connect(bastardLoopMDelayRightFilterNode);
+                bastardLoopMDelayLeftFilterNode.connect(bastardLoopMDelayLeftWetGainNode);
+                bastardLoopMDelayRightFilterNode.connect(bastardLoopMDelayRightWetGainNode);
+                bastardLoopMDelayLeftWetGainNode.connect(bastardLoopMDelayLeftPannerNode);
+                bastardLoopMDelayRightWetGainNode.connect(bastardLoopMDelayRightPannerNode);
+                bastardLoopMDelayLeftPannerNode.connect(destination);
+                bastardLoopMDelayRightPannerNode.connect(destination);
+                bastardLoopMDelayLeftFilterNode.connect(bastardLoopMDelayLeftFeedbackGainNode);
+                bastardLoopMDelayLeftFeedbackGainNode.connect(bastardLoopMDelayLeftNode);
+                bastardLoopMDelayRightFilterNode.connect(bastardLoopMDelayRightFeedbackGainNode);
+                bastardLoopMDelayRightFeedbackGainNode.connect(bastardLoopMDelayRightNode);
+                bastardLoopMDelayLeftFilterNode.type = 'lowpass';
+                bastardLoopMDelayRightFilterNode.type = 'lowpass';
+                bastardLoopMDelayLeftFilterNode.Q.value = 0.707;
+                bastardLoopMDelayRightFilterNode.Q.value = 0.707;
+                if ('pan' in bastardLoopMDelayLeftPannerNode) {
+                    bastardLoopMDelayLeftPannerNode.pan.value = -0.68;
+                }
+                if ('pan' in bastardLoopMDelayRightPannerNode) {
+                    bastardLoopMDelayRightPannerNode.pan.value = 0.68;
+                }
+
+                bastardLoopMFxInputGainNode.connect(bastardLoopMRoomReverbSendGainNode);
+                bastardLoopMRoomReverbSendGainNode.connect(bastardLoopMRoomReverbConvolverNode);
+                bastardLoopMRoomReverbConvolverNode.connect(bastardLoopMRoomReverbWetGainNode);
+                bastardLoopMRoomReverbWetGainNode.connect(destination);
+                bastardLoopMRoomReverbConvolverNode.buffer = createFinalRoomReverbImpulseForContext(
+                    audioContext,
+                    0.38,
+                    0.46,
+                    'largeRoom'
+                );
+
+                bastardLoopMFxInputGainNode.connect(bastardLoopMChorusSendGainNode);
+                bastardLoopMChorusSendGainNode.connect(bastardLoopMChorusLeftDelayNode);
+                bastardLoopMChorusSendGainNode.connect(bastardLoopMChorusRightDelayNode);
+                bastardLoopMChorusLeftDelayNode.connect(bastardLoopMChorusLeftWetGainNode);
+                bastardLoopMChorusRightDelayNode.connect(bastardLoopMChorusRightWetGainNode);
+                bastardLoopMChorusLeftWetGainNode.connect(bastardLoopMChorusLeftPannerNode);
+                bastardLoopMChorusRightWetGainNode.connect(bastardLoopMChorusRightPannerNode);
+                bastardLoopMChorusLeftPannerNode.connect(destination);
+                bastardLoopMChorusRightPannerNode.connect(destination);
+                if ('pan' in bastardLoopMChorusLeftPannerNode) {
+                    bastardLoopMChorusLeftPannerNode.pan.value = -0.45;
+                }
+                if ('pan' in bastardLoopMChorusRightPannerNode) {
+                    bastardLoopMChorusRightPannerNode.pan.value = 0.45;
+                }
+                bastardLoopMChorusLeftDelayNode.delayTime.value = 0.017;
+                bastardLoopMChorusRightDelayNode.delayTime.value = 0.024;
+                bastardLoopMChorusOscillatorNode.type = 'sine';
+                bastardLoopMChorusOscillatorNode.frequency.value = 0.31;
+                bastardLoopMChorusLeftDepthNode.gain.value = 0.0042;
+                bastardLoopMChorusRightDepthNode.gain.value = -0.0054;
+                bastardLoopMChorusOscillatorNode.connect(bastardLoopMChorusLeftDepthNode);
+                bastardLoopMChorusOscillatorNode.connect(bastardLoopMChorusRightDepthNode);
+                bastardLoopMChorusLeftDepthNode.connect(bastardLoopMChorusLeftDelayNode.delayTime);
+                bastardLoopMChorusRightDepthNode.connect(bastardLoopMChorusRightDelayNode.delayTime);
+                bastardLoopMChorusOscillatorNode.start();
+
+                bastardLoopMFxBusContext = audioContext;
+                bastardLoopMFxDestinationNode = destination;
+            }
+            updateBastardLoopMFxBusSettings();
+            return bastardLoopMFxInputGainNode;
+        }
+
         function getBastardLoopMOutputGain(level = getBastardLoopMLevelValue()) {
             return Math.max(0, Math.min(1, Number(level) || 0)) * MIX_HEADROOM * 0.88;
         }
@@ -17902,6 +18270,11 @@
             const inputGainValue = Math.round(getBastardLoopMInputGainPercent());
             const filterCutoffValue = getBastardLoopMFilterCutoff();
             const filterModeValue = getBastardLoopMFilterMode();
+            const delayDivisionValue = getBastardLoopMDelayDivision();
+            const delayFilterCutoffValue = getBastardLoopMDelayFilterCutoff();
+            const delayMixValue = Math.round(getBastardLoopMDelayMix() * 100);
+            const chorusMixValue = Math.round(getBastardLoopMChorusMix() * 100);
+            const roomReverbMixValue = Math.round(getBastardLoopMRoomReverbMix() * 100);
             const recordLoopCount = getBastardLoopMRecordingLoopCount();
             const meta = document.getElementById('performanceBastardLoopMMeta');
             const recordButton = document.getElementById('performanceBastardLoopMRecordBtn');
@@ -17916,9 +18289,18 @@
             const levelMixer = document.getElementById('performanceBastardLoopMLevelMixer');
             const filterSlider = document.getElementById('performanceBastardLoopMFilterCutoff');
             const filterModeSelect = document.getElementById('performanceBastardLoopMFilterMode');
+            const delayDivisionSelect = document.getElementById('performanceBastardLoopMDelayDivision');
+            const delayFilterSlider = document.getElementById('performanceBastardLoopMDelayFilterCutoff');
+            const delayMixSlider = document.getElementById('performanceBastardLoopMDelayMix');
+            const chorusMixSlider = document.getElementById('performanceBastardLoopMChorusMix');
+            const roomReverbMixSlider = document.getElementById('performanceBastardLoopMRoomReverbMix');
             const levelLabel = document.getElementById('performanceBastardLoopMLevelValue');
             const mixerLabel = document.getElementById('performanceBastardLoopMLevelMixerValue');
             const filterLabel = document.getElementById('performanceBastardLoopMFilterCutoffValue');
+            const delayFilterLabel = document.getElementById('performanceBastardLoopMDelayFilterCutoffValue');
+            const delayMixLabel = document.getElementById('performanceBastardLoopMDelayMixValue');
+            const chorusMixLabel = document.getElementById('performanceBastardLoopMChorusMixValue');
+            const roomReverbMixLabel = document.getElementById('performanceBastardLoopMRoomReverbMixValue');
             const normalizeButton = document.getElementById('performanceBastardLoopMNormalizeBtn');
             const preserveButton = document.getElementById('performanceBastardLoopMPreserveDurationBtn');
             const reverseButton = document.getElementById('performanceBastardLoopMReverseBtn');
@@ -17944,9 +18326,18 @@
             if (levelMixer) levelMixer.value = String(levelValue);
             if (filterSlider) filterSlider.value = String(filterCutoffValue);
             if (filterModeSelect) filterModeSelect.value = filterModeValue;
+            if (delayDivisionSelect) delayDivisionSelect.value = delayDivisionValue;
+            if (delayFilterSlider) delayFilterSlider.value = String(delayFilterCutoffValue);
+            if (delayMixSlider) delayMixSlider.value = String(delayMixValue);
+            if (chorusMixSlider) chorusMixSlider.value = String(chorusMixValue);
+            if (roomReverbMixSlider) roomReverbMixSlider.value = String(roomReverbMixValue);
             if (levelLabel) levelLabel.textContent = `${levelValue}%`;
             if (mixerLabel) mixerLabel.textContent = `${levelValue}%`;
             if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoffValue);
+            if (delayFilterLabel) delayFilterLabel.textContent = formatFrequencyHz(delayFilterCutoffValue);
+            if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
+            if (chorusMixLabel) chorusMixLabel.textContent = `${chorusMixValue}%`;
+            if (roomReverbMixLabel) roomReverbMixLabel.textContent = `${roomReverbMixValue}%`;
             updateBastardLoopMPitchControls();
 
             if (preserveButton) {
@@ -18005,6 +18396,7 @@
         }
 
         function syncBastardLoopMTempo() {
+            updateBastardLoopMFxBusSettings();
             if (!bastardLoopMSource || !audioContext) return;
             const now = audioContext.currentTime;
             const nextRate = getBastardLoopMPlaybackRate();
@@ -18059,7 +18451,7 @@
         }
 
         function startBastardLoopM(startTime = null, options = {}) {
-            if (!audioContext || !preFilterGainNode || !bastardLoopMBuffer) return false;
+            if (!audioContext || !bastardLoopMBuffer) return false;
 
             const level = getBastardLoopMLevelValue();
             if (level <= 0) {
@@ -18071,6 +18463,15 @@
             }
 
             stopBastardLoopM({ skipUi: true });
+
+            const effectDestination = getBastardLoopMPlaybackDestination();
+            const effectInput = ensureBastardLoopMFxBus(effectDestination);
+            if (!effectInput) {
+                if (!options.skipUi) {
+                    syncBastardLoopMUi();
+                }
+                return false;
+            }
 
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
@@ -18103,7 +18504,7 @@
             gain.gain.setValueAtTime(0, safeStartTime);
             gain.gain.linearRampToValueAtTime(getBastardLoopMOutputGain(level), safeStartTime + fadeSeconds);
             source.connect(gain);
-            connectBastardLoopFilterChain(gain, filters, preFilterGainNode);
+            connectBastardLoopFilterChain(gain, filters, effectInput);
             source.start(safeStartTime, offset);
             source.onended = () => {
                 if (source !== bastardLoopMSource) return;
@@ -18130,6 +18531,9 @@
 
         function updateBastardLoopMMix() {
             const level = getBastardLoopMLevelValue();
+            if (bastardLoopMSource && audioContext) {
+                ensureBastardLoopMFxBus(getBastardLoopMPlaybackDestination());
+            }
             if (bastardLoopMGainNode && audioContext) {
                 const now = audioContext.currentTime;
                 bastardLoopMGainNode.gain.cancelScheduledValues(now);
@@ -18139,6 +18543,7 @@
             if (bastardLoopMFilterNodes.length) {
                 smoothBastardLoopFilterCutoff(bastardLoopMFilterNodes, getBastardLoopMFilterCutoff());
             }
+            updateBastardLoopMFxBusSettings();
 
             if (bastardLoopPlaying && bastardLoopMBuffer) {
                 if (level > 0 && !bastardLoopMSource) {
@@ -35927,6 +36332,11 @@
                     bastardLoopMReverse: bastardLoopMReverse,
                     bastardLoopMFilterCutoff: getBastardLoopMFilterCutoff(),
                     bastardLoopMFilterMode: getBastardLoopMFilterMode(),
+                    bastardLoopMDelayDivision: getBastardLoopMDelayDivision(),
+                    bastardLoopMDelayFilterCutoff: getBastardLoopMDelayFilterCutoff(),
+                    bastardLoopMDelayMix: getBastardLoopMDelayMix(),
+                    bastardLoopMChorusMix: getBastardLoopMChorusMix(),
+                    bastardLoopMRoomReverbMix: getBastardLoopMRoomReverbMix(),
                     bastardLoopMSummary: bastardLoopMMetadata?.summary || '',
                     bastardLoopMDurationSeconds: Number(bastardLoopMMetadata?.durationSeconds) || 0,
                     dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
@@ -36481,6 +36891,21 @@
                     }
                     if (state.modes.bastardLoopMFilterMode !== undefined) {
                         bastardLoopMFilterMode = normalizeBastardLoopFilterMode(state.modes.bastardLoopMFilterMode);
+                    }
+                    if (state.modes.bastardLoopMDelayDivision !== undefined) {
+                        bastardLoopMDelayDivision = normalizeBastardLoopMDelayDivision(state.modes.bastardLoopMDelayDivision);
+                    }
+                    if (state.modes.bastardLoopMDelayFilterCutoff !== undefined) {
+                        bastardLoopMDelayFilterCutoff = clampBastardLoopFilterCutoff(state.modes.bastardLoopMDelayFilterCutoff);
+                    }
+                    if (state.modes.bastardLoopMDelayMix !== undefined) {
+                        bastardLoopMDelayMix = Math.max(0, Math.min(1, Number(state.modes.bastardLoopMDelayMix) || 0));
+                    }
+                    if (state.modes.bastardLoopMChorusMix !== undefined) {
+                        bastardLoopMChorusMix = Math.max(0, Math.min(1, Number(state.modes.bastardLoopMChorusMix) || 0));
+                    }
+                    if (state.modes.bastardLoopMRoomReverbMix !== undefined) {
+                        bastardLoopMRoomReverbMix = Math.max(0, Math.min(1, Number(state.modes.bastardLoopMRoomReverbMix) || 0));
                     }
                     if (state.modes.bastardLoopMSummary || Number(state.modes.bastardLoopMDurationSeconds) > 0) {
                         bastardLoopMMetadata = {
@@ -43203,6 +43628,11 @@
         const performanceBastardLoopMFineTune = document.getElementById('performanceBastardLoopMFineTune');
         const performanceBastardLoopMFilterMode = document.getElementById('performanceBastardLoopMFilterMode');
         const performanceBastardLoopMFilterCutoff = document.getElementById('performanceBastardLoopMFilterCutoff');
+        const performanceBastardLoopMDelayDivision = document.getElementById('performanceBastardLoopMDelayDivision');
+        const performanceBastardLoopMDelayFilterCutoff = document.getElementById('performanceBastardLoopMDelayFilterCutoff');
+        const performanceBastardLoopMDelayMix = document.getElementById('performanceBastardLoopMDelayMix');
+        const performanceBastardLoopMChorusMix = document.getElementById('performanceBastardLoopMChorusMix');
+        const performanceBastardLoopMRoomReverbMix = document.getElementById('performanceBastardLoopMRoomReverbMix');
         const performanceBastardLoopMNormalizeBtn = document.getElementById('performanceBastardLoopMNormalizeBtn');
         const performanceBastardLoopMPreserveDurationBtn = document.getElementById('performanceBastardLoopMPreserveDurationBtn');
         const performanceBastardLoopMReverseBtn = document.getElementById('performanceBastardLoopMReverseBtn');
@@ -45204,6 +45634,44 @@
         performanceBastardLoopMFilterCutoff?.addEventListener('input', (event) => {
             bastardLoopMFilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
             updateBastardLoopMMix();
+            saveState();
+        });
+
+        performanceBastardLoopMDelayDivision?.addEventListener('change', (event) => {
+            bastardLoopMDelayDivision = normalizeBastardLoopMDelayDivision(event.target.value);
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMDelayFilterCutoff?.addEventListener('input', (event) => {
+            bastardLoopMDelayFilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMDelayMix?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopMDelayMix = value / 100;
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMChorusMix?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopMChorusMix = value / 100;
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMRoomReverbMix?.addEventListener('input', (event) => {
+            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
+            bastardLoopMRoomReverbMix = value / 100;
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
             saveState();
         });
 
