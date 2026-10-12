@@ -9117,7 +9117,7 @@
                             <button class="performance-btn" id="bastardLoopLRateDownBtn" type="button">Rate -</button>
                             <button class="performance-btn" id="bastardLoopLRateUpBtn" type="button">Rate +</button>
                             <button class="performance-btn" id="bastardLoopLCopyBtn" type="button">Copy</button>
-                            <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
+                            <button class="performance-btn" id="bastardLoopLCopySectionBtn" type="button">Copy Sec</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopLStatus">Choose a lead sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopLCopyPopup" hidden aria-live="polite"></div>
@@ -9153,9 +9153,10 @@
                         <div class="lead-sequencer-toolbar-row transport-row">
                             <button class="performance-btn" id="bastardLoopLTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row compact-two">
+                        <div class="lead-sequencer-toolbar-row">
                             <button class="performance-btn" id="bastardLoopLRecordBtn" type="button" aria-pressed="true">Record On</button>
                             <button class="performance-btn" id="bastardLoopLClearStepBtn" type="button">Clear Step</button>
+                            <button class="performance-btn" id="bastardLoopLClearAllBtn" type="button">Clear All</button>
                         </div>
                     </div>
                 </div>
@@ -9187,7 +9188,7 @@
                             <button class="performance-btn" id="bastardLoopXRateDownBtn" type="button">Rate -</button>
                             <button class="performance-btn" id="bastardLoopXRateUpBtn" type="button">Rate +</button>
                             <button class="performance-btn" id="bastardLoopXCopyBtn" type="button">Copy</button>
-                            <button class="performance-btn" id="bastardLoopXClearAllBtn" type="button">Clear All</button>
+                            <button class="performance-btn" id="bastardLoopXCopySectionBtn" type="button">Copy Sec</button>
                         </div>
                         <div class="lead-sequencer-status" id="bastardLoopXStatus">Choose a bass sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopXCopyPopup" hidden aria-live="polite"></div>
@@ -9223,9 +9224,10 @@
                         <div class="lead-sequencer-toolbar-row transport-row">
                             <button class="performance-btn" id="bastardLoopXTransportBtn" type="button" aria-pressed="false">Start Bastardloops</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row compact-two">
+                        <div class="lead-sequencer-toolbar-row">
                             <button class="performance-btn" id="bastardLoopXRecordBtn" type="button" aria-pressed="true">Record On</button>
                             <button class="performance-btn" id="bastardLoopXClearStepBtn" type="button">Clear Step</button>
+                            <button class="performance-btn" id="bastardLoopXClearAllBtn" type="button">Clear All</button>
                         </div>
                     </div>
                 </div>
@@ -10719,6 +10721,7 @@
         let bastardLoopLLastStepTapIndex = -1;
         let bastardLoopLLastStepTapAt = 0;
         let bastardLoopLCopyMode = 'idle';
+        let bastardLoopLCopyVariant = 'range';
         let bastardLoopLCopyStartIndex = -1;
         let bastardLoopLCopyEndIndex = -1;
         let bastardLoopLCopyBuffer = [];
@@ -10751,6 +10754,7 @@
         let bastardLoopXLastStepTapIndex = -1;
         let bastardLoopXLastStepTapAt = 0;
         let bastardLoopXCopyMode = 'idle';
+        let bastardLoopXCopyVariant = 'range';
         let bastardLoopXCopyStartIndex = -1;
         let bastardLoopXCopyEndIndex = -1;
         let bastardLoopXCopyBuffer = [];
@@ -24725,8 +24729,13 @@
             bastardLoopLLastStepTapAt = 0;
         }
 
+        function normalizeBastardLoopCopyVariant(variant) {
+            return variant === 'section' ? 'section' : 'range';
+        }
+
         function resetBastardLoopLCopyState(options = {}) {
             bastardLoopLCopyMode = 'idle';
+            bastardLoopLCopyVariant = 'range';
             bastardLoopLCopyStartIndex = -1;
             bastardLoopLCopyEndIndex = -1;
             if (!options.preserveBuffer) {
@@ -24735,25 +24744,34 @@
         }
 
         function getBastardLoopLCopyPrompt() {
-            if (bastardLoopLCopyMode === 'selectStart') return 'Loop L copy: press start step.';
-            if (bastardLoopLCopyMode === 'selectEnd') return `Loop L copy: start step ${bastardLoopLCopyStartIndex + 1}. Press end step.`;
+            const prefix = bastardLoopLCopyVariant === 'section' ? 'Loop L copy section' : 'Loop L copy';
+            if (bastardLoopLCopyMode === 'selectStart') {
+                return bastardLoopLCopyVariant === 'section'
+                    ? `${prefix}: press section start step.`
+                    : `${prefix}: press start step.`;
+            }
+            if (bastardLoopLCopyMode === 'selectEnd') return `${prefix}: start step ${bastardLoopLCopyStartIndex + 1}. Press end step.`;
             if (bastardLoopLCopyMode === 'selectPaste') {
                 const startStep = bastardLoopLCopyStartIndex + 1;
                 const endStep = bastardLoopLCopyEndIndex + 1;
-                return `Loop L copy: ${startStep}-${endStep} ready. Press paste step.`;
+                return bastardLoopLCopyVariant === 'section'
+                    ? `${prefix}: ${startStep}-${endStep} ready. Press insert step.`
+                    : `${prefix}: ${startStep}-${endStep} ready. Press paste step.`;
             }
             return '';
         }
 
-        function beginBastardLoopLCopyFlow() {
-            if (bastardLoopLCopyMode !== 'idle') {
+        function beginBastardLoopLCopyFlow(variant = 'range') {
+            const nextVariant = normalizeBastardLoopCopyVariant(variant);
+            if (bastardLoopLCopyMode !== 'idle' && bastardLoopLCopyVariant === nextVariant) {
                 resetBastardLoopLCopyState();
                 syncBastardLoopLEditorUi();
-                updateBastardLoopLStatus('Loop L copy cancelled.');
+                updateBastardLoopLStatus(nextVariant === 'section' ? 'Loop L copy section cancelled.' : 'Loop L copy cancelled.');
                 return;
             }
             resetBastardLoopLCopyState();
             resetBastardLoopLStepTapMemory();
+            bastardLoopLCopyVariant = nextVariant;
             bastardLoopLCopyMode = 'selectStart';
             syncBastardLoopLEditorUi();
             updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
@@ -24775,19 +24793,36 @@
                 applied += 1;
             });
             setBastardLoopLEditStepIndex(safeIndex);
+            const copiedVariant = bastardLoopLCopyVariant;
             const sourceStartStep = bastardLoopLCopyStartIndex + 1;
             const sourceEndStep = bastardLoopLCopyEndIndex + 1;
             resetBastardLoopLCopyState({ preserveBuffer: true });
             syncBastardLoopLEditorUi();
             restartBastardLoopLPlaybackIfNeeded();
             saveState();
-            updateBastardLoopLStatus(`Loop L copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`);
+            updateBastardLoopLStatus(
+                copiedVariant === 'section'
+                    ? `Loop L copied section ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
+                    : `Loop L copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
+            );
         }
 
         function handleBastardLoopLCopyStepSelection(index) {
             const safeIndex = Math.max(0, Math.min(getBastardLoopLPatternLength() - 1, Number(index) || 0));
             if (bastardLoopLCopyMode === 'selectStart') {
                 bastardLoopLCopyStartIndex = safeIndex;
+                if (bastardLoopLCopyVariant === 'section') {
+                    const endIndex = getBastardLoopLPatternLength() - 1;
+                    bastardLoopLCopyEndIndex = endIndex;
+                    bastardLoopLCopyBuffer = bastardLoopLSequence
+                        .slice(safeIndex, endIndex + 1)
+                        .map((step) => normalizeBastardLoopLStep({ ...step }));
+                    bastardLoopLCopyMode = 'selectPaste';
+                    setBastardLoopLEditStepIndex(safeIndex);
+                    syncBastardLoopLEditorUi();
+                    updateBastardLoopLStatus(getBastardLoopLCopyPrompt());
+                    return true;
+                }
                 bastardLoopLCopyMode = 'selectEnd';
                 setBastardLoopLEditStepIndex(safeIndex);
                 syncBastardLoopLEditorUi();
@@ -25602,6 +25637,7 @@
             const cardStartButton = document.getElementById('performanceBastardLoopLStartBtn');
             const recordButton = document.getElementById('bastardLoopLRecordBtn');
             const copyButton = document.getElementById('bastardLoopLCopyBtn');
+            const copySectionButton = document.getElementById('bastardLoopLCopySectionBtn');
             const filterSlider = document.getElementById('performanceBastardLoopLFilterCutoff');
             const filterModeSelect = document.getElementById('performanceBastardLoopLFilterMode');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopLFilterEnvelope');
@@ -25661,10 +25697,16 @@
                 recordButton.setAttribute('aria-pressed', String(bastardLoopLRecordArmed));
             }
             if (copyButton) {
-                const copyActive = bastardLoopLCopyMode !== 'idle';
+                const copyActive = bastardLoopLCopyMode !== 'idle' && bastardLoopLCopyVariant === 'range';
                 copyButton.classList.toggle('active', copyActive);
                 copyButton.textContent = 'Copy';
                 copyButton.setAttribute('aria-pressed', String(copyActive));
+            }
+            if (copySectionButton) {
+                const copySectionActive = bastardLoopLCopyMode !== 'idle' && bastardLoopLCopyVariant === 'section';
+                copySectionButton.classList.toggle('active', copySectionActive);
+                copySectionButton.textContent = 'Copy Sec';
+                copySectionButton.setAttribute('aria-pressed', String(copySectionActive));
             }
             if (delayPingPongButton) {
                 delayPingPongButton.classList.toggle('active', bastardLoopLDelayPingPongEnabled);
@@ -26318,6 +26360,7 @@
 
         function resetBastardLoopXCopyState(options = {}) {
             bastardLoopXCopyMode = 'idle';
+            bastardLoopXCopyVariant = 'range';
             bastardLoopXCopyStartIndex = -1;
             bastardLoopXCopyEndIndex = -1;
             if (!options.preserveBuffer) {
@@ -26326,25 +26369,34 @@
         }
 
         function getBastardLoopXCopyPrompt() {
-            if (bastardLoopXCopyMode === 'selectStart') return 'Loop X copy: press start step.';
-            if (bastardLoopXCopyMode === 'selectEnd') return `Loop X copy: start step ${bastardLoopXCopyStartIndex + 1}. Press end step.`;
+            const prefix = bastardLoopXCopyVariant === 'section' ? 'Loop X copy section' : 'Loop X copy';
+            if (bastardLoopXCopyMode === 'selectStart') {
+                return bastardLoopXCopyVariant === 'section'
+                    ? `${prefix}: press section start step.`
+                    : `${prefix}: press start step.`;
+            }
+            if (bastardLoopXCopyMode === 'selectEnd') return `${prefix}: start step ${bastardLoopXCopyStartIndex + 1}. Press end step.`;
             if (bastardLoopXCopyMode === 'selectPaste') {
                 const startStep = bastardLoopXCopyStartIndex + 1;
                 const endStep = bastardLoopXCopyEndIndex + 1;
-                return `Loop X copy: ${startStep}-${endStep} ready. Press paste step.`;
+                return bastardLoopXCopyVariant === 'section'
+                    ? `${prefix}: ${startStep}-${endStep} ready. Press insert step.`
+                    : `${prefix}: ${startStep}-${endStep} ready. Press paste step.`;
             }
             return '';
         }
 
-        function beginBastardLoopXCopyFlow() {
-            if (bastardLoopXCopyMode !== 'idle') {
+        function beginBastardLoopXCopyFlow(variant = 'range') {
+            const nextVariant = normalizeBastardLoopCopyVariant(variant);
+            if (bastardLoopXCopyMode !== 'idle' && bastardLoopXCopyVariant === nextVariant) {
                 resetBastardLoopXCopyState();
                 syncBastardLoopXEditorUi();
-                updateBastardLoopXStatus('Loop X copy cancelled.');
+                updateBastardLoopXStatus(nextVariant === 'section' ? 'Loop X copy section cancelled.' : 'Loop X copy cancelled.');
                 return;
             }
             resetBastardLoopXCopyState();
             resetBastardLoopXStepTapMemory();
+            bastardLoopXCopyVariant = nextVariant;
             bastardLoopXCopyMode = 'selectStart';
             syncBastardLoopXEditorUi();
             updateBastardLoopXStatus(getBastardLoopXCopyPrompt());
@@ -26366,19 +26418,36 @@
                 applied += 1;
             });
             setBastardLoopXEditStepIndex(safeIndex);
+            const copiedVariant = bastardLoopXCopyVariant;
             const sourceStartStep = bastardLoopXCopyStartIndex + 1;
             const sourceEndStep = bastardLoopXCopyEndIndex + 1;
             resetBastardLoopXCopyState({ preserveBuffer: true });
             syncBastardLoopXEditorUi();
             restartBastardLoopXPlaybackIfNeeded();
             saveState();
-            updateBastardLoopXStatus(`Loop X copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`);
+            updateBastardLoopXStatus(
+                copiedVariant === 'section'
+                    ? `Loop X copied section ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
+                    : `Loop X copied steps ${sourceStartStep}-${sourceEndStep} to step ${safeIndex + 1}${applied > 1 ? ` (${applied} steps)` : ''}.`
+            );
         }
 
         function handleBastardLoopXCopyStepSelection(index) {
             const safeIndex = Math.max(0, Math.min(getBastardLoopXPatternLength() - 1, Number(index) || 0));
             if (bastardLoopXCopyMode === 'selectStart') {
                 bastardLoopXCopyStartIndex = safeIndex;
+                if (bastardLoopXCopyVariant === 'section') {
+                    const endIndex = getBastardLoopXPatternLength() - 1;
+                    bastardLoopXCopyEndIndex = endIndex;
+                    bastardLoopXCopyBuffer = bastardLoopXSequence
+                        .slice(safeIndex, endIndex + 1)
+                        .map((step) => normalizeBastardLoopXStep({ ...step }));
+                    bastardLoopXCopyMode = 'selectPaste';
+                    setBastardLoopXEditStepIndex(safeIndex);
+                    syncBastardLoopXEditorUi();
+                    updateBastardLoopXStatus(getBastardLoopXCopyPrompt());
+                    return true;
+                }
                 bastardLoopXCopyMode = 'selectEnd';
                 setBastardLoopXEditStepIndex(safeIndex);
                 syncBastardLoopXEditorUi();
@@ -27367,6 +27436,7 @@
             const cardStartButton = document.getElementById('performanceBastardLoopXStartBtn');
             const recordButton = document.getElementById('bastardLoopXRecordBtn');
             const copyButton = document.getElementById('bastardLoopXCopyBtn');
+            const copySectionButton = document.getElementById('bastardLoopXCopySectionBtn');
             const filterSlider = document.getElementById('performanceBastardLoopXFilterCutoff');
             const filterModeSelect = document.getElementById('performanceBastardLoopXFilterMode');
             const filterEnvelopeSlider = document.getElementById('performanceBastardLoopXFilterEnvelope');
@@ -27440,10 +27510,16 @@
                 filterLfoInvertButton.setAttribute('aria-pressed', String(filterLfoInvertValue));
             }
             if (copyButton) {
-                const copyActive = bastardLoopXCopyMode !== 'idle';
+                const copyActive = bastardLoopXCopyMode !== 'idle' && bastardLoopXCopyVariant === 'range';
                 copyButton.classList.toggle('active', copyActive);
                 copyButton.textContent = 'Copy';
                 copyButton.setAttribute('aria-pressed', String(copyActive));
+            }
+            if (copySectionButton) {
+                const copySectionActive = bastardLoopXCopyMode !== 'idle' && bastardLoopXCopyVariant === 'section';
+                copySectionButton.classList.toggle('active', copySectionActive);
+                copySectionButton.textContent = 'Copy Sec';
+                copySectionButton.setAttribute('aria-pressed', String(copySectionActive));
             }
             if (delayPingPongButton) {
                 delayPingPongButton.classList.toggle('active', bastardLoopXDelayPingPongEnabled);
@@ -44447,6 +44523,7 @@
         const bastardLoopLRatchetButtons = Array.from(document.querySelectorAll('#bastardLoopLRatchetButtons .lead-sequencer-ratchet-btn'));
         const bastardLoopLClearStepBtn = document.getElementById('bastardLoopLClearStepBtn');
         const bastardLoopLCopyBtn = document.getElementById('bastardLoopLCopyBtn');
+        const bastardLoopLCopySectionBtn = document.getElementById('bastardLoopLCopySectionBtn');
         const bastardLoopLClearAllBtn = document.getElementById('bastardLoopLClearAllBtn');
         const bastardLoopLExportMidiBtn = document.getElementById('bastardLoopLExportMidiBtn');
         const performanceBastardLoopLDelayPingPongBtn = document.getElementById('performanceBastardLoopLDelayPingPongBtn');
@@ -44469,6 +44546,7 @@
         const bastardLoopXRatchetButtons = Array.from(document.querySelectorAll('#bastardLoopXRatchetButtons .lead-sequencer-ratchet-btn'));
         const bastardLoopXClearStepBtn = document.getElementById('bastardLoopXClearStepBtn');
         const bastardLoopXCopyBtn = document.getElementById('bastardLoopXCopyBtn');
+        const bastardLoopXCopySectionBtn = document.getElementById('bastardLoopXCopySectionBtn');
         const bastardLoopXClearAllBtn = document.getElementById('bastardLoopXClearAllBtn');
         const bastardLoopXExportMidiBtn = document.getElementById('bastardLoopXExportMidiBtn');
         const drumMachineOverlay = document.getElementById('drumMachineOverlay');
@@ -46118,6 +46196,10 @@
             beginBastardLoopLCopyFlow();
         });
 
+        bindBastardLoopLMobileTap(bastardLoopLCopySectionBtn, () => {
+            beginBastardLoopLCopyFlow('section');
+        });
+
         bindBastardLoopLMobileTap(bastardLoopLClearAllBtn, () => {
             clearAllBastardLoopLSteps();
             updateBastardLoopLStatus('Cleared the full L sequence.');
@@ -46594,6 +46676,10 @@
 
         bindBastardLoopLMobileTap(bastardLoopXCopyBtn, () => {
             beginBastardLoopXCopyFlow();
+        });
+
+        bindBastardLoopLMobileTap(bastardLoopXCopySectionBtn, () => {
+            beginBastardLoopXCopyFlow('section');
         });
 
         bindBastardLoopLMobileTap(bastardLoopXClearAllBtn, () => {

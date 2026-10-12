@@ -225,6 +225,98 @@ test('Loop L and X step double-tap state treats step 1 as a valid remembered ste
     });
 });
 
+test('Loop L copy section captures from the chosen start step through the end and pastes at an insert point', () => {
+    const sourceSequence = [
+        { note: 'C3' },
+        { note: 'D3' },
+        { note: 'E3', accent: true },
+        { note: 'F3', slide: true },
+        { note: 'G3', ratchet: 2 },
+        { note: 'A3' },
+        { note: 'B3', rest: true },
+        { note: 'C4' }
+    ].map((step) => plain(normalizeBastardLoopLStep(step)));
+    const originalSequence = plain(sourceSequence);
+
+    const copyContext = {
+        bastardLoopLCopyMode: 'idle',
+        bastardLoopLCopyVariant: 'range',
+        bastardLoopLCopyStartIndex: -1,
+        bastardLoopLCopyEndIndex: -1,
+        bastardLoopLCopyBuffer: [],
+        bastardLoopLEditStepIndex: 0,
+        bastardLoopLSequence: sourceSequence,
+        normalizeBastardLoopLStep,
+        getBastardLoopLPatternLength() {
+            return copyContext.bastardLoopLSequence.length;
+        },
+        setBastardLoopLStep(index, step) {
+            copyContext.bastardLoopLSequence[index] = plain(step);
+        },
+        setBastardLoopLEditStepIndex(index) {
+            copyContext.bastardLoopLEditStepIndex = index;
+        },
+        resetBastardLoopLStepTapMemory() {
+            copyContext.tapReset = (copyContext.tapReset || 0) + 1;
+        },
+        syncBastardLoopLEditorUi() {
+            copyContext.syncs = (copyContext.syncs || 0) + 1;
+        },
+        updateBastardLoopLStatus(message) {
+            copyContext.status = message;
+        },
+        restartBastardLoopLPlaybackIfNeeded() {
+            copyContext.restarted = true;
+        },
+        saveState() {
+            copyContext.saved = true;
+        }
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('normalizeBastardLoopCopyVariant'),
+        extractFunctionSource('resetBastardLoopLCopyState'),
+        extractFunctionSource('getBastardLoopLCopyPrompt'),
+        extractFunctionSource('beginBastardLoopLCopyFlow'),
+        extractFunctionSource('pasteBastardLoopLCopiedRangeAt'),
+        extractFunctionSource('handleBastardLoopLCopyStepSelection'),
+        'globalThis.beginBastardLoopLCopyFlow = beginBastardLoopLCopyFlow;',
+        'globalThis.handleBastardLoopLCopyStepSelection = handleBastardLoopLCopyStepSelection;'
+    ].join('\n\n'), copyContext);
+
+    copyContext.beginBastardLoopLCopyFlow('section');
+    assert.equal(copyContext.bastardLoopLCopyMode, 'selectStart');
+    assert.equal(copyContext.bastardLoopLCopyVariant, 'section');
+    assert.equal(copyContext.status, 'Loop L copy section: press section start step.');
+
+    assert.equal(copyContext.handleBastardLoopLCopyStepSelection(2), true);
+    assert.equal(copyContext.bastardLoopLCopyMode, 'selectPaste');
+    assert.equal(copyContext.bastardLoopLCopyStartIndex, 2);
+    assert.equal(copyContext.bastardLoopLCopyEndIndex, 7);
+    assert.equal(copyContext.bastardLoopLEditStepIndex, 2);
+    assert.equal(copyContext.status, 'Loop L copy section: 3-8 ready. Press insert step.');
+    assert.deepEqual(
+        plain(copyContext.bastardLoopLCopyBuffer),
+        plain(originalSequence.slice(2))
+    );
+
+    assert.equal(copyContext.handleBastardLoopLCopyStepSelection(0), true);
+    assert.equal(copyContext.bastardLoopLCopyMode, 'idle');
+    assert.equal(copyContext.bastardLoopLCopyVariant, 'range');
+    assert.equal(copyContext.bastardLoopLEditStepIndex, 0);
+    assert.equal(copyContext.status, 'Loop L copied section 3-8 to step 1 (6 steps).');
+    assert.equal(copyContext.saved, true);
+    assert.equal(copyContext.restarted, true);
+    assert.deepEqual(
+        plain(copyContext.bastardLoopLSequence.slice(0, 6)),
+        plain(originalSequence.slice(2))
+    );
+    assert.deepEqual(
+        plain(copyContext.bastardLoopLSequence.slice(6)),
+        plain(originalSequence.slice(6))
+    );
+});
+
 test('Loop L accent multiplier can both cut and strongly boost accented notes', () => {
     assert.equal(computeBastardLoopLAccentGainMultiplier(0), 1);
     assert.ok(computeBastardLoopLAccentGainMultiplier(-1) <= 0.08);
@@ -369,6 +461,15 @@ test('Loop L and X performance start buttons use layer-specific mobile transport
     assert.match(indexHtml, /bindBastardLoopLMobileTap\(performanceBastardLoopXStartBtn,\s*async \(\) => \{\s*await toggleBastardLoopXTransportFromUi\(\);\s*\}\);/s);
     assert.match(extractFunctionSource('syncBastardLoopLUi'), /performanceBastardLoopLStartBtn/);
     assert.match(extractFunctionSource('syncBastardLoopXUi'), /performanceBastardLoopXStartBtn/);
+});
+
+test('Loop L and X sequencers expose copy section buttons wired to the section-copy flow', () => {
+    assert.match(indexHtml, /id="bastardLoopLCopySectionBtn"[^>]*>Copy Sec</);
+    assert.match(indexHtml, /id="bastardLoopXCopySectionBtn"[^>]*>Copy Sec</);
+    assert.match(indexHtml, /const bastardLoopLCopySectionBtn = document\.getElementById\('bastardLoopLCopySectionBtn'\);/);
+    assert.match(indexHtml, /const bastardLoopXCopySectionBtn = document\.getElementById\('bastardLoopXCopySectionBtn'\);/);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopLCopySectionBtn,\s*\(\) => \{\s*beginBastardLoopLCopyFlow\('section'\);/s);
+    assert.match(indexHtml, /bindBastardLoopLMobileTap\(bastardLoopXCopySectionBtn,\s*\(\) => \{\s*beginBastardLoopXCopyFlow\('section'\);/s);
 });
 
 test('Loop L and X cards expose random sample buttons and filter mode selects', () => {
