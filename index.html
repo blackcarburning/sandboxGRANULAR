@@ -6027,6 +6027,27 @@
                     </label>
                     <input type="range" id="performanceBastardLoopMRoomReverbMix" min="0" max="100" value="0" step="1">
                 </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMCompressorThreshold">
+                        <span>Comp Threshold</span>
+                        <span class="value" id="performanceBastardLoopMCompressorThresholdValue">0.0 dB</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMCompressorThreshold" min="-40" max="0" value="0" step="0.5">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMCompressorRatio">
+                        <span>Comp Ratio</span>
+                        <span class="value" id="performanceBastardLoopMCompressorRatioValue">1.0:1</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMCompressorRatio" min="1" max="20" value="1" step="0.1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMCompressorRelease">
+                        <span>Comp Release</span>
+                        <span class="value" id="performanceBastardLoopMCompressorReleaseValue">260ms</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMCompressorRelease" min="20" max="1000" value="260" step="1">
+                </div>
                 <div class="performance-layer-switches" aria-label="Bastardloop M mode controls">
                     <button class="performance-btn" id="performanceBastardLoopMNormalizeBtn" type="button">Normalize</button>
                     <button class="performance-btn active" id="performanceBastardLoopMPreserveDurationBtn" type="button" aria-pressed="true">Preserve Duration On</button>
@@ -10690,6 +10711,9 @@
         let bastardLoopMDelayMix = 0;
         let bastardLoopMChorusMix = 0;
         let bastardLoopMRoomReverbMix = 0;
+        let bastardLoopMCompressorThreshold = 0;
+        let bastardLoopMCompressorRatio = 1;
+        let bastardLoopMCompressorRelease = 260;
         let dropboxSampleLayerLevel = 0.45;
         let dropboxSampleLayerStretchToLoop = false;
         let dropboxSampleLayerEnabled = true;
@@ -10798,6 +10822,7 @@
         let bastardLoopMFxDestinationNode = null;
         let bastardLoopMFxInputGainNode = null;
         let bastardLoopMFxDryGainNode = null;
+        let bastardLoopMFxOutputGainNode = null;
         let bastardLoopMDelaySendGainNode = null;
         let bastardLoopMDelayLeftNode = null;
         let bastardLoopMDelayRightNode = null;
@@ -10822,6 +10847,8 @@
         let bastardLoopMChorusOscillatorNode = null;
         let bastardLoopMChorusLeftDepthNode = null;
         let bastardLoopMChorusRightDepthNode = null;
+        let bastardLoopMCompressorDriveGainNode = null;
+        let bastardLoopMCompressorNode = null;
         let bastardLoopMRecordingState = 'idle';
         let bastardLoopMRecordStatus = '';
         let bastardLoopMCountInBeatsRemaining = 0;
@@ -17800,6 +17827,43 @@
             return bastardLoopMRoomReverbMix;
         }
 
+        function clampBastardLoopMCompressorThreshold(value) {
+            const safeValue = Number(value);
+            return Math.max(-40, Math.min(0, Number.isFinite(safeValue) ? safeValue : 0));
+        }
+
+        function getBastardLoopMCompressorThreshold() {
+            const slider = document.getElementById('performanceBastardLoopMCompressorThreshold');
+            bastardLoopMCompressorThreshold = clampBastardLoopMCompressorThreshold(slider?.value ?? bastardLoopMCompressorThreshold);
+            return bastardLoopMCompressorThreshold;
+        }
+
+        function clampBastardLoopMCompressorRatio(value) {
+            const safeValue = Number(value);
+            return Math.max(1, Math.min(20, Number.isFinite(safeValue) ? safeValue : 1));
+        }
+
+        function getBastardLoopMCompressorRatio() {
+            const slider = document.getElementById('performanceBastardLoopMCompressorRatio');
+            bastardLoopMCompressorRatio = clampBastardLoopMCompressorRatio(slider?.value ?? bastardLoopMCompressorRatio);
+            return bastardLoopMCompressorRatio;
+        }
+
+        function clampBastardLoopMCompressorReleaseMilliseconds(value) {
+            const safeValue = Number(value);
+            return Math.max(20, Math.min(1000, Number.isFinite(safeValue) ? safeValue : 260));
+        }
+
+        function getBastardLoopMCompressorReleaseMilliseconds() {
+            const slider = document.getElementById('performanceBastardLoopMCompressorRelease');
+            bastardLoopMCompressorRelease = clampBastardLoopMCompressorReleaseMilliseconds(slider?.value ?? bastardLoopMCompressorRelease);
+            return bastardLoopMCompressorRelease;
+        }
+
+        function getBastardLoopMCompressorReleaseSeconds() {
+            return getBastardLoopMCompressorReleaseMilliseconds() / 1000;
+        }
+
         function getBastardLoopMDelayTimeSeconds() {
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
             return getBpmDelaySeconds(getBastardLoopMDelayDivision(), bpm);
@@ -17830,6 +17894,7 @@
             [
                 bastardLoopMFxInputGainNode,
                 bastardLoopMFxDryGainNode,
+                bastardLoopMFxOutputGainNode,
                 bastardLoopMDelaySendGainNode,
                 bastardLoopMDelayLeftNode,
                 bastardLoopMDelayRightNode,
@@ -17853,7 +17918,9 @@
                 bastardLoopMChorusRightPannerNode,
                 bastardLoopMChorusOscillatorNode,
                 bastardLoopMChorusLeftDepthNode,
-                bastardLoopMChorusRightDepthNode
+                bastardLoopMChorusRightDepthNode,
+                bastardLoopMCompressorDriveGainNode,
+                bastardLoopMCompressorNode
             ].forEach((node) => {
                 safeDisconnectNode(node);
             });
@@ -17861,6 +17928,7 @@
             bastardLoopMFxDestinationNode = null;
             bastardLoopMFxInputGainNode = null;
             bastardLoopMFxDryGainNode = null;
+            bastardLoopMFxOutputGainNode = null;
             bastardLoopMDelaySendGainNode = null;
             bastardLoopMDelayLeftNode = null;
             bastardLoopMDelayRightNode = null;
@@ -17885,6 +17953,8 @@
             bastardLoopMChorusOscillatorNode = null;
             bastardLoopMChorusLeftDepthNode = null;
             bastardLoopMChorusRightDepthNode = null;
+            bastardLoopMCompressorDriveGainNode = null;
+            bastardLoopMCompressorNode = null;
         }
 
         function updateBastardLoopMFxBusSettings() {
@@ -17897,6 +17967,9 @@
             const chorusWetCurve = Math.sin(chorusMix * Math.PI / 2);
             const roomReverbMix = Math.max(0, Math.min(1, getBastardLoopMRoomReverbMix()));
             const roomReverbWetCurve = Math.sin(roomReverbMix * Math.PI / 2);
+            const compressorThreshold = getBastardLoopMCompressorThreshold();
+            const compressorRatio = getBastardLoopMCompressorRatio();
+            const compressorRelease = getBastardLoopMCompressorReleaseSeconds();
 
             rampBastardLoopMFxParam(bastardLoopMFxDryGainNode?.gain, 1, 0.03);
             rampBastardLoopMFxParam(bastardLoopMDelayLeftNode?.delayTime, delayTime, 0.03);
@@ -17918,6 +17991,13 @@
             rampBastardLoopMFxParam(bastardLoopMChorusSendGainNode?.gain, chorusWetCurve * 0.88, 0.03);
             rampBastardLoopMFxParam(bastardLoopMChorusLeftWetGainNode?.gain, chorusWetCurve * 0.42, 0.03);
             rampBastardLoopMFxParam(bastardLoopMChorusRightWetGainNode?.gain, chorusWetCurve * 0.42, 0.03);
+
+            rampBastardLoopMFxParam(bastardLoopMCompressorDriveGainNode?.gain, 1, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMCompressorNode?.threshold, compressorThreshold, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMCompressorNode?.knee, 0, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMCompressorNode?.ratio, compressorRatio, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMCompressorNode?.attack, 0.02, 0.03);
+            rampBastardLoopMFxParam(bastardLoopMCompressorNode?.release, compressorRelease, 0.03);
         }
 
         function ensureBastardLoopMFxBus(destination = getBastardLoopMPlaybackDestination()) {
@@ -17929,6 +18009,7 @@
                 destroyBastardLoopMFxBus();
                 bastardLoopMFxInputGainNode = audioContext.createGain();
                 bastardLoopMFxDryGainNode = audioContext.createGain();
+                bastardLoopMFxOutputGainNode = audioContext.createGain();
                 bastardLoopMDelaySendGainNode = audioContext.createGain();
                 bastardLoopMDelayLeftNode = audioContext.createDelay(3.2);
                 bastardLoopMDelayRightNode = audioContext.createDelay(3.2);
@@ -17961,9 +18042,17 @@
                 bastardLoopMChorusOscillatorNode = audioContext.createOscillator();
                 bastardLoopMChorusLeftDepthNode = audioContext.createGain();
                 bastardLoopMChorusRightDepthNode = audioContext.createGain();
+                bastardLoopMCompressorDriveGainNode = audioContext.createGain();
+                bastardLoopMCompressorNode = audioContext.createDynamicsCompressor();
+                bastardLoopMCompressorDriveGainNode.gain.value = 1;
+                bastardLoopMCompressorNode.threshold.value = 0;
+                bastardLoopMCompressorNode.knee.value = 0;
+                bastardLoopMCompressorNode.ratio.value = 1;
+                bastardLoopMCompressorNode.attack.value = 0.02;
+                bastardLoopMCompressorNode.release.value = 0.26;
 
                 bastardLoopMFxInputGainNode.connect(bastardLoopMFxDryGainNode);
-                bastardLoopMFxDryGainNode.connect(destination);
+                bastardLoopMFxDryGainNode.connect(bastardLoopMFxOutputGainNode);
 
                 bastardLoopMFxInputGainNode.connect(bastardLoopMDelaySendGainNode);
                 bastardLoopMDelaySendGainNode.connect(bastardLoopMDelayLeftNode);
@@ -17974,8 +18063,8 @@
                 bastardLoopMDelayRightFilterNode.connect(bastardLoopMDelayRightWetGainNode);
                 bastardLoopMDelayLeftWetGainNode.connect(bastardLoopMDelayLeftPannerNode);
                 bastardLoopMDelayRightWetGainNode.connect(bastardLoopMDelayRightPannerNode);
-                bastardLoopMDelayLeftPannerNode.connect(destination);
-                bastardLoopMDelayRightPannerNode.connect(destination);
+                bastardLoopMDelayLeftPannerNode.connect(bastardLoopMFxOutputGainNode);
+                bastardLoopMDelayRightPannerNode.connect(bastardLoopMFxOutputGainNode);
                 bastardLoopMDelayLeftFilterNode.connect(bastardLoopMDelayLeftFeedbackGainNode);
                 bastardLoopMDelayLeftFeedbackGainNode.connect(bastardLoopMDelayLeftNode);
                 bastardLoopMDelayRightFilterNode.connect(bastardLoopMDelayRightFeedbackGainNode);
@@ -17994,7 +18083,7 @@
                 bastardLoopMFxInputGainNode.connect(bastardLoopMRoomReverbSendGainNode);
                 bastardLoopMRoomReverbSendGainNode.connect(bastardLoopMRoomReverbConvolverNode);
                 bastardLoopMRoomReverbConvolverNode.connect(bastardLoopMRoomReverbWetGainNode);
-                bastardLoopMRoomReverbWetGainNode.connect(destination);
+                bastardLoopMRoomReverbWetGainNode.connect(bastardLoopMFxOutputGainNode);
                 bastardLoopMRoomReverbConvolverNode.buffer = createFinalRoomReverbImpulseForContext(
                     audioContext,
                     0.38,
@@ -18009,8 +18098,8 @@
                 bastardLoopMChorusRightDelayNode.connect(bastardLoopMChorusRightWetGainNode);
                 bastardLoopMChorusLeftWetGainNode.connect(bastardLoopMChorusLeftPannerNode);
                 bastardLoopMChorusRightWetGainNode.connect(bastardLoopMChorusRightPannerNode);
-                bastardLoopMChorusLeftPannerNode.connect(destination);
-                bastardLoopMChorusRightPannerNode.connect(destination);
+                bastardLoopMChorusLeftPannerNode.connect(bastardLoopMFxOutputGainNode);
+                bastardLoopMChorusRightPannerNode.connect(bastardLoopMFxOutputGainNode);
                 if ('pan' in bastardLoopMChorusLeftPannerNode) {
                     bastardLoopMChorusLeftPannerNode.pan.value = -0.45;
                 }
@@ -18028,6 +18117,9 @@
                 bastardLoopMChorusLeftDepthNode.connect(bastardLoopMChorusLeftDelayNode.delayTime);
                 bastardLoopMChorusRightDepthNode.connect(bastardLoopMChorusRightDelayNode.delayTime);
                 bastardLoopMChorusOscillatorNode.start();
+                bastardLoopMFxOutputGainNode.connect(bastardLoopMCompressorDriveGainNode);
+                bastardLoopMCompressorDriveGainNode.connect(bastardLoopMCompressorNode);
+                bastardLoopMCompressorNode.connect(destination);
 
                 bastardLoopMFxBusContext = audioContext;
                 bastardLoopMFxDestinationNode = destination;
@@ -18275,6 +18367,9 @@
             const delayMixValue = Math.round(getBastardLoopMDelayMix() * 100);
             const chorusMixValue = Math.round(getBastardLoopMChorusMix() * 100);
             const roomReverbMixValue = Math.round(getBastardLoopMRoomReverbMix() * 100);
+            const compressorThresholdValue = getBastardLoopMCompressorThreshold();
+            const compressorRatioValue = getBastardLoopMCompressorRatio();
+            const compressorReleaseValue = getBastardLoopMCompressorReleaseMilliseconds();
             const recordLoopCount = getBastardLoopMRecordingLoopCount();
             const meta = document.getElementById('performanceBastardLoopMMeta');
             const recordButton = document.getElementById('performanceBastardLoopMRecordBtn');
@@ -18294,6 +18389,9 @@
             const delayMixSlider = document.getElementById('performanceBastardLoopMDelayMix');
             const chorusMixSlider = document.getElementById('performanceBastardLoopMChorusMix');
             const roomReverbMixSlider = document.getElementById('performanceBastardLoopMRoomReverbMix');
+            const compressorThresholdSlider = document.getElementById('performanceBastardLoopMCompressorThreshold');
+            const compressorRatioSlider = document.getElementById('performanceBastardLoopMCompressorRatio');
+            const compressorReleaseSlider = document.getElementById('performanceBastardLoopMCompressorRelease');
             const levelLabel = document.getElementById('performanceBastardLoopMLevelValue');
             const mixerLabel = document.getElementById('performanceBastardLoopMLevelMixerValue');
             const filterLabel = document.getElementById('performanceBastardLoopMFilterCutoffValue');
@@ -18301,6 +18399,9 @@
             const delayMixLabel = document.getElementById('performanceBastardLoopMDelayMixValue');
             const chorusMixLabel = document.getElementById('performanceBastardLoopMChorusMixValue');
             const roomReverbMixLabel = document.getElementById('performanceBastardLoopMRoomReverbMixValue');
+            const compressorThresholdLabel = document.getElementById('performanceBastardLoopMCompressorThresholdValue');
+            const compressorRatioLabel = document.getElementById('performanceBastardLoopMCompressorRatioValue');
+            const compressorReleaseLabel = document.getElementById('performanceBastardLoopMCompressorReleaseValue');
             const normalizeButton = document.getElementById('performanceBastardLoopMNormalizeBtn');
             const preserveButton = document.getElementById('performanceBastardLoopMPreserveDurationBtn');
             const reverseButton = document.getElementById('performanceBastardLoopMReverseBtn');
@@ -18331,6 +18432,9 @@
             if (delayMixSlider) delayMixSlider.value = String(delayMixValue);
             if (chorusMixSlider) chorusMixSlider.value = String(chorusMixValue);
             if (roomReverbMixSlider) roomReverbMixSlider.value = String(roomReverbMixValue);
+            if (compressorThresholdSlider) compressorThresholdSlider.value = String(compressorThresholdValue);
+            if (compressorRatioSlider) compressorRatioSlider.value = String(compressorRatioValue);
+            if (compressorReleaseSlider) compressorReleaseSlider.value = String(compressorReleaseValue);
             if (levelLabel) levelLabel.textContent = `${levelValue}%`;
             if (mixerLabel) mixerLabel.textContent = `${levelValue}%`;
             if (filterLabel) filterLabel.textContent = formatFrequencyHz(filterCutoffValue);
@@ -18338,6 +18442,9 @@
             if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
             if (chorusMixLabel) chorusMixLabel.textContent = `${chorusMixValue}%`;
             if (roomReverbMixLabel) roomReverbMixLabel.textContent = `${roomReverbMixValue}%`;
+            if (compressorThresholdLabel) compressorThresholdLabel.textContent = `${compressorThresholdValue.toFixed(1)} dB`;
+            if (compressorRatioLabel) compressorRatioLabel.textContent = `${compressorRatioValue.toFixed(1)}:1`;
+            if (compressorReleaseLabel) compressorReleaseLabel.textContent = `${Math.round(compressorReleaseValue)}ms`;
             updateBastardLoopMPitchControls();
 
             if (preserveButton) {
@@ -36337,6 +36444,9 @@
                     bastardLoopMDelayMix: getBastardLoopMDelayMix(),
                     bastardLoopMChorusMix: getBastardLoopMChorusMix(),
                     bastardLoopMRoomReverbMix: getBastardLoopMRoomReverbMix(),
+                    bastardLoopMCompressorThreshold: getBastardLoopMCompressorThreshold(),
+                    bastardLoopMCompressorRatio: getBastardLoopMCompressorRatio(),
+                    bastardLoopMCompressorRelease: getBastardLoopMCompressorReleaseMilliseconds(),
                     bastardLoopMSummary: bastardLoopMMetadata?.summary || '',
                     bastardLoopMDurationSeconds: Number(bastardLoopMMetadata?.durationSeconds) || 0,
                     dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
@@ -36906,6 +37016,15 @@
                     }
                     if (state.modes.bastardLoopMRoomReverbMix !== undefined) {
                         bastardLoopMRoomReverbMix = Math.max(0, Math.min(1, Number(state.modes.bastardLoopMRoomReverbMix) || 0));
+                    }
+                    if (state.modes.bastardLoopMCompressorThreshold !== undefined) {
+                        bastardLoopMCompressorThreshold = clampBastardLoopMCompressorThreshold(state.modes.bastardLoopMCompressorThreshold);
+                    }
+                    if (state.modes.bastardLoopMCompressorRatio !== undefined) {
+                        bastardLoopMCompressorRatio = clampBastardLoopMCompressorRatio(state.modes.bastardLoopMCompressorRatio);
+                    }
+                    if (state.modes.bastardLoopMCompressorRelease !== undefined) {
+                        bastardLoopMCompressorRelease = clampBastardLoopMCompressorReleaseMilliseconds(state.modes.bastardLoopMCompressorRelease);
                     }
                     if (state.modes.bastardLoopMSummary || Number(state.modes.bastardLoopMDurationSeconds) > 0) {
                         bastardLoopMMetadata = {
@@ -43633,6 +43752,9 @@
         const performanceBastardLoopMDelayMix = document.getElementById('performanceBastardLoopMDelayMix');
         const performanceBastardLoopMChorusMix = document.getElementById('performanceBastardLoopMChorusMix');
         const performanceBastardLoopMRoomReverbMix = document.getElementById('performanceBastardLoopMRoomReverbMix');
+        const performanceBastardLoopMCompressorThreshold = document.getElementById('performanceBastardLoopMCompressorThreshold');
+        const performanceBastardLoopMCompressorRatio = document.getElementById('performanceBastardLoopMCompressorRatio');
+        const performanceBastardLoopMCompressorRelease = document.getElementById('performanceBastardLoopMCompressorRelease');
         const performanceBastardLoopMNormalizeBtn = document.getElementById('performanceBastardLoopMNormalizeBtn');
         const performanceBastardLoopMPreserveDurationBtn = document.getElementById('performanceBastardLoopMPreserveDurationBtn');
         const performanceBastardLoopMReverseBtn = document.getElementById('performanceBastardLoopMReverseBtn');
@@ -45670,6 +45792,27 @@
         performanceBastardLoopMRoomReverbMix?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             bastardLoopMRoomReverbMix = value / 100;
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMCompressorThreshold?.addEventListener('input', (event) => {
+            bastardLoopMCompressorThreshold = clampBastardLoopMCompressorThreshold(event.target.value);
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMCompressorRatio?.addEventListener('input', (event) => {
+            bastardLoopMCompressorRatio = clampBastardLoopMCompressorRatio(event.target.value);
+            updateBastardLoopMFxBusSettings();
+            syncBastardLoopMUi();
+            saveState();
+        });
+
+        performanceBastardLoopMCompressorRelease?.addEventListener('input', (event) => {
+            bastardLoopMCompressorRelease = clampBastardLoopMCompressorReleaseMilliseconds(event.target.value);
             updateBastardLoopMFxBusSettings();
             syncBastardLoopMUi();
             saveState();
