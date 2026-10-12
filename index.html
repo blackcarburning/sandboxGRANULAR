@@ -14249,11 +14249,262 @@
             return createFinalReverbImpulseForContext(audioContext, sizeAmount, decayAmount, roomPreset);
         }
 
+        function sampleFinalShimmerCubic(input, position) {
+            const length = input?.length || 0;
+            if (!length) return 0;
+            if (!Number.isFinite(position)) return 0;
+            if (length === 1) return input[0];
+            if (position <= 0) return input[0];
+            if (position >= length - 1) return input[length - 1];
+            const index1 = Math.floor(position);
+            const frac = position - index1;
+            const index0 = Math.max(0, index1 - 1);
+            const index2 = Math.min(length - 1, index1 + 1);
+            const index3 = Math.min(length - 1, index1 + 2);
+            const y0 = input[index0];
+            const y1 = input[index1];
+            const y2 = input[index2];
+            const y3 = input[index3];
+            const a = (-0.5 * y0) + (1.5 * y1) - (1.5 * y2) + (0.5 * y3);
+            const b = y0 - (2.5 * y1) + (2 * y2) - (0.5 * y3);
+            const c = (-0.5 * y0) + (0.5 * y2);
+            const d = y1;
+            return ((a * frac + b) * frac + c) * frac + d;
+        }
+
+        function sampleFinalShimmerWindowedSinc(input, position, cutoff = 1, taps = 16) {
+            const length = input?.length || 0;
+            if (!length) return 0;
+            if (!Number.isFinite(position)) return 0;
+            if (length === 1) return input[0];
+            if (position <= 0) return input[0];
+            if (position >= length - 1) return input[length - 1];
+            const safeTaps = Math.max(8, Math.min(32, Math.round(Number(taps) || 16)));
+            const safeCutoff = Math.max(0.08, Math.min(1, Number(cutoff) || 1));
+            const halfWindow = Math.floor(safeTaps / 2);
+            const center = Math.floor(position);
+            let sum = 0;
+            let normalization = 0;
+            for (let tap = -halfWindow + 1; tap <= halfWindow; tap += 1) {
+                const sourceIndex = center + tap;
+                const clampedIndex = Math.max(0, Math.min(length - 1, sourceIndex));
+                const distance = position - sourceIndex;
+                const sincArg = distance * safeCutoff;
+                const sinc = Math.abs(sincArg) < 1e-6 ? 1 : Math.sin(Math.PI * sincArg) / (Math.PI * sincArg);
+                const windowPhase = (tap + halfWindow - 1) / Math.max(1, safeTaps - 1);
+                const window = 0.42 - 0.5 * Math.cos(2 * Math.PI * windowPhase) + 0.08 * Math.cos(4 * Math.PI * windowPhase);
+                const weight = sinc * window * safeCutoff;
+                sum += input[clampedIndex] * weight;
+                normalization += weight;
+            }
+            return Math.abs(normalization) > 1e-6 ? (sum / normalization) : input[center];
+        }
+
+        function resampleFinalShimmerChannel(input, outputLength, options = {}) {
+            const inputLength = input?.length || 0;
+            const safeOutputLength = Math.max(1, Math.round(Number(outputLength) || 1));
+            if (!inputLength) return new Float32Array(safeOutputLength);
+            if (inputLength === safeOutputLength) {
+                return new Float32Array(input);
+            }
+            const scale = inputLength / safeOutputLength;
+            const cutoffScale = Math.max(
+                0.08,
+                Math.min(1, Number(options.cutoffScale) || (scale > 1 ? 1 / scale : 1))
+            ) * 0.985;
+            const taps = Math.max(8, Math.min(32, Math.round(Number(options.taps) || (scale > 1 ? 22 : 16))));
+            const output = new Float32Array(safeOutputLength);
+            for (let i = 0; i < safeOutputLength; i += 1) {
+                const position = ((i + 0.5) * scale) - 0.5;
+                output[i] = sampleFinalShimmerWindowedSinc(input, position, cutoffScale, taps);
+            }
+            return output;
+        }
+
+        function timeStretchFinalShimmerChannel(input, stretchFactor, sampleRate) {
+            const inputLength = input?.length || 0;
+            const safeStretchFactor = Number.isFinite(Number(stretchFactor))
+                ? Math.max(0.25, Math.min(4, Number(stretchFactor)))
+                : 1;
+            const outputLength = Math.max(1, Math.round(inputLength * safeStretchFactor));
+            if (!inputLength) return new Float32Array(outputLength);
+            if (Math.abs(safeStretchFactor - 1) < 0.0001 || inputLength < 64) {
+                return resampleFinalShimmerChannel(input, outputLength, { cutoffScale: 0.985, taps: 14 });
+            }
+            const grainFrames = Math.max(
+                1024,
+                Math.min(
+                    inputLength,
+                    Math.round((Number(sampleRate) || 48000) * 0.14),
+                    12288
+                )
+            );
+            const synthesisHop = Math.max(128, Math.round(grainFrames / 6));
+            const analysisHop = synthesisHop / safeStretchFactor;
+            const maxInputStart = Math.max(0, inputLength - grainFrames - 2);
+            const output = new Float32Array(outputLength);
+            const weights = new Float32Array(outputLength);
+            const window = new Float32Array(grainFrames);
+            for (let i = 0; i < grainFrames; i += 1) {
+                const phase = grainFrames <= 1 ? 0 : i / (grainFrames - 1);
+                window[i] = 0.5 - (0.5 * Math.cos(2 * Math.PI * phase));
+            }
+            const grainCount = Math.max(1, Math.ceil(Math.max(0, outputLength - grainFrames) / synthesisHop) + 1);
+            for (let grainIndex = 0; grainIndex < grainCount; grainIndex += 1) {
+                const outStart = grainIndex * synthesisHop;
+                let inputStart = Math.min(maxInputStart, grainIndex * analysisHop);
+                if (maxInputStart > 0) {
+                    const tailProgress = inputStart / maxInputStart;
+                    const drift = (Math.sin(grainIndex * 0.73) + Math.sin(grainIndex * 1.19 + 0.41) * 0.5)
+                        * grainFrames * 0.01 * tailProgress;
+                    inputStart = Math.max(0, Math.min(maxInputStart, inputStart + drift));
+                }
+                for (let frame = 0; frame < grainFrames; frame += 1) {
+                    const outIndex = outStart + frame;
+                    if (outIndex >= outputLength) break;
+                    const sample = sampleFinalShimmerCubic(input, inputStart + frame);
+                    const weight = window[frame];
+                    output[outIndex] += sample * weight;
+                    weights[outIndex] += weight;
+                }
+            }
+            for (let i = 0; i < outputLength; i += 1) {
+                if (weights[i] > 1e-6) {
+                    output[i] /= weights[i];
+                }
+            }
+            return output;
+        }
+
+        function smoothFinalShimmerChannel(input, sampleRate, passes = 1) {
+            const output = input instanceof Float32Array ? new Float32Array(input) : new Float32Array(input || []);
+            const safePasses = Math.max(0, Math.min(4, Math.round(Number(passes) || 0)));
+            if (!safePasses || output.length < 3) return output;
+            const smoothingFrames = Math.max(1, Math.round((Number(sampleRate) || 48000) * 0.0008));
+            const blend = Math.exp(-1 / smoothingFrames);
+            for (let pass = 0; pass < safePasses; pass += 1) {
+                let state = output[0] || 0;
+                for (let i = 1; i < output.length; i += 1) {
+                    state = state * blend + output[i] * (1 - blend);
+                    output[i] = state;
+                }
+                state = output[output.length - 1] || 0;
+                for (let i = output.length - 2; i >= 0; i -= 1) {
+                    state = state * blend + output[i] * (1 - blend);
+                    output[i] = (output[i] + state) * 0.5;
+                }
+            }
+            return output;
+        }
+
+        function computeFinalShimmerEnvelope(input, sampleRate) {
+            const envelope = new Float32Array(input?.length || 0);
+            if (!input?.length) return envelope;
+            const attackFrames = Math.max(1, Math.round((Number(sampleRate) || 48000) * 0.0015));
+            const releaseFrames = Math.max(1, Math.round((Number(sampleRate) || 48000) * 0.008));
+            const attackCoeff = Math.exp(-1 / attackFrames);
+            const releaseCoeff = Math.exp(-1 / releaseFrames);
+            let state = 0;
+            for (let i = 0; i < input.length; i += 1) {
+                const magnitude = Math.abs(input[i]);
+                const coeff = magnitude > state ? attackCoeff : releaseCoeff;
+                state = magnitude + coeff * (state - magnitude);
+                envelope[i] = state;
+            }
+            let reverseState = 0;
+            for (let i = input.length - 1; i >= 0; i -= 1) {
+                reverseState = envelope[i] + releaseCoeff * (reverseState - envelope[i]);
+                envelope[i] = Math.max(envelope[i], reverseState);
+            }
+            return envelope;
+        }
+
+        function matchFinalShimmerEnvelopeToSource(target, source, sampleRate) {
+            if (!target?.length || !source?.length) return target;
+            const sourceEnvelope = computeFinalShimmerEnvelope(source, sampleRate);
+            const targetEnvelope = computeFinalShimmerEnvelope(target, sampleRate);
+            let scaleState = 1;
+            for (let i = 0; i < target.length; i += 1) {
+                const desired = sourceEnvelope[i] || 0;
+                const current = Math.max(1e-6, targetEnvelope[i] || 0);
+                const targetScale = Math.max(0, Math.min(4.5, desired / current));
+                scaleState += (targetScale - scaleState) * 0.08;
+                target[i] *= scaleState;
+            }
+            return target;
+        }
+
+        function createFinalReverbShimmerChannel(sourceData, pitchRatio, sampleRate) {
+            const safePitchRatio = Number.isFinite(Number(pitchRatio))
+                ? Math.max(0.25, Math.min(4, Math.abs(Number(pitchRatio))))
+                : 1;
+            if (!sourceData?.length) return new Float32Array(0);
+            const baseSampleRate = Number(sampleRate) || 48000;
+            const workingSampleRate = safePitchRatio > 1.0001
+                ? Math.min(96000, baseSampleRate * 2)
+                : baseSampleRate;
+            const useOversampledSource = workingSampleRate > baseSampleRate + 1;
+            const workingSource = useOversampledSource
+                ? resampleFinalShimmerChannel(
+                    sourceData,
+                    Math.max(1, Math.round(sourceData.length * (workingSampleRate / baseSampleRate))),
+                    { cutoffScale: 0.985, taps: 18 }
+                )
+                : new Float32Array(sourceData);
+            const stretched = timeStretchFinalShimmerChannel(workingSource, safePitchRatio, workingSampleRate);
+            const shiftedWorking = resampleFinalShimmerChannel(
+                stretched,
+                workingSource.length,
+                {
+                    cutoffScale: safePitchRatio > 1 ? Math.max(0.14, Math.min(0.985, 1 / safePitchRatio)) : 0.985,
+                    taps: safePitchRatio > 2 ? 28 : 22
+                }
+            );
+            const smoothedWorking = smoothFinalShimmerChannel(
+                shiftedWorking,
+                workingSampleRate,
+                safePitchRatio > 1.5 ? 2 : 1
+            );
+            let output = useOversampledSource
+                ? resampleFinalShimmerChannel(
+                    smoothedWorking,
+                    sourceData.length,
+                    {
+                        cutoffScale: Math.max(0.18, Math.min(0.985, baseSampleRate / workingSampleRate)),
+                        taps: 22
+                    }
+                )
+                : smoothedWorking;
+            output = smoothFinalShimmerChannel(output, baseSampleRate, 1);
+            return matchFinalShimmerEnvelopeToSource(output, sourceData, baseSampleRate);
+        }
+
         function createFinalReverbShimmerImpulseForContext(ctx, baseImpulse, shimmerMode = 'off') {
             if (!ctx || !baseImpulse || shimmerMode === 'off') return null;
             const ratio = getFinalReverbShimmerRatio(shimmerMode);
             if (Math.abs(ratio - 1) < 0.0001) return null;
-            return pitchShiftBufferByRatioKeepDuration(baseImpulse, ratio, ctx);
+            const outputBuffer = ctx.createBuffer(
+                baseImpulse.numberOfChannels,
+                baseImpulse.length,
+                baseImpulse.sampleRate
+            );
+            for (let channel = 0; channel < baseImpulse.numberOfChannels; channel += 1) {
+                const sourceData = baseImpulse.getChannelData(channel);
+                const shimmerData = createFinalReverbShimmerChannel(sourceData, ratio, baseImpulse.sampleRate);
+                outputBuffer.copyToChannel(shimmerData, channel);
+            }
+            const sourcePeak = getBufferPeak(baseImpulse);
+            const outputPeak = getBufferPeak(outputBuffer);
+            if (sourcePeak > 0.001 && outputPeak > sourcePeak) {
+                const scale = sourcePeak / outputPeak;
+                for (let channel = 0; channel < outputBuffer.numberOfChannels; channel += 1) {
+                    const data = outputBuffer.getChannelData(channel);
+                    for (let i = 0; i < data.length; i += 1) {
+                        data[i] *= scale;
+                    }
+                }
+            }
+            return outputBuffer;
         }
 
         function refreshFinalReverbImpulseFromControls() {
