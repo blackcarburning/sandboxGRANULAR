@@ -33865,9 +33865,14 @@
                     channelData: []
                 };
 
-                // Extract channel data as Float32Arrays
+                // Extract channel data as Float32Arrays without expanding them into plain JS arrays.
                 for (let i = 0; i < buffer.numberOfChannels; i++) {
-                    audioData.channelData.push(Array.from(buffer.getChannelData(i)));
+                    const channelData = buffer.getChannelData(i);
+                    audioData.channelData.push(
+                        typeof channelData.slice === 'function'
+                            ? channelData.slice()
+                            : new Float32Array(channelData)
+                    );
                 }
 
                 // Store in IndexedDB
