@@ -770,6 +770,8 @@ test('Bastardloop M transport button stops the shared Bastardloop transport when
 test('Bastardloop M Record + Loop control is wired into the live card UI', () => {
     assert.match(indexHtml, /id="performanceBastardLoopMRecordLoopBtn"[^>]*>Record \+ Loop</);
     assert.match(indexHtml, /id="performanceBastardLoopMRecordLength"[^>]*min="1"[^>]*max="8"[^>]*value="1"/);
+    assert.match(indexHtml, /id="performanceBastardLoopMInputGain"[^>]*min="0"[^>]*max="200"[^>]*value="100"/);
+    assert.match(indexHtml, /id="performanceBastardLoopMNormalizeBtn"[^>]*>Normalize</);
     assert.match(
         indexHtml,
         /performanceBastardLoopMRecordLoopBtn\?\.(?:addEventListener)\('click', async \(\) => \{\s*try \{\s*await handleBastardLoopMRecordButtonPress\(\{ startFullLoop: true \}\);/s
@@ -778,9 +780,17 @@ test('Bastardloop M Record + Loop control is wired into the live card UI', () =>
         indexHtml,
         /performanceBastardLoopMRecordLength\?\.(?:addEventListener)\('input', \(event\) => \{\s*bastardLoopMRecordingLoopCount = clampBastardLoopMRecordingLoopCount\(event\.target\.value, bastardLoopMRecordingLoopCount\);/s
     );
+    assert.match(
+        indexHtml,
+        /performanceBastardLoopMInputGain\?\.(?:addEventListener)\('input', \(event\) => \{\s*setBastardLoopMInputGainPercent\(event\.target\.value\);/s
+    );
+    assert.match(
+        indexHtml,
+        /performanceBastardLoopMNormalizeBtn\?\.(?:addEventListener)\('click', async \(\) => \{\s*try \{\s*await normalizeBastardLoopMBuffer\(\);/s
+    );
 });
 
-test('Bastardloop M record plus loop arms the take with a continuous metronome and scheduled transport restart', async () => {
+test('Bastardloop M record plus loop arms the take with a continuous metronome and immediate clock-scheduled transport restart', async () => {
     class FakeMediaRecorder {
         constructor(stream) {
             this.stream = stream;
@@ -915,12 +925,9 @@ test('Bastardloop M record plus loop arms the take with a continuous metronome a
     assert.equal(beginContext.bastardLoopMRecordingStartsFullLoop, true);
     assert.equal(beginContext.bastardLoopMRecordStatus, 'Count-in: 4 · loop starts on 1');
     assert.match(statuses[0], /full loop starts with the take/i);
-
-    const transportTimer = timers.find((timer) => timer.delay === 2000);
-    assert.ok(transportTimer, 'expected a scheduled transport start timer');
-    transportTimer.fn();
     assert.equal(beginContext.restartCall?.silent, true);
     assert.ok(Math.abs(beginContext.restartCall?.startTime - 12.08) < 1e-9);
+    assert.ok(!timers.some((timer) => timer.delay === 2000), 'transport should no longer depend on a late JS timer');
 });
 
 test('Bastardloop M multi-loop recording extends the capture window beyond one shared cycle', async () => {
@@ -1032,6 +1039,201 @@ test('Bastardloop M multi-loop recording extends the capture window beyond one s
     assert.equal(beginContext.bastardLoopMRecordStatus, 'Count-in: 4 · 2 loops');
     assert.match(statuses[0], /for 2 loops of recording/i);
     assert.ok(timers.some((timer) => timer.delay === 18080), 'expected a longer stop timer for the multi-loop take');
+});
+
+test('Bastardloop M trims the finished take from the real recorder arm time', async () => {
+    class FakeBlob {
+        constructor(parts, options) {
+            this.parts = parts;
+            this.type = options?.type || 'audio/webm';
+        }
+        async arrayBuffer() {
+            return new ArrayBuffer(16);
+        }
+    }
+
+    class FakeMediaRecorder {
+        constructor(stream) {
+            this.stream = stream;
+            this.state = 'inactive';
+            this.mimeType = 'audio/webm';
+        }
+        start() {
+            this.state = 'recording';
+        }
+        stop() {
+            this.state = 'inactive';
+        }
+    }
+
+    const timers = [];
+    const beginContext = {
+        Blob: FakeBlob,
+        window: {
+            isSecureContext: true,
+            setTimeout(fn, delay) {
+                const timer = { fn, delay };
+                timers.push(timer);
+                return timer;
+            }
+        },
+        clearTimeout() {},
+        navigator: {
+            mediaDevices: {
+                getUserMedia() {
+                    return Promise.resolve({
+                        getTracks() {
+                            return [{ stop() {} }];
+                        }
+                    });
+                }
+            }
+        },
+        MediaRecorder: FakeMediaRecorder,
+        audioContext: {
+            currentTime: 10,
+            state: 'running',
+            resume() {
+                return Promise.resolve();
+            },
+            decodeAudioData() {
+                return Promise.resolve({ id: 'decoded-buffer' });
+            }
+        },
+        document: {
+            getElementById(id) {
+                if (id === 'globalBpmSlider') {
+                    return { value: '120' };
+                }
+                return null;
+            }
+        },
+        bastardLoopMRecordingToken: 0,
+        bastardLoopMRecordingCancelled: false,
+        bastardLoopMRecordedChunks: [Buffer.from([1, 2, 3])],
+        bastardLoopMRecordingState: 'idle',
+        bastardLoopMCountInBeatsRemaining: 0,
+        bastardLoopMRecordStatus: '',
+        bastardLoopMRecordingStartsFullLoop: false,
+        bastardLoopMMicStream: null,
+        bastardLoopMMediaRecorder: null,
+        bastardLoopMRecordStartTimerId: null,
+        bastardLoopMRecordStopTimerId: null,
+        bastardLoopMRecordLoopTransportTimerId: null,
+        bastardLoopMCountInTimerIds: [],
+        bastardLoopMRecorderStartTime: 0,
+        ensureAudioReadyForKeyInteraction() {
+            return Promise.resolve(true);
+        },
+        clampBpmValue(value) {
+            return Number(value) || 120;
+        },
+        getBastardLoopMRecordingLoopCount() {
+            return 1;
+        },
+        formatBastardLoopMRecordingLoopCount() {
+            return '1 loop';
+        },
+        getBastardLoopMLoopDurationSeconds() {
+            return 8;
+        },
+        getBastardLoopMRecordingDurationSeconds() {
+            return 8;
+        },
+        chooseRecordingMimeType() {
+            return '';
+        },
+        stopBastardLoopM() {},
+        startBastardLoopMMetronome() {},
+        syncBastardLoopMUi() {},
+        setStatus() {},
+        collapseAudioBufferToCenteredMono(decoded) {
+            return decoded;
+        },
+        getBastardLoopMInputGainPercent() {
+            return 100;
+        },
+        applyLinearGainToAudioBuffer(buffer, gain, options) {
+            beginContext.appliedGain = { gain, options: plain(options) };
+            return buffer;
+        },
+        createFixedLengthAudioBufferFromSource(buffer, startSeconds, durationSeconds) {
+            beginContext.trimmedTake = { buffer, startSeconds, durationSeconds };
+            return { duration: durationSeconds, numberOfChannels: 1, sampleRate: 44100 };
+        },
+        applyRecordedBastardLoopMBuffer(buffer, options) {
+            beginContext.appliedTake = { buffer, options: plain(options) };
+            return Promise.resolve(true);
+        },
+        stopBastardLoopMMicCapture() {
+            beginContext.stoppedMic = true;
+        },
+        finalizeBastardLoopMRecordingSession() {
+            beginContext.finalized = true;
+        },
+        syncPerformanceControlState() {},
+        saveState() {},
+        console
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('beginBastardLoopMRecording'),
+        'globalThis.beginBastardLoopMRecording = beginBastardLoopMRecording;'
+    ].join('\n\n'), beginContext);
+
+    const started = await beginContext.beginBastardLoopMRecording();
+    assert.equal(started, true);
+    await beginContext.bastardLoopMMediaRecorder.onstop();
+
+    assert.equal(beginContext.stoppedMic, true);
+    assert.ok(Math.abs(beginContext.trimmedTake.startSeconds - 2.08) < 1e-9);
+    assert.equal(beginContext.trimmedTake.durationSeconds, 8);
+    assert.deepEqual(beginContext.appliedGain, {
+        gain: 1,
+        options: {
+            clamp: true
+        }
+    });
+});
+
+test('Cancelling Bastardloop M count-in stops the armed full-loop restart', () => {
+    const cancelContext = {
+        bastardLoopMRecordingState: 'countin',
+        bastardLoopMRecordingStartsFullLoop: true,
+        bastardLoopMRecordingToken: 2,
+        bastardLoopMRecordingCancelled: false,
+        bastardLoopMRecordStatus: 'Count-in: 4 · loop starts on 1',
+        bastardLoopMCountInBeatsRemaining: 4,
+        bastardLoopMMediaRecorder: {
+            state: 'inactive'
+        },
+        clearBastardLoopMRecordTimers() {
+            cancelContext.clearedTimers = true;
+        },
+        finalizeBastardLoopMRecordingSession() {
+            cancelContext.finalized = true;
+        },
+        stopAllPerformancePlayback(options) {
+            cancelContext.stopAllCall = plain(options);
+        },
+        syncBastardLoopMUi() {
+            cancelContext.synced = true;
+        },
+        setStatus(message) {
+            cancelContext.status = message;
+        },
+        console
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('cancelBastardLoopMRecording'),
+        'globalThis.cancelBastardLoopMRecording = cancelBastardLoopMRecording;'
+    ].join('\n\n'), cancelContext);
+
+    assert.equal(cancelContext.cancelBastardLoopMRecording(), true);
+    assert.deepEqual(cancelContext.stopAllCall, { silent: true });
+    assert.equal(cancelContext.finalized, true);
+    assert.equal(cancelContext.status, 'Bastardloop M recording cancelled.');
 });
 
 test('Bastardloop M is rebuilt and resynced after audio engine recovery', () => {
