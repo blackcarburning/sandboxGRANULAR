@@ -5890,7 +5890,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Mic Loop</div>
                         <h3 class="performance-feature-title">Bastardloop M</h3>
-                        <p class="performance-feature-note">Record the mic after a one-bar count-in at the current BPM, then capture one full loop from bar start to loop end for vocals or any other synced audio layer.</p>
+                        <p class="performance-feature-note">Record the mic after a one-bar count-in at the current BPM, then capture the selected loop length from bar start so longer takes can ride across repeated loop cycles.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopMRecordBtn" type="button">Record Mic</button>
@@ -5898,6 +5898,13 @@
                         <button class="performance-btn" id="performanceBastardLoopMClearBtn" type="button">Clear</button>
                         <button class="performance-btn" id="performanceBastardLoopMStartBtn" type="button">Start Bastardloops</button>
                     </div>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopMRecordLength">
+                        <span>Record Length</span>
+                        <span class="value" id="performanceBastardLoopMRecordLengthValue">1 loop</span>
+                    </label>
+                    <input type="range" id="performanceBastardLoopMRecordLength" min="1" max="8" value="1" step="1">
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopMLevel">
@@ -10593,6 +10600,7 @@
         let bastardLoopMLevel = 0.5;
         let bastardLoopMPitchSemitones = 0;
         let bastardLoopMFineCents = 0;
+        let bastardLoopMRecordingLoopCount = 1;
         let bastardLoopMPreserveDuration = true;
         let bastardLoopMReverse = false;
         let bastardLoopMFilterCutoff = 18000;
@@ -17461,6 +17469,35 @@
             return getLoopBarDurationSeconds(sourceBpm) * patternRatio;
         }
 
+        function clampBastardLoopMRecordingLoopCount(value, fallback = 1) {
+            const numeric = Number.parseFloat(value);
+            if (!Number.isFinite(numeric)) {
+                return Math.max(1, Math.min(8, Math.round(Number(fallback) || 1)));
+            }
+            return Math.max(1, Math.min(8, Math.round(numeric)));
+        }
+
+        function getBastardLoopMRecordingLoopCount() {
+            const input = document.getElementById('performanceBastardLoopMRecordLength');
+            bastardLoopMRecordingLoopCount = clampBastardLoopMRecordingLoopCount(
+                input?.value ?? bastardLoopMRecordingLoopCount,
+                bastardLoopMRecordingLoopCount
+            );
+            if (input) {
+                input.value = String(bastardLoopMRecordingLoopCount);
+            }
+            return bastardLoopMRecordingLoopCount;
+        }
+
+        function formatBastardLoopMRecordingLoopCount(value = getBastardLoopMRecordingLoopCount()) {
+            const count = clampBastardLoopMRecordingLoopCount(value, bastardLoopMRecordingLoopCount);
+            return `${count} loop${count === 1 ? '' : 's'}`;
+        }
+
+        function getBastardLoopMRecordingDurationSeconds(sourceBpm = null) {
+            return getBastardLoopMLoopDurationSeconds(sourceBpm) * getBastardLoopMRecordingLoopCount();
+        }
+
         function updateBastardLoopMPitchControls() {
             syncBastardLoopPitchControl(
                 'performanceBastardLoopMSemitone',
@@ -17621,11 +17658,14 @@
             const levelValue = Math.round(getBastardLoopMLevelValue({ applyLayerToggle: false }) * 100);
             const filterCutoffValue = getBastardLoopMFilterCutoff();
             const filterModeValue = getBastardLoopMFilterMode();
+            const recordLoopCount = getBastardLoopMRecordingLoopCount();
             const meta = document.getElementById('performanceBastardLoopMMeta');
             const recordButton = document.getElementById('performanceBastardLoopMRecordBtn');
             const recordLoopButton = document.getElementById('performanceBastardLoopMRecordLoopBtn');
             const clearButton = document.getElementById('performanceBastardLoopMClearBtn');
             const startButton = document.getElementById('performanceBastardLoopMStartBtn');
+            const recordLengthSlider = document.getElementById('performanceBastardLoopMRecordLength');
+            const recordLengthLabel = document.getElementById('performanceBastardLoopMRecordLengthValue');
             const levelSlider = document.getElementById('performanceBastardLoopMLevel');
             const levelMixer = document.getElementById('performanceBastardLoopMLevelMixer');
             const filterSlider = document.getElementById('performanceBastardLoopMFilterCutoff');
@@ -17639,6 +17679,13 @@
             const hasRecording = Boolean(bastardLoopMRawBuffer && bastardLoopMBuffer);
             const isBusy = bastardLoopMRecordingState === 'countin' || bastardLoopMRecordingState === 'recording' || bastardLoopMRecordingState === 'processing';
 
+            if (recordLengthSlider) {
+                recordLengthSlider.value = String(recordLoopCount);
+                recordLengthSlider.disabled = isBusy;
+            }
+            if (recordLengthLabel) {
+                recordLengthLabel.textContent = formatBastardLoopMRecordingLoopCount(recordLoopCount);
+            }
             if (levelSlider) levelSlider.value = String(levelValue);
             if (levelMixer) levelMixer.value = String(levelValue);
             if (filterSlider) filterSlider.value = String(filterCutoffValue);
@@ -18136,7 +18183,9 @@
             const beatDurationSeconds = 60 / currentBpm;
             const countInBeats = 4;
             const countInSeconds = beatDurationSeconds * countInBeats;
-            const loopDurationSeconds = getBastardLoopMLoopDurationSeconds(currentBpm);
+            const recordLoopCount = getBastardLoopMRecordingLoopCount();
+            const recordingDurationSeconds = getBastardLoopMRecordingDurationSeconds(currentBpm);
+            const recordLengthLabel = formatBastardLoopMRecordingLoopCount(recordLoopCount);
             const startFullLoop = options.startFullLoop === true;
             const sessionToken = bastardLoopMRecordingToken + 1;
             const mimeType = chooseRecordingMimeType();
@@ -18171,16 +18220,17 @@
             const countInStartTime = audioContext.currentTime + 0.08;
             const recordingStartTime = countInStartTime + countInSeconds;
             const countInStartDelayMs = Math.max(0, Math.round((countInStartTime - audioContext.currentTime) * 1000));
-            const totalDurationMs = Math.max(20, Math.round((countInSeconds + loopDurationSeconds) * 1000));
+            const totalDurationMs = Math.max(20, Math.round((countInSeconds + recordingDurationSeconds) * 1000));
             const loopStartsStatusSuffix = startFullLoop ? ' · loop starts on 1' : '';
+            const recordLengthStatusSuffix = recordLoopCount > 1 ? ` · ${recordLengthLabel}` : '';
             bastardLoopMRecordingState = 'countin';
             bastardLoopMCountInBeatsRemaining = countInBeats;
             bastardLoopMRecordingStartsFullLoop = startFullLoop;
-            bastardLoopMRecordStatus = `Count-in: ${countInBeats}${loopStartsStatusSuffix}`;
+            bastardLoopMRecordStatus = `Count-in: ${countInBeats}${recordLengthStatusSuffix}${loopStartsStatusSuffix}`;
             syncBastardLoopMUi();
             setStatus(startFullLoop
-                ? `Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM. The full loop starts with the take.`
-                : `Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM.`);
+                ? `Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM${recordLoopCount > 1 ? ` for ${recordLengthLabel} of recording` : ''}. The full loop starts with the take.`
+                : `Bastardloop M armed: 1 bar count-in at ${currentBpm} BPM${recordLoopCount > 1 ? ` for ${recordLengthLabel} of recording` : ''}.`);
 
             recorder.ondataavailable = (event) => {
                 if (event.data?.size > 0) {
@@ -18215,11 +18265,13 @@
                     const arrayBuffer = await blob.arrayBuffer();
                     const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
                     const mono = collapseAudioBufferToCenteredMono(decoded);
-                    const exactLoop = createFixedLengthAudioBufferFromSource(mono, countInSeconds, loopDurationSeconds);
+                    const exactLoop = createFixedLengthAudioBufferFromSource(mono, countInSeconds, recordingDurationSeconds);
                     await applyRecordedBastardLoopMBuffer(exactLoop, {
                         bpm: currentBpm,
-                        durationSeconds: loopDurationSeconds,
-                        summary: `${loopDurationSeconds.toFixed(2)}s mic loop · ${currentBpm} BPM`,
+                        durationSeconds: recordingDurationSeconds,
+                        summary: recordLoopCount > 1
+                            ? `${recordingDurationSeconds.toFixed(2)}s mic take · ${recordLengthLabel} · ${currentBpm} BPM`
+                            : `${recordingDurationSeconds.toFixed(2)}s mic loop · ${currentBpm} BPM`,
                         statusMessage: 'Bastardloop M recorded and ready.',
                         joinedStatusMessage: 'Bastardloop M recorded and joined the loop.',
                         joinSharedTransport: startFullLoop
@@ -18281,9 +18333,13 @@
                 if (sessionToken !== bastardLoopMRecordingToken) return;
                 bastardLoopMRecordingState = 'recording';
                 bastardLoopMCountInBeatsRemaining = 0;
-                bastardLoopMRecordStatus = startFullLoop
-                    ? `Recording ${loopDurationSeconds.toFixed(2)}s mic loop with full loop playback…`
-                    : `Recording ${loopDurationSeconds.toFixed(2)}s mic loop…`;
+                bastardLoopMRecordStatus = recordLoopCount > 1
+                    ? (startFullLoop
+                        ? `Recording ${recordingDurationSeconds.toFixed(2)}s mic take (${recordLengthLabel}) with full loop playback…`
+                        : `Recording ${recordingDurationSeconds.toFixed(2)}s mic take (${recordLengthLabel})…`)
+                    : (startFullLoop
+                        ? `Recording ${recordingDurationSeconds.toFixed(2)}s mic loop with full loop playback…`
+                        : `Recording ${recordingDurationSeconds.toFixed(2)}s mic loop…`);
                 syncBastardLoopMUi();
             }, countInStartDelayMs + Math.round(countInSeconds * 1000));
 
@@ -42826,6 +42882,7 @@
         const performanceBastardLoopMClearBtn = document.getElementById('performanceBastardLoopMClearBtn');
         const performanceBastardLoopMStartBtn = document.getElementById('performanceBastardLoopMStartBtn');
         const performanceBastardLoopMToggleBtn = document.getElementById('performanceBastardLoopMToggleBtn');
+        const performanceBastardLoopMRecordLength = document.getElementById('performanceBastardLoopMRecordLength');
         const performanceBastardLoopMLevel = document.getElementById('performanceBastardLoopMLevel');
         const performanceBastardLoopMSemitone = document.getElementById('performanceBastardLoopMSemitone');
         const performanceBastardLoopMFineTune = document.getElementById('performanceBastardLoopMFineTune');
@@ -44787,6 +44844,13 @@
 
         performanceBastardLoopMToggleBtn?.addEventListener('click', () => {
             setBastardLoopMEnabled(!bastardLoopMEnabled);
+        });
+
+        performanceBastardLoopMRecordLength?.addEventListener('input', (event) => {
+            bastardLoopMRecordingLoopCount = clampBastardLoopMRecordingLoopCount(event.target.value, bastardLoopMRecordingLoopCount);
+            event.target.value = String(bastardLoopMRecordingLoopCount);
+            syncBastardLoopMUi();
+            saveState();
         });
 
         performanceBastardLoopMLevel?.addEventListener('input', (event) => {

@@ -769,9 +769,14 @@ test('Bastardloop M transport button stops the shared Bastardloop transport when
 
 test('Bastardloop M Record + Loop control is wired into the live card UI', () => {
     assert.match(indexHtml, /id="performanceBastardLoopMRecordLoopBtn"[^>]*>Record \+ Loop</);
+    assert.match(indexHtml, /id="performanceBastardLoopMRecordLength"[^>]*min="1"[^>]*max="8"[^>]*value="1"/);
     assert.match(
         indexHtml,
         /performanceBastardLoopMRecordLoopBtn\?\.(?:addEventListener)\('click', async \(\) => \{\s*try \{\s*await handleBastardLoopMRecordButtonPress\(\{ startFullLoop: true \}\);/s
+    );
+    assert.match(
+        indexHtml,
+        /performanceBastardLoopMRecordLength\?\.(?:addEventListener)\('input', \(event\) => \{\s*bastardLoopMRecordingLoopCount = clampBastardLoopMRecordingLoopCount\(event\.target\.value, bastardLoopMRecordingLoopCount\);/s
     );
 });
 
@@ -849,7 +854,16 @@ test('Bastardloop M record plus loop arms the take with a continuous metronome a
         clampBpmValue(value) {
             return Number(value) || 120;
         },
+        getBastardLoopMRecordingLoopCount() {
+            return 1;
+        },
+        formatBastardLoopMRecordingLoopCount() {
+            return '1 loop';
+        },
         getBastardLoopMLoopDurationSeconds() {
+            return 8;
+        },
+        getBastardLoopMRecordingDurationSeconds() {
             return 8;
         },
         chooseRecordingMimeType() {
@@ -907,6 +921,117 @@ test('Bastardloop M record plus loop arms the take with a continuous metronome a
     transportTimer.fn();
     assert.equal(beginContext.restartCall?.silent, true);
     assert.ok(Math.abs(beginContext.restartCall?.startTime - 12.08) < 1e-9);
+});
+
+test('Bastardloop M multi-loop recording extends the capture window beyond one shared cycle', async () => {
+    class FakeMediaRecorder {
+        constructor(stream) {
+            this.stream = stream;
+            this.state = 'inactive';
+            this.mimeType = 'audio/webm';
+        }
+        start() {
+            this.state = 'recording';
+        }
+        stop() {
+            this.state = 'inactive';
+        }
+    }
+
+    const timers = [];
+    const statuses = [];
+    const beginContext = {
+        window: {
+            isSecureContext: true,
+            setTimeout(fn, delay) {
+                const timer = { fn, delay };
+                timers.push(timer);
+                return timer;
+            }
+        },
+        clearTimeout() {},
+        navigator: {
+            mediaDevices: {
+                getUserMedia() {
+                    return Promise.resolve({
+                        getTracks() {
+                            return [{ stop() {} }];
+                        }
+                    });
+                }
+            }
+        },
+        MediaRecorder: FakeMediaRecorder,
+        audioContext: {
+            currentTime: 10,
+            state: 'running',
+            resume() {
+                return Promise.resolve();
+            }
+        },
+        document: {
+            getElementById(id) {
+                if (id === 'globalBpmSlider') {
+                    return { value: '120' };
+                }
+                return null;
+            }
+        },
+        bastardLoopMRecordingToken: 0,
+        bastardLoopMRecordingCancelled: false,
+        bastardLoopMRecordedChunks: [],
+        bastardLoopMRecordingState: 'idle',
+        bastardLoopMCountInBeatsRemaining: 0,
+        bastardLoopMRecordStatus: '',
+        bastardLoopMRecordingStartsFullLoop: false,
+        bastardLoopMMicStream: null,
+        bastardLoopMMediaRecorder: null,
+        bastardLoopMRecordStartTimerId: null,
+        bastardLoopMRecordStopTimerId: null,
+        bastardLoopMRecordLoopTransportTimerId: null,
+        bastardLoopMCountInTimerIds: [],
+        ensureAudioReadyForKeyInteraction() {
+            return Promise.resolve(true);
+        },
+        clampBpmValue(value) {
+            return Number(value) || 120;
+        },
+        getBastardLoopMRecordingLoopCount() {
+            return 2;
+        },
+        formatBastardLoopMRecordingLoopCount() {
+            return '2 loops';
+        },
+        getBastardLoopMLoopDurationSeconds() {
+            return 8;
+        },
+        getBastardLoopMRecordingDurationSeconds() {
+            return 16;
+        },
+        chooseRecordingMimeType() {
+            return '';
+        },
+        stopBastardLoopM() {},
+        startBastardLoopMMetronome() {},
+        syncBastardLoopMUi() {},
+        setStatus(message) {
+            statuses.push(message);
+        },
+        console
+    };
+
+    vm.runInNewContext([
+        extractFunctionSource('beginBastardLoopMRecording'),
+        'globalThis.beginBastardLoopMRecording = beginBastardLoopMRecording;'
+    ].join('\n\n'), beginContext);
+
+    const started = await beginContext.beginBastardLoopMRecording();
+
+    assert.equal(started, true);
+    assert.equal(beginContext.bastardLoopMRecordingState, 'countin');
+    assert.equal(beginContext.bastardLoopMRecordStatus, 'Count-in: 4 · 2 loops');
+    assert.match(statuses[0], /for 2 loops of recording/i);
+    assert.ok(timers.some((timer) => timer.delay === 18080), 'expected a longer stop timer for the multi-loop take');
 });
 
 test('Bastardloop M is rebuilt and resynced after audio engine recovery', () => {
