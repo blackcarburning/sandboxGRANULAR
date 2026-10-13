@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-10-14-build-v2026.10.13.25';
+            const cacheBuster = '2026-10-13-10-33-build-v2026.10.13.26';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3968,6 +3968,10 @@
             align-items: stretch;
         }
 
+        .simplified-ui .performance-layer-switch-row.performance-layer-switch-row--solo-only {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
         .simplified-ui .performance-layer-jump-btn,
         .simplified-ui .performance-layer-solo-btn {
             min-width: 0;
@@ -5276,7 +5280,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.25</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.26</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6539,10 +6543,24 @@
                     <p class="performance-layer-switches-note">Quickly mute osc, granular, loops, drums, or Bastardloops without opening the mixer.</p>
                 </div>
                 <div class="performance-layer-switches">
-                    <button class="performance-btn" id="performanceLayerOscBtn" data-osc-layer-toggle="true" aria-pressed="true" title="Enable or mute the oscillator layer">Osc On</button>
-                    <button class="performance-btn" id="performanceLayerGranularBtn" data-granular-layer-toggle="true" aria-pressed="true" title="Enable or mute the granular layer">Granular On</button>
-                    <button class="performance-btn" id="performanceGeneratedLayerBtn" aria-pressed="true" title="Enable or mute the generated sample granular layer">Sample On</button>
-                    <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceLayerOscBtn" data-osc-layer-toggle="true" aria-pressed="true" title="Enable or mute the oscillator layer">Osc On</button>
+                        <button class="performance-btn performance-layer-jump-btn" id="performanceLayerOscJumpBtn" type="button" data-jump-target=".synth-container">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceLayerOscSoloBtn" type="button" aria-pressed="false">Solo Off</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceLayerGranularBtn" data-granular-layer-toggle="true" aria-pressed="true" title="Enable or mute the granular layer">Granular On</button>
+                        <button class="performance-btn performance-layer-jump-btn" id="performanceLayerGranularJumpBtn" type="button" data-jump-target="#performanceGrainControlsCard">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceLayerGranularSoloBtn" type="button" aria-pressed="false">Solo Off</button>
+                    </div>
+                    <div class="performance-layer-switch-row performance-layer-switch-row--solo-only">
+                        <button class="performance-btn" id="performanceGeneratedLayerBtn" aria-pressed="true" title="Enable or mute the generated sample granular layer">Sample On</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceGeneratedLayerQuickSoloBtn" type="button" aria-pressed="false">Solo Off</button>
+                    </div>
+                    <div class="performance-layer-switch-row performance-layer-switch-row--solo-only">
+                        <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceDryLoopLayerQuickSoloBtn" type="button" aria-pressed="false">Solo Off</button>
+                    </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop A layer">Bastardloop A On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop controls']">Jump</button>
@@ -6672,29 +6690,6 @@
                             <span class="value" id="performanceDrumMachineLevelValue">65%</span>
                         </label>
                         <input type="range" id="performanceDrumMachineLevel" min="0" max="100" value="65" step="1">
-                    </div>
-                    <div class="performance-sound-card performance-vu-card">
-                        <label for="performanceMixerVuShell">
-                            <span>Layer VU</span>
-                            <span class="value" id="performanceMixerVuValue">-inf dB</span>
-                        </label>
-                        <div
-                            class="performance-vu-shell"
-                            id="performanceMixerVuShell"
-                            role="meter"
-                            aria-label="Module mixer output level meter"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                            aria-valuenow="0"
-                            aria-valuetext="silent"
-                        >
-                            <div class="performance-vu-fill" id="performanceMixerVuFill"></div>
-                            <div class="performance-vu-peak" id="performanceMixerVuPeak"></div>
-                        </div>
-                        <div class="performance-vu-scale" aria-hidden="true">
-                            <span>Silent</span>
-                            <span>0 dB</span>
-                        </div>
                     </div>
                     <div class="performance-sound-card">
                         <label for="performanceBastardLoopLevel">
@@ -10933,6 +10928,8 @@
         let generatedLoopTransportEnabled = true;
         let generatedSampleSolo = false;
         let grainLayerSolo = 'none';
+        let performanceSourceLayerSolo = 'none';
+        let performanceSourceLayerSoloSnapshot = null;
         let generatedSourceSwing = 0; // 0 = straight generated source timing
         let generatedSourceLowNoiseMode = false;
         let generatedLoopTransposeOctaves = 0;
@@ -24957,6 +24954,85 @@
 
         function normalizeGrainLayerSolo(value) {
             return ['A', 'B'].includes(value) ? value : 'none';
+        }
+
+        function normalizePerformanceSourceLayerSolo(value) {
+            return ['osc', 'granular', 'sample', 'loop'].includes(value) ? value : 'none';
+        }
+
+        function syncPerformanceSourceLayerSoloButtons() {
+            const buttonConfigs = [
+                { button: performanceLayerOscSoloBtn, key: 'osc', label: 'oscillator' },
+                { button: performanceLayerGranularSoloBtn, key: 'granular', label: 'granular' },
+                { button: performanceGeneratedLayerQuickSoloBtn, key: 'sample', label: 'sample' },
+                { button: performanceDryLoopLayerQuickSoloBtn, key: 'loop', label: 'loop' }
+            ];
+            buttonConfigs.forEach(({ button, key, label }) => {
+                if (!button) return;
+                const active = performanceSourceLayerSolo === key;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                button.textContent = active ? 'Solo On' : 'Solo Off';
+                button.title = active
+                    ? `Restore the full mix after ${label} solo.`
+                    : `Solo the ${label} layer in the live mix.`;
+            });
+        }
+
+        function restorePerformanceSourceLayerSolo(options = {}) {
+            const snapshot = performanceSourceLayerSoloSnapshot;
+            performanceSourceLayerSolo = 'none';
+            performanceSourceLayerSoloSnapshot = null;
+            if (snapshot) {
+                restoreStemExportState(snapshot);
+            } else {
+                syncPerformanceControlState();
+            }
+            if (!options.silent) {
+                setStatus('Source solo off.');
+            }
+        }
+
+        function setPerformanceSourceLayerSolo(layer, options = {}) {
+            const requested = normalizePerformanceSourceLayerSolo(layer);
+            if (requested === 'none') {
+                if (performanceSourceLayerSolo === 'none' && !performanceSourceLayerSoloSnapshot) {
+                    syncPerformanceSourceLayerSoloButtons();
+                    return;
+                }
+                restorePerformanceSourceLayerSolo(options);
+                return;
+            }
+
+            if (options.toggle !== false && performanceSourceLayerSolo === requested) {
+                restorePerformanceSourceLayerSolo(options);
+                return;
+            }
+
+            const baselineSnapshot = performanceSourceLayerSoloSnapshot || captureStemExportState();
+            if (performanceSourceLayerSoloSnapshot) {
+                restoreStemExportState(baselineSnapshot);
+            }
+            performanceSourceLayerSoloSnapshot = baselineSnapshot;
+            performanceSourceLayerSolo = requested;
+
+            const componentKey = requested === 'sample'
+                ? 'generatedLayer'
+                : requested === 'loop'
+                    ? 'dryLoop'
+                    : requested;
+            applyStemIsolation(componentKey);
+            syncPerformanceSourceLayerSoloButtons();
+
+            if (!options.silent) {
+                const labels = {
+                    osc: 'Oscillator',
+                    granular: 'Granular',
+                    sample: 'Sample',
+                    loop: 'Loop'
+                };
+                setStatus(`${labels[requested] || 'Source'} soloed.`);
+            }
         }
 
         function syncGrainLayerSoloButtons() {
@@ -43777,6 +43853,12 @@
                 case 'osc':
                     setOscillatorsEnabled(true, { silent: true, skipSave: true });
                     break;
+                case 'granular':
+                    setGranularLayersEnabled(true, { silent: true, skipSave: true });
+                    setGranularLayerMuted('main', false, { silent: true, skipSave: true });
+                    setGranularLayerMuted('A', false, { silent: true, skipSave: true });
+                    setGranularLayerMuted('B', false, { silent: true, skipSave: true });
+                    break;
                 case 'grainMain':
                     setGranularLayersEnabled(true, { silent: true, skipSave: true });
                     setGranularLayerMuted('main', false, { silent: true, skipSave: true });
@@ -45583,6 +45665,10 @@
         const performanceDropboxSampleLayerBtn = document.getElementById('performanceDropboxSampleLayerBtn');
         const performanceLayerOscBtn = document.getElementById('performanceLayerOscBtn');
         const performanceLayerGranularBtn = document.getElementById('performanceLayerGranularBtn');
+        const performanceLayerOscSoloBtn = document.getElementById('performanceLayerOscSoloBtn');
+        const performanceLayerGranularSoloBtn = document.getElementById('performanceLayerGranularSoloBtn');
+        const performanceGeneratedLayerQuickSoloBtn = document.getElementById('performanceGeneratedLayerQuickSoloBtn');
+        const performanceDryLoopLayerQuickSoloBtn = document.getElementById('performanceDryLoopLayerQuickSoloBtn');
         const performanceOscToggleBtn = document.getElementById('performanceOscToggleBtn');
         const performanceNoiseOffBtn = document.getElementById('performanceNoiseOffBtn');
         const performanceTonalDrumsBtn = document.getElementById('performanceTonalDrumsBtn');
@@ -46086,7 +46172,6 @@
 
         function getPerformanceMixerSharedVuCards() {
             return [
-                performanceMixerVuShell?.closest('.performance-sound-card'),
                 performanceOutputVuShell?.closest('.performance-sound-card')
             ].filter(Boolean);
         }
@@ -47425,6 +47510,7 @@
                 performanceSampleSoloBtn.setAttribute('aria-pressed', String(generatedSampleSolo));
             }
 
+            syncPerformanceSourceLayerSoloButtons();
             syncLoopLayerSoloButtons();
 
             if (performanceGeneratedLayerBtn) {
@@ -47903,6 +47989,22 @@
 
         performanceDryLoopLayerBtn?.addEventListener('click', () => {
             setGeneratedDryLoopEnabled(!generatedDryLoopEnabled);
+        });
+
+        performanceLayerOscSoloBtn?.addEventListener('click', () => {
+            setPerformanceSourceLayerSolo('osc', { toggle: true });
+        });
+
+        performanceLayerGranularSoloBtn?.addEventListener('click', () => {
+            setPerformanceSourceLayerSolo('granular', { toggle: true });
+        });
+
+        performanceGeneratedLayerQuickSoloBtn?.addEventListener('click', () => {
+            setPerformanceSourceLayerSolo('sample', { toggle: true });
+        });
+
+        performanceDryLoopLayerQuickSoloBtn?.addEventListener('click', () => {
+            setPerformanceSourceLayerSolo('loop', { toggle: true });
         });
 
         performanceBastardLoopToggleBtn?.addEventListener('click', () => {
