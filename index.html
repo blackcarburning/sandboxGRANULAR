@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-09-28-build-v2026.10.13.20';
+            const cacheBuster = '2026-10-13-09-44-build-v2026.10.13.21';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3725,6 +3725,106 @@
             gap: 6px;
         }
 
+        .simplified-ui .performance-mixer-audit-graph {
+            display: grid;
+            gap: 8px;
+        }
+
+        .simplified-ui .performance-mixer-audit-graph[hidden] {
+            display: none;
+        }
+
+        .simplified-ui .performance-mixer-audit-graph-head {
+            display: grid;
+            gap: 3px;
+        }
+
+        .simplified-ui .performance-mixer-audit-graph-head strong {
+            color: #fff;
+            font-size: 0.82rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-mixer-audit-graph-head span {
+            color: rgba(230, 240, 255, 0.68);
+            font-size: 0.74rem;
+            line-height: 1.4;
+        }
+
+        .simplified-ui .performance-mixer-audit-path {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .simplified-ui .performance-mixer-audit-stage {
+            flex: 1 1 110px;
+            min-width: 96px;
+            display: grid;
+            gap: 5px;
+            padding: 9px 10px;
+            border-radius: 12px;
+            background: rgba(4, 10, 20, 0.64);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .simplified-ui .performance-mixer-audit-stage.hot {
+            border-color: rgba(255, 166, 87, 0.52);
+            box-shadow: 0 0 0 1px rgba(255, 166, 87, 0.14), 0 0 16px rgba(255, 128, 72, 0.16);
+        }
+
+        .simplified-ui .performance-mixer-audit-stage.primary {
+            border-color: rgba(255, 109, 109, 0.72);
+            box-shadow: 0 0 0 1px rgba(255, 109, 109, 0.22), 0 0 18px rgba(255, 109, 109, 0.18);
+        }
+
+        .simplified-ui .performance-mixer-audit-stage-label {
+            color: rgba(230, 240, 255, 0.72);
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-mixer-audit-stage-value {
+            color: #fff;
+            font-size: 0.96rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .simplified-ui .performance-mixer-audit-stage-meter {
+            overflow: hidden;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .simplified-ui .performance-mixer-audit-stage-meter span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, rgba(113, 235, 255, 0.92), rgba(136, 255, 171, 0.94));
+        }
+
+        .simplified-ui .performance-mixer-audit-stage.hot .performance-mixer-audit-stage-meter span {
+            background: linear-gradient(90deg, rgba(255, 192, 103, 0.96), rgba(255, 120, 94, 0.96));
+        }
+
+        .simplified-ui .performance-mixer-audit-stage.primary .performance-mixer-audit-stage-meter span {
+            background: linear-gradient(90deg, rgba(255, 154, 120, 0.98), rgba(255, 94, 94, 0.98));
+        }
+
+        .simplified-ui .performance-mixer-audit-arrow {
+            align-self: center;
+            color: rgba(230, 240, 255, 0.48);
+            font-size: 1rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
         .simplified-ui .performance-mixer-audit-item {
             padding: 8px 10px;
             border-radius: 12px;
@@ -5111,7 +5211,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.20</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.21</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6437,6 +6537,7 @@
                         <button class="performance-btn primary performance-gain-stage-btn" id="performanceGainStageAuditBtn" type="button">Check Gain Staging</button>
                         <div class="performance-mixer-audit-status" id="performanceGainStageAuditStatus">Ready to scan the live mixer, trims, and internal gain stages for distortion risk.</div>
                         <div class="performance-mixer-audit-list" id="performanceGainStageAuditList" aria-live="polite"></div>
+                        <div class="performance-mixer-audit-graph" id="performanceGainStageAuditGraph" aria-live="polite" hidden></div>
                     </div>
                     <section class="performance-mixer-section" aria-label="Source balance controls">
                         <div class="performance-mixer-section-head">
@@ -45482,6 +45583,7 @@
         const performanceGainStageAuditBtn = document.getElementById('performanceGainStageAuditBtn');
         const performanceGainStageAuditStatus = document.getElementById('performanceGainStageAuditStatus');
         const performanceGainStageAuditList = document.getElementById('performanceGainStageAuditList');
+        const performanceGainStageAuditGraph = document.getElementById('performanceGainStageAuditGraph');
         const performanceOutputVuShell = document.getElementById('performanceOutputVuShell');
         const performanceOutputVuFill = document.getElementById('performanceOutputVuFill');
         const performanceOutputVuPeak = document.getElementById('performanceOutputVuPeak');
@@ -45660,6 +45762,7 @@
             ['performanceBastardLoopXDelayMix', 'Bastardloop X Delay Mix']
         ];
         let mixerGainStageHighlightsActive = false;
+        let performanceGainStageAuditMonitorTimer = null;
 
         function appendPerformanceControlCard(controlId, targetGrid) {
             if (!targetGrid) return;
@@ -46083,8 +46186,231 @@
 
             return {
                 debugAvailable: Boolean(debug),
+                debug,
                 suggestions: Array.from(suggestions.values()).sort((a, b) => b.score - a.score).slice(0, 5)
             };
+        }
+
+        function isPerformanceGainStagePlaybackActive() {
+            const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
+            return Boolean(audioContext && audioContext.state === 'running' && anythingRunning);
+        }
+
+        function stopPerformanceGainStageAuditMonitor() {
+            if (performanceGainStageAuditMonitorTimer) {
+                window.clearInterval(performanceGainStageAuditMonitorTimer);
+                performanceGainStageAuditMonitorTimer = null;
+            }
+        }
+
+        function getGainStageGraphPercentFromGain(value, options = {}) {
+            const { fullScale = 1.2 } = options;
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric) || fullScale <= 0) return 0;
+            return Math.max(0, Math.min(100, Math.round((numeric / fullScale) * 100)));
+        }
+
+        function getGainStageGraphPercentFromSlider(id) {
+            const control = document.getElementById(id);
+            if (!(control instanceof HTMLInputElement) && !(control instanceof HTMLSelectElement)) return 0;
+            const value = Number(control.value);
+            if (!Number.isFinite(value)) return 0;
+            const min = Number(control.min || 0);
+            const max = Number(control.max || 100);
+            if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return Math.max(0, Math.min(100, Math.round(value)));
+            return Math.max(0, Math.min(100, Math.round(((value - min) / (max - min)) * 100)));
+        }
+
+        function createGainStageGraphStage(label, valueText, percent, options = {}) {
+            return {
+                label,
+                valueText,
+                percent: Math.max(0, Math.min(100, Math.round(Number(percent) || 0))),
+                hot: Boolean(options.hot),
+                primary: Boolean(options.primary)
+            };
+        }
+
+        function buildPerformanceGainStageGraph(result) {
+            const primary = result?.suggestions?.[0];
+            const gains = result?.debug?.gains || {};
+            if (!primary) return null;
+
+            const genericGraph = {
+                title: primary.label,
+                note: primary.details[0],
+                stages: [
+                    createGainStageGraphStage(primary.label, primary.label, getGainStageGraphPercentFromSlider(primary.controlId), { hot: true, primary: true }),
+                    createGainStageGraphStage('Master', `${Math.round(getPerformanceSliderNumber('performanceMasterTrim', -3))} dB`, getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 }),
+                    createGainStageGraphStage('Output', gains.finalAmplifier ? `${Math.round(Number(gains.finalAmplifier) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalAmplifier || gains.masterGain || 0), { hot: Number(gains.finalAmplifier || gains.masterGain || 0) > 1 })
+                ]
+            };
+
+            switch (primary.controlId) {
+                case 'performanceMasterTrim':
+                    return {
+                        title: 'Main output path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('Filter Out', `${getPerformanceSliderNumber('performancePostFilterTrim', 0).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.makeupGain || 0), { hot: Number(gains.makeupGain || 0) > 1.2 }),
+                            createGainStageGraphStage('Master Trim', `${getPerformanceSliderNumber('performanceMasterTrim', -3).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1, primary: true }),
+                            createGainStageGraphStage('Final Amp', gains.finalAmplifier ? `${Math.round(Number(gains.finalAmplifier) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalAmplifier || gains.masterGain || 0), { hot: Number(gains.finalAmplifier || gains.masterGain || 0) > 1 })
+                        ]
+                    };
+                case 'performanceInputTrim':
+                case 'performancePostFilterTrim':
+                    return {
+                        title: 'Filter gain path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('Filter In', `${getPerformanceSliderNumber('performanceInputTrim', 0).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.preFilterGain || 0), { hot: Number(gains.preFilterGain || 0) > 1.1, primary: primary.controlId === 'performanceInputTrim' }),
+                            createGainStageGraphStage('Filter Out', `${getPerformanceSliderNumber('performancePostFilterTrim', 0).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.makeupGain || 0), { hot: Number(gains.makeupGain || 0) > 1.2, primary: primary.controlId === 'performancePostFilterTrim' }),
+                            createGainStageGraphStage('Master', gains.masterGain ? `${Math.round(Number(gains.masterGain) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 })
+                        ]
+                    };
+                case 'performanceGeneratedDryTrim':
+                    return {
+                        title: 'Dry loop path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('Dry Source', gains.generatedDryLoopGain ? `${Math.round(Number(gains.generatedDryLoopGain) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.generatedDryLoopGain || gains.dryGain || 0), { hot: Number(gains.generatedDryLoopGain || gains.dryGain || 0) > 1 }),
+                            createGainStageGraphStage('Dry Trim', `${getPerformanceSliderNumber('performanceGeneratedDryTrim', 0).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.dryGain || 0), { hot: Number(gains.dryGain || 0) > 1.05, primary: true }),
+                            createGainStageGraphStage('Master', gains.masterGain ? `${Math.round(Number(gains.masterGain) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 })
+                        ]
+                    };
+                case 'performanceGranularTrim':
+                case 'performanceGrainMixerAmp':
+                    return {
+                        title: 'Granular path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('Grain Amp', `${Math.round(getPerformanceSliderNumber('performanceGrainMixerAmp', 100))}%`, getPerformanceSliderNumber('performanceGrainMixerAmp', 100) / 2, { hot: getPerformanceSliderNumber('performanceGrainMixerAmp', 100) > 130, primary: primary.controlId === 'performanceGrainMixerAmp' }),
+                            createGainStageGraphStage('Grain Trim', `${getPerformanceSliderNumber('performanceGranularTrim', -3).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.wetGain || 0), { hot: Number(gains.wetGain || 0) > 1.05, primary: primary.controlId === 'performanceGranularTrim' }),
+                            createGainStageGraphStage('Master', gains.masterGain ? `${Math.round(Number(gains.masterGain) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 })
+                        ]
+                    };
+                case 'performanceBastardLoopMInputGain':
+                    return {
+                        title: 'Bastardloop M mic path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('Mic In', `${Math.round(getPerformanceSliderNumber('performanceBastardLoopMInputGain', 100))}%`, getPerformanceSliderNumber('performanceBastardLoopMInputGain', 100) / 2, { hot: getPerformanceSliderNumber('performanceBastardLoopMInputGain', 100) > 130, primary: true }),
+                            createGainStageGraphStage('FX Input', gains.bastardLoopMFxInput ? `${Math.round(Number(gains.bastardLoopMFxInput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxInput || 0), { hot: Number(gains.bastardLoopMFxInput || 0) > 1.05 }),
+                            createGainStageGraphStage('FX Output', gains.bastardLoopMFxOutput ? `${Math.round(Number(gains.bastardLoopMFxOutput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxOutput || 0), { hot: Number(gains.bastardLoopMFxOutput || 0) > 1.05 })
+                        ]
+                    };
+                case 'performanceBastardLoopMDelayMix':
+                    return {
+                        title: 'Bastardloop M delay path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('FX Input', gains.bastardLoopMFxInput ? `${Math.round(Number(gains.bastardLoopMFxInput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxInput || 0)),
+                            createGainStageGraphStage('Delay Send', gains.bastardLoopMDelaySend ? `${Math.round(Number(gains.bastardLoopMDelaySend) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMDelaySend || 0), { hot: Number(gains.bastardLoopMDelaySend || 0) > 0.68, primary: true }),
+                            createGainStageGraphStage('Delay Return', gains.bastardLoopMFxOutput ? `${Math.round(Number(gains.bastardLoopMFxOutput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxOutput || 0), { hot: Number(gains.bastardLoopMFxOutput || 0) > 1.05 })
+                        ]
+                    };
+                case 'performanceBastardLoopMChorusMix':
+                    return {
+                        title: 'Bastardloop M chorus path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('FX Input', gains.bastardLoopMFxInput ? `${Math.round(Number(gains.bastardLoopMFxInput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxInput || 0)),
+                            createGainStageGraphStage('Chorus Send', gains.bastardLoopMChorusSend ? `${Math.round(Number(gains.bastardLoopMChorusSend) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMChorusSend || 0), { hot: Number(gains.bastardLoopMChorusSend || 0) > 0.7, primary: true }),
+                            createGainStageGraphStage('Wet Return', gains.bastardLoopMChorusLeftWet ? `${Math.round(Number(gains.bastardLoopMChorusLeftWet) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMChorusLeftWet || 0), { hot: Number(gains.bastardLoopMChorusLeftWet || 0) > 0.5 })
+                        ]
+                    };
+                case 'performanceBastardLoopMRoomReverbMix':
+                    return {
+                        title: 'Bastardloop M reverb path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('FX Input', gains.bastardLoopMFxInput ? `${Math.round(Number(gains.bastardLoopMFxInput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxInput || 0)),
+                            createGainStageGraphStage('Reverb Send', gains.bastardLoopMRoomReverbSend ? `${Math.round(Number(gains.bastardLoopMRoomReverbSend) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMRoomReverbSend || 0), { hot: Number(gains.bastardLoopMRoomReverbSend || 0) > 0.72, primary: true }),
+                            createGainStageGraphStage('Wet Return', gains.bastardLoopMRoomReverbWet ? `${Math.round(Number(gains.bastardLoopMRoomReverbWet) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMRoomReverbWet || 0), { hot: Number(gains.bastardLoopMRoomReverbWet || 0) > 0.5 })
+                        ]
+                    };
+                case 'performanceBastardLoopMCompressorAmount':
+                    return {
+                        title: 'Bastardloop M compressor path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('FX Output', gains.bastardLoopMFxOutput ? `${Math.round(Number(gains.bastardLoopMFxOutput) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMFxOutput || 0)),
+                            createGainStageGraphStage('Comp Drive', gains.bastardLoopMCompressorDrive ? `${Math.round(Number(gains.bastardLoopMCompressorDrive) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopMCompressorDrive || 0), { hot: Number(gains.bastardLoopMCompressorDrive || 0) > 1.12, primary: true }),
+                            createGainStageGraphStage('Master', gains.masterGain ? `${Math.round(Number(gains.masterGain) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 })
+                        ]
+                    };
+                case 'performanceBastardLoopLDelayMix':
+                    return {
+                        title: 'Bastardloop L delay path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('L Source', `${Math.round(getPerformanceSliderNumber('performanceBastardLoopLLevelMixer', 50))}%`, getPerformanceSliderNumber('performanceBastardLoopLLevelMixer', 50), { hot: getPerformanceSliderNumber('performanceBastardLoopLLevelMixer', 50) > 90 }),
+                            createGainStageGraphStage('Delay Send', gains.bastardLoopLDelaySend ? `${Math.round(Number(gains.bastardLoopLDelaySend) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopLDelaySend || 0), { hot: Number(gains.bastardLoopLDelaySend || 0) > 0.8, primary: true }),
+                            createGainStageGraphStage('Feedback', gains.bastardLoopLDelayFeedback ? `${Math.round(Number(gains.bastardLoopLDelayFeedback) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopLDelayFeedback || 0, { fullScale: 0.5 }), { hot: Number(gains.bastardLoopLDelayFeedback || 0) > 0.34 }),
+                            createGainStageGraphStage('Wet Return', gains.bastardLoopLDelayWet ? `${Math.round(Number(gains.bastardLoopLDelayWet) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopLDelayWet || 0), { hot: Number(gains.bastardLoopLDelayWet || 0) > 0.8 })
+                        ]
+                    };
+                case 'performanceBastardLoopXDelayMix':
+                    return {
+                        title: 'Bastardloop X delay path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('X Source', `${Math.round(getPerformanceSliderNumber('performanceBastardLoopXLevelMixer', 50))}%`, getPerformanceSliderNumber('performanceBastardLoopXLevelMixer', 50), { hot: getPerformanceSliderNumber('performanceBastardLoopXLevelMixer', 50) > 90 }),
+                            createGainStageGraphStage('Delay Send', gains.bastardLoopXDelaySend ? `${Math.round(Number(gains.bastardLoopXDelaySend) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopXDelaySend || 0), { hot: Number(gains.bastardLoopXDelaySend || 0) > 0.8, primary: true }),
+                            createGainStageGraphStage('Feedback', gains.bastardLoopXDelayFeedback ? `${Math.round(Number(gains.bastardLoopXDelayFeedback) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopXDelayFeedback || 0, { fullScale: 0.5 }), { hot: Number(gains.bastardLoopXDelayFeedback || 0) > 0.34 }),
+                            createGainStageGraphStage('Wet Return', gains.bastardLoopXDelayWet ? `${Math.round(Number(gains.bastardLoopXDelayWet) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.bastardLoopXDelayWet || 0), { hot: Number(gains.bastardLoopXDelayWet || 0) > 0.8 })
+                        ]
+                    };
+                case 'finalDelayDepth':
+                case 'finalDelayFeedback':
+                    return {
+                        title: 'Final delay path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('FX Drive', gains.finalCompressorDrive ? `${Math.round(Number(gains.finalCompressorDrive) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalCompressorDrive || 0)),
+                            createGainStageGraphStage('Delay Wet', gains.finalDelayWet ? `${Math.round(Number(gains.finalDelayWet) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalDelayWet || 0), { hot: Number(gains.finalDelayWet || 0) > 0.7, primary: primary.controlId === 'finalDelayDepth' }),
+                            createGainStageGraphStage('Feedback', gains.finalDelayFeedback ? `${Math.round(Number(gains.finalDelayFeedback) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalDelayFeedback || 0, { fullScale: 0.9 }), { hot: Number(gains.finalDelayFeedback || 0) > 0.68, primary: primary.controlId === 'finalDelayFeedback' }),
+                            createGainStageGraphStage('Dry Return', gains.finalDelayDry ? `${Math.round(Number(gains.finalDelayDry) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalDelayDry || 0))
+                        ]
+                    };
+                case 'finalReverbMix':
+                case 'finalReverbShimmerMix':
+                case 'finalReverbDrumSend':
+                    return {
+                        title: 'Final reverb path',
+                        note: primary.details[0],
+                        stages: [
+                            createGainStageGraphStage('FX Drive', gains.finalCompressorDrive ? `${Math.round(Number(gains.finalCompressorDrive) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalCompressorDrive || 0)),
+                            createGainStageGraphStage('Reverb Wet', gains.finalReverbWet ? `${Math.round(Number(gains.finalReverbWet) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalReverbWet || 0), { hot: Number(gains.finalReverbWet || 0) > 0.75, primary: primary.controlId === 'finalReverbMix' || primary.controlId === 'finalReverbDrumSend' }),
+                            createGainStageGraphStage('Shimmer', gains.finalReverbShimmer ? `${Math.round(Number(gains.finalReverbShimmer) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalReverbShimmer || 0), { hot: Number(gains.finalReverbShimmer || 0) > 0.6, primary: primary.controlId === 'finalReverbShimmerMix' }),
+                            createGainStageGraphStage('Master', gains.masterGain ? `${Math.round(Number(gains.masterGain) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 })
+                        ]
+                    };
+                default:
+                    return genericGraph;
+            }
+        }
+
+        function renderPerformanceGainStageGraph(result) {
+            if (!performanceGainStageAuditGraph) return;
+            const graph = buildPerformanceGainStageGraph(result);
+            if (!graph?.stages?.length) {
+                performanceGainStageAuditGraph.hidden = true;
+                performanceGainStageAuditGraph.innerHTML = '';
+                return;
+            }
+
+            const stagesHtml = graph.stages
+                .map((stage, index) => {
+                    const classes = ['performance-mixer-audit-stage'];
+                    if (stage.hot) classes.push('hot');
+                    if (stage.primary) classes.push('primary');
+                    return `${index > 0 ? '<div class="performance-mixer-audit-arrow" aria-hidden="true">→</div>' : ''}<div class="${classes.join(' ')}"><div class="performance-mixer-audit-stage-label">${stage.label}</div><div class="performance-mixer-audit-stage-value">${stage.valueText}</div><div class="performance-mixer-audit-stage-meter"><span style="width:${stage.percent}%;"></span></div></div>`;
+                })
+                .join('');
+
+            performanceGainStageAuditGraph.hidden = false;
+            performanceGainStageAuditGraph.innerHTML = `<div class="performance-mixer-audit-graph-head"><strong>Live problem path</strong><span>${graph.note}</span></div><div class="performance-mixer-audit-path">${stagesHtml}</div>`;
         }
 
         function renderPerformanceGainStageAudit(result) {
@@ -46094,6 +46420,7 @@
                     ? 'No obvious gain-staging problem is showing right now. The mixer and trims look reasonably controlled.'
                     : 'Audio is not running yet, but the slider-only scan does not show an obvious headroom problem.';
                 performanceGainStageAuditList.innerHTML = '';
+                renderPerformanceGainStageGraph(null);
                 return;
             }
 
@@ -46105,9 +46432,28 @@
                     return `<div class="performance-mixer-audit-item"><strong>${index + 1}. ${suggestion.label}</strong><div>${suggestion.details[0]}</div>${extra}</div>`;
                 })
                 .join('');
+            renderPerformanceGainStageGraph(result);
         }
 
-        function runPerformanceGainStageAudit() {
+        function runPerformanceGainStageAudit(options = {}) {
+            const { announce = true } = options;
+            if (!isPerformanceGainStagePlaybackActive()) {
+                stopPerformanceGainStageAuditMonitor();
+                clearPerformanceGainStageHighlights();
+                if (performanceGainStageAuditStatus) {
+                    performanceGainStageAuditStatus.textContent = 'Press Play to run live gain staging analysis.';
+                }
+                if (performanceGainStageAuditList) {
+                    performanceGainStageAuditList.innerHTML = '';
+                }
+                renderPerformanceGainStageGraph(null);
+                showSettlePopup('Press Play');
+                if (announce) {
+                    setStatus('Press Play to run live gain staging analysis.', 'error');
+                }
+                return false;
+            }
+
             clearPerformanceGainStageHighlights();
             const result = collectPerformanceGainStageSuggestions();
             renderPerformanceGainStageAudit(result);
@@ -46124,11 +46470,30 @@
             });
 
             mixerGainStageHighlightsActive = result.suggestions.length > 0;
-            setStatus(
-                result.suggestions.length
-                    ? `Gain staging check found ${result.suggestions.length} hotspot${result.suggestions.length === 1 ? '' : 's'}.`
-                    : 'Gain staging check found no obvious hotspot.'
-            );
+            if (announce) {
+                setStatus(
+                    result.suggestions.length
+                        ? `Gain staging check found ${result.suggestions.length} hotspot${result.suggestions.length === 1 ? '' : 's'}.`
+                        : 'Gain staging check found no obvious hotspot.'
+                );
+            }
+            return true;
+        }
+
+        function startPerformanceGainStageAuditMonitor() {
+            if (!runPerformanceGainStageAudit({ announce: true })) return;
+            stopPerformanceGainStageAuditMonitor();
+            performanceGainStageAuditMonitorTimer = window.setInterval(() => {
+                if (!isPerformanceGainStagePlaybackActive()) {
+                    stopPerformanceGainStageAuditMonitor();
+                    if (performanceGainStageAuditStatus) {
+                        performanceGainStageAuditStatus.textContent = 'Playback stopped. Press Play to resume live gain staging analysis.';
+                    }
+                    showSettlePopup('Press Play');
+                    return;
+                }
+                runPerformanceGainStageAudit({ announce: false });
+            }, 350);
         }
 
         mountPerformanceMixerSections();
@@ -49046,12 +49411,13 @@
         });
 
         performanceGainStageAuditBtn?.addEventListener('click', () => {
-            runPerformanceGainStageAudit();
+            startPerformanceGainStageAuditMonitor();
         });
 
         performanceMixerCard?.addEventListener('input', (event) => {
             if (!mixerGainStageHighlightsActive) return;
             if (!(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLSelectElement)) return;
+            if (performanceGainStageAuditMonitorTimer) return;
             clearPerformanceGainStageHighlights();
             if (performanceGainStageAuditStatus) {
                 performanceGainStageAuditStatus.textContent = 'Mixer changed. Run Check Gain Staging again to refresh the hotspot suggestions.';
@@ -49059,6 +49425,7 @@
             if (performanceGainStageAuditList) {
                 performanceGainStageAuditList.innerHTML = '';
             }
+            renderPerformanceGainStageGraph(null);
         }, true);
 
         performanceLfoSquareBtn?.addEventListener('click', () => {
