@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Storwize Documentation</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 72 42" aria-hidden="true" class="array-icon">
+          <rect x="3" y="6" width="66" height="30" rx="3" />
+          <path d="M9 13h54M9 21h54M9 29h54" />
+          <circle cx="15" cy="13" r="2" />
+          <circle cx="15" cy="21" r="2" />
+          <circle cx="15" cy="29" r="2" />
+          <path d="M24 13h28M24 21h22M24 29h31" />
+        </svg>
+        <div>
+          <h1>Storwize Documentation</h1>
+          <p>IBM Storage Virtualize 9.1.x capture, audit, and report builder</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="openRestTest" type="button" title="Open direct REST API test">REST Test</button>
+        <button id="exportMarkdown" type="button" title="Download markdown report">Markdown</button>
+        <button id="exportHtml" type="button" title="Download HTML report">HTML</button>
+        <button id="exportJson" type="button" title="Download parsed JSON">JSON</button>
+      </div>
+    </header>
+
+    <main class="shell">
+      <nav class="tabs" aria-label="Documentation sections">
+        <button class="tab active" data-tab="capture" type="button">Capture</button>
+        <button class="tab" data-tab="overview" type="button">Overview</button>
+        <button class="tab" data-tab="inventory" type="button">Inventory</button>
+        <button class="tab" data-tab="audit" type="button">Audit</button>
+        <button class="tab" data-tab="commands" type="button">Commands</button>
+        <button class="tab" data-tab="report" type="button">Report</button>
+      </nav>
+
+      <section id="capture" class="panel active">
+        <div class="surface fetch-surface">
+          <div class="section-title">
+            <div>
+              <h2>Configuration Areas</h2>
+              <p class="quiet">Choose the command groups to include when generating the offline collector batch.</p>
+            </div>
+            <div class="fetch-actions">
+              <button id="selectAllGroups" type="button" class="secondary">Select All</button>
+              <button id="clearAllGroups" type="button" class="secondary">Clear</button>
+            </div>
+          </div>
+          <div id="fetchGroups" class="fetch-groups"></div>
+        </div>
+        <div class="surface offline-surface">
+          <div class="section-title">
+            <div>
+              <h2>Offline Plink Collector</h2>
+              <p class="quiet">Generate the Windows batch script in the text box below, then optionally save it to Downloads or copy it to the VPN-connected laptop.</p>
+            </div>
+            <div class="fetch-actions">
+              <button id="generatePlinkBatch" type="button">Generate Batch</button>
+              <button id="savePlinkBatch" type="button" class="secondary">Save Batch</button>
+              <button id="exportDocx" type="button" class="secondary">DOCX</button>
+            </div>
+          </div>
+          <form id="connectionForm" class="connection-form plink-form">
+            <label>Management IP / DNS <input name="address" placeholder="192.168.1.100" autocomplete="off" /></label>
+            <label>SSH port <input name="port" value="22" inputmode="numeric" /></label>
+            <label>Username <input name="username" autocomplete="username" /></label>
+            <label>Password <input name="password" type="password" autocomplete="current-password" /></label>
+            <label>Timeout seconds <input name="timeout" value="30" inputmode="numeric" /></label>
+          </form>
+          <div class="connection-form plink-form">
+            <label>Plink path <input id="plinkPath" value="plink.exe" autocomplete="off" /></label>
+            <label>Output file <input id="plinkOutput" value="flashsystem_capture.txt" autocomplete="off" /></label>
+            <label>Log file <input id="plinkLog" value="flashsystem_capture.log" autocomplete="off" /></label>
+            <label>Batch name <input id="plinkBatchName" value="collect_flashsystem.cmd" autocomplete="off" /></label>
+            <label>Host key <input id="plinkHostKey" placeholder="optional -hostkey value" autocomplete="off" /></label>
+          </div>
+          <label class="batch-output">
+            Batch script
+            <textarea id="plinkBatchOutput" class="batch-script" spellcheck="false" placeholder="Click Generate Batch to build the collector script here."></textarea>
+          </label>
+          <div class="row">
+            <label class="file-import">Import Plink output <input id="importPlinkOutput" type="file" accept=".txt,.log,.out,.capture,text/plain" /></label>
+          </div>
+          <div id="plinkStatus" class="status">Generate the batch, run it on the VPN laptop, then import the output file.</div>
+        </div>
+        <div class="grid two">
+          <form id="systemForm" class="surface">
+            <h2>System Details</h2>
+            <div class="fields">
+              <label>Customer <input name="customer" autocomplete="organization" /></label>
+              <label>System name <input name="systemName" value="FlashSystem 7300" /></label>
+              <label>Location <input name="location" /></label>
+              <label>MTM <input name="mtm" value="4657-924" /></label>
+              <label>Serial <input name="serial" /></label>
+              <label>Code level <input name="codeLevel" placeholder="9.1.0.x" /></label>
+              <label>Management IPs <input name="managementIps" placeholder="10.0.0.10, 10.0.0.11" /></label>
+              <label>Prepared by <input name="preparedBy" /></label>
+              <label>Collection date <input name="collectionDate" type="date" /></label>
+              <label>Document reference <input name="documentRef" placeholder="optional" /></label>
+            </div>
+            <label class="notes">Notes / scope <textarea name="notes" rows="5" placeholder="Optional scope, exclusions, caveats, or customer-specific notes"></textarea></label>
+          </form>
+
+          <div class="surface">
+            <h2>CLI Capture</h2>
+            <p class="quiet">Paste one or more command outputs. Prompts such as <code>svcinfo lssystem</code>, <code>&gt; lsnode</code>, or bare command headings are recognised.</p>
+            <textarea id="cliInput" class="cli-input" spellcheck="false" placeholder="svcinfo lssystem
+id name location partnership bandwidth ...
+0000020062 ABC-FS7300 local ...
+
+svcinfo lsnode -delim :
+id:name:UPS_serial_number:WWNN:status:IO_group_id
+1:node1:..."></textarea>
+            <div class="row">
+              <button id="parseCli" type="button">Parse Capture</button>
+              <button id="loadSample" type="button" class="secondary">Load Sample</button>
+              <button id="clearCapture" type="button" class="secondary">Clear</button>
+            </div>
+            <div id="parseStatus" class="status">Waiting for capture.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="overview" class="panel">
+        <div class="overview-grid">
+          <div class="surface hero-surface">
+            <div>
+              <p class="eyebrow">Documented system</p>
+              <h2 id="overviewTitle">FlashSystem 7300</h2>
+              <dl class="summary-list" id="systemSummary"></dl>
+            </div>
+            <div class="front-panel" aria-hidden="true">
+              <div></div><div></div><div></div><div></div>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div id="healthCards" class="metric-strip"></div>
+        </div>
+        <div class="grid two">
+          <div class="surface">
+            <h2>Capacity</h2>
+            <div id="capacityView" class="capacity-view"></div>
+          </div>
+          <div class="surface">
+            <h2>Topology</h2>
+            <div id="topologyView" class="topology"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="inventory" class="panel">
+        <div class="toolbar">
+          <label class="search">Search inventory <input id="inventorySearch" type="search" /></label>
+          <select id="inventoryFilter" aria-label="Inventory category"></select>
+        </div>
+        <div id="inventoryTables" class="inventory"></div>
+      </section>
+
+      <section id="audit" class="panel">
+        <div class="grid two">
+          <div class="surface">
+            <h2>Findings</h2>
+            <div id="auditFindings" class="findings"></div>
+          </div>
+          <div class="surface">
+            <h2>FS7300 9.1.0.x Limits Used</h2>
+            <div id="limitsView" class="limits"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="commands" class="panel">
+        <div class="grid two command-grid">
+          <div class="surface">
+            <h2>Collection Runbook</h2>
+            <div class="toolbar tight">
+              <button id="copyRunbook" type="button">Copy Commands</button>
+              <button id="downloadRunbook" type="button" class="secondary">Download</button>
+            </div>
+            <pre id="runbook" class="runbook"></pre>
+          </div>
+          <div class="surface">
+            <h2>Command Reference Map</h2>
+            <div id="commandMap" class="command-map"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="report" class="panel">
+        <div class="surface">
+          <h2>Generated Documentation</h2>
+          <textarea id="reportOutput" class="report-output" spellcheck="false"></textarea>
+        </div>
+      </section>
+    </main>
+
+    <template id="emptyStateTemplate">
+      <div class="empty">Paste CLI output on the Capture tab, then parse it.</div>
+    </template>
+
+    <script src="data/reference.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

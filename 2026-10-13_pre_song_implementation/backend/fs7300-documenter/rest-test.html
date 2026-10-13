@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Storage Virtualize REST Direct Test</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --surface: #ffffff;
+        --ink: #17212f;
+        --muted: #5d6a78;
+        --line: #d8dee6;
+        --accent: #0f62fe;
+        --accent-dark: #0043ce;
+        --warn: #f1c21b;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      header {
+        padding: 20px 28px;
+        background: #101820;
+        color: #fff;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 1.55rem;
+      }
+
+      header p {
+        margin: 5px 0 0;
+        color: #b7c3d0;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 22px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .surface {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 18px;
+        box-shadow: 0 12px 30px rgba(22, 32, 46, 0.08);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px repeat(2, minmax(160px, 0.8fr));
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      input, select, textarea, button {
+        font: inherit;
+      }
+
+      input, select, textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px 11px;
+      }
+
+      button {
+        min-height: 38px;
+        border: 0;
+        border-radius: 6px;
+        padding: 0 14px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover { background: var(--accent-dark); }
+      button.secondary { background: #e8edf4; color: var(--ink); }
+      button.secondary:hover { background: #dce4ee; }
+      button:disabled { opacity: 0.62; cursor: wait; }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+
+      .note {
+        margin: 0 0 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--warn);
+        border-left: 5px solid var(--warn);
+        border-radius: 8px;
+        background: #fff8d6;
+        color: #574a00;
+      }
+
+      .status {
+        margin-top: 12px;
+        color: var(--muted);
+      }
+
+      .debug {
+        min-height: 320px;
+        max-height: 520px;
+        margin: 0;
+        padding: 12px;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        border-radius: 8px;
+        background: #101820;
+        color: #d9e8ff;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.84rem;
+        line-height: 1.45;
+      }
+
+      .output {
+        min-height: 220px;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      code {
+        background: #eef3f8;
+        padding: 1px 4px;
+        border-radius: 4px;
+      }
+
+      @media (max-width: 880px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Storage Virtualize REST Direct Test</h1>
+      <p>Browser-to-array probe for IBM FlashSystem / Storwize REST API on TCP 7443</p>
+    </header>
+
+    <main>
+      <section class="surface">
+        <p class="note">
+          This page does not ask OpenClaw to SSH anywhere. It runs <code>fetch()</code> directly from this browser to the array REST API. If this fails with CORS or certificate errors, a pure browser implementation will not work without changing trust/CORS or running a local proxy on the VPN-connected laptop.
+        </p>
+
+        <div class="grid">
+          <label>Array IP / DNS <input id="address" value="10.166.2.25" autocomplete="off" /></label>
+          <label>REST port <input id="port" value="7443" inputmode="numeric" /></label>
+          <label>Username <input id="username" value="superuser" autocomplete="username" /></label>
+          <label>Password <input id="password" type="password" autocomplete="current-password" /></label>
+        </div>
+
+        <div class="grid" style="grid-template-columns: minmax(0, 1fr) 220px; margin-top: 12px;">
+          <label>Command endpoint <input id="command" value="lssystem" autocomplete="off" /></label>
+          <label>Request body <select id="bodyMode"><option value="empty">Empty JSON {}</option><option value="delim">JSON with delim ':'</option></select></label>
+        </div>
+
+        <div class="row">
+          <button id="openCert" type="button" class="secondary">Open Cert Page</button>
+          <button id="testOptions" type="button" class="secondary">Test CORS Preflight</button>
+          <button id="testAuth" type="button">Test Auth</button>
+          <button id="runCommand" type="button">Auth + Run Command</button>
+          <button id="copyDebug" type="button" class="secondary">Copy Debug</button>
+          <button id="clearDebug" type="button" class="secondary">Clear</button>
+        </div>
+
+        <div id="status" class="status">Waiting for test.</div>
+      </section>
+
+      <section class="surface">
+        <h2>Debug</h2>
+        <pre id="debug" class="debug">Waiting.</pre>
+      </section>
+
+      <section class="surface">
+        <h2>Response</h2>
+        <textarea id="output" class="output" spellcheck="false"></textarea>
+      </section>
+    </main>
+
+    <script>
+      const els = {
+        address: document.querySelector("#address"),
+        port: document.querySelector("#port"),
+        username: document.querySelector("#username"),
+        password: document.querySelector("#password"),
+        command: document.querySelector("#command"),
+        bodyMode: document.querySelector("#bodyMode"),
+        status: document.querySelector("#status"),
+        debug: document.querySelector("#debug"),
+        output: document.querySelector("#output"),
+        openCert: document.querySelector("#openCert"),
+        testOptions: document.querySelector("#testOptions"),
+        testAuth: document.querySelector("#testAuth"),
+        runCommand: document.querySelector("#runCommand"),
+        copyDebug: document.querySelector("#copyDebug"),
+        clearDebug: document.querySelector("#clearDebug")
+      };
+
+      let lastToken = "";
+
+      function baseUrl() {
+        return `https://${els.address.value.trim()}:${els.port.value.trim()}/rest/v1`;
+      }
+
+      function authUrl() {
+        return `${baseUrl()}/auth`;
+      }
+
+      function commandUrl() {
+        return `${baseUrl()}/${els.command.value.trim().replace(/^\/+/, "")}`;
+      }
+
+      function headers(extra = {}) {
+        return {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...extra
+        };
+      }
+
+      function authHeaders() {
+        return headers({
+          "X-Auth-Username": els.username.value,
+          "X-Auth-Password": els.password.value
+        });
+      }
+
+      function commandBody() {
+        return els.bodyMode.value === "delim" ? JSON.stringify({ delim: ":" }) : "{}";
+      }
+
+      function setDebug(line) {
+        els.debug.textContent = line;
+        scrollDebug();
+      }
+
+      function log(line) {
+        const prefix = els.debug.textContent && els.debug.textContent !== "Waiting." ? "\n" : "";
+        const ts = new Date().toLocaleTimeString();
+        els.debug.textContent = `${els.debug.textContent === "Waiting." ? "" : els.debug.textContent}${prefix}${ts} | ${line}`;
+        scrollDebug();
+      }
+
+      function scrollDebug() {
+        els.debug.scrollTop = els.debug.scrollHeight;
+      }
+
+      function setOutput(value) {
+        els.output.value = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      }
+
+      function setBusy(busy) {
+        els.testOptions.disabled = busy;
+        els.testAuth.disabled = busy;
+        els.runCommand.disabled = busy;
+      }
+
+      async function readResponse(response) {
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      }
+
+      function explainFetchFailure(error) {
+        log(`Browser fetch failed before a readable HTTP response: ${error.name}: ${error.message}`);
+        log("Likely causes: CORS blocked by the array, browser does not trust the array TLS certificate, VPN route is not available to this browser, or TCP/7443 is closed.");
+        log("Use 'Open Cert Page' first. If the browser shows a certificate warning, accept/trust it, then retry.");
+      }
+
+      async function testCorsPreflight() {
+        setBusy(true);
+        setDebug(`Testing browser reachability/CORS to ${authUrl()}`);
+        setOutput("");
+        els.status.textContent = "Testing CORS preflight...";
+        try {
+          log("Sending OPTIONS request with Access-Control-Request-Headers for X-Auth-Username, X-Auth-Password, Content-Type.");
+          const response = await fetch(authUrl(), {
+            method: "OPTIONS",
+            mode: "cors",
+            headers: {
+              "Access-Control-Request-Method": "POST",
+              "Access-Control-Request-Headers": "x-auth-username,x-auth-password,content-type"
+            }
+          });
+          log(`OPTIONS returned HTTP ${response.status} ${response.statusText}.`);
+          log(`Access-Control-Allow-Origin: ${response.headers.get("Access-Control-Allow-Origin") || "(not exposed)"}`);
+          log(`Access-Control-Allow-Headers: ${response.headers.get("Access-Control-Allow-Headers") || "(not exposed)"}`);
+          const body = await readResponse(response);
+          setOutput(body);
+          els.status.textContent = "CORS preflight returned a readable response.";
+        } catch (error) {
+          explainFetchFailure(error);
+          els.status.textContent = "CORS/reachability test failed before a readable response.";
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function testAuth() {
+        setBusy(true);
+        setDebug(`Testing REST auth to ${authUrl()} as '${els.username.value}'.`);
+        setOutput("");
+        els.status.textContent = "Testing auth...";
+        try {
+          log("POST /rest/v1/auth with X-Auth-Username and X-Auth-Password. Password is not logged.");
+          const response = await fetch(authUrl(), {
+            method: "POST",
+            mode: "cors",
+            headers: authHeaders(),
+            body: "{}"
+          });
+          log(`Auth returned HTTP ${response.status} ${response.statusText}.`);
+          const body = await readResponse(response);
+          setOutput(body);
+          lastToken = extractToken(response, body);
+          if (lastToken) {
+            log(`Token found (${lastToken.length} chars).`);
+            els.status.textContent = "Auth succeeded and token was found.";
+          } else {
+            log("No token found in response headers/body. Check output shape.");
+            els.status.textContent = response.ok ? "Auth response was readable but no token was detected." : "Auth returned an error response.";
+          }
+        } catch (error) {
+          explainFetchFailure(error);
+          els.status.textContent = "Auth failed before a readable response.";
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function authThenRun() {
+        setBusy(true);
+        setDebug(`Auth + command test against ${baseUrl()}.`);
+        setOutput("");
+        els.status.textContent = "Authenticating...";
+        try {
+          log("Authenticating first.");
+          const authResponse = await fetch(authUrl(), {
+            method: "POST",
+            mode: "cors",
+            headers: authHeaders(),
+            body: "{}"
+          });
+          log(`Auth returned HTTP ${authResponse.status} ${authResponse.statusText}.`);
+          const authBody = await readResponse(authResponse);
+          lastToken = extractToken(authResponse, authBody);
+          if (!lastToken) {
+            setOutput(authBody);
+            log("Stopping because no auth token was detected.");
+            els.status.textContent = "Auth did not produce a token.";
+            return;
+          }
+
+          els.status.textContent = `Running ${els.command.value.trim()}...`;
+          log(`POST ${commandUrl()} with X-Auth-Token. Body: ${commandBody()}`);
+          const commandResponse = await fetch(commandUrl(), {
+            method: "POST",
+            mode: "cors",
+            headers: headers({ "X-Auth-Token": lastToken }),
+            body: commandBody()
+          });
+          log(`Command returned HTTP ${commandResponse.status} ${commandResponse.statusText}.`);
+          const commandBodyValue = await readResponse(commandResponse);
+          setOutput(commandBodyValue);
+          els.status.textContent = commandResponse.ok ? "Command returned a readable response." : "Command returned an error response.";
+        } catch (error) {
+          explainFetchFailure(error);
+          els.status.textContent = "Auth/command failed before a readable response.";
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      function extractToken(response, body) {
+        const headerCandidates = ["X-Auth-Token", "x-auth-token", "Authorization"];
+        for (const header of headerCandidates) {
+          const value = response.headers.get(header);
+          if (value) return value.replace(/^Bearer\s+/i, "");
+        }
+        if (body && typeof body === "object") {
+          return body.token || body.auth_token || body.authToken || body.jwt || body.X_Auth_Token || "";
+        }
+        if (typeof body === "string") {
+          const match = body.match(/eyJ[A-Za-z0-9._-]+/);
+          return match ? match[0] : "";
+        }
+        return "";
+      }
+
+      els.openCert.addEventListener("click", () => {
+        const url = authUrl();
+        log(`Opening ${url} in a new tab so the browser can show/accept any TLS certificate warning.`);
+        window.open(url, "_blank", "noopener,noreferrer");
+      });
+      els.testOptions.addEventListener("click", testCorsPreflight);
+      els.testAuth.addEventListener("click", testAuth);
+      els.runCommand.addEventListener("click", authThenRun);
+      els.copyDebug.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(els.debug.textContent);
+        els.copyDebug.textContent = "Copied";
+        setTimeout(() => { els.copyDebug.textContent = "Copy Debug"; }, 1200);
+      });
+      els.clearDebug.addEventListener("click", () => {
+        setDebug("Waiting.");
+        setOutput("");
+        els.status.textContent = "Waiting for test.";
+      });
+    </script>
+  </body>
+</html>

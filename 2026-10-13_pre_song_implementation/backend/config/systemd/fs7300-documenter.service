@@ -1,0 +1,16 @@
+[Unit]
+Description=FlashSystem 7300 Documenter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/.openclaw/workspace/fs7300-documenter
+ExecStart=/root/.openclaw/workspace/fs7300-documenter/serve.sh 8765
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
