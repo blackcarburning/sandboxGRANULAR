@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-12-00-build-v2026.10.13.35';
+            const cacheBuster = '2026-10-13-12-05-build-v2026.10.13.36';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5304,7 +5304,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.35</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.36</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -46507,16 +46507,20 @@
             if (!controlId) return;
             const control = document.getElementById(controlId);
             if (!(control instanceof HTMLElement)) return;
-            const tabPanel = control.closest('.tab-content');
-            if (tabPanel instanceof HTMLElement && tabPanel.id) {
-                const targetTab = tabPanel.id.replace(/-tab$/, '');
-                const tabButton = document.querySelector(`.tab-button[data-tab="${targetTab}"]`);
-                if (tabButton instanceof HTMLElement) {
-                    activateTab(tabButton);
-                }
+            const isSynthPopupControl = Boolean(control.closest('.source-seed-group[aria-label="3-voice synth controls"]'));
+            if (isSynthPopupControl) {
+                openSynthPopup();
             }
             clearPerformanceGainStageHighlights();
             window.setTimeout(() => {
+                const tabPanel = control.closest('.tab-content');
+                if (tabPanel instanceof HTMLElement && tabPanel.id) {
+                    const targetTab = tabPanel.id.replace(/-tab$/, '');
+                    const tabButton = document.querySelector(`.tab-button[data-tab="${targetTab}"]`);
+                    if (tabButton instanceof HTMLElement) {
+                        activateTab(tabButton);
+                    }
+                }
                 const card = getGainStageHighlightContainer(control);
                 if (card) {
                     card.classList.add('gain-stage-alert', 'gain-stage-primary');
