@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-08-40-build-v2026.10.13.10';
+            const cacheBuster = '2026-10-13-08-42-build-v2026.10.13.11';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4797,13 +4797,13 @@
 
         .section-jump-handle {
             position: absolute;
-            top: 18svh;
+            top: 7svh;
             left: 0;
-            width: 24px;
-            min-width: 24px;
-            min-height: 104px;
-            padding: 8px 2px;
-            transform: translateY(-50%);
+            width: 30px;
+            min-width: 30px;
+            min-height: 126px;
+            padding: 10px 3px;
+            transform: none;
             display: grid;
             place-items: center;
             gap: 6px;
@@ -4908,7 +4908,7 @@
         }
 
         .section-jump-arrow {
-            font-size: 18px;
+            font-size: 22px;
             line-height: 1;
             font-weight: 900;
         }
@@ -4916,7 +4916,7 @@
         .section-jump-handle-text {
             writing-mode: vertical-rl;
             text-transform: uppercase;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 900;
             letter-spacing: 0.12em;
         }
@@ -5001,7 +5001,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.10</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.11</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
