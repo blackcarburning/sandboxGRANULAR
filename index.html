@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-10-05-build-v2026.10.13.24';
+            const cacheBuster = '2026-10-13-10-14-build-v2026.10.13.25';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3963,12 +3963,13 @@
 
         .simplified-ui .performance-layer-switch-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: minmax(0, 1fr) auto auto;
             gap: 8px;
             align-items: stretch;
         }
 
-        .simplified-ui .performance-layer-jump-btn {
+        .simplified-ui .performance-layer-jump-btn,
+        .simplified-ui .performance-layer-solo-btn {
             min-width: 0;
             padding-inline: 12px;
             font-size: 0.72rem;
@@ -5275,7 +5276,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.24</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.25</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6545,46 +6546,57 @@
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop A layer">Bastardloop A On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoop2ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop B layer">Bastardloop B On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop B controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoop2LayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoop3ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop C layer">Bastardloop C On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop C controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoop3LayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopVToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop V layer">Bastardloop V On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop V controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopVLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopPToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop P layer">Bastardloop P On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop P controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopPLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopOToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop O layer">Bastardloop O On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop O controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopOLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopLToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop L layer">Bastardloop L On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop L controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopLLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopXToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop X layer">Bastardloop X On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop X controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopXLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceBastardLoopMToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop M layer">Bastardloop M On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop M controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceBastardLoopMLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceDropboxSampleLayerBtn" aria-pressed="true" title="Enable or mute the Dropbox sample loop layer">Dropbox Sample On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Dropbox sample layer controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceDropboxSampleLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
                         <button class="performance-btn" id="performanceDrumMachineLayerBtn" aria-pressed="true" title="Enable or mute the drum machine layer">Drum Machine On</button>
                         <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Drum machine controls']">Jump</button>
+                        <button class="performance-btn performance-layer-solo-btn" id="performanceDrumMachineLayerSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
             </div>
@@ -6596,7 +6608,7 @@
                         <p class="performance-feature-note">Keep source balance, module levels, and trim staging together in one place so gain decisions happen in one pass.</p>
                     </div>
                     <div class="performance-feature-actions">
-                        <button class="performance-btn" id="performanceMixerVuToggleBtn" type="button" aria-pressed="false">VU Meters Off</button>
+                        <button class="performance-btn active" id="performanceMixerVuToggleBtn" type="button" aria-pressed="true">VU Meters On</button>
                     </div>
                 </div>
                 <div class="performance-mixer-stack">
@@ -12377,6 +12389,9 @@
             syncDropboxSampleLayerUi();
             syncDrumMachineUi();
             syncPerformanceControlState();
+            if (performanceMixerVuMetersEnabled) {
+                startPerformanceMixerVuMeters();
+            }
             updateKeyboardGeometry();
         }
 
@@ -17081,18 +17096,29 @@
 
         function normalizeLoopLayerSolo(value) {
             const normalized = String(value || 'none').trim().toLowerCase();
-            return ['none', 'bastarda', 'bastardb', 'bastardc', 'bastardv', 'bastardp', 'bastardo', 'bastardl', 'bastardx', 'bastardm', 'dropbox'].includes(normalized) ? normalized : 'none';
+            return ['none', 'bastarda', 'bastardb', 'bastardc', 'bastardv', 'bastardp', 'bastardo', 'bastardl', 'bastardx', 'bastardm', 'dropbox', 'drums'].includes(normalized) ? normalized : 'none';
         }
 
         function syncLoopLayerSoloButtons() {
             const buttonConfigs = [
                 { id: 'performanceBastardLoopSoloBtn', key: 'bastarda', label: 'Bastardloop A' },
+                { id: 'performanceBastardLoopLayerSoloBtn', key: 'bastarda', label: 'Bastardloop A' },
                 { id: 'performanceBastardLoop2SoloBtn', key: 'bastardb', label: 'Bastardloop B' },
+                { id: 'performanceBastardLoop2LayerSoloBtn', key: 'bastardb', label: 'Bastardloop B' },
                 { id: 'performanceBastardLoop3SoloBtn', key: 'bastardc', label: 'Bastardloop C' },
+                { id: 'performanceBastardLoop3LayerSoloBtn', key: 'bastardc', label: 'Bastardloop C' },
                 { id: 'performanceBastardLoopVSoloBtn', key: 'bastardv', label: 'Bastardloop V' },
+                { id: 'performanceBastardLoopVLayerSoloBtn', key: 'bastardv', label: 'Bastardloop V' },
                 { id: 'performanceBastardLoopPSoloBtn', key: 'bastardp', label: 'Bastardloop P' },
+                { id: 'performanceBastardLoopPLayerSoloBtn', key: 'bastardp', label: 'Bastardloop P' },
                 { id: 'performanceBastardLoopOSoloBtn', key: 'bastardo', label: 'Bastardloop O' },
-                { id: 'performanceDropboxSampleSoloBtn', key: 'dropbox', label: 'Dropbox Sample' }
+                { id: 'performanceBastardLoopOLayerSoloBtn', key: 'bastardo', label: 'Bastardloop O' },
+                { id: 'performanceBastardLoopLLayerSoloBtn', key: 'bastardl', label: 'Bastardloop L' },
+                { id: 'performanceBastardLoopXLayerSoloBtn', key: 'bastardx', label: 'Bastardloop X' },
+                { id: 'performanceBastardLoopMLayerSoloBtn', key: 'bastardm', label: 'Bastardloop M' },
+                { id: 'performanceDropboxSampleSoloBtn', key: 'dropbox', label: 'Dropbox Sample' },
+                { id: 'performanceDropboxSampleLayerSoloBtn', key: 'dropbox', label: 'Dropbox Sample' },
+                { id: 'performanceDrumMachineLayerSoloBtn', key: 'drums', label: 'Drum Machine' }
             ];
             buttonConfigs.forEach(({ id, key, label }) => {
                 const button = document.getElementById(id);
@@ -17119,6 +17145,7 @@
             updateBastardLoopXMix();
             updateBastardLoopMMix();
             updateDropboxSampleLayerMix();
+            updateDrumMachineMix();
             syncPerformanceControlState();
             if (!options.silent) {
                 const labels = {
@@ -17131,7 +17158,8 @@
                     bastardl: 'Bastardloop L',
                     bastardx: 'Bastardloop X',
                     bastardm: 'Bastardloop M',
-                    dropbox: 'Dropbox sample'
+                    dropbox: 'Dropbox sample',
+                    drums: 'Drum machine'
                 };
                 setStatus(loopLayerSolo === 'none' ? 'All loop layers active.' : `${labels[loopLayerSolo] || 'Loop layer'} soloed.`);
             }
@@ -22207,7 +22235,7 @@
             const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 0));
             drumMachineLevel = clamped / 100;
             if (options.applyLayerToggle === false) return drumMachineLevel;
-            return drumMachineEnabled ? drumMachineLevel : 0;
+            return drumMachineEnabled ? drumMachineLevel * getLoopLayerSoloGain('drums') : 0;
         }
 
         function getDrumMachineOutputGain(level = getDrumMachineLevelValue()) {
@@ -45501,6 +45529,7 @@
         const performanceBastardLoopLDelayDivision = document.getElementById('performanceBastardLoopLDelayDivision');
         const performanceBastardLoopLDelayMix = document.getElementById('performanceBastardLoopLDelayMix');
         const performanceBastardLoopLLevelMixer = document.getElementById('performanceBastardLoopLLevelMixer');
+        const performanceBastardLoopLLayerSoloBtn = document.getElementById('performanceBastardLoopLLayerSoloBtn');
         const performanceBastardLoopXLoadBtn = document.getElementById('performanceBastardLoopXLoadBtn');
         const performanceBastardLoopXRandomBtn = document.getElementById('performanceBastardLoopXRandomBtn');
         const performanceBastardLoopXRandomPatternBtn = document.getElementById('performanceBastardLoopXRandomPatternBtn');
@@ -45525,6 +45554,7 @@
         const performanceBastardLoopXDelayMix = document.getElementById('performanceBastardLoopXDelayMix');
         const performanceBastardLoopXDelayPingPongBtn = document.getElementById('performanceBastardLoopXDelayPingPongBtn');
         const performanceBastardLoopXLevelMixer = document.getElementById('performanceBastardLoopXLevelMixer');
+        const performanceBastardLoopXLayerSoloBtn = document.getElementById('performanceBastardLoopXLayerSoloBtn');
         const performanceBastardLoopMRecordBtn = document.getElementById('performanceBastardLoopMRecordBtn');
         const performanceBastardLoopMRecordLoopBtn = document.getElementById('performanceBastardLoopMRecordLoopBtn');
         const performanceBastardLoopMClearBtn = document.getElementById('performanceBastardLoopMClearBtn');
@@ -45549,6 +45579,7 @@
         const performanceBastardLoopMPreserveDurationBtn = document.getElementById('performanceBastardLoopMPreserveDurationBtn');
         const performanceBastardLoopMReverseBtn = document.getElementById('performanceBastardLoopMReverseBtn');
         const performanceBastardLoopMLevelMixer = document.getElementById('performanceBastardLoopMLevelMixer');
+        const performanceBastardLoopMLayerSoloBtn = document.getElementById('performanceBastardLoopMLayerSoloBtn');
         const performanceDropboxSampleLayerBtn = document.getElementById('performanceDropboxSampleLayerBtn');
         const performanceLayerOscBtn = document.getElementById('performanceLayerOscBtn');
         const performanceLayerGranularBtn = document.getElementById('performanceLayerGranularBtn');
@@ -45586,6 +45617,7 @@
         const performanceBastardLoopLevel = document.getElementById('performanceBastardLoopLevel');
         const performanceBastardLoopFilterCutoff = document.getElementById('performanceBastardLoopFilterCutoff');
         const performanceBastardLoopSoloBtn = document.getElementById('performanceBastardLoopSoloBtn');
+        const performanceBastardLoopLayerSoloBtn = document.getElementById('performanceBastardLoopLayerSoloBtn');
         const performanceBastardLoop2Pitch = document.getElementById('performanceBastardLoop2Pitch');
         const performanceBastardLoop2Semitone = document.getElementById('performanceBastardLoop2Semitone');
         const performanceBastardLoop2FineTune = document.getElementById('performanceBastardLoop2FineTune');
@@ -45593,18 +45625,21 @@
         const performanceBastardLoop2Level = document.getElementById('performanceBastardLoop2Level');
         const performanceBastardLoop2FilterCutoff = document.getElementById('performanceBastardLoop2FilterCutoff');
         const performanceBastardLoop2SoloBtn = document.getElementById('performanceBastardLoop2SoloBtn');
+        const performanceBastardLoop2LayerSoloBtn = document.getElementById('performanceBastardLoop2LayerSoloBtn');
         const performanceBastardLoop2ReverseBtn = document.getElementById('performanceBastardLoop2ReverseBtn');
         const performanceBastardLoop3Pitch = document.getElementById('performanceBastardLoop3Pitch');
         const performanceBastardLoop3PitchAffectsDuration = document.getElementById('performanceBastardLoop3PitchAffectsDuration');
         const performanceBastardLoop3Level = document.getElementById('performanceBastardLoop3Level');
         const performanceBastardLoop3FilterCutoff = document.getElementById('performanceBastardLoop3FilterCutoff');
         const performanceBastardLoop3SoloBtn = document.getElementById('performanceBastardLoop3SoloBtn');
+        const performanceBastardLoop3LayerSoloBtn = document.getElementById('performanceBastardLoop3LayerSoloBtn');
         const performanceBastardLoop3ReverseBtn = document.getElementById('performanceBastardLoop3ReverseBtn');
         const performanceBastardLoopVPitch = document.getElementById('performanceBastardLoopVPitch');
         const performanceBastardLoopVPitchAffectsDuration = document.getElementById('performanceBastardLoopVPitchAffectsDuration');
         const performanceBastardLoopVLevel = document.getElementById('performanceBastardLoopVLevel');
         const performanceBastardLoopVFilterCutoff = document.getElementById('performanceBastardLoopVFilterCutoff');
         const performanceBastardLoopVSoloBtn = document.getElementById('performanceBastardLoopVSoloBtn');
+        const performanceBastardLoopVLayerSoloBtn = document.getElementById('performanceBastardLoopVLayerSoloBtn');
         const performanceBastardLoopVReverseBtn = document.getElementById('performanceBastardLoopVReverseBtn');
         const performanceBastardLoopVRecutBtn = document.getElementById('performanceBastardLoopVRecutBtn');
         const performanceBastardLoopVSemitone = document.getElementById('performanceBastardLoopVSemitone');
@@ -45614,6 +45649,7 @@
         const performanceBastardLoopPLevel = document.getElementById('performanceBastardLoopPLevel');
         const performanceBastardLoopPFilterCutoff = document.getElementById('performanceBastardLoopPFilterCutoff');
         const performanceBastardLoopPSoloBtn = document.getElementById('performanceBastardLoopPSoloBtn');
+        const performanceBastardLoopPLayerSoloBtn = document.getElementById('performanceBastardLoopPLayerSoloBtn');
         const performanceBastardLoopPReverseBtn = document.getElementById('performanceBastardLoopPReverseBtn');
         const performanceBastardLoopPRecutBtn = document.getElementById('performanceBastardLoopPRecutBtn');
         const performanceBastardLoopPSemitone = document.getElementById('performanceBastardLoopPSemitone');
@@ -45623,6 +45659,7 @@
         const performanceBastardLoopOLevel = document.getElementById('performanceBastardLoopOLevel');
         const performanceBastardLoopOFilterCutoff = document.getElementById('performanceBastardLoopOFilterCutoff');
         const performanceBastardLoopOSoloBtn = document.getElementById('performanceBastardLoopOSoloBtn');
+        const performanceBastardLoopOLayerSoloBtn = document.getElementById('performanceBastardLoopOLayerSoloBtn');
         const performanceBastardLoopOReverseBtn = document.getElementById('performanceBastardLoopOReverseBtn');
         const performanceBastardLoopORecutBtn = document.getElementById('performanceBastardLoopORecutBtn');
         const performanceBastardLoopOSemitone = document.getElementById('performanceBastardLoopOSemitone');
@@ -45630,6 +45667,7 @@
         const performanceDropboxSampleBrowseBtn = document.getElementById('performanceDropboxSampleBrowseBtn');
         const performanceDropboxSampleLoadBtn = document.getElementById('performanceDropboxSampleLoadBtn');
         const performanceDropboxSampleSoloBtn = document.getElementById('performanceDropboxSampleSoloBtn');
+        const performanceDropboxSampleLayerSoloBtn = document.getElementById('performanceDropboxSampleLayerSoloBtn');
         const performanceDropboxSampleSource = document.getElementById('performanceDropboxSampleSource');
         const performanceDropboxSampleStretchToLoop = document.getElementById('performanceDropboxSampleStretchToLoop');
         const performanceDropboxSampleSemitone = document.getElementById('performanceDropboxSampleSemitone');
@@ -45645,6 +45683,7 @@
         const performanceDrumMachineMainStartBtn = document.getElementById('performanceDrumMachineMainStartBtn');
         const performanceDrumMachineLevel = document.getElementById('performanceDrumMachineLevel');
         const performanceDrumMachineLayerBtn = document.getElementById('performanceDrumMachineLayerBtn');
+        const performanceDrumMachineLayerSoloBtn = document.getElementById('performanceDrumMachineLayerSoloBtn');
         const performanceDrumMachineDirectOutBtn = document.getElementById('performanceDrumMachineDirectOutBtn');
         const performanceDrumMachineDirectDelayBtn = document.getElementById('performanceDrumMachineDirectDelayBtn');
         const performanceDrumMachineDirectReverbBtn = document.getElementById('performanceDrumMachineDirectReverbBtn');
@@ -46002,7 +46041,7 @@
         ];
         let mixerGainStageHighlightsActive = false;
         let performanceGainStageAuditMonitorTimer = null;
-        let performanceMixerVuMetersEnabled = false;
+        let performanceMixerVuMetersEnabled = true;
         let performanceMixerVuAnimationFrameId = null;
         const performanceMixerVuTapState = new Map();
 
@@ -47934,6 +47973,10 @@
             setBastardLoopLEnabled(!bastardLoopLEnabled);
         });
 
+        performanceBastardLoopLLayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardl', { toggle: true });
+        });
+
         performanceBastardLoopLLevel?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             setBastardLoopLLevelPercent(value);
@@ -48392,6 +48435,10 @@
             setBastardLoopXEnabled(!bastardLoopXEnabled);
         });
 
+        performanceBastardLoopXLayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardx', { toggle: true });
+        });
+
         performanceBastardLoopXLevel?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             setBastardLoopXLevelPercent(value);
@@ -48547,6 +48594,10 @@
 
         performanceBastardLoopMToggleBtn?.addEventListener('click', () => {
             setBastardLoopMEnabled(!bastardLoopMEnabled);
+        });
+
+        performanceBastardLoopMLayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardm', { toggle: true });
         });
 
         performanceBastardLoopMRecordLength?.addEventListener('input', (event) => {
@@ -48883,6 +48934,10 @@
             setLoopLayerSolo('bastarda', { toggle: true });
         });
 
+        performanceBastardLoopLayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastarda', { toggle: true });
+        });
+
         performanceBastardLoop2Level?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             bastardLoop2Level = value / 100;
@@ -48899,6 +48954,10 @@
         });
 
         performanceBastardLoop2SoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardb', { toggle: true });
+        });
+
+        performanceBastardLoop2LayerSoloBtn?.addEventListener('click', () => {
             setLoopLayerSolo('bastardb', { toggle: true });
         });
 
@@ -48957,6 +49016,10 @@
             setLoopLayerSolo('bastardc', { toggle: true });
         });
 
+        performanceBastardLoop3LayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardc', { toggle: true });
+        });
+
         performanceBastardLoop3Pitch?.addEventListener('input', (event) => {
             setBastardLoop3PitchOctaves(event.target.value);
         });
@@ -48985,6 +49048,10 @@
         });
 
         performanceBastardLoopVSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardv', { toggle: true });
+        });
+
+        performanceBastardLoopVLayerSoloBtn?.addEventListener('click', () => {
             setLoopLayerSolo('bastardv', { toggle: true });
         });
 
@@ -49027,6 +49094,10 @@
             setLoopLayerSolo('bastardp', { toggle: true });
         });
 
+        performanceBastardLoopPLayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardp', { toggle: true });
+        });
+
         performanceBastardLoopPPitch?.addEventListener('input', (event) => {
             setBastardLoopPPitchOctaves(event.target.value);
         });
@@ -49063,6 +49134,10 @@
         });
 
         performanceBastardLoopOSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('bastardo', { toggle: true });
+        });
+
+        performanceBastardLoopOLayerSoloBtn?.addEventListener('click', () => {
             setLoopLayerSolo('bastardo', { toggle: true });
         });
 
@@ -49110,6 +49185,10 @@
         });
 
         performanceDropboxSampleSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('dropbox', { toggle: true });
+        });
+
+        performanceDropboxSampleLayerSoloBtn?.addEventListener('click', () => {
             setLoopLayerSolo('dropbox', { toggle: true });
         });
 
@@ -49214,6 +49293,10 @@
 
         performanceDrumMachineLayerBtn?.addEventListener('click', () => {
             setDrumMachineEnabled(!drumMachineEnabled);
+        });
+
+        performanceDrumMachineLayerSoloBtn?.addEventListener('click', () => {
+            setLoopLayerSolo('drums', { toggle: true });
         });
 
         performanceDrumMachineDirectOutBtn?.addEventListener('click', () => {
