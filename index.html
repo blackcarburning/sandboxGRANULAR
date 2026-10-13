@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-09-44-build-v2026.10.13.21';
+            const cacheBuster = '2026-10-13-09-53-build-v2026.10.13.22';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3835,8 +3835,44 @@
             line-height: 1.4;
         }
 
+        .simplified-ui .performance-mixer-audit-item-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
         .simplified-ui .performance-mixer-audit-item strong {
             color: #fff;
+        }
+
+        .simplified-ui .performance-mixer-audit-link,
+        .simplified-ui .performance-mixer-audit-graph-link {
+            appearance: none;
+            border: 1px solid rgba(126, 246, 255, 0.28);
+            background: rgba(18, 31, 52, 0.72);
+            color: var(--accent);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font: inherit;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+            white-space: nowrap;
+        }
+
+        .simplified-ui .performance-mixer-audit-link:hover,
+        .simplified-ui .performance-mixer-audit-link:focus-visible,
+        .simplified-ui .performance-mixer-audit-graph-link:hover,
+        .simplified-ui .performance-mixer-audit-graph-link:focus-visible {
+            outline: none;
+            transform: translateY(-1px);
+            border-color: rgba(126, 246, 255, 0.52);
+            background: rgba(26, 44, 70, 0.88);
         }
 
         .simplified-ui .performance-grain-layer-grid {
@@ -5211,7 +5247,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.21</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.22</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -7177,9 +7213,9 @@
                     <div class="performance-sound-card">
                         <label for="performanceMasterTrim">
                             <span>Master Trim</span>
-                            <span class="value" id="performanceMasterTrimValue">-3.0dB</span>
+                            <span class="value" id="performanceMasterTrimValue">-2.5dB</span>
                         </label>
-                        <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-3" step="0.5">
+                        <input type="range" id="performanceMasterTrim" min="-24" max="0" value="-2.5" step="0.5">
                     </div>
                     <div class="performance-sound-card performance-vu-card">
                         <label for="performanceOutputVuShell">
@@ -10873,9 +10909,10 @@
         const EXPORT_RENDER_SETTLE_MS = 90;
         let globalModulationAmount = 0.55;
         let granularModulationAmount = 0.75;
+        const DEFAULT_PERFORMANCE_MASTER_TRIM_DB = -2.5;
         let generatedDryTrimDb = 0;
         let granularTrimDb = -3;
-        let masterTrimDb = -3;
+        let masterTrimDb = DEFAULT_PERFORMANCE_MASTER_TRIM_DB;
         let clickGuardMs = 8;
         let generatedDryThroughFilters = false;
         let bastardLoopLevel = 0.6;
@@ -33805,7 +33842,7 @@
             setSliderValue('performanceGrainModAmount', randomIntegerInRange(24, 100));
             setSliderValue('performanceInputTrim', randomIntegerInRange(-12, 3));
             setSliderValue('performancePostFilterTrim', randomIntegerInRange(-10, 8));
-            setSliderValue('performanceMasterTrim', 0);
+            setSliderValue('performanceMasterTrim', DEFAULT_PERFORMANCE_MASTER_TRIM_DB);
             setSliderValue('performanceClickGuard', randomIntegerInRange(4, 18));
             setSliderValue('generatedLoopStart', randomIntegerInRange(0, 18));
             setSliderValue('generatedLoopEnd', randomIntegerInRange(72, 100));
@@ -45792,6 +45829,38 @@
             return control?.closest('.performance-sound-card, .control-group') || null;
         }
 
+        function jumpToGainStageControl(controlId) {
+            if (!controlId) return;
+            const control = document.getElementById(controlId);
+            if (!(control instanceof HTMLElement)) return;
+            const card = getGainStageHighlightContainer(control);
+            clearPerformanceGainStageHighlights();
+            if (card) {
+                card.classList.add('gain-stage-alert', 'gain-stage-primary');
+                card.scrollIntoView({
+                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            } else {
+                control.scrollIntoView({
+                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            }
+            window.setTimeout(() => {
+                if (typeof control.focus === 'function') {
+                    try {
+                        control.focus({ preventScroll: true });
+                    } catch (error) {
+                        control.focus();
+                    }
+                }
+            }, 120);
+            mixerGainStageHighlightsActive = true;
+        }
+
         function getPerformanceSliderNumber(id, fallback = 0) {
             const control = document.getElementById(id);
             const value = Number(control?.value);
@@ -45817,7 +45886,7 @@
         function collectPerformanceGainStageSuggestions() {
             const debug = captureAudioDebug();
             const suggestions = new Map();
-            const masterTrimValue = getPerformanceSliderNumber('performanceMasterTrim', -3);
+            const masterTrimValue = getPerformanceSliderNumber('performanceMasterTrim', DEFAULT_PERFORMANCE_MASTER_TRIM_DB);
             const postFilterTrimValue = getPerformanceSliderNumber('performancePostFilterTrim', 0);
             const inputTrimValue = getPerformanceSliderNumber('performanceInputTrim', 0);
             const granularTrimValue = getPerformanceSliderNumber('performanceGranularTrim', -3);
@@ -46241,7 +46310,7 @@
                 note: primary.details[0],
                 stages: [
                     createGainStageGraphStage(primary.label, primary.label, getGainStageGraphPercentFromSlider(primary.controlId), { hot: true, primary: true }),
-                    createGainStageGraphStage('Master', `${Math.round(getPerformanceSliderNumber('performanceMasterTrim', -3))} dB`, getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 }),
+                    createGainStageGraphStage('Master', `${getPerformanceSliderNumber('performanceMasterTrim', DEFAULT_PERFORMANCE_MASTER_TRIM_DB).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1 }),
                     createGainStageGraphStage('Output', gains.finalAmplifier ? `${Math.round(Number(gains.finalAmplifier) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalAmplifier || gains.masterGain || 0), { hot: Number(gains.finalAmplifier || gains.masterGain || 0) > 1 })
                 ]
             };
@@ -46253,7 +46322,7 @@
                         note: primary.details[0],
                         stages: [
                             createGainStageGraphStage('Filter Out', `${getPerformanceSliderNumber('performancePostFilterTrim', 0).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.makeupGain || 0), { hot: Number(gains.makeupGain || 0) > 1.2 }),
-                            createGainStageGraphStage('Master Trim', `${getPerformanceSliderNumber('performanceMasterTrim', -3).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1, primary: true }),
+                            createGainStageGraphStage('Master Trim', `${getPerformanceSliderNumber('performanceMasterTrim', DEFAULT_PERFORMANCE_MASTER_TRIM_DB).toFixed(1)} dB`, getGainStageGraphPercentFromGain(gains.masterGain || 0), { hot: Number(gains.masterGain || 0) > 1, primary: true }),
                             createGainStageGraphStage('Final Amp', gains.finalAmplifier ? `${Math.round(Number(gains.finalAmplifier) * 100)}%` : 'Live', getGainStageGraphPercentFromGain(gains.finalAmplifier || gains.masterGain || 0), { hot: Number(gains.finalAmplifier || gains.masterGain || 0) > 1 })
                         ]
                     };
@@ -46409,8 +46478,12 @@
                 })
                 .join('');
 
+            const primaryControlId = result?.suggestions?.[0]?.controlId || '';
+            const jumpButtonHtml = primaryControlId
+                ? `<button class="performance-mixer-audit-graph-link" type="button" data-gain-stage-control="${primaryControlId}">Open top fix</button>`
+                : '';
             performanceGainStageAuditGraph.hidden = false;
-            performanceGainStageAuditGraph.innerHTML = `<div class="performance-mixer-audit-graph-head"><strong>Live problem path</strong><span>${graph.note}</span></div><div class="performance-mixer-audit-path">${stagesHtml}</div>`;
+            performanceGainStageAuditGraph.innerHTML = `<div class="performance-mixer-audit-graph-head"><strong>Live problem path</strong><span>${graph.note}</span>${jumpButtonHtml}</div><div class="performance-mixer-audit-path">${stagesHtml}</div>`;
         }
 
         function renderPerformanceGainStageAudit(result) {
@@ -46429,7 +46502,7 @@
             performanceGainStageAuditList.innerHTML = result.suggestions
                 .map((suggestion, index) => {
                     const extra = suggestion.details.slice(1).map((detail) => `<div>${detail}</div>`).join('');
-                    return `<div class="performance-mixer-audit-item"><strong>${index + 1}. ${suggestion.label}</strong><div>${suggestion.details[0]}</div>${extra}</div>`;
+                    return `<div class="performance-mixer-audit-item"><div class="performance-mixer-audit-item-head"><strong>${index + 1}. ${suggestion.label}</strong><button class="performance-mixer-audit-link" type="button" data-gain-stage-control="${suggestion.controlId}">Open slider</button></div><div>${suggestion.details[0]}</div>${extra}</div>`;
                 })
                 .join('');
             renderPerformanceGainStageGraph(result);
@@ -49414,6 +49487,18 @@
             startPerformanceGainStageAuditMonitor();
         });
 
+        performanceGainStageAuditList?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-gain-stage-control]');
+            if (!(button instanceof HTMLButtonElement)) return;
+            jumpToGainStageControl(button.dataset.gainStageControl || '');
+        });
+
+        performanceGainStageAuditGraph?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-gain-stage-control]');
+            if (!(button instanceof HTMLButtonElement)) return;
+            jumpToGainStageControl(button.dataset.gainStageControl || '');
+        });
+
         performanceMixerCard?.addEventListener('input', (event) => {
             if (!mixerGainStageHighlightsActive) return;
             if (!(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLSelectElement)) return;
@@ -49473,7 +49558,7 @@
         });
 
         performanceMasterTrim?.addEventListener('input', (event) => {
-            masterTrimDb = getDbControlValue('performanceMasterTrim', -3, -24, 0);
+            masterTrimDb = getDbControlValue('performanceMasterTrim', DEFAULT_PERFORMANCE_MASTER_TRIM_DB, -24, 0);
             document.getElementById('performanceMasterTrimValue').textContent = formatDb(masterTrimDb);
             updateEffects();
         });
