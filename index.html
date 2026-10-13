@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-12-17-build-v2026.10.13.38';
+            const cacheBuster = '2026-10-13-12-21-build-v2026.10.13.39';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5304,7 +5304,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.38</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.39</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6647,7 +6647,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Mixer</div>
                         <h3 class="performance-feature-title">Mixer</h3>
-                        <p class="performance-feature-note">Keep source balance, module levels, and trim staging together in one place so gain decisions happen in one pass.</p>
+                        <p class="performance-feature-note">Keep oscillator level, module levels, and trim staging together in one place so gain decisions happen in one pass.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn active" id="performanceMixerVuToggleBtn" type="button" aria-pressed="true">VU Meters On</button>
@@ -7240,20 +7240,6 @@
                     </div>
                 </div>
                 <div class="performance-sound-controls" aria-label="Mix and trim controls">
-                    <div class="performance-sound-card">
-                        <label for="performanceSourceMix">
-                            <span>Granular/Osc</span>
-                            <span class="value" id="performanceSourceMixValue">50/50</span>
-                        </label>
-                        <input type="range" id="performanceSourceMix" min="0" max="100" value="35" step="1">
-                    </div>
-                    <div class="performance-sound-card">
-                        <label for="performanceGeneratedSourceMix">
-                            <span>Gen Loop Mix</span>
-                            <span class="value" id="performanceGeneratedSourceMixValue">100%</span>
-                        </label>
-                        <input type="range" id="performanceGeneratedSourceMix" min="0" max="100" value="100" step="1">
-                    </div>
                     <div class="performance-sound-card">
                         <label for="performanceGeneratedDryTrim">
                             <span>Dry Trim</span>
@@ -10950,7 +10936,6 @@
         let oscRouteMode = 'random';
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
         let applyingSynthPopupPreset = false;
-        let generatedSourceMix = 1; // 0 = mic/other granular sources, 1 = generated loop source
         let generatedDryMix = 0.35; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
         let generatedSampleLayerEnabled = true;
@@ -11698,8 +11683,6 @@
             ...INTERNAL_BPM_CLOCK_RATE_IDS,
             'finalPanCenter',
             'oscMix',
-            'performanceSourceMix',
-            'performanceGeneratedSourceMix',
             'performanceGeneratedDryMix',
             'performanceGeneratedDryTrim',
             'performanceGranularTrim',
@@ -11746,7 +11729,6 @@
             ...BPM_RANDOMIZE_PROTECTED_IDS,
             'finalPanCenter',
             'oscMix',
-            'generatedSourceMix',
             'generatedDryMix',
             'generatedDryTrimDb',
             'granularTrimDb',
@@ -16546,15 +16528,6 @@
                 sourceAttack,
                 sourceRelease
             };
-        }
-
-        function getGeneratedSourceMixValue(options = {}) {
-            const slider = document.getElementById('performanceGeneratedSourceMix');
-            const rawValue = Number(slider?.value ?? (generatedSourceMix * 100));
-            const clamped = Math.max(0, Math.min(100, Number.isFinite(rawValue) ? rawValue : 100));
-            generatedSourceMix = clamped / 100;
-            if (options.applySoloOverride !== false && generatedSampleSolo) return 1;
-            return generatedSourceMix;
         }
 
         function getGeneratedSampleVolumeValue(options = {}) {
@@ -31139,8 +31112,7 @@
                 ['grainMainBlend', 72],
                 ['grainSynthAMix', 36],
                 ['grainSynthBMix', 34],
-                ['performanceSampleVolume', 100],
-                ['performanceGeneratedSourceMix', 100]
+                ['performanceSampleVolume', 100]
             ].forEach(([id, fallback]) => {
                 const slider = document.getElementById(id);
                 const value = Number(slider?.value ?? fallback);
@@ -34237,8 +34209,6 @@
             const lfoWaveform = chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']);
             const forceSquare = maybe(0.22);
 
-            setSliderValue('performanceSourceMix', randomIntegerInRange(18, 82));
-            setSliderValue('performanceGeneratedSourceMix', randomIntegerInRange(58, 100));
             setSliderValue('performanceSampleVolume', randomIntegerInRange(52, 100));
             const randomizedGrainMode = options.grainMode || getGrainTimingMode();
             setGrainTimingMode(randomizedGrainMode, { silent: true, skipSave: true, skipRestart: true });
@@ -36913,7 +36883,6 @@
                 lfo2ToLfo3Mod: 0,
                 oscMix: 0,
                 performanceOscVolume: 100,
-                performanceGeneratedSourceMix: 100,
                 performanceSampleVolume: 100,
                 performanceGeneratedDryMix: 0,
                 performanceBastardLoopPitch: 0,
@@ -45831,9 +45800,7 @@
         const sectionJumpMegaRandomPanelBtn = document.getElementById('sectionJumpMegaRandomPanelBtn');
         const sectionJumpSparseRandomBtn = document.getElementById('sectionJumpSparseRandomBtn');
         const sectionJumpSparseRandomPanelBtn = document.getElementById('sectionJumpSparseRandomPanelBtn');
-        const performanceSourceMix = document.getElementById('performanceSourceMix');
         const performanceOscVolume = document.getElementById('performanceOscVolume');
-        const performanceGeneratedSourceMix = document.getElementById('performanceGeneratedSourceMix');
         const performanceSampleVolume = document.getElementById('performanceSampleVolume');
         const performanceGeneratedDryMix = document.getElementById('performanceGeneratedDryMix');
         const performanceGrainPlaybackSpeed = document.getElementById('performanceGrainPlaybackSpeed');
@@ -47314,24 +47281,10 @@
             const lfoWaveform = document.getElementById('lfoWaveform');
             const lfoPulseWidth = document.getElementById('lfoPulseWidth');
 
-            if (performanceSourceMix && sourceMixSlider) {
-                const value = Math.round(Number(sourceMixSlider.value) || 0);
-                const wave = Math.max(0, Math.min(100, value));
-                const sample = 100 - wave;
-                performanceSourceMix.value = String(wave);
-                document.getElementById('performanceSourceMixValue').textContent = `${sample}%/${wave}%`;
-            }
-
             if (performanceOscVolume) {
                 const value = Math.round(getOscModuleVolumeValue() * 100);
                 performanceOscVolume.value = String(value);
                 document.getElementById('performanceOscVolumeValue').textContent = `${value}%`;
-            }
-
-            if (performanceGeneratedSourceMix) {
-                const value = Math.round(getGeneratedSourceMixValue({ applySoloOverride: false }) * 100);
-                performanceGeneratedSourceMix.value = String(value);
-                document.getElementById('performanceGeneratedSourceMixValue').textContent = `${value}%`;
             }
 
             if (performanceSampleVolume) {
@@ -48460,23 +48413,12 @@
             setDropboxSampleLayerEnabled(!dropboxSampleLayerEnabled);
         });
 
-        performanceSourceMix?.addEventListener('input', (event) => {
-            setSliderValue('oscMix', event.target.value);
-            syncPerformanceSoundControls();
-        });
-
         performanceOscVolume?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             event.target.value = String(value);
             document.getElementById('performanceOscVolumeValue').textContent = `${Math.round(value)}%`;
             updateSourceMixGains();
             saveState();
-        });
-
-        performanceGeneratedSourceMix?.addEventListener('input', (event) => {
-            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
-            generatedSourceMix = value / 100;
-            document.getElementById('performanceGeneratedSourceMixValue').textContent = `${Math.round(value)}%`;
         });
 
         document.querySelectorAll('input[name="performanceLfo1Rate"]').forEach((radio) => {
@@ -49122,23 +49064,12 @@
             setBastardLoopMReverse(!bastardLoopMReverse);
         });
 
-        performanceSourceMix?.addEventListener('input', (event) => {
-            setSliderValue('oscMix', event.target.value);
-            syncPerformanceSoundControls();
-        });
-
         performanceOscVolume?.addEventListener('input', (event) => {
             const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
             event.target.value = String(value);
             document.getElementById('performanceOscVolumeValue').textContent = `${Math.round(value)}%`;
             updateSourceMixGains();
             saveState();
-        });
-
-        performanceGeneratedSourceMix?.addEventListener('input', (event) => {
-            const value = Math.max(0, Math.min(100, Number(event.target.value) || 0));
-            generatedSourceMix = value / 100;
-            document.getElementById('performanceGeneratedSourceMixValue').textContent = `${Math.round(value)}%`;
         });
 
         document.querySelectorAll('input[name="performanceLfo1Rate"]').forEach((radio) => {
