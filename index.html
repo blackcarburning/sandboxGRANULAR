@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-07-42-build-v2026.10.13.1';
+            const cacheBuster = '2026-10-13-07-58-build-v2026.10.13.2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4952,7 +4952,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.2</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -10886,6 +10886,8 @@
         let drumMachineHatTapIndex = -1;
         let drumMachineHatTapAt = 0;
         let drumMachineHatTapTimers = new Map();
+        let sharedRhythmClockTimerId = null;
+        let sharedRhythmClockNextWakeAt = 0;
         const performanceTakeSlots = Array.from({ length: 5 }, () => null);
         let performanceTakeCaptureInFlight = false;
         let performanceTakeUploadInFlight = false;
@@ -11477,6 +11479,7 @@
         let seqGrainsEnabled = true; // Track if sequencer should trigger grains
         const SCHEDULE_AHEAD_TIME = 0.12;
         const SCHEDULER_INTERVAL = 10;
+        const SHARED_RHYTHM_CLOCK_INTERVAL = 8;
         const SEQUENCER_DEFAULT_PITCHES = ['A3', 'C4', 'E3', 'F#3'];
 
         function createDefaultSequencerStep(index = 0) {
@@ -21386,6 +21389,75 @@
             return null;
         }
 
+        function hasSharedRhythmClockWork() {
+            return Boolean(
+                drumMachinePlaying
+                || bastardLoopLTransportActive
+                || bastardLoopXTransportActive
+            );
+        }
+
+        function clearSharedRhythmClockTimer() {
+            if (!sharedRhythmClockTimerId) return;
+            clearTimeout(sharedRhythmClockTimerId);
+            sharedRhythmClockTimerId = null;
+        }
+
+        function stopSharedRhythmClockIfIdle() {
+            if (hasSharedRhythmClockWork()) return;
+            clearSharedRhythmClockTimer();
+            sharedRhythmClockNextWakeAt = 0;
+        }
+
+        function queueSharedRhythmClockTick(delayMs = SHARED_RHYTHM_CLOCK_INTERVAL) {
+            clearSharedRhythmClockTimer();
+            const nowMs = performance.now();
+            const numericDelay = Number(delayMs);
+            const safeDelay = Number.isFinite(numericDelay) ? Math.max(1, numericDelay) : SHARED_RHYTHM_CLOCK_INTERVAL;
+            sharedRhythmClockNextWakeAt = nowMs + safeDelay;
+            sharedRhythmClockTimerId = window.setTimeout(runSharedRhythmClock, safeDelay);
+        }
+
+        function runSharedRhythmClock() {
+            clearSharedRhythmClockTimer();
+            if (!audioContext || !hasSharedRhythmClockWork()) {
+                sharedRhythmClockNextWakeAt = 0;
+                return;
+            }
+            if (drumMachinePlaying) {
+                scheduleDrumMachine();
+            }
+            if (bastardLoopLTransportActive) {
+                scheduleBastardLoopLSteps();
+            }
+            if (bastardLoopXTransportActive) {
+                scheduleBastardLoopXSteps();
+            }
+            if (!hasSharedRhythmClockWork()) {
+                sharedRhythmClockNextWakeAt = 0;
+                return;
+            }
+            const nowMs = performance.now();
+            const nextWakeAt = Math.max(
+                nowMs + 1,
+                (Number.isFinite(sharedRhythmClockNextWakeAt) ? sharedRhythmClockNextWakeAt : nowMs) + SHARED_RHYTHM_CLOCK_INTERVAL
+            );
+            queueSharedRhythmClockTick(nextWakeAt - nowMs);
+        }
+
+        function ensureSharedRhythmClockRunning(options = {}) {
+            if (!audioContext || !hasSharedRhythmClockWork()) {
+                stopSharedRhythmClockIfIdle();
+                return;
+            }
+            if (options.immediate === true) {
+                runSharedRhythmClock();
+                return;
+            }
+            if (sharedRhythmClockTimerId) return;
+            queueSharedRhythmClockTick();
+        }
+
         function clampDrumMachinePitchSemitones(value) {
             const numeric = Number(value);
             if (!Number.isFinite(numeric)) return 0;
@@ -22570,11 +22642,6 @@
                 drumMachineNextStepTime += stepDuration;
                 drumMachineCurrentStep = (drumMachineCurrentStep + 1) % patternLength;
             }
-
-            if (drumMachinePlaying) {
-                if (drumMachineTimerId) clearTimeout(drumMachineTimerId);
-                drumMachineTimerId = setTimeout(scheduleDrumMachine, SCHEDULER_INTERVAL);
-            }
         }
 
         function setDrumMachineEnabled(enabled, options = {}) {
@@ -22733,7 +22800,7 @@
             drumMachineCurrentVisualStep = -1;
             updateDrumMachineMix();
             alignDrumMachineToTransport(resolvedStartTime);
-            scheduleDrumMachine();
+            ensureSharedRhythmClockRunning({ immediate: true });
             syncPerformanceControlState();
             if (!options.silent) {
                 setStatus('Drum machine playing.');
@@ -22745,10 +22812,6 @@
         }
 
         function stopDrumMachine(options = {}) {
-            if (drumMachineTimerId) {
-                clearTimeout(drumMachineTimerId);
-                drumMachineTimerId = null;
-            }
             drumMachinePlaying = false;
             drumMachineCurrentVisualStep = -1;
             if (!options.preserveTransportState) {
@@ -22756,6 +22819,7 @@
             }
             finalSidechainKickEvents = [];
             stopDrumMachineVoices({ fade: options.fade });
+            stopSharedRhythmClockIfIdle();
             renderDrumMachineStepGrid('kick');
             renderDrumMachineStepGrid('snare');
             renderDrumMachineStepGrid('hat');
@@ -25872,15 +25936,12 @@
         }
 
         function stopBastardLoopL(options = {}) {
-            if (bastardLoopLSchedulerTimerId) {
-                clearTimeout(bastardLoopLSchedulerTimerId);
-                bastardLoopLSchedulerTimerId = null;
-            }
             bastardLoopLNextStepTime = null;
             bastardLoopLSlideCarryIndex = -1;
             bastardLoopLCurrentStepIndex = -1;
             bastardLoopLTransportActive = false;
             stopAllBastardLoopLVoices(options);
+            stopSharedRhythmClockIfIdle();
             if (!options.skipUi) {
                 syncBastardLoopLUi();
             }
@@ -26215,7 +26276,6 @@
                 bastardLoopLNextStepIndex = (index + 1) % stepCount;
             }
             syncBastardLoopLEditorUi();
-            bastardLoopLSchedulerTimerId = window.setTimeout(scheduleBastardLoopLSteps, usingSynth ? 16 : 30);
         }
 
         function startBastardLoopL(startTime = null, options = {}) {
@@ -26260,7 +26320,7 @@
             bastardLoopLNextStepIndex = nextStepIndex;
             bastardLoopLNextStepTime = nextStepTime;
             bastardLoopLTransportActive = true;
-            scheduleBastardLoopLSteps();
+            ensureSharedRhythmClockRunning({ immediate: true });
             if (!options.skipUi) {
                 syncBastardLoopLUi();
             }
@@ -26278,7 +26338,7 @@
                 stopBastardLoopL({ skipUi: true });
             } else if (getBastardLoopLLevelValue() <= 0) {
                 stopBastardLoopL({ skipUi: true });
-            } else if (!bastardLoopLSchedulerTimerId) {
+            } else if (!bastardLoopLTransportActive) {
                 restartBastardLoopLPlaybackIfNeeded();
             }
             syncBastardLoopLUi();
@@ -27980,15 +28040,12 @@
         }
 
         function stopBastardLoopX(options = {}) {
-            if (bastardLoopXSchedulerTimerId) {
-                clearTimeout(bastardLoopXSchedulerTimerId);
-                bastardLoopXSchedulerTimerId = null;
-            }
             bastardLoopXNextStepTime = null;
             bastardLoopXSlideCarryIndex = -1;
             bastardLoopXCurrentStepIndex = -1;
             bastardLoopXTransportActive = false;
             stopAllBastardLoopXVoices(options);
+            stopSharedRhythmClockIfIdle();
             if (!options.skipUi) {
                 syncBastardLoopXUi();
             }
@@ -28228,7 +28285,6 @@
                 bastardLoopXNextStepIndex = (index + 1) % stepCount;
             }
             syncBastardLoopXEditorUi();
-            bastardLoopXSchedulerTimerId = window.setTimeout(scheduleBastardLoopXSteps, 30);
         }
 
         function startBastardLoopX(startTime = null, options = {}) {
@@ -28265,7 +28321,7 @@
             bastardLoopXNextStepIndex = nextStepIndex;
             bastardLoopXNextStepTime = nextStepTime;
             bastardLoopXTransportActive = true;
-            scheduleBastardLoopXSteps();
+            ensureSharedRhythmClockRunning({ immediate: true });
             if (!options.skipUi) {
                 syncBastardLoopXUi();
             }
@@ -28284,7 +28340,7 @@
                 stopBastardLoopX({ skipUi: true });
             } else if (getBastardLoopXLevelValue() <= 0) {
                 stopBastardLoopX({ skipUi: true });
-            } else if (!bastardLoopXSchedulerTimerId) {
+            } else if (!bastardLoopXTransportActive) {
                 restartBastardLoopXPlaybackIfNeeded();
             }
             syncBastardLoopXUi();
