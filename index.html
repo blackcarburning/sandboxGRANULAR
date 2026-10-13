@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-11-07-build-v2026.10.13.29';
+            const cacheBuster = '2026-10-13-11-10-build-v2026.10.13.30';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4285,14 +4285,23 @@
         .simplified-ui .performance-inline-mixer-actions {
             display: flex;
             justify-content: flex-end;
+            gap: 8px;
             margin-top: 8px;
         }
 
+        .simplified-ui .performance-mixer-jump-btn,
         .simplified-ui .performance-mixer-solo-btn {
             min-height: 28px;
             padding: 6px 12px;
             font-size: 0.68rem;
             letter-spacing: 0.08em;
+        }
+
+        .simplified-ui .performance-mixer-solo-btn.active {
+            border-color: rgba(120, 255, 170, 0.82);
+            background: linear-gradient(135deg, rgba(72, 214, 120, 0.92), rgba(122, 255, 155, 0.88));
+            color: #062012;
+            box-shadow: 0 0 16px rgba(108, 255, 156, 0.3);
         }
 
         .simplified-ui .performance-lfo-rate-row {
@@ -5293,7 +5302,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.29</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.30</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -46125,23 +46134,23 @@
             { controlId: 'performanceGrainMixerAmp', label: 'Grain Amp', getNode: () => granularOutputGain }
         ];
         const PERFORMANCE_MIXER_SOLO_BUTTONS = [
-            { controlId: 'performanceOscVolume', group: 'source', key: 'osc', label: 'Oscillator' },
-            { controlId: 'performanceSampleVolume', group: 'source', key: 'sample', label: 'Sample' },
-            { controlId: 'performanceGeneratedDryMix', group: 'source', key: 'loop', label: 'Loop' },
-            { controlId: 'performanceDropboxSampleLevel', group: 'loop', key: 'dropbox', label: 'Dropbox Sample' },
-            { controlId: 'performanceDrumMachineLevel', group: 'loop', key: 'drums', label: 'Drum Machine' },
-            { controlId: 'performanceBastardLoopLevel', group: 'loop', key: 'bastarda', label: 'Bastardloop A' },
-            { controlId: 'performanceBastardLoop2Level', group: 'loop', key: 'bastardb', label: 'Bastardloop B' },
-            { controlId: 'performanceBastardLoop3Level', group: 'loop', key: 'bastardc', label: 'Bastardloop C' },
-            { controlId: 'performanceBastardLoopVLevel', group: 'loop', key: 'bastardv', label: 'Bastardloop V' },
-            { controlId: 'performanceBastardLoopPLevel', group: 'loop', key: 'bastardp', label: 'Bastardloop P' },
-            { controlId: 'performanceBastardLoopOLevel', group: 'loop', key: 'bastardo', label: 'Bastardloop O' },
-            { controlId: 'performanceBastardLoopLLevelMixer', group: 'loop', key: 'bastardl', label: 'Bastardloop L' },
-            { controlId: 'performanceBastardLoopXLevelMixer', group: 'loop', key: 'bastardx', label: 'Bastardloop X' },
-            { controlId: 'performanceBastardLoopMLevelMixer', group: 'loop', key: 'bastardm', label: 'Bastardloop M' },
-            { controlId: 'performanceGrainAVolume', group: 'grain', key: 'A', label: 'Grain A' },
-            { controlId: 'performanceGrainBVolume', group: 'grain', key: 'B', label: 'Grain B' },
-            { controlId: 'performanceGrainMixerAmp', group: 'source', key: 'granular', label: 'Granular' }
+            { controlId: 'performanceOscVolume', group: 'source', key: 'osc', label: 'Oscillator', jumpTarget: '.synth-container' },
+            { controlId: 'performanceSampleVolume', group: 'source', key: 'sample', label: 'Sample', jumpTarget: '.synth-container' },
+            { controlId: 'performanceGeneratedDryMix', group: 'source', key: 'loop', label: 'Loop', jumpTarget: '.synth-container' },
+            { controlId: 'performanceDropboxSampleLevel', group: 'loop', key: 'dropbox', label: 'Dropbox Sample', jumpTarget: "[aria-label='Dropbox sample layer controls']" },
+            { controlId: 'performanceDrumMachineLevel', group: 'loop', key: 'drums', label: 'Drum Machine', jumpTarget: "[aria-label='Drum machine controls']" },
+            { controlId: 'performanceBastardLoopLevel', group: 'loop', key: 'bastarda', label: 'Bastardloop A', jumpTarget: "[aria-label='Bastardloop controls']" },
+            { controlId: 'performanceBastardLoop2Level', group: 'loop', key: 'bastardb', label: 'Bastardloop B', jumpTarget: "[aria-label='Bastardloop B controls']" },
+            { controlId: 'performanceBastardLoop3Level', group: 'loop', key: 'bastardc', label: 'Bastardloop C', jumpTarget: "[aria-label='Bastardloop C controls']" },
+            { controlId: 'performanceBastardLoopVLevel', group: 'loop', key: 'bastardv', label: 'Bastardloop V', jumpTarget: "[aria-label='Bastardloop V controls']" },
+            { controlId: 'performanceBastardLoopPLevel', group: 'loop', key: 'bastardp', label: 'Bastardloop P', jumpTarget: "[aria-label='Bastardloop P controls']" },
+            { controlId: 'performanceBastardLoopOLevel', group: 'loop', key: 'bastardo', label: 'Bastardloop O', jumpTarget: "[aria-label='Bastardloop O controls']" },
+            { controlId: 'performanceBastardLoopLLevelMixer', group: 'loop', key: 'bastardl', label: 'Bastardloop L', jumpTarget: "[aria-label='Bastardloop L controls']" },
+            { controlId: 'performanceBastardLoopXLevelMixer', group: 'loop', key: 'bastardx', label: 'Bastardloop X', jumpTarget: "[aria-label='Bastardloop X controls']" },
+            { controlId: 'performanceBastardLoopMLevelMixer', group: 'loop', key: 'bastardm', label: 'Bastardloop M', jumpTarget: "[aria-label='Bastardloop M controls']" },
+            { controlId: 'performanceGrainAVolume', group: 'grain', key: 'A', label: 'Grain A', jumpTarget: '#performanceGrainControlsCard' },
+            { controlId: 'performanceGrainBVolume', group: 'grain', key: 'B', label: 'Grain B', jumpTarget: '#performanceGrainControlsCard' },
+            { controlId: 'performanceGrainMixerAmp', group: 'source', key: 'granular', label: 'Granular', jumpTarget: '#performanceGrainControlsCard' }
         ];
         const APP_WIDE_GAIN_STAGE_ANALYSIS = [
             ['oscSynthDrive', 'Osc Drive'],
@@ -46182,18 +46191,39 @@
             return `${controlId}SoloBtn`;
         }
 
+        function getPerformanceMixerJumpButtonId(controlId) {
+            return `${controlId}JumpBtn`;
+        }
+
+        function jumpToPerformanceMixerTarget(selector) {
+            if (!selector) return;
+            const target = document.querySelector(selector);
+            if (!(target instanceof HTMLElement)) return;
+            target.scrollIntoView({
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                block: 'start',
+                inline: 'nearest'
+            });
+        }
+
         function ensurePerformanceMixerSoloButtonsMounted() {
-            PERFORMANCE_MIXER_SOLO_BUTTONS.forEach(({ controlId, group, key, label }) => {
+            PERFORMANCE_MIXER_SOLO_BUTTONS.forEach(({ controlId, group, key, label, jumpTarget }) => {
                 const control = document.getElementById(controlId);
                 const card = control?.closest('.performance-sound-card');
                 if (!card || card.querySelector(`[data-performance-mixer-solo="${controlId}"]`)) return;
                 const buttonId = getPerformanceMixerSoloButtonId(controlId);
+                const jumpButtonId = getPerformanceMixerJumpButtonId(controlId);
                 card.insertAdjacentHTML('beforeend', `
                     <div class="performance-inline-mixer-actions" data-performance-mixer-solo="${controlId}">
+                        <button class="performance-btn performance-mixer-jump-btn" id="${jumpButtonId}" type="button">Jump</button>
                         <button class="performance-btn performance-mixer-solo-btn" id="${buttonId}" type="button" aria-pressed="false">Solo</button>
                     </div>
                 `);
+                const jumpButton = document.getElementById(jumpButtonId);
                 const button = document.getElementById(buttonId);
+                jumpButton?.addEventListener('click', () => {
+                    jumpToPerformanceMixerTarget(jumpTarget);
+                });
                 button?.addEventListener('click', () => {
                     if (group === 'source') {
                         setPerformanceSourceLayerSolo(key, { toggle: true });
@@ -46203,6 +46233,9 @@
                         setLoopLayerSolo(key, { toggle: true });
                     }
                 });
+                if (jumpButton) {
+                    jumpButton.title = `Jump to ${label} controls.`;
+                }
                 if (button) {
                     button.title = `Solo ${label}.`;
                 }
