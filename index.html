@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-11-02-build-v2026.10.13.28';
+            const cacheBuster = '2026-10-13-11-07-build-v2026.10.13.29';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5293,7 +5293,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.28</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.29</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -8158,9 +8158,9 @@
                                 <button class="slope-toggle active" data-filter="lpf" data-slope="12" data-poles="2">2P</button>
                                 <button class="slope-toggle" data-filter="lpf" data-slope="24" data-poles="4">4P</button>
                             </div>
-                            <span class="value" id="lpfCutoffValue">2800Hz</span>
+                            <span class="value" id="lpfCutoffValue">12000Hz</span>
                         </label>
-                        <input type="range" id="lpfCutoff" min="80" max="12000" value="2800" step="1">
+                        <input type="range" id="lpfCutoff" min="80" max="12000" value="12000" step="1">
                     </div>
                     <div class="control-group">
                         <label>
@@ -11518,7 +11518,7 @@
         const DEFAULT_DRUM_MACHINE_LEVEL_PERCENT = 65;
         const RANDOM_BASTARD_LOOP_LEVEL_MAX_PERCENT = 60;
         const MAX_SAFE_FILTER_Q = 2.5;
-        const DEFAULT_PERFORMANCE_CUTOFF = 2800;
+        const DEFAULT_PERFORMANCE_CUTOFF = 12000;
         const DEFAULT_PERFORMANCE_RESONANCE = 0.6;
         let lpfEnabled = true;
         let hpfEnabled = true;
@@ -34352,9 +34352,9 @@
                 grainSynthBDensity: randomIntegerInRange(18, Math.round(38 + profile.energy * 36)),
                 grainSynthBSpread: randomIntegerInRange(52, 100),
                 panSpread: randomIntegerInRange(24, Math.min(92, 48 + Math.round(density * 1.1))),
-                lpfCutoff: randomIntegerInRange(850, Math.max(1600, 2600 + Math.round(profile.energy * 4200))),
+                lpfCutoff: DEFAULT_PERFORMANCE_CUTOFF,
                 lpfQ: Number((0.25 + Math.random() * (0.55 + (profile.energy * 0.6))).toFixed(2)),
-                hpfCutoff: randomIntegerInRange(18, Math.round(100 + (profile.energy * 320))),
+                hpfCutoff: 20,
                 hpfQ: Number((0.2 + Math.random() * 0.8).toFixed(2)),
                 filterEnvAmount: randomIntegerInRange(12, Math.round(24 + profile.energy * 46)),
                 filterEnvAttack: randomIntegerInRange(1, 8),
@@ -34633,9 +34633,9 @@
                 grainSynthBDensity: rand(18, Math.round(36 + profile.energy * 34)),
                 grainSynthBSpread: rand(52, 100),
                 panSpread: rand(30, Math.min(88, 46 + density)),
-                lpfCutoff: rand(900, Math.max(2200, 2400 + Math.round(profile.energy * 3800))),
+                lpfCutoff: DEFAULT_PERFORMANCE_CUTOFF,
                 lpfQ: Number((0.24 + Math.random() * 0.75).toFixed(2)),
-                hpfCutoff: rand(18, Math.round(120 + profile.energy * 280)),
+                hpfCutoff: 20,
                 hpfQ: Number((0.2 + Math.random() * 0.7).toFixed(2)),
                 filterEnvAmount: rand(14, 42),
                 filterEnvAttack: rand(1, 4),
