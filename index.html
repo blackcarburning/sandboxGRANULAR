@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-08-18-build-v2026.10.13.6';
+            const cacheBuster = '2026-10-13-08-24-build-v2026.10.13.7';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4822,8 +4822,8 @@
             left: auto;
             width: 34px;
             min-width: 34px;
-            min-height: 48px;
-            padding: 8px 4px;
+            min-height: 64px;
+            padding: 12px 4px;
             transform: none;
             display: grid;
             place-items: center;
@@ -4839,7 +4839,7 @@
             text-transform: uppercase;
             font-size: 8px;
             font-weight: 900;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
         }
 
         .section-jump-quick-stack {
@@ -5001,7 +5001,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.6</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.7</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -10904,6 +10904,7 @@
         let dropboxSampleBrowserFiles = [];
         let dropboxSampleBrowserLoading = false;
         let dropboxSampleBrowserTarget = 'dropboxSampleLayer';
+        let dropboxSampleBrowserVisibleCount = 18;
         let dropboxSampleBrowserRefreshAbortController = null;
         let dropboxSampleBrowserRefreshToken = 0;
         let grainSampleBrowserSourceKeys = {
@@ -39686,6 +39687,8 @@
         function getBastardLoopPatternLengthPayload() {
             return getPatternLengthSteps();
         }
+        const DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT = 18;
+        const DROPBOX_SAMPLE_BROWSER_RENDER_BATCH_SIZE = 18;
         const DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT = 80;
         const PATCH_REPOSITORY_BASE_URL = `${window.location.origin}/mygrain`;
         const PATCH_REPOSITORY_LIST_API_URL = `${PATCH_REPOSITORY_BASE_URL}/api/patches/list`;
@@ -41110,7 +41113,11 @@
                 const haystack = `${file.name} ${file.relativePath}`.toLowerCase();
                 return !query || haystack.includes(query);
             });
-            const visibleFiles = matchingFiles.slice(0, DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT);
+            const visibleCount = Math.max(
+                DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT,
+                Math.min(DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT, dropboxSampleBrowserVisibleCount || DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT)
+            );
+            const visibleFiles = matchingFiles.slice(0, visibleCount);
             const hiddenMatchCount = Math.max(0, matchingFiles.length - visibleFiles.length);
             list.innerHTML = '';
 
@@ -41312,8 +41319,21 @@
             if (hiddenMatchCount > 0) {
                 const limited = document.createElement('div');
                 limited.className = 'sample-browser-empty';
-                limited.textContent = `Showing first ${visibleFiles.length} of ${matchingFiles.length} matches. Search to narrow the folder without locking the browser.`;
+                limited.textContent = `Showing ${visibleFiles.length} of ${matchingFiles.length} matches. Search to narrow the folder or load more below.`;
                 list.appendChild(limited);
+
+                const showMoreButton = document.createElement('button');
+                showMoreButton.className = 'performance-btn';
+                showMoreButton.type = 'button';
+                showMoreButton.textContent = `Show ${Math.min(DROPBOX_SAMPLE_BROWSER_RENDER_BATCH_SIZE, hiddenMatchCount)} More`;
+                showMoreButton.addEventListener('click', () => {
+                    dropboxSampleBrowserVisibleCount = Math.min(
+                        DROPBOX_SAMPLE_BROWSER_RENDER_LIMIT,
+                        visibleFiles.length + DROPBOX_SAMPLE_BROWSER_RENDER_BATCH_SIZE
+                    );
+                    renderDropboxSampleBrowserFiles();
+                });
+                list.appendChild(showMoreButton);
             }
         }
 
@@ -41348,6 +41368,7 @@
                 const resolvedSourceLabel = isGrainSampleBrowserTarget(config.target)
                     ? getGrainSampleBrowserSourceLabel(sourceKey)
                     : (payload.sourceLabel || sourceLabel);
+                dropboxSampleBrowserVisibleCount = DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT;
                 dropboxSampleBrowserFiles = Array.isArray(payload.files)
                     ? payload.files.map((file) => ({
                         ...file,
@@ -41360,6 +41381,7 @@
             } catch (error) {
                 if (error?.name === 'AbortError') return;
                 if (refreshToken !== dropboxSampleBrowserRefreshToken) return;
+                dropboxSampleBrowserVisibleCount = DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT;
                 dropboxSampleBrowserFiles = [];
                 setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
             } finally {
@@ -41382,6 +41404,7 @@
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('dropbox-sample-browser-open');
             if (filter) filter.value = '';
+            dropboxSampleBrowserVisibleCount = DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT;
             dropboxSampleBrowserFiles = [];
             syncDropboxSampleBrowserTargetUi();
             renderDropboxSampleBrowserFiles();
@@ -48095,6 +48118,7 @@
         });
 
         dropboxSampleBrowserFilter?.addEventListener('input', () => {
+            dropboxSampleBrowserVisibleCount = DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT;
             renderDropboxSampleBrowserFiles();
         });
 
