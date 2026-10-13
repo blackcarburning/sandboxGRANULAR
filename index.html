@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-12-21-build-v2026.10.13.39';
+            const cacheBuster = '2026-10-13-12-31-build-v2026.10.13.40';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5304,7 +5304,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.39</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.40</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -34932,6 +34932,13 @@
 
                 const selector = button.dataset.jumpTarget;
                 if (!selector) return;
+                if (selector === '.synth-container') {
+                    clearCloseTimer();
+                    drawer.classList.remove('is-settling');
+                    setDrawerOpen(false);
+                    openSynthPopup();
+                    return;
+                }
                 const target = document.querySelector(selector);
                 if (!target) return;
 
@@ -46308,6 +46315,10 @@
 
         function jumpToPerformanceMixerTarget(selector) {
             if (!selector) return;
+            if (selector === '.synth-container') {
+                openSynthPopup();
+                return;
+            }
             const target = document.querySelector(selector);
             if (!(target instanceof HTMLElement)) return;
             target.scrollIntoView({
