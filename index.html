@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-09-24-build-v2026.10.13.18';
+            const cacheBuster = '2026-10-13-09-18-build-v2026.10.13.19';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4023,6 +4023,15 @@
             box-shadow: 0 0 0 1px rgba(255, 109, 109, 0.28), 0 0 22px rgba(255, 109, 109, 0.26);
         }
 
+        .control-group.gain-stage-alert {
+            border-radius: 12px;
+            box-shadow: 0 0 0 1px rgba(255, 166, 87, 0.24), 0 0 18px rgba(255, 128, 72, 0.18);
+        }
+
+        .control-group.gain-stage-primary {
+            box-shadow: 0 0 0 1px rgba(255, 109, 109, 0.34), 0 0 22px rgba(255, 109, 109, 0.26);
+        }
+
         .simplified-ui .performance-sound-card label {
             display: flex;
             justify-content: space-between;
@@ -5088,7 +5097,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.18</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.19</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -9911,6 +9920,33 @@
             if (typeof oscMix !== 'undefined') debug.gains.oscMix = oscMix.toFixed(4); // oscMix is a numeric variable, not an AudioNode
             if (oscOutputGain) debug.gains.oscOutputGain = oscOutputGain.gain.value.toFixed(4);
             if (granularOutputGain) debug.gains.granularOutputGain = granularOutputGain.gain.value.toFixed(4);
+            if (generatedDryGainNode) debug.gains.generatedDryLoopGain = generatedDryGainNode.gain.value.toFixed(4);
+            if (finalAmplifierNode) debug.gains.finalAmplifier = finalAmplifierNode.gain.value.toFixed(4);
+            if (finalCompressorDriveGain) debug.gains.finalCompressorDrive = finalCompressorDriveGain.gain.value.toFixed(4);
+            if (finalDelayWetGain) debug.gains.finalDelayWet = finalDelayWetGain.gain.value.toFixed(4);
+            if (finalDelayDryGain) debug.gains.finalDelayDry = finalDelayDryGain.gain.value.toFixed(4);
+            if (finalDelayFeedbackGain) debug.gains.finalDelayFeedback = finalDelayFeedbackGain.gain.value.toFixed(4);
+            if (finalReverbWetGain) debug.gains.finalReverbWet = finalReverbWetGain.gain.value.toFixed(4);
+            if (finalReverbShimmerGain) debug.gains.finalReverbShimmer = finalReverbShimmerGain.gain.value.toFixed(4);
+            if (oscSynthDriveGain) debug.gains.oscSynthDrive = oscSynthDriveGain.gain.value.toFixed(4);
+            if (bastardLoopMFxInputGainNode) debug.gains.bastardLoopMFxInput = bastardLoopMFxInputGainNode.gain.value.toFixed(4);
+            if (bastardLoopMFxOutputGainNode) debug.gains.bastardLoopMFxOutput = bastardLoopMFxOutputGainNode.gain.value.toFixed(4);
+            if (bastardLoopMDelaySendGainNode) debug.gains.bastardLoopMDelaySend = bastardLoopMDelaySendGainNode.gain.value.toFixed(4);
+            if (bastardLoopMRoomReverbSendGainNode) debug.gains.bastardLoopMRoomReverbSend = bastardLoopMRoomReverbSendGainNode.gain.value.toFixed(4);
+            if (bastardLoopMRoomReverbWetGainNode) debug.gains.bastardLoopMRoomReverbWet = bastardLoopMRoomReverbWetGainNode.gain.value.toFixed(4);
+            if (bastardLoopMChorusSendGainNode) debug.gains.bastardLoopMChorusSend = bastardLoopMChorusSendGainNode.gain.value.toFixed(4);
+            if (bastardLoopMChorusLeftWetGainNode) debug.gains.bastardLoopMChorusLeftWet = bastardLoopMChorusLeftWetGainNode.gain.value.toFixed(4);
+            if (bastardLoopMChorusRightWetGainNode) debug.gains.bastardLoopMChorusRightWet = bastardLoopMChorusRightWetGainNode.gain.value.toFixed(4);
+            if (bastardLoopMCompressorDriveGainNode) debug.gains.bastardLoopMCompressorDrive = bastardLoopMCompressorDriveGainNode.gain.value.toFixed(4);
+            if (bastardLoopMMicInputGainNode) debug.gains.bastardLoopMMicInput = bastardLoopMMicInputGainNode.gain.value.toFixed(4);
+            if (bastardLoopLDelaySendGainNode) debug.gains.bastardLoopLDelaySend = bastardLoopLDelaySendGainNode.gain.value.toFixed(4);
+            if (bastardLoopLDelayFeedbackGainNode) debug.gains.bastardLoopLDelayFeedback = bastardLoopLDelayFeedbackGainNode.gain.value.toFixed(4);
+            if (bastardLoopLDelayWetGainNode) debug.gains.bastardLoopLDelayWet = bastardLoopLDelayWetGainNode.gain.value.toFixed(4);
+            if (bastardLoopXDelaySendGainNode) debug.gains.bastardLoopXDelaySend = bastardLoopXDelaySendGainNode.gain.value.toFixed(4);
+            if (bastardLoopXDelayFeedbackGainNode) debug.gains.bastardLoopXDelayFeedback = bastardLoopXDelayFeedbackGainNode.gain.value.toFixed(4);
+            if (bastardLoopXDelayWetGainNode) debug.gains.bastardLoopXDelayWet = bastardLoopXDelayWetGainNode.gain.value.toFixed(4);
+            if (drumMachineDirectDelaySendGainNode) debug.gains.drumMachineDelaySend = drumMachineDirectDelaySendGainNode.gain.value.toFixed(4);
+            if (drumMachineDirectReverbSendGainNode) debug.gains.drumMachineReverbSend = drumMachineDirectReverbSendGainNode.gain.value.toFixed(4);
 
             // Active nodes count
             debug.activeNodes.activeGrains = activeGrains ? activeGrains.size : 0;
@@ -45556,6 +45592,26 @@
             ['performanceGrainAVolume', 'Grain A'],
             ['performanceGrainBVolume', 'Grain B']
         ];
+        const APP_WIDE_GAIN_STAGE_ANALYSIS = [
+            ['oscSynthDrive', 'Osc Drive'],
+            ['distortion', 'Global Distortion'],
+            ['noiseMix', 'Noise Mix'],
+            ['volume', 'Main Volume'],
+            ['finalCompressorAmount', 'Final Compressor'],
+            ['finalDelayDepth', 'FX Delay Mix'],
+            ['finalDelayFeedback', 'FX Delay Feedback'],
+            ['finalReverbMix', 'FX Reverb Mix'],
+            ['finalReverbShimmerMix', 'Shimmer Mix'],
+            ['finalReverbDrumSend', 'Reverb Drum Send'],
+            ['drumMachineSnareDistortion', 'Snare Distortion'],
+            ['performanceBastardLoopMInputGain', 'Bastardloop M Input'],
+            ['performanceBastardLoopMDelayMix', 'Bastardloop M Delay Mix'],
+            ['performanceBastardLoopMChorusMix', 'Bastardloop M Chorus Mix'],
+            ['performanceBastardLoopMRoomReverbMix', 'Bastardloop M Reverb Mix'],
+            ['performanceBastardLoopMCompressorAmount', 'Bastardloop M Compressor'],
+            ['performanceBastardLoopLDelayMix', 'Bastardloop L Delay Mix'],
+            ['performanceBastardLoopXDelayMix', 'Bastardloop X Delay Mix']
+        ];
         let mixerGainStageHighlightsActive = false;
 
         function appendPerformanceControlCard(controlId, targetGrid) {
@@ -45576,10 +45632,14 @@
         }
 
         function clearPerformanceGainStageHighlights() {
-            document.querySelectorAll('.performance-sound-card.gain-stage-alert, .performance-sound-card.gain-stage-primary').forEach((card) => {
+            document.querySelectorAll('.performance-sound-card.gain-stage-alert, .performance-sound-card.gain-stage-primary, .control-group.gain-stage-alert, .control-group.gain-stage-primary').forEach((card) => {
                 card.classList.remove('gain-stage-alert', 'gain-stage-primary');
             });
             mixerGainStageHighlightsActive = false;
+        }
+
+        function getGainStageHighlightContainer(control) {
+            return control?.closest('.performance-sound-card, .control-group') || null;
         }
 
         function getPerformanceSliderNumber(id, fallback = 0) {
@@ -45700,6 +45760,156 @@
                         `Oscillator output is pressing the bus (${oscOutputGainValue.toFixed(2)}x). Lower Osc Volume.`
                     );
                 }
+
+                if (Number(debug.gains.oscSynthDrive || 0) > 2.2) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'oscSynthDrive',
+                        'Osc Drive',
+                        86,
+                        `Osc synth drive is high (${Number(debug.gains.oscSynthDrive).toFixed(2)}x). Ease back the drive stage.`
+                    );
+                }
+
+                if (Number(debug.gains.finalCompressorDrive || 0) > 1.4) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'finalCompressorAmount',
+                        'Final Compressor',
+                        74,
+                        `Final compressor drive is elevated (${Number(debug.gains.finalCompressorDrive).toFixed(2)}x). Back off compression/drive.`
+                    );
+                }
+
+                if (Number(debug.gains.finalDelayFeedback || 0) > 0.72) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'finalDelayFeedback',
+                        'FX Delay Feedback',
+                        72,
+                        `Final delay feedback is running hot (${Number(debug.gains.finalDelayFeedback).toFixed(2)}).`
+                    );
+                }
+
+                if (Number(debug.gains.finalReverbWet || 0) > 0.82) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'finalReverbMix',
+                        'FX Reverb Mix',
+                        66,
+                        `Final reverb return is strong (${Number(debug.gains.finalReverbWet).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.finalReverbShimmer || 0) > 0.7) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'finalReverbShimmerMix',
+                        'Shimmer Mix',
+                        68,
+                        `Shimmer return is strong (${Number(debug.gains.finalReverbShimmer).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.drumMachineDelaySend || 0) > 0.75) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'finalDelayDepth',
+                        'FX Delay Mix',
+                        60,
+                        `Drum delay send is high (${Number(debug.gains.drumMachineDelaySend).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.drumMachineReverbSend || 0) > 0.9) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'finalReverbDrumSend',
+                        'Reverb Drum Send',
+                        60,
+                        `Drum reverb send is high (${Number(debug.gains.drumMachineReverbSend).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopMFxInput || 0) > 1.15) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopMLevelMixer',
+                        'Bastardloop M',
+                        58,
+                        `Bastardloop M is feeding its FX chain hard (${Number(debug.gains.bastardLoopMFxInput).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopMMicInput || 0) > 1.15) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopMInputGain',
+                        'Bastardloop M Input',
+                        76,
+                        `Bastardloop M mic input gain is hot (${Number(debug.gains.bastardLoopMMicInput).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopMDelaySend || 0) > 0.72) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopMDelayMix',
+                        'Bastardloop M Delay Mix',
+                        64,
+                        `Bastardloop M delay input is high (${Number(debug.gains.bastardLoopMDelaySend).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopMRoomReverbSend || 0) > 0.78) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopMRoomReverbMix',
+                        'Bastardloop M Reverb Mix',
+                        62,
+                        `Bastardloop M reverb input is high (${Number(debug.gains.bastardLoopMRoomReverbSend).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopMChorusSend || 0) > 0.74) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopMChorusMix',
+                        'Bastardloop M Chorus Mix',
+                        60,
+                        `Bastardloop M chorus input is high (${Number(debug.gains.bastardLoopMChorusSend).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopMCompressorDrive || 0) > 1.18) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopMCompressorAmount',
+                        'Bastardloop M Compressor',
+                        58,
+                        `Bastardloop M compressor drive is elevated (${Number(debug.gains.bastardLoopMCompressorDrive).toFixed(2)}x).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopLDelaySend || 0) > 0.82 || Number(debug.gains.bastardLoopLDelayFeedback || 0) > 0.38) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopLDelayMix',
+                        'Bastardloop L Delay Mix',
+                        57,
+                        `Bastardloop L delay is feeding hard (${Number(debug.gains.bastardLoopLDelaySend || 0).toFixed(2)}x send, ${Number(debug.gains.bastardLoopLDelayFeedback || 0).toFixed(2)} feedback).`
+                    );
+                }
+
+                if (Number(debug.gains.bastardLoopXDelaySend || 0) > 0.82 || Number(debug.gains.bastardLoopXDelayFeedback || 0) > 0.38) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceBastardLoopXDelayMix',
+                        'Bastardloop X Delay Mix',
+                        57,
+                        `Bastardloop X delay is feeding hard (${Number(debug.gains.bastardLoopXDelaySend || 0).toFixed(2)}x send, ${Number(debug.gains.bastardLoopXDelayFeedback || 0).toFixed(2)} feedback).`
+                    );
+                }
             }
 
             if (masterTrimValue > -1) {
@@ -45762,6 +45972,48 @@
                 );
             }
 
+            APP_WIDE_GAIN_STAGE_ANALYSIS.forEach(([id, label]) => {
+                const value = getPerformanceSliderNumber(id, Number.NaN);
+                if (!Number.isFinite(value)) return;
+                if (id === 'oscSynthDrive' && value > 8) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 64, `Osc Drive is high (${value.toFixed(1)} dB).`);
+                } else if (id === 'distortion' && value > 55) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 76, `Global distortion is high (${Math.round(value)}%).`);
+                } else if (id === 'noiseMix' && stageAlreadyHot && value > 35) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 48, `Noise Mix is adding extra level (${Math.round(value)}%).`);
+                } else if (id === 'volume' && masterTrimValue > -2 && value > 92) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 66, `Main Volume is near full (${Math.round(value)}%).`);
+                } else if (id === 'finalCompressorAmount' && value > 72) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 62, `Final compressor amount is high (${Math.round(value)}%).`);
+                } else if (id === 'finalDelayDepth' && value > 58) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 56, `FX delay mix is high (${Math.round(value)}%).`);
+                } else if (id === 'finalDelayFeedback' && value > 72) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 72, `FX delay feedback is high (${Math.round(value)}%).`);
+                } else if (id === 'finalReverbMix' && value > 55) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 54, `FX reverb mix is high (${Math.round(value)}%).`);
+                } else if (id === 'finalReverbShimmerMix' && value > 45) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 58, `Shimmer mix is high (${Math.round(value)}%).`);
+                } else if (id === 'finalReverbDrumSend' && value > 155) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 62, `Drum send into reverb is high (${Math.round(value)}%).`);
+                } else if (id === 'drumMachineSnareDistortion' && value > 65) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 60, `Snare distortion is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopMInputGain' && value > 135) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 62, `Bastardloop M input gain is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopMDelayMix' && value > 62) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 54, `Bastardloop M delay mix is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopMChorusMix' && value > 70) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 52, `Bastardloop M chorus mix is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopMRoomReverbMix' && value > 68) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 54, `Bastardloop M reverb mix is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopMCompressorAmount' && value > 70) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 56, `Bastardloop M compressor amount is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopLDelayMix' && value > 65) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 52, `Bastardloop L delay mix is high (${Math.round(value)}%).`);
+                } else if (id === 'performanceBastardLoopXDelayMix' && value > 65) {
+                    addPerformanceGainStageSuggestion(suggestions, id, label, 52, `Bastardloop X delay mix is high (${Math.round(value)}%).`);
+                }
+            });
+
             loudLevels.slice(0, 4).forEach((entry, index) => {
                 addPerformanceGainStageSuggestion(
                     suggestions,
@@ -45815,7 +46067,7 @@
 
             result.suggestions.forEach((suggestion, index) => {
                 const control = document.getElementById(suggestion.controlId);
-                const card = control?.closest('.performance-sound-card');
+                const card = getGainStageHighlightContainer(control);
                 if (!card) return;
                 card.classList.add('gain-stage-alert');
                 if (index === 0) {
