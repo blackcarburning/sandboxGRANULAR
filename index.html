@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-11-35-build-v2026.10.13.33';
+            const cacheBuster = '2026-10-13-11-54-build-v2026.10.13.34';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5304,7 +5304,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.33</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.34</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6582,7 +6582,7 @@
                         <button class="performance-btn performance-layer-solo-btn" id="performanceGeneratedLayerQuickSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row performance-layer-switch-row--solo-only">
-                        <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
+                        <button class="performance-btn layer-muted" id="performanceDryLoopLayerBtn" aria-pressed="false" title="Enable or mute the generated dry loop layer">Loop Off</button>
                         <button class="performance-btn performance-layer-solo-btn" id="performanceDryLoopLayerQuickSoloBtn" type="button" aria-pressed="false">Solo Off</button>
                     </div>
                     <div class="performance-layer-switch-row">
@@ -10954,7 +10954,7 @@
         let generatedDryMix = 0.35; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
         let generatedSampleLayerEnabled = true;
-        let generatedDryLoopEnabled = true;
+        let generatedDryLoopEnabled = false;
         let generatedLoopTransportEnabled = true;
         let generatedSampleSolo = false;
         let grainLayerSolo = [];
@@ -11316,7 +11316,7 @@
         let grainMainPreserveDuration = true;
         let grainAPreserveDuration = true;
         let grainBPreserveDuration = true;
-        let grainMainMuted = true;
+        let grainMainMuted = false;
         let grainAMuted = false;
         let grainBMuted = false;
         let drumMachineKickBuffer = null;
@@ -17185,6 +17185,7 @@
             } else {
                 loopLayerSolo = requested;
             }
+            syncPerformanceLayerSoloIsolation();
             syncLoopLayerSoloButtons();
             updateBastardLoopMix();
             updateBastardLoop2Mix();
@@ -17276,7 +17277,10 @@
 
         function getLoopLayerSoloGain(layer) {
             const normalized = normalizeLoopLayerSolo(layer)[0];
-            return loopLayerSolo.length === 0 || hasLoopLayerSolo(normalized) ? 1 : 0;
+            if (loopLayerSolo.length > 0) {
+                return hasLoopLayerSolo(normalized) ? 1 : 0;
+            }
+            return hasAnyPerformanceLayerSoloSelection() ? 0 : 1;
         }
 
         function clampBastardLoopFilterCutoff(value) {
@@ -25037,6 +25041,10 @@
             return grainLayerSolo.includes(String(key || '').trim().toUpperCase());
         }
 
+        function hasAnyPerformanceLayerSoloSelection() {
+            return performanceSourceLayerSolo.length > 0 || grainLayerSolo.length > 0 || loopLayerSolo.length > 0;
+        }
+
         function syncPerformanceSourceLayerSoloButtons() {
             const buttonConfigs = [
                 { button: performanceLayerOscSoloBtn, key: 'osc', label: 'oscillator' },
@@ -25073,16 +25081,42 @@
             setGeneratedDryLoopEnabled(snapshot.generatedDryLoopEnabled, { silent: true, skipSave: true });
         }
 
-        function restorePerformanceSourceLayerSolo(options = {}) {
-            const snapshot = performanceSourceLayerSoloSnapshot;
-            performanceSourceLayerSolo = [];
-            performanceSourceLayerSoloSnapshot = null;
-            if (snapshot) {
-                restorePerformanceSourceLayerSoloState(snapshot);
+        function syncPerformanceLayerSoloIsolation() {
+            if (!hasAnyPerformanceLayerSoloSelection()) {
+                const snapshot = performanceSourceLayerSoloSnapshot;
+                performanceSourceLayerSoloSnapshot = null;
+                if (snapshot) {
+                    restorePerformanceSourceLayerSoloState(snapshot);
+                }
+                syncPerformanceSourceLayerSoloButtons();
                 syncPerformanceControlState();
-            } else {
-                syncPerformanceControlState();
+                return;
             }
+
+            const baselineSnapshot = performanceSourceLayerSoloSnapshot || capturePerformanceSourceLayerSoloState();
+            performanceSourceLayerSoloSnapshot = baselineSnapshot;
+            restorePerformanceSourceLayerSoloState(baselineSnapshot);
+
+            if (performanceSourceLayerSolo.length > 0) {
+                const activeSelections = new Set(performanceSourceLayerSolo);
+                setOscillatorsEnabled(activeSelections.has('osc'), { silent: true, skipSave: true });
+                setGranularLayersEnabled(activeSelections.has('granular'), { silent: true, skipSave: true });
+                setGeneratedSampleLayerEnabled(activeSelections.has('sample'), { silent: true, skipSave: true });
+                setGeneratedDryLoopEnabled(activeSelections.has('loop'), { silent: true, skipSave: true });
+            } else {
+                setOscillatorsEnabled(false, { silent: true, skipSave: true });
+                setGranularLayersEnabled(false, { silent: true, skipSave: true });
+                setGeneratedSampleLayerEnabled(false, { silent: true, skipSave: true });
+                setGeneratedDryLoopEnabled(false, { silent: true, skipSave: true });
+            }
+
+            syncPerformanceSourceLayerSoloButtons();
+            syncPerformanceControlState();
+        }
+
+        function restorePerformanceSourceLayerSolo(options = {}) {
+            performanceSourceLayerSolo = [];
+            syncPerformanceLayerSoloIsolation();
             if (!options.silent) {
                 setStatus('Source solo off.');
             }
@@ -25112,20 +25146,8 @@
                 return;
             }
 
-            const baselineSnapshot = performanceSourceLayerSoloSnapshot || capturePerformanceSourceLayerSoloState();
-            if (performanceSourceLayerSoloSnapshot) {
-                restorePerformanceSourceLayerSoloState(baselineSnapshot);
-            }
-            performanceSourceLayerSoloSnapshot = baselineSnapshot;
             performanceSourceLayerSolo = nextSelection;
-
-            const activeSelections = new Set(nextSelection);
-            setOscillatorsEnabled(activeSelections.has('osc'), { silent: true, skipSave: true });
-            setGranularLayersEnabled(activeSelections.has('granular'), { silent: true, skipSave: true });
-            setGeneratedSampleLayerEnabled(activeSelections.has('sample'), { silent: true, skipSave: true });
-            setGeneratedDryLoopEnabled(activeSelections.has('loop'), { silent: true, skipSave: true });
-            syncPerformanceSourceLayerSoloButtons();
-            syncPerformanceControlState();
+            syncPerformanceLayerSoloIsolation();
 
             if (!options.silent) {
                 const labels = {
@@ -25166,6 +25188,7 @@
             } else {
                 grainLayerSolo = requested;
             }
+            syncPerformanceLayerSoloIsolation();
             syncGrainLayerSoloButtons();
             if (audioContext && activeGrains.size > 0) {
                 rescheduleActiveGrainsFromNow();
@@ -25180,7 +25203,13 @@
 
         function getGrainLayerSoloGain(layer) {
             const normalized = normalizeGrainLayerSolo(layer)[0];
-            return grainLayerSolo.length === 0 || hasGrainLayerSolo(normalized) ? 1 : 0;
+            if (grainLayerSolo.length > 0) {
+                return hasGrainLayerSolo(normalized) ? 1 : 0;
+            }
+            if (hasPerformanceSourceLayerSolo('granular')) {
+                return 1;
+            }
+            return hasAnyPerformanceLayerSoloSelection() ? 0 : 1;
         }
 
         function updateGeneratedDryLoopMix() {
@@ -36994,8 +37023,11 @@
             setFinalCompressorSidechainSource('off', { silent: true, skipSave: true });
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setGeneratedDryThroughFilters(false, { silent: true });
+            setGranularLayerMuted('main', false, { silent: true, skipSave: true });
+            setGranularLayerMuted('A', false, { silent: true, skipSave: true });
+            setGranularLayerMuted('B', false, { silent: true, skipSave: true });
             setGeneratedSampleLayerEnabled(true, { silent: true, skipSave: true });
-            setGeneratedDryLoopEnabled(true, { silent: true, skipSave: true });
+            setGeneratedDryLoopEnabled(false, { silent: true, skipSave: true });
             setBastardLoopEnabled(true, { silent: true, skipSave: true });
             setBastardLoop2Enabled(true, { silent: true, skipSave: true });
             setBastardLoop3Enabled(true, { silent: true, skipSave: true });
