@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-11-20-49-build-v2026.10.11.19';
+            const cacheBuster = '2026-10-13-07-42-build-v2026.10.13.1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4952,7 +4952,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.11.19</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.1</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -27407,21 +27407,24 @@
                 if (envelopeAmount > 0.001 && peakCutoff > baseCutoff + 2) {
                     filterNode.frequency.linearRampToValueAtTime(peakCutoff, scheduledTime + attackTime);
                     filterNode.frequency.exponentialRampToValueAtTime(
-                        Math.max(300, baseCutoff),
+                        Math.max(50, baseCutoff),
                         scheduledTime + decayTime
                     );
                 }
             });
         }
 
-        function updateBastardLoopXVoiceFx() {
+        function updateBastardLoopXVoiceFx(options = {}) {
             updateBastardLoopXDelayBusSettings();
             ensureBastardLoopXFilterLfoSource();
             const cutoff = getBastardLoopXFilterCutoff();
+            const refreshLfo = options.refreshLfo !== false;
             bastardLoopXActiveVoices.forEach((voice) => {
                 if (voice?.filterNodes?.length) {
                     smoothBastardLoopFilterCutoff(voice.filterNodes, cutoff, 0.03);
-                    attachBastardLoopXFilterLfoToVoice(voice, cutoff);
+                    if (refreshLfo) {
+                        attachBastardLoopXFilterLfoToVoice(voice, cutoff);
+                    }
                 }
             });
         }
@@ -46877,7 +46880,7 @@
 
         performanceBastardLoopXFilterCutoff?.addEventListener('input', (event) => {
             bastardLoopXFilterCutoff = clampBastardLoopFilterCutoff(event.target.value);
-            updateBastardLoopXVoiceFx();
+            updateBastardLoopXVoiceFx({ refreshLfo: false });
             syncBastardLoopXUi();
             saveState();
         });
