@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-09-02-build-v2026.10.13.17';
+            const cacheBuster = '2026-10-13-09-24-build-v2026.10.13.18';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3667,6 +3667,78 @@
             gap: 10px;
         }
 
+        .simplified-ui .performance-mixer-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .simplified-ui .performance-mixer-section {
+            display: grid;
+            gap: 8px;
+        }
+
+        .simplified-ui .performance-mixer-section-head {
+            display: grid;
+            gap: 3px;
+        }
+
+        .simplified-ui .performance-mixer-section-title {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.92);
+            font-size: 0.74rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-mixer-section-note {
+            margin: 0;
+            color: rgba(196, 214, 230, 0.72);
+            font-size: 0.72rem;
+            line-height: 1.35;
+        }
+
+        .simplified-ui .performance-mixer-audit {
+            display: grid;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(14, 22, 38, 0.9) 0%, rgba(8, 13, 24, 0.96) 100%);
+            border: 1px solid rgba(126, 246, 255, 0.16);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .simplified-ui .performance-gain-stage-btn {
+            min-height: 56px;
+            font-size: 0.92rem;
+            letter-spacing: 0.08em;
+        }
+
+        .simplified-ui .performance-mixer-audit-status {
+            color: rgba(240, 248, 255, 0.88);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .simplified-ui .performance-mixer-audit-list {
+            display: grid;
+            gap: 6px;
+        }
+
+        .simplified-ui .performance-mixer-audit-item {
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(126, 246, 255, 0.08);
+            border: 1px solid rgba(126, 246, 255, 0.12);
+            color: rgba(245, 250, 255, 0.9);
+            font-size: 0.74rem;
+            line-height: 1.4;
+        }
+
+        .simplified-ui .performance-mixer-audit-item strong {
+            color: #fff;
+        }
+
         .simplified-ui .performance-grain-layer-grid {
             display: grid;
             gap: 10px;
@@ -3939,6 +4011,16 @@
             border-radius: 14px;
             background: rgba(5, 8, 15, 0.44);
             border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .simplified-ui .performance-sound-card.gain-stage-alert {
+            border-color: rgba(255, 166, 87, 0.62);
+            box-shadow: 0 0 0 1px rgba(255, 166, 87, 0.18), 0 0 18px rgba(255, 128, 72, 0.18);
+        }
+
+        .simplified-ui .performance-sound-card.gain-stage-primary {
+            border-color: rgba(255, 109, 109, 0.82);
+            box-shadow: 0 0 0 1px rgba(255, 109, 109, 0.28), 0 0 22px rgba(255, 109, 109, 0.26);
         }
 
         .simplified-ui .performance-sound-card label {
@@ -5006,7 +5088,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.17</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.18</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6290,11 +6372,29 @@
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Mixer</div>
-                        <h3 class="performance-feature-title">Module Mixer</h3>
-                        <p class="performance-feature-note">Keep the module levels together in one place while the generators and browsers stay focused on source setup.</p>
+                        <h3 class="performance-feature-title">Mixer</h3>
+                        <p class="performance-feature-note">Keep source balance, module levels, and trim staging together in one place so gain decisions happen in one pass.</p>
                     </div>
                 </div>
-                <div class="performance-mixer-grid" aria-label="Module volume controls">
+                <div class="performance-mixer-stack">
+                    <div class="performance-mixer-audit" aria-label="Gain staging helper">
+                        <button class="performance-btn primary performance-gain-stage-btn" id="performanceGainStageAuditBtn" type="button">Check Gain Staging</button>
+                        <div class="performance-mixer-audit-status" id="performanceGainStageAuditStatus">Ready to scan the live mixer, trims, and internal gain stages for distortion risk.</div>
+                        <div class="performance-mixer-audit-list" id="performanceGainStageAuditList" aria-live="polite"></div>
+                    </div>
+                    <section class="performance-mixer-section" aria-label="Source balance controls">
+                        <div class="performance-mixer-section-head">
+                            <h4 class="performance-mixer-section-title">Source Balance</h4>
+                            <p class="performance-mixer-section-note">Blend oscillator, granular, and loop-source feeds before they hit the layer mixer.</p>
+                        </div>
+                        <div class="performance-sound-controls" id="performanceMixerBlendGrid" aria-label="Source balance controls"></div>
+                    </section>
+                    <section class="performance-mixer-section" aria-label="Layer mixer controls">
+                        <div class="performance-mixer-section-head">
+                            <h4 class="performance-mixer-section-title">Layer Levels</h4>
+                            <p class="performance-mixer-section-note">Set the module and Bastardloop balances here before using the trim section to claw back headroom.</p>
+                        </div>
+                <div class="performance-mixer-grid" id="performanceMixerModuleGrid" aria-label="Module volume controls">
                     <div class="performance-sound-card">
                         <label for="performanceOscVolume">
                             <span>Osc Volume</span>
@@ -6339,7 +6439,7 @@
                     </div>
                     <div class="performance-sound-card performance-vu-card">
                         <label for="performanceMixerVuShell">
-                            <span>Output VU</span>
+                            <span>Layer VU</span>
                             <span class="value" id="performanceMixerVuValue">-inf dB</span>
                         </label>
                         <div
@@ -6451,6 +6551,15 @@
                         </label>
                         <input type="range" id="performanceGrainMixerAmp" min="0" max="200" value="100" step="1">
                     </div>
+                </div>
+                    </section>
+                    <section class="performance-mixer-section" aria-label="Trim and headroom controls">
+                        <div class="performance-mixer-section-head">
+                            <h4 class="performance-mixer-section-title">Trim & Headroom</h4>
+                            <p class="performance-mixer-section-note">Use these trims to stop distortion building up across the dry, grain, filter, and master path.</p>
+                        </div>
+                        <div class="performance-sound-controls" id="performanceMixerTrimGrid" aria-label="Trim and headroom controls"></div>
+                    </section>
                 </div>
             </div>
             <div class="performance-feature-card" id="performanceGrainQuickControlsCard" aria-label="Granular layer quick controls">
@@ -6570,7 +6679,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Filter</div>
                         <h3 class="performance-feature-title">Filter Section</h3>
-                        <p class="performance-feature-note">Keep the low-pass and high-pass controls together in one place, including cutoff, resonance, modulation, pole selection, and trim staging.</p>
+                        <p class="performance-feature-note">Keep the low-pass and high-pass controls together in one place, including cutoff, resonance, modulation, and pole selection.</p>
                     </div>
                 </div>
                 <div class="performance-filter-grid" aria-label="Filter controls">
@@ -6871,7 +6980,7 @@
                     </div>
                 </div>
             </div>
-            <div class="performance-feature-card" aria-label="Mix controls">
+            <div class="performance-feature-card" id="performanceMixTrimCard" aria-label="Mix controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Mix</div>
@@ -45282,6 +45391,14 @@
         const performanceInputTrim = document.getElementById('performanceInputTrim');
         const performancePostFilterTrim = document.getElementById('performancePostFilterTrim');
         const performanceMasterTrim = document.getElementById('performanceMasterTrim');
+        const performanceMixerCard = document.getElementById('performanceMixerCard');
+        const performanceMixTrimCard = document.getElementById('performanceMixTrimCard');
+        const performanceMixerBlendGrid = document.getElementById('performanceMixerBlendGrid');
+        const performanceMixerModuleGrid = document.getElementById('performanceMixerModuleGrid');
+        const performanceMixerTrimGrid = document.getElementById('performanceMixerTrimGrid');
+        const performanceGainStageAuditBtn = document.getElementById('performanceGainStageAuditBtn');
+        const performanceGainStageAuditStatus = document.getElementById('performanceGainStageAuditStatus');
+        const performanceGainStageAuditList = document.getElementById('performanceGainStageAuditList');
         const performanceOutputVuShell = document.getElementById('performanceOutputVuShell');
         const performanceOutputVuFill = document.getElementById('performanceOutputVuFill');
         const performanceOutputVuPeak = document.getElementById('performanceOutputVuPeak');
@@ -45408,6 +45525,314 @@
         }
 
         mountPerformanceGrainControlCards();
+
+        const PERFORMANCE_MIXER_BLEND_CARD_IDS = [
+            'performanceSourceMix',
+            'performanceGeneratedSourceMix'
+        ];
+        const PERFORMANCE_MIXER_TRIM_CARD_IDS = [
+            'performanceGeneratedDryTrim',
+            'performanceGranularTrim',
+            'performanceInputTrim',
+            'performancePostFilterTrim',
+            'performanceMasterTrim',
+            'performanceOutputVuShell'
+        ];
+        const PERFORMANCE_MIXER_LEVEL_ANALYSIS = [
+            ['performanceOscVolume', 'Osc Volume'],
+            ['performanceSampleVolume', 'Sample Volume'],
+            ['performanceGeneratedDryMix', 'Loop Level'],
+            ['performanceDropboxSampleLevel', 'Dropbox Sample'],
+            ['performanceDrumMachineLevel', 'Drum Machine'],
+            ['performanceBastardLoopLevel', 'Bastardloop A'],
+            ['performanceBastardLoop2Level', 'Bastardloop B'],
+            ['performanceBastardLoop3Level', 'Bastardloop C'],
+            ['performanceBastardLoopVLevel', 'Bastardloop V'],
+            ['performanceBastardLoopPLevel', 'Bastardloop P'],
+            ['performanceBastardLoopOLevel', 'Bastardloop O'],
+            ['performanceBastardLoopLLevelMixer', 'Bastardloop L'],
+            ['performanceBastardLoopXLevelMixer', 'Bastardloop X'],
+            ['performanceBastardLoopMLevelMixer', 'Bastardloop M'],
+            ['performanceGrainAVolume', 'Grain A'],
+            ['performanceGrainBVolume', 'Grain B']
+        ];
+        let mixerGainStageHighlightsActive = false;
+
+        function appendPerformanceControlCard(controlId, targetGrid) {
+            if (!targetGrid) return;
+            const control = document.getElementById(controlId);
+            const card = control?.closest('.performance-sound-card');
+            if (card && card.parentElement !== targetGrid) {
+                targetGrid.appendChild(card);
+            }
+        }
+
+        function mountPerformanceMixerSections() {
+            PERFORMANCE_MIXER_BLEND_CARD_IDS.forEach((id) => appendPerformanceControlCard(id, performanceMixerBlendGrid));
+            PERFORMANCE_MIXER_TRIM_CARD_IDS.forEach((id) => appendPerformanceControlCard(id, performanceMixerTrimGrid));
+            if (performanceMixTrimCard) {
+                performanceMixTrimCard.hidden = true;
+            }
+        }
+
+        function clearPerformanceGainStageHighlights() {
+            document.querySelectorAll('.performance-sound-card.gain-stage-alert, .performance-sound-card.gain-stage-primary').forEach((card) => {
+                card.classList.remove('gain-stage-alert', 'gain-stage-primary');
+            });
+            mixerGainStageHighlightsActive = false;
+        }
+
+        function getPerformanceSliderNumber(id, fallback = 0) {
+            const control = document.getElementById(id);
+            const value = Number(control?.value);
+            return Number.isFinite(value) ? value : fallback;
+        }
+
+        function addPerformanceGainStageSuggestion(bucket, controlId, label, score, detail) {
+            if (!controlId || !detail) return;
+            const existing = bucket.get(controlId);
+            if (existing) {
+                existing.score = Math.max(existing.score, score);
+                if (!existing.details.includes(detail)) existing.details.push(detail);
+                return;
+            }
+            bucket.set(controlId, {
+                controlId,
+                label,
+                score,
+                details: [detail]
+            });
+        }
+
+        function collectPerformanceGainStageSuggestions() {
+            const debug = captureAudioDebug();
+            const suggestions = new Map();
+            const masterTrimValue = getPerformanceSliderNumber('performanceMasterTrim', -3);
+            const postFilterTrimValue = getPerformanceSliderNumber('performancePostFilterTrim', 0);
+            const inputTrimValue = getPerformanceSliderNumber('performanceInputTrim', 0);
+            const granularTrimValue = getPerformanceSliderNumber('performanceGranularTrim', -3);
+            const generatedDryTrimValue = getPerformanceSliderNumber('performanceGeneratedDryTrim', 0);
+            const grainAmpValue = getPerformanceSliderNumber('performanceGrainMixerAmp', 100);
+            const stageAlreadyHot = masterTrimValue > -2 || postFilterTrimValue > 2 || inputTrimValue > 1 || granularTrimValue > 1 || generatedDryTrimValue > 1;
+            const levelSnapshot = PERFORMANCE_MIXER_LEVEL_ANALYSIS
+                .map(([id, label]) => ({ id, label, value: getPerformanceSliderNumber(id, 0) }))
+                .filter((entry) => Number.isFinite(entry.value));
+            const loudLevels = stageAlreadyHot
+                ? levelSnapshot.filter((entry) => entry.value >= 95).sort((a, b) => b.value - a.value)
+                : [];
+            const levelSum = levelSnapshot.reduce((sum, entry) => sum + entry.value, 0);
+
+            if (debug?.gains) {
+                const masterGainValue = Number(debug.gains.masterGain || 0);
+                const preFilterGainValue = Number(debug.gains.preFilterGain || 0);
+                const wetGainValue = Number(debug.gains.wetGain || 0);
+                const dryGainValue = Number(debug.gains.dryGain || 0);
+                const makeupGainValue = Number(debug.gains.makeupGain || 0);
+                const granularOutputGainValue = Number(debug.gains.granularOutputGain || 0);
+                const oscOutputGainValue = Number(debug.gains.oscOutputGain || 0);
+
+                if (masterGainValue > 1.0) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceMasterTrim',
+                        'Master Trim',
+                        120,
+                        `Master output is clipping (${masterGainValue.toFixed(2)}). Pull Master Trim back first.`
+                    );
+                }
+
+                if (makeupGainValue > 1.35) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performancePostFilterTrim',
+                        'Filter Out',
+                        110,
+                        `Post-filter gain is pushing hard (${makeupGainValue.toFixed(2)}x). Lower Filter Out.`
+                    );
+                }
+
+                if (preFilterGainValue > 1.2) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceInputTrim',
+                        'Filter In',
+                        98,
+                        `Filter input is being overdriven (${preFilterGainValue.toFixed(2)}x). Ease back Filter In.`
+                    );
+                }
+
+                if (dryGainValue > 1.1) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceGeneratedDryTrim',
+                        'Dry Trim',
+                        92,
+                        `Dry loop path is hot (${dryGainValue.toFixed(2)}x). Trim the dry path down.`
+                    );
+                }
+
+                if (wetGainValue > 1.1) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceGranularTrim',
+                        'Grain Trim',
+                        92,
+                        `Granular path is hot (${wetGainValue.toFixed(2)}x). Lower Grain Trim.`
+                    );
+                }
+
+                if (granularOutputGainValue > 1.1) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceGrainMixerAmp',
+                        'Grain Amp',
+                        88,
+                        `Granular output is elevated (${granularOutputGainValue.toFixed(2)}x). Back off Grain Amp.`
+                    );
+                }
+
+                if (oscOutputGainValue > 1.0) {
+                    addPerformanceGainStageSuggestion(
+                        suggestions,
+                        'performanceOscVolume',
+                        'Osc Volume',
+                        82,
+                        `Oscillator output is pressing the bus (${oscOutputGainValue.toFixed(2)}x). Lower Osc Volume.`
+                    );
+                }
+            }
+
+            if (masterTrimValue > -1) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    'performanceMasterTrim',
+                    'Master Trim',
+                    70,
+                    `Master Trim is nearly open (${masterTrimValue.toFixed(1)} dB). Leave more headroom at the output.`
+                );
+            }
+
+            if (postFilterTrimValue > 4) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    'performancePostFilterTrim',
+                    'Filter Out',
+                    68,
+                    `Filter Out is adding a lot of gain (${postFilterTrimValue.toFixed(1)} dB).`
+                );
+            }
+
+            if (inputTrimValue > 2) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    'performanceInputTrim',
+                    'Filter In',
+                    64,
+                    `Filter In is boosting the signal (${inputTrimValue.toFixed(1)} dB).`
+                );
+            }
+
+            if (generatedDryTrimValue > 2) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    'performanceGeneratedDryTrim',
+                    'Dry Trim',
+                    62,
+                    `Dry Trim is boosting the loop path (${generatedDryTrimValue.toFixed(1)} dB).`
+                );
+            }
+
+            if (granularTrimValue > 2) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    'performanceGranularTrim',
+                    'Grain Trim',
+                    62,
+                    `Grain Trim is boosting the wet path (${granularTrimValue.toFixed(1)} dB).`
+                );
+            }
+
+            if (grainAmpValue > 130) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    'performanceGrainMixerAmp',
+                    'Grain Amp',
+                    74,
+                    `Grain Amp is set high (${Math.round(grainAmpValue)}%).`
+                );
+            }
+
+            loudLevels.slice(0, 4).forEach((entry, index) => {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    entry.id,
+                    entry.label,
+                    58 - (index * 2),
+                    `${entry.label} is set very high (${Math.round(entry.value)}%).`
+                );
+            });
+
+            if (stageAlreadyHot && levelSum > 980 && loudLevels.length) {
+                addPerformanceGainStageSuggestion(
+                    suggestions,
+                    loudLevels[0].id,
+                    loudLevels[0].label,
+                    76,
+                    `Several mixer stages are stacked high at once (combined level ${Math.round(levelSum)}). Start by pulling ${loudLevels[0].label} down.`
+                );
+            }
+
+            return {
+                debugAvailable: Boolean(debug),
+                suggestions: Array.from(suggestions.values()).sort((a, b) => b.score - a.score).slice(0, 5)
+            };
+        }
+
+        function renderPerformanceGainStageAudit(result) {
+            if (!performanceGainStageAuditStatus || !performanceGainStageAuditList) return;
+            if (!result.suggestions.length) {
+                performanceGainStageAuditStatus.textContent = result.debugAvailable
+                    ? 'No obvious gain-staging problem is showing right now. The mixer and trims look reasonably controlled.'
+                    : 'Audio is not running yet, but the slider-only scan does not show an obvious headroom problem.';
+                performanceGainStageAuditList.innerHTML = '';
+                return;
+            }
+
+            const [primary] = result.suggestions;
+            performanceGainStageAuditStatus.textContent = `Top fix: ${primary.label}. ${primary.details[0]}`;
+            performanceGainStageAuditList.innerHTML = result.suggestions
+                .map((suggestion, index) => {
+                    const extra = suggestion.details.slice(1).map((detail) => `<div>${detail}</div>`).join('');
+                    return `<div class="performance-mixer-audit-item"><strong>${index + 1}. ${suggestion.label}</strong><div>${suggestion.details[0]}</div>${extra}</div>`;
+                })
+                .join('');
+        }
+
+        function runPerformanceGainStageAudit() {
+            clearPerformanceGainStageHighlights();
+            const result = collectPerformanceGainStageSuggestions();
+            renderPerformanceGainStageAudit(result);
+
+            result.suggestions.forEach((suggestion, index) => {
+                const control = document.getElementById(suggestion.controlId);
+                const card = control?.closest('.performance-sound-card');
+                if (!card) return;
+                card.classList.add('gain-stage-alert');
+                if (index === 0) {
+                    card.classList.add('gain-stage-primary');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                }
+            });
+
+            mixerGainStageHighlightsActive = result.suggestions.length > 0;
+            setStatus(
+                result.suggestions.length
+                    ? `Gain staging check found ${result.suggestions.length} hotspot${result.suggestions.length === 1 ? '' : 's'}.`
+                    : 'Gain staging check found no obvious hotspot.'
+            );
+        }
+
+        mountPerformanceMixerSections();
 
         function formatSignedControlValue(value, suffix) {
             const rounded = Math.round(Number(value) || 0);
@@ -48320,6 +48745,22 @@
         performanceDryFilterBtn?.addEventListener('click', () => {
             setGeneratedDryThroughFilters(!generatedDryThroughFilters);
         });
+
+        performanceGainStageAuditBtn?.addEventListener('click', () => {
+            runPerformanceGainStageAudit();
+        });
+
+        performanceMixerCard?.addEventListener('input', (event) => {
+            if (!mixerGainStageHighlightsActive) return;
+            if (!(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLSelectElement)) return;
+            clearPerformanceGainStageHighlights();
+            if (performanceGainStageAuditStatus) {
+                performanceGainStageAuditStatus.textContent = 'Mixer changed. Run Check Gain Staging again to refresh the hotspot suggestions.';
+            }
+            if (performanceGainStageAuditList) {
+                performanceGainStageAuditList.innerHTML = '';
+            }
+        }, true);
 
         performanceLfoSquareBtn?.addEventListener('click', () => {
             if (allLfosSquareForced) {
