@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-10-59-build-v2026.10.13.27';
+            const cacheBuster = '2026-10-13-11-02-build-v2026.10.13.28';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4282,6 +4282,19 @@
             letter-spacing: 0.03em;
         }
 
+        .simplified-ui .performance-inline-mixer-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .simplified-ui .performance-mixer-solo-btn {
+            min-height: 28px;
+            padding: 6px 12px;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+        }
+
         .simplified-ui .performance-lfo-rate-row {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -5280,7 +5293,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.27</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.28</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -46111,6 +46124,25 @@
             { controlId: 'performanceGrainBVolume', label: 'Grain B', getNode: () => granularOutputGain },
             { controlId: 'performanceGrainMixerAmp', label: 'Grain Amp', getNode: () => granularOutputGain }
         ];
+        const PERFORMANCE_MIXER_SOLO_BUTTONS = [
+            { controlId: 'performanceOscVolume', group: 'source', key: 'osc', label: 'Oscillator' },
+            { controlId: 'performanceSampleVolume', group: 'source', key: 'sample', label: 'Sample' },
+            { controlId: 'performanceGeneratedDryMix', group: 'source', key: 'loop', label: 'Loop' },
+            { controlId: 'performanceDropboxSampleLevel', group: 'loop', key: 'dropbox', label: 'Dropbox Sample' },
+            { controlId: 'performanceDrumMachineLevel', group: 'loop', key: 'drums', label: 'Drum Machine' },
+            { controlId: 'performanceBastardLoopLevel', group: 'loop', key: 'bastarda', label: 'Bastardloop A' },
+            { controlId: 'performanceBastardLoop2Level', group: 'loop', key: 'bastardb', label: 'Bastardloop B' },
+            { controlId: 'performanceBastardLoop3Level', group: 'loop', key: 'bastardc', label: 'Bastardloop C' },
+            { controlId: 'performanceBastardLoopVLevel', group: 'loop', key: 'bastardv', label: 'Bastardloop V' },
+            { controlId: 'performanceBastardLoopPLevel', group: 'loop', key: 'bastardp', label: 'Bastardloop P' },
+            { controlId: 'performanceBastardLoopOLevel', group: 'loop', key: 'bastardo', label: 'Bastardloop O' },
+            { controlId: 'performanceBastardLoopLLevelMixer', group: 'loop', key: 'bastardl', label: 'Bastardloop L' },
+            { controlId: 'performanceBastardLoopXLevelMixer', group: 'loop', key: 'bastardx', label: 'Bastardloop X' },
+            { controlId: 'performanceBastardLoopMLevelMixer', group: 'loop', key: 'bastardm', label: 'Bastardloop M' },
+            { controlId: 'performanceGrainAVolume', group: 'grain', key: 'A', label: 'Grain A' },
+            { controlId: 'performanceGrainBVolume', group: 'grain', key: 'B', label: 'Grain B' },
+            { controlId: 'performanceGrainMixerAmp', group: 'source', key: 'granular', label: 'Granular' }
+        ];
         const APP_WIDE_GAIN_STAGE_ANALYSIS = [
             ['oscSynthDrive', 'Osc Drive'],
             ['distortion', 'Global Distortion'],
@@ -46144,6 +46176,52 @@
                 peakId: `${controlId}VuPeak`,
                 valueId: `${controlId}VuValue`
             };
+        }
+
+        function getPerformanceMixerSoloButtonId(controlId) {
+            return `${controlId}SoloBtn`;
+        }
+
+        function ensurePerformanceMixerSoloButtonsMounted() {
+            PERFORMANCE_MIXER_SOLO_BUTTONS.forEach(({ controlId, group, key, label }) => {
+                const control = document.getElementById(controlId);
+                const card = control?.closest('.performance-sound-card');
+                if (!card || card.querySelector(`[data-performance-mixer-solo="${controlId}"]`)) return;
+                const buttonId = getPerformanceMixerSoloButtonId(controlId);
+                card.insertAdjacentHTML('beforeend', `
+                    <div class="performance-inline-mixer-actions" data-performance-mixer-solo="${controlId}">
+                        <button class="performance-btn performance-mixer-solo-btn" id="${buttonId}" type="button" aria-pressed="false">Solo</button>
+                    </div>
+                `);
+                const button = document.getElementById(buttonId);
+                button?.addEventListener('click', () => {
+                    if (group === 'source') {
+                        setPerformanceSourceLayerSolo(key, { toggle: true });
+                    } else if (group === 'grain') {
+                        setGrainLayerSolo(key, { toggle: true });
+                    } else if (group === 'loop') {
+                        setLoopLayerSolo(key, { toggle: true });
+                    }
+                });
+                if (button) {
+                    button.title = `Solo ${label}.`;
+                }
+            });
+        }
+
+        function syncPerformanceMixerSoloButtons() {
+            PERFORMANCE_MIXER_SOLO_BUTTONS.forEach(({ controlId, group, key, label }) => {
+                const button = document.getElementById(getPerformanceMixerSoloButtonId(controlId));
+                if (!button) return;
+                const active = group === 'source'
+                    ? performanceSourceLayerSolo === key
+                    : group === 'grain'
+                        ? grainLayerSolo === key
+                        : loopLayerSolo === key;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+                button.title = active ? `${label} soloed.` : `Solo ${label}.`;
+            });
         }
 
         function ensurePerformanceMixerVuCardsMounted() {
@@ -46183,6 +46261,7 @@
         }
 
         function syncPerformanceMixerVuVisibility() {
+            ensurePerformanceMixerSoloButtonsMounted();
             ensurePerformanceMixerVuCardsMounted();
             document.querySelectorAll('[data-performance-inline-vu]').forEach((meter) => {
                 meter.hidden = !performanceMixerVuMetersEnabled;
@@ -47517,6 +47596,7 @@
             }
 
             syncPerformanceSourceLayerSoloButtons();
+            syncPerformanceMixerSoloButtons();
             syncLoopLayerSoloButtons();
 
             if (performanceGeneratedLayerBtn) {
