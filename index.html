@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-07-58-build-v2026.10.13.2';
+            const cacheBuster = '2026-10-13-08-09-build-v2026.10.13.3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4843,19 +4843,51 @@
         }
 
         #sectionJumpMegaRandomBtn {
-            top: 37svh;
+            top: 31svh;
+            background: linear-gradient(180deg, rgba(8, 54, 70, 0.96), rgba(17, 103, 125, 0.96));
+            color: #dffcff;
+            border-color: rgba(126, 246, 255, 0.4);
         }
 
         #sectionJumpSparseRandomBtn {
-            top: 55svh;
+            top: 43svh;
+            background: linear-gradient(180deg, rgba(74, 46, 10, 0.96), rgba(138, 98, 18, 0.96));
+            color: #fff2cc;
+            border-color: rgba(255, 212, 102, 0.42);
         }
 
         #sectionJumpKeyboardBtn {
-            top: 73svh;
+            top: 55svh;
+            background: linear-gradient(180deg, rgba(24, 38, 90, 0.96), rgba(64, 79, 160, 0.96));
+            color: #e6ebff;
+            border-color: rgba(138, 166, 255, 0.42);
+        }
+
+        #sectionJumpLayerSwitchBtn {
+            top: 67svh;
+            background: linear-gradient(180deg, rgba(14, 66, 48, 0.96), rgba(25, 130, 92, 0.96));
+            color: #e3fff4;
+            border-color: rgba(122, 255, 205, 0.42);
+        }
+
+        #sectionJumpBastardMixerBtn {
+            top: 79svh;
+            background: linear-gradient(180deg, rgba(82, 34, 16, 0.96), rgba(160, 82, 38, 0.96));
+            color: #fff0e6;
+            border-color: rgba(255, 178, 124, 0.42);
         }
 
         #sectionJumpTransportBtn {
             top: 91svh;
+            background: linear-gradient(180deg, rgba(72, 20, 28, 0.96), rgba(128, 32, 46, 0.96));
+            color: #ffe0e4;
+            border-color: rgba(255, 116, 142, 0.42);
+        }
+
+        #sectionJumpTransportBtn.is-running {
+            background: linear-gradient(180deg, rgba(11, 72, 40, 0.96), rgba(24, 148, 78, 0.96));
+            color: #e4fff1;
+            border-color: rgba(116, 255, 171, 0.44);
         }
 
         .section-jump-arrow {
@@ -4952,7 +4984,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.3</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -4967,6 +4999,8 @@
         <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega Randomise</button>
         <button class="section-jump-quick" id="sectionJumpSparseRandomBtn" type="button">Sparse Randomise</button>
         <button class="section-jump-quick" id="sectionJumpKeyboardBtn" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
+        <button class="section-jump-quick" id="sectionJumpLayerSwitchBtn" type="button" data-jump-target="#performanceLayerSwitchesCard">Layers</button>
+        <button class="section-jump-quick" id="sectionJumpBastardMixerBtn" type="button" data-jump-target="#performanceMixerCard">BLoop Mix</button>
         <button class="section-jump-quick" id="sectionJumpTransportBtn" type="button">Start All</button>
         <div class="section-jump-panel" id="sectionJumpPanel">
             <div class="section-jump-title">Jump To</div>
@@ -6227,7 +6261,7 @@
                     <button class="performance-btn" id="performanceDrumMachineLayerBtn" aria-pressed="true" title="Enable or mute the drum machine layer">Drum Machine On</button>
                 </div>
             </div>
-            <div class="performance-feature-card" aria-label="Mixer controls">
+            <div class="performance-feature-card" id="performanceMixerCard" aria-label="Mixer controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Mixer</div>
@@ -45792,6 +45826,7 @@
             ].forEach((button) => {
                 if (!button) return;
                 const anythingRunning = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || drumMachinePlaying || activeKeyCount > 0;
+                button.classList.toggle('is-running', anythingRunning);
                 button.textContent = anythingRunning ? 'Stop All' : 'Start All';
                 button.setAttribute('aria-label', anythingRunning ? 'Stop all playback' : 'Start all playback and restart transport phases');
             });
