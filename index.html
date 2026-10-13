@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-11-18-build-v2026.10.13.31';
+            const cacheBuster = '2026-10-13-11-24-build-v2026.10.13.32';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5302,7 +5302,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.31</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.32</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6920,12 +6920,15 @@
                     </section>
                 </div>
             </div>
-            <div class="performance-feature-card" aria-label="Filter controls">
+            <div class="performance-feature-card" id="performanceFilterCard" aria-label="Filter controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Filter</div>
                         <h3 class="performance-feature-title">Filter Section</h3>
                         <p class="performance-feature-note">Keep the low-pass and high-pass controls together in one place, including cutoff, resonance, modulation, and pole selection.</p>
+                    </div>
+                    <div class="performance-feature-actions">
+                        <button class="performance-btn performance-layer-jump-btn" id="performanceFilterJumpToLfoBtn" type="button" data-jump-target="#performanceLfoCard">Jump to LFO</button>
                     </div>
                 </div>
                 <div class="performance-filter-grid" aria-label="Filter controls">
@@ -7295,12 +7298,15 @@
                     </div>
                 </div>
             </div>
-            <div class="performance-feature-card" aria-label="LFO controls">
+            <div class="performance-feature-card" id="performanceLfoCard" aria-label="LFO controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
                         <div class="performance-chip">LFO</div>
                         <h3 class="performance-feature-title">LFO & Motion</h3>
                         <p class="performance-feature-note">Keep the master LFO waveform and rate multipliers grouped together so motion setup is separated from the generators and mixer.</p>
+                    </div>
+                    <div class="performance-feature-actions">
+                        <button class="performance-btn performance-layer-jump-btn" id="performanceLfoJumpToFilterBtn" type="button" data-jump-target="#performanceFilterCard">Jump to Filter</button>
                     </div>
                 </div>
                 <div class="performance-sound-controls" aria-label="LFO controls">
@@ -46326,7 +46332,15 @@
             }
         }
 
+        function orderPerformanceMotionSections() {
+            const filterCard = document.getElementById('performanceFilterCard');
+            const lfoCard = document.getElementById('performanceLfoCard');
+            if (!filterCard || !lfoCard || filterCard.nextElementSibling === lfoCard) return;
+            filterCard.insertAdjacentElement('afterend', lfoCard);
+        }
+
         mountPerformanceMixerSections();
+        orderPerformanceMotionSections();
         syncPerformanceMixerVuVisibility();
 
         function clearPerformanceGainStageHighlights() {
