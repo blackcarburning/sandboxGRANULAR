@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-09-18-build-v2026.10.13.19';
+            const cacheBuster = '2026-10-13-09-28-build-v2026.10.13.20';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3825,6 +3825,20 @@
             gap: 10px;
         }
 
+        .simplified-ui .performance-layer-switch-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .simplified-ui .performance-layer-jump-btn {
+            min-width: 0;
+            padding-inline: 12px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+        }
+
         .simplified-ui .performance-btn.layer-muted {
             background: rgba(30, 38, 54, 0.92);
             color: rgba(233, 242, 255, 0.72);
@@ -5097,7 +5111,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.19</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.20</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6364,17 +6378,50 @@
                     <button class="performance-btn" id="performanceLayerGranularBtn" data-granular-layer-toggle="true" aria-pressed="true" title="Enable or mute the granular layer">Granular On</button>
                     <button class="performance-btn" id="performanceGeneratedLayerBtn" aria-pressed="true" title="Enable or mute the generated sample granular layer">Sample On</button>
                     <button class="performance-btn" id="performanceDryLoopLayerBtn" aria-pressed="true" title="Enable or mute the generated dry loop layer">Loop On</button>
-                    <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop A layer">Bastardloop A On</button>
-                    <button class="performance-btn" id="performanceBastardLoop2ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop B layer">Bastardloop B On</button>
-                    <button class="performance-btn" id="performanceBastardLoop3ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop C layer">Bastardloop C On</button>
-                    <button class="performance-btn" id="performanceBastardLoopVToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop V layer">Bastardloop V On</button>
-                    <button class="performance-btn" id="performanceBastardLoopPToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop P layer">Bastardloop P On</button>
-                    <button class="performance-btn" id="performanceBastardLoopOToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop O layer">Bastardloop O On</button>
-                    <button class="performance-btn" id="performanceBastardLoopLToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop L layer">Bastardloop L On</button>
-                    <button class="performance-btn" id="performanceBastardLoopXToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop X layer">Bastardloop X On</button>
-                    <button class="performance-btn" id="performanceBastardLoopMToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop M layer">Bastardloop M On</button>
-                    <button class="performance-btn" id="performanceDropboxSampleLayerBtn" aria-pressed="true" title="Enable or mute the Dropbox sample loop layer">Dropbox Sample On</button>
-                    <button class="performance-btn" id="performanceDrumMachineLayerBtn" aria-pressed="true" title="Enable or mute the drum machine layer">Drum Machine On</button>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop A layer">Bastardloop A On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoop2ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop B layer">Bastardloop B On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop B controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoop3ToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop C layer">Bastardloop C On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop C controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopVToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop V layer">Bastardloop V On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop V controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopPToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop P layer">Bastardloop P On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop P controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopOToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop O layer">Bastardloop O On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop O controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopLToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop L layer">Bastardloop L On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop L controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopXToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop X layer">Bastardloop X On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop X controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceBastardLoopMToggleBtn" aria-pressed="true" title="Enable or mute the Bastardloop M layer">Bastardloop M On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Bastardloop M controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceDropboxSampleLayerBtn" aria-pressed="true" title="Enable or mute the Dropbox sample loop layer">Dropbox Sample On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Dropbox sample layer controls']">Jump</button>
+                    </div>
+                    <div class="performance-layer-switch-row">
+                        <button class="performance-btn" id="performanceDrumMachineLayerBtn" aria-pressed="true" title="Enable or mute the drum machine layer">Drum Machine On</button>
+                        <button class="performance-btn performance-layer-jump-btn" type="button" data-jump-target="[aria-label='Drum machine controls']">Jump</button>
+                    </div>
                 </div>
             </div>
             <div class="performance-feature-card" id="performanceMixerCard" aria-label="Mixer controls">
@@ -34383,7 +34430,7 @@
                 setDrawerOpen(!drawer.classList.contains('is-open'));
             });
 
-            document.querySelectorAll('.section-jump-option, .section-jump-quick').forEach((button) => {
+            document.querySelectorAll('.section-jump-option, .section-jump-quick, .performance-layer-jump-btn').forEach((button) => {
                 button.addEventListener('click', () => jumpToButtonTarget(button));
             });
 
