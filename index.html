@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-10-33-build-v2026.10.13.26';
+            const cacheBuster = '2026-10-13-10-59-build-v2026.10.13.27';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5280,7 +5280,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.26</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.27</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -12329,12 +12329,18 @@
             ctx.onstatechange = () => {
                 if (ctx !== audioContext) return;
                 if (ctx.state === 'running') {
+                    if (performanceMixerVuMetersEnabled) {
+                        startPerformanceMixerVuMeters();
+                    }
                     setAudioStatus(`Audio running · ${ctx.sampleRate} Hz`, 'info');
                 } else if (ctx.state === 'suspended') {
+                    stopPerformanceMixerVuMeters({ reset: false });
                     setAudioStatus('Audio suspended. Tap Start MYGRAIN or Reset Engine to resume.', 'error');
                 } else if (ctx.state === 'interrupted') {
+                    stopPerformanceMixerVuMeters({ reset: false });
                     setAudioStatus('Audio interrupted by the device. Return to MYGRAIN and resume playback.', 'error');
                 } else {
+                    stopPerformanceMixerVuMeters({ reset: false });
                     setAudioStatus(`Audio ${ctx.state}`);
                 }
             };
