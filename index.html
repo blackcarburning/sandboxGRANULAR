@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-12-31-build-v2026.10.13.40';
+            const cacheBuster = '2026-10-13-13-07-build-v2026.10.13.41';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5304,7 +5304,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.40</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.41</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -8668,12 +8668,180 @@
                     </div>
                     <div id="oscSynthModuleAnchor"></div>
                     <div class="source-seed-group" aria-label="3-voice synth controls">
-                        <div class="section-title">3-Voice Synth</div>
+                        <div class="section-title">Serum-Style 3-Voice Synth</div>
                         <div class="control-group highlight" style="grid-column: span 2;">
-                            <label><span class="param-name">Synth Preset</span><span class="value" id="synthPresetValue">100 presets</span></label>
+                            <label><span class="param-name">Synth Preset</span><span class="value" id="synthPresetValue">500 presets</span></label>
                             <select id="synthPresetSelect">
                                 <option value="custom" selected>Custom</option>
                             </select>
+                        </div>
+                        <div class="control-group highlight" style="grid-column: span 2;">
+                            <button id="synthRandomPatchBtn" style="width: 100%;">RANDOM SYNTH PATCH</button>
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Wave Shape</span><span class="value" id="synthWaveShapeValue">50%</span></label>
+                            <input type="range" id="synthWaveShape" min="5" max="95" value="50" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Stereo Width</span><span class="value" id="synthStereoWidthValue">38%</span></label>
+                            <input type="range" id="synthStereoWidth" min="0" max="100" value="38" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">FM Amount</span><span class="value" id="synthFmAmountValue">0%</span></label>
+                            <input type="range" id="synthFmAmount" min="0" max="100" value="0" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Macro 1</span><span class="value" id="synthMacro1Value">50%</span></label>
+                            <input type="range" id="synthMacro1" min="0" max="100" value="50" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Macro 2</span><span class="value" id="synthMacro2Value">50%</span></label>
+                            <input type="range" id="synthMacro2" min="0" max="100" value="50" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Macro 3</span><span class="value" id="synthMacro3Value">50%</span></label>
+                            <input type="range" id="synthMacro3" min="0" max="100" value="50" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label><span class="param-name">Macro 4</span><span class="value" id="synthMacro4Value">50%</span></label>
+                            <input type="range" id="synthMacro4" min="0" max="100" value="50" step="1">
+                        </div>
+                        <div class="control-group highlight" style="grid-column: span 2;">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Mod Matrix 1</label>
+                            <div class="button-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <select id="synthMod1Source">
+                                    <option value="lfo1" selected>LFO 1</option>
+                                    <option value="lfo2">LFO 2</option>
+                                    <option value="lfo3">LFO 3</option>
+                                    <option value="macro1">Macro 1</option>
+                                    <option value="macro2">Macro 2</option>
+                                    <option value="macro3">Macro 3</option>
+                                    <option value="macro4">Macro 4</option>
+                                    <option value="velocity">Velocity</option>
+                                    <option value="random">Random</option>
+                                </select>
+                                <select id="synthMod1Target">
+                                    <option value="oscSynthCutoff" selected>Filter Cutoff</option>
+                                    <option value="oscSynthResonance">Filter Resonance</option>
+                                    <option value="oscSynthDrive">Drive</option>
+                                    <option value="synthWaveShape">Wave Shape</option>
+                                    <option value="synthStereoWidth">Stereo Width</option>
+                                    <option value="synthFmAmount">FM Amount</option>
+                                    <option value="osc1Detune">Osc 1 Fine</option>
+                                    <option value="osc2Detune">Osc 2 Fine</option>
+                                    <option value="osc3Detune">Osc 3 Fine</option>
+                                    <option value="osc1Level">Osc 1 Level</option>
+                                    <option value="osc2Level">Osc 2 Level</option>
+                                    <option value="osc3Level">Osc 3 Level</option>
+                                    <option value="oscNoiseLevel">Noise Level</option>
+                                    <option value="oscMix">Wave Mix</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                            <label class="synth-lfo-depth-label" style="margin-top: 8px;"><span class="param-name">Amount</span><span class="value" id="synthMod1AmountValue">35%</span></label>
+                            <input type="range" id="synthMod1Amount" min="-100" max="100" value="35" step="1">
+                        </div>
+                        <div class="control-group highlight" style="grid-column: span 2;">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Mod Matrix 2</label>
+                            <div class="button-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <select id="synthMod2Source">
+                                    <option value="macro1" selected>Macro 1</option>
+                                    <option value="macro2">Macro 2</option>
+                                    <option value="macro3">Macro 3</option>
+                                    <option value="macro4">Macro 4</option>
+                                    <option value="lfo1">LFO 1</option>
+                                    <option value="lfo2">LFO 2</option>
+                                    <option value="lfo3">LFO 3</option>
+                                    <option value="velocity">Velocity</option>
+                                    <option value="random">Random</option>
+                                </select>
+                                <select id="synthMod2Target">
+                                    <option value="oscSynthDrive" selected>Drive</option>
+                                    <option value="oscSynthCutoff">Filter Cutoff</option>
+                                    <option value="oscSynthResonance">Filter Resonance</option>
+                                    <option value="synthWaveShape">Wave Shape</option>
+                                    <option value="synthStereoWidth">Stereo Width</option>
+                                    <option value="synthFmAmount">FM Amount</option>
+                                    <option value="osc1Detune">Osc 1 Fine</option>
+                                    <option value="osc2Detune">Osc 2 Fine</option>
+                                    <option value="osc3Detune">Osc 3 Fine</option>
+                                    <option value="osc1Level">Osc 1 Level</option>
+                                    <option value="osc2Level">Osc 2 Level</option>
+                                    <option value="osc3Level">Osc 3 Level</option>
+                                    <option value="oscNoiseLevel">Noise Level</option>
+                                    <option value="oscMix">Wave Mix</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                            <label class="synth-lfo-depth-label" style="margin-top: 8px;"><span class="param-name">Amount</span><span class="value" id="synthMod2AmountValue">28%</span></label>
+                            <input type="range" id="synthMod2Amount" min="-100" max="100" value="28" step="1">
+                        </div>
+                        <div class="control-group highlight" style="grid-column: span 2;">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Mod Matrix 3</label>
+                            <div class="button-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <select id="synthMod3Source">
+                                    <option value="velocity" selected>Velocity</option>
+                                    <option value="macro1">Macro 1</option>
+                                    <option value="macro2">Macro 2</option>
+                                    <option value="macro3">Macro 3</option>
+                                    <option value="macro4">Macro 4</option>
+                                    <option value="lfo1">LFO 1</option>
+                                    <option value="lfo2">LFO 2</option>
+                                    <option value="lfo3">LFO 3</option>
+                                    <option value="random">Random</option>
+                                </select>
+                                <select id="synthMod3Target">
+                                    <option value="osc1Level" selected>Osc 1 Level</option>
+                                    <option value="osc2Level">Osc 2 Level</option>
+                                    <option value="osc3Level">Osc 3 Level</option>
+                                    <option value="oscNoiseLevel">Noise Level</option>
+                                    <option value="oscSynthCutoff">Filter Cutoff</option>
+                                    <option value="oscSynthResonance">Filter Resonance</option>
+                                    <option value="oscSynthDrive">Drive</option>
+                                    <option value="synthWaveShape">Wave Shape</option>
+                                    <option value="synthStereoWidth">Stereo Width</option>
+                                    <option value="synthFmAmount">FM Amount</option>
+                                    <option value="oscMix">Wave Mix</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                            <label class="synth-lfo-depth-label" style="margin-top: 8px;"><span class="param-name">Amount</span><span class="value" id="synthMod3AmountValue">24%</span></label>
+                            <input type="range" id="synthMod3Amount" min="-100" max="100" value="24" step="1">
+                        </div>
+                        <div class="control-group highlight" style="grid-column: span 2;">
+                            <label style="font-size: 10px; color: var(--accent); margin-bottom: 4px;">Mod Matrix 4</label>
+                            <div class="button-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <select id="synthMod4Source">
+                                    <option value="random" selected>Random</option>
+                                    <option value="macro1">Macro 1</option>
+                                    <option value="macro2">Macro 2</option>
+                                    <option value="macro3">Macro 3</option>
+                                    <option value="macro4">Macro 4</option>
+                                    <option value="lfo1">LFO 1</option>
+                                    <option value="lfo2">LFO 2</option>
+                                    <option value="lfo3">LFO 3</option>
+                                    <option value="velocity">Velocity</option>
+                                </select>
+                                <select id="synthMod4Target">
+                                    <option value="synthStereoWidth" selected>Stereo Width</option>
+                                    <option value="synthWaveShape">Wave Shape</option>
+                                    <option value="synthFmAmount">FM Amount</option>
+                                    <option value="oscSynthCutoff">Filter Cutoff</option>
+                                    <option value="oscSynthResonance">Filter Resonance</option>
+                                    <option value="oscSynthDrive">Drive</option>
+                                    <option value="osc1Detune">Osc 1 Fine</option>
+                                    <option value="osc2Detune">Osc 2 Fine</option>
+                                    <option value="osc3Detune">Osc 3 Fine</option>
+                                    <option value="osc1Level">Osc 1 Level</option>
+                                    <option value="osc2Level">Osc 2 Level</option>
+                                    <option value="osc3Level">Osc 3 Level</option>
+                                    <option value="oscNoiseLevel">Noise Level</option>
+                                    <option value="oscMix">Wave Mix</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                            <label class="synth-lfo-depth-label" style="margin-top: 8px;"><span class="param-name">Amount</span><span class="value" id="synthMod4AmountValue">20%</span></label>
+                            <input type="range" id="synthMod4Amount" min="-100" max="100" value="20" step="1">
                         </div>
 
                         <div class="control-group">
@@ -8684,6 +8852,11 @@
                                 <option value="triangle">Triangle</option>
                                 <option value="sawtooth" selected>Sawtooth</option>
                                 <option value="square">Square</option>
+                                <option value="pulse">Pulse</option>
+                                <option value="supersaw">Supersaw</option>
+                                <option value="organ">Organ</option>
+                                <option value="vocal">Vocal</option>
+                                <option value="metal">Metal</option>
                             </select>
                         </div>
                         <div class="control-group">
@@ -8750,6 +8923,11 @@
                                 <option value="triangle">Triangle</option>
                                 <option value="sawtooth">Sawtooth</option>
                                 <option value="square" selected>Square</option>
+                                <option value="pulse">Pulse</option>
+                                <option value="supersaw">Supersaw</option>
+                                <option value="organ">Organ</option>
+                                <option value="vocal">Vocal</option>
+                                <option value="metal">Metal</option>
                             </select>
                         </div>
                         <div class="control-group">
@@ -8817,6 +8995,11 @@
                                 <option value="triangle" selected>Triangle</option>
                                 <option value="sawtooth">Sawtooth</option>
                                 <option value="square">Square</option>
+                                <option value="pulse">Pulse</option>
+                                <option value="supersaw">Supersaw</option>
+                                <option value="organ">Organ</option>
+                                <option value="vocal">Vocal</option>
+                                <option value="metal">Metal</option>
                             </select>
                         </div>
                         <div class="control-group">
@@ -10935,6 +11118,9 @@
         };
         let oscRouteMode = 'random';
         let oscMix = 0.35; // 0 = sample/granular only, 1 = waveform oscillators only
+        let synthWaveShape = 50;
+        let synthStereoWidth = 38;
+        let synthFmAmount = 0;
         let applyingSynthPopupPreset = false;
         let generatedDryMix = 0.35; // Direct generated-loop bus, bypasses granular/filter path
         let generatedSampleVolume = 1;
@@ -11339,179 +11525,379 @@
         let allLfosSquarePreviousWaveforms = null;
         let activeOscVoices = new Map(); // Map of note -> { osc1, osc2, gain, envelope }
         function buildSynthPopupPresets() {
-            const bassNames = [
-                'Anchor', 'Asphalt', 'Breaker', 'Carbon', 'Cinder', 'Current', 'Diesel', 'Dusk',
-                'Engine', 'Forge', 'Gravity', 'Harbor', 'Iron', 'Jet', 'Knuckle', 'Magnet',
-                'Monolith', 'Nightline', 'Piston', 'Quarry', 'Rail', 'Reactor', 'Rivet', 'Shadow',
-                'Slate', 'Strobe', 'Subline', 'Tarmac', 'Torque', 'Vault', 'Vector', 'Voltage',
-                'Wake', 'Yard'
+            const synthWaveforms = ['sine', 'triangle', 'sawtooth', 'square', 'pulse', 'supersaw', 'organ', 'vocal', 'metal'];
+            const families = [
+                {
+                    id: 'bass',
+                    label: 'Bass',
+                    first: ['Anchor', 'Asphalt', 'Breaker', 'Carbon', 'Diesel', 'Forge', 'Iron', 'Magnet', 'Torque', 'Voltage'],
+                    second: ['Body', 'Core', 'Drive', 'Floor', 'Grit', 'Ground', 'Pulse', 'Stack', 'Throb', 'Weight'],
+                    buildSettings(index) {
+                        return {
+                            osc1Wave: ['sawtooth', 'square', 'pulse', 'supersaw'][index % 4],
+                            osc2Wave: ['square', 'triangle', 'metal', 'square'][index % 4],
+                            osc3Wave: ['triangle', 'sine', 'organ', 'triangle'][index % 4],
+                            osc1Octave: index % 2 === 0 ? 16 : 8,
+                            osc2Octave: index % 3 === 0 ? 16 : 8,
+                            osc3Octave: 32,
+                            osc1Semitone: 0,
+                            osc2Semitone: [0, 0, 7, -12][index % 4],
+                            osc3Semitone: [-12, -12, -12, 0][index % 4],
+                            osc1Detune: [-4, -2, 0, 2, 4][index % 5],
+                            osc2Detune: [0, 3, -3, 5, -5][index % 5],
+                            osc3Detune: [0, 0, -7, 7][index % 4],
+                            osc1Level: 72 + (index % 5) * 5,
+                            osc2Level: 32 + (index % 6) * 6,
+                            osc3Level: 18 + (index % 4) * 4,
+                            osc1Attack: 2 + (index % 4) * 4,
+                            osc2Attack: 2 + (index % 3) * 5,
+                            osc3Attack: 5 + (index % 4) * 6,
+                            osc1Decay: 110 + (index % 5) * 50,
+                            osc2Decay: 95 + (index % 5) * 44,
+                            osc3Decay: 140 + (index % 4) * 60,
+                            osc1Sustain: 44 + (index % 4) * 8,
+                            osc2Sustain: 16 + (index % 4) * 7,
+                            osc3Sustain: 6 + (index % 3) * 5,
+                            osc1Release: 140 + (index % 4) * 70,
+                            osc2Release: 120 + (index % 4) * 60,
+                            osc3Release: 160 + (index % 4) * 70,
+                            osc2Sync: index % 6 === 0 ? 'osc1' : 'off',
+                            osc3Sync: index % 8 === 0 ? 'osc2' : 'off',
+                            oscNoiseType: index % 3 === 0 ? 'pink' : 'white',
+                            oscNoiseLevel: index % 5 === 0 ? 10 : (index % 3 === 0 ? 5 : 0),
+                            oscNoiseAttack: 1 + (index % 3) * 3,
+                            oscNoiseDecay: 80 + (index % 4) * 36,
+                            oscNoiseSustain: index % 5 === 0 ? 7 : 0,
+                            oscNoiseRelease: 100 + (index % 4) * 44,
+                            oscSynthFilterType: ['lowpass', 'lowpass', 'bandpass', 'notch'][index % 4],
+                            oscSynthCutoff: 480 + (index % 10) * 180,
+                            oscSynthResonance: Number((0.7 + (index % 6) * 0.22).toFixed(1)),
+                            oscSynthDrive: Number((0.4 + (index % 5) * 0.75).toFixed(1)),
+                            oscRouteMode: ['sub', 'blend', 'sub', 'metal'][index % 4],
+                            oscMix: 100,
+                            synthWaveShape: 36 + (index % 6) * 8,
+                            synthStereoWidth: 18 + (index % 5) * 10,
+                            synthFmAmount: index % 4 === 0 ? 28 : 8 + (index % 5) * 5,
+                            synthMacro1: 62,
+                            synthMacro2: 48,
+                            synthMacro3: 58,
+                            synthMacro4: 44,
+                            synthMod1Source: 'lfo1',
+                            synthMod1Target: 'oscSynthCutoff',
+                            synthMod1Amount: 35,
+                            synthMod2Source: 'macro1',
+                            synthMod2Target: 'oscSynthDrive',
+                            synthMod2Amount: 24,
+                            synthMod3Source: 'velocity',
+                            synthMod3Target: 'osc1Level',
+                            synthMod3Amount: 18,
+                            synthMod4Source: 'random',
+                            synthMod4Target: 'synthStereoWidth',
+                            synthMod4Amount: 22
+                        };
+                    }
+                },
+                {
+                    id: 'string',
+                    label: 'String',
+                    first: ['Aether', 'Bloom', 'Canopy', 'Drift', 'Feather', 'Glow', 'Halo', 'Lattice', 'Velvet', 'Vista'],
+                    second: ['Arc', 'Choir', 'Curtain', 'Glass', 'Halo', 'Mist', 'Ribbon', 'Shore', 'Thread', 'Wash'],
+                    buildSettings(index) {
+                        return {
+                            osc1Wave: ['supersaw', 'sawtooth', 'triangle', 'organ'][index % 4],
+                            osc2Wave: ['triangle', 'vocal', 'sawtooth', 'square'][index % 4],
+                            osc3Wave: ['sine', 'triangle', 'organ', 'vocal'][index % 4],
+                            osc1Octave: 8,
+                            osc2Octave: index % 4 === 0 ? 4 : 8,
+                            osc3Octave: index % 5 === 0 ? 16 : 8,
+                            osc1Semitone: 0,
+                            osc2Semitone: [0, 7, 12, 5][index % 4],
+                            osc3Semitone: [12, 7, 0, -12][index % 4],
+                            osc1Detune: [-5, -2, 0, 2, 5][index % 5],
+                            osc2Detune: [6, -6, 3, -3, 0][index % 5],
+                            osc3Detune: [0, 7, -7, 3][index % 4],
+                            osc1Level: 54 + (index % 6) * 5,
+                            osc2Level: 34 + (index % 5) * 5,
+                            osc3Level: 18 + (index % 4) * 5,
+                            osc1Attack: 80 + (index % 6) * 60,
+                            osc2Attack: 110 + (index % 5) * 80,
+                            osc3Attack: 150 + (index % 4) * 100,
+                            osc1Decay: 320 + (index % 6) * 90,
+                            osc2Decay: 360 + (index % 5) * 100,
+                            osc3Decay: 420 + (index % 4) * 120,
+                            osc1Sustain: 60 + (index % 4) * 7,
+                            osc2Sustain: 48 + (index % 4) * 8,
+                            osc3Sustain: 36 + (index % 4) * 8,
+                            osc1Release: 620 + (index % 6) * 150,
+                            osc2Release: 740 + (index % 5) * 160,
+                            osc3Release: 820 + (index % 4) * 180,
+                            osc2Sync: 'off',
+                            osc3Sync: index % 8 === 0 ? 'osc1' : 'off',
+                            oscNoiseType: index % 2 === 0 ? 'pink' : 'white',
+                            oscNoiseLevel: 4 + (index % 4) * 2,
+                            oscNoiseAttack: 90 + (index % 4) * 40,
+                            oscNoiseDecay: 260 + (index % 5) * 70,
+                            oscNoiseSustain: 8 + (index % 4) * 4,
+                            oscNoiseRelease: 320 + (index % 5) * 110,
+                            oscSynthFilterType: ['lowpass', 'bandpass', 'allpass', 'lowpass'][index % 4],
+                            oscSynthCutoff: 2200 + (index % 10) * 900,
+                            oscSynthResonance: Number((0.6 + (index % 5) * 0.35).toFixed(1)),
+                            oscSynthDrive: Number((0.2 + (index % 4) * 0.45).toFixed(1)),
+                            oscRouteMode: ['wide', 'blend', 'wide', 'random'][index % 4],
+                            oscMix: 100,
+                            synthWaveShape: 48 + (index % 5) * 6,
+                            synthStereoWidth: 58 + (index % 4) * 10,
+                            synthFmAmount: index % 6 === 0 ? 18 : 0,
+                            synthMacro1: 52,
+                            synthMacro2: 58,
+                            synthMacro3: 46,
+                            synthMacro4: 55,
+                            synthMod1Source: 'lfo2',
+                            synthMod1Target: 'oscSynthCutoff',
+                            synthMod1Amount: 32,
+                            synthMod2Source: 'macro2',
+                            synthMod2Target: 'synthStereoWidth',
+                            synthMod2Amount: 26,
+                            synthMod3Source: 'velocity',
+                            synthMod3Target: 'osc2Level',
+                            synthMod3Amount: 14,
+                            synthMod4Source: 'random',
+                            synthMod4Target: 'synthWaveShape',
+                            synthMod4Amount: 18
+                        };
+                    }
+                },
+                {
+                    id: 'lead',
+                    label: 'Lead',
+                    first: ['Blade', 'Blaze', 'Circuit', 'Flash', 'Glass', 'Helix', 'Laser', 'Neon', 'Static', 'Voltage'],
+                    second: ['Arrow', 'Burst', 'Cry', 'Flare', 'Hook', 'Needle', 'Ray', 'Shout', 'Spark', 'Trace'],
+                    buildSettings(index) {
+                        return {
+                            osc1Wave: ['pulse', 'supersaw', 'sawtooth', 'vocal'][index % 4],
+                            osc2Wave: ['square', 'pulse', 'triangle', 'metal'][index % 4],
+                            osc3Wave: ['triangle', 'sine', 'organ', 'triangle'][index % 4],
+                            osc1Octave: 8,
+                            osc2Octave: index % 3 === 0 ? 16 : 8,
+                            osc3Octave: index % 4 === 0 ? 4 : 8,
+                            osc1Semitone: [0, 0, 12, 0][index % 4],
+                            osc2Semitone: [7, 12, 0, -5][index % 4],
+                            osc3Semitone: [12, 7, 0, 19][index % 4],
+                            osc1Detune: [-7, -3, 0, 3, 7][index % 5],
+                            osc2Detune: [0, 8, -8, 4, -4][index % 5],
+                            osc3Detune: [0, 11, -11, 6][index % 4],
+                            osc1Level: 66 + (index % 5) * 5,
+                            osc2Level: 28 + (index % 5) * 6,
+                            osc3Level: 14 + (index % 4) * 4,
+                            osc1Attack: 0 + (index % 3) * 2,
+                            osc2Attack: 1 + (index % 3) * 3,
+                            osc3Attack: 1 + (index % 4) * 3,
+                            osc1Decay: 44 + (index % 5) * 26,
+                            osc2Decay: 56 + (index % 5) * 28,
+                            osc3Decay: 68 + (index % 4) * 30,
+                            osc1Sustain: 4 + (index % 4) * 6,
+                            osc2Sustain: 0 + (index % 3) * 5,
+                            osc3Sustain: 0 + (index % 2) * 4,
+                            osc1Release: 50 + (index % 4) * 28,
+                            osc2Release: 54 + (index % 4) * 30,
+                            osc3Release: 60 + (index % 4) * 34,
+                            osc2Sync: index % 2 === 0 ? 'osc1' : 'off',
+                            osc3Sync: index % 3 === 0 ? 'osc2' : (index % 5 === 0 ? 'osc1' : 'off'),
+                            oscNoiseType: index % 2 === 0 ? 'white' : 'pink',
+                            oscNoiseLevel: 2 + (index % 4) * 3,
+                            oscNoiseAttack: index % 2,
+                            oscNoiseDecay: 28 + (index % 5) * 18,
+                            oscNoiseSustain: 0,
+                            oscNoiseRelease: 34 + (index % 4) * 18,
+                            oscSynthFilterType: ['bandpass', 'highpass', 'lowpass', 'notch'][index % 4],
+                            oscSynthCutoff: 1600 + (index % 10) * 820,
+                            oscSynthResonance: Number((0.9 + (index % 6) * 0.38).toFixed(1)),
+                            oscSynthDrive: Number((0.6 + (index % 5) * 0.75).toFixed(1)),
+                            oscRouteMode: ['metal', 'blend', 'wide', 'sub'][index % 4],
+                            oscMix: 100,
+                            synthWaveShape: 42 + (index % 6) * 8,
+                            synthStereoWidth: 34 + (index % 5) * 11,
+                            synthFmAmount: 20 + (index % 5) * 10,
+                            synthMacro1: 64,
+                            synthMacro2: 52,
+                            synthMacro3: 46,
+                            synthMacro4: 48,
+                            synthMod1Source: 'lfo1',
+                            synthMod1Target: 'osc1Detune',
+                            synthMod1Amount: 26,
+                            synthMod2Source: 'macro1',
+                            synthMod2Target: 'oscSynthDrive',
+                            synthMod2Amount: 30,
+                            synthMod3Source: 'velocity',
+                            synthMod3Target: 'oscSynthCutoff',
+                            synthMod3Amount: 24,
+                            synthMod4Source: 'macro4',
+                            synthMod4Target: 'synthFmAmount',
+                            synthMod4Amount: 22
+                        };
+                    }
+                },
+                {
+                    id: 'perc',
+                    label: 'Perc Lead',
+                    first: ['Bit', 'Click', 'Cut', 'Glint', 'Jab', 'Pebble', 'Quartz', 'Rivet', 'Tick', 'Zap'],
+                    second: ['Arc', 'Bolt', 'Chip', 'Flick', 'Ping', 'Shot', 'Snap', 'Spike', 'Thunk', 'Zap'],
+                    buildSettings(index) {
+                        return {
+                            osc1Wave: ['square', 'pulse', 'metal', 'triangle'][index % 4],
+                            osc2Wave: ['metal', 'triangle', 'square', 'pulse'][index % 4],
+                            osc3Wave: ['sine', 'organ', 'triangle', 'sine'][index % 4],
+                            osc1Octave: 8,
+                            osc2Octave: index % 2 === 0 ? 16 : 8,
+                            osc3Octave: index % 3 === 0 ? 4 : 8,
+                            osc1Semitone: [0, 12, 0, -12][index % 4],
+                            osc2Semitone: [12, 7, 19, 0][index % 4],
+                            osc3Semitone: [24, 12, 7, 0][index % 4],
+                            osc1Detune: [-10, -5, 0, 5, 10][index % 5],
+                            osc2Detune: [0, 9, -9, 5, -5][index % 5],
+                            osc3Detune: [0, 12, -12, 6][index % 4],
+                            osc1Level: 60 + (index % 5) * 6,
+                            osc2Level: 22 + (index % 5) * 5,
+                            osc3Level: 10 + (index % 4) * 4,
+                            osc1Attack: 0,
+                            osc2Attack: index % 3,
+                            osc3Attack: 1 + (index % 3),
+                            osc1Decay: 24 + (index % 5) * 18,
+                            osc2Decay: 32 + (index % 5) * 18,
+                            osc3Decay: 40 + (index % 4) * 22,
+                            osc1Sustain: 0,
+                            osc2Sustain: 0,
+                            osc3Sustain: 0,
+                            osc1Release: 22 + (index % 4) * 16,
+                            osc2Release: 24 + (index % 4) * 18,
+                            osc3Release: 28 + (index % 4) * 20,
+                            osc2Sync: index % 2 === 0 ? 'osc1' : 'off',
+                            osc3Sync: index % 4 === 0 ? 'osc2' : 'off',
+                            oscNoiseType: index % 2 === 0 ? 'white' : 'pink',
+                            oscNoiseLevel: 8 + (index % 4) * 4,
+                            oscNoiseAttack: 0,
+                            oscNoiseDecay: 18 + (index % 5) * 16,
+                            oscNoiseSustain: 0,
+                            oscNoiseRelease: 22 + (index % 4) * 16,
+                            oscSynthFilterType: ['bandpass', 'highpass', 'notch', 'lowpass'][index % 4],
+                            oscSynthCutoff: 2100 + (index % 10) * 780,
+                            oscSynthResonance: Number((1.1 + (index % 6) * 0.45).toFixed(1)),
+                            oscSynthDrive: Number((0.8 + (index % 5) * 0.9).toFixed(1)),
+                            oscRouteMode: ['metal', 'wide', 'blend', 'sub'][index % 4],
+                            oscMix: 100,
+                            synthWaveShape: 28 + (index % 7) * 8,
+                            synthStereoWidth: 20 + (index % 6) * 10,
+                            synthFmAmount: 28 + (index % 5) * 12,
+                            synthMacro1: 58,
+                            synthMacro2: 46,
+                            synthMacro3: 50,
+                            synthMacro4: 42,
+                            synthMod1Source: 'lfo3',
+                            synthMod1Target: 'osc1Level',
+                            synthMod1Amount: 22,
+                            synthMod2Source: 'macro2',
+                            synthMod2Target: 'synthWaveShape',
+                            synthMod2Amount: 30,
+                            synthMod3Source: 'velocity',
+                            synthMod3Target: 'oscSynthDrive',
+                            synthMod3Amount: 18,
+                            synthMod4Source: 'random',
+                            synthMod4Target: 'synthFmAmount',
+                            synthMod4Amount: 26
+                        };
+                    }
+                },
+                {
+                    id: 'fx',
+                    label: 'FX',
+                    first: ['Cloud', 'Ghost', 'Hiss', 'Mirage', 'Prism', 'Shimmer', 'Signal', 'Smoke', 'Vapor', 'Wire'],
+                    second: ['Bloom', 'Chime', 'Crash', 'Drift', 'Gate', 'Howl', 'Pulse', 'Rift', 'Swarm', 'Trace'],
+                    buildSettings(index) {
+                        return {
+                            osc1Wave: ['vocal', 'organ', 'supersaw', 'metal'][index % 4],
+                            osc2Wave: ['metal', 'pulse', 'triangle', 'vocal'][index % 4],
+                            osc3Wave: ['sine', 'organ', 'triangle', 'metal'][index % 4],
+                            osc1Octave: index % 3 === 0 ? 16 : 8,
+                            osc2Octave: index % 4 === 0 ? 4 : 8,
+                            osc3Octave: index % 2 === 0 ? 16 : 8,
+                            osc1Semitone: [0, 12, -12, 7][index % 4],
+                            osc2Semitone: [12, 19, 7, 0][index % 4],
+                            osc3Semitone: [-12, 0, 12, 24][index % 4],
+                            osc1Detune: [-14, -7, 0, 7, 14][index % 5],
+                            osc2Detune: [0, 11, -11, 6, -6][index % 5],
+                            osc3Detune: [0, 15, -15, 8][index % 4],
+                            osc1Level: 48 + (index % 6) * 5,
+                            osc2Level: 24 + (index % 5) * 5,
+                            osc3Level: 18 + (index % 4) * 4,
+                            osc1Attack: 10 + (index % 6) * 24,
+                            osc2Attack: 18 + (index % 5) * 28,
+                            osc3Attack: 22 + (index % 4) * 30,
+                            osc1Decay: 120 + (index % 6) * 80,
+                            osc2Decay: 150 + (index % 5) * 90,
+                            osc3Decay: 180 + (index % 4) * 95,
+                            osc1Sustain: 18 + (index % 4) * 8,
+                            osc2Sustain: 12 + (index % 4) * 8,
+                            osc3Sustain: 8 + (index % 4) * 8,
+                            osc1Release: 320 + (index % 6) * 130,
+                            osc2Release: 380 + (index % 5) * 150,
+                            osc3Release: 440 + (index % 4) * 160,
+                            osc2Sync: index % 3 === 0 ? 'osc1' : 'off',
+                            osc3Sync: index % 4 === 0 ? 'osc2' : 'off',
+                            oscNoiseType: index % 2 === 0 ? 'pink' : 'white',
+                            oscNoiseLevel: 8 + (index % 5) * 3,
+                            oscNoiseAttack: 24 + (index % 4) * 18,
+                            oscNoiseDecay: 120 + (index % 5) * 70,
+                            oscNoiseSustain: 10 + (index % 4) * 6,
+                            oscNoiseRelease: 220 + (index % 5) * 90,
+                            oscSynthFilterType: ['allpass', 'notch', 'bandpass', 'highpass'][index % 4],
+                            oscSynthCutoff: 900 + (index % 10) * 1200,
+                            oscSynthResonance: Number((1.2 + (index % 6) * 0.55).toFixed(1)),
+                            oscSynthDrive: Number((0.5 + (index % 5) * 0.8).toFixed(1)),
+                            oscRouteMode: ['random', 'wide', 'metal', 'blend'][index % 4],
+                            oscMix: 100,
+                            synthWaveShape: 18 + (index % 8) * 9,
+                            synthStereoWidth: 44 + (index % 5) * 10,
+                            synthFmAmount: 10 + (index % 6) * 12,
+                            synthMacro1: 50,
+                            synthMacro2: 62,
+                            synthMacro3: 54,
+                            synthMacro4: 58,
+                            synthMod1Source: 'lfo2',
+                            synthMod1Target: 'synthWaveShape',
+                            synthMod1Amount: 36,
+                            synthMod2Source: 'lfo3',
+                            synthMod2Target: 'oscSynthCutoff',
+                            synthMod2Amount: 34,
+                            synthMod3Source: 'macro4',
+                            synthMod3Target: 'synthStereoWidth',
+                            synthMod3Amount: 28,
+                            synthMod4Source: 'random',
+                            synthMod4Target: 'oscSynthDrive',
+                            synthMod4Amount: 20
+                        };
+                    }
+                }
             ];
-            const stringNames = [
-                'Aether', 'Bloom', 'Canopy', 'Chorus', 'Cloudline', 'Contour', 'Drift', 'Ember',
-                'Feather', 'Frost', 'Glacier', 'Glow', 'Halo', 'Horizon', 'Iris', 'Lattice',
-                'Lumen', 'Mellow', 'Mist', 'Orbit', 'Petal', 'Prism', 'Ribbon', 'Shore',
-                'Silk', 'Skyline', 'Static', 'Thread', 'Velvet', 'Vesper', 'Vine', 'Vista', 'Wisp'
-            ];
-            const seqNames = [
-                'Arrow', 'Blink', 'Circuit', 'Click', 'Cutglass', 'Dart', 'Echo', 'Edge',
-                'Etch', 'Flare', 'Frame', 'Grid', 'Helix', 'Jolt', 'Latch', 'Matrix',
-                'Micro', 'Needle', 'Node', 'Pebble', 'Pixel', 'Pulse', 'Quartz', 'Quickstep',
-                'Razor', 'Shiver', 'Signal', 'Spark', 'Stitch', 'Switch', 'Tightrope', 'Tick', 'Tracer'
-            ];
-            const formatId = (prefix, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`;
+
+            const formatId = (prefix, index) => `${prefix}-${String(index + 1).padStart(3, '0')}`;
             const presets = [];
-
-            bassNames.forEach((name, index) => {
-                presets.push({
-                    id: formatId('bass', index),
-                    name: `Bass ${String(index + 1).padStart(2, '0')} · ${name}`,
-                    settings: {
-                        osc1Wave: ['sawtooth', 'square', 'sawtooth', 'triangle'][index % 4],
-                        osc2Wave: ['square', 'triangle', 'square', 'sawtooth'][index % 4],
-                        osc3Wave: ['triangle', 'sine', 'square', 'triangle'][index % 4],
-                        osc1Octave: index % 2 === 0 ? 16 : 8,
-                        osc2Octave: index % 3 === 0 ? 16 : 8,
-                        osc3Octave: index % 4 === 0 ? 32 : 16,
-                        osc1Semitone: 0,
-                        osc2Semitone: [0, 0, 7, -12][index % 4],
-                        osc3Semitone: [-12, -12, 0, 7][index % 4],
-                        osc1Detune: [-4, -2, 0, 2, 4][index % 5],
-                        osc2Detune: [0, 3, -3, 5, -5][index % 5],
-                        osc3Detune: [0, 0, -7, 7][index % 4],
-                        osc1Level: 68 + (index % 5) * 6,
-                        osc2Level: 34 + (index % 6) * 6,
-                        osc3Level: 18 + (index % 5) * 5,
-                        osc1Attack: 2 + (index % 4) * 5,
-                        osc2Attack: 2 + (index % 3) * 6,
-                        osc3Attack: 4 + (index % 4) * 7,
-                        osc1Decay: 120 + (index % 5) * 55,
-                        osc2Decay: 100 + (index % 5) * 50,
-                        osc3Decay: 150 + (index % 4) * 70,
-                        osc1Sustain: 42 + (index % 4) * 8,
-                        osc2Sustain: 18 + (index % 4) * 8,
-                        osc3Sustain: 8 + (index % 3) * 6,
-                        osc1Release: 160 + (index % 4) * 80,
-                        osc2Release: 140 + (index % 4) * 70,
-                        osc3Release: 180 + (index % 4) * 90,
-                        osc2Sync: index % 6 === 0 ? 'osc1' : 'off',
-                        osc3Sync: index % 7 === 0 ? 'osc2' : 'off',
-                        oscNoiseType: index % 3 === 0 ? 'pink' : 'white',
-                        oscNoiseLevel: index % 5 === 0 ? 10 : (index % 3 === 0 ? 6 : 0),
-                        oscNoiseAttack: 1 + (index % 3) * 3,
-                        oscNoiseDecay: 90 + (index % 4) * 40,
-                        oscNoiseSustain: index % 5 === 0 ? 8 : 0,
-                        oscNoiseRelease: 120 + (index % 4) * 60,
-                        oscSynthFilterType: 'lowpass',
-                        oscSynthCutoff: 520 + (index % 10) * 210,
-                        oscSynthResonance: Number((0.7 + (index % 6) * 0.25).toFixed(1)),
-                        oscSynthDrive: Number((0.4 + (index % 5) * 0.7).toFixed(1)),
-                        oscRouteMode: ['sub', 'blend', 'sub', 'metal'][index % 4],
-                        oscMix: 100
-                    }
-                });
+            families.forEach((family) => {
+                for (let index = 0; index < 100; index += 1) {
+                    const first = family.first[Math.floor(index / 10) % family.first.length];
+                    const second = family.second[index % 10];
+                    const settings = family.buildSettings(index);
+                    settings.osc1Wave = synthWaveforms.includes(settings.osc1Wave) ? settings.osc1Wave : 'sawtooth';
+                    settings.osc2Wave = synthWaveforms.includes(settings.osc2Wave) ? settings.osc2Wave : 'square';
+                    settings.osc3Wave = synthWaveforms.includes(settings.osc3Wave) ? settings.osc3Wave : 'triangle';
+                    presets.push({
+                        id: formatId(family.id, index),
+                        name: `${family.label} ${String(index + 1).padStart(3, '0')} · ${first} ${second}`,
+                        settings
+                    });
+                }
             });
 
-            stringNames.forEach((name, index) => {
-                presets.push({
-                    id: formatId('string', index),
-                    name: `String ${String(index + 1).padStart(2, '0')} · ${name}`,
-                    settings: {
-                        osc1Wave: ['sawtooth', 'triangle', 'sawtooth', 'square'][index % 4],
-                        osc2Wave: ['triangle', 'sawtooth', 'square', 'triangle'][index % 4],
-                        osc3Wave: ['sine', 'triangle', 'sine', 'square'][index % 4],
-                        osc1Octave: 8,
-                        osc2Octave: index % 4 === 0 ? 4 : 8,
-                        osc3Octave: index % 5 === 0 ? 16 : 8,
-                        osc1Semitone: 0,
-                        osc2Semitone: [0, 7, 12, 5][index % 4],
-                        osc3Semitone: [12, 7, 0, -12][index % 4],
-                        osc1Detune: [-5, -2, 0, 2, 5][index % 5],
-                        osc2Detune: [6, -6, 3, -3, 0][index % 5],
-                        osc3Detune: [0, 7, -7, 3][index % 4],
-                        osc1Level: 52 + (index % 6) * 5,
-                        osc2Level: 34 + (index % 5) * 6,
-                        osc3Level: 18 + (index % 4) * 5,
-                        osc1Attack: 80 + (index % 6) * 70,
-                        osc2Attack: 120 + (index % 5) * 90,
-                        osc3Attack: 160 + (index % 4) * 110,
-                        osc1Decay: 340 + (index % 6) * 90,
-                        osc2Decay: 380 + (index % 5) * 110,
-                        osc3Decay: 420 + (index % 4) * 120,
-                        osc1Sustain: 60 + (index % 4) * 8,
-                        osc2Sustain: 48 + (index % 4) * 8,
-                        osc3Sustain: 36 + (index % 4) * 8,
-                        osc1Release: 640 + (index % 6) * 160,
-                        osc2Release: 760 + (index % 5) * 170,
-                        osc3Release: 820 + (index % 4) * 190,
-                        osc2Sync: 'off',
-                        osc3Sync: index % 8 === 0 ? 'osc1' : 'off',
-                        oscNoiseType: index % 2 === 0 ? 'pink' : 'white',
-                        oscNoiseLevel: 4 + (index % 4) * 2,
-                        oscNoiseAttack: 90 + (index % 4) * 45,
-                        oscNoiseDecay: 280 + (index % 5) * 80,
-                        oscNoiseSustain: 8 + (index % 4) * 4,
-                        oscNoiseRelease: 320 + (index % 5) * 120,
-                        oscSynthFilterType: ['lowpass', 'bandpass', 'allpass'][index % 3],
-                        oscSynthCutoff: 2200 + (index % 10) * 950,
-                        oscSynthResonance: Number((0.6 + (index % 5) * 0.35).toFixed(1)),
-                        oscSynthDrive: Number((0.2 + (index % 4) * 0.5).toFixed(1)),
-                        oscRouteMode: ['wide', 'blend', 'wide', 'random'][index % 4],
-                        oscMix: 100
-                    }
-                });
-            });
-
-            seqNames.forEach((name, index) => {
-                presets.push({
-                    id: formatId('seq', index),
-                    name: `Seq ${String(index + 1).padStart(2, '0')} · ${name}`,
-                    settings: {
-                        osc1Wave: ['square', 'sawtooth', 'triangle', 'square'][index % 4],
-                        osc2Wave: ['square', 'triangle', 'sawtooth', 'square'][index % 4],
-                        osc3Wave: ['triangle', 'square', 'sine', 'triangle'][index % 4],
-                        osc1Octave: 8,
-                        osc2Octave: index % 3 === 0 ? 16 : 8,
-                        osc3Octave: index % 2 === 0 ? 8 : 4,
-                        osc1Semitone: [0, 0, 12, -12][index % 4],
-                        osc2Semitone: [7, 12, 0, -5][index % 4],
-                        osc3Semitone: [12, 19, 7, 0][index % 4],
-                        osc1Detune: [-8, -4, 0, 4, 8][index % 5],
-                        osc2Detune: [0, 9, -9, 4, -4][index % 5],
-                        osc3Detune: [0, 12, -12, 6][index % 4],
-                        osc1Level: 64 + (index % 5) * 5,
-                        osc2Level: 24 + (index % 5) * 6,
-                        osc3Level: 12 + (index % 4) * 4,
-                        osc1Attack: index % 3,
-                        osc2Attack: 1 + (index % 3) * 2,
-                        osc3Attack: 1 + (index % 4) * 2,
-                        osc1Decay: 48 + (index % 5) * 28,
-                        osc2Decay: 60 + (index % 5) * 32,
-                        osc3Decay: 72 + (index % 4) * 36,
-                        osc1Sustain: (index % 4) * 6,
-                        osc2Sustain: (index % 3) * 5,
-                        osc3Sustain: (index % 2) * 4,
-                        osc1Release: 40 + (index % 4) * 32,
-                        osc2Release: 44 + (index % 4) * 34,
-                        osc3Release: 50 + (index % 4) * 36,
-                        osc2Sync: index % 2 === 0 ? 'osc1' : 'off',
-                        osc3Sync: index % 3 === 0 ? 'osc2' : (index % 5 === 0 ? 'osc1' : 'off'),
-                        oscNoiseType: index % 2 === 0 ? 'white' : 'pink',
-                        oscNoiseLevel: 6 + (index % 4) * 4,
-                        oscNoiseAttack: index % 2,
-                        oscNoiseDecay: 34 + (index % 5) * 22,
-                        oscNoiseSustain: 0,
-                        oscNoiseRelease: 45 + (index % 4) * 22,
-                        oscSynthFilterType: ['bandpass', 'highpass', 'lowpass', 'notch'][index % 4],
-                        oscSynthCutoff: 1800 + (index % 10) * 760,
-                        oscSynthResonance: Number((0.9 + (index % 6) * 0.4).toFixed(1)),
-                        oscSynthDrive: Number((0.6 + (index % 5) * 0.8).toFixed(1)),
-                        oscRouteMode: ['metal', 'blend', 'wide', 'sub'][index % 4],
-                        oscMix: 100
-                    }
-                });
-            });
-
-            return presets.slice(0, 100);
+            return presets;
         }
 
         const SYNTH_POPUP_PRESETS = buildSynthPopupPresets();
@@ -11743,6 +12129,17 @@
             'osc3Detune',
             'oscSynthCutoff',
             'oscSynthResonance',
+            'synthWaveShape',
+            'synthStereoWidth',
+            'synthFmAmount',
+            'synthMacro1',
+            'synthMacro2',
+            'synthMacro3',
+            'synthMacro4',
+            'synthMod1Amount',
+            'synthMod2Amount',
+            'synthMod3Amount',
+            'synthMod4Amount',
             'noiseMix',
             'reverb',
             'delayMix',
@@ -11761,6 +12158,23 @@
             osc3Detune: 'osc3DetuneLfoDepth',
             oscSynthCutoff: 'oscSynthCutoffLfoDepth',
             oscSynthResonance: 'oscSynthResonanceLfoDepth'
+        };
+        const SYNTH_MOD_SLOT_COUNT = 4;
+        const SYNTH_MOD_TARGET_CONFIG = {
+            osc1Detune: { min: -100, max: 100, depthScale: 0.35 },
+            osc2Detune: { min: -100, max: 100, depthScale: 0.35 },
+            osc3Detune: { min: -100, max: 100, depthScale: 0.35 },
+            osc1Level: { min: 0, max: 100, depthScale: 0.6 },
+            osc2Level: { min: 0, max: 100, depthScale: 0.6 },
+            osc3Level: { min: 0, max: 100, depthScale: 0.6 },
+            oscNoiseLevel: { min: 0, max: 100, depthScale: 0.5 },
+            oscSynthCutoff: { min: 100, max: 18000, depthScale: 0.24 },
+            oscSynthResonance: { min: 0.1, max: 20, depthScale: 0.28 },
+            oscSynthDrive: { min: 0, max: 12, depthScale: 0.5 },
+            oscMix: { min: 0, max: 100, depthScale: 0.7 },
+            synthWaveShape: { min: 5, max: 95, depthScale: 0.45 },
+            synthStereoWidth: { min: 0, max: 100, depthScale: 0.7 },
+            synthFmAmount: { min: 0, max: 100, depthScale: 0.65 }
         };
         const RANDOMIZE_SKIP_SELECTS = new Set([
             'lfoWaveform',
@@ -13148,9 +13562,145 @@
             ));
         }
 
-        function getSynthModulatedValue(paramId, fallbackValue = 0) {
-            const value = getModulatedValue(paramId);
-            return Number.isFinite(value) ? value : fallbackValue;
+        function getSynthMacroValue(index) {
+            const sliderValue = Number(document.getElementById(`synthMacro${index}`)?.value);
+            if (!Number.isFinite(sliderValue)) return 0.5;
+            return Math.max(0, Math.min(1, sliderValue / 100));
+        }
+
+        function getSynthModSourceValue(sourceId, context = {}) {
+            switch (sourceId) {
+                case 'macro1':
+                    return getSynthMacroValue(1);
+                case 'macro2':
+                    return getSynthMacroValue(2);
+                case 'macro3':
+                    return getSynthMacroValue(3);
+                case 'macro4':
+                    return getSynthMacroValue(4);
+                case 'lfo1':
+                    return getLFOValue();
+                case 'lfo2':
+                    return getLFOValue2();
+                case 'lfo3':
+                    return getLFOValue3();
+                case 'velocity':
+                    return Math.max(0, Math.min(1, Number(context.velocity) || 0));
+                case 'random':
+                    return Math.max(0, Math.min(1, Number(context.randomValue) || 0));
+                default:
+                    return 0;
+            }
+        }
+
+        function getSynthModSlots() {
+            return Array.from({ length: SYNTH_MOD_SLOT_COUNT }, (_, index) => {
+                const slot = index + 1;
+                return {
+                    source: document.getElementById(`synthMod${slot}Source`)?.value || 'macro1',
+                    target: document.getElementById(`synthMod${slot}Target`)?.value || 'none',
+                    amount: Number(document.getElementById(`synthMod${slot}Amount`)?.value) || 0
+                };
+            });
+        }
+
+        function applySynthModMatrix(paramId, baseValue, context = {}) {
+            const target = SYNTH_MOD_TARGET_CONFIG[paramId];
+            if (!target) return baseValue;
+            let nextValue = Number(baseValue);
+            if (!Number.isFinite(nextValue)) nextValue = Number(target.min) || 0;
+            const span = (Number(target.max) - Number(target.min)) * (Number(target.depthScale) || 1);
+            getSynthModSlots().forEach((slot) => {
+                if (!slot || slot.target !== paramId || !Number.isFinite(slot.amount) || slot.amount === 0) return;
+                const sourceValue = getSynthModSourceValue(slot.source, context);
+                if (!Number.isFinite(sourceValue) || sourceValue === 0) return;
+                nextValue += sourceValue * span * (slot.amount / 100);
+            });
+            return Math.max(Number(target.min), Math.min(Number(target.max), nextValue));
+        }
+
+        function getSynthModulatedValue(paramId, fallbackValue = 0, context = {}) {
+            const baseValue = (() => {
+                const slider = document.getElementById(paramId);
+                if (slider) {
+                    const modulated = getModulatedValue(paramId);
+                    if (Number.isFinite(modulated)) return modulated;
+                    const rawSliderValue = Number(slider.value);
+                    if (Number.isFinite(rawSliderValue)) return rawSliderValue;
+                }
+                return fallbackValue;
+            })();
+            return applySynthModMatrix(paramId, baseValue, context);
+        }
+
+        function getSynthWaveShapePercent(context = {}) {
+            const modulatedShape = getSynthModulatedValue('synthWaveShape', synthWaveShape, context);
+            return Math.max(5, Math.min(95, Number(modulatedShape) || 50));
+        }
+
+        function syncSynthMacroLabels() {
+            [1, 2, 3, 4].forEach((index) => {
+                const slider = document.getElementById(`synthMacro${index}`);
+                const label = document.getElementById(`synthMacro${index}Value`);
+                const value = Math.max(0, Math.min(100, Number(slider?.value) || 0));
+                if (slider) slider.value = String(value);
+                if (label) label.textContent = `${Math.round(value)}%`;
+            });
+        }
+
+        function syncSynthAdvancedLabels() {
+            const shapeSlider = document.getElementById('synthWaveShape');
+            const shapeLabel = document.getElementById('synthWaveShapeValue');
+            const widthSlider = document.getElementById('synthStereoWidth');
+            const widthLabel = document.getElementById('synthStereoWidthValue');
+            const fmSlider = document.getElementById('synthFmAmount');
+            const fmLabel = document.getElementById('synthFmAmountValue');
+            if (shapeSlider) {
+                const value = Math.max(5, Math.min(95, Number(shapeSlider.value) || 50));
+                shapeSlider.value = String(value);
+                synthWaveShape = value;
+                if (shapeLabel) shapeLabel.textContent = `${Math.round(value)}%`;
+            }
+            if (widthSlider) {
+                const value = Math.max(0, Math.min(100, Number(widthSlider.value) || 0));
+                widthSlider.value = String(value);
+                synthStereoWidth = value;
+                if (widthLabel) widthLabel.textContent = `${Math.round(value)}%`;
+            }
+            if (fmSlider) {
+                const value = Math.max(0, Math.min(100, Number(fmSlider.value) || 0));
+                fmSlider.value = String(value);
+                synthFmAmount = value;
+                if (fmLabel) fmLabel.textContent = `${Math.round(value)}%`;
+            }
+        }
+
+        function syncSynthModMatrixLabels() {
+            Array.from({ length: SYNTH_MOD_SLOT_COUNT }, (_, index) => index + 1).forEach((slot) => {
+                const slider = document.getElementById(`synthMod${slot}Amount`);
+                const label = document.getElementById(`synthMod${slot}AmountValue`);
+                const value = Math.max(-100, Math.min(100, Number(slider?.value) || 0));
+                if (slider) slider.value = String(value);
+                if (label) {
+                    const abs = Math.abs(Math.round(value));
+                    label.textContent = `${value > 0 ? '+' : value < 0 ? '-' : ''}${abs}%`;
+                }
+            });
+        }
+
+        function syncSynthComplexControls() {
+            syncSynthAdvancedLabels();
+            syncSynthMacroLabels();
+            syncSynthModMatrixLabels();
+        }
+
+        function refreshSynthComplexState(options = {}) {
+            refreshActiveOscillatorVoices();
+            refreshActiveOscillatorLevels();
+            syncOscSynthFilterControls({ preserveSliderValues: true });
+            if (!options.skipRetrigger) {
+                retriggerActiveOscillatorVoices();
+            }
         }
 
         function syncSynthDetuneLabels() {
@@ -30925,28 +31475,90 @@
             return octaveFreq * semitoneMultiplier * detuneMultiplier;
         }
 
-        function sampleOscillatorWaveform(waveform, phase) {
+        function sampleOscillatorWaveform(waveform, phase, options = {}) {
             const wrapped = ((phase % 1) + 1) % 1;
+            const shapePercent = Math.max(5, Math.min(95, Number(options.shapePercent) || 50));
+            const pulseWidth = shapePercent / 100;
+            const bipolarShape = (shapePercent - 50) / 50;
+            const sine = Math.sin(wrapped * Math.PI * 2);
+            const triangle = 1 - 4 * Math.abs(Math.round(wrapped - 0.25) - (wrapped - 0.25));
+            const saw = (wrapped * 2) - 1;
             switch (waveform) {
                 case 'sine':
-                    return Math.sin(wrapped * Math.PI * 2);
+                    return sine;
                 case 'triangle':
-                    return 1 - 4 * Math.abs(Math.round(wrapped - 0.25) - (wrapped - 0.25));
+                    return triangle;
                 case 'square':
                     return wrapped < 0.5 ? 1 : -1;
+                case 'pulse':
+                    return wrapped < pulseWidth ? 1 : -1;
+                case 'supersaw': {
+                    const detuneOffsets = [-0.036, -0.018, 0, 0.018, 0.036];
+                    const stack = detuneOffsets.reduce((sum, offset, index) => {
+                        const weight = index === 2 ? 1.2 : 0.72;
+                        const shifted = ((wrapped + offset * (0.55 + Math.abs(bipolarShape) * 0.9)) % 1 + 1) % 1;
+                        return sum + ((((shifted * 2) - 1)) * weight);
+                    }, 0);
+                    return Math.tanh(stack / 3.6);
+                }
+                case 'organ':
+                    return Math.tanh((sine * 0.72) + (Math.sin(wrapped * Math.PI * 4) * 0.32) + (Math.sin(wrapped * Math.PI * 6) * 0.18) + (triangle * 0.1));
+                case 'vocal': {
+                    const formantA = Math.sin(wrapped * Math.PI * 2);
+                    const formantB = Math.sin(wrapped * Math.PI * (4 + (bipolarShape * 2.2)));
+                    const formantC = Math.sin(wrapped * Math.PI * (8 + (bipolarShape * 3.5)));
+                    return Math.tanh((formantA * 0.68) + (formantB * 0.34) + (formantC * 0.14));
+                }
+                case 'metal': {
+                    const ring = Math.sin((wrapped * Math.PI * 2) + (Math.sin(wrapped * Math.PI * 6) * (1.6 + bipolarShape)));
+                    return Math.tanh((ring * 0.82) + (saw * 0.4) + (triangle * 0.18));
+                }
                 case 'sawtooth':
                 default:
-                    return (wrapped * 2) - 1;
+                    return saw;
             }
         }
 
         const hardSyncWaveCache = new Map();
+        const oscillatorWaveCache = new Map();
 
-        function createHardSyncPeriodicWave(waveform, slaveToMasterRatio) {
+        function createOscillatorPeriodicWave(waveform, shapePercent = 50) {
+            if (!audioContext) return null;
+            const safeShape = Math.max(5, Math.min(95, Number(shapePercent) || 50));
+            const key = `${waveform}:${safeShape}:${audioContext.sampleRate}`;
+            const cached = oscillatorWaveCache.get(key);
+            if (cached && cached.context === audioContext) return cached.wave;
+
+            const sampleCount = 512;
+            const harmonics = 96;
+            const real = new Float32Array(harmonics + 1);
+            const imag = new Float32Array(harmonics + 1);
+
+            for (let harmonic = 1; harmonic <= harmonics; harmonic += 1) {
+                let cosine = 0;
+                let sine = 0;
+                for (let i = 0; i < sampleCount; i += 1) {
+                    const phase = i / sampleCount;
+                    const sample = sampleOscillatorWaveform(waveform, phase, { shapePercent: safeShape });
+                    const angle = Math.PI * 2 * harmonic * phase;
+                    cosine += sample * Math.cos(angle);
+                    sine += sample * Math.sin(angle);
+                }
+                real[harmonic] = (2 / sampleCount) * cosine;
+                imag[harmonic] = (-2 / sampleCount) * sine;
+            }
+
+            const wave = audioContext.createPeriodicWave(real, imag, { disableNormalization: false });
+            oscillatorWaveCache.set(key, { context: audioContext, wave });
+            return wave;
+        }
+
+        function createHardSyncPeriodicWave(waveform, slaveToMasterRatio, shapePercent = 50) {
             if (!audioContext) return null;
             const safeRatio = Math.max(0.125, Math.min(16, Number(slaveToMasterRatio) || 1));
             const roundedRatio = Math.round(safeRatio * 1000) / 1000;
-            const key = `${waveform}:${roundedRatio}:${audioContext.sampleRate}`;
+            const safeShape = Math.max(5, Math.min(95, Number(shapePercent) || 50));
+            const key = `${waveform}:${roundedRatio}:${safeShape}:${audioContext.sampleRate}`;
             const cached = hardSyncWaveCache.get(key);
             if (cached && cached.context === audioContext) return cached.wave;
 
@@ -30960,7 +31572,7 @@
                 let sine = 0;
                 for (let i = 0; i < sampleCount; i += 1) {
                     const phase = i / sampleCount;
-                    const sample = sampleOscillatorWaveform(waveform, phase * roundedRatio);
+                    const sample = sampleOscillatorWaveform(waveform, phase * roundedRatio, { shapePercent: safeShape });
                     const angle = Math.PI * 2 * harmonic * phase;
                     cosine += sample * Math.cos(angle);
                     sine += sample * Math.sin(angle);
@@ -30974,24 +31586,32 @@
             return wave;
         }
 
-        function configureOscillatorWaveAndPitch(oscillator, config, ownFrequency, masterFrequency = null) {
+        function configureOscillatorWaveAndPitch(oscillator, config, ownFrequency, masterFrequency = null, context = {}) {
+            const shapePercent = getSynthWaveShapePercent(context);
             if (masterFrequency && masterFrequency > 0) {
-                const syncWave = createHardSyncPeriodicWave(config.waveform, ownFrequency / masterFrequency);
+                const syncWave = createHardSyncPeriodicWave(config.waveform, ownFrequency / masterFrequency, shapePercent);
                 oscillator.frequency.value = masterFrequency;
                 if (syncWave) {
                     oscillator.setPeriodicWave(syncWave);
                     return;
                 }
             }
-            oscillator.type = getNativeOscillatorWaveform(config.waveform);
+            const customWave = createOscillatorPeriodicWave(config.waveform, shapePercent);
+            if (customWave && !['sine', 'triangle', 'sawtooth', 'square'].includes(config.waveform)) {
+                oscillator.setPeriodicWave(customWave);
+            } else if (config.waveform === 'pulse') {
+                oscillator.setPeriodicWave(customWave || createOscillatorPeriodicWave('square', shapePercent));
+            } else {
+                oscillator.type = getNativeOscillatorWaveform(config.waveform);
+            }
             oscillator.frequency.value = ownFrequency;
         }
 
-        function getOscillatorVoiceFrequencies(note) {
+        function getOscillatorVoiceFrequencies(note, context = {}) {
             const baseFreq = getKeyboardNoteFrequency(note);
-            const osc1Detune = getSynthModulatedValue('osc1Detune', osc1Config.detune);
-            const osc2Detune = getSynthModulatedValue('osc2Detune', osc2Config.detune);
-            const osc3Detune = getSynthModulatedValue('osc3Detune', osc3Config.detune);
+            const osc1Detune = getSynthModulatedValue('osc1Detune', osc1Config.detune, context);
+            const osc2Detune = getSynthModulatedValue('osc2Detune', osc2Config.detune, context);
+            const osc3Detune = getSynthModulatedValue('osc3Detune', osc3Config.detune, context);
             const osc1Frequency = getOscillatorFrequency(baseFreq, osc1Config.octave, osc1Detune, osc1Config.semitone);
             const osc2Frequency = getOscillatorFrequency(baseFreq, osc2Config.octave, osc2Detune, osc2Config.semitone);
             const osc3Frequency = getOscillatorFrequency(baseFreq, osc3Config.octave, osc3Detune, osc3Config.semitone);
@@ -31013,10 +31633,10 @@
         function refreshActiveOscillatorVoices() {
             if (applyingSynthPopupPreset) return;
             activeOscVoices.forEach((voice) => {
-                const frequencies = getOscillatorVoiceFrequencies(voice.note);
-                configureOscillatorWaveAndPitch(voice.osc1, osc1Config, frequencies.osc1Frequency);
-                configureOscillatorWaveAndPitch(voice.osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency);
-                configureOscillatorWaveAndPitch(voice.osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency);
+                const frequencies = getOscillatorVoiceFrequencies(voice.note, voice.synthModContext);
+                configureOscillatorWaveAndPitch(voice.osc1, osc1Config, frequencies.osc1Frequency, null, voice.synthModContext);
+                configureOscillatorWaveAndPitch(voice.osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency, voice.synthModContext);
+                configureOscillatorWaveAndPitch(voice.osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency, voice.synthModContext);
             });
         }
 
@@ -31027,14 +31647,16 @@
             activeOscVoices.forEach((voice) => {
                 const velocity = Number.isFinite(voice.noteVelocity) ? voice.noteVelocity : 1;
                 const routeMix = voice.routeMix || { osc1: 1, osc2: 1, osc3: 1 };
+                const modContext = voice.synthModContext || { velocity, randomValue: 0.5 };
                 [
-                    [voice.osc1Gain, osc1Config, routeMix.osc1],
-                    [voice.osc2Gain, osc2Config, routeMix.osc2],
-                    [voice.osc3Gain, osc3Config, routeMix.osc3],
-                    [voice.noiseGain, oscNoiseConfig, 1]
-                ].forEach(([gainNode, config, multiplier]) => {
+                    [voice.osc1Gain, osc1Config, routeMix.osc1, 'osc1Level'],
+                    [voice.osc2Gain, osc2Config, routeMix.osc2, 'osc2Level'],
+                    [voice.osc3Gain, osc3Config, routeMix.osc3, 'osc3Level'],
+                    [voice.noiseGain, oscNoiseConfig, 1, 'oscNoiseLevel']
+                ].forEach(([gainNode, config, multiplier, levelParamId]) => {
                     if (!gainNode || !gainNode.gain) return;
-                    const target = config.level * velocity * (Number.isFinite(multiplier) ? multiplier : 1);
+                    const levelPercent = getSynthModulatedValue(levelParamId, (config.level || 0) * 100, modContext);
+                    const target = Math.max(0, levelPercent / 100) * velocity * (Number.isFinite(multiplier) ? multiplier : 1);
                     gainNode.gain.cancelScheduledValues(now);
                     gainNode.gain.setValueAtTime(gainNode.gain.value, now);
                     gainNode.gain.linearRampToValueAtTime(target, now + 0.025);
@@ -31205,6 +31827,88 @@
             setSynthPresetSelectValue(preservedValue);
         }
 
+        function randomizeSynthPopupPatch(options = {}) {
+            const synthWaveforms = ['sine', 'triangle', 'sawtooth', 'square', 'pulse', 'supersaw', 'organ', 'vocal', 'metal'];
+            const matrixSources = ['lfo1', 'lfo2', 'lfo3', 'macro1', 'macro2', 'macro3', 'macro4', 'velocity', 'random'];
+            const matrixTargets = Object.keys(SYNTH_MOD_TARGET_CONFIG);
+
+            applyingSynthPopupPreset = true;
+            try {
+                ensureSynthVoicePathAudible({ forceOscillatorsEnabled: true, disableSampleSolo: true });
+                setOscillatorsEnabled(true, { silent: true, skipSave: true });
+
+                setSelectValue('osc1Wave', chooseRandom(synthWaveforms));
+                setSelectValue('osc2Wave', chooseRandom(synthWaveforms));
+                setSelectValue('osc3Wave', chooseRandom(synthWaveforms));
+                setSelectValue('osc2Sync', chooseRandom(['off', 'off', 'off', 'osc1']));
+                setSelectValue('osc3Sync', chooseRandom(['off', 'off', 'osc1', 'osc2']));
+                setSelectValue('oscNoiseType', chooseRandom(['white', 'pink']));
+                setSelectValue('oscSynthFilterType', chooseRandom(['lowpass', 'bandpass', 'highpass', 'notch', 'allpass']));
+                setSelectValue('oscRouteMode', chooseRandom(['random', 'blend', 'wide', 'metal', 'sub']));
+
+                setOscillatorOctave(1, chooseRandom([4, 8, 8, 16]));
+                setOscillatorOctave(2, chooseRandom([4, 8, 16, 16]));
+                setOscillatorOctave(3, chooseRandom([4, 8, 8, 16, 32]));
+
+                setSliderValue('osc1Semitone', chooseRandom([-12, -7, -5, 0, 0, 7, 12]));
+                setSliderValue('osc2Semitone', chooseRandom([-12, -7, 0, 5, 7, 12, 19]));
+                setSliderValue('osc3Semitone', chooseRandom([-24, -12, 0, 7, 12, 19, 24]));
+                setSliderValue('osc1Detune', randomIntegerInRange(-18, 18));
+                setSliderValue('osc2Detune', randomIntegerInRange(-24, 24));
+                setSliderValue('osc3Detune', randomIntegerInRange(-28, 28));
+                setSliderValue('osc1Level', randomIntegerInRange(34, 100));
+                setSliderValue('osc2Level', randomIntegerInRange(16, 88));
+                setSliderValue('osc3Level', randomIntegerInRange(8, 72));
+                setSliderValue('osc1Attack', randomIntegerInRange(0, 160));
+                setSliderValue('osc2Attack', randomIntegerInRange(0, 200));
+                setSliderValue('osc3Attack', randomIntegerInRange(0, 240));
+                setSliderValue('osc1Decay', randomIntegerInRange(24, 640));
+                setSliderValue('osc2Decay', randomIntegerInRange(24, 720));
+                setSliderValue('osc3Decay', randomIntegerInRange(24, 860));
+                setSliderValue('osc1Sustain', randomIntegerInRange(0, 88));
+                setSliderValue('osc2Sustain', randomIntegerInRange(0, 84));
+                setSliderValue('osc3Sustain', randomIntegerInRange(0, 78));
+                setSliderValue('osc1Release', randomIntegerInRange(24, 1200));
+                setSliderValue('osc2Release', randomIntegerInRange(24, 1400));
+                setSliderValue('osc3Release', randomIntegerInRange(24, 1600));
+                setSliderValue('oscNoiseLevel', maybe(0.58) ? randomIntegerInRange(0, 24) : 0);
+                setSliderValue('oscNoiseAttack', randomIntegerInRange(0, 220));
+                setSliderValue('oscNoiseDecay', randomIntegerInRange(18, 420));
+                setSliderValue('oscNoiseSustain', randomIntegerInRange(0, 28));
+                setSliderValue('oscNoiseRelease', randomIntegerInRange(24, 540));
+                setSliderValue('oscSynthCutoff', randomIntegerInRange(380, 17600));
+                setSliderValue('oscSynthResonance', Number((0.4 + Math.random() * 4.2).toFixed(1)));
+                setSliderValue('oscSynthDrive', Number((Math.random() * 10.5).toFixed(1)));
+                setSliderValue('oscMix', randomIntegerInRange(84, 100));
+                setSliderValue('synthWaveShape', randomIntegerInRange(10, 90));
+                setSliderValue('synthStereoWidth', randomIntegerInRange(0, 100));
+                setSliderValue('synthFmAmount', maybe(0.55) ? randomIntegerInRange(0, 80) : randomIntegerInRange(0, 24));
+                setSliderValue('synthMacro1', randomIntegerInRange(0, 100));
+                setSliderValue('synthMacro2', randomIntegerInRange(0, 100));
+                setSliderValue('synthMacro3', randomIntegerInRange(0, 100));
+                setSliderValue('synthMacro4', randomIntegerInRange(0, 100));
+
+                for (let slot = 1; slot <= SYNTH_MOD_SLOT_COUNT; slot += 1) {
+                    setSelectValue(`synthMod${slot}Source`, chooseRandom(matrixSources));
+                    setSelectValue(`synthMod${slot}Target`, chooseRandom(matrixTargets));
+                    setSliderValue(`synthMod${slot}Amount`, randomIntegerInRange(-72, 72));
+                }
+            } finally {
+                applyingSynthPopupPreset = false;
+            }
+
+            syncOscNoiseTypeLabel();
+            syncSynthComplexControls();
+            syncOscSynthFilterControls({ preserveSliderValues: true });
+            setSynthPresetSelectValue('custom');
+            refreshSynthComplexState();
+            syncPerformanceControlState();
+            saveState();
+            if (!options.silent) {
+                setStatus('Generated a new synth patch.');
+            }
+        }
+
         function applySynthPopupPreset(presetId, options = {}) {
             const preset = SYNTH_POPUP_PRESET_MAP.get(presetId);
             if (!preset) {
@@ -31226,6 +31930,14 @@
                 setSelectValue('oscNoiseType', settings.oscNoiseType || 'white');
                 setSelectValue('oscSynthFilterType', settings.oscSynthFilterType || 'lowpass');
                 setSelectValue('oscRouteMode', settings.oscRouteMode || 'blend');
+                setSelectValue('synthMod1Source', settings.synthMod1Source || 'lfo1');
+                setSelectValue('synthMod1Target', settings.synthMod1Target || 'oscSynthCutoff');
+                setSelectValue('synthMod2Source', settings.synthMod2Source || 'macro1');
+                setSelectValue('synthMod2Target', settings.synthMod2Target || 'oscSynthDrive');
+                setSelectValue('synthMod3Source', settings.synthMod3Source || 'velocity');
+                setSelectValue('synthMod3Target', settings.synthMod3Target || 'osc1Level');
+                setSelectValue('synthMod4Source', settings.synthMod4Source || 'random');
+                setSelectValue('synthMod4Target', settings.synthMod4Target || 'synthStereoWidth');
 
                 setOscillatorOctave(1, settings.osc1Octave ?? 8);
                 setOscillatorOctave(2, settings.osc2Octave ?? 16);
@@ -31236,7 +31948,10 @@
                     'osc2Semitone', 'osc2Detune', 'osc2Level', 'osc2Attack', 'osc2Decay', 'osc2Sustain', 'osc2Release',
                     'osc3Semitone', 'osc3Detune', 'osc3Level', 'osc3Attack', 'osc3Decay', 'osc3Sustain', 'osc3Release',
                     'oscNoiseLevel', 'oscNoiseAttack', 'oscNoiseDecay', 'oscNoiseSustain', 'oscNoiseRelease',
-                    'oscSynthCutoff', 'oscSynthResonance', 'oscSynthDrive', 'oscMix'
+                    'oscSynthCutoff', 'oscSynthResonance', 'oscSynthDrive', 'oscMix',
+                    'synthWaveShape', 'synthStereoWidth', 'synthFmAmount',
+                    'synthMacro1', 'synthMacro2', 'synthMacro3', 'synthMacro4',
+                    'synthMod1Amount', 'synthMod2Amount', 'synthMod3Amount', 'synthMod4Amount'
                 ].forEach((id) => {
                     if (Object.prototype.hasOwnProperty.call(settings, id)) {
                         setSliderValue(id, settings[id]);
@@ -31248,10 +31963,10 @@
             }
 
             syncOscNoiseTypeLabel();
+            syncSynthComplexControls();
             syncOscSynthFilterControls();
             setSynthPresetSelectValue(preset.id);
-            refreshActiveOscillatorLevels();
-            retriggerActiveOscillatorVoices();
+            refreshSynthComplexState();
             syncPerformanceControlState();
             saveState();
             if (!options.silent) {
@@ -31281,13 +31996,14 @@
             const driveSlider = document.getElementById('oscSynthDrive');
             const cutoffBase = clampToSliderBounds('oscSynthCutoff', cutoffSlider?.value ?? 13500);
             const resonanceBase = clampToSliderBounds('oscSynthResonance', resonanceSlider?.value ?? 0.7);
-            const driveDb = Math.max(0, Math.min(12, Number(driveSlider?.value ?? 0) || 0));
+            const driveBase = Math.max(0, Math.min(12, Number(driveSlider?.value ?? 0) || 0));
             const cutoff = getSynthModulatedValue('oscSynthCutoff', cutoffBase);
             const resonance = getSynthModulatedValue('oscSynthResonance', resonanceBase);
+            const driveDb = getSynthModulatedValue('oscSynthDrive', driveBase);
 
             if (!options.preserveSliderValues && cutoffSlider) cutoffSlider.value = String(cutoffBase);
             if (!options.preserveSliderValues && resonanceSlider) resonanceSlider.value = String(resonanceBase);
-            if (driveSlider) driveSlider.value = String(driveDb);
+            if (driveSlider) driveSlider.value = String(driveBase);
 
             const typeLabel = document.getElementById('oscSynthFilterTypeValue');
             if (typeLabel) typeLabel.textContent = getOscSynthFilterTypeLabel(filterType);
@@ -31337,23 +32053,33 @@
             const noteVelocity = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
             const routeMode = resolveOscRouteModeForVoice();
             const voiceClickGuard = getClickGuardSeconds();
-            const frequencies = getOscillatorVoiceFrequencies(note);
+            const synthModContext = {
+                velocity: noteVelocity,
+                randomValue: Math.random()
+            };
+            const frequencies = getOscillatorVoiceFrequencies(note, synthModContext);
+            const stereoWidth = Math.max(0, Math.min(1, getSynthModulatedValue('synthStereoWidth', synthStereoWidth, synthModContext) / 100));
+            const fmAmount = Math.max(0, Math.min(1, getSynthModulatedValue('synthFmAmount', synthFmAmount, synthModContext) / 100));
+            const osc1Level = Math.max(0, getSynthModulatedValue('osc1Level', osc1Config.level * 100, synthModContext) / 100);
+            const osc2Level = Math.max(0, getSynthModulatedValue('osc2Level', osc2Config.level * 100, synthModContext) / 100);
+            const osc3Level = Math.max(0, getSynthModulatedValue('osc3Level', osc3Config.level * 100, synthModContext) / 100);
+            const oscNoiseLevel = Math.max(0, getSynthModulatedValue('oscNoiseLevel', oscNoiseConfig.level * 100, synthModContext) / 100);
 
             // Create oscillator 1
             const osc1 = audioContext.createOscillator();
-            configureOscillatorWaveAndPitch(osc1, osc1Config, frequencies.osc1Frequency);
+            configureOscillatorWaveAndPitch(osc1, osc1Config, frequencies.osc1Frequency, null, synthModContext);
             const osc1Gain = audioContext.createGain();
             osc1Gain.gain.value = 0;
 
             // Create oscillator 2
             const osc2 = audioContext.createOscillator();
-            configureOscillatorWaveAndPitch(osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency);
+            configureOscillatorWaveAndPitch(osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency, synthModContext);
             const osc2Gain = audioContext.createGain();
             osc2Gain.gain.value = 0;
 
             // Create oscillator 3
             const osc3 = audioContext.createOscillator();
-            configureOscillatorWaveAndPitch(osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency);
+            configureOscillatorWaveAndPitch(osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency, synthModContext);
             const osc3Gain = audioContext.createGain();
             osc3Gain.gain.value = 0;
 
@@ -31370,13 +32096,15 @@
             let noiseSource = null;
             let noiseGain = null;
 
-            if (routeMode === 'wide' && typeof audioContext.createStereoPanner === 'function') {
+            if ((routeMode === 'wide' || stereoWidth > 0.001) && typeof audioContext.createStereoPanner === 'function') {
                 osc1Pan = audioContext.createStereoPanner();
                 osc2Pan = audioContext.createStereoPanner();
                 osc3Pan = audioContext.createStereoPanner();
-                osc1Pan.pan.value = -0.75;
+                const wideBonus = routeMode === 'wide' ? 0.22 : 0;
+                const spread = Math.max(0.1, Math.min(1, stereoWidth + wideBonus));
+                osc1Pan.pan.value = -spread;
                 osc2Pan.pan.value = 0;
-                osc3Pan.pan.value = 0.75;
+                osc3Pan.pan.value = spread;
                 voiceNodes.push(osc1Pan, osc2Pan, osc3Pan);
             } else if (routeMode === 'sub' || routeMode === 'metal') {
                 osc3ToneFilter = audioContext.createBiquadFilter();
@@ -31386,9 +32114,11 @@
                 voiceNodes.push(osc3ToneFilter);
             }
 
-            if (routeMode === 'metal') {
+            if (routeMode === 'metal' || fmAmount > 0.001) {
                 osc3ModGain = audioContext.createGain();
-                osc3ModGain.gain.value = Math.max(8, baseFreq * (0.14 + (noteVelocity * 0.16)));
+                const metalBias = routeMode === 'metal' ? 0.14 + (noteVelocity * 0.16) : 0;
+                const fmBias = fmAmount * (0.08 + (noteVelocity * 0.22));
+                osc3ModGain.gain.value = Math.max(0, baseFreq * (metalBias + fmBias));
                 voiceNodes.push(osc3ModGain);
             }
 
@@ -31430,7 +32160,7 @@
 
             osc3Gain.connect(oscMixer);
 
-            if (oscNoiseConfig.level > 0.0001 && (whiteNoiseBuffer || pinkNoiseBuffer)) {
+            if (oscNoiseLevel > 0.0001 && (whiteNoiseBuffer || pinkNoiseBuffer)) {
                 noiseSource = audioContext.createBufferSource();
                 noiseSource.buffer = oscNoiseConfig.type === 'pink' ? pinkNoiseBuffer : whiteNoiseBuffer;
                 noiseSource.loop = true;
@@ -31474,12 +32204,12 @@
             }
 
             const envelopes = {
-                osc1: applyVoiceEnvelope(osc1Gain, osc1Config, routeMix.osc1),
-                osc2: applyVoiceEnvelope(osc2Gain, osc2Config, routeMix.osc2),
-                osc3: applyVoiceEnvelope(osc3Gain, osc3Config, routeMix.osc3)
+                osc1: applyVoiceEnvelope(osc1Gain, { ...osc1Config, level: osc1Level }, routeMix.osc1),
+                osc2: applyVoiceEnvelope(osc2Gain, { ...osc2Config, level: osc2Level }, routeMix.osc2),
+                osc3: applyVoiceEnvelope(osc3Gain, { ...osc3Config, level: osc3Level }, routeMix.osc3)
             };
             if (noiseGain) {
-                envelopes.noise = applyVoiceEnvelope(noiseGain, oscNoiseConfig, 1);
+                envelopes.noise = applyVoiceEnvelope(noiseGain, { ...oscNoiseConfig, level: oscNoiseLevel }, 1);
             }
 
             // Store voice
@@ -31493,6 +32223,7 @@
                 noiseSource, noiseGain,
                 osc1Pan, osc2Pan, osc3Pan,
                 osc3ToneFilter, osc3ModGain,
+                synthModContext,
                 nodes: voiceNodes,
                 startTime
             });
@@ -33252,6 +33983,37 @@
                 applySynthPopupPreset(presetId);
             }
         });
+        document.getElementById('synthRandomPatchBtn').addEventListener('click', () => {
+            randomizeSynthPopupPatch();
+        });
+        document.getElementById('synthWaveShape').addEventListener('input', () => {
+            syncSynthAdvancedLabels();
+            refreshActiveOscillatorVoices();
+        });
+        document.getElementById('synthStereoWidth').addEventListener('input', () => {
+            syncSynthAdvancedLabels();
+            retriggerActiveOscillatorVoices();
+        });
+        document.getElementById('synthFmAmount').addEventListener('input', () => {
+            syncSynthAdvancedLabels();
+            retriggerActiveOscillatorVoices();
+        });
+        [1, 2, 3, 4].forEach((index) => {
+            document.getElementById(`synthMacro${index}`).addEventListener('input', () => {
+                syncSynthMacroLabels();
+                refreshSynthComplexState();
+            });
+            document.getElementById(`synthMod${index}Source`).addEventListener('change', () => {
+                refreshSynthComplexState();
+            });
+            document.getElementById(`synthMod${index}Target`).addEventListener('change', () => {
+                refreshSynthComplexState();
+            });
+            document.getElementById(`synthMod${index}Amount`).addEventListener('input', () => {
+                syncSynthModMatrixLabels();
+                refreshSynthComplexState();
+            });
+        });
 
         // Oscillator 1
         document.getElementById('osc1Wave').addEventListener('change', (e) => {
@@ -33523,6 +34285,7 @@
         syncOscRouteModeUI();
         syncOscNoiseTypeLabel();
         syncSynthLfoDepthLabels();
+        syncSynthComplexControls();
         populateSynthPresetSelect();
         const synthPopupModule = document.querySelector('.source-seed-group[aria-label="3-voice synth controls"]');
         synthPopupModule?.querySelectorAll('input, select').forEach((control) => {
@@ -34286,16 +35049,35 @@
             setSelectValue('finalPanLfoWaveform', chooseRandom(['sine', 'triangle', 'sawtooth', 'ramp', 'square', 'pulse', 'stepped']));
             setSelectValue('finalPanAudioDivider', chooseRandom(['4', '8', '16', '32', '64', '128']));
             setSelectValue('finalPanAudioMode', chooseRandom(['peak', 'hybrid', 'hybrid', 'centroid']));
-            setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
-            setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
-            setSelectValue('osc3Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square']));
+            setSelectValue('osc1Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square', 'pulse', 'supersaw', 'organ', 'vocal', 'metal']));
+            setSelectValue('osc2Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square', 'pulse', 'supersaw', 'organ', 'vocal', 'metal']));
+            setSelectValue('osc3Wave', chooseRandom(['sine', 'triangle', 'sawtooth', 'square', 'pulse', 'supersaw', 'organ', 'vocal', 'metal']));
             setSelectValue('osc2Sync', chooseRandom(['off', 'off', 'off', 'osc1']));
             setSelectValue('osc3Sync', chooseRandom(['off', 'off', 'osc1', 'osc2']));
             setSelectValue('oscSynthFilterType', chooseRandom(['lowpass', 'bandpass', 'highpass', 'notch', 'allpass']));
             setSliderValue('oscSynthCutoff', randomIntegerInRange(480, 17000));
             setSliderValue('oscSynthResonance', Number((0.5 + Math.random() * 2.9).toFixed(1)));
             setSliderValue('oscSynthDrive', Number((Math.random() * 8.5).toFixed(1)));
+            setSliderValue('synthWaveShape', randomIntegerInRange(10, 90));
+            setSliderValue('synthStereoWidth', randomIntegerInRange(0, 100));
+            setSliderValue('synthFmAmount', maybe(0.48) ? randomIntegerInRange(0, 78) : randomIntegerInRange(0, 24));
+            setSliderValue('synthMacro1', randomIntegerInRange(0, 100));
+            setSliderValue('synthMacro2', randomIntegerInRange(0, 100));
+            setSliderValue('synthMacro3', randomIntegerInRange(0, 100));
+            setSliderValue('synthMacro4', randomIntegerInRange(0, 100));
+            setSliderValue('synthMod1Amount', randomIntegerInRange(-72, 72));
+            setSliderValue('synthMod2Amount', randomIntegerInRange(-72, 72));
+            setSliderValue('synthMod3Amount', randomIntegerInRange(-72, 72));
+            setSliderValue('synthMod4Amount', randomIntegerInRange(-72, 72));
             setSelectValue('oscRouteMode', chooseRandom(['random', 'blend', 'wide', 'metal', 'sub']));
+            setSelectValue('synthMod1Source', chooseRandom(['lfo1', 'lfo2', 'lfo3', 'macro1', 'macro2', 'macro3', 'macro4', 'velocity', 'random']));
+            setSelectValue('synthMod2Source', chooseRandom(['lfo1', 'lfo2', 'lfo3', 'macro1', 'macro2', 'macro3', 'macro4', 'velocity', 'random']));
+            setSelectValue('synthMod3Source', chooseRandom(['lfo1', 'lfo2', 'lfo3', 'macro1', 'macro2', 'macro3', 'macro4', 'velocity', 'random']));
+            setSelectValue('synthMod4Source', chooseRandom(['lfo1', 'lfo2', 'lfo3', 'macro1', 'macro2', 'macro3', 'macro4', 'velocity', 'random']));
+            setSelectValue('synthMod1Target', chooseRandom(Object.keys(SYNTH_MOD_TARGET_CONFIG)));
+            setSelectValue('synthMod2Target', chooseRandom(Object.keys(SYNTH_MOD_TARGET_CONFIG)));
+            setSelectValue('synthMod3Target', chooseRandom(Object.keys(SYNTH_MOD_TARGET_CONFIG)));
+            setSelectValue('synthMod4Target', chooseRandom(Object.keys(SYNTH_MOD_TARGET_CONFIG)));
             setSelectValue('noiseType', noiseEnabled ? chooseRandom(['white', 'pink']) : 'none');
             setFinalFxPlacementLfoEnabled(false, { silent: true, skipSave: true });
             setFinalFxPlacement('pre');
@@ -36956,6 +37738,17 @@
                 oscSynthResonance: 0.7,
                 oscSynthResonanceLfoDepth: 100,
                 oscSynthDrive: 0,
+                synthWaveShape: 50,
+                synthStereoWidth: 38,
+                synthFmAmount: 0,
+                synthMacro1: 50,
+                synthMacro2: 50,
+                synthMacro3: 50,
+                synthMacro4: 50,
+                synthMod1Amount: 35,
+                synthMod2Amount: 28,
+                synthMod3Amount: 24,
+                synthMod4Amount: 20,
                 generatedSourceTune: 0,
                 micSourceTune: 0,
                 grainAMicSourceTune: 0,
@@ -37064,15 +37857,31 @@
             document.getElementById('osc2Sync').value = 'off';
             document.getElementById('osc3Sync').value = 'off';
             document.getElementById('oscNoiseType').value = 'white';
+            document.getElementById('synthMod1Source').value = 'lfo1';
+            document.getElementById('synthMod1Target').value = 'oscSynthCutoff';
+            document.getElementById('synthMod2Source').value = 'macro1';
+            document.getElementById('synthMod2Target').value = 'oscSynthDrive';
+            document.getElementById('synthMod3Source').value = 'velocity';
+            document.getElementById('synthMod3Target').value = 'osc1Level';
+            document.getElementById('synthMod4Source').value = 'random';
+            document.getElementById('synthMod4Target').value = 'synthStereoWidth';
             document.getElementById('performanceDropboxSampleSource').value = 'sampledrop';
             const dropboxStretchToggle = document.getElementById('performanceDropboxSampleStretchToLoop');
             if (dropboxStretchToggle) dropboxStretchToggle.checked = false;
             document.getElementById('oscSynthFilterType').value = 'lowpass';
-            ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync', 'oscNoiseType'].forEach((id) => {
+            [
+                'osc1Wave', 'osc2Wave', 'osc3Wave',
+                'osc2Sync', 'osc3Sync', 'oscNoiseType',
+                'synthMod1Source', 'synthMod1Target',
+                'synthMod2Source', 'synthMod2Target',
+                'synthMod3Source', 'synthMod3Target',
+                'synthMod4Source', 'synthMod4Target'
+            ].forEach((id) => {
                 document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
             });
             setSynthPresetSelectValue('custom');
             syncOscRouteModeUI('random');
+            syncSynthComplexControls();
             syncOscSynthFilterControls();
             syncFinalPanControlDisplays();
             setOscillatorOctave(1, 8);
@@ -37263,7 +38072,15 @@
                     osc3Sync: document.getElementById('osc3Sync')?.value || 'off',
                     oscNoiseType: document.getElementById('oscNoiseType')?.value || 'white',
                     oscRouteMode: document.getElementById('oscRouteMode')?.value || 'random',
-                    oscSynthFilterType: document.getElementById('oscSynthFilterType')?.value || 'lowpass'
+                    oscSynthFilterType: document.getElementById('oscSynthFilterType')?.value || 'lowpass',
+                    synthMod1Source: document.getElementById('synthMod1Source')?.value || 'lfo1',
+                    synthMod1Target: document.getElementById('synthMod1Target')?.value || 'oscSynthCutoff',
+                    synthMod2Source: document.getElementById('synthMod2Source')?.value || 'macro1',
+                    synthMod2Target: document.getElementById('synthMod2Target')?.value || 'oscSynthDrive',
+                    synthMod3Source: document.getElementById('synthMod3Source')?.value || 'velocity',
+                    synthMod3Target: document.getElementById('synthMod3Target')?.value || 'osc1Level',
+                    synthMod4Source: document.getElementById('synthMod4Source')?.value || 'random',
+                    synthMod4Target: document.getElementById('synthMod4Target')?.value || 'synthStereoWidth'
                 },
                 generatedSampleSolo: generatedSampleSolo,
                 granularLayersEnabled: granularLayersEnabled,
@@ -38608,11 +39425,19 @@
                     }
                 }
                 normalizeGranularLayerSourceSelects();
-                ['osc1Wave', 'osc2Wave', 'osc3Wave', 'osc2Sync', 'osc3Sync', 'oscNoiseType'].forEach((id) => {
+                [
+                    'osc1Wave', 'osc2Wave', 'osc3Wave',
+                    'osc2Sync', 'osc3Sync', 'oscNoiseType',
+                    'synthMod1Source', 'synthMod1Target',
+                    'synthMod2Source', 'synthMod2Target',
+                    'synthMod3Source', 'synthMod3Target',
+                    'synthMod4Source', 'synthMod4Target'
+                ].forEach((id) => {
                     document.getElementById(id)?.dispatchEvent(new Event('change', { bubbles: true }));
                 });
                 syncSynthPresetLabel(document.getElementById('synthPresetSelect')?.value || 'custom');
                 setGrainTimingMode('synth', { silent: true, skipSave: true, skipRestart: true });
+                syncSynthComplexControls();
                 syncOscSynthFilterControls();
                 syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
 
