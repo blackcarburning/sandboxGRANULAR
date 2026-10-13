@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-09-53-build-v2026.10.13.22';
+            const cacheBuster = '2026-10-13-10-00-build-v2026.10.13.23';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4249,6 +4249,34 @@
             text-transform: uppercase;
         }
 
+        .simplified-ui .performance-inline-vu {
+            display: grid;
+            gap: 4px;
+            margin-top: 8px;
+        }
+
+        .simplified-ui .performance-inline-vu[hidden] {
+            display: none;
+        }
+
+        .simplified-ui .performance-inline-vu-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: rgba(230, 240, 255, 0.62);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .simplified-ui .performance-inline-vu-head .value {
+            color: var(--accent);
+            font-size: 10px;
+            letter-spacing: 0.03em;
+        }
+
         .simplified-ui .performance-lfo-rate-row {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -5247,7 +5275,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.22</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.23</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -6566,6 +6594,9 @@
                         <div class="performance-chip">Mixer</div>
                         <h3 class="performance-feature-title">Mixer</h3>
                         <p class="performance-feature-note">Keep source balance, module levels, and trim staging together in one place so gain decisions happen in one pass.</p>
+                    </div>
+                    <div class="performance-feature-actions">
+                        <button class="performance-btn" id="performanceMixerVuToggleBtn" type="button" aria-pressed="false">VU Meters Off</button>
                     </div>
                 </div>
                 <div class="performance-mixer-stack">
@@ -15117,7 +15148,95 @@
             value.textContent = Number.isFinite(db) ? `${db.toFixed(1)} dB` : '-inf dB';
         }
 
+        function resetPerformanceMixerVuChannelDisplay(controlId) {
+            const { shellId, fillId, peakId, valueId } = getPerformanceMixerVuDomIds(controlId);
+            updatePerformanceVuDisplay(
+                document.getElementById(shellId),
+                document.getElementById(fillId),
+                document.getElementById(peakId),
+                document.getElementById(valueId),
+                0,
+                0,
+                Number.NEGATIVE_INFINITY
+            );
+        }
+
+        function disconnectPerformanceMixerVuTap(controlId) {
+            const state = performanceMixerVuTapState.get(controlId);
+            if (!state) return;
+            if (state.node && state.analyser) {
+                try {
+                    state.node.disconnect(state.analyser);
+                } catch (error) {}
+            }
+            state.node = null;
+            state.analyser = null;
+            state.data = null;
+            state.level = 0;
+            state.peak = 0;
+        }
+
+        function syncPerformanceMixerVuTap(config) {
+            if (!config?.controlId) return null;
+            let state = performanceMixerVuTapState.get(config.controlId);
+            if (!state) {
+                state = { node: null, analyser: null, data: null, level: 0, peak: 0 };
+                performanceMixerVuTapState.set(config.controlId, state);
+            }
+            const nextNode = audioContext && audioContext.state === 'running' ? config.getNode?.() || null : null;
+            if (state.node === nextNode && state.analyser) {
+                return state;
+            }
+            disconnectPerformanceMixerVuTap(config.controlId);
+            if (!nextNode || !audioContext) return state;
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 1024;
+            analyser.smoothingTimeConstant = 0.82;
+            try {
+                nextNode.connect(analyser);
+            } catch (error) {
+                return state;
+            }
+            state.node = nextNode;
+            state.analyser = analyser;
+            state.data = new Float32Array(analyser.fftSize);
+            return state;
+        }
+
+        function updatePerformanceMixerVuChannel(config) {
+            const state = syncPerformanceMixerVuTap(config);
+            if (!state?.analyser || !state.data) {
+                resetPerformanceMixerVuChannelDisplay(config.controlId);
+                return;
+            }
+            state.analyser.getFloatTimeDomainData(state.data);
+            let energy = 0;
+            for (let index = 0; index < state.data.length; index += 1) {
+                const sample = state.data[index];
+                energy += sample * sample;
+            }
+            const rms = Math.sqrt(energy / state.data.length);
+            const db = rms > 0.00001 ? (20 * Math.log10(rms)) : Number.NEGATIVE_INFINITY;
+            const normalized = Number.isFinite(db)
+                ? Math.max(0, Math.min(1, (db + 60) / 60))
+                : 0;
+            const smoothing = normalized > state.level ? 0.58 : 0.18;
+            state.level += (normalized - state.level) * smoothing;
+            state.peak = Math.max(normalized, state.peak - 0.022);
+            const { shellId, fillId, peakId, valueId } = getPerformanceMixerVuDomIds(config.controlId);
+            updatePerformanceVuDisplay(
+                document.getElementById(shellId),
+                document.getElementById(fillId),
+                document.getElementById(peakId),
+                document.getElementById(valueId),
+                Math.max(0, Math.min(100, state.level * 100)),
+                Math.max(0, Math.min(100, state.peak * 100)),
+                db
+            );
+        }
+
         function updatePerformanceVuMeter(rms = 0) {
+            if (!performanceMixerVuMetersEnabled) return;
             const safeRms = audioContext && audioContext.state === 'running' && Number.isFinite(rms) ? Math.max(0, rms) : 0;
             const db = safeRms > 0.00001 ? (20 * Math.log10(safeRms)) : Number.NEGATIVE_INFINITY;
             const normalized = Number.isFinite(db)
@@ -15147,6 +15266,69 @@
                 peakPercent,
                 db
             );
+        }
+
+        function stopPerformanceMixerVuMeters(options = {}) {
+            if (performanceMixerVuAnimationFrameId) {
+                cancelAnimationFrame(performanceMixerVuAnimationFrameId);
+                performanceMixerVuAnimationFrameId = null;
+            }
+            PERFORMANCE_MIXER_VU_CHANNELS.forEach((config) => {
+                disconnectPerformanceMixerVuTap(config.controlId);
+                if (options.reset !== false) {
+                    resetPerformanceMixerVuChannelDisplay(config.controlId);
+                }
+            });
+            if (options.reset !== false) {
+                performanceVuLevel = 0;
+                performanceVuPeakLevel = 0;
+                updatePerformanceVuDisplay(
+                    performanceOutputVuShell,
+                    performanceOutputVuFill,
+                    performanceOutputVuPeak,
+                    performanceOutputVuValue,
+                    0,
+                    0,
+                    Number.NEGATIVE_INFINITY
+                );
+                updatePerformanceVuDisplay(
+                    performanceMixerVuShell,
+                    performanceMixerVuFill,
+                    performanceMixerVuPeak,
+                    performanceMixerVuValue,
+                    0,
+                    0,
+                    Number.NEGATIVE_INFINITY
+                );
+            }
+        }
+
+        function startPerformanceMixerVuMeters() {
+            stopPerformanceMixerVuMeters({ reset: false });
+            const tick = () => {
+                if (!performanceMixerVuMetersEnabled) {
+                    performanceMixerVuAnimationFrameId = null;
+                    return;
+                }
+                PERFORMANCE_MIXER_VU_CHANNELS.forEach((config) => {
+                    updatePerformanceMixerVuChannel(config);
+                });
+                updatePerformanceVuMeter(finalPanTrackedRms);
+                performanceMixerVuAnimationFrameId = requestAnimationFrame(tick);
+            };
+            performanceMixerVuAnimationFrameId = requestAnimationFrame(tick);
+        }
+
+        function setPerformanceMixerVuMetersEnabled(enabled) {
+            performanceMixerVuMetersEnabled = Boolean(enabled);
+            syncPerformanceMixerVuVisibility();
+            if (performanceMixerVuMetersEnabled) {
+                startPerformanceMixerVuMeters();
+                setStatus('Mixer VU meters on.');
+            } else {
+                stopPerformanceMixerVuMeters();
+                setStatus('Mixer VU meters off.');
+            }
         }
 
         function getFinalPanOrbitValue(elapsedSeconds) {
@@ -45629,6 +45811,7 @@
         const performanceMixerVuFill = document.getElementById('performanceMixerVuFill');
         const performanceMixerVuPeak = document.getElementById('performanceMixerVuPeak');
         const performanceMixerVuValue = document.getElementById('performanceMixerVuValue');
+        const performanceMixerVuToggleBtn = document.getElementById('performanceMixerVuToggleBtn');
         const performanceClickGuard = document.getElementById('performanceClickGuard');
         const performanceOctaveDownBtn = document.getElementById('performanceOctaveDownBtn');
         const performanceOctaveUpBtn = document.getElementById('performanceOctaveUpBtn');
@@ -45778,6 +45961,23 @@
             ['performanceGrainAVolume', 'Grain A'],
             ['performanceGrainBVolume', 'Grain B']
         ];
+        const PERFORMANCE_MIXER_VU_CHANNELS = [
+            { controlId: 'performanceOscVolume', label: 'Osc', getNode: () => oscOutputGain },
+            { controlId: 'performanceSampleVolume', label: 'Sample', getNode: () => granularOutputGain },
+            { controlId: 'performanceGeneratedDryMix', label: 'Loop', getNode: () => generatedDryGainNode },
+            { controlId: 'performanceNoiseLevel', label: 'Noise', getNode: () => oscOutputGain },
+            { controlId: 'performanceDropboxSampleLevel', label: 'Dropbox', getNode: () => dropboxSampleLayerGainNode },
+            { controlId: 'performanceDrumMachineLevel', label: 'Drums', getNode: () => drumMachineBusGainNode || drumMachineKickBypassGainNode },
+            { controlId: 'performanceBastardLoopLevel', label: 'BLoop A', getNode: () => bastardLoopGainNode },
+            { controlId: 'performanceBastardLoop2Level', label: 'BLoop B', getNode: () => bastardLoop2GainNode },
+            { controlId: 'performanceBastardLoop3Level', label: 'BLoop C', getNode: () => bastardLoop3GainNode },
+            { controlId: 'performanceBastardLoopVLevel', label: 'BLoop V', getNode: () => bastardLoopVGainNode },
+            { controlId: 'performanceBastardLoopPLevel', label: 'BLoop P', getNode: () => bastardLoopPGainNode },
+            { controlId: 'performanceBastardLoopOLevel', label: 'BLoop O', getNode: () => bastardLoopOGainNode },
+            { controlId: 'performanceBastardLoopLLevelMixer', label: 'BLoop L', getNode: () => bastardLoopLDelayInputGainNode || bastardLoopLDelayDryGainNode || bastardLoopLDelaySendGainNode },
+            { controlId: 'performanceBastardLoopXLevelMixer', label: 'BLoop X', getNode: () => bastardLoopXDelayInputGainNode || bastardLoopXDelayDryGainNode || bastardLoopXDelaySendGainNode },
+            { controlId: 'performanceBastardLoopMLevelMixer', label: 'BLoop M', getNode: () => bastardLoopMGainNode || bastardLoopMFxInputGainNode }
+        ];
         const APP_WIDE_GAIN_STAGE_ANALYSIS = [
             ['oscSynthDrive', 'Osc Drive'],
             ['distortion', 'Global Distortion'],
@@ -45800,6 +46000,70 @@
         ];
         let mixerGainStageHighlightsActive = false;
         let performanceGainStageAuditMonitorTimer = null;
+        let performanceMixerVuMetersEnabled = false;
+        let performanceMixerVuAnimationFrameId = null;
+        const performanceMixerVuTapState = new Map();
+
+        function getPerformanceMixerVuDomIds(controlId) {
+            return {
+                shellId: `${controlId}VuShell`,
+                fillId: `${controlId}VuFill`,
+                peakId: `${controlId}VuPeak`,
+                valueId: `${controlId}VuValue`
+            };
+        }
+
+        function ensurePerformanceMixerVuCardsMounted() {
+            PERFORMANCE_MIXER_VU_CHANNELS.forEach(({ controlId, label }) => {
+                const control = document.getElementById(controlId);
+                const card = control?.closest('.performance-sound-card');
+                if (!card || card.querySelector(`[data-performance-inline-vu="${controlId}"]`)) return;
+                const { shellId, fillId, peakId, valueId } = getPerformanceMixerVuDomIds(controlId);
+                card.insertAdjacentHTML('beforeend', `
+                    <div class="performance-inline-vu" data-performance-inline-vu="${controlId}" hidden>
+                        <div class="performance-inline-vu-head">
+                            <span>${label} VU</span>
+                            <span class="value" id="${valueId}">-inf dB</span>
+                        </div>
+                        <div
+                            class="performance-vu-shell"
+                            id="${shellId}"
+                            role="meter"
+                            aria-label="${label} mixer level meter"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="0"
+                            aria-valuetext="silent"
+                        >
+                            <div class="performance-vu-fill" id="${fillId}"></div>
+                            <div class="performance-vu-peak" id="${peakId}"></div>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        function getPerformanceMixerSharedVuCards() {
+            return [
+                performanceMixerVuShell?.closest('.performance-sound-card'),
+                performanceOutputVuShell?.closest('.performance-sound-card')
+            ].filter(Boolean);
+        }
+
+        function syncPerformanceMixerVuVisibility() {
+            ensurePerformanceMixerVuCardsMounted();
+            document.querySelectorAll('[data-performance-inline-vu]').forEach((meter) => {
+                meter.hidden = !performanceMixerVuMetersEnabled;
+            });
+            getPerformanceMixerSharedVuCards().forEach((card) => {
+                card.hidden = !performanceMixerVuMetersEnabled;
+            });
+            if (performanceMixerVuToggleBtn) {
+                performanceMixerVuToggleBtn.classList.toggle('active', performanceMixerVuMetersEnabled);
+                performanceMixerVuToggleBtn.setAttribute('aria-pressed', String(performanceMixerVuMetersEnabled));
+                performanceMixerVuToggleBtn.textContent = performanceMixerVuMetersEnabled ? 'VU Meters On' : 'VU Meters Off';
+            }
+        }
 
         function appendPerformanceControlCard(controlId, targetGrid) {
             if (!targetGrid) return;
@@ -45817,6 +46081,9 @@
                 performanceMixTrimCard.hidden = true;
             }
         }
+
+        mountPerformanceMixerSections();
+        syncPerformanceMixerVuVisibility();
 
         function clearPerformanceGainStageHighlights() {
             document.querySelectorAll('.performance-sound-card.gain-stage-alert, .performance-sound-card.gain-stage-primary, .control-group.gain-stage-alert, .control-group.gain-stage-primary').forEach((card) => {
@@ -46568,8 +46835,6 @@
                 runPerformanceGainStageAudit({ announce: false });
             }, 350);
         }
-
-        mountPerformanceMixerSections();
 
         function formatSignedControlValue(value, suffix) {
             const rounded = Math.round(Number(value) || 0);
@@ -49485,6 +49750,10 @@
 
         performanceGainStageAuditBtn?.addEventListener('click', () => {
             startPerformanceGainStageAuditMonitor();
+        });
+
+        performanceMixerVuToggleBtn?.addEventListener('click', () => {
+            setPerformanceMixerVuMetersEnabled(!performanceMixerVuMetersEnabled);
         });
 
         performanceGainStageAuditList?.addEventListener('click', (event) => {
