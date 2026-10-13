@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-08-24-build-v2026.10.13.7';
+            const cacheBuster = '2026-10-13-08-31-build-v2026.10.13.8';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -4844,7 +4844,7 @@
 
         .section-jump-quick-stack {
             position: absolute;
-            top: 31svh;
+            top: 18svh;
             bottom: 7svh;
             left: 0;
             display: flex;
@@ -5001,7 +5001,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.7</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.8</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -5014,8 +5014,8 @@
             <span class="section-jump-handle-text">Jump</span>
         </button>
         <div class="section-jump-quick-stack" aria-hidden="false">
-            <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega Randomise</button>
-            <button class="section-jump-quick" id="sectionJumpSparseRandomBtn" type="button">Sparse Randomise</button>
+            <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega</button>
+            <button class="section-jump-quick" id="sectionJumpSparseRandomBtn" type="button">Sparse</button>
             <button class="section-jump-quick" id="sectionJumpKeyboardBtn" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
             <button class="section-jump-quick" id="sectionJumpLayerSwitchBtn" type="button" data-jump-target="#performanceLayerSwitchesCard">Layers</button>
             <button class="section-jump-quick" id="sectionJumpBastardMixerBtn" type="button" data-jump-target="#performanceMixerCard">BLoop Mix</button>
@@ -5025,8 +5025,8 @@
         <div class="section-jump-panel" id="sectionJumpPanel">
             <div class="section-jump-title">Jump To</div>
             <div class="section-jump-grid">
-                <button class="section-jump-option" id="sectionJumpMegaRandomPanelBtn" type="button">Mega Randomise</button>
-                <button class="section-jump-option" id="sectionJumpSparseRandomPanelBtn" type="button">Sparse Randomise</button>
+                <button class="section-jump-option" id="sectionJumpMegaRandomPanelBtn" type="button">Mega</button>
+                <button class="section-jump-option" id="sectionJumpSparseRandomPanelBtn" type="button">Sparse</button>
                 <button class="section-jump-option" type="button" data-jump-target=".performance-keyboard-card">Keys</button>
                 <button class="section-jump-option" type="button" data-jump-target=".synth-container">Synth</button>
                 <button class="section-jump-option" id="sectionJumpTransportPanelBtn" type="button">Start All</button>
