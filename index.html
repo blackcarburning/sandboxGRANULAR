@@ -12,7 +12,7 @@
     <title>MYGRAIN v2026.10.05.2</title>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-13-08-37-build-v2026.10.13.9';
+            const cacheBuster = '2026-10-13-08-40-build-v2026.10.13.10';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5001,7 +5001,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.13.9</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.13.10</strong></div>
         <button id="start-btn">START MYGRAIN</button>
     </div>
 
@@ -45881,8 +45881,8 @@
                 if (!button) return;
                 button.disabled = megaRandomizeInFlight;
                 button.textContent = megaRandomizeInFlight && megaRandomizeMode === 'mega'
-                    ? 'Mega Random…'
-                    : 'Mega Randomise';
+                    ? 'Mega…'
+                    : 'Mega';
             });
 
             [
@@ -45912,8 +45912,8 @@
                 if (!button) return;
                 button.disabled = megaRandomizeInFlight;
                 button.textContent = megaRandomizeInFlight && megaRandomizeMode === 'sparse'
-                    ? 'Sparse Randomise…'
-                    : 'Sparse Randomise';
+                    ? 'Sparse…'
+                    : 'Sparse';
             });
 
             document.querySelectorAll('[data-osc-layer-toggle="true"]').forEach((button) => {
