@@ -7,7 +7,7 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
 const controls = require('../ai-patch-controls.json').controls;
 const evidence = process.env.AI_PATCH_EVIDENCE || '/tmp/mygrain-ai-evidence';
 fs.mkdirSync(evidence, { recursive: true });
-const recipe = { title: 'Soft Pink', description: 'A smoother, wider direction for the existing granular sounds.', parameters: { grainSize: 320, attack: 1400, release: 3900, grainMainSmoothing: 78, grainMainWidth: 80, lpfCutoff: 3900, hpfCutoff: 60 } };
+const recipe = { title: 'Soft Pink', description: 'A smoother, wider direction for the existing granular sounds.', loops: {}, parameters: { grainSize: 320, attack: 1400, release: 3900, grainMainSmoothing: 78, grainMainWidth: 80, lpfCutoff: 3900, hpfCutoff: 60 } };
 const results = [];
 (async () => {
     for (const [engine, type] of Object.entries({ chromium, webkit })) {
@@ -29,7 +29,7 @@ const results = [];
                     if (url.pathname.endsWith('/api/ai-patch-direction')) {
                         received++;
                         const data = route.request().postDataJSON();
-                        assert.equal(Object.keys(data.current).length, 21);
+                        assert.equal(Object.keys(data.current).length, 64);
                         assert.equal(data.model, undefined);
                         const responseMode = mode;
                         if (responseMode === 'hold') await new Promise(resolve => release = resolve);
@@ -50,7 +50,7 @@ const results = [];
                     assert.equal(received, 0);
                     await page.locator('#start-btn').click();
                     await page.waitForFunction(() => isAudioGraphReady() && !engineStarting && !stateSaveSuspended);
-                    await page.evaluate(() => { setSliderValue('hpfCutoff', 1250); syncPerformanceControlState(); });
+                    await page.evaluate(() => { stopAllPerformancePlayback({ silent: true }); syncBastardLoopKUi(); setSliderValue('hpfCutoff', 1250); syncPerformanceControlState(); });
                     console.log('Started', engine, viewport.width);
                     const baseline = await page.evaluate(() => mygrainAiPatchAdapter.fingerprint());
                     if (viewport.width < 960) {
@@ -81,7 +81,7 @@ const results = [];
                     while (received === initialCount) await new Promise(resolve => setTimeout(resolve, 20));
                     assert.equal(await page.evaluate(() => mygrainAiPatchAdapter.fingerprint()), baseline, 'pending generation leaves parameters unchanged');
                     release(); mode = 'normal';
-                    await page.waitForFunction(() => !mygrainAiPatch.busy && document.getElementById('aiPatchStatus').textContent.startsWith('Applied 7 parameter changes'));
+                    await page.waitForFunction(() => !mygrainAiPatch.busy && document.getElementById('aiPatchStatus').textContent.startsWith('Applied 7 changes'));
                     await page.waitForFunction(() => lpfNodes.length > 0 && Math.abs(lpfNodes[0].frequency.value - 3900) < 1);
                     await page.screenshot({ path: path.join(evidence, `${engine}-${viewport.width}-applied.png`), fullPage: false });
                     assert.equal(await page.evaluate(() => audioContext === window.__aiAudioContext && audioContext.state === 'running'), true);
@@ -96,7 +96,8 @@ const results = [];
                     const other = value => { const copy = structuredClone(value); delete copy.timestamp; delete copy.sliders; return copy; };
                     assert.deepEqual(other(applied), other(beforePreset), 'samples, toggles, arrangement and source selection are unchanged');
                     await page.locator('#aiPatchUndo').click();
-                    assert.equal(await page.evaluate(() => mygrainAiPatchAdapter.fingerprint()), baseline, 'Undo restores exact prior patch state');
+                    await page.waitForFunction(() => !mygrainAiPatch.busy);
+                    { const actual=JSON.parse(await page.evaluate(() => mygrainAiPatchAdapter.fingerprint())), expected=JSON.parse(baseline); const diffs=[]; function diff(a,b,p='') { if (JSON.stringify(a)===JSON.stringify(b)) return; if (a&&b&&typeof a==='object'&&typeof b==='object') { for(const k of new Set([...Object.keys(a),...Object.keys(b)])) diff(a[k],b[k],p+'.'+k); } else diffs.push({path:p,actual:a,expected:b}); } diff(actual,expected); assert.deepEqual(diffs, [], 'Undo restores exact prior patch state'); }
                     // Undo must never overwrite a subsequent manual edit.
                     await page.locator('#aiPatchGenerate').click();
                     await page.waitForFunction(() => !mygrainAiPatch.busy && document.getElementById('aiPatchStatus').textContent.startsWith('Applied'));

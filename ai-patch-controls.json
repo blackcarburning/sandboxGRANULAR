@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "controls": {
     "grainSize": {
       "label": "Main grain size",
@@ -147,6 +147,404 @@
       "max": 100,
       "step": 1,
       "unit": "%"
+    },
+    "globalBpmSlider": {
+      "label": "Global tempo",
+      "min": 40,
+      "max": 200,
+      "step": 1,
+      "unit": "BPM"
+    },
+    "performanceBastardLoopLevel": {
+      "label": "Loop A level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopSemitone": {
+      "label": "Loop A transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopFilterCutoff": {
+      "label": "Loop A cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoop2Level": {
+      "label": "Loop B level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoop2Semitone": {
+      "label": "Loop B transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoop2FilterCutoff": {
+      "label": "Loop B cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoop3Level": {
+      "label": "Loop C level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoop3Pitch": {
+      "label": "Loop C octave",
+      "min": -1,
+      "max": 1,
+      "step": 1,
+      "unit": "octaves"
+    },
+    "performanceBastardLoop3FilterCutoff": {
+      "label": "Loop C cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopVLevel": {
+      "label": "Loop V level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopVSemitone": {
+      "label": "Loop V transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopVFilterCutoff": {
+      "label": "Loop V cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopPLevel": {
+      "label": "Loop P level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopPSemitone": {
+      "label": "Loop P transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopPFilterCutoff": {
+      "label": "Loop P cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopOLevel": {
+      "label": "Loop O level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopOSemitone": {
+      "label": "Loop O transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopOFilterCutoff": {
+      "label": "Loop O cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopLLevel": {
+      "label": "Loop L level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopLSemitone": {
+      "label": "Loop L transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopLFilterCutoff": {
+      "label": "Loop L cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopLLength": {
+      "label": "Loop L note length",
+      "min": 15,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopLAttack": {
+      "label": "Loop L attack",
+      "min": 2,
+      "max": 150,
+      "step": 1,
+      "unit": "ms"
+    },
+    "performanceBastardLoopLStartTrim": {
+      "label": "Loop L sample start",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopLDecay": {
+      "label": "Loop L decay",
+      "min": 15,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopXLevel": {
+      "label": "Loop X level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopXSemitone": {
+      "label": "Loop X transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopXFilterCutoff": {
+      "label": "Loop X cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopXLength": {
+      "label": "Loop X note length",
+      "min": 15,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopXAttack": {
+      "label": "Loop X attack",
+      "min": 2,
+      "max": 150,
+      "step": 1,
+      "unit": "ms"
+    },
+    "performanceBastardLoopXStartTrim": {
+      "label": "Loop X sample start",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopXDecay": {
+      "label": "Loop X decay",
+      "min": 15,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopQLevelMixer": {
+      "label": "Loop Q level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopMLevel": {
+      "label": "Loop M level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopMSemitone": {
+      "label": "Loop M transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopMFilterCutoff": {
+      "label": "Loop M cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopMPlusLevel": {
+      "label": "Loop M+ level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopMPlusSemitone": {
+      "label": "Loop M+ transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopMPlusFilterCutoff": {
+      "label": "Loop M+ cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
+    },
+    "performanceBastardLoopKLevel": {
+      "label": "Loop K level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopKSemitone": {
+      "label": "Loop K transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopKFilterCutoff": {
+      "label": "Loop K cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
     }
-  }
+  },
+  "loops": {
+    "A": {
+      "source": "sampledrop",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
+    },
+    "B": {
+      "source": "sampledrop2",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
+    },
+    "C": {
+      "source": "splice_claw",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
+    },
+    "V": {
+      "source": "samples_vocal",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
+    },
+    "P": {
+      "source": "samples_piano",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
+    },
+    "O": {
+      "source": "samples_orch",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
+    },
+    "L": {
+      "source": "samples_leads",
+      "reload": true,
+      "divisions": false,
+      "notes": true,
+      "recorded": false
+    },
+    "X": {
+      "source": "samples_bass",
+      "reload": true,
+      "divisions": false,
+      "notes": true,
+      "recorded": false
+    },
+    "Q": {
+      "source": null,
+      "reload": false,
+      "divisions": false,
+      "notes": false,
+      "recorded": false
+    },
+    "M": {
+      "source": null,
+      "reload": false,
+      "divisions": false,
+      "notes": false,
+      "recorded": true
+    },
+    "M+": {
+      "source": null,
+      "reload": false,
+      "divisions": false,
+      "notes": false,
+      "recorded": true
+    },
+    "K": {
+      "source": null,
+      "reload": false,
+      "divisions": false,
+      "notes": false,
+      "recorded": true
+    }
+  },
+  "divisions": [
+    "4",
+    "2",
+    "1",
+    "1/2",
+    "1/4",
+    "1/8",
+    "1/16",
+    "1/32"
+  ],
+  "maxReloads": 3
 }

@@ -50,3 +50,8 @@
     .simplified-ui #aiPatchCard { padding: 16px; max-width: calc(100vw - 68px); }
     #sectionJumpAiBtn { display: none !important; } /* Big two-column tile lives inside the mobile Jump menu. */
 }
+#aiPatchChanges { max-height: 330px; background: #fff4fa; padding: 12px 12px 12px 30px; border-radius: 8px; }
+#aiPatchChanges li { margin-bottom: 7px; font: 550 13px/1.5 ui-monospace, monospace; }
+#aiPatchSamples { max-height: 230px; overflow-y: auto; padding-left: 20px; }
+#aiPatchCard summary { cursor: pointer; font-weight: 800; min-height: 44px; padding-top: 10px; }
+#aiPatchCard h4 { margin: 14px 0 6px; }

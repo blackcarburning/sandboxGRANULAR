@@ -1,27 +1,44 @@
 # AI Patch Direction · Beta
 
-Build: `v2026.10.20.AI.2`.
+Build: `v2026.10.20.AI.3`.
 
 A bright-pink card and a full-width, two-column Jump tile generate and apply a direction to the existing patch. The fixed model is `openai/gpt-6.1-sol`; it runs through the host's existing OpenClaw one-shot model bridge. No provider key is delivered to the browser. This is not a full-song generator or an autonomous agent.
 
 ## Behaviour
 
-1. Start MYGRAIN and finish any Song edit, playback, arming, recording or randomisation.
-2. Describe the desired texture, or choose an example, then press **Generate & Apply**. Your existing patch stays unchanged while the AI request is pending.
-3. As soon as the result passes validation and the patch/account/Song state is still current, the app directly updates the actual controls and their normal engine handlers, then autosaves through the existing persistence path. There is no separate Apply button. The result lists the exact before/after parameter values and applied change count.
-4. Keep current clears the temporary Undo snapshot. Undo restores precisely the controls changed by the proposal. Undo is one-step and in-memory, not retained across reloads. Save/export a named patch as usual.
+1. Start MYGRAIN and finish Song editing/arming/playback, recording, other randomisation and sample loading.
+2. Describe a musical direction and press **Generate & Apply**. No audio changes while GPT-6.1 Sol is deciding.
+3. The validated recipe pauses transport, applies BPM, loads requested loop sources sequentially, writes note/chord patterns, and updates real controls through their existing audio handlers. Existing playback resumes after the operation; **Hear patch** starts the shared loop transport if it was stopped.
+4. A timestamped **live execution log** shows before → after scalar values, actual layer switches, divisions and written notes. Sample loads show collection, filenames returned by the audio server, download/decode/load stages, duration and channel count. Q reports its exact local multisample files before loading them. The all-loop inventory distinguishes ON/OFF, loaded samples, retained audio and empty lanes. No model-written prose is treated as proof of a sample load.
+5. Keep current retains the patch and clears the one-step in-memory Undo snapshot. The log remains visible. Undo restores tempo, settings, loop patterns, original sample buffers and Q state; it refuses to overwrite subsequent manual edits. Save/export a named patch as usual.
 
-The allowlist in `ai-patch-controls.json` has 21 scalar controls: Main/A/B grain size, envelopes, smoothing and stereo width; Main blend; shared low-pass/high-pass cutoff. Generated filter ranges are narrower than the engine's full ranges. Original values outside those narrower ranges can still be restored by Undo.
+### Scope
 
-Samples, sample regions, layer enable/mute states, pitches, BPM, modulation routing, mixer/master levels, effects and arrangement remain unchanged. An inactive granular layer stays inactive, so the result depends on existing sounds and routing. Standard patch JSON/ZIP schemas are unchanged; applied AI settings are ordinary patch values.
+The version-two allowlist in `ai-patch-controls.json` exposes **64 scalar controls and all 12 Bastardloop lanes**: A/B/C/V/P/O/L/X/Q/M/M+/K.
 
-Full local patch/source/account/Song fingerprints invalidate stale results. A changed patch also prevents stale generation/Undo from overwriting newer edits. Account lock aborts the browser request and discards any late result. Hidden Song render decks do not initialise AI or fetch its control schema.
+- Global BPM: 40–200, wired to the existing shared clock.
+- Main/A/B granular envelopes, size, smoothing, width and shared filters.
+- Every loop's level (bounded to 70% for generated recipes); transposition and cutoff on the eleven audio loop lanes.
+- A/B/C/V/P/O: divisions and fresh sample-backed loop generation from their existing libraries.
+- L/X: sample replacement, repeated MIDI-note/rest patterns, attack, decay, note length and start trim.
+- Q: piano/strings choice, chord patterns and level. New chords use velocity 82 (MIDI 1–127, not a normalized fraction), a musically scaled gate, and neutral transposition. Samples are loaded by Q's existing integrity-checked loader.
+- M/M+/K: playback settings and enabling/muting; existing recorded audio is **never replaced or newly recorded** by AI. Empty recording lanes cannot be enabled.
+
+The model chooses library operations and bounded values; the existing audio server selects sample files within the fixed library for the lane. It cannot invent a URL/path to fetch, run code or upload audio. Source files are not deleted or altered. It does not create Song arrangements, change the master volume or expose arbitrary app functions. Standard patch/state formats remain unchanged.
+
+### Cancellation and resource limits
+
+At most three fresh library loop sources per direction. Sources download/decode **sequentially**, with 32 MB streamed-download and per-source decoded limits. PCM WAV dimensions are checked before decoding. Fresh sources plus requested Q notes have an 80 MB decoded-audio budget. Q retains its existing manifest/hash checks. These bounds reduce pressure; they do not guarantee a physical phone cannot terminate a memory-heavy browser session.
+
+The rollback holds references to original AudioBuffers instead of WAV-encoding/decoding a duplicate copy. A load failure or cancellation after partial application restores prior settings and sample references, including persisted loop audio, in the same account. No restoration is attempted into an expired/different account. Account lock discards late results. Hidden Song render decks do not initialize AI. Ordinary controls are guarded during asynchronous application; Cancel remains available.
+
+Full patch/source/account/Song fingerprints reject results made stale during inference and stale Undo operations. The feature remains beta: large libraries, old mobile tabs, network failures and an OS-killed tab can still interrupt work. The log explicitly reports failure rather than claiming an unchanged or successful patch without evidence.
 
 ## Backend boundary
 
-`backend/mygrain_ai_patch.py` handles `POST /mygrain/api/ai-patch-direction` with a maximum 16 KiB body and a 3–1500-character prompt. It accepts only the prompt and allowlisted current control values. It rejects unsupported fields, model overrides, invalid output schemas, non-finite/non-integer/out-of-range values and overlapping filter cutoffs. Model output is data, never executable code.
+`backend/mygrain_ai_patch.py` handles `POST /mygrain/api/ai-patch-direction` with a maximum 32 KiB body and a 3–1500-character prompt. It accepts only the prompt, allowlisted current values and bounded loop inventory (enabled/loaded flags and displayed sample names). It rejects unsupported fields, model overrides, invalid output schemas, non-finite/non-integer/out-of-range values and overlapping filter cutoffs. Model output is data, never executable code.
 
-Existing MYGRAIN session, same-origin and account-pin checks must run before the handler. There is one global in-flight inference and a 15-second per-account cooldown; inference times out after 75 seconds. Provider errors do not return authentication status codes. Cancel immediately discards the browser result; an already-running provider call can continue until it finishes or times out, and may still be billed. Prompts and scalar values go to the model; audio and user files do not.
+Existing MYGRAIN session, same-origin and account-pin checks must run before the handler. There is one global in-flight inference and a 15-second per-account cooldown; inference times out after 75 seconds. Provider errors do not return authentication status codes. Cancel immediately discards the browser result; an already-running provider call can continue until it finishes or times out, and may still be billed. Prompts, scalar values and displayed sample names go to the model; audio and user files do not.
 
 The shared host server loads the module using the same `importlib.util` pattern as the other MYGRAIN backend modules, then dispatches the authenticated `/api/ai-patch-direction` path **before** acquiring `MYGRAIN_ACCOUNTS.user_lock(user)`. Inference is stateless and must not hold that storage lock. The three static AI assets are explicitly listed in `backend/mygrain_accounts.py`'s `PUBLIC_FILES`; do not relax the overall static-file boundary.
 
@@ -43,10 +60,13 @@ python3 tests/test_ai_patch.py
 python3 tests/song-beta-test-server.py 18876
 # In another terminal (isolated localhost server only):
 AI_PATCH_TEST_URL=http://127.0.0.1:18876/mygrain/ node tests/ai-patch-browser.js
+AI_PATCH_TEST_URL=http://127.0.0.1:18876/mygrain/ node tests/ai-patch-loops-browser.js
 ```
 
-The browser checks run Chromium and WebKit at phone portrait, landscape and desktop sizes, covering navigation, unchanged pending generation, direct application, real filter-node updates, exact Undo, protected state, stale patch handling, cancellation, Keep, invalid model output, provider failures and account lock. Model responses are fixtures in the browser suite. Real fixed-model generation and the authenticated backend are verified separately, so automated UI runs do not create provider charges.
+The two browser suites run Chromium and WebKit at phone portrait, landscape and desktop sizes, covering navigation, unchanged pending generation, direct application, real filter-node updates, exact Undo, protected state, stale patch handling, cancellation, Keep, invalid model output, provider failures and account lock. Model responses are fixtures in the browser suite. The loop suite additionally checks actual decoded PCM, all twelve loop controls, BPM clock, L/X/Q patterns, audible final output, preserved recordings, sample-identity Undo, mid-load cancellation and failed-source rollback. Real fixed-model generation and authenticated source APIs are verified separately on isolated account stores; the routine UI suites do not create provider charges.
 
 ## Rollback
 
 The full pre-feature deployable source is committed and pushed as `d4d1a03`, tagged `rollback-pre-ai-patch-20261019`, **before** AI feature edits. The deployment operator also retained a timestamped local source archive and exact shared-server backup. A complete rollback restores that source and the matching shared-server backup, then restarts the serving service. User account stores and audio are not part of the rollback and must not be replaced.
+
+The pre-AI.3 state is commit `7aa663c`; a timestamped local `backups/ai-all-loops-*` checkpoint contains the exact frontend/schema/backend files and shared-server copy. For this release rollback, restore those files and restart `fs7300-documenter.service`. Do not restore or modify account stores.
