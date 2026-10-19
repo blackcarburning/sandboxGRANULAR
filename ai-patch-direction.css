@@ -1,0 +1,52 @@
+/* AI Patch Direction is deliberately vivid and isolated from engine styling. */
+.simplified-ui #aiPatchCard, #aiPatchCard {
+    display: block;
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    background: linear-gradient(140deg, #ff4daa, #fb218b 55%, #df147e);
+    color: #260c20;
+    border: 2px solid #ff9fd4;
+    box-shadow: 0 0 22px #ff329430, inset 0 1px #ffd9ed;
+    padding: 20px;
+    scroll-margin-top: 22px;
+}
+#aiPatchCard * { box-sizing: border-box; }
+#aiPatchCard [hidden] { display: none !important; }
+#aiPatchCard h2 { margin: 0; font: 800 23px/1.25 system-ui, sans-serif; color: #210a1c; }
+#aiPatchCard .ai-patch-badge { display: inline-block; margin: 4px 0 8px; padding: 4px 10px; border-radius: 20px; background: #300b29; color: #ffe7f6; font: 800 12px/1.4 system-ui, sans-serif; letter-spacing: .07em; }
+#aiPatchCard p, #aiPatchCard li, #aiPatchCard label { color: #270b21; font: 500 14px/1.5 system-ui, sans-serif; }
+#aiPatchCard label { display: block; font-weight: 800; margin: 14px 0 6px; }
+#aiPatchCard textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 100px; resize: vertical; background: #fff1f9; color: #270b21; border: 2px solid #8d1558; border-radius: 10px; padding: 12px; font: 16px/1.5 system-ui,sans-serif; }
+#aiPatchCard textarea::placeholder { color: #765468; opacity: 1; }
+#aiPatchCard .ai-patch-actions, #aiPatchCard .ai-patch-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+#aiPatchCard button { min-height: 44px; border: 1px solid #7c104d; border-radius: 10px; padding: 10px 14px; background: #3b0b2b; color: #fff3fb; font: 750 14px/1.35 system-ui,sans-serif; cursor: pointer; white-space: normal; }
+#aiPatchCard .ai-patch-examples button { background: #ffd5ed; color: #430c2d; }
+#aiPatchCard button:disabled { opacity: .55; cursor: wait; }
+#aiPatchCard :focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+#aiPatchStatus { min-height: 44px; font-weight: 750 !important; }
+#aiPatchProposal { background: #ffe3f2; border: 1px solid #9b245e; border-radius: 12px; padding: 14px; margin-top: 12px; overflow-wrap: anywhere; }
+#aiPatchProposal h3 { margin: 0 0 8px; color: #300b25; }
+#aiPatchChanges { padding-left: 22px; max-height: 260px; overflow-y: auto; }
+#sectionJumpDrawer button.ai-patch-jump {
+    --nav-background: linear-gradient(140deg, #ff70bc, #ff2096);
+    --nav-foreground: #26051b;
+    --nav-border: #ffc1e3;
+    background: linear-gradient(140deg, #ff70bc, #ff2096) !important;
+    color: #26051b !important;
+    border-color: #ffc1e3 !important;
+    font-weight: 900;
+}
+#sectionJumpPanel .ai-patch-jump { grid-column: 1 / -1; min-height: 64px; font-size: 16px; }
+@media (min-width: 961px) {
+    .simplified-ui .section-jump-quick-stack .ai-patch-jump { grid-column: 1 / -1; min-height: 66px; font-size: 15px; }
+    .simplified-ui #sectionJumpDrawer button[data-nav-section="ai-patch"]::before { content: '✦'; width: 32px; height: 32px; font-size: 27px; background: #590a3a; color: #ffe4f5; }
+}
+@media (max-width: 960px) {
+    /* WebKit can give the existing auto-grid a wider intrinsic track. Keep this
+       card inside the phone viewport without resizing unrelated controls. */
+    .simplified-ui #aiPatchCard { padding: 16px; max-width: calc(100vw - 68px); }
+    #sectionJumpAiBtn { display: none !important; } /* Big two-column tile lives inside the mobile Jump menu. */
+}

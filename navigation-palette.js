@@ -3,6 +3,7 @@
 
     const palette = Object.freeze({
         song: '#b8efbe',
+        'ai-patch': '#ff299b',
         mega: 'linear-gradient(180deg, rgba(8, 54, 70, 0.96), rgba(17, 103, 125, 0.96))',
         sparse: 'linear-gradient(180deg, rgba(74, 46, 10, 0.96), rgba(138, 98, 18, 0.96))',
         keyboard: '#b4c5ff',
@@ -70,6 +71,7 @@
     })));
     const targets = Object.freeze({
         '#songBetaCard': 'song',
+        '#aiPatchCard': 'ai-patch',
         '.performance-keyboard-card': 'keyboard',
         '.synth-container': 'synth',
         '.performance-toolbar': 'top',

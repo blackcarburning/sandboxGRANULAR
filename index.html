@@ -233,7 +233,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-19-song-arm-memory-1';
+            const cacheBuster = '2026-10-19-ai-patch-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5769,8 +5769,9 @@
     <script>window.mygrainAccounts?.loadStyle('song-beta.css?v=20261019-arm-feedback-1');</script>
     <script>window.mygrainAccounts?.loadStyle('q-card.css?v=20261015-q-custom-arp-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-desktop-dock-1');</script>
-    <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-desktop-dock-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
+    <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261019-ai-1');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -5780,7 +5781,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.19.ARM.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.19.AI.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5797,6 +5798,7 @@
             <span class="section-jump-handle-text">Jump</span>
         </button>
         <div class="section-jump-quick-stack" aria-hidden="false">
+            <button class="section-jump-quick ai-patch-jump" id="sectionJumpAiBtn" type="button" data-jump-target="#aiPatchCard" aria-label="AI Patch Direction beta">✦ AI PATCH · BETA</button>
             <button class="section-jump-quick" id="sectionJumpSongBtn" type="button" data-jump-target="#songBetaCard">Song</button>
             <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega</button>
             <button class="section-jump-quick" id="sectionJumpSparseRandomBtn" type="button">Sparse</button>
@@ -5809,6 +5811,7 @@
         <div class="section-jump-panel" id="sectionJumpPanel">
             <div class="section-jump-title">Jump To</div>
             <div class="section-jump-grid">
+                <button class="section-jump-option ai-patch-jump" type="button" data-jump-target="#aiPatchCard">✦ AI PATCH DIRECTION · BETA</button>
                 <button class="section-jump-option" type="button" data-jump-target="#songBetaCard">Song</button>
                 <button class="section-jump-option" id="sectionJumpMegaRandomPanelBtn" type="button">Mega</button>
                 <button class="section-jump-option" id="sectionJumpSparseRandomPanelBtn" type="button">Sparse</button>
@@ -5863,7 +5866,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.19.ARM.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.19.AI.1</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -8147,6 +8150,34 @@
                     <button class="performance-btn" id="performancePanicBtn">Panic</button>
                 </div>
             </div>
+            <section class="performance-feature-card ai-patch-card" id="aiPatchCard" aria-labelledby="aiPatchHeading">
+                <span class="ai-patch-badge">BETA · GPT-6.1 SOL</span>
+                <h2 id="aiPatchHeading">AI Patch Direction</h2>
+                <p>Describe a sound. Get a fresh direction for your existing Main, A and B granular layers and shared filters, then choose whether to apply it.</p>
+                <label for="aiPatchPrompt">What should this patch feel like?</label>
+                <textarea id="aiPatchPrompt" rows="3" maxlength="1500" placeholder="Warm, hazy ambient pad with slow attacks, wide grains and soft edges…" aria-describedby="aiPatchScope"></textarea>
+                <div class="ai-patch-examples" aria-label="Example patch directions">
+                    <button type="button" data-ai-patch-example="Warm, hazy ambient pad with slow attacks, wide grains and soft edges.">Hazy pad</button>
+                    <button type="button" data-ai-patch-example="Tight, dry, nervous granular pulses. Short attacks and releases, clear rhythmic edges.">Nervous pulses</button>
+                    <button type="button" data-ai-patch-example="A spacious, glassy frozen texture, contrasting grain lengths and smooth wide tails. Keep it gentle.">Glassy texture</button>
+                </div>
+                <p id="aiPatchScope">Beta scope: 21 grain/envelope/width/filter controls. Keeps your samples, BPM, pitches, mixer levels, effects and song unchanged. It does not enable muted layers. Results depend on the sounds already loaded. Your prompt and these control values are sent to the AI; no audio is uploaded.</p>
+                <div class="ai-patch-actions">
+                    <button id="aiPatchGenerate" type="button" disabled>✦ Generate direction</button>
+                    <button id="aiPatchCancel" type="button" hidden>Cancel</button>
+                </div>
+                <p id="aiPatchStatus" role="status" aria-live="polite">Start MYGRAIN, then describe a direction. Nothing changes until you Apply.</p>
+                <div id="aiPatchProposal" hidden>
+                    <h3 id="aiPatchTitle"></h3>
+                    <p id="aiPatchDescription"></p>
+                    <ul id="aiPatchChanges" aria-label="Proposed control changes"></ul>
+                    <div class="ai-patch-actions">
+                        <button id="aiPatchApply" type="button" hidden>Apply direction</button>
+                        <button id="aiPatchUndo" type="button" hidden>Undo direction</button>
+                        <button id="aiPatchKeep" type="button" hidden>Keep current</button>
+                    </div>
+                </div>
+            </section>
             <div class="performance-feature-card" id="songBetaCard" aria-label="Song beta controls">
                 <div class="performance-feature-title">Song <span>beta</span></div>
                 <div class="song-beta-row song-beta-lock-controls">
@@ -60375,6 +60406,57 @@
         autosizeSampleBrowserFeedbackTextarea(performanceStemExportNotes);
         setPerformanceStemExportProgress(0, 1, 'Ready to render stems to the separate repository.');
         syncPerformanceStemExportControls();
+        // Small scalar-only AI boundary: no sample loading, full preset restore or song mutations.
+        window.mygrainAiPatchAdapter = (() => {
+            const allowed = {"grainSize":{"label":"Main grain size","min":10,"max":500,"step":1,"unit":"ms"},"attack":{"label":"Main attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainMainDecay":{"label":"Main decay","min":1,"max":5000,"step":1,"unit":"ms"},"release":{"label":"Main release","min":1,"max":8000,"step":1,"unit":"ms"},"grainMainBlend":{"label":"Main blend","min":0,"max":100,"step":1,"unit":"%"},"grainMainSmoothing":{"label":"Main smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainMainWidth":{"label":"Main stereo width","min":0,"max":100,"step":1,"unit":"%"},"lpfCutoff":{"label":"Low-pass cutoff","min":500,"max":12000,"step":1,"unit":"Hz"},"hpfCutoff":{"label":"High-pass cutoff","min":20,"max":800,"step":1,"unit":"Hz"},"grainSynthASize":{"label":"A grain size","min":10,"max":500,"step":1,"unit":"ms"},"grainSynthAAttack":{"label":"A attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthADecay":{"label":"A decay","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthARelease":{"label":"A release","min":1,"max":8000,"step":1,"unit":"ms"},"grainSynthASmoothing":{"label":"A smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainSynthAWidth":{"label":"A stereo width","min":0,"max":100,"step":1,"unit":"%"},"grainSynthBSize":{"label":"B grain size","min":10,"max":500,"step":1,"unit":"ms"},"grainSynthBAttack":{"label":"B attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthBDecay":{"label":"B decay","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthBRelease":{"label":"B release","min":1,"max":8000,"step":1,"unit":"ms"},"grainSynthBSmoothing":{"label":"B smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainSynthBWidth":{"label":"B stereo width","min":0,"max":100,"step":1,"unit":"%"}};
+            function assertReady() {
+                if (window.__mygrainSongRenderDeck || !window.mygrainAccounts?.authenticated) throw new Error('Sign in to use AI Patch Direction.');
+                if (!performanceControlsReady || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
+                if (megaRandomizeInFlight || isRecording || isOutputRecording || isOutputRecordingArmed || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing) throw new Error('Finish recording, randomisation or Song operations before using AI Patch Direction.');
+            }
+            function fingerprint() {
+                const preset = gatherPreset();
+                delete preset.timestamp;
+                return JSON.stringify({ preset, sourceMutationSerial, account: window.mygrainAccounts?.user?.username, song: window.mygrainSongBeta?.song?.id || null });
+            }
+            function read(ids) {
+                return Object.fromEntries(ids.map(id => {
+                    if (!Object.hasOwn(allowed, id)) throw new Error('Unsupported AI control.');
+                    const element = document.getElementById(id);
+                    if (!element || element.type !== 'range') throw new Error('AI control is unavailable; reload MYGRAIN.');
+                    return [id, Number(element.value)];
+                }));
+            }
+            function write(values, expected, options = {}) {
+                assertReady();
+                if (fingerprint() !== expected) throw new Error('Your patch changed. Generate a fresh direction.');
+                const entries = Object.entries(values);
+                if (!entries.length || entries.length > Object.keys(allowed).length) throw new Error('Invalid AI control count.');
+                for (const [id, value] of entries) {
+                    const spec = allowed[id];
+                    const element = document.getElementById(id);
+                    const min = options.undo ? Number(element?.min) : spec?.min;
+                    const max = options.undo ? Number(element?.max) : spec?.max;
+                    if (!Object.hasOwn(allowed, id) || !element || typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max || !Number.isInteger(value)) throw new Error('Invalid AI control value. Nothing was changed.');
+                }
+                const before = read(entries.map(([id]) => id));
+                const wasSuspended = stateSaveSuspended;
+                stateSaveSuspended = true;
+                try {
+                    // Publish all values before their handlers run, keeping the patch update in one turn.
+                    entries.forEach(([id, value]) => setSliderValue(id, value, { dispatch: false }));
+                    entries.forEach(([id]) => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true })));
+                    syncPerformanceControlState();
+                    updateEffects();
+                } catch (error) {
+                    Object.entries(before).forEach(([id, value]) => setSliderValue(id, value));
+                    throw error;
+                } finally { stateSaveSuspended = wasSuspended; }
+                return { saved: saveState() };
+            }
+            return Object.freeze({ assertReady, fingerprint, read, write });
+        })();
+
         performanceControlsReady = true;
         syncPerformanceMixerVuVisibility();
         syncPerformanceControlState();
@@ -60481,6 +60563,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261019-ai-1');</script>
     </template>
 </body>
 </html>

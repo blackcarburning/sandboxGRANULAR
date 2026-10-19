@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "controls": {
+    "grainSize": {
+      "label": "Main grain size",
+      "min": 10,
+      "max": 500,
+      "step": 1,
+      "unit": "ms"
+    },
+    "attack": {
+      "label": "Main attack",
+      "min": 1,
+      "max": 5000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainMainDecay": {
+      "label": "Main decay",
+      "min": 1,
+      "max": 5000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "release": {
+      "label": "Main release",
+      "min": 1,
+      "max": 8000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainMainBlend": {
+      "label": "Main blend",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "grainMainSmoothing": {
+      "label": "Main smoothing",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "grainMainWidth": {
+      "label": "Main stereo width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "lpfCutoff": {
+      "label": "Low-pass cutoff",
+      "min": 500,
+      "max": 12000,
+      "step": 1,
+      "unit": "Hz"
+    },
+    "hpfCutoff": {
+      "label": "High-pass cutoff",
+      "min": 20,
+      "max": 800,
+      "step": 1,
+      "unit": "Hz"
+    },
+    "grainSynthASize": {
+      "label": "A grain size",
+      "min": 10,
+      "max": 500,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthAAttack": {
+      "label": "A attack",
+      "min": 1,
+      "max": 5000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthADecay": {
+      "label": "A decay",
+      "min": 1,
+      "max": 5000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthARelease": {
+      "label": "A release",
+      "min": 1,
+      "max": 8000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthASmoothing": {
+      "label": "A smoothing",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "grainSynthAWidth": {
+      "label": "A stereo width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "grainSynthBSize": {
+      "label": "B grain size",
+      "min": 10,
+      "max": 500,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthBAttack": {
+      "label": "B attack",
+      "min": 1,
+      "max": 5000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthBDecay": {
+      "label": "B decay",
+      "min": 1,
+      "max": 5000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthBRelease": {
+      "label": "B release",
+      "min": 1,
+      "max": 8000,
+      "step": 1,
+      "unit": "ms"
+    },
+    "grainSynthBSmoothing": {
+      "label": "B smoothing",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "grainSynthBWidth": {
+      "label": "B stereo width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    }
+  }
+}

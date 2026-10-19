@@ -1,0 +1,8 @@
+# Local rollback archives, test evidence, private user patch copies.
+/backups/
+/evidence/
+/patches/
+**/__pycache__/
+# Original upstream sample archives; prepared runtime libraries are tracked.
+/SAMPLES_Q/originals/
+/SAMPLES_Q_STRINGS/originals/
