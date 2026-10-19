@@ -1,0 +1,1568 @@
+(function (root) {
+    'use strict';
+
+    const theory = root.MygrainQTheory || (typeof require === 'function' ? require('./q-theory.js') : null);
+    const bankLimit = 96 * 1024 * 1024;
+    const keyboardPianoRepository = 'SAMPLES_Q_KEYBOARD/';
+    const keyboardPianoId = 'salamander-v3-k-mp3-44100-v1';
+    const instrumentCalibrationGain = Object.freeze({ piano: .60, strings: 1.30 });
+
+    class Piano {
+        constructor(host) {
+            this.host = host;
+            this.instrument = 'piano';
+            this.manifest = null;
+            this.catalogPending = null;
+            this.pending = new Map();
+            this.cache = new Map();
+            this.atlas = null;
+            this.bank = null;
+            this.pinned = false;
+            this.generation = 0;
+        }
+
+        select(instrument) {
+            if (!Object.hasOwn(theory.instruments, instrument)) throw new Error('Unknown Q instrument.');
+            if (this.instrument === instrument) return;
+            this.instrument = instrument;
+            this.manifest = null;
+            this.restored(null, null);
+        }
+
+        sample(samples, midi, velocity) {
+            const sample = samples?.find(item => item.midi === theory.sampleMidi(midi, this.instrument) && item.velocity === theory.sampleVelocity(velocity, this.instrument));
+            if (!sample) throw new Error('Q bank is missing a required pitch or velocity layer.');
+            return sample;
+        }
+
+        async catalog() {
+            if (!this.manifest) {
+                if (this.catalogPending) return this.catalogPending;
+                const generation = this.generation;
+                const specification = theory.instruments[this.instrument];
+                const pending = (async () => {
+                    const response = await fetch(`${specification.repository}manifest.json`, { cache: 'no-cache' });
+                    if (!response.ok) throw new Error(`The local Q ${specification.label} repository is unavailable.`);
+                    const manifest = await response.json();
+                    if (generation !== this.generation) throw new DOMException('Q sample loading cancelled.', 'AbortError');
+                    if (manifest.id !== specification.id || manifest.samples?.length !== specification.count || manifest.samples.some(sample => {
+                        const identity = theory.sampleIdentity(sample.id, this.instrument);
+                        return !identity || sample.file !== `samples/${sample.id}.wav` || sample.midi !== identity.midi || sample.velocity !== identity.velocity || !/^[a-f0-9]{64}$/.test(sample.sha256) || (this.instrument === 'strings' && (!Number.isInteger(sample.loopStart) || !Number.isInteger(sample.loopEnd) || sample.loopStart < 1 || sample.loopEnd <= sample.loopStart || sample.loopEnd > sample.frames));
+                    }) || new Set(manifest.samples.map(sample => sample.id)).size !== specification.count) throw new Error('The local Q sample manifest is invalid.');
+                    this.manifest = manifest;
+                    return manifest;
+                })();
+                this.catalogPending = pending;
+                try { return await pending; }
+                finally { if (this.catalogPending === pending) this.catalogPending = null; }
+            }
+            return this.manifest;
+        }
+
+        async load(sample) {
+            if (this.cache.has(sample.id)) return this.cache.get(sample.id);
+            if (this.pinned) throw new Error('The saved Q bank is incomplete. No phone-local instrument will be substituted.');
+            if (!this.pending.has(sample.id)) {
+                const generation = this.generation;
+                this.pending.set(sample.id, (async () => {
+                    const buffer = await this.decode(sample);
+                    if (generation !== this.generation) throw new DOMException('Q sample loading cancelled.', 'AbortError');
+                    this.cache.set(sample.id, buffer);
+                    return buffer;
+                })());
+            }
+            const pending = this.pending.get(sample.id);
+            try { return await pending; }
+            finally { if (this.pending.get(sample.id) === pending) this.pending.delete(sample.id); }
+        }
+
+        async decode(sample, repository = theory.instruments[this.instrument].repository, fallback = null) {
+            const response = await fetch(`${repository}${sample.file}`, { cache: 'force-cache' });
+            if (!response.ok) throw new Error(`Could not load Q sample ${sample.id}.`);
+            const bytes = await response.arrayBuffer();
+            const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
+            if (digest !== sample.sha256) throw new Error(`Q sample integrity check failed: ${sample.id}.`);
+            const context = this.host.context();
+            if (!context) throw new Error('Start MYGRAIN before loading Q samples.');
+            try {
+                const buffer = await context.decodeAudioData(bytes);
+                if (buffer.numberOfChannels !== 2 || !Number.isFinite(buffer.duration) || Math.abs(buffer.duration - sample.frames / sample.sampleRate) > .001) throw new Error(`Q sample dimensions are invalid: ${sample.id}.`);
+                return buffer;
+            } catch (error) {
+                if (fallback) return fallback();
+                throw error;
+            }
+        }
+
+        restored(buffer, bank) {
+            if (buffer && bank && (bank.instrument ?? theory.instruments.piano.id) !== theory.instruments[this.instrument].id) throw new Error('Q instrument and saved audio do not match. No other instrument will be substituted.');
+            this.generation += 1;
+            this.catalogPending = null;
+            this.pending.clear();
+            this.cache.clear();
+            this.atlas = buffer;
+            this.bank = bank ? theory.copy(bank) : null;
+            this.pinned = Boolean(buffer && bank);
+        }
+
+        segment(midi, velocity) {
+            if (!this.atlas || !this.bank?.samples?.length) return null;
+            const sample = this.bank.samples.find(item => item.midi === theory.sampleMidi(midi, this.instrument) && item.velocity === theory.sampleVelocity(velocity, this.instrument));
+            if (!sample) return null;
+            const ratio = this.atlas.sampleRate / this.bank.sampleRate;
+            return { sample, buffer: this.atlas, offset: Math.round(sample.offset * ratio) / this.atlas.sampleRate, duration: Math.round(sample.frames * ratio) / this.atlas.sampleRate, loopStart: sample.loopStart / this.bank.sampleRate, loopEnd: sample.loopEnd / this.bank.sampleRate };
+        }
+
+        async ensure(events) {
+            const generation = this.generation;
+            const requests = events.flatMap(event => event.notes.map(midi => ({ midi, velocity: event.sampleVelocity ?? event.velocity })));
+            if (!requests.length || requests.every(request => this.segment(request.midi, request.velocity))) return;
+            if (this.pinned) throw new Error('The saved Q bank is missing required samples. No cached or repository audio will be substituted.');
+            const manifest = await this.catalog();
+            if (generation !== this.generation) throw new DOMException('Q sample loading cancelled.', 'AbortError');
+            const samples = [...new Map(requests.map(request => {
+                const sample = this.sample(manifest.samples, request.midi, request.velocity);
+                return [sample.id, sample];
+            })).values()];
+            const context = this.host.context();
+            const requiredBytes = samples.reduce((bytes, sample) => bytes + Math.ceil(sample.frames * context.sampleRate / sample.sampleRate) * 8, 0);
+            if (requiredBytes > bankLimit) throw new Error('Q needs more than 96 MB of decoded audio. Use fewer pitches/velocity layers in this part.');
+            let next = 0;
+            await Promise.all(Array.from({ length: Math.min(3, samples.length) }, async () => {
+                while (next < samples.length) {
+                    if (generation !== this.generation) throw new DOMException('Q sample loading cancelled.', 'AbortError');
+                    await this.load(samples[next++]);
+                }
+            }));
+            if (generation !== this.generation) throw new DOMException('Q sample loading cancelled.', 'AbortError');
+            const keep = new Set(samples.map(sample => sample.id));
+            let bytes = [...this.cache.values()].reduce((total, buffer) => total + buffer.length * buffer.numberOfChannels * 4, 0);
+            for (const [id, buffer] of this.cache) {
+                if (bytes <= bankLimit || keep.has(id)) continue;
+                this.cache.delete(id);
+                bytes -= buffer.length * buffer.numberOfChannels * 4;
+            }
+        }
+
+        source(midi, velocity) {
+            const embedded = this.segment(midi, velocity);
+            if (embedded) return embedded;
+            if (this.pinned) throw new Error('Saved Q audio is missing; playback was stopped.');
+            const sample = this.sample(this.manifest?.samples, midi, velocity);
+            const buffer = this.cache.get(sample.id);
+            if (!buffer) throw new Error('Load the Q samples before playback.');
+            return { sample, buffer, offset: 0, duration: buffer.duration, loopStart: sample.loopStart / sample.sampleRate, loopEnd: sample.loopEnd / sample.sampleRate };
+        }
+
+        async capture(state) {
+            const sequence = state.sequence.filter(step => step?.notes?.length && !step.rest).map(step => ({ notes: theory.transposed(step.notes, state.transpose), velocity: theory.effectiveVelocity(state, step) }));
+            if (!sequence.length) {
+                this.atlas = null;
+                this.bank = null;
+                return;
+            }
+            await this.ensure(sequence);
+            const sources = new Map();
+            for (const event of sequence) for (const midi of event.notes) {
+                const source = this.source(midi, event.velocity);
+                sources.set(source.sample.id, source);
+            }
+            const context = this.host.context();
+            const padding = Math.ceil(context.sampleRate * .02);
+            const frames = [...sources.values()].reduce((total, source) => total + Math.round(source.duration * context.sampleRate) + padding, 0);
+            if (frames * 8 > bankLimit) throw new Error('Q sample bank exceeds 96 MB of decoded audio. Use fewer pitches/velocity layers in this part.');
+            const atlas = context.createBuffer(2, frames, context.sampleRate);
+            const samples = [];
+            let offset = 0;
+            for (const source of sources.values()) {
+                const start = Math.round(source.offset * context.sampleRate);
+                const length = Math.round(source.duration * context.sampleRate);
+                for (let channel = 0; channel < 2; channel += 1) atlas.getChannelData(channel).set(source.buffer.getChannelData(channel).subarray(start, start + length), offset);
+                samples.push({ id: source.sample.id, midi: source.sample.midi, velocity: source.sample.velocity, offset, frames: length, ...(this.instrument === 'strings' ? { loopStart: Math.round(source.loopStart * context.sampleRate), loopEnd: Math.round(source.loopEnd * context.sampleRate) } : {}) });
+                offset += length + padding;
+            }
+            this.atlas = atlas;
+            const provenance = this.manifest || this.bank;
+            this.bank = this.instrument === 'strings' ? {
+                version: 1, instrument: theory.instruments.strings.id, sampleRate: context.sampleRate, samples,
+                ...Object.fromEntries(['credit', 'license', 'licenseUrl', 'source', 'changes'].map(key => [key, provenance[key]]))
+            } : {
+                version: 1, instrument: theory.instruments.piano.id, sampleRate: context.sampleRate, samples,
+                credit: 'Salamander Grand Piano V3 by Alexander Holm', license: 'CC BY 3.0',
+                licenseUrl: 'https://creativecommons.org/licenses/by/3.0/',
+                source: 'https://github.com/sfzinstruments/SalamanderGrandPiano/tree/3382bf9496bba2486f5ab0de55a264d1dfc38404',
+                changes: 'Velocity layers 4/8/12/16; FLAC converted to stereo PCM16 at 44.1 kHz, then resampled to the audio-context rate and packed into a portable bank. No trimming or normalization of source recordings. No endorsement implied.'
+            };
+        }
+    }
+
+    class KeyboardPiano extends Piano {
+        restored(buffer, bank) {
+            super.restored(buffer, bank);
+            this.keyboardCatalogPending = null;
+        }
+
+        async keyboardCatalog() {
+            if (this.keyboardManifest) return this.keyboardManifest;
+            if (this.keyboardCatalogPending) return this.keyboardCatalogPending;
+            const generation = this.generation;
+            const pending = (async () => {
+                const original = await this.catalog();
+                const response = await fetch(`${keyboardPianoRepository}catalog.json`, { cache: 'no-cache' });
+                if (!response.ok) throw new Error('The local keyboard piano repository is unavailable.');
+                const manifest = await response.json();
+                if (generation !== this.generation) throw new DOMException('Q sample loading cancelled.', 'AbortError');
+                const sources = new Map(original.samples.map(sample => [sample.id, sample]));
+                if (manifest.version !== 1 || manifest.id !== keyboardPianoId || manifest.sourceId !== original.id || manifest.revision !== original.revision || manifest.codec !== 'mp3' || !Array.isArray(manifest.samples) || manifest.samples.length !== sources.size || manifest.samples.some(sample => {
+                    const source = sources.get(sample.id);
+                    return !source || sample.file !== `samples/${sample.id}.mp3` || sample.midi !== source.midi || sample.velocity !== source.velocity || sample.frames !== source.frames || sample.sampleRate !== source.sampleRate || sample.channels !== 2 || sample.sourceSha256 !== source.sha256 || !/^[a-f0-9]{64}$/.test(sample.sha256) || !Number.isInteger(sample.bytes) || sample.bytes <= 0 || sample.bytes >= source.bytes;
+                }) || new Set(manifest.samples.map(sample => sample.id)).size !== sources.size) throw new Error('The local keyboard piano manifest is invalid.');
+                this.keyboardManifest = manifest;
+                return manifest;
+            })();
+            this.keyboardCatalogPending = pending;
+            try { return await pending; }
+            finally { if (this.keyboardCatalogPending === pending) this.keyboardCatalogPending = null; }
+        }
+
+        async decode(sample) {
+            if (this.instrument !== 'piano') return super.decode(sample);
+            const manifest = await this.keyboardCatalog();
+            const derivative = manifest.samples.find(candidate => candidate.id === sample.id);
+            return super.decode(derivative, keyboardPianoRepository, () => super.decode(sample));
+        }
+    }
+
+    class KeyboardPlayer {
+        constructor(host) {
+            this.host = host;
+            this.voices = new Map();
+            this.activeVoices = new Set();
+            this.pending = new Map();
+            this.samplers = new Map(['piano', 'strings'].map(instrument => {
+                const piano = instrument === 'piano' ? new KeyboardPiano(host) : new Piano(host);
+                piano.select(instrument);
+                return [instrument, { piano, queue: new Set(), loading: 0 }];
+            }));
+        }
+
+        get metrics() {
+            return { voices: this.activeVoices.size, pending: this.pending.size, cachedBytes: [...this.samplers.values()].reduce((total, entry) => total + [...entry.piano.cache.values()].reduce((bytes, buffer) => bytes + buffer.length * buffer.numberOfChannels * 4, 0), 0) };
+        }
+
+        noteOn(key, midi, options = {}) {
+            return this.request(key, midi, options, false);
+        }
+
+        prepare(instrument, midi = 60, velocity = 100) {
+            return this.request(Symbol('prepare'), midi, { instrument, velocity }, true);
+        }
+
+        cachedSource(entry, midi, velocity) {
+            const embedded = entry.piano.segment(midi, velocity);
+            if (embedded) return embedded;
+            if (entry.piano.pinned || !entry.piano.manifest) return null;
+            const sample = entry.piano.sample(entry.piano.manifest.samples, midi, velocity);
+            const buffer = entry.piano.cache.get(sample.id);
+            if (!buffer) return null;
+            entry.piano.cache.delete(sample.id);
+            entry.piano.cache.set(sample.id, buffer);
+            return entry.piano.source(midi, velocity);
+        }
+
+        async request(key, midi, options, preparing) {
+            const instrument = options.instrument ?? 'piano';
+            if (!this.samplers.has(instrument)) throw new Error('Unknown Q keyboard instrument.');
+            if (!Number.isFinite(Number(midi))) return null;
+            const context = this.host.context();
+            if (!context || context.state === 'closed') return null;
+            this.noteOff(key, { immediate: true });
+            const entry = this.samplers.get(instrument);
+            const pitch = theory.clamp(midi, 0, 127, 60);
+            const settings = { ...options, instrument, velocity: theory.clamp(options.velocity, 1, 127, 100) };
+            const selected = this.cachedSource(entry, pitch, settings.velocity);
+            if (selected && (!context.state || context.state === 'running')) {
+                this.trimCaches(selected.buffer);
+                return preparing ? selected : this.startVoice({ context, key, midi: pitch, options: settings }, selected);
+            }
+            while (this.pending.size >= 64) this.cancel(this.pending.values().next().value);
+            return new Promise((resolve, reject) => {
+                const request = { key, midi: pitch, options: settings, preparing, context, entry, resolve, reject };
+                this.pending.set(key, request);
+                entry.queue.add(request);
+                this.drain(entry);
+            });
+        }
+
+        cancel(request) {
+            if (this.pending.get(request.key) === request) this.pending.delete(request.key);
+            request.entry.queue.delete(request);
+            request.resolve(null);
+        }
+
+        drain(entry) {
+            while (entry.loading < 3 && entry.queue.size) {
+                const request = [...entry.queue].find(candidate => !candidate.preparing) || entry.queue.values().next().value;
+                entry.queue.delete(request);
+                entry.loading += 1;
+                void this.loadRequest(request);
+            }
+        }
+
+        async loadRequest(request) {
+            const entry = request.entry;
+            try {
+                if (request.context.state && request.context.state !== 'running') {
+                    await request.context.resume();
+                }
+                if (this.pending.get(request.key) !== request) return;
+                let selected = this.cachedSource(entry, request.midi, request.options.velocity);
+                if (!selected) {
+                    await entry.piano.ensure([{ notes: [request.midi], velocity: request.options.velocity }]);
+                    selected = entry.piano.source(request.midi, request.options.velocity);
+                }
+                this.trimCaches(selected.buffer);
+                if (this.pending.get(request.key) !== request) return;
+                const running = !request.context.state || request.context.state === 'running';
+                const result = request.context === this.host.context() && running ? (request.preparing ? selected : this.startVoice(request, selected)) : null;
+                this.pending.delete(request.key);
+                request.resolve(result);
+            } catch (error) {
+                this.trimCaches();
+                if (this.pending.get(request.key) !== request) return;
+                this.pending.delete(request.key);
+                request.reject(error);
+            } finally {
+                entry.loading -= 1;
+                this.drain(entry);
+            }
+        }
+
+        trimCaches(keep) {
+            let bytes = this.metrics.cachedBytes;
+            for (const entry of this.samplers.values()) for (const [id, buffer] of entry.piano.cache) {
+                if (bytes <= bankLimit) return;
+                if (buffer === keep) continue;
+                entry.piano.cache.delete(id);
+                bytes -= buffer.length * buffer.numberOfChannels * 4;
+            }
+        }
+
+        startVoice(request, selected) {
+            const { context, key, midi, options } = request;
+            const output = this.host.output(options.instrument);
+            if (!output) return null;
+            const duration = Number.isFinite(options.duration) ? Math.max(.006, options.duration) : Infinity;
+            const scheduled = Number.isFinite(options.startTime) ? options.startTime : context.currentTime;
+            if (scheduled + duration <= context.currentTime) return null;
+            while (this.activeVoices.size >= 64) this.removeVoice(this.activeVoices.values().next().value, true);
+            const start = Math.max(context.currentTime + .001, scheduled);
+            const looped = options.instrument === 'strings';
+            const release = looped ? .25 : .16;
+            const rate = 2 ** ((midi - selected.sample.midi) / 12);
+            const end = looped ? start + duration + release : start + Math.min(duration + release, selected.duration / rate);
+            const peak = (looped ? options.velocity / 127 : Math.sqrt(options.velocity / 127)) * instrumentCalibrationGain[options.instrument] * theory.clamp(options.volume, 0, 4, 1);
+            const source = context.createBufferSource();
+            const gain = context.createGain();
+            const mixGain = this.host.volume ? context.createGain() : null;
+            const voice = { key, source, gain, mixGain, context, instrument: options.instrument, midi, velocity: options.velocity, start, end, release, peak, attackEnd: start + Math.min(looped ? .012 : .004, (end - start) / 2), releaseStart: Number.isFinite(end) ? Math.max(start, end - release) : Infinity, released: false };
+            try {
+                source.buffer = selected.buffer;
+                source.playbackRate.value = rate;
+                if (looped) {
+                    source.loop = true;
+                    source.loopStart = selected.offset + selected.loopStart;
+                    source.loopEnd = selected.offset + selected.loopEnd;
+                }
+                source.connect(gain);
+                if (mixGain) {
+                    mixGain.gain.value = theory.clamp(this.host.volume(options.instrument), 0, 1, 1);
+                    gain.connect(mixGain);
+                }
+                const voiceOutput = mixGain || gain;
+                voiceOutput.connect(output);
+                const capture = this.host.capture?.();
+                if (capture && capture !== output) voiceOutput.connect(capture);
+                gain.gain.setValueAtTime(0, start);
+                gain.gain.linearRampToValueAtTime(peak, voice.attackEnd);
+                if (Number.isFinite(end)) {
+                    voice.releaseStart = Math.max(voice.attackEnd, voice.releaseStart);
+                    gain.gain.setValueAtTime(peak, voice.releaseStart);
+                    gain.gain.linearRampToValueAtTime(0, end);
+                }
+                this.voices.set(key, voice);
+                this.activeVoices.add(voice);
+                source.onended = () => this.removeVoice(voice);
+                source.start(start, selected.offset);
+                if (Number.isFinite(end)) source.stop(end);
+                return voice;
+            } catch (error) {
+                this.removeVoice(voice, true);
+                throw error;
+            }
+        }
+
+        refreshVolumes() {
+            for (const voice of this.activeVoices) {
+                if (!voice.mixGain) continue;
+                const now = voice.context.currentTime;
+                const parameter = voice.mixGain.gain;
+                const volume = theory.clamp(this.host.volume(voice.instrument), 0, 1, 1);
+                parameter.cancelScheduledValues(now);
+                parameter.setValueAtTime(parameter.value, now);
+                parameter.linearRampToValueAtTime(volume, now + .015);
+            }
+        }
+
+        noteOff(key, { immediate = false } = {}) {
+            const request = this.pending.get(key);
+            if (request) this.cancel(request);
+            const voice = this.voices.get(key);
+            if (!voice) return;
+            if (immediate || voice.context.currentTime <= voice.start) {
+                this.removeVoice(voice, true);
+                return;
+            }
+            if (voice.released) return;
+            voice.released = true;
+            const now = voice.context.currentTime;
+            const parameter = voice.gain.gain;
+            const current = now < voice.attackEnd ? voice.peak * Math.max(0, now - voice.start) / (voice.attackEnd - voice.start) : now > voice.releaseStart ? voice.peak * Math.max(0, voice.end - now) / (voice.end - voice.releaseStart) : voice.peak;
+            voice.end = Math.min(voice.end, now + voice.release);
+            parameter.cancelScheduledValues(now);
+            parameter.setValueAtTime(current, now);
+            parameter.linearRampToValueAtTime(0, voice.end);
+            voice.source.stop(voice.end);
+        }
+
+        removeVoice(voice, stop = false) {
+            if (this.voices.get(voice.key) === voice) this.voices.delete(voice.key);
+            this.activeVoices.delete(voice);
+            voice.source.onended = null;
+            if (stop) { try { voice.source.stop(); } catch (error) {} }
+            try { voice.source.disconnect(); } catch (error) {}
+            try { voice.gain.disconnect(); } catch (error) {}
+            try { voice.mixGain?.disconnect(); } catch (error) {}
+        }
+
+        stop() {
+            for (const request of this.pending.values()) this.cancel(request);
+            for (const voice of this.activeVoices) this.removeVoice(voice, true);
+        }
+    }
+
+    class Controller {
+        constructor(host) {
+            this.host = host;
+            this.state = theory.defaults();
+            this.piano = new Piano(host);
+            this.scales = [{ name: 'major', intervals: [0, 2, 4, 5, 7, 9, 11] }, { name: 'minor', intervals: [0, 2, 3, 5, 7, 8, 10] }];
+            this.cursor = 0;
+            this.range = null;
+            this.mark = null;
+            this.clipboard = null;
+            this.arpClipboard = null;
+            this.voices = new Set();
+            this.running = false;
+            this.generation = 0;
+            this.graph = null;
+            this.timer = null;
+            this.nextCycle = 0;
+            this.nextEvent = 0;
+        }
+
+        length() { return this.host.length(); }
+        getState() { return { ...theory.copy(this.state), bank: theory.copy(this.piano.bank) }; }
+        getAudioBuffer() { return this.piano.atlas; }
+        setAudioBuffer(buffer) { this.piano.restored(buffer, this.state.bank); }
+        hasSequence() { return this.state.sequence.slice(0, this.length()).some(step => step?.notes?.length && !step.rest); }
+        liveRecording() { return this.state.record && this.state.recordMode === 'live'; }
+        playable() { return this.state.enabled && (this.hasSequence() || this.liveRecording()); }
+        hasAudio() { return this.running || Boolean(this.preview) || this.voices.size > 0 || (this.host.context()?.currentTime || 0) < (this.tailUntil || 0); }
+
+        setEnabled(enabled, options = {}) {
+            this.state.enabled = Boolean(enabled);
+            if (!this.state.enabled) this.stop();
+            this.updateEffects();
+            this.sync();
+            if (!options.skipSave) this.host.save();
+        }
+
+        restore(state, options = {}) {
+            this.stop();
+            this.state = theory.normalizeState(state);
+            this.piano.select(this.state.instrument);
+            this.range = null;
+            this.mark = null;
+            this.cursor = 0;
+            this.paletteFingerprint = null;
+            this.gridFingerprint = null;
+            this.piano.pinned = false;
+            if (!options.keepAudio) this.piano.restored(null, null);
+            this.sync();
+        }
+
+        async setInstrument(instrument) {
+            if (!Object.hasOwn(theory.instruments, instrument)) throw new Error('Unknown Q instrument.');
+            if (this.state.instrument === instrument) return;
+            const origin = this.running ? this.origin ?? this.host.context().currentTime : null;
+            const preview = this.preview?.chord;
+            this.stop();
+            const generation = this.generation;
+            this.piano.select(instrument);
+            this.state.instrument = instrument;
+            this.state.bank = null;
+            this.changed({ preserveSamples: true, reschedule: false });
+            this.status(`${theory.instruments[instrument].label} selected. Samples load on demand.`);
+            if (origin !== null) {
+                await this.preparePlayback();
+                if (generation === this.generation) this.start(origin);
+            } else if (preview) await this.audition(preview);
+        }
+
+        status(message, error = false) {
+            for (const id of ['performanceBastardLoopQMeta', 'bastardLoopQStatus']) {
+                const element = document.getElementById(id);
+                if (!element) continue;
+                element.textContent = message;
+                element.classList.toggle('q-error', error);
+            }
+        }
+
+        async task(action) {
+            try { await action(); }
+            catch (error) { if (error.name !== 'AbortError') this.status(error.message, true); }
+        }
+
+        changed(options = {}) {
+            if (options.reschedule !== false) this.editRevision = (this.editRevision || 0) + 1;
+            const revision = this.editRevision || 0;
+            if (!options.preserveSamples) {
+                this.piano.pinned = false;
+                this.state.bank = null;
+            }
+            this.host.save();
+            this.sync();
+            this.updateEffects();
+            const now = this.host.context()?.currentTime;
+            for (const voice of this.voices) if (voice.preview && !voice.grid && voice.end > now) {
+                voice.accentBoost = this.preview?.chord.accent ? 1 + 2 * this.state.accentAmount : 1;
+                this.applyVoiceEnvelope(voice, this.state, Math.max(now, voice.start));
+            }
+            if (this.running && options.reschedule !== false) {
+                const generation = this.generation;
+                const state = theory.copy(this.state);
+                this.task(async () => {
+                    await this.piano.ensure(theory.events(state, this.length()));
+                    if (generation !== this.generation || revision !== this.editRevision) return;
+                    this.playbackState = state;
+                    const now = this.host.context().currentTime;
+                    for (const voice of this.voices) if (voice.grid && voice.end > now) this.applyVoiceEnvelope(voice, state, Math.max(now, voice.start));
+                    if (options.live) {
+                        for (const voice of [...this.voices]) if (!voice.preview && voice.start > now) this.removeVoice(voice, true);
+                        this.seek(now + .001);
+                        this.tick();
+                    } else this.seek(now + .12);
+                });
+            }
+        }
+
+        async ready() {
+            if (!await this.host.ready()) throw new Error('Start MYGRAIN before using Q.');
+            return true;
+        }
+
+        async prepareCapture() {
+            const serialized = JSON.stringify(this.state);
+            await this.piano.capture(this.state);
+            if (JSON.stringify(this.state) !== serialized) throw new Error('Q changed while its samples were being captured. Save the part again.');
+            this.state.bank = theory.copy(this.piano.bank);
+        }
+
+        async preparePlayback() {
+            await this.ready();
+            this.status(`Loading the ${theory.instruments[this.state.instrument].label} notes needed by this sequence…`);
+            const events = theory.events(this.state, this.length());
+            if (!events.length) {
+                const chord = this.selectedChord();
+                events.push({ notes: theory.transposed(chord.notes, this.state.transpose), velocity: this.state.velocity });
+            }
+            await this.piano.ensure(events);
+            this.status(`Local multisample ${theory.instruments[this.state.instrument].label} ready.`);
+        }
+
+        ensureGraph() {
+            const context = this.host.context();
+            const destination = this.host.destination();
+            if (this.graph?.context === context && this.graph.destination === destination) return this.graph;
+            if (this.graph) for (const node of this.graph.nodes) { try { node.disconnect(); } catch (error) {} }
+            const input = context.createGain();
+            const highpass = context.createBiquadFilter();
+            const lowpass = context.createBiquadFilter();
+            highpass.type = 'highpass';
+            lowpass.type = 'lowpass';
+            highpass.Q.value = .707;
+            lowpass.Q.value = .707;
+            const dry = context.createGain();
+            const delay = context.createDelay(12);
+            const feedback = context.createGain();
+            const delayWet = context.createGain();
+            const convolver = context.createConvolver();
+            const roomWet = context.createGain();
+            const level = context.createGain();
+            const pan = context.createStereoPanner();
+            const impulse = context.createBuffer(2, Math.round(context.sampleRate * 1.1), context.sampleRate);
+            let random = 19800517;
+            for (let channel = 0; channel < 2; channel += 1) {
+                const samples = impulse.getChannelData(channel);
+                for (let index = 0; index < samples.length; index += 1) {
+                    random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+                    samples[index] = (random / 2147483648 - 1) * Math.exp(-7 * index / samples.length) * .3;
+                }
+            }
+            convolver.normalize = true;
+            convolver.buffer = impulse;
+            input.connect(highpass).connect(lowpass);
+            lowpass.connect(dry).connect(level);
+            lowpass.connect(delay);
+            delay.connect(feedback).connect(delay);
+            delay.connect(delayWet).connect(level);
+            lowpass.connect(convolver).connect(roomWet).connect(level);
+            level.connect(pan).connect(destination);
+            const nodes = [input, highpass, lowpass, dry, delay, feedback, delayWet, convolver, roomWet, level, pan];
+            this.graph = { context, destination, input, highpass, lowpass, dry, delay, feedback, delayWet, convolver, roomWet, level, pan, nodes };
+            this.updateEffects();
+            return this.graph;
+        }
+
+        updateEffects() {
+            const graph = this.graph;
+            if (!graph || graph.context.state === 'closed') return;
+            const now = graph.context.currentTime;
+            const targets = [[graph.highpass.frequency, this.state.highpass], [graph.lowpass.frequency, Math.min(this.state.lowpass, graph.context.sampleRate * .45)],
+                [graph.delay.delayTime, Math.min(11, 60 / this.host.bpm() * this.state.delayBeats)], [graph.feedback.gain, this.state.feedback],
+                [graph.delayWet.gain, this.state.delay * .65], [graph.roomWet.gain, this.state.room * .8],
+                [graph.level.gain, this.state.enabled || (this.auditioning && this.hasAudio()) ? this.state.level * this.host.soloGain() : 0], [graph.pan.pan, this.state.pan]];
+            for (const [parameter, value] of targets) {
+                parameter.cancelScheduledValues(now);
+                parameter.setTargetAtTime(value, now, .015);
+            }
+        }
+
+        voice(pitch, velocity, start, duration, options = {}) {
+            const context = this.host.context();
+            const graph = this.ensureGraph();
+            const selected = this.piano.source(pitch, velocity);
+            const rate = 2 ** ((pitch - selected.sample.midi) / 12);
+            const when = Math.max(context.currentTime + .001, start);
+            const looped = this.state.instrument === 'strings';
+            const release = Math.min(looped ? .25 : .16, options.releaseSeconds ?? Infinity);
+            const end = when + (looped ? duration + release : Math.min(duration + release, selected.duration / rate - .001));
+            if (end <= when + .004) return;
+            while (this.voices.size >= 64) this.removeVoice(this.voices.values().next().value, true);
+            const source = context.createBufferSource();
+            const gain = context.createGain();
+            source.buffer = selected.buffer;
+            source.playbackRate.value = rate;
+            if (looped) {
+                source.loop = true;
+                source.loopStart = selected.offset + selected.loopStart;
+                source.loopEnd = selected.offset + selected.loopEnd;
+            }
+            const baseVelocity = options.baseVelocity ?? velocity;
+            const peak = (looped ? baseVelocity / 127 : Math.sqrt(baseVelocity / 127)) * instrumentCalibrationGain[this.state.instrument];
+            source.connect(gain).connect(graph.input);
+            const voice = { source, gain, start: when, end, fullDuration: end - when, fullRelease: release, pitch, velocity, peak, release, grid: options.grid === true, stepSeconds: options.stepSeconds, accentBoost: options.accentBoost ?? 1, preview: options.preview === true };
+            this.applyVoiceEnvelope(voice, this.playbackState || this.state);
+            this.voices.add(voice);
+            const tail = Math.max(this.state.room > 0 ? 1.1 : 0, this.state.delay > 0 ? Math.min(8, 60 / this.host.bpm() * this.state.delayBeats * Math.log(.001) / Math.log(Math.max(.01, this.state.feedback))) : 0);
+            this.tailUntil = Math.max(this.tailUntil || 0, voice.end + tail);
+            if (this.voices.size === 1 && !this.running) this.host.activity?.();
+            source.onended = () => this.removeVoice(voice);
+            source.start(when, selected.offset);
+            voice.started = true;
+            source.stop(voice.end);
+        }
+
+        applyVoiceEnvelope(voice, state, from = voice.start) {
+            voice.fullDuration ??= voice.end - voice.start;
+            voice.fullRelease ??= voice.release;
+            const shape = theory.sampleEnvelope(state, voice.fullDuration, voice.fullRelease);
+            voice.end = voice.start + shape.duration;
+            voice.release = shape.release;
+            if (voice.started && voice.end <= from) {
+                voice.end = from + .006;
+                const parameter = voice.gain.gain;
+                parameter.cancelScheduledValues(from);
+                parameter.setValueAtTime(parameter.value, from);
+                parameter.linearRampToValueAtTime(0, voice.end);
+                voice.source.stop(voice.end);
+                return;
+            }
+            const { start, end, peak, release } = voice;
+            const attack = Math.min(.003, (end - start) / 3);
+            const releaseStart = Math.max(start + attack, end - release);
+            const baseAt = time => time < start + attack ? peak * Math.max(0, (time - start) / attack)
+                : shape.fading ? peak * Math.max(0, (end - time) / (end - start - attack))
+                    : time > releaseStart ? peak * Math.max(0, (end - time) / (end - releaseStart)) : peak;
+            const cellAt = time => (time - this.origin) / voice.stepSeconds;
+            const multiplierAt = time => voice.grid ? theory.accentGain(state, cellAt(time), this.length()) : voice.accentBoost ?? 1;
+            const points = new Map([[start + attack, null], [releaseStart, null], [end, 0]]);
+            if (voice.grid) {
+                for (let cell = Math.floor(cellAt(start)) + 1; this.origin + cell * voice.stepSeconds < end; cell += 1) {
+                    const boundary = this.origin + cell * voice.stepSeconds;
+                    const before = Math.max(start + attack, boundary - Math.min(.003, voice.stepSeconds / 4));
+                    if (before < boundary) points.set(before, baseAt(before) * theory.accentGain(state, cell - 1, this.length()));
+                    points.set(boundary, baseAt(boundary) * theory.accentGain(state, cell, this.length()));
+                }
+            }
+            const parameter = voice.gain.gain;
+            parameter.cancelScheduledValues(from);
+            parameter.setValueAtTime(baseAt(from) * multiplierAt(from), from);
+            for (const [time, value] of [...points].sort(([first], [second]) => first - second)) {
+                if (time > from) parameter.linearRampToValueAtTime(value ?? baseAt(time) * multiplierAt(time), time);
+            }
+            if (voice.started) voice.source.stop(end);
+        }
+
+        removeVoice(voice, stop = false) {
+            if (!voice) return;
+            voice.source.onended = null;
+            if (stop) { try { voice.source.stop(); } catch (error) {} }
+            voice.source.disconnect();
+            voice.gain.disconnect();
+            this.voices.delete(voice);
+            if (this.voices.size === 0 && !this.running) this.host.activity?.();
+        }
+
+        stopPreview() {
+            this.auditioning = false;
+            this.previewToken = (this.previewToken || 0) + 1;
+            clearInterval(this.previewTimer);
+            this.previewTimer = null;
+            this.preview = null;
+            for (const voice of [...this.voices]) if (voice.preview) this.removeVoice(voice, true);
+            this.updateEffects();
+            this.reflectPlaying();
+            this.host.activity?.();
+        }
+
+        stop() {
+            this.generation += 1;
+            this.running = false;
+            this.stopPreview();
+            this.tailUntil = 0;
+            this.lastStepSeconds = 0;
+            clearInterval(this.timer);
+            this.timer = null;
+            for (const voice of [...this.voices]) this.removeVoice(voice, true);
+            if (this.graph) {
+                for (const node of this.graph.nodes) { try { node.disconnect(); } catch (error) {} }
+                this.graph = null;
+            }
+            this.syncTransport();
+            this.reflectPlaying();
+            this.host.activity?.();
+        }
+
+        start(startTime) {
+            if (!this.playable()) return false;
+            this.stop();
+            const generation = this.generation;
+            this.running = true;
+            this.host.activity?.();
+            const begin = () => {
+                if (generation !== this.generation || !this.running) return;
+                this.ensureGraph();
+                this.origin = startTime;
+                this.playbackState = theory.copy(this.state);
+                this.nextCycle = 0;
+                this.nextEvent = 0;
+                const stepSeconds = 60 / this.host.bpm() / 4 / this.state.rate;
+                if (this.host.context().currentTime > startTime) this.nextCycle = Math.floor((this.host.context().currentTime - startTime) / (stepSeconds * this.length()));
+                this.tick();
+                this.timer = setInterval(() => {
+                    try { this.tick(); }
+                    catch (error) { this.stop(); this.status(error.message, true); }
+                }, 25);
+                this.syncTransport();
+            };
+            const sequence = theory.events(this.state, this.length());
+            if (sequence.every(event => event.notes.every(pitch => {
+                try { this.piano.source(pitch, event.sampleVelocity ?? event.velocity); return true; } catch (error) { return false; }
+            }))) begin();
+            else this.task(async () => {
+                this.status(`Preparing Q ${theory.instruments[this.state.instrument].label}…`);
+                try { await this.piano.ensure(sequence); begin(); }
+                catch (error) { if (generation === this.generation) this.stop(); throw error; }
+            });
+            return true;
+        }
+
+        tick() {
+            if (!this.running) return;
+            const context = this.host.context();
+            if (!context || context.state !== 'running') { this.stop(); return; }
+            const state = this.playbackState || this.state;
+            const sequence = this.timeline();
+            const stepSeconds = 60 / this.host.bpm() / 4 / state.rate;
+            if (this.lastStepSeconds && this.lastStepSeconds !== stepSeconds) this.seek(context.currentTime + .12);
+            this.lastStepSeconds = stepSeconds;
+            const horizon = context.currentTime + .12;
+            let count = 0;
+            while (sequence.length && count++ < 512) {
+                if (this.nextEvent >= sequence.length) { this.nextCycle += 1; this.nextEvent = 0; }
+                const event = sequence[this.nextEvent];
+                const when = this.origin + (this.nextCycle * this.length() + event.start) * stepSeconds;
+                if (when > horizon) break;
+                this.nextEvent += 1;
+                if (when < context.currentTime - .02) continue;
+                for (const pitch of event.notes) this.voice(pitch, event.sampleVelocity ?? event.velocity, when, event.gate * stepSeconds, { grid: true, stepSeconds, baseVelocity: state.sequence[event.index].velocity, releaseSeconds: state.arpEnabled && state.arpPattern === 'custom' ? event.gate * stepSeconds / 4 : undefined });
+            }
+            const position = Math.floor(Math.max(0, context.currentTime - this.origin) / stepSeconds) % this.length();
+            this.updatePlayhead(position);
+            if (this.liveRecording() && !document.hidden && document.getElementById('bastardLoopQOverlay')?.hidden === false && this.livePlayheadPosition !== position) {
+                this.livePlayheadPosition = position;
+                const label = document.getElementById('bastardLoopQStepCursor');
+                if (label) label.textContent = `Live playhead ${position + 1} / ${this.length()} · Selected ${this.cursor + 1} · Rate ×${this.state.rate}`;
+                this.revealCursor(position);
+            }
+            this.reflectPlaying(context.currentTime);
+            this.updateEffects();
+        }
+
+        timeline() {
+            const state = this.playbackState || this.state;
+            if (this.timelineState !== state || this.timelineLength !== this.length()) {
+                this.timelineState = state;
+                this.timelineLength = this.length();
+                this.scheduledEvents = theory.playbackEvents(state, this.length());
+            }
+            return this.scheduledEvents;
+        }
+
+        seek(time) {
+            const state = this.playbackState || this.state;
+            const stepSeconds = 60 / this.host.bpm() / 4 / state.rate;
+            const position = Math.max(0, (time - this.origin) / stepSeconds);
+            this.nextCycle = Math.floor(position / this.length());
+            const phase = position % this.length();
+            this.nextEvent = this.timeline().findIndex(event => event.start >= phase);
+            if (this.nextEvent < 0) { this.nextCycle += 1; this.nextEvent = 0; }
+        }
+
+        selectedChord() {
+            if (this.state.selection) return { ...theory.copy(this.state.selection), velocity: this.state.velocity, gate: this.state.gate };
+            const rootNote = (this.state.octave + 1) * 12 + this.state.chordRoot;
+            const pitches = theory.chord(rootNote, this.state.chordType, this.state.inversion, this.state.voicing);
+            theory.transposed(pitches, this.state.transpose);
+            return { root: rootNote, type: this.state.chordType, inversion: this.state.inversion, voicing: this.state.voicing, notes: pitches, gate: this.state.gate, velocity: this.state.velocity, ratchet: 1 };
+        }
+
+        async audition(chord, options = {}) {
+            const request = this.previewToken = (this.previewToken || 0) + 1;
+            await this.ready();
+            const generation = this.generation;
+            const pitches = theory.transposed(chord.notes, this.state.transpose);
+            const event = { notes: pitches, velocity: chord.velocity || this.state.velocity };
+            await this.piano.ensure([event]);
+            if (generation !== this.generation || request !== this.previewToken) return;
+            clearInterval(this.previewTimer);
+            for (const voice of [...this.voices]) if (voice.preview) this.removeVoice(voice, true);
+            this.auditioning = true;
+            this.ensureGraph();
+            this.preview = { chord: theory.copy(chord), pitches, velocity: event.velocity, order: theory.arpOrder(pitches, this.state.arpPattern, this.state.arpSteps), next: 0, nextTime: this.host.context().currentTime + .06, arp: this.state.arpEnabled, repeat: this.state.arpRepeat === 'until-next', done: false, endPosition: options.endPosition };
+            this.tickPreview();
+            if (!this.preview) return;
+            this.previewTimer = setInterval(() => {
+                try { this.tickPreview(); }
+                catch (error) { this.stop(); this.status(error.message, true); }
+            }, 25);
+            this.updateEffects();
+            this.status(`${options.recorded ? this.liveRecording() ? 'Live recorded' : 'Recorded' : this.state.record ? 'Audition' : 'Practice'}: ${theory.noteName(chord.root)} ${chord.type} · ${pitches.map(theory.noteName).join(' – ')}`);
+        }
+
+        tickPreview() {
+            const preview = this.preview;
+            const context = this.host.context();
+            if (!preview || !context || context.state !== 'running') { this.stop(); return; }
+            const cutoff = Number.isFinite(preview.endPosition) ? this.origin + preview.endPosition * (60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate) : Infinity;
+            if (context.currentTime >= cutoff) { this.stopPreview(); return; }
+            const interval = 60 / this.host.bpm() * this.state.arpDivision;
+            if (!preview.done && preview.nextTime < context.currentTime - .02) {
+                const missed = Math.floor((context.currentTime - preview.nextTime) / interval);
+                preview.next += missed;
+                preview.nextTime += missed * interval;
+                if (preview.arp && !preview.repeat && preview.next >= preview.order.length) preview.done = true;
+            }
+            while (!preview.done && preview.nextTime <= context.currentTime + .12) {
+                if (preview.nextTime >= cutoff) { preview.done = true; break; }
+                const voiceOptions = { preview: true, grid: this.running, stepSeconds: 60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate, accentBoost: preview.chord.accent ? 1 + 2 * this.state.accentAmount : 1 };
+                if (preview.arp) {
+                    const pitch = preview.order[preview.next % preview.order.length];
+                    if (pitch !== null) this.voice(pitch, preview.velocity, preview.nextTime, interval * .8, { ...voiceOptions, releaseSeconds: this.state.arpPattern === 'custom' ? interval * .2 : undefined });
+                    preview.next += 1;
+                    preview.nextTime += interval;
+                    if (!preview.repeat && preview.next >= preview.order.length) preview.done = true;
+                } else {
+                    for (const pitch of preview.pitches) this.voice(pitch, preview.velocity, preview.nextTime, .85, voiceOptions);
+                    preview.done = true;
+                }
+            }
+            this.reflectPlaying(context.currentTime);
+            if (preview.done && ![...this.voices].some(voice => voice.preview)) {
+                clearInterval(this.previewTimer);
+                this.previewTimer = null;
+                this.preview = null;
+                this.reflectPlaying(context.currentTime);
+                this.host.activity?.();
+            }
+        }
+
+        palette() { return theory.chordPalette(this.state, this.scale()); }
+
+        updatePlayhead(position) {
+            if (typeof document === 'undefined' || document.hidden || document.getElementById('bastardLoopQOverlay')?.hidden !== false) return false;
+            const grid = document.getElementById('bastardLoopQStepGrid');
+            if (!grid || (root.isPerformanceElementVisible && !root.isPerformanceElementVisible(grid))) return false;
+            if (position === undefined) {
+                const state = this.playbackState || this.state;
+                const stepSeconds = 60 / this.host.bpm() / 4 / state.rate;
+                position = this.running ? Math.floor(Math.max(0, this.host.context().currentTime - this.origin) / stepSeconds) % this.length() : -1;
+            }
+            const previous = grid.querySelector('.playing');
+            const current = grid.children[position];
+            if (previous === (current || null)) return false;
+            previous?.classList.remove('playing');
+            current?.classList.add('playing');
+            return true;
+        }
+
+        reflectPlaying(now = this.host.context()?.currentTime || 0) {
+            if (typeof document === 'undefined') return;
+            if (document.hidden || document.getElementById('bastardLoopQOverlay')?.hidden !== false) {
+                this.playingFingerprint = null;
+                return;
+            }
+            const voices = [...this.voices].filter(voice => voice.start <= now && voice.end > now);
+            let chord = voices.some(voice => voice.preview) ? this.preview?.chord : null;
+            if (!chord && this.running && voices.length) {
+                const state = this.playbackState || this.state;
+                const elapsed = Math.max(0, (now - this.origin) / (60 / this.host.bpm() / 4 / state.rate));
+                const position = elapsed % this.length();
+                let index = Math.floor(position);
+                while (index >= 0 && (!state.sequence[index] || state.sequence[index].kind === 'accent')) index -= 1;
+                if (index < 0 && elapsed >= this.length()) {
+                    index = this.length() - 1;
+                    while (index >= 0 && (!state.sequence[index] || state.sequence[index].kind === 'accent')) index -= 1;
+                }
+                if (index >= 0 && !state.sequence[index].rest) chord = state.sequence[index];
+            }
+            const signature = chord?.notes.join(',');
+            const pitches = new Set(voices.map(voice => voice.pitch));
+            const fingerprint = JSON.stringify([signature, [...pitches].sort((first, second) => first - second), this.state.transpose, this.state.arpEnabled ? this.state.arpPattern : null]);
+            if (fingerprint === this.playingFingerprint) return;
+            this.playingFingerprint = fingerprint;
+            document.querySelectorAll('#bastardLoopQPalette [data-q-degree]').forEach(button => {
+                const playing = Boolean(signature && button.dataset.notes === signature);
+                button.classList.toggle('q-chord-playing', playing);
+                button.querySelectorAll('[data-note]').forEach(note => note.classList.toggle('q-note-playing', playing && pitches.has(Number(note.dataset.note) + this.state.transpose)));
+            });
+            const label = document.getElementById('bastardLoopQPlaying');
+            if (label) label.textContent = chord ? `Playing ${theory.noteName(chord.root)} ${chord.type}${this.state.arpEnabled ? ` · ${this.state.arpPattern} arp` : ''}` : 'Tap a chord to play it.';
+        }
+
+        insert(chord = this.selectedChord()) {
+            const step = theory.normalizeStep(chord);
+            if (!step) throw new Error('That chord is outside the piano range A0–C8. Choose a different octave or voicing.');
+            theory.transposed(step.notes, this.state.transpose);
+            step.accent = step.accent || this.state.sequence[this.cursor]?.accent === true;
+            this.state.sequence[this.cursor] = step;
+            this.cursor = (this.cursor + 1) % this.length();
+            this.state.enabled = true;
+            this.changed();
+        }
+
+        recordChord(chord) {
+            if (!this.liveRecording()) { this.insert(chord); return true; }
+            const now = this.host.context()?.currentTime;
+            if (!this.running || !Number.isFinite(this.origin) || !Number.isFinite(now) || now < this.origin) {
+                this.status('Live is armed. Press green All Play to start recording at the playhead.');
+                return false;
+            }
+            const step = theory.normalizeStep(chord);
+            if (!step) throw new Error('That chord is outside the piano range A0–C8.');
+            theory.transposed(step.notes, this.state.transpose);
+            const stepSeconds = 60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate;
+            this.cursor = Math.floor((now - this.origin) / stepSeconds) % this.length();
+            step.accent = step.accent || this.state.sequence[this.cursor]?.accent === true;
+            this.state.sequence[this.cursor] = step;
+            this.state.enabled = true;
+            if (step.rest) for (const voice of [...this.voices]) if (!voice.preview) this.removeVoice(voice, true);
+            this.changed({ live: true });
+            this.status(`Live recorded ${step.rest ? 'Rest' : `${theory.noteName(step.root)} ${step.type}`} at step ${this.cursor + 1}.`);
+            return true;
+        }
+
+        async playChord(chord) {
+            const step = theory.normalizeStep({ ...chord, velocity: this.state.velocity, gate: this.state.gate });
+            if (!step) throw new Error('That chord is outside the piano range A0–C8.');
+            this.state.selection = step;
+            this.piano.pinned = false;
+            const recorded = this.state.record && this.recordChord(step);
+            if (!recorded) this.changed({ reschedule: false });
+            let endPosition;
+            if (recorded && this.liveRecording()) {
+                const stepSeconds = 60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate;
+                const cycle = Math.floor((this.host.context().currentTime - this.origin) / stepSeconds / this.length());
+                let end = this.cursor + 1;
+                while (end < this.length() && (!this.state.sequence[end] || this.state.sequence[end].kind === 'accent' || (this.state.arpEnabled && this.state.arpRepeat === 'once' && !this.state.sequence[end].rest))) end += 1;
+                endPosition = cycle * this.length() + end;
+            }
+            await this.audition(step, { endPosition, recorded });
+            if (this.liveRecording() && !recorded) this.status('Live is armed. Press green All Play; this chord was auditioned only.');
+        }
+
+        stepClicked(index) {
+            const marking = Boolean(this.mark);
+            this.cursor = index;
+            const step = this.state.sequence[index];
+            if (step?.notes?.length) {
+                this.state.selection = theory.copy(step);
+                this.state.velocity = step.velocity;
+                this.state.gate = step.gate;
+            }
+            if (this.mark) {
+                if (this.mark.start === null) {
+                    this.mark.start = index;
+                    this.status('Now choose the last step of the section.');
+                } else {
+                    const range = [Math.min(index, this.mark.start), Math.max(index, this.mark.start)];
+                    if (this.mark.type === 'copy') {
+                        this.clipboard = theory.copy(this.state.sequence.slice(range[0], range[1] + 1));
+                        this.mark = { type: 'paste', start: null, insert: this.mark.insert };
+                        this.status('Section copied. Tap its destination step to paste.');
+                    } else if (this.mark.type === 'transpose') {
+                        this.range = range;
+                        this.mark = null;
+                        this.status(`Transpose section ${range[0] + 1}–${range[1] + 1} with Seq − / Seq +.`);
+                    }
+                }
+                if (this.mark?.type === 'paste' && this.mark.start !== null) this.paste(index);
+            }
+            this.sync();
+            if (!marking) {
+                if (step?.notes?.length && !step.rest) this.task(() => this.audition(step));
+                else this.stopPreview();
+            }
+        }
+
+        paste(index) {
+            if (!this.clipboard) return;
+            if (this.mark?.insert) {
+                for (let target = index; target < this.length(); target += 1) this.state.sequence[target] = theory.copy(this.clipboard[(target - index) % this.clipboard.length]);
+            }
+            else this.clipboard.forEach((step, offset) => { if (index + offset < this.length()) this.state.sequence[index + offset] = theory.copy(step); });
+            this.state.sequence.length = 64;
+            this.mark = null;
+            this.changed();
+            this.status('Copied chords pasted.');
+        }
+
+        transpose(amount) {
+            const [start, end] = this.range || [0, this.length() - 1];
+            const replacement = this.state.sequence.map((step, index) => step?.notes?.length && index >= start && index <= end
+                ? { ...step, root: step.root + amount, notes: theory.transposed(step.notes, amount) } : step);
+            this.state.sequence = replacement;
+            this.changed();
+            this.status(`Transposed ${this.range ? `steps ${start + 1}–${end + 1}` : 'the sequence'} ${amount > 0 ? '+' : ''}${amount} semitone.`);
+        }
+
+        nudgeStep(amount) {
+            const source = this.cursor;
+            const step = this.state.sequence[source];
+            if (source < 0 || source >= this.length() || !step?.notes?.length || step.rest) throw new Error('Select a grid chord before nudging it.');
+            const destination = (source + amount + this.length()) % this.length();
+            const neighbour = this.state.sequence[destination];
+            this.state.sequence[destination] = step;
+            this.state.sequence[source] = neighbour;
+            this.cursor = destination;
+            this.state.selection = theory.copy(step);
+            this.mark = null;
+            this.range = null;
+            this.stopPreview();
+            this.changed({ live: true });
+            this.status(`Moved step ${source + 1} ${amount < 0 ? 'left' : 'right'} 1 to step ${destination + 1}${neighbour ? ' · swapped neighbour' : ''}.`);
+        }
+
+        async transposeStep(amount) {
+            const step = this.state.sequence[this.cursor];
+            if (!step?.notes?.length || step.rest) throw new Error('Select a grid chord before transposing it.');
+            const pitches = theory.transposed(step.notes, amount);
+            theory.transposed(pitches, this.state.transpose);
+            const rootNote = step.root + amount;
+            if (rootNote < 21 || rootNote > 108) throw new Error('That transposition would leave the piano range A0–C8.');
+            const chord = { ...step, root: rootNote, notes: pitches };
+            this.state.sequence[this.cursor] = chord;
+            this.state.selection = theory.copy(chord);
+            this.changed();
+            this.status(`Step ${this.cursor + 1}: ${amount > 0 ? '+' : ''}${amount} semitone.`);
+            await this.audition(chord);
+        }
+
+        copyArp() {
+            if (!this.state.arpEnabled) throw new Error('Switch Q from block chords to ARP before copying.');
+            const sourceLength = this.length();
+            const steps = theory.arpSequence(this.state, sourceLength);
+            this.arpClipboard = { steps, pattern: this.state.arpPattern, sourceLength };
+            if (typeof root.CustomEvent === 'function') root.dispatchEvent?.(new root.CustomEvent('mygrain-arp-clipboard'));
+            const gaps = steps.filter(step => step.rest).length;
+            this.status(`Copied the entire ${sourceLength}-step Q pattern from step 1: ${steps.length} arp pulses, ${gaps} gaps. Paste from Arp in X or L at its selected step; destination rate is unchanged.`);
+            return this.getArpClipboard();
+        }
+
+        getArpClipboard() {
+            return this.arpClipboard ? theory.copy(this.arpClipboard) : null;
+        }
+
+        async action(action) {
+            if (action === 'copy-arp') return this.copyArp();
+            if (action === 'arp-builder') return this.arpBuilder.open();
+            if (action === 'edit') return this.open();
+            if (action === 'close') return this.close();
+            if (action === 'load') return this.preparePlayback();
+            if (action === 'audition') return this.audition(this.selectedChord());
+            if (action === 'audition-step') {
+                const step = this.state.sequence[this.cursor];
+                if (!step?.notes?.length || step.rest) throw new Error('Choose a step containing a playable chord.');
+                return this.audition(step);
+            }
+            if (action === 'insert') return this.insert();
+            if (action === 'stop') { this.stop(); this.status('Q stopped.'); return; }
+            if (action === 'stop-all') { this.host.stopAll(); return; }
+            if (action === 'play-all') {
+                const generation = this.generation;
+                await this.ready();
+                if (this.hasSequence() || this.liveRecording()) await this.preparePlayback();
+                if (generation !== this.generation) return;
+                if (this.hasSequence() || this.liveRecording()) this.setEnabled(true);
+                this.host.allPlay();
+                this.status(this.liveRecording() ? 'Whole pattern playing. Live taps record at the playhead.' : 'Whole pattern playing.');
+                return;
+            }
+            if (action === 'play' || action === 'transport') {
+                if (!this.hasSequence() && !this.liveRecording()) throw new Error('Insert a chord or arm Live recording first.');
+                const generation = this.generation;
+                await this.preparePlayback();
+                if (generation !== this.generation) return;
+                this.setEnabled(true);
+                if (action === 'play') { this.host.stopAll(); this.start(this.host.context().currentTime + .04); }
+                else this.host.sharedPlay();
+                return;
+            }
+            if (action === 'toggle') return this.setEnabled(!this.state.enabled);
+            if (action === 'solo') { this.host.solo(); return; }
+            if (action === 'practice') this.state.record = false;
+            if (action === 'record') {
+                this.state.recordMode = this.state.record && this.state.recordMode === 'step' ? 'live' : 'step';
+                this.state.record = true;
+                const origin = this.host.transportOrigin?.();
+                if (this.liveRecording() && !this.running && Number.isFinite(origin)) {
+                    this.state.enabled = true;
+                    this.start(origin);
+                }
+            }
+            if (action === 'back') this.cursor = (this.cursor + this.length() - 1) % this.length();
+            if (action === 'forward') this.cursor = (this.cursor + 1) % this.length();
+            if (action === 'clear-step') { this.state.sequence[this.cursor] = null; this.stopPreview(); }
+            if (action === 'clear-all') { this.state.sequence.fill(null); this.range = null; this.mark = null; }
+            if (action === 'transpose-down') return this.transpose(-1);
+            if (action === 'transpose-up') return this.transpose(1);
+            if (action === 'transpose-step-down') return this.transposeStep(-1);
+            if (action === 'transpose-step-up') return this.transposeStep(1);
+            if (action === 'nudge-left') return this.nudgeStep(-1);
+            if (action === 'nudge-right') return this.nudgeStep(1);
+            if (action === 'transpose-range' || action === 'copy-range' || action === 'copy') {
+                this.mark = { type: action === 'transpose-range' ? 'transpose' : 'copy', start: null, insert: action === 'copy-range' };
+                this.range = null;
+                this.status('Choose the first, then last step of the section.');
+            }
+            if (action === 'clear-range') { this.range = null; this.mark = null; }
+            if (action === 'paste') return this.paste(this.cursor);
+            if (action === 'rate-down' || action === 'rate-up') {
+                const rates = [.25, .5, 1, 2, 4];
+                this.state.rate = rates[Math.min(4, Math.max(0, rates.indexOf(this.state.rate) + (action === 'rate-up' ? 1 : -1)))];
+            }
+            if (action === 'rest') {
+                this.stopPreview();
+                const chord = this.state.sequence[this.cursor] || this.state.selection || { root: 48, notes: [48] };
+                if (this.liveRecording()) { this.recordChord({ ...chord, rest: true }); return; }
+                this.state.sequence[this.cursor] = theory.normalizeStep({ ...chord, rest: true, velocity: this.state.velocity, gate: this.state.gate });
+                this.cursor = (this.cursor + 1) % this.length();
+            }
+            if (action === 'accent' || action === 'tie') {
+                const step = this.state.sequence[this.cursor];
+                if (action === 'accent' && !step) this.state.sequence[this.cursor] = theory.normalizeStep({ kind: 'accent', notes: [], accent: true });
+                else if (action === 'accent' && step.kind === 'accent') this.state.sequence[this.cursor] = null;
+                else {
+                    if (!step?.notes?.length) throw new Error('Choose a step containing a chord first.');
+                    step[action] = !step[action];
+                    if (action === 'accent' && this.preview?.chord.notes.join(',') === step.notes.join(',')) this.preview.chord.accent = step.accent;
+                }
+                this.changed({ preserveSamples: action === 'accent' && (!step || step.kind === 'accent'), live: true });
+                return;
+            }
+            if (action === 'random') this.randomPattern();
+            if (action === 'midi') {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(new Blob([theory.midiFile(this.state, this.length(), this.host.bpm())], { type: 'audio/midi' }));
+                link.download = 'bastardloop-q.mid';
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            }
+            const controlsOnly = ['practice', 'record', 'back', 'forward', 'midi'].includes(action);
+            this.changed({ preserveSamples: controlsOnly, reschedule: !controlsOnly, live: action === 'clear-step' });
+        }
+
+        scale() {
+            return this.state.scale === 'custom' ? this.state.customScale : (this.scales.find(scale => scale.name === this.state.scale) || this.scales[0]).intervals;
+        }
+
+        randomPattern() {
+            const palette = theory.scaleChords(this.state.tonic, this.scale(), this.state.octave, this.state.paletteSize).filter(chord => theory.normalizeStep(chord));
+            if (!palette.length) throw new Error('Choose a scale with at least three notes.');
+            this.state.sequence.fill(null);
+            for (let index = 0; index < this.length(); index += 4) {
+                const chord = palette[index === 0 ? 0 : Math.floor(Math.random() * palette.length)];
+                this.state.sequence[index] = theory.normalizeStep({ ...chord, gate: 3.8, velocity: this.state.velocity });
+            }
+            this.state.enabled = true;
+        }
+
+        open() {
+            const overlay = document.getElementById('bastardLoopQOverlay');
+            this.livePlayheadPosition = null;
+            this.returnFocus = document.activeElement;
+            overlay.hidden = false;
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('q-sequencer-open');
+            this.syncViewport();
+            this.sync();
+            document.getElementById('bastardLoopQCloseBtn').focus({ preventScroll: true });
+        }
+
+        syncViewport() {
+            const overlay = document.getElementById('bastardLoopQOverlay');
+            if (!overlay || overlay.hidden) return;
+            const viewport = root.visualViewport;
+            overlay.style.setProperty('--q-viewport-height', `${viewport?.height || root.innerHeight}px`);
+            overlay.style.setProperty('--q-viewport-width', `${viewport?.width || root.innerWidth}px`);
+            overlay.style.setProperty('--q-viewport-top', `${viewport?.offsetTop || 0}px`);
+            overlay.style.setProperty('--q-viewport-left', `${viewport?.offsetLeft || 0}px`);
+            this.revealCursor();
+        }
+
+        close() {
+            const overlay = document.getElementById('bastardLoopQOverlay');
+            if (!overlay.hidden) root.guardSectionJumpAfterOverlayClose?.();
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('q-sequencer-open');
+            this.returnFocus?.focus({ preventScroll: true });
+        }
+
+        syncTransport() {
+            if (typeof document === 'undefined') return;
+            for (const button of document.querySelectorAll('[data-q-action="play"]')) button.setAttribute('aria-pressed', String(this.running));
+            for (const button of document.querySelectorAll('[data-q-action="play-all"]')) button.setAttribute('aria-pressed', String(this.running || Number.isFinite(this.host.transportOrigin?.())));
+            for (const button of document.querySelectorAll('[data-q-action="toggle"]')) {
+                button.classList.toggle('layer-muted', !this.state.enabled);
+                button.textContent = `Bastardloop Q ${this.state.enabled ? 'On' : 'Off'}`;
+                button.setAttribute('aria-pressed', String(this.state.enabled));
+            }
+            root.syncBastardLoopXQRootButton?.();
+        }
+
+        revealCursor(index = this.cursor) {
+            const grid = document.getElementById('bastardLoopQStepGrid');
+            const scroller = grid.parentElement;
+            if (!scroller.clientHeight || (this.visibleCursor === index && this.visibleGridHeight === scroller.clientHeight)) return;
+            this.visibleCursor = index;
+            this.visibleGridHeight = scroller.clientHeight;
+            const cell = grid.children[index].getBoundingClientRect();
+            const bounds = scroller.getBoundingClientRect();
+            if (cell.top < bounds.top) scroller.scrollTop -= bounds.top - cell.top;
+            else if (cell.bottom > bounds.bottom) scroller.scrollTop += cell.bottom - bounds.bottom;
+        }
+
+        sync() {
+            if (typeof document === 'undefined' || !document.getElementById('bastardLoopQCard')) return;
+            for (const button of document.querySelectorAll('[data-q-action="copy-arp"]')) {
+                button.disabled = !this.state.arpEnabled;
+                button.title = this.state.arpEnabled ? `Copy the entire ${this.length()}-step Q pattern from step 1, including all chord changes, gaps and accents. One pulse per X/L step; destination rate is unchanged.` : 'Copy Arp is unavailable in block chord mode. Switch Chord playback to ARP.';
+            }
+            for (const input of document.querySelectorAll('[data-q-field]')) {
+                const key = input.dataset.qField;
+                if (document.activeElement !== input) input.value = String(this.state[key]);
+                const output = document.getElementById(`${input.id}Value`);
+                if (output) output.textContent = key === 'accentAmount' ? `+${(20 * Math.log10(1 + 2 * this.state[key])).toFixed(1)} dB` : ['level', 'room', 'delay', 'feedback', 'sampleLength', 'sampleDecay'].includes(key) ? `${Math.round(this.state[key] * 100)}%` : String(this.state[key]);
+            }
+            const record = document.querySelector('[data-q-action="record"]');
+            record.textContent = `● ${this.state.recordMode === 'live' ? 'Live' : 'Step'}`;
+            record.setAttribute('aria-pressed', String(this.state.record));
+            record.setAttribute('aria-label', `Record ${this.state.recordMode}; tap to ${this.state.record && this.state.recordMode === 'step' ? 'switch to Live' : 'arm Step'} recording`);
+            document.getElementById('bastardLoopQPracticeBtn').setAttribute('aria-pressed', String(!this.state.record));
+            const current = this.state.sequence[this.cursor];
+            for (const action of ['transpose-step-down', 'transpose-step-up', 'nudge-left', 'nudge-right']) {
+                const button = document.querySelector(`[data-q-action="${action}"]`);
+                if (button) button.disabled = !current?.notes?.length || current.rest;
+            }
+            for (const key of ['accent', 'tie']) {
+                const button = document.querySelector(`[data-q-action="${key}"]`);
+                button.setAttribute('aria-pressed', String(Boolean(current?.[key])));
+            }
+            document.getElementById('bastardLoopQStepCursor').textContent = `Editing step ${this.cursor + 1} / ${this.length()} · Rate ×${this.state.rate}${this.range ? ` · Section ${this.range[0] + 1}–${this.range[1] + 1}` : ''}`;
+            const selected = this.state.selection;
+            document.getElementById('bastardLoopQSelected').textContent = selected ? `Selected chord: ${theory.noteName(selected.root)} ${selected.type} · ${selected.notes.map(theory.noteName).join(' – ')}` : 'Chord builder active. Choose a palette chord or use the controls below.';
+            const grid = document.getElementById('bastardLoopQStepGrid');
+            this.livePlayheadPosition = null;
+            grid.replaceChildren();
+            for (let index = 0; index < this.length(); index += 1) {
+                const step = this.state.sequence[index];
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'performance-btn q-step';
+                button.dataset.qStep = String(index);
+                button.classList.toggle('selected', index === this.cursor);
+                button.classList.toggle('in-range', Boolean(this.range && index >= this.range[0] && index <= this.range[1]));
+                button.setAttribute('aria-pressed', String(index === this.cursor));
+                const shortType = step?.type?.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug').replace(/dominant/g, '');
+                button.textContent = `${index + 1}\n${!step || step.kind === 'accent' ? '—' : step.rest ? 'REST' : `${theory.noteName(step.root)} ${shortType}`}${step?.accent ? ' !' : ''}${step?.tie ? ' ~' : ''}${step?.ratchet > 1 ? ` ×${step.ratchet}` : ''}`;
+                button.title = step?.kind === 'accent' ? 'Accent only: boosts notes and arpeggios sounding through this cell; does not retrigger a chord.' : step ? step.notes.map(theory.noteName).join(' – ') : 'Empty step';
+                grid.append(button);
+            }
+            const palette = document.getElementById('bastardLoopQPalette');
+            const fingerprint = JSON.stringify([this.state.tonic, this.scale(), this.state.octave, this.state.chordRoot, this.state.chordType, this.state.inversion, this.state.voicing, this.state.paletteFamilies]);
+            if (fingerprint !== this.paletteFingerprint) {
+                this.paletteFingerprint = fingerprint;
+                this.playingFingerprint = null;
+                this.paletteChords = this.palette();
+                palette.replaceChildren();
+                for (const [index, chord] of this.paletteChords.entries()) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'performance-btn q-chord';
+                    button.dataset.qDegree = String(index);
+                    button.dataset.root = String(theory.pitchClass(chord.root));
+                    button.dataset.type = chord.type;
+                    button.dataset.notes = chord.notes.join(',');
+                    const title = document.createElement('span');
+                    title.className = 'q-chord-name';
+                    title.textContent = `${theory.noteName(chord.root)} ${chord.type.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/dominant/g, '').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug')}`;
+                    const noteRow = document.createElement('span');
+                    noteRow.className = 'q-chord-notes';
+                    for (const pitch of chord.notes) {
+                        const note = document.createElement('span');
+                        note.dataset.note = String(pitch);
+                        note.textContent = theory.noteName(pitch);
+                        noteRow.append(note);
+                    }
+                    button.append(title, noteRow);
+                    palette.append(button);
+                }
+                const roots = document.getElementById('bastardLoopQRoot');
+                roots.replaceChildren();
+                const classes = this.scale().map(interval => (this.state.tonic + interval) % 12);
+                if (!classes.includes(this.state.chordRoot)) classes.push(this.state.chordRoot);
+                for (const pitch of classes) {
+                    const option = document.createElement('option');
+                    option.value = String(pitch);
+                    option.textContent = theory.notes[pitch];
+                    roots.append(option);
+                }
+                roots.value = String(this.state.chordRoot);
+            }
+            for (const button of palette.children) {
+                const selected = Boolean(this.state.selection && button.dataset.notes === this.state.selection.notes.join(',') && button.dataset.type === this.state.selection.type);
+                button.setAttribute('aria-pressed', String(selected));
+                button.title = `${this.state.record ? 'Record' : 'Practice'}: ${button.dataset.notes.split(',').map(Number).map(theory.noteName).join(' – ')}`;
+            }
+            document.getElementById('bastardLoopQPaletteSummary').textContent = `${this.paletteChords.length} scale-matched chords · ${this.state.record ? this.liveRecording() ? 'Live: taps record at playhead' : 'Step: taps write and advance' : 'Practice: taps do not change the grid'}`;
+            document.getElementById('bastardLoopQTonalSummary').textContent = `${theory.notes[this.state.tonic]} ${this.state.scale} · octave ${this.state.octave} · root ${theory.notes[this.state.chordRoot]}`;
+            document.getElementById('bastardLoopQArpEnabled').value = this.state.arpEnabled ? '1' : '0';
+            document.getElementById('bastardLoopQPlaybackSummary').textContent = this.state.arpEnabled ? `ARP · ${this.state.arpPattern}` : 'Block chords';
+            document.getElementById('bastardLoopQCustomScale').hidden = this.state.scale !== 'custom';
+            document.querySelectorAll('[data-q-pitch]').forEach(button => {
+                const interval = Number(button.dataset.qPitch);
+                button.setAttribute('aria-pressed', String(this.state.customScale.includes(interval)));
+                button.textContent = theory.notes[(this.state.tonic + interval) % 12];
+            });
+            const solo = document.getElementById('performanceBastardLoopQLayerSoloBtn');
+            solo.textContent = this.host.isSolo() ? 'Solo On' : 'Solo Off';
+            solo.setAttribute('aria-pressed', String(this.host.isSolo()));
+            this.syncTransport();
+            this.reflectPlaying();
+            this.updatePlayhead();
+            const mixer = document.getElementById('performanceBastardLoopQLevelMixer');
+            if (mixer && document.activeElement !== mixer) mixer.value = String(Math.round(this.state.level * 100));
+            const mixerValue = document.getElementById('performanceBastardLoopQLevelMixerValue');
+            if (mixerValue) mixerValue.textContent = `${Math.round(this.state.level * 100)}%`;
+            this.revealCursor();
+        }
+
+        mount() {
+            const card = document.getElementById('bastardLoopQCard');
+            const button = (action, label, id = '', description = '') => `<button type="button" class="performance-btn" data-q-action="${action}"${id ? ` id="${id}"` : ''}${description ? ` title="${description}" aria-label="${description}"` : ''}>${label}</button>`;
+            const select = (id, label, field) => `<label>${label}<select id="${id}" data-q-field="${field}"></select></label>`;
+            const slider = (id, label, field, minimum, maximum, step) => `<div class="performance-sound-card"><label for="${id}"><span>${label}</span><span class="value" id="${id}Value"></span></label><input type="range" id="${id}" data-q-field="${field}" min="${minimum}" max="${maximum}" step="${step}"></div>`;
+            card.innerHTML = `<div class="performance-feature-head"><div class="performance-feature-copy"><div class="performance-chip">Polyphonic Chord Seq</div><h3 class="performance-feature-title">Bastardloop Q</h3><p class="performance-feature-note">Local multisample grand piano or sustained string ensemble. Audition chords, then record a progression.</p></div><div class="performance-feature-actions">${button('load', 'Load Samples', 'performanceBastardLoopQLoadBtn')}${button('random', 'Random Pattern', 'performanceBastardLoopQRandomPatternBtn')}${button('edit', 'Edit Sequence', 'performanceBastardLoopQEditBtn')}${button('midi', 'Export MIDI', 'performanceBastardLoopQExportMidiBtn')}${button('transport', 'Start Bastardloops', 'performanceBastardLoopQStartBtn')}</div></div>
+                <div class="q-controls">${select('performanceBastardLoopQInstrument', 'Q sound', 'instrument')}${button('arp-builder', 'Custom Arp / Repository', 'performanceBastardLoopQArpBuilderBtn')}${button('copy-arp', 'Copy Arp', 'performanceBastardLoopQCopyArpBtn')}</div>
+                ${slider('performanceBastardLoopQLevel', 'Bastardloop Q Volume', 'level', 0, 1, .01)}
+                <div class="q-controls">${slider('performanceBastardLoopQSampleLength', 'Sample Length', 'sampleLength', .05, 1, .01)}${slider('performanceBastardLoopQSampleDecay', 'Sample Decay', 'sampleDecay', .05, 1, .01)}</div>
+                ${slider('performanceBastardLoopQTranspose', 'Transpose', 'transpose', -24, 24, 1)}
+                ${slider('performanceBastardLoopQHighpass', 'Highpass cutoff (Hz)', 'highpass', 20, 10000, 10)}
+                ${slider('performanceBastardLoopQLowpass', 'Lowpass cutoff (Hz)', 'lowpass', 100, 20000, 10)}
+                ${slider('performanceBastardLoopQRoom', 'Room Reverb', 'room', 0, 1, .01)}
+                ${slider('performanceBastardLoopQDelay', 'Delay Mix', 'delay', 0, 1, .01)}
+                <div class="q-controls">${select('performanceBastardLoopQDelayDivision', 'Delay time', 'delayBeats')}${slider('performanceBastardLoopQFeedback', 'Delay Feedback', 'feedback', 0, .8, .01)}</div>
+                <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopQMeta" role="status">Samples are stored locally. Audio loads on demand.</div>
+                <div class="performance-layer-switches">${button('toggle', 'Bastardloop Q Off', 'performanceBastardLoopQToggleBtn')}${button('solo', 'Solo Off', 'performanceBastardLoopQLayerSoloBtn')}${button('play', '▶ Play Q', 'performanceBastardLoopQPlayBtn')}${button('stop', '■ Stop Q', 'performanceBastardLoopQStopBtn')}</div>
+                <details class="q-attribution"><summary>Instrument / scale credits</summary><p>Salamander Grand Piano V3 by Alexander Holm · CC BY 3.0. Four velocity layers, converted to stereo PCM16 / 44.1 kHz. No endorsement implied.</p><p>Strings: VSCO 2 Community Edition by Versilian Studios / Sam Gossner · CC0 1.0. Recorded cello, viola and violin sections; 17 roots, two dynamic layers and crossfaded sustain loops. Native recordings C2–D6; other notes are pitch-shifted.</p><p><a href="SAMPLES_Q/ATTRIBUTION.txt" target="_blank" rel="noopener">Piano source</a> · <a href="SAMPLES_Q/LICENSE" target="_blank" rel="noopener">Piano licence</a> · <a href="SAMPLES_Q_STRINGS/ATTRIBUTION.txt" target="_blank" rel="noopener">Strings source / preparation</a> · <a href="SAMPLES_Q_STRINGS/LICENSE" target="_blank" rel="noopener">Strings CC0 licence</a> · <a href="third-party/tonal-scale-type-LICENSE.txt" target="_blank" rel="noopener">Tonal scale dictionary MIT licence</a></p></details>`;
+            const overlay = document.createElement('div');
+            overlay.id = 'bastardLoopQOverlay';
+            overlay.className = 'sample-browser-overlay';
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.innerHTML = `<div class="lead-sequencer-shell q-shell" role="dialog" aria-modal="true" aria-labelledby="bastardLoopQTitle">
+                <div class="sample-browser-head q-head"><h3 id="bastardLoopQTitle">Bastardloop Q · Chords</h3>${button('close', 'Close', 'bastardLoopQCloseBtn')}</div>
+                <details class="q-settings" id="bastardLoopQTonalSettings"><summary>Key &amp; chord roots · <span id="bastardLoopQTonalSummary"></span></summary><div class="q-controls">
+                    ${select('bastardLoopQInstrument', 'Q sound', 'instrument')}${select('bastardLoopQKey', 'Scale tonic / key', 'tonic')}${select('bastardLoopQScale', 'Scale / mode', 'scale')}${select('bastardLoopQRoot', 'Chord root — show this degree first', 'chordRoot')}${select('bastardLoopQOctave', 'Scale octave', 'octave')}${select('bastardLoopQFamilies', 'Shown chord families', 'paletteFamilies')}${select('bastardLoopQInversion', 'Palette inversion', 'inversion')}${select('bastardLoopQVoicing', 'Palette voicing', 'voicing')}</div>
+                    <div id="bastardLoopQCustomScale" class="q-custom-pitches" hidden></div><p class="q-help">Key sets the scale. Chord root puts that degree first. Every shown chord stays within the scale; inversion and voicing change its playable notes.</p></details>
+                <div class="q-toolbar q-session-controls" aria-label="Practice, Step or Live recording, delete, one-step nudge, transpose and whole-pattern transport">
+                    ${button('practice', '<span class="q-control-full">Practice</span><span class="q-control-short" aria-hidden="true">Prac</span>', 'bastardLoopQPracticeBtn', 'Practice chords without recording')}${button('record', '● Step', 'bastardLoopQRecordBtn', 'Dual-function Record: tap to switch Step and Live')}${button('rest', 'Rest', 'bastardLoopQRestBtn', 'Record a Rest at the cursor or live playhead')}${button('clear-step', 'Delete', 'bastardLoopQDeleteStepBtn', 'Delete selected step without advancing')}${button('nudge-left', '<span class="q-nudge-full">Left 1</span><span class="q-nudge-short" aria-hidden="true">← 1</span>', 'bastardLoopQNudgeLeftBtn', 'Left 1: move selected chord left one grid step; occupied neighbours swap')}${button('nudge-right', '<span class="q-nudge-full">Right 1</span><span class="q-nudge-short" aria-hidden="true">1 →</span>', 'bastardLoopQNudgeRightBtn', 'Right 1: move selected chord right one grid step; occupied neighbours swap')}${button('transpose-step-down', '<span class="q-control-full">Chord −</span><span class="q-control-short" aria-hidden="true">Ch −</span>', 'bastardLoopQChordDownBtn', 'Transpose selected grid chord down one semitone')}${button('transpose-step-up', '<span class="q-control-full">Chord +</span><span class="q-control-short" aria-hidden="true">Ch +</span>', 'bastardLoopQChordUpBtn', 'Transpose selected grid chord up one semitone')}${button('play-all', '▶ All', 'bastardLoopQAllPlayBtn', 'Start the whole pattern and all enabled loops and drums')}${button('stop-all', '■ All', 'bastardLoopQAllStopBtn', 'Stop the whole pattern, every loop, drums and audition')}</div>
+                <div class="q-record-help" id="bastardLoopQRecordHelp">Rec has two functions: tap Step / Live. Practice disarms recording.</div>
+                <div class="q-workbench"><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
+                    <div class="q-palette" id="bastardLoopQPalette" aria-label="Playable chords in the current scale"></div>
+                    <div class="q-grid-heading"><span id="bastardLoopQStepCursor"></span><span id="bastardLoopQSelected"></span></div>
+                    <div class="q-grid-scroll"><div class="lead-sequencer-step-grid" id="bastardLoopQStepGrid"></div></div></div>
+                <details class="q-settings q-playback-settings" id="bastardLoopQPlaybackSettings"><summary>Chord playback · <span id="bastardLoopQPlaybackSummary"></span></summary><div class="q-controls q-arp-controls" aria-label="Independent chord arpeggiator">
+                    ${select('bastardLoopQArpEnabled', 'Chord playback', 'arpEnabled')}${select('bastardLoopQArpPattern', 'Arp order', 'arpPattern')}${select('bastardLoopQArpRepeat', 'Arp repeat', 'arpRepeat')}${select('bastardLoopQArpDivision', 'Arp time — separate from grid', 'arpDivision')}</div><div class="q-toolbar">${button('arp-builder', 'Build / Load Custom Arp', 'bastardLoopQArpBuilderBtn')}${button('copy-arp', 'Copy Arp', 'bastardLoopQCopyArpBtn')}</div>
+                    <div class="q-controls">${slider('bastardLoopQSampleLength', 'Sample Length', 'sampleLength', .05, 1, .01)}${slider('bastardLoopQSampleDecay', 'Sample Decay', 'sampleDecay', .05, 1, .01)}</div>
+                    <p class="q-help">Length trims each sample's sounding window. Lower Decay fades it earlier. Both at 100% keep the original envelope; reverb and delay tails remain controlled by their own mixes.</p></details>
+                <details class="q-settings q-edit-tools" id="bastardLoopQEditTools"><summary>Step editing, transpose &amp; chord builder</summary>
+                    <div class="q-controls">${select('bastardLoopQQuality', 'Preferred / builder chord quality', 'chordType')}${slider('bastardLoopQVelocity', 'Chord Velocity', 'velocity', 1, 127, 1)}${slider('bastardLoopQGate', 'Grid chord length (steps)', 'gate', .1, 64, .1)}${slider('bastardLoopQAccentAmount', 'Accent Amount', 'accentAmount', 0, 1, .01)}</div>
+                    <div class="q-toolbar">${button('audition', '▶ Builder Chord', 'bastardLoopQAuditionBtn')}${button('audition-step', '▶ Selected Step', 'bastardLoopQAuditionStepBtn')}${button('insert', 'Insert Selected', 'bastardLoopQInsertBtn')}${button('play', '▶ Q Only', 'bastardLoopQSoloPlayBtn')}${button('stop', '■ Q Only', 'bastardLoopQSoloStopBtn')}${button('load', 'Load Samples')}${button('midi', 'Export MIDI')}</div>
+                    <div class="q-toolbar">${button('back', 'Back')}${button('forward', 'Forward')}${button('transpose-down', 'Seq −')}${button('transpose-up', 'Seq +')}${button('transpose-range', 'Mark Trans')}${button('clear-range', 'Clear Mark')}${button('rate-down', 'Rate −')}${button('rate-up', 'Rate +')}${button('copy', 'Copy')}${button('copy-range', 'Copy Sec')}${button('paste', 'Paste')}</div>
+                    <div class="q-toolbar">${button('accent', 'Accent')}${button('tie', 'Tie (Slide)')}${button('clear-step', 'Clear Step')}${button('clear-all', 'Clear All')}${button('random', 'Random Pattern')}${button('transport', 'Start Bastardloops')}${button('stop-all', 'Stop Bastardloops')}</div>
+                    <div class="q-toolbar" id="bastardLoopQRatchets">${Array.from({ length: 8 }, (_, index) => `<button type="button" class="performance-btn" data-q-ratchet="${index + 1}">×${index + 1}</button>`).join('')}</div></details>
+                <div id="bastardLoopQStatus" role="status" aria-live="polite">Practice plays without writing. Record writes each chord tap at the cursor and advances. Rest writes a silent cell.</div></div>`;
+            document.body.append(overlay);
+            root.addEventListener('resize', () => this.syncViewport());
+            root.addEventListener('orientationchange', () => this.syncViewport());
+            for (const event of ['resize', 'scroll']) root.visualViewport?.addEventListener(event, () => this.syncViewport());
+            for (const details of overlay.querySelectorAll('details')) details.addEventListener('toggle', () => this.revealCursor());
+            document.getElementById('performanceBastardLoopQLevelMixer')?.addEventListener('input', event => {
+                this.state.level = Number(event.target.value) / 100;
+                this.changed();
+            });
+            const options = (id, entries) => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                for (const [value, label] of entries) { const option = document.createElement('option'); option.value = String(value); option.textContent = label; select.append(option); }
+            };
+            for (const id of ['bastardLoopQKey', 'bastardLoopQRoot']) options(id, theory.notes.map((note, index) => [index, note]));
+            options('bastardLoopQOctave', Array.from({ length: 9 }, (_, index) => [index, `Octave ${index}`]));
+            options('bastardLoopQQuality', Object.keys(theory.qualities).map(quality => [quality, quality.replace(/([a-z])([A-Z])/g, '$1 $2')]));
+            options('bastardLoopQInversion', Array.from({ length: 7 }, (_, index) => [index, index === 0 ? 'Root position' : `Inversion ${index}`]));
+            options('bastardLoopQVoicing', [['close', 'Close'], ['open', 'Open'], ['octave-bass', 'Octave bass']]);
+            options('bastardLoopQFamilies', [['all', 'All scale chords'], ['triads', 'Triads / suspended'], ['sevenths', 'Four-note chords'], ['extended', 'Extended chords']]);
+            options('bastardLoopQArpEnabled', [['0', 'Block chords'], ['1', 'Arpeggiated']]);
+            options('bastardLoopQArpPattern', [['up', 'Up'], ['down', 'Down'], ['updown', 'Up / Down'], ['odds', 'Odds first (1,3,5,2,4)'], ['evens', 'Evens first (2,4,1,3,5)'], ['custom', 'Custom note-order grid']]);
+            options('bastardLoopQArpRepeat', [['once', 'One cycle'], ['until-next', 'Until next chord / rest']]);
+            options('bastardLoopQArpDivision', [[4, '1/1 · ÷16'], [2, '1/2 · ÷8'], [1, '1/4 · ÷4'], [.5, '1/8 · ÷2'], [1 / 3, '1/8 triplet'], [.25, '1/16 · ×1'], [1 / 6, '1/16 triplet'], [.125, '1/32 · ×2'], [1 / 12, '1/32 triplet'], [.0625, '1/64 · ×4'], [.03125, '1/128 · ×8']]);
+            this.arpBuilder = new root.MygrainQArp.Builder(this);
+            options('bastardLoopQPaletteSize', [[3, 'Triads'], [4, 'Sevenths']]);
+            for (const id of ['performanceBastardLoopQInstrument', 'bastardLoopQInstrument']) options(id, [['piano', 'Piano · Salamander Grand'], ['strings', 'Strings · VSCO 2 CE Ensemble']]);
+            options('performanceBastardLoopQDelayDivision', [[.125, '1/32'], [.25, '1/16'], [.5, '1/8'], [1, '1/4'], [2, '1/2'], [4, '1 bar']].flatMap(([beats, label]) => [[beats, label], [beats * 1.5, `${label} dotted`], [beats * 2 / 3, `${label} triplet`]]));
+            for (const [index, note] of theory.notes.entries()) {
+                const pitch = document.createElement('button'); pitch.className = 'performance-btn'; pitch.type = 'button'; pitch.dataset.qPitch = String(index); pitch.textContent = note; document.getElementById('bastardLoopQCustomScale').append(pitch);
+            }
+            const handleClick = event => {
+                const target = event.target.closest('button');
+                if (!target) return;
+                if (target.dataset.qAction) this.task(() => this.action(target.dataset.qAction));
+                if (target.dataset.qStep !== undefined) {
+                    const index = Number(target.dataset.qStep);
+                    if (this.mark?.type === 'paste') this.paste(index);
+                    else this.stepClicked(index);
+                }
+                if (target.dataset.qDegree !== undefined) this.task(() => this.playChord(this.paletteChords[Number(target.dataset.qDegree)]));
+                if (target.dataset.qPitch !== undefined) {
+                    const pitch = Number(target.dataset.qPitch);
+                    this.state.customScale = this.state.customScale.includes(pitch) && pitch !== 0 ? this.state.customScale.filter(note => note !== pitch) : [...new Set(this.state.customScale.concat(pitch))].sort((first, second) => first - second);
+                    this.changed();
+                }
+                if (target.dataset.qRatchet) {
+                    const step = this.state.sequence[this.cursor];
+                    if (step?.notes?.length) { step.ratchet = Number(target.dataset.qRatchet); this.changed(); }
+                }
+            };
+            const handleInput = event => {
+                const key = event.target.dataset.qField;
+                if (!key) return;
+                if (key === 'instrument') { this.task(() => this.setInstrument(event.target.value)); return; }
+                this.state[key] = ['scale', 'chordType', 'voicing', 'paletteFamilies', 'arpPattern', 'arpRepeat'].includes(key) ? event.target.value : key === 'arpEnabled' ? event.target.value === '1' : Number(event.target.value);
+                if (['tonic', 'scale'].includes(key)) this.state.chordRoot = this.state.tonic;
+                if (['chordRoot', 'chordType', 'octave', 'inversion', 'voicing', 'tonic', 'scale', 'paletteFamilies'].includes(key)) this.state.selection = null;
+                if (['gate', 'velocity'].includes(key) && this.state.sequence[this.cursor]?.notes?.length) this.state.sequence[this.cursor][key] = this.state[key];
+                const previewChord = this.preview?.chord;
+                this.changed({ preserveSamples: ['level', 'pan', 'lowpass', 'highpass', 'room', 'delay', 'delayBeats', 'feedback', 'sampleLength', 'sampleDecay', 'gate', 'rate', 'arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision', 'paletteFamilies'].includes(key) });
+                if (previewChord && ['arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision'].includes(key)) this.task(() => this.audition(previewChord));
+            };
+            for (const container of [card, overlay, document.getElementById('performanceLayerSwitchesCard')].filter(Boolean)) {
+                container.addEventListener('click', handleClick);
+                container.addEventListener('input', handleInput);
+                container.addEventListener('change', event => { if (event.target.tagName === 'SELECT') handleInput(event); });
+            }
+            overlay.addEventListener('keydown', event => {
+                event.stopPropagation();
+                if (event.key === 'Escape') this.close();
+                if (event.key === 'Tab') {
+                    const controls = [...overlay.querySelectorAll('button, select, input, a[href]')].filter(element => !element.disabled && element.getClientRects().length);
+                    if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus(); }
+                    if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus(); }
+                }
+            });
+            this.task(async () => {
+                const response = await fetch('q-scales.json?v=20261014-q-1', { cache: 'no-store' });
+                if (!response.ok) throw new Error('The local scale dictionary is unavailable.');
+                const catalog = await response.json();
+                this.scales = catalog.scales;
+                options('bastardLoopQScale', [...this.scales.map(scale => [scale.name, `${scale.name}${scale.aliases?.length ? ` (${scale.aliases.join(', ')})` : ''}`]), ['custom', 'Custom / any 12-tone scale']]);
+                this.sync();
+            });
+            this.sync();
+        }
+    }
+
+    const api = { Piano, Controller, createKeyboardPlayer: host => new KeyboardPlayer(host) };
+    if (typeof module === 'object' && module.exports) module.exports = api;
+    root.MygrainQ = api;
+    if (root.document?.getElementById('bastardLoopQCard')) {
+        const host = {
+            context: () => audioContext, destination: () => preFilterGainNode || masterGain || audioContext.destination,
+            bpm: () => Number(document.getElementById('globalBpmSlider')?.value || 120), length: () => getPatternLengthSteps(),
+            ready: () => ensureAudioReadyForKeyInteraction(), save: () => saveState(),
+            activity: () => { updateFinalMixEffects(); syncPerformanceControlState(); },
+            stopAll: () => { root.mygrainSongBeta?.stop?.(); stopAllPerformancePlayback({ silent: true }); },
+            sharedPlay: () => setBastardLoopPlaying(true), soloGain: () => getLoopLayerSoloGain('bastardq'),
+            allPlay: () => { root.mygrainSongBeta?.stop?.(); return restartAllTransport({ silent: true }); },
+            transportOrigin: () => (sequencerPlaying || bastardLoopPlaying || drumMachinePlaying || isArpeggiatorPlaying()) ? getSharedLoopTransportOriginTime() : null,
+            solo: () => setLoopLayerSolo('bastardq', { toggle: true }), isSolo: () => hasLoopLayerSolo('bastardq')
+        };
+        root.mygrainQ = new Controller(host);
+        root.mygrainQ.mount();
+        root.mygrainQ.restore(readStoredStateSnapshot()?.q);
+        root.addEventListener('pagehide', () => root.mygrainQ.stop());
+    }
+})(typeof window === 'object' ? window : globalThis);

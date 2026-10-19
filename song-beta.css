@@ -1,0 +1,380 @@
+#songBetaCard {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+#songBetaParts {
+    min-width: 0;
+}
+
+.song-beta-copy-dialog {
+    box-sizing: border-box;
+    margin: auto;
+    width: min(480px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: 18px;
+    border: 1px solid #7d9bb5;
+    border-radius: 12px;
+    background: #181e27;
+    color: #edf6ff;
+    font: inherit;
+}
+
+.song-beta-copy-dialog::backdrop {
+    background: #000b;
+}
+
+.song-beta-copy-dialog h3 {
+    margin-top: 0;
+    overflow-wrap: anywhere;
+}
+
+.song-beta-copy-dialog p, #songBetaClipboard {
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.song-beta-copy-layers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.song-beta-copy-dialog .performance-btn {
+    min-width: 0;
+    min-height: 44px;
+    white-space: normal;
+    color: #edf6ff;
+}
+
+#songBetaCard .song-beta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+#songBetaCard label {
+    display: flex;
+    flex: 1 1 160px;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    font-size: 11px;
+}
+
+#songBetaCard label.song-beta-repeat-label {
+    flex: 0 1 110px;
+}
+
+#songBetaCard input, #songBetaCard select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px;
+    color: inherit;
+    background: #181e27;
+    border: 1px solid #566276;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+#songBetaCard .performance-btn {
+    min-height: 40px;
+    color: #edf6ff;
+}
+
+#songBetaCard .performance-btn.primary {
+    color: #071619;
+}
+
+#songBetaCard #songBetaArm {
+    color: #200606;
+    background: #ff2424;
+    border-color: #ff6464;
+}
+
+#songBetaCard #songBetaArm:hover:not(:disabled) {
+    background: #ff4848;
+}
+
+#songBetaCard #songBetaArm.song-beta-armed {
+    color: #062011;
+    background: #24df70;
+    border-color: #65ef97;
+}
+
+#songBetaCard #songBetaArm.song-beta-armed:hover:not(:disabled) {
+    background: #45eb87;
+}
+
+#songBetaCard button:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+#songBetaCard .song-beta-help, #songBetaStatus {
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#songBetaCard .song-beta-help {
+    opacity: .8;
+}
+
+#songBetaTransportInfo {
+    min-width: 0;
+    margin: 10px 0;
+    padding: 8px;
+    border: 1px solid #3b4656;
+    border-radius: 8px;
+    background: #181e27;
+}
+
+#songBetaTransportInfoTitle {
+    margin: 0 0 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #b9d8c9;
+}
+
+#songBetaStatus {
+    box-sizing: content-box;
+    height: 4.5em;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+
+#songBetaTransportInfo .song-beta-arm-feedback {
+    min-width: 0;
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid #658d82;
+    border-radius: 6px;
+    background: #112923;
+    color: #ecfff7;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.song-beta-arm-feedback p {
+    margin: 4px 0;
+}
+
+.song-beta-arm-feedback[data-state="failure"] {
+    border-color: #ef9292;
+    background: #361f27;
+}
+
+.song-beta-arm-meter:not([hidden]) {
+    width: 16px;
+    height: 16px;
+    border: 3px solid #587269;
+    border-top-color: #c6ffe1;
+    border-radius: 50%;
+    animation: song-beta-arm-spin 1s linear infinite;
+}
+
+@keyframes song-beta-arm-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .song-beta-arm-meter:not([hidden]) { animation: none; }
+}
+
+#songBetaCard .song-beta-notes {
+    margin-top: 12px;
+    padding: 8px;
+    border: 1px solid #3b4656;
+    border-radius: 8px;
+    background: #181e27;
+}
+
+#songBetaCard .song-beta-notes > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#songBetaCard .song-beta-notes > summary::-webkit-details-marker {
+    display: none;
+}
+
+#songBetaCard .song-beta-notes-indicator {
+    flex: 0 0 14px;
+    color: #75dfb4;
+    text-align: center;
+    font-size: 18px;
+}
+
+#songBetaCard .song-beta-notes-indicator::before {
+    content: '+';
+}
+
+#songBetaCard .song-beta-notes[open] > summary .song-beta-notes-indicator::before {
+    content: '−';
+}
+
+#songBetaCard .song-beta-part {
+    padding: 6px;
+    margin: 4px 0;
+    border: 1px solid #3b4656;
+    border-left: 4px solid var(--song-beta-part-colour, #3b4656);
+    border-radius: 8px;
+    background: var(--song-beta-part-tint, transparent);
+}
+
+#songBetaCard .song-beta-part-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#songBetaCard .song-beta-part-actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+#songBetaCard .song-beta-cache-state {
+    display: block;
+    margin-left: 16px;
+    color: #b9d8c9;
+    font-size: 10px;
+    line-height: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#songBetaCard .song-beta-part-header .performance-btn {
+    width: auto;
+}
+
+#songBetaCard .song-beta-part-header .song-beta-part-transport {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+#songBetaCard .song-beta-part-play { background: #176a43; color: #fff; border-color: #46de93; }
+#songBetaCard .song-beta-part-stop { background: #9f2533; color: #fff; border-color: #ff697a; }
+
+@media (max-width: 480px) {
+    #songBetaCard .song-beta-part-header { flex-wrap: wrap; }
+    #songBetaCard .song-beta-part-header .song-beta-toggle { flex-basis: 100%; }
+}
+
+#songBetaCard .song-beta-part-header .song-beta-edit {
+    flex: 0 0 40px;
+    padding: 8px;
+}
+
+#songBetaCard .song-beta-toggle {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 6px 8px;
+    line-height: 1.15;
+}
+
+#songBetaCard .song-beta-toggle::before {
+    content: '▸';
+    margin-right: 8px;
+}
+
+#songBetaCard .song-beta-toggle[aria-expanded="true"]::before {
+    content: '▾';
+}
+
+#songBetaCard .song-beta-part-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+#songBetaCard .song-beta-part-controls[hidden] {
+    display: none;
+}
+
+#songBetaCard .song-beta-part-detail {
+    flex: 1 1 140px;
+    font-size: 11px;
+}
+
+#songBetaCard label.song-beta-part-colour {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+}
+
+#songBetaCard .song-beta-part-colour input {
+    width: 48px;
+    height: 40px;
+    padding: 3px;
+    cursor: pointer;
+}
+
+#songBetaCard label.song-beta-part-repeats {
+    flex: 0 0 90px;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+}
+
+#songBetaCard .song-beta-part-repeats input {
+    flex: 1 1 0;
+    width: 0;
+    padding: 6px;
+}
+
+#songBetaCard .song-beta-edit {
+    flex-shrink: 0;
+    min-width: 40px;
+}
+
+#songBetaCard .song-beta-active {
+    border-color: #75dfb4;
+    border-left-color: var(--song-beta-part-colour, #75dfb4);
+    background: #15352c;
+}
+
+#songBetaCard .song-beta-error {
+    color: #ffacac;
+}
+
+#songBetaCard .performance-btn.song-beta-looping {
+    color: #07190d;
+    background: #36ef69;
+    border-color: #36ef69;
+}
+
+#songBetaCard .song-beta-amending {
+    border-color: #eac979;
+    border-left-color: var(--song-beta-part-colour, #eac979);
+    background: #3b321b;
+}

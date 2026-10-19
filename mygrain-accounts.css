@@ -1,0 +1,88 @@
+html[data-mygrain-locked="true"] body > :not(#mygrain-account-shell) { display: none !important; }
+.mygrain-account-shell, .mygrain-share-dialog, .mygrain-account-toolbar, .mygrain-start-account { font-family: system-ui, sans-serif; color: #f2f4ff; }
+.mygrain-account-shell { box-sizing: border-box; min-width: 0; position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; overflow: auto; background: #111322; padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom)); }
+.mygrain-account-panel { box-sizing: border-box; min-width: 0; width: min(100%, 440px); padding: 24px; border: 1px solid #4a526a; border-radius: 16px; background: #202339; }
+.mygrain-account-panel h1 { margin: 0 0 16px; color: #00d4ff; }
+.mygrain-account-panel p { margin: 12px 0; line-height: 1.5; }
+.mygrain-account-panel form, #mygrainShareForm { display: grid; gap: 10px; margin: 16px 0; }
+.mygrain-account-panel input, .mygrain-share-dialog select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; font: inherit; border: 1px solid #78829e; border-radius: 7px; background: #121625; color: #fff; }
+.mygrain-account-actions, .mygrain-share-head, .mygrain-start-account { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.mygrain-account-actions button { flex: 1; }
+.mygrain-account-panel button, .mygrain-share-dialog button, .mygrain-account-toolbar button, .mygrain-start-account button { min-height: 44px; padding: 8px 12px; font: inherit; color: #fff; background: #28395b; border: 1px solid #7e9bc5; border-radius: 7px; cursor: pointer; }
+.mygrain-account-panel button:disabled, .mygrain-share-dialog button:disabled { opacity: .5; cursor: wait; }
+.mygrain-account-panel :focus-visible, .mygrain-share-dialog :focus-visible, .mygrain-account-toolbar :focus-visible { outline: 3px solid #00d4ff; outline-offset: 3px; }
+.mygrain-account-hint { font-size: .85rem; color: #c3cce0; }
+#mygrainLoginStatus, #mygrainShareStatus { min-height: 1.5em; overflow-wrap: anywhere; }
+.mygrain-account-toolbar { box-sizing: border-box; position: static; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; max-width: 100%; margin: 0 0 12px; padding: 5px 8px; border: 1px solid #596580; border-radius: 9px; background: #171d30; font-size: 12px; }
+.mygrain-account-toolbar strong { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.mygrain-account-toolbar button { min-height: 44px; padding: 5px 8px; }
+#start-overlay { overflow-y: auto; justify-content: safe center; padding-top: max(64px, env(safe-area-inset-top)); }
+#start-overlay > * { flex-shrink: 0; }
+.mygrain-start-account { box-sizing: border-box; display: grid; justify-items: center; width: min(100%, 440px); gap: 10px; margin: 16px 0 0; padding: 14px; border: 1px solid #596580; border-radius: 12px; background: #171d30; }
+#start-overlay .mygrain-start-account p { margin: 0; font-size: 12px; line-height: 1.5; color: #c3cce0; }
+.mygrain-start-account .mygrain-account-actions,
+.mygrain-account-panel .mygrain-account-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+.mygrain-account-panel .mygrain-account-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#start-overlay .mygrain-start-account .mygrain-account-actions > button,
+.mygrain-account-panel .mygrain-account-actions > button {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 52px;
+    margin: 0;
+    padding: 12px 8px;
+    font: 600 14px/1.35 system-ui, sans-serif;
+    letter-spacing: .01em;
+    text-transform: none;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    color: #eef8ff;
+    background: linear-gradient(145deg, #234459 0%, #1b304b 45%, #121e34 100%);
+    border: 1px solid #53849a;
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 #ffffff1f, 0 3px 10px #00000040;
+    cursor: pointer;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+#start-overlay .mygrain-start-account .mygrain-account-actions > button:hover:not(:disabled),
+.mygrain-account-panel .mygrain-account-actions > button:hover:not(:disabled) {
+    background: linear-gradient(145deg, #2b5369 0%, #203e57 45%, #182c43 100%);
+    border-color: #78d9ed;
+    box-shadow: inset 0 1px 0 #ffffff29, 0 4px 12px #0000004d;
+}
+#start-overlay .mygrain-start-account .mygrain-account-actions > button:focus-visible,
+.mygrain-account-panel .mygrain-account-actions > button:focus-visible {
+    outline: 3px solid #5de4ff;
+    outline-offset: 3px;
+}
+#start-overlay .mygrain-start-account .mygrain-account-actions > button:disabled,
+.mygrain-account-panel .mygrain-account-actions > button:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+    #start-overlay .mygrain-start-account .mygrain-account-actions > button,
+    .mygrain-account-panel .mygrain-account-actions > button { transition: none; }
+}
+.mygrain-share-dialog { box-sizing: border-box; width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 20px; overflow: auto; background: #202339; border: 1px solid #6b809f; border-radius: 12px; }
+.mygrain-share-dialog::backdrop { background: #000b; }
+.mygrain-share-head { justify-content: space-between; }
+.mygrain-share-dialog p, .mygrain-share-dialog h3 { margin: 10px 0; overflow-wrap: anywhere; }
+#mygrainShareForm[hidden] { display: none; }
+.mygrain-share-thread-item { margin-top: 12px; padding: 12px; border: 1px solid #52617b; border-radius: 8px; }
+.mygrain-share-comment { white-space: pre-wrap; }
+@media (max-width: 480px) { .mygrain-account-panel { padding: 18px; } .mygrain-share-dialog { padding: 14px; } .mygrain-account-toolbar { font-size: 11px; } }

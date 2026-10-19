@@ -5,6 +5,34 @@ const path = require('path');
 const vm = require('vm');
 
 const indexHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const transportStartBufferSeconds = Number(indexHtml.match(/const TRANSPORT_START_BUFFER_SECONDS = ([\d.]+);/)[1]);
+
+function installRestartTransportFixture(restartContext) {
+    Object.assign(restartContext, {
+        window: {}, sequencerBPM: 120, sequencerTimerId: null,
+        TRANSPORT_START_BUFFER_SECONDS: transportStartBufferSeconds,
+        transportLoopStartTime: null, bastardLoopTransportStartTime: null,
+        drumMachineTransportStartTime: null, generatedDryLoopStartTime: null,
+        bastardLoopLTransportActive: false, bastardLoopXTransportActive: false,
+        generatedDrySource: null, keyboardArpTransportPlaying: false,
+        bastardLoopMPlusBuffer: null, bastardLoopKBuffer: null,
+        activeGrains: new Map(), activeOscVoices: new Map(),
+        retiringOscillatorVoices: new Set(), scheduledGrainVoices: new Set(),
+        prewarmTransportBuffers() {}, hasSharedRhythmClockWork: () => false,
+        ensureSharedRhythmClockRunning() {}, scheduleSequencer() {},
+        stopGrainScheduler() {}, clearTimeout() {}
+    });
+    vm.runInNewContext([
+        indexHtml.match(/const transportSync = [\s\S]*?;/)[0].replace('const transportSync =', 'globalThis.transportSync ='),
+        ...[
+            'getBufferedTransportStartTime', 'getTransportGridPosition', 'setTransportEpoch',
+            'getSharedLoopTransportOriginTime', 'withBufferedTransportStart', 'restartAllTransport',
+            'getTransportPreparationLeadSeconds', 'startTransportSource',
+            'cancelPreparedTransportStarts', 'startTransportChordLayer'
+        ].map(extractFunctionSource),
+        'globalThis.restartAllTransport = restartAllTransport;'
+    ].join('\n'), restartContext);
+}
 
 function extractFunctionSource(name) {
     const asyncSignature = `async function ${name}(`;
@@ -1538,6 +1566,7 @@ test('Bastardloop M record plus loop arms the take with a continuous metronome a
         bastardLoopMRecordingCancelled: false,
         bastardLoopMRecordedChunks: [],
         bastardLoopMRecordingState: 'idle',
+        bastardLoopMPlusRecordingState: 'idle',
         bastardLoopMCountInBeatsRemaining: 0,
         bastardLoopMRecordStatus: '',
         bastardLoopMRecordingStartsFullLoop: false,
@@ -1677,6 +1706,7 @@ test('Bastardloop M multi-loop recording extends the capture window beyond one s
         bastardLoopMRecordingCancelled: false,
         bastardLoopMRecordedChunks: [],
         bastardLoopMRecordingState: 'idle',
+        bastardLoopMPlusRecordingState: 'idle',
         bastardLoopMCountInBeatsRemaining: 0,
         bastardLoopMRecordStatus: '',
         bastardLoopMRecordingStartsFullLoop: false,
@@ -1801,6 +1831,7 @@ test('Bastardloop M trims the finished take from the real recorder arm time', as
         bastardLoopMRecordingCancelled: false,
         bastardLoopMRecordedChunks: [Buffer.from([1, 2, 3])],
         bastardLoopMRecordingState: 'idle',
+        bastardLoopMPlusRecordingState: 'idle',
         bastardLoopMCountInBeatsRemaining: 0,
         bastardLoopMRecordStatus: '',
         bastardLoopMRecordingStartsFullLoop: false,
@@ -1934,6 +1965,7 @@ test('Bastardloop M is rebuilt and resynced after audio engine recovery', () => 
 test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers', () => {
     for (const bufferKey of ['bastardLoopLSampleBuffer', 'bastardLoopXSampleBuffer']) {
         const restartContext = {
+            audioContext: { currentTime: 10 },
             sequencerPlaying: false,
             arpEnabled: false,
             holdEnabled: false,
@@ -1947,16 +1979,16 @@ test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers'
             bastardLoopOBuffer: null,
             bastardLoopLSampleBuffer: null,
             bastardLoopXSampleBuffer: null,
+            bastardLoopMBuffer: null,
             dropboxSampleLayerBuffer: null,
             drumMachineKickPattern: [],
             drumMachineSnarePattern: [],
             drumMachineHatPattern: [],
+            drumMachinePercPattern: [],
+            drumMachineExtraTracks: {},
             finalFxPlacementLfoEnabled: false,
             isAudioGraphReady() {
                 return true;
-            },
-            getBufferedTransportStartTime() {
-                return 42;
             },
             startSequencer(startTime) {
                 restartContext.startedSequencerAt = startTime;
@@ -1992,11 +2024,16 @@ test('Restart All treats Loop L and Loop X sample buffers as Bastardloop layers'
             setStatus() {}
         };
         restartContext[bufferKey] = { id: bufferKey };
-        vm.runInNewContext(`${extractFunctionSource('restartAllTransport')}\nglobalThis.restartAllTransport = restartAllTransport;`, restartContext);
+        installRestartTransportFixture(restartContext);
 
         assert.equal(restartContext.restartAllTransport(), true);
+        const expectedStart = restartContext.audioContext.currentTime + transportStartBufferSeconds;
+        assert.equal(restartContext.restartedEffectsAt, expectedStart);
+        assert.equal(restartContext.startedSequencerAt, expectedStart);
+        assert.equal(restartContext.transportSync.origin, expectedStart);
+        assert.equal(restartContext.transportSync.depth, 0);
         assert.deepEqual(restartContext.startedBastardLoop, {
-            startTime: 42,
+            startTime: expectedStart,
             options: {
                 skipUi: true,
                 silent: true
@@ -2027,6 +2064,8 @@ test('Restart All honors an explicit scheduled start time', () => {
         drumMachineKickPattern: [],
         drumMachineSnarePattern: [],
         drumMachineHatPattern: [],
+        drumMachinePercPattern: [],
+        drumMachineExtraTracks: {},
         finalFxPlacementLfoEnabled: false,
         isAudioGraphReady() {
             return true;
@@ -2064,11 +2103,13 @@ test('Restart All honors an explicit scheduled start time', () => {
         },
         setStatus() {}
     };
-    vm.runInNewContext(`${extractFunctionSource('restartAllTransport')}\nglobalThis.restartAllTransport = restartAllTransport;`, restartContext);
+    installRestartTransportFixture(restartContext);
 
     assert.equal(restartContext.restartAllTransport({ startTime: 24.5 }), true);
     assert.equal(restartContext.restartedEffectsAt, 24.5);
     assert.equal(restartContext.startedSequencerAt, 24.5);
+    assert.equal(restartContext.transportSync.origin, 24.5);
+    assert.equal(restartContext.transportSync.depth, 0);
     assert.deepEqual(restartContext.startedBastardLoop, {
         startTime: 24.5,
         options: {

@@ -1,0 +1,6 @@
+VSCO 2 Community Edition by Versilian Studios / Sam Gossner
+Licence: CC0 1.0
+Source: https://github.com/sgossner/VSCO-2-CE/tree/440300901dfe9275fd84e0b7763af1f8443ae62e
+Mappings: 6dd651d55dde97fd4028699be9d4481f26917891
+
+Cello, viola and violin section sustain-vibrato recordings mapped across 17 roots (C2–D6), two dynamic layers (32/96). Numeric pitch centres come from the original SFZ mappings (their filenames use C3 = MIDI 60). Original SFZ layer gains with a common headroom attenuation; 4.5-second stereo PCM16/44.1 kHz samples, 1.5–4.5-second sustain loops with a 200 ms linear seam crossfade. Notes outside the recorded range are pitch-shifted. Originals retained; no endorsement implied.

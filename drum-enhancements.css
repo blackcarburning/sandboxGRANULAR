@@ -1,0 +1,17 @@
+#drumMachineOverlay .drum-machine-shell { gap: 8px; padding: 12px; }
+#drumMachineOverlay .drum-machine-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+#drumMachineOverlay .drum-machine-status { grid-column: 1 / -1; max-height: 2.5em; overflow-y: auto; font-size: 11px; }
+#drumMachineOverlay .performance-btn { min-height: 30px; min-width: 0; width: auto; padding: 5px 7px; font-size: 10px; letter-spacing: .02em; border-radius: 8px; }
+#drumMachineOverlay .drum-machine-track-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+#drumMachineOverlay .drum-machine-track-card { padding: 10px; gap: 7px; scroll-margin-top: 4px; }
+#drumMachineOverlay .drum-machine-track-card .performance-sound-card { padding: 7px; }
+.drum-machine-controls-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; min-width: 0; }
+#drumMachineOverlay .drum-machine-controls-grid label { font-size: 10px; gap: 3px; flex-wrap: wrap; }
+#drumMachineOverlay .drum-machine-step-grid { gap: 5px; }
+#drumMachineOverlay .drum-machine-step-cell { gap: 4px; min-width: 0; }
+#drumMachineOverlay .drum-machine-step-cell button { min-width: 0; padding: 4px 2px; }
+#drumMachineOverlay .drum-machine-accent-btn, #drumMachineOverlay .drum-machine-ratchet-btn { font-size: 9px; letter-spacing: .02em; }
+#drumMachineOverlay .drum-machine-step-btn.current { border-color: #ffac45; box-shadow: 0 0 0 2px #ffac45, 0 0 12px #ffac4544; transition: transform .08s ease; }
+.drum-machine-jumps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; flex: 0 0 auto; }
+#drumMachineOverlay .drum-machine-jumps button { min-height: 32px; color: #b4efff; border: 1px solid #428da8; background: #163544; }
+#drumMachineOverlay .drum-machine-jumps button[aria-current="true"] { color: #18120a; border-color: #ffac45; background: #ffac45; }

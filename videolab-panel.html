@@ -1,0 +1,63 @@
+<div class="performance-feature-card videolab-card" id="performanceVideoLabCard" aria-label="Video Lab YouTube audio importer">
+    <div class="performance-feature-head">
+        <div class="performance-feature-copy">
+            <div class="performance-chip">YouTube · Server audio · Raw PCM</div>
+            <h3 class="performance-feature-title">Video Lab</h3>
+            <p class="performance-feature-note">Choose one video, fetch a finite audio take, then trim, audition, normalise and save it just like RadioLab. Start MYGRAIN first. No microphone or browser screen/audio capture.</p>
+        </div>
+    </div>
+    <label for="videolabSavedURL">Saved URLs · private to your account</label>
+    <select id="videolabSavedURL" disabled><option value="https://www.youtube.com/@BBCArchive">BBC Archive · channel</option></select>
+    <label for="videolabURL">YouTube video or channel URL</label>
+    <input id="videolabURL" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" value="https://www.youtube.com/@BBCArchive" aria-describedby="videolabURLHelp" disabled>
+    <p class="videolab-note" id="videolabURLHelp">BBC Archive is a channel bookmark. Open the archive, choose one video, then paste that video's URL here. Channels and playlists are not fetched.</p>
+    <div class="radiolab-controls videolab-controls">
+        <a class="performance-btn videolab-link" id="videolabOpenURL" aria-disabled="true" tabindex="-1" target="_blank" rel="noopener noreferrer">Open archive / video</a>
+        <button class="performance-btn" id="videolabShowVideo" type="button" disabled>Preview video</button>
+    </div>
+    <div id="videolabVideoPreview" hidden></div>
+    <label for="videolabBookmarkName">URL name</label>
+    <input id="videolabBookmarkName" type="text" maxlength="100" placeholder="Name this video or archive" disabled>
+    <div class="radiolab-controls videolab-controls"><button class="performance-btn" id="videolabSaveURL" type="button" disabled>Save URL</button></div>
+    <div class="videolab-capture-fields">
+        <label for="videolabStart">Start time · mm:ss (minutes:seconds)<input id="videolabStart" type="text" value="00:00" placeholder="mm:ss" maxlength="10" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="videolabStartHelp" disabled></label>
+        <label for="videolabDuration">Duration · seconds (max 180)<input id="videolabDuration" type="number" min="0.1" max="180" step="0.1" value="120" inputmode="decimal" disabled></label>
+    </div>
+    <p class="videolab-note" id="videolabStartHelp">Use the YouTube timestamp, e.g. 02:30 = 2 minutes 30 seconds. Duration remains in seconds.</p>
+    <div class="radiolab-controls videolab-controls">
+        <button class="performance-btn primary" id="videolabFetch" type="button" disabled>Record/Fetch audio</button>
+        <button class="performance-btn" id="videolabCancel" type="button" disabled>Cancel</button>
+    </div>
+    <progress id="videolabProgress" max="100" aria-label="Server audio retrieval progress" hidden></progress>
+    <p class="videolab-note">Only import audio you have permission to use. Server retrieval depends on source rights, regional restrictions and availability; it may fail. The optional YouTube player is an ordinary preview only, never an audio capture source.</p>
+    <div id="videolabStatus" role="status" aria-live="polite">Waiting for Video Lab dependencies and account. Start MYGRAIN before fetching or auditioning.</div>
+    <output id="videolabTake">No take yet.</output>
+    <fieldset id="videolabTrimPanel" hidden disabled>
+        <legend>Current recording · trim selection</legend>
+        <canvas id="videolabWaveform" height="120" role="img" aria-label="Recording waveform. Use Start and End sliders to trim."></canvas>
+        <div class="radiolab-trim-controls videolab-trim-controls">
+            <label for="videolabTrimStart">Start<input type="range" id="videolabTrimStart" min="0" max="1" step="0.001" value="0" disabled><output id="videolabTrimStartValue" for="videolabTrimStart">0.000 s</output></label>
+            <label for="videolabTrimEnd">End<input type="range" id="videolabTrimEnd" min="0" max="1" step="0.001" value="1" disabled><output id="videolabTrimEndValue" for="videolabTrimEnd">0.000 s</output></label>
+        </div>
+        <div class="videolab-trim-summary"><output id="videolabTrimDuration">Selected: 0.000 s</output><button class="performance-btn" id="videolabTrimReset" type="button" disabled>Reset Trim</button></div>
+    </fieldset>
+    <div class="radiolab-controls videolab-controls">
+        <button class="performance-btn" id="videolabPreview" type="button" aria-pressed="false" disabled>Preview</button>
+        <button class="performance-btn" id="videolabNormalize" type="button" aria-pressed="false" disabled>Normalise</button>
+    </div>
+    <label for="videolabSampleName">Recording name</label>
+    <input id="videolabSampleName" type="text" maxlength="100" placeholder="Name the selected take" disabled>
+    <div class="radiolab-controls videolab-controls">
+        <button class="performance-btn primary" id="videolabSave" type="button" disabled>Save</button>
+        <button class="performance-btn" id="videolabBrowse" type="button" disabled>Browse / Load</button>
+    </div>
+</div>
+<dialog id="videolabSamplesDialog" aria-labelledby="videolabBrowserTitle">
+    <div class="radiolab-browser-head videolab-browser-head"><h2 id="videolabBrowserTitle">Video Lab · saved samples</h2><button class="performance-btn" id="videolabBrowserClose" type="button">Close</button></div>
+    <p class="videolab-note">Private recordings · one-shot Preview. Load uses the complete saved selection and never starts playback. Rename file changes its saved name. Re-trim previews and saves a NEW WAV, keeping the original. Closing clears any unsaved take.</p>
+    <label for="videolabLoadTarget">Destination</label>
+    <select id="videolabLoadTarget" disabled><option value="grainMain">Apply</option><option value="V">V</option><option value="grainA">Grain A</option><option value="grainB">Grain B</option></select>
+    <div class="radiolab-controls videolab-controls"><button class="performance-btn" id="videolabRefreshSamples" type="button" disabled>Refresh</button><button class="performance-btn" id="videolabStopPreview" type="button" disabled>Stop Preview</button></div>
+    <div id="videolabBrowserStatus" role="status" aria-live="polite">No saved samples loaded.</div>
+    <div id="videolabSampleList"></div>
+</dialog>

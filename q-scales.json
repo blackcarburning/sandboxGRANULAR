@@ -1,0 +1,1116 @@
+{
+  "source": "https://raw.githubusercontent.com/tonaljs/tonal/e555422aef910daa87cb924028f71f0a013f3ed7/packages/scale-type/data.ts",
+  "revision": "e555422aef910daa87cb924028f71f0a013f3ed7",
+  "license": "MIT",
+  "scales": [
+    {
+      "name": "major pentatonic",
+      "aliases": [
+        "pentatonic"
+      ],
+      "intervals": [
+        0,
+        2,
+        4,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "major",
+      "aliases": [
+        "ionian"
+      ],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "minor",
+      "aliases": [
+        "aeolian"
+      ],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "major blues",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        4,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "minor blues",
+      "aliases": [
+        "blues"
+      ],
+      "intervals": [
+        0,
+        3,
+        5,
+        6,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "melodic minor",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "harmonic minor",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "bebop",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "diminished",
+      "aliases": [
+        "whole-half diminished"
+      ],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        6,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "dorian",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "lydian",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "mixolydian",
+      "aliases": [
+        "dominant"
+      ],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "phrygian",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "locrian",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "ionian pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        4,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "name": "mixolydian pentatonic",
+      "aliases": [
+        "indian"
+      ],
+      "intervals": [
+        0,
+        4,
+        5,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "ritusen",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        5,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "egyptian",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        5,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "neapolitan major pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        4,
+        5,
+        6,
+        10
+      ]
+    },
+    {
+      "name": "vietnamese 1",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        5,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "pelog",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "kumoijoshi",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        5,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "hirajoshi",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "iwato",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        5,
+        6,
+        10
+      ]
+    },
+    {
+      "name": "in-sen",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        5,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "lydian pentatonic",
+      "aliases": [
+        "chinese"
+      ],
+      "intervals": [
+        0,
+        4,
+        6,
+        7,
+        11
+      ]
+    },
+    {
+      "name": "malkos raga",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        5,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "locrian pentatonic",
+      "aliases": [
+        "minor seven flat five pentatonic"
+      ],
+      "intervals": [
+        0,
+        3,
+        5,
+        6,
+        10
+      ]
+    },
+    {
+      "name": "minor pentatonic",
+      "aliases": [
+        "vietnamese 2"
+      ],
+      "intervals": [
+        0,
+        3,
+        5,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "minor six pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        5,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "flat three pentatonic",
+      "aliases": [
+        "kumoi"
+      ],
+      "intervals": [
+        0,
+        2,
+        3,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "flat six pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "scriabin",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "whole tone pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        4,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "lydian #5p pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        4,
+        6,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "lydian dominant pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        4,
+        6,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "minor #7m pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "name": "super locrian pentatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        4,
+        6,
+        10
+      ]
+    },
+    {
+      "name": "minor hexatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "name": "augmented",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        4,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "piongio",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "prometheus neapolitan",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        6,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "prometheus",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "mystery #1",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "six tone symmetric",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9
+      ]
+    },
+    {
+      "name": "whole tone",
+      "aliases": [
+        "messiaen's mode #1"
+      ],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "messiaen's mode #5",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        5,
+        6,
+        7,
+        11
+      ]
+    },
+    {
+      "name": "locrian major",
+      "aliases": [
+        "arabian"
+      ],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "double harmonic lydian",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        6,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "locrian #2",
+      "aliases": [
+        "half-diminished",
+        "aeolian b5"
+      ],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "lydian dominant",
+      "aliases": [
+        "lydian b7",
+        "overtone"
+      ],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "lydian augmented",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "locrian 6",
+      "aliases": [
+        "locrian natural 6",
+        "locrian sharp 6"
+      ],
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        6,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "augmented heptatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        4,
+        5,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "lydian diminished",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        6,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "leading whole tone",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "lydian minor",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "phrygian dominant",
+      "aliases": [
+        "spanish",
+        "phrygian major"
+      ],
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "balinese",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "neapolitan major",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "harmonic major",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "double harmonic major",
+      "aliases": [
+        "gypsy"
+      ],
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "hungarian minor",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        6,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "hungarian major",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        4,
+        6,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "oriental",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        6,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "flamenco",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        4,
+        6,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "todi raga",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        6,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "persian",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        6,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "enigmatic",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        6,
+        8,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "lydian #9",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        4,
+        6,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "messiaen's mode #4",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "purvi raga",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        6,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "spanish heptatonic",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "bebop minor",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "bebop major",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "bebop locrian",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        6,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "minor bebop",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        8,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "ichikosucho",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        6,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "minor six diminished",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "kafi raga",
+      "aliases": [],
+      "intervals": [
+        0,
+        3,
+        4,
+        5,
+        7,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "messiaen's mode #6",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        6,
+        8,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "composite blues",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "messiaen's mode #3",
+      "aliases": [],
+      "intervals": [
+        0,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        10,
+        11
+      ]
+    },
+    {
+      "name": "messiaen's mode #7",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "chromatic",
+      "aliases": [],
+      "intervals": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    }
+  ]
+}

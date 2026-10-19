@@ -1,0 +1,254 @@
+#bastardLoopQCard {
+    border-color: #ef3340;
+    background: linear-gradient(145deg, #5b111d, #280c14 55%, #140b12);
+    --q-scarlet: #ef3340;
+}
+
+#bastardLoopQCard .performance-chip,
+#bastardLoopQCard .performance-feature-title,
+#bastardLoopQOverlay h3 {
+    color: #ffabb3;
+}
+
+#bastardLoopQCard .performance-btn,
+#bastardLoopQOverlay .performance-btn {
+    border-color: #b33b48;
+    color: #fff4f5;
+}
+
+#bastardLoopQCard .performance-btn[aria-pressed="true"],
+#bastardLoopQOverlay .performance-btn[aria-pressed="true"] {
+    background: #c91e34;
+    color: #fff;
+}
+
+#bastardLoopQCard .performance-sound-card,
+#bastardLoopQOverlay .performance-sound-card {
+    min-width: 0;
+}
+
+#bastardLoopQCard input[type="range"],
+#bastardLoopQOverlay input[type="range"] {
+    width: 100%;
+    accent-color: #ef3340;
+}
+
+#bastardLoopQCard select,
+#bastardLoopQOverlay select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px;
+    border: 1px solid #a94a56;
+    border-radius: 6px;
+    background: #24131a;
+    color: #fff4f5;
+    font-size: 16px;
+}
+
+#bastardLoopQOverlay[hidden],
+#bastardLoopQCustomScale[hidden] {
+    display: none;
+}
+
+#bastardLoopQOverlay {
+    z-index: 2147483450;
+    --q-edge: 12px;
+    top: var(--q-viewport-top, 0px);
+    left: var(--q-viewport-left, 0px);
+    right: auto;
+    bottom: auto;
+    width: var(--q-viewport-width, 100%);
+    height: var(--q-viewport-height, 100dvh);
+    padding: max(var(--q-edge), env(safe-area-inset-top)) max(var(--q-edge), env(safe-area-inset-right)) max(var(--q-edge), env(safe-area-inset-bottom)) max(var(--q-edge), env(safe-area-inset-left));
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#bastardLoopQOverlay:not([hidden]) {
+    display: flex;
+}
+
+body.q-sequencer-open {
+    overflow: hidden;
+}
+
+#bastardLoopQOverlay .q-shell {
+    box-sizing: border-box;
+    width: min(1100px, 100%);
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    height: min(980px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+    border-color: #ef3340;
+    background: #211018;
+    overscroll-behavior: contain;
+}
+
+.q-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 10px;
+    margin: 6px 0;
+    min-width: 0;
+}
+
+.q-controls > label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    font-size: 12px;
+}
+
+.q-toolbar, .q-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+    min-width: 0;
+}
+
+#bastardLoopQOverlay .q-toolbar .performance-btn,
+#bastardLoopQOverlay .q-custom-pitches .performance-btn {
+    width: auto;
+    min-height: 40px;
+    flex: 1 1 110px;
+}
+
+#bastardLoopQStepGrid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 3px;
+}
+
+#bastardLoopQStepGrid .q-step {
+    min-width: 0;
+    width: 100%;
+    min-height: 34px;
+    padding: 2px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    font-size: 9px;
+    line-height: 1.25;
+}
+
+#bastardLoopQStepGrid .q-step.in-range {
+    box-shadow: inset 0 0 0 2px #ffb4bc;
+}
+
+#bastardLoopQStepGrid .q-step.playing {
+    outline: 2px solid #75dfb4;
+    outline-offset: -3px;
+}
+
+#bastardLoopQStatus, #performanceBastardLoopQMeta {
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.q-error {
+    color: #ffb0b9;
+}
+
+.q-attribution {
+    margin-top: 12px;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.q-attribution a {
+    color: #ffabb3;
+}
+
+#bastardLoopQOverlay .q-head { flex: 0 0 auto; align-items: center; margin: 0; }
+#bastardLoopQOverlay .q-head h3 { margin: 0; font-size: 16px; }
+#bastardLoopQOverlay .q-head button { width: auto; min-height: 34px; padding: 6px 14px; }
+.q-settings { flex: 0 0 auto; min-width: 0; font-size: 11px; max-height: 32dvh; overflow-y: auto; }
+.q-settings summary { cursor: pointer; padding: 5px 0; }
+.q-help { margin: 4px 0; font-size: 11px; line-height: 1.4; }
+.q-session-controls { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); flex: 0 0 auto; gap: 3px; margin: 0; }
+#bastardLoopQOverlay .q-session-controls .performance-btn { min-width: 0; min-height: 32px; height: 32px; padding: 3px 1px; font-size: clamp(7px, 2.1vw, 10px); letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.q-control-short, .q-nudge-short { display: none; }
+#bastardLoopQOverlay #bastardLoopQAllPlayBtn { background: #146a45; border-color: #65db9f; color: #effff5; }
+#bastardLoopQOverlay #bastardLoopQAllStopBtn { background: #9b2431; border-color: #ff7382; color: #fff4f5; }
+.q-record-help { flex: 0 0 auto; font-size: 9px; line-height: 1.25; opacity: .8; }
+#bastardLoopQOverlay .performance-btn, .q-settings summary { touch-action: manipulation; }
+#bastardLoopQPalette, .q-grid-scroll, .q-settings { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.q-workbench { display: flex; flex: 1 1 0; min-height: 100px; flex-direction: column; gap: 4px; overflow: hidden; }
+.q-palette-heading, .q-grid-heading { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 10px; line-height: 1.4; }
+#bastardLoopQPalette { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); flex: 5 1 0; min-height: 46px; max-height: 32dvh; overflow-y: auto; margin: 0; gap: 4px; align-content: start; padding: 3px; }
+#bastardLoopQOverlay #bastardLoopQPalette .q-chord { display: flex; flex-direction: column; min-height: 36px; padding: 3px; width: 100%; font-size: 10px; justify-content: center; }
+.q-chord-notes { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; font-size: 8px; text-transform: none; opacity: .8; }
+.q-chord-playing { outline: 2px solid #75dfb4; outline-offset: -2px; }
+.q-note-playing { color: #75dfb4; font-weight: 900; opacity: 1; }
+.q-grid-scroll { flex: 4 1 0; min-height: 38px; max-height: 38dvh; overflow-y: auto; padding: 3px; }
+#bastardLoopQSelected { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#bastardLoopQStepCursor { flex-shrink: 0; }
+.q-arp-controls { flex: 0 0 auto; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.q-arp-controls > label { font-size: 10px; gap: 3px; }
+.q-arp-open { overflow: hidden; }
+#qArpOverlay { position: fixed; display: flex; z-index: 2147483500; top: var(--arp-top, 0); left: var(--arp-left, 0); width: var(--arp-width, 100vw); height: var(--arp-height, 100dvh); padding: 8px; box-sizing: border-box; }
+#qArpOverlay[hidden] { display: none; }
+.q-arp-shell { display: flex; flex-direction: column; gap: 10px; width: min(100%, 1000px); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 14px; margin: auto; color: #e9f5f9; background: #111a21; border: 1px solid #397887; border-radius: 14px; }
+.q-arp-shell .sample-browser-head { flex-shrink: 0; position: sticky; top: 0; z-index: 2; background: #111a21; }
+.q-arp-help, #qArpStatus { margin: 0; font-size: 12px; line-height: 1.4; }
+.q-arp-settings, .q-arp-repository { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.q-arp-repository { grid-template-columns: minmax(0, 1fr) auto; }
+.q-arp-shell label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.q-arp-shell select, .q-arp-shell input { min-width: 0; width: 100%; min-height: 34px; box-sizing: border-box; background: #0b1016; color: #e9f5f9; border: 1px solid #397887; border-radius: 6px; padding: 5px; font-size: 16px; }
+.q-arp-grid-scroll { flex-shrink: 0; max-width: 100%; overflow-x: auto; padding-bottom: 5px; }
+#qArpGrid { display: grid; gap: 3px; width: max-content; text-align: center; align-items: center; font-size: 11px; }
+.q-arp-row-label { position: sticky; left: 0; align-self: stretch; display: grid; place-items: center; background: #111a21; z-index: 1; }
+.q-arp-cell { min-height: 28px; padding: 0; border: 1px solid #2d4550; border-radius: 4px; background: #1b2933; color: transparent; touch-action: manipulation; cursor: pointer; }
+.q-arp-cell[aria-pressed="true"] { background: #63ddf5; color: #071319; border-color: #c9f7ff; }
+.q-arp-cell[data-arp-rank="0"][aria-pressed="true"] { background: #ac83cf; border-color: #e2c9f7; }
+.q-arp-cell:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+#qArpStatus { min-height: 2.8em; }
+@media (max-width: 480px) {
+    .q-arp-shell { padding: 10px; }
+    .q-arp-settings { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .q-arp-settings > label:last-child { grid-column: 1 / -1; }
+    .q-arp-repository { grid-template-columns: minmax(0, 1fr); }
+    .q-arp-repository .q-toolbar { margin: 0; }
+}
+#bastardLoopQOverlay .q-arp-controls select { min-height: 32px; padding: 3px; font-size: 12px; }
+#bastardLoopQStatus { flex: 0 0 auto; font-size: 10px; height: 1.5em; overflow-y: auto; }
+.q-custom-pitches { display: flex; flex-wrap: wrap; gap: 4px; }
+.q-edit-tools .q-toolbar { margin: 4px 0; }
+
+@media (max-width: 480px) {
+    .q-session-controls .q-control-full { display: none; }
+    .q-session-controls .q-control-short { display: inline; }
+    #bastardLoopQOverlay { --q-edge: 6px; }
+    #bastardLoopQOverlay .q-shell { max-height: 100%; height: 100%; padding: 10px; }
+    #bastardLoopQStepGrid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .q-controls { grid-template-columns: minmax(0, 1fr); }
+    #bastardLoopQPalette { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .q-arp-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #bastardLoopQOverlay .q-arp-controls select { font-size: 16px; }
+    #bastardLoopQSelected { display: none; }
+}
+
+@media (max-width: 360px) {
+    .q-session-controls .q-nudge-full { display: none; }
+    .q-session-controls .q-nudge-short { display: inline; }
+}
+
+@media (max-height: 500px) {
+    #bastardLoopQOverlay .q-shell { padding: 8px; gap: 3px; }
+    #bastardLoopQOverlay .q-head h3 { font-size: 13px; }
+    #bastardLoopQOverlay .q-head button { min-height: 28px; }
+    #bastardLoopQOverlay .q-session-controls .performance-btn { min-height: 30px; }
+    #bastardLoopQPalette { max-height: 28dvh; }
+    #bastardLoopQOverlay #bastardLoopQPalette .q-chord { min-height: 30px; padding: 2px 3px; }
+    .q-settings summary { padding: 2px 0; }
+    #bastardLoopQStatus { display: none; }
+}

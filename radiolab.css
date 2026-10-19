@@ -1,0 +1,62 @@
+#radiolabCard { min-width: 0; border-color: #cf8653; }
+#radiolabCard .radiolab-controls, #radiolabSamplesDialog .radiolab-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+#radiolabCard label, #radiolabSamplesDialog label { display: block; margin: 8px 0; }
+#radiolabCard select, #radiolabCard input[type="text"], #radiolabSamplesDialog select { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 10px; color: #eee; background: #20232c; border: 1px solid #6e6878; border-radius: 6px; font: inherit; }
+#radiolabCard button { min-height: 44px; }
+#radiolabPreview, #radiolabNormalize { color: #eee; background: #252a35; border: 1px solid #a68167; touch-action: manipulation; }
+#radiolabPreview[aria-pressed="true"], #radiolabNormalize[aria-pressed="true"] { color: #fff1e2; border-color: #ffc281; }
+#radiolabSamplesDialog button.performance-btn { flex: 0 0 auto; width: auto; min-width: 0; min-height: 32px; padding: 4px 9px; border-radius: 8px; font-size: 11px; line-height: 1.2; letter-spacing: 0.04em; color: #eee; }
+#radiolabSamplesDialog button.primary { color: #00131a; }
+.radiolab-scrub { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 16px; align-items: center; }
+#radiolabWheel { --radiolab-turn: 0deg; width: 92px; height: 92px; border: 3px solid #cf8653; border-radius: 50%; background: repeating-conic-gradient(from var(--radiolab-turn), #34303d 0deg 20deg, #766052 20deg 24deg); cursor: ns-resize; touch-action: none; display: grid; place-items: center; user-select: none; }
+#radiolabWheel span { padding: 10px 5px; background: #171822; border-radius: 50%; pointer-events: none; }
+#radiolabWheel:focus-visible, #radiolabCard :focus-visible, #radiolabSamplesDialog :focus-visible { outline: 3px solid #ffc281; outline-offset: 3px; }
+#radiolabRewind { width: 100%; min-width: 0; min-height: 44px; accent-color: #e5a168; }
+#radiolabRewindValue, #radiolabTake { display: block; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#radiolabCard [role="status"], #radiolabSamplesDialog [role="status"] { min-height: 2.8em; overflow-wrap: anywhere; }
+#radiolabSamplesDialog { box-sizing: border-box; width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 18px; overflow: auto; background: #181b25; color: #eee; color-scheme: dark; border: 1px solid #cf8653; border-radius: 12px; }
+#radiolabSamplesDialog::backdrop { background: #000b; }
+#radiolabSampleList { min-height: 0; min-width: 0; display: grid; gap: 12px; margin: 16px 0; }
+#radiolabSamplesDialog .radiolab-browser-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+#radiolabSamplesDialog .radiolab-browser-head h2 { flex: 1 1 220px; margin: 0; min-width: 0; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .radiolab-browser-head button { flex: 0 0 auto; }
+#radiolabSamplesDialog .radiolab-browser-note { color: #c7c4ce; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .radiolab-sample-row { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid #ffffff14; border-radius: 18px; background: #0e1420; }
+#radiolabSamplesDialog .radiolab-sample-name { margin: 0; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .radiolab-sample-details { margin: 0; font-size: 12px; color: #c7c4ce; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .radiolab-sample-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; }
+#radiolabSamplesDialog .radiolab-sample-actions button { flex: 0 0 auto; touch-action: manipulation; }
+#radiolabSamplesDialog .radiolab-controls > button { flex: 0 0 auto; }
+#radiolabSamplesDialog button.performance-btn[data-action="delete"] { color: #ffb5b5; border-color: #af6262; }
+#radiolabSamplesDialog .radiolab-sample-empty { margin: 0; padding: 14px; border: 1px dashed #6e6878; border-radius: 12px; overflow-wrap: anywhere; }
+#radiolabSamplesDialog h2 { margin-top: 0; }
+#radiolabTrimPanel { box-sizing: border-box; min-width: 0; margin: 12px 0; padding: 10px; border: 1px solid #a68167; border-radius: 8px; }
+#radiolabTrimPanel[hidden] { display: none; }
+#radiolabTrimPanel legend { padding: 0 5px; color: #eee; font-size: 0.85rem; }
+#radiolabWaveform { display: block; width: 100%; height: 120px; border-radius: 5px; background: #10151f; touch-action: none; }
+#radiolabTrimPanel .radiolab-trim-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#radiolabTrimPanel label { min-width: 0; font-size: 0.8rem; }
+#radiolabTrimPanel input[type="range"] { box-sizing: border-box; display: block; width: 100%; min-width: 0; min-height: 32px; margin: 4px 0 0; accent-color: #78e0d0; }
+#radiolabTrimPanel output { font-variant-numeric: tabular-nums; font-size: 0.78rem; overflow-wrap: anywhere; }
+#radiolabTrimPanel .radiolab-trim-summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+#radiolabTrimReset { min-width: 0; font-size: 11px; padding: 5px 9px; color: #eee; }
+@media (max-width: 480px) {
+    #radiolabCard .radiolab-controls > *, #radiolabSamplesDialog .radiolab-controls > * { flex: 1 1 135px; }
+    .radiolab-scrub { grid-template-columns: 80px minmax(0, 1fr); gap: 10px; }
+    #radiolabWheel { width: 72px; height: 72px; }
+    #radiolabSamplesDialog { padding: 12px; }
+}
+@media (max-width: 480px), (pointer: coarse) {
+    #radiolabSamplesDialog button.performance-btn { min-height: 44px; padding: 9px 12px; font-size: 14px; letter-spacing: normal; }
+}
+#radiolabSamplesDialog .lab-saved-editor, #videolabSamplesDialog .lab-saved-editor { box-sizing: border-box; min-width: 0; max-width: 100%; margin: 8px 0 0; padding: 12px; border: 1px solid #a68167; border-radius: 10px; }
+#radiolabSamplesDialog .lab-saved-editor legend, #videolabSamplesDialog .lab-saved-editor legend { padding: 0 5px; font-size: 0.95rem; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .lab-saved-editor label, #videolabSamplesDialog .lab-saved-editor label { display: block; min-width: 0; margin: 10px 0; font-size: 0.9rem; }
+#radiolabSamplesDialog .lab-saved-editor input, #videolabSamplesDialog .lab-saved-editor input { box-sizing: border-box; display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; margin-top: 6px; padding: 10px; color: #eee; background: #20232c; border: 1px solid #6e6878; border-radius: 6px; font: inherit; font-size: 16px; }
+#radiolabSamplesDialog .lab-saved-editor input[type="range"], #videolabSamplesDialog .lab-saved-editor input[type="range"] { padding: 0; accent-color: #78e0d0; }
+#radiolabSamplesDialog .lab-saved-editor canvas, #videolabSamplesDialog .lab-saved-editor canvas { display: block; width: 100%; height: 100px; background: #10151f; border-radius: 6px; }
+#radiolabSamplesDialog .lab-saved-editor output, #videolabSamplesDialog .lab-saved-editor output { display: block; font-size: 0.85rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .lab-saved-editor-note, #videolabSamplesDialog .lab-saved-editor-note { margin: 0 0 10px; font-size: 0.85rem; line-height: 1.5; color: #c7c4ce; overflow-wrap: anywhere; }
+#radiolabSamplesDialog .lab-saved-trim-ranges, #videolabSamplesDialog .lab-saved-trim-ranges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#radiolabSamplesDialog .lab-saved-editor-actions, #videolabSamplesDialog .lab-saved-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#radiolabSamplesDialog .lab-saved-editor-actions button.performance-btn, #videolabSamplesDialog .lab-saved-editor-actions button.performance-btn { flex: 1 1 120px; min-width: 0; min-height: 44px; padding: 9px 12px; font-size: 14px; letter-spacing: normal; white-space: normal; }

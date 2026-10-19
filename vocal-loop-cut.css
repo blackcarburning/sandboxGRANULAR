@@ -1,0 +1,76 @@
+#bastardLoopVCutOverlay[hidden] { display: none; }
+#bastardLoopVCutOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    background: #03070be6;
+}
+#bastardLoopVCutOverlay .vocal-cut-shell {
+    width: min(900px, 100%);
+    max-height: 92dvh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 20px;
+    border: 1px solid #386177;
+    border-radius: 18px;
+    background: #0b1521;
+    color: #dcecff;
+}
+#bastardLoopVCutOverlay h3 { margin: 0; color: #dcecff; }
+#bastardLoopVCutOverlay .vocal-cut-head,
+#bastardLoopVCutOverlay .vocal-cut-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+#bastardLoopVCutOverlay .vocal-cut-head { justify-content: space-between; }
+#bastardLoopVCutOverlay label { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #dcecff; }
+#bastardLoopVCutOverlay select,
+#bastardLoopVCutOverlay input[type="number"] { width: auto; min-height: 38px; padding: 6px 9px; background: #132238; color: #dcecff; border: 1px solid #536884; border-radius: 8px; }
+#bastardLoopVCutOverlay input[type="number"] { width: 100px; }
+#bastardLoopVCutOverlay input[type="checkbox"] { width: 18px; height: 18px; }
+#bastardLoopVCutOverlay .performance-btn { min-height: 40px; color: #dcecff; }
+#bastardLoopVCutOverlay #bastardLoopVCutFromStart,
+#bastardLoopVCutOverlay #bastardLoopVCutStretch { background: linear-gradient(145deg, #263e54, #132238); border: 1px solid #536884; }
+#bastardLoopVCutOverlay #bastardLoopVCutFromStart.active,
+#bastardLoopVCutOverlay #bastardLoopVCutStretch.active { background: linear-gradient(145deg, #214b3a, #123125); border-color: #36ef69; color: #b8ffcd; }
+#bastardLoopVCutOverlay #bastardLoopVCutFromStart:focus-visible,
+#bastardLoopVCutOverlay #bastardLoopVCutStretch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+#bastardLoopVCutOverlay .vocal-cut-timeline { position: relative; margin: 26px 18px 28px; touch-action: none; }
+#bastardLoopVCutOverlay .vocal-cut-timeline.stretch-active { cursor: grab; }
+#bastardLoopVCutOverlay .vocal-cut-timeline.stretch-active:active { cursor: grabbing; }
+#bastardLoopVCutWaveform { display: block; width: 100%; height: 220px; border-radius: 8px; }
+#bastardLoopVCutOverlay .vocal-cut-handle {
+    position: absolute;
+    top: -10px;
+    height: calc(100% + 20px);
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+    transform: translateX(-50%);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    cursor: ew-resize;
+    touch-action: none;
+    z-index: 3;
+    color: #36ef69;
+    box-shadow: none;
+}
+#bastardLoopVCutOverlay .vocal-cut-handle::before { content: ''; position: absolute; inset: 8px 14px; background: currentColor; }
+#bastardLoopVCutOverlay .vocal-cut-handle span { position: absolute; top: -10px; left: 0; width: 30px; padding: 4px 0; font-size: 11px; background: #133222; border: 1px solid currentColor; border-radius: 5px; }
+#bastardLoopVCutOverlay #bastardLoopVCutEnd { color: #ff6666; }
+#bastardLoopVCutOverlay #bastardLoopVCutEnd span { background: #391e25; }
+#bastardLoopVCutOverlay .vocal-cut-handle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+#bastardLoopVCutPlayhead { position: absolute; top: 0; height: 100%; width: 2px; background: #ffe675; pointer-events: none; z-index: 2; }
+#bastardLoopVCutOverlay p { color: #b4c7dd; font-size: 13px; line-height: 1.45; }
+#bastardLoopVCutOverlay .vocal-cut-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 600px) {
+    #bastardLoopVCutOverlay { padding-inline: 8px; }
+    #bastardLoopVCutOverlay .vocal-cut-shell { padding: 14px 12px; max-height: 96dvh; }
+    #bastardLoopVCutWaveform { height: 160px; }
+    #bastardLoopVCutOverlay .vocal-cut-row { gap: 10px; }
+    #bastardLoopVCutOverlay .vocal-cut-row label { flex-wrap: wrap; }
+    #bastardLoopVCutOverlay .vocal-cut-row > .performance-btn { flex: 1 1 140px; }
+    #bastardLoopVCutOverlay .vocal-cut-actions .performance-btn { flex: 1 1 150px; }
+}

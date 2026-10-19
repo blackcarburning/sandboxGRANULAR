@@ -249,7 +249,7 @@ test('mobile controls can remove the noise oscillator and its modulation', () =>
 test('midi repository browser and loop or drum midi exports are wired into the live UI and visible on performance cards', () => {
     assert.match(indexHtml, /id="performanceMidiBrowserBtn">MIDI Browser<\/button>/);
     assert.match(indexHtml, /id="midiRepositoryBrowserOverlay"[\s\S]*id="midiRepositoryBrowserTitle">MIDI Browser<\/h3>/);
-    assert.match(indexHtml, /const MIDI_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-midi';/);
+    assert.match(indexHtml, /const MIDI_REPOSITORY_BASE_URL = new URL\('\/mygrain-midi', document\.baseURI\)\.href;/);
     assert.match(indexHtml, /function sanitizeMidiRepositoryFilename\(value, fallbackBase = 'mygrain-midi'\)/);
     assert.match(indexHtml, /function createMidiFileBlob\(trackChunks = \[\], options = \{\}\)/);
     assert.match(indexHtml, /id="performanceBastardLoopLExportMidiBtn" type="button">Export MIDI<\/button>/);
@@ -329,7 +329,10 @@ test('dropbox sample layer can browse and preview source samples before loading'
     assert.match(indexHtml, /function openDropboxSampleBrowser\(target = SAMPLE_BROWSER_TARGETS\.dropboxSampleLayer\)/);
     assert.match(indexHtml, /function refreshDropboxSampleBrowser\(options = \{\}\)/);
     assert.match(indexHtml, /audio\.controls = true/);
-    assert.match(indexHtml, /audio\.src = file\.previewUrl/);
+    assert.match(indexHtml, /window\.mygrainAccounts\?\.createMediaPreview\(audio, file\.previewUrl\)/);
+    assert.match(indexHtml, /previewButton\.textContent = 'Preview sample'/);
+    assert.match(indexHtml, /await preview\.play\(\)/);
+    assert.doesNotMatch(indexHtml, /audio\.src = file\.previewUrl/);
     assert.match(indexHtml, /performanceDropboxSampleBrowseBtn\?\.addEventListener\('click', \(\) => \{\s*openDropboxSampleBrowser\(\);/);
 });
 
@@ -558,7 +561,7 @@ test('generate source restarts active loop playback after replacing the source',
 test('randomize patch automatically generates a new performance loop', () => {
     assert.match(indexHtml, /document\.getElementById\('randomizeBtn'\)\.addEventListener\('click', async \(\) => \{/);
     assert.match(indexHtml, /function applyRandomizeFinalCompressorDefaults\(\)/);
-    assert.match(indexHtml, /setSliderValue\('finalCompressorAmount', 0\);/);
+    assert.match(indexHtml, /setSliderValue\('finalCompressorAmount', 30\);/);
     assert.match(indexHtml, /setSliderValue\('finalSidechainAmount', 0\);/);
     assert.match(indexHtml, /setFinalCompressorSidechainSource\('off', \{ silent: true, skipSave: true \}\);/);
     assert.match(indexHtml, /async function runPatchRandomization\(\) \{\s*applyRandomizeFinalCompressorDefaults\(\);/);
@@ -667,7 +670,7 @@ test('bastardloop has independent transport controls and is not owned by the seq
 
 test('bastardloop uses its own browser route and selectable note sizes', () => {
     assert.match(indexHtml, /id="performanceBastardLoopBrowserBtn">Bastardloop Browser<\/button>/);
-    assert.match(indexHtml, /const BASTARD_LOOP_REPOSITORY_BASE_URL = 'https:\/\/openclaw\.blackcarburning\.com\/mygrain-bastardloops'/);
+    assert.match(indexHtml, /const BASTARD_LOOP_REPOSITORY_BASE_URL = new URL\('\/mygrain-bastardloops', document\.baseURI\)\.href;/);
     assert.match(indexHtml, /const BASTARD_LOOP_API_URL = `\$\{BASTARD_LOOP_REPOSITORY_BASE_URL\}\/api\/bastardloop`/);
     assert.match(indexHtml, /id="performanceBastardDivisionQuarter" value="1\/4"/);
     assert.match(indexHtml, /id="performanceBastardDivisionEighth" value="1\/8"/);
@@ -1452,8 +1455,8 @@ test('mix and trim card exposes an analyser-driven output vu meter', () => {
 });
 
 test('final effects expose a master compressor with lfo1 or kick sidechain routing', () => {
-    assert.match(indexHtml, /id="finalCompressorAmount" min="0" max="100" value="0" step="1"/);
-    assert.match(indexHtml, /id="finalCompressorRelease" min="20" max="1000" value="260" step="1"/);
+    assert.match(indexHtml, /id="finalCompressorAmount" min="0" max="100" value="30" step="1"/);
+    assert.match(indexHtml, /id="finalCompressorRelease" min="20" max="1000" value="100" step="1"/);
     assert.doesNotMatch(indexHtml, /id="finalCompressorMakeup"/);
     assert.match(indexHtml, /id="performanceFinalSidechainBtn">SC Off<\/button>/);
     assert.match(indexHtml, /id="finalSidechainAmount" min="0" max="100" value="0" step="1"/);

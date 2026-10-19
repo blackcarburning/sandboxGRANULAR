@@ -314,13 +314,15 @@
                 <a class="pill primary" href="index.html">Open MYGRAIN</a>
                 <a class="pill" href="#quick-start">Quick Start</a>
                 <a class="pill" href="#bastardloops">Bastardloops</a>
+                <a class="pill" href="#song-mode">Song Mode</a>
+                <a class="pill" href="#vocal-workflows">Vocal Recipes</a>
                 <a class="pill" href="#export">Export</a>
                 <a class="pill" href="#troubleshooting">Troubleshooting</a>
             </nav>
             <div>
                 <h1>MYGRAIN Manual</h1>
-                <p class="lede">A practical operator manual for MYGRAIN: the browser-based granular instrument, loop generator, Bastardloop workstation, drum sequencer, sample browser, mixer, effects chain, and export hub.</p>
-                <p class="meta">Manual revision: 2026-10-11. Covers the current performance layout, Loop L, Loop X, WAV Browser, patch ZIP workflow, jump drawer, layer switches, and mobile operation.</p>
+                <p class="lede">A practical operator manual for MYGRAIN: make sounds and beats, record and organise vocals, shape sample loops, then arrange saved patterns into a repeatable song. Each workflow explains both the controls and why they work that way.</p>
+                <p class="meta">Manual revision: 2026-10-14. Includes Song mode, the global M vocal library, V Loop Cut and Section Repeat, Pan Lab reset, and the backing-vocal M+ workflow.</p>
             </div>
         </header>
 
@@ -328,7 +330,7 @@
             <div class="summary-card"><b>Start Sound Fast</b><span>Tap Start, set BPM, generate or load a source, then use the keyboard, loops, drums, or Bastardloops.</span></div>
             <div class="summary-card"><b>One Clock</b><span>BPM drives the arpeggiator, sequencers, Bastardloops, drums, LFOs, delay divisions, and exports.</span></div>
             <div class="summary-card"><b>Layered Mixer</b><span>Granular, oscillator, generated loop, Dropbox sample, drums, and Bastardloops can all run together.</span></div>
-            <div class="summary-card"><b>Recoverable Work</b><span>Save patch ZIPs, render WAVs/stems, use Panic, and copy Debug Console output when testing builds.</span></div>
+            <div class="summary-card"><b>Three Kinds of Save</b><span>Vocal versions keep raw takes globally; song parts keep complete editable patterns; patch ZIPs provide portable restore points.</span></div>
         </section>
 
         <h2 id="quick-start">Quick Start</h2>
@@ -340,6 +342,7 @@
             <li>Build rhythm or texture with <strong>Generate Loop</strong>, <strong>Start Bastardloops</strong>, <strong>Start Drums</strong>, or <strong>Dropbox Sample Layer</strong>.</li>
             <li>Balance layers in <strong>Layer Switches</strong> and <strong>Mixer</strong>. If a layer is silent, check both its switch and its level.</li>
             <li>Use <strong>Export WAV</strong>, <strong>Export Final Mix to Repo</strong>, <strong>Export Stems</strong>, or <strong>Export Patch ZIP</strong> when the patch is worth keeping.</li>
+            <li>For vocals, record into <strong>M</strong>, save versions in the <strong>Vocal Take Browser</strong>, and use <strong>M+</strong> for an independent backing take. For an arrangement, save <strong>New Parts</strong> in <strong>Song</strong>, then <strong>Arm Cache</strong> and <strong>Play Song</strong>.</li>
         </ol>
 
         <div class="note warning"><strong>Mobile habit:</strong> on iPhone, use the right-side <strong>Jump</strong> drawer instead of long scrolling. It goes directly to Keys, loops, Drums, Layer Switch, Mixer, Quick Grain, Actions, Export, WAV Browser, Stem Export, Grain, Mix, LFO, FX, Sources, Waveforms, and Pan Lab.</div>
@@ -354,11 +357,16 @@
             <li><a href="#keyboard">Keyboard, Hold, Arp, and Key Record</a></li>
             <li><a href="#granular">Granular Layers</a></li>
             <li><a href="#generated-loop">Generated Loop and Dry Loop</a></li>
-            <li><a href="#bastardloops">Bastardloops A/B/C/V/P/O/L/X</a></li>
+            <li><a href="#bastardloops">Bastardloops A/B/C/V/P/O/L/X/M/M+</a></li>
+            <li><a href="#v-loop">V: Vocal Loops and Loop Cut Editor</a></li>
+            <li><a href="#m-loop">M and M+: Recording and the Global Vocal Library</a></li>
+            <li><a href="#vocal-workflows">Vocal Recording Examples</a></li>
+            <li><a href="#song-mode">Song Mode: Arrangement, Recall and Cache</a></li>
             <li><a href="#dropbox">Dropbox Sample Layer</a></li>
             <li><a href="#drums">Drum Machine</a></li>
             <li><a href="#mixer">Layer Switches and Mixer</a></li>
             <li><a href="#filters">Filters, LFO, and Motion</a></li>
+            <li><a href="#pan-lab">Pan Lab and Reset Pan Lab</a></li>
             <li><a href="#effects">Internal Effects</a></li>
             <li><a href="#randomize">Randomize, Reset, and Panic</a></li>
             <li><a href="#export">Recording, Export, and Repositories</a></li>
@@ -386,7 +394,7 @@
                     <text class="small-label" x="40" y="146">dry / Dropbox / L/X</text>
                     <rect class="node gold" x="210" y="108" width="138" height="44" rx="8"></rect>
                     <text class="label" x="226" y="133">Bastardloops</text>
-                    <text class="small-label" x="226" y="146">A B C V P O</text>
+                    <text class="small-label" x="226" y="146">A B C V P O M M+</text>
                     <rect class="node red" x="24" y="194" width="138" height="44" rx="8"></rect>
                     <text class="label" x="40" y="219">Drums</text>
                     <text class="small-label" x="40" y="232">kick / snare / hats</text>
@@ -479,11 +487,11 @@
         </ul>
 
         <h2 id="keyboard">Keyboard, Hold, Arp, and Key Record</h2>
-        <p>The keyboard is the main playable surface. It triggers the current granular and oscillator sound through the mixer, filter, and FX path.</p>
+        <p>The keyboard is the main playable surface. Its linked sound selector chooses <strong>Osc / Grain / Q Piano / Q Strings</strong> for both the keyboard and K recording, without changing Q's own instrument or sequence. Piano uses smaller, full-duration downloads; wait for the linked <strong>Ready</strong> indicator on first load.</p>
         <table>
             <tr><th>Control</th><th>Use</th></tr>
-            <tr><td>Hold</td><td>Keeps notes sounding after release. Good for drones and slow texture changes.</td></tr>
-            <tr><td>Arp</td><td>Steps through held notes using the shared BPM clock.</td></tr>
+            <tr><td>Hold</td><td>With Arp off, keeps notes sounding after release. With Arp on, retains the selected chord without a direct sustained chord behind the arpeggio.</td></tr>
+            <tr><td>Arp</td><td>Select notes silently, then press the main Start/Play control to step through them using the shared BPM clock. Stop silences the keyboard and arp, but retains Arp mode and the selected chord for the next Play.</td></tr>
             <tr><td>Mul 1x</td><td>Changes the arpeggiator clock multiplier.</td></tr>
             <tr><td>Arp Up</td><td>Changes arpeggiator direction/mode.</td></tr>
             <tr><td>Octave + / -</td><td>Moves the keyboard note range.</td></tr>
@@ -503,6 +511,7 @@
 
         <h2 id="generated-loop">Generated Loop and Dry Loop</h2>
         <p><strong>Generate Loop</strong> creates a BPM-aware loop that can run as its own dry layer and also feed the grain engine. <strong>Loop Play</strong> and <strong>Loop Stop</strong> control that loop transport. <strong>Loop Level</strong>, <strong>Dry Trim</strong>, and the <strong>Loop On</strong> layer switch control how much of it reaches the mix.</p>
+        <p><strong>Unity trim defaults:</strong> Dry Trim, Filter In and Filter Out start at 0.0 dB when starting MYGRAIN, loading a preset, resetting or using Randomize, Mega or Sparse. Filter gain modulation is cleared and Auto Makeup starts off so those filter trims really give unity gain rather than an automatic cut or boost. You can adjust them or enable Auto Makeup manually afterwards. Exact saved Song-part recall retains its own settings.</p>
         <ul>
             <li><strong>Gen Swing</strong> changes generated-loop timing feel.</li>
             <li><strong>Loop Transpose</strong> transposes generated-loop playback by octaves.</li>
@@ -510,7 +519,7 @@
             <li><strong>Dry Filter Off</strong> bypasses or enables filter treatment for the dry loop path.</li>
         </ul>
 
-        <h2 id="bastardloops">Bastardloops A/B/C/V/P/O/L/X</h2>
+        <h2 id="bastardloops">Bastardloops A/B/C/V/P/O/L/X/M/M+</h2>
         <p>Bastardloops are sample-backed loop layers that can run beside the keyboard, generated loop, Dropbox sample, and drums. All Bastardloop layers use the shared Bastardloop transport unless a layer has its own card-specific start button.</p>
         <h3>A/B/C/V/P/O Generated Layers</h3>
         <table>
@@ -518,7 +527,7 @@
             <tr><td>A</td><td><code>SAMPLEDROP</code></td><td>Generate, browser, used samples, solo, note sizes, pitch, semitone, fine tune, duration mode, shift, LP filter, level.</td></tr>
             <tr><td>B</td><td><code>SAMPLEDROP_2</code></td><td>Second generated layer with reverse, pitch, level, mute/switch, and its own browser.</td></tr>
             <tr><td>C</td><td><code>SPLICE_CLAW</code></td><td>Third generated layer with the same independent controls.</td></tr>
-            <tr><td>V</td><td><code>SAMPLES_VOCAL</code></td><td>Vocal layer with octave, semitone, fine tune, reverse, and recut workflow.</td></tr>
+            <tr><td>V</td><td><code>SAMPLES_VOCAL</code></td><td>Sample-vocal loops with octave, semitone, fine tune, reverse, shift, recut, Loop Cut and Section Repeat.</td></tr>
             <tr><td>P</td><td><code>SAMPLES_PIANO</code></td><td>Piano layer with tuning, reverse, level, recut, and browser state.</td></tr>
             <tr><td>O</td><td><code>SAMPLES_ORCH</code></td><td>Orchestral layer with tuning, reverse, level, recut, and browser state.</td></tr>
         </table>
@@ -526,10 +535,13 @@
 
         <h3>Loop L and Loop X Sequencers</h3>
         <p><strong>Bastardloop L</strong> plays one-shot leads from <code>SAMPLES_LEADS</code>. <strong>Bastardloop X</strong> plays one-shot bass samples from <code>SAMPLES_BASS</code>. They are not random sliced loops like A/B/C/V/P/O; they are synced note sequencers.</p>
+        <p><strong>X Filter Accent:</strong> accented steps change the filter envelope, not the voice volume. The signed Filter Accent slider adds or subtracts up to 50 percentage points from Filter Env, clamped to 0–100%; zero leaves the normal envelope unchanged. Use X's level slider for volume. Existing accent settings still load. A filter sweep can naturally change perceived loudness as it passes or removes frequencies.</p>
         <table>
             <tr><th>Control</th><th>Layer L/X behavior</th></tr>
             <tr><td>Choose Lead Sample / Choose Bass Sample</td><td>Loads the one-shot sample used by the sequencer.</td></tr>
             <tr><td>Edit Sequence</td><td>Opens the step editor. Steps can contain notes, rests, accents, slides, semitone offsets, and ratchets.</td></tr>
+            <tr><td>Copy Q Roots to Bass (X only)</td><td>Copies the entire active Q chord-root sequence into X from step 1, including Q transpose, rests and accents. Uses each chord's root rather than its lowest inverted note, in either block-chord or arp mode. Requires a chord in Q's sequence; keeps X's sample, tuning and rate.</td></tr>
+            <tr><td>Randomise Around Note (X only)</td><td>Builds a new bass pattern around the selected X note, falling back to the first playable note. Keeps that anchor on step 1 and uses root, fifth and octave motion within one octave, without changing the sample, tuning or rate. Disabled when the active X sequence has no notes.</td></tr>
             <tr><td>Start Bastardloops</td><td>Starts that layer through its own transport wiring while staying aligned with the Bastardloop clock.</td></tr>
             <tr><td>Volume</td><td>Layer level, mirrored into the Module Mixer.</td></tr>
             <tr><td>Length</td><td>How long each one-shot is allowed to play.</td></tr>
@@ -537,10 +549,108 @@
             <tr><td>Attack / Decay</td><td>Amplitude envelope for the one-shot notes.</td></tr>
             <tr><td>Semitone</td><td>Global transposition for the loaded sample.</td></tr>
             <tr><td>LP Filter 48 dB</td><td>Per-layer low-pass filter cutoff.</td></tr>
-            <tr><td>Filter Env</td><td>Envelope depth for filter movement. Accented notes add more sweep.</td></tr>
+            <tr><td>Filter Env</td><td>Envelope depth for filter movement. L accents add more sweep; X's signed Filter Accent controls how accented steps change this depth.</td></tr>
             <tr><td>Delay Time / Delay Mix / Ping Pong</td><td>Per-layer delay send and stereo delay mode.</td></tr>
         </table>
         <div class="note"><strong>Ratchets:</strong> in the L/X step editor, double tap the same step to arm ratchet editing. Step 1 is index zero internally but should behave like every other step.</div>
+        <p><strong>X filter cutoff:</strong> moving the cutoff updates sounding notes and their Filter LFO depth together, without restarting the LFO. The same cutoff and modulation range carry into subsequent notes after you release the slider. Filter Env and accented notes can still intentionally open the filter.</p>
+
+        <h2 id="v-loop">V: Vocal Loops and Loop Cut Editor</h2>
+        <p><strong>V</strong> makes a sample-backed vocal loop from <code>SAMPLES_VOCAL</code>. Generate or browse a loop, balance its level, tune it, and use reverse or shift when needed. This is distinct from M: V assembles existing vocal samples; M records your own performance.</p>
+        <ol>
+            <li>Load or generate V material. Start Bastardloops to hear it against the other enabled layers.</li>
+            <li>Open <strong>Loop Cut</strong>. The waveform represents the full existing loop. Drag <strong>Start</strong> and <strong>End</strong>, use the time fields, or adjust the focused handle with keyboard arrows.</li>
+            <li>Choose <strong>Snap</strong> for a musical grid, from fine divisions through a bar, or disable snap for free placement.</li>
+            <li>With the cut enabled and <strong>Section Repeat Off</strong>, only the selected region sounds. Everything outside it is silent, but the complete loop still occupies its original duration.</li>
+            <li>Switch <strong>Section Repeat On</strong> to tile the marked section from its Start position to the end of the full loop. The final copy is shortened to fit. Any time before Start stays silent.</li>
+            <li>Use <strong>Vocal + Metronome</strong> to hear V alone with a timing reference, or <strong>With Bastardloops</strong> to audition it with the enabled loop layers. Both start at the full loop origin, not at the selected Start handle. Stop or close the editor to end this audition.</li>
+            <li><strong>Full Loop</strong> removes the cut/repeat and returns to the full vocal loop. The original source audio has not been destroyed.</li>
+        </ol>
+        <div class="recipe-grid">
+            <div class="recipe"><b>Leave room for your singer</b><span>Mark a short V response near the end of a bar. Leave Section Repeat off. The rest of V is silent, so M can carry the lead phrase without changing the beat length.</span></div>
+            <div class="recipe"><b>Turn a fragment into a hook</b><span>On a 16-step loop, mark a five-step section starting at zero and enable Section Repeat. The result is 5 + 5 + 5 + 1, not a 20-step loop. If Start is later, the opening remains silent and only the remaining duration is filled.</span></div>
+        </div>
+        <p><strong>Why it works this way:</strong> cropping the timeline would shorten V and move later material off the shared clock. The editor instead gates or repeats audio inside a full-length playback buffer, with short edge fades. Original PCM, loop duration, tempo and shift remain available. Song parts store the editor settings with the source; cached song audio and song WAV exports use that saved edit, not whichever window you change later.</p>
+
+        <h2 id="m-loop">M and M+: Recording and the Global Vocal Library</h2>
+        <p><strong>M</strong> is the dark-green <strong>MAIN VOCAL</strong> card, a microphone loop for your lead vocal. <strong>M+</strong> is the dark-orange <strong>BACKING VOCAL</strong> card, an independent microphone loop for backing vocals: its own take, record level, tuning, filter, dedicated effects, volume, left/right pan and layer switch. Both cards use dark-grey buttons with blue text. Both use the Bastardloops clock and the same global Vocal Take Browser; opening it from a lane makes that lane the load/save target.</p>
+        <p><strong>M+ Pan Left / Right:</strong> zero is Centre; negative values place the backing vocal left and positive values place it right. Use Centre Pan to reset just this lane's placement. Pan moves the complete M+ output, including its dedicated delay, chorus and room reverb, without moving the lead in M. It is saved with patches and song parts and retained during Mega/Sparse randomisation. Older parts and patches without pan load centred. The raw take in the global vocal library is unchanged. This is a static mix placement control, not Pan Lab's animated processing.</p>
+        <h3>Record a Take</h3>
+        <ol>
+            <li>Start MYGRAIN and set BPM and Pattern Length before recording. Set <strong>Record Length</strong> to 1–8 loops. A loop follows the current pattern duration, not an arbitrary number of seconds.</li>
+            <li>Choose <strong>Record Mic</strong> for the lane's recording workflow, or <strong>Record + Loop</strong> to bring in the enabled performance backing at the recording start after the count-in. Allow microphone access when asked.</li>
+            <li>Listen to the one-bar, four-beat count-in; start singing at the recording start. Watch <strong>Record VU</strong> and adjust <strong>Record Level</strong>. Input level is separate from playback volume. Prefer headphones so the backing is not recorded back through the microphone.</li>
+            <li>The selected duration is captured and the take is made available as a tempo-linked loop. Longer recordings can span several repeated pattern cycles. Use <strong>Start Bastardloops</strong>, the lane switch and Mixer to hear it.</li>
+            <li>Adjust playback level, semitone/fine tune, <strong>Preserve Duration</strong>, reverse and filter. Add the lane's dedicated delay, chorus, room reverb or compressor only as needed. These are playback treatments, not a replacement for a clean recording.</li>
+            <li>Use <strong>Save Version</strong> before recording over a take you want to keep. <strong>Normalize</strong> changes the working take's gain; it cannot repair clipping. <strong>Clear</strong> removes that lane's working take, not its previously saved library versions.</li>
+        </ol>
+        <h3>Save, Browse and Organise</h3>
+        <p><strong>Replacing a performance:</strong> Record + Loop plays the enabled loop layers, which can include an older take already in the recording lane. Save Version, then Clear that working lane before recording an alternative if you do not want the old performance in your backing. Clearing M+ leaves the loaded lead in M intact, and both lanes' saved library versions remain available.</p>
+        <table>
+            <tr><th>Control</th><th>What happens</th><th>Why it matters</th></tr>
+            <tr><td>Save Version</td><td>Choose a user or create one, choose a folder, and edit the version name. The default includes local date/time and the loaded song name, or <code>none</code>.</td><td>Every save is a separate version. Try another performance without losing the first.</td></tr>
+            <tr><td>User / Create User</td><td>Select a vocalist label or create one without a password.</td><td>Labels organise the shared work area. They are not private or authenticated accounts.</td></tr>
+            <tr><td>Vocal Take Browser</td><td>Browse the selected user's folder. Audition a saved take or load it into the lane from which the browser was opened.</td><td>Audition lets you compare before replacing a working take. Loading does not remove the stored version.</td></tr>
+            <tr><td>Rename / Delete</td><td>Rename a stored take, or confirm its removal from the active browser.</td><td>Deletion is separate from clearing M or M+. There is no browser undo button; do not use delete as a substitute for switching takes.</td></tr>
+            <tr><td>Create Folder / Move to</td><td>Create a named folder within a user's area. Each take's Move to dropdown moves it between that user's root and folders.</td><td>Group sessions, lead takes, harmonies or experiments without duplicating audio.</td></tr>
+        </table>
+        <div class="note"><strong>Storage boundary:</strong> the vocal library is persistent server storage, shared across songs, patterns and browsers on this MYGRAIN installation. Loading a song, recalling a part or importing a patch does not replace the library. Takes do not expire automatically. User labels are shared: anyone with access to the app can browse them.</div>
+        <p><strong>What Save Version keeps:</strong> the working raw take and its recording BPM, not a baked mix of the lane's playback effects. A later library load restores the recording into its target lane, where the current lane treatments apply. A song part is different: it captures the currently loaded lane audio <em>and</em> its settings. It does not copy every take or folder in the global library.</p>
+
+        <h2 id="vocal-workflows">Vocal Recording Examples</h2>
+        <div class="recipe-grid">
+            <div class="recipe"><b>Build a lead from several takes</b><span>At 120 BPM with a 16-step pattern, one loop is four beats, or two seconds. Set Record Length to 4 for an eight-second phrase. Record + Loop against your backing; Save Version as “Verse lead 01” under your user. Record again and save “Verse lead 02”. Audition both in the browser, then load the preferred take into M. Save a New Part to keep that choice and its mix.</span></div>
+            <div class="recipe"><b>Add a real double or harmony</b><span>Keep the chosen lead in M. Open M+, choose the same record length and Record + Loop to sing a separate double or harmony against it. Save this version in a “Backing vocals” folder. Keep the backing quieter than the lead; adjust fine tune and effects independently, then try Pan at 30% Left or Right to separate it from the lead. Save a song part with both lanes enabled to keep that placement. An independent performance usually gives a more useful double than loading the exact same PCM into both lanes.</span></div>
+            <div class="recipe"><b>Re-use a vocalist across songs</b><span>Save useful takes under the vocalist's label. Open another song, open the browser from M or M+, select that vocalist and load a take. Rebalance and check tempo/pitch before creating a part. The original library take stays available to the first song and every other song.</span></div>
+            <div class="recipe"><b>Use a long take deliberately</b><span>A four-loop M take can run across repeated cycles during live Bastardloops playback. Song mode freezes only one pattern per part and repeats that capture. To preserve a complete longer phrase in ordered playback, choose a pattern duration long enough to contain it <em>before recording and saving the part</em>. Increasing the part's Repeats does not make the frozen cache advance through a longer raw vocal.</span></div>
+        </div>
+        <p>For an evolving vocal session, name versions by role and number, keep lead and backing folders, and save before changing the working take. For a committed arrangement, Recall the part, load the chosen versions into M/M+, adjust their mix, then Amend and Save Amendment. Editing a library version's name or location does not retroactively change an already saved song part.</p>
+
+        <h2 id="song-mode">Song Mode: Arrangement, Recall and Cache</h2>
+        <p>Song mode turns complete MYGRAIN patterns into an ordered arrangement. A part is not just a preset name or a MIDI pattern: it is a saved, editable snapshot of sounds, sequences, keyboard notes, mutes, levels, effects, tempo and pattern length, including the loaded vocal takes and V editor settings. The global vocal library remains outside that snapshot.</p>
+        <h3>First Song: Verse, Chorus, Verse</h3>
+        <ol>
+            <li>Use the green <strong>Song</strong> quick tab or Jump to reach the Song card. Enter a name and select <strong>New Song</strong>.</li>
+            <li>Build your verse live, load/record its vocals, enter a part name and repeat count, then choose <strong>New Part</strong>. Wait for a successful save. This stores the whole current pattern independently of future live edits.</li>
+            <li>Change the live patch for a chorus and save another New Part. Expand Verse and choose <strong>Reuse Part</strong> for a second verse occurrence; use its arrows to put it after Chorus.</li>
+            <li>Set each occurrence's <strong>Repeats</strong>, for example Verse × 4, Chorus × 8, Verse × 4. Repeat counts are whole patterns, not beats or seconds. Give parts colours if helpful.</li>
+            <li>Select <strong>Arm Cache</strong>. Wait for every needed unique part to be ready, then choose <strong>Play Song</strong>. Playback follows the displayed order and saved repeat counts, ending after the final part unless a looping mode is selected.</li>
+            <li>Use <strong>Export Song to WAV Folder</strong> for the same arranged audio. Use <strong>Stop Song</strong> to stop automatic playback and cancel pending preparation.</li>
+        </ol>
+        <h3>What the Controls Mean</h3>
+        <table>
+            <tr><th>Control</th><th>Meaning</th></tr>
+            <tr><td>Part name / expand</td><td>Opens the part controls; expanding alone does not start or recall audio.</td></tr>
+            <tr><td>Recall</td><td>Loads the complete saved state with transport stopped. No Arm Cache is needed. Use this for editing or as a starting point for a New Part.</td></tr>
+            <tr><td>Audition</td><td>Recalls the part and runs the live engines. This is not frozen, ordered song playback; random motion can keep evolving.</td></tr>
+            <tr><td>Amend / Save Amendment</td><td>Select the existing part, edit the live patch, then explicitly save a replacement snapshot. Already recalled live edits are retained when starting Amend. Cancel Amendment leaves the saved copy unchanged.</td></tr>
+            <tr><td>Reuse Part</td><td>Adds an occurrence referencing the same source part, not a duplicate sample bundle. Each occurrence has its own order and repeats; name, colour, audio and settings amendments are shared. Use New Part for an independently editable variation.</td></tr>
+            <tr><td>Play Song From Here</td><td>Starts ordered frozen playback at that occurrence and continues through the remainder. If needed, it asks to arm first. It does not change the saved arrangement.</td></tr>
+            <tr><td>Part header: green Play / red Stop</td><td>Grouped beside the move-up/down arrows, even with the part collapsed; long names cannot split these buttons onto separate lines. Green Play starts the song at that occurrence; while playing or preparing, every part shows a red Stop which stops the whole song and cancels preparation. Use these without scrolling back to the top.</td></tr>
+            <tr><td>Loop Song / Loop Part</td><td>Repeats the selected frozen arrangement or part using the song clock. It does not keep generating new live random variations.</td></tr>
+            <tr><td>Repeats, arrows, Rename, Colour</td><td>Save arrangement/display changes without rebuilding unchanged audio. Re-arm if the arrangement requires it; ready renders are reused.</td></tr>
+            <tr><td>Delete</td><td>Removes the chosen occurrence from the arrangement after confirmation. Remaining references still use their shared source. Recovery files are retained server-side; there is no normal in-app undelete workflow.</td></tr>
+            <tr><td>Rename Song / Refresh Songs</td><td>Renames the selected song without losing its parts, or refreshes the library listing. These are not vocal-library operations.</td></tr>
+        </table>
+        <h3>Why Song Mode Uses Frozen Patterns</h3>
+        <p><strong>The live instrument is intentionally dynamic.</strong> Grain voices, random slices, filters, modulation and effect tails change over time. Rebuilding those engines at every transition depends on JavaScript, decoding and UI work; that is the wrong place to decide the instant the next beat starts.</p>
+        <p><strong>Arm Cache separates preparation from performance.</strong> Missing parts are rendered as one-pattern final mixes in a muted, isolated MYGRAIN engine, without replacing the live patch. The editable snapshot and source audio remain saved separately. Playback schedules the resulting WAV patterns on the audio clock: the old part stops at the same sample boundary where the next starts. UI highlights follow playback, but do not drive timing.</p>
+        <p><strong>Pattern duration is the contract.</strong> One step is a sixteenth note: duration = steps × 60 ÷ BPM ÷ 4. At 120 BPM, 16 steps take two seconds; four repeats take eight seconds. Each part uses its own saved tempo and length. Long samples and reverb tails cannot stretch a part past its arranged boundary; they are cut at that boundary. The frozen pattern is repeated, not the live engine rerun. Random/LFO movement is the movement captured during preparation.</p>
+        <p><strong>Reuse avoids unnecessary work.</strong> One verse reused ten times needs one source snapshot and one frozen render, not ten copies. Identical amendments, renames, order changes and repeat changes reuse unchanged renders. Actual sound/settings amendments invalidate only the changed source; reused occurrences then share the amended sound. This makes arrangements quicker to prepare and limits storage/memory growth.</p>
+        <h3>Cache, Persistence and Practical Limits</h3>
+        <ul>
+            <li>First preparation takes real time: at least one pattern's capture for each uncached part. The default is two simultaneous preparations. <strong>Cache preparation</strong> offers 1–10 workers; one is safer on slower devices. Ten is experimental, not guaranteed faster.</li>
+            <li>Heavy concurrent renders can cause gaps or crackles that become part of frozen audio. Lower the worker count before preparing. Changing the count does not rewrite an already saved render; it only affects future preparation.</li>
+            <li>Ready/pending counts and per-part Ready, Saved, New or Changed statuses show what remains. Expand <strong>Notes and Instructions</strong> for the detailed cache summary.</li>
+            <li>The server holds the authoritative parts and frozen audio. Browser storage caches integrity-checked copies across reloads. Unavailable/full browser storage falls back to server reads with a warning; it does not discard the saved part.</li>
+            <li><strong>Portable recall:</strong> parts save their controls, modulation routing, patterns, held keys and all available grain, microphone, raw/rendered vocal and drum audio. Empty source slots remain empty; recall does not substitute a phone's previous samples. Parameter capture/recall does not need localStorage as scratch space, and frozen playback uses the verified server WAV rather than the phone's live mixer/effects.</li>
+            <li><strong>After the PortableFreeze update:</strong> reload once and use <strong>Arm Cache</strong>. Older affected renders refresh once from their saved settings and audio; source archives stay unchanged. Missing information in an old snapshot cannot be recreated. A refreshed freeze may capture a new random variation, then other devices reuse that same saved WAV.</li>
+            <li><strong>Another phone needs the same song library access.</strong> The library key is a device-local credential, not a sound setting. A different key opens a different library. Do not clear site data when updating.</li>
+            <li>Small arrangements can be scheduled fully ahead. Larger ones load one part ahead and keep a bounded decoded-audio cache. If storage cannot meet a playback deadline, playback reports an error rather than silently omitting a part or moving the beat.</li>
+            <li>Keep the page visible during preparation. Stop Song, Stop All and Panic cancel playback/preparation. Save or cancel any pending amendment before playing an arrangement.</li>
+            <li>Song WAV export uses the stored renders in occurrence order and repeats. The existing 64 MB WAV-upload limit still applies; very long arrangements may need shorter exports or a DAW workflow.</li>
+        </ul>
+        <div class="note warning"><strong>Live versus Song:</strong> changing live effects while a frozen song plays does not remix its saved WAV. Recall and amend the part, then re-arm. For complete vocal phrases, make the saved pattern long enough; for freely evolving improvisation, use live Bastardloops/Audition rather than expecting frozen song repeats to vary.</div>
 
         <h2 id="dropbox">Dropbox Sample Layer</h2>
         <p>The Dropbox Sample Layer loads one sample from <code>SAMPLEDROP</code>, <code>SAMPLEDROP_2</code>, or <code>SPLICE_CLAW</code> and plays it as its own loop layer.</p>
@@ -555,7 +665,11 @@
         </ul>
 
         <h2 id="drums">Drum Machine</h2>
-        <p>The Drum Machine randomly loads or manually plays a kick, snare, and hi-hat set, then places them on a synced pattern grid in the Drum Machine popup.</p>
+        <p>The Drum Machine has six independent lanes: kick, snare, hi-hat, percussion, clap and cymbals, with sample browsing, steps, ratchets, pitch, level, decay and length controls in the popup. Clap uses the local <code>SAMPLES_CLAP</code> collection. Cymbals uses <code>SAMPLES_CRASH</code>: the lane can also play rides and open hats stored in that collection; it is not limited by the sample's filename.</p>
+        <p>Kick, snare, hat, clap and crash sample browsers use their fixed folders without showing a folder chooser. Perc keeps its Sample Folder chooser so you can browse other collections. Use Search Samples to filter the current folder.</p>
+        <p>The orange playhead follows the current step in all six lanes, including clap and crash. Compact action buttons leave more space for the grids. The popup's Kick, Snare, Hat, Perc, Clap and Crash tabs jump directly to each lane without closing the drum machine.</p>
+        <p><strong>Hat and Crash accents:</strong> toggle the small Accent button above any step, then adjust that lane's Accent Amount. Crash accents are independent of the hat pattern; use them for ride emphasis or open-hat pulses. Set Accent Amount to zero for no added level emphasis.</p>
+        <p><strong>48 dB/oct low-pass:</strong> Hat and Crash each have an independent Filter Cutoff and Accent Filter Env. Cutoff runs logarithmically from 20 Hz to 20 kHz; 100% with no envelope bypasses the filter. On accented hits only, the envelope briefly opens the filter and decays back to the cutoff over the hit. The envelope amount is independent of the level accent amount. These settings save with patches, reloads and song parts; older saves load with the filters open and no new crash accents.</p>
         <table>
             <tr><th>Control</th><th>Use</th></tr>
             <tr><td>Random Drums</td><td>Loads kick/snare/hat samples and creates a pattern.</td></tr>
@@ -568,6 +682,9 @@
         </table>
 
         <h2 id="mixer">Layer Switches and Mixer</h2>
+        <h3>Red-Heart Favourites in Browsers</h3>
+        <p>Sample browsers, WAV, MIDI, stems, patches, local takes and the global vocal library have red heart controls. Choose a <strong>Heart collection</strong>, then tap an outline heart to add the file or a filled heart to remove it from that collection. <strong>Show</strong> switches between all files, all favourites or a named collection; it works alongside the browser's normal search and folder filters.</p>
+        <p>Open <strong>Manage favourites</strong> to create, rename or remove a collection, or refresh hearts saved on another device. <strong>Rename favourite</strong> changes its searchable display label only: source filenames, audio, MIDI and song parts remain unchanged. Removing a heart or collection never deletes the source file. Favourites are shared server-side, separately from patches and songs; only your selected collection/filter is remembered locally. The same filename in a different source folder is a different favourite.</p>
         <p><strong>Layer Switches</strong> are quick mutes. <strong>Module Mixer</strong> is level balance. Use both: a layer can be on but turned down, or loud but muted by a switch.</p>
         <div class="card-grid">
             <div class="card"><b>Quick mutes</b><span>Osc, Granular, Sample/Drums, Loop, Bastardloop A/B/C/V/P/O/L/X, Dropbox Sample, and Drum Machine.</span></div>
@@ -591,6 +708,16 @@
             <tr><td>All LFO Square</td><td>Forces square motion for immediate stepped modulation.</td></tr>
         </table>
 
+        <h2 id="pan-lab">Pan Lab and Reset Pan Lab</h2>
+        <p>Pan Lab is a creative stereo-motion processor: centre/width, tempo-linked LFO motion, audio-driven movement, orbit and gravity can make a patch wander dramatically. That can be useful for a transition or texture, but continuous strong movement is not a neutral mix setting. In a finished song it can make vocals and drums feel unstable or less clear, and exaggerate a sense of poor sound quality. Use it deliberately, not simply because randomisation switched it on.</p>
+        <ol>
+            <li>Use <strong>Actions → Reset Pan Lab</strong> to disable Pan Lab motion and centre the overall pan.</li>
+            <li>Or choose <strong>Jump → Reset Pan Lab</strong>: it resets immediately, closes Jump and takes you to Pan Lab so you can inspect the controls.</li>
+            <li>Playback, other effects and layer settings remain unchanged. The reset persists after reload; it is not Reset Patch or Panic.</li>
+            <li>For song work, reset before saving your parts. Previously saved parts and frozen renders do not change just because you reset the live patch: Recall, reset, Amend/Save Amendment, and re-arm any part that needs the cleaner setting.</li>
+        </ol>
+        <p>This is a mix recommendation, not a claim that every use of stereo motion damages audio. Keep a controlled amount when it helps the arrangement, and compare with Reset Pan Lab before committing a render.</p>
+
         <h2 id="effects">Internal Effects</h2>
         <p>The Internal Effects section contains shared delay, shared reverb, and advanced final-bus shaping. The top action buttons expose common toggles such as <strong>FX On</strong>, <strong>Reverb Off</strong>, <strong>FX Post Filter</strong>, and <strong>FX LFO Off</strong>.</p>
         <div class="card-grid">
@@ -598,13 +725,17 @@
             <div class="card"><b>Reverb</b><span>Room, hall, cathedral, cloud-like spaces, shimmer shift, room tone, and wet mix.</span></div>
             <div class="card"><b>Advanced bus</b><span>Drive, crush, fold, compression, sidechain, pan/motion, and placement controls.</span></div>
         </div>
+        <p><strong>Drum Reverb Send:</strong> either drum send button enables the shared reverb and starts Room Mix at 30% if it was zero. Existing positive mixes are preserved. Drum Verb Send controls the live send amount from 0–200%, including the SC kick's separate route. Room Mix remains the shared wet-return control and can still be turned down deliberately; loading a saved preset or Song part preserves its saved mix. Drum hits and room tails remain audible after transport stops.</p>
         <div class="note warning">High feedback, shimmer, drive, and reverb settings can get large quickly. Use Master Trim, Mixer levels, FX Mute, or Panic if the output gets away from you.</div>
 
         <h2 id="randomize">Randomize, Reset, and Panic</h2>
+        <p><strong>Randomise Patch, Mega Random and Sparse Random always mute M, M+ and Q.</strong> Their loaded recordings and Q chord pattern remain intact; re-enable the layers manually when they belong in the new patch.</p>
         <table>
             <tr><th>Action</th><th>What it changes</th><th>Use it when</th></tr>
             <tr><td>Randomise Patch</td><td>Changes patch parameters while keeping the app generally playable.</td><td>You want a variation without rebuilding everything manually.</td></tr>
             <tr><td>Mega Random</td><td>Broader randomization across sources, layers, drums, modulation, and performance state.</td><td>You want a new starting point fast.</td></tr>
+            <tr><td>Sparse Random</td><td>Chooses four eligible layers plus the drum machine, excluding M, M+ and Q.</td><td>You want a less crowded arrangement without unrelated vocals or chords.</td></tr>
+            <tr><td>Reset Pan Lab</td><td>Disables stereo-motion settings and centres pan, without stopping playback or clearing other effects.</td><td>A song needs a stable, clear centre rather than constant movement.</td></tr>
             <tr><td>Reset Patch</td><td>Returns controls to MYGRAIN defaults.</td><td>The patch is too tangled to repair manually.</td></tr>
             <tr><td>Reset Engine</td><td>Rebuilds the audio engine.</td><td>Browser audio is misbehaving or silent after normal checks.</td></tr>
             <tr><td>Panic</td><td>Stops stuck sound and active voices.</td><td>Something is hanging, too loud, or unclear.</td></tr>
@@ -614,13 +745,16 @@
         <p>MYGRAIN has several save paths. Choose based on whether you need audio, stems, settings, or a full patch bundle.</p>
         <table>
             <tr><th>Button</th><th>Output</th><th>Use</th></tr>
+            <tr><td>M / M+ Save Version</td><td>Raw vocal take and recording BPM in the shared user/folder library.</td><td>Keep alternate performances independently of every song and pattern.</td></tr>
+            <tr><td>Song New Part / Save Amendment</td><td>Complete editable state and current sounds; prepared frozen audio is stored separately.</td><td>Commit the chosen lead/backing takes and their mix into an arrangement.</td></tr>
+            <tr><td>Export Song to WAV Folder</td><td>Frozen parts in arrangement order, with the saved repeats and tempos.</td><td>Export the same audio used by ordered Song playback.</td></tr>
             <tr><td>Record Output</td><td>Live recording of the current mix.</td><td>Capture a performance pass.</td></tr>
             <tr><td>Take 1-5</td><td>Named take slots.</td><td>Keep several attempts before uploading.</td></tr>
             <tr><td>Upload Takes</td><td>Uploads saved take slots.</td><td>Move selected takes to the repository workflow.</td></tr>
             <tr><td>Export WAV</td><td>Rendered final mix for the selected bar count.</td><td>Create a DAW-ready bounce.</td></tr>
             <tr><td>Export Final Mix to Repo</td><td>Final mix saved into the WAV repository.</td><td>Store a render for browser review/download.</td></tr>
-            <tr><td>WAV Browser</td><td>Repository browser for rendered audio.</td><td>Find, audition, or download previous WAVs.</td></tr>
-            <tr><td>Export Stems</td><td>Dry stem ZIP plus separate FX stem.</td><td>Move the patch to a DAW for mixing.</td></tr>
+            <tr><td>WAV Browser</td><td>Repository browser for rendered audio. List/download requests allow three minutes per attempt; previews allow three minutes without loading progress. A failed preview retries once by downloading the full WAV, allowing three minutes before playing from memory instead of streaming. Progress and retry results appear in the small status line.</td><td>Find, audition, or download previous WAVs. Pausing, closing, or changing the list cancels pending preview recovery.</td></tr>
+            <tr><td>Export Stems</td><td>Separate lane stems plus a shared FX stem. M/M+ lane stems include their dedicated vocal treatments.</td><td>Move the patch to a DAW for mixing without combining lead and backing into one stem.</td></tr>
             <tr><td>Stem Browser</td><td>Repository browser for stem exports.</td><td>Retrieve or review stem bundles.</td></tr>
             <tr><td>Export JSON</td><td>Settings only.</td><td>Small compatibility save when audio buffers are not needed.</td></tr>
             <tr><td>Import JSON</td><td>Loads settings JSON.</td><td>Restore older lightweight presets.</td></tr>
@@ -628,6 +762,8 @@
             <tr><td>Patch Browser</td><td>Browser/importer for patch ZIPs.</td><td>Reload saved patch ZIPs from the repository or local file.</td></tr>
         </table>
         <div class="note"><strong>Best practice:</strong> when a patch matters, export a Patch ZIP before doing Mega Random, Reset Patch, or heavy source browsing.</div>
+        <p><strong>Load/random defaults:</strong> startup, imported presets, Reset Patch, Mega and Sparse set Ring Mod and distortion amounts (bus drives, global and snare) to 0%, Bus Comp to 30% and Comp Release to 100 ms. Global distortion LFO routes are cleared too. You can adjust them afterwards; exact Song-part snapshot recall is preserved.</p>
+        <p><strong>SC Kick Level:</strong> this is separate from the drum machine's Kick level. It scales that kick only with Sidechain Key set to SC Kick. In SC Off or SC LFO1 it has no effect on the kick, even at zero. Both levels are saved independently.</p>
 
         <h2 id="workflows">Useful Workflows</h2>
         <div class="recipe-grid">
@@ -638,6 +774,35 @@
             <div class="recipe"><b>Resample MYGRAIN into itself</b><span>Record Output Source, jump to Waveforms, trim Output Source, then select it as a grain source for further processing.</span></div>
             <div class="recipe"><b>DAW handoff</b><span>Set Export Bars, export a final WAV, then Export Stems with notes. Export Patch ZIP as a restore point.</span></div>
         </div>
+
+        <h2 id="bastardloop-q">Bastardloop Q — piano / string ensemble chords</h2>
+        <p><strong>Sample Length / Sample Decay:</strong> both sliders are on Q's main card and in the editor's Chord playback settings. Length trims each triggered sample's sounding window; lower Decay fades it earlier, useful for busy chord or arp patterns. Both range from 5–100%. At 100% the original envelope is retained, including for older patches and parts without these controls. They affect Piano, Strings, grid playback, ratchets and auditions without changing the notes, BPM or transport origin. Reverb and delay tails remain governed by their own mixes. Settings are saved in patches and Song parts; shortened samples require a length/decay-aware Song freeze. Recall, amend and re-arm older parts if you want them to use new shorter settings.</p>
+        <p><strong>Copy Arp → X / L:</strong> choose ARP playback in Q and press <strong>Copy Arp</strong> on its card or in Chord playback. This copies the entire active Q pattern from step 1 to its end, not just the chord at the editing cursor. A 64-step Q pattern includes all 64 source cells, every chord change, the current order, voicing, transpose, once/repeat behavior, gaps and accents. Empty patterns copy silence rather than the builder chord. The status shows the source length and total copied arp pulses; faster/slower arp divisions can produce more/fewer pulses than source cells. Copy is disabled in block chord mode. In X or L, select a destination step and press <strong>Paste from Arp</strong> on the card or in the sequencer. Each pulse occupies one destination step, using that loop's existing rate, sound and effects. To paste a full 64-pulse copy into a 64-step destination, start at step 1. Only those cells are replaced; paste stops at the pattern end without wrapping and reports any omitted pulses. The copied pattern can be reused in both loops and is not changed by later edits in Q. Copy again to refresh it. The clipboard is temporary, but pasted notes, rests and accents are ordinary X/L sequence data and are embedded by Song New Part / Save Amendment, so recall on a new device does not require the clipboard.</p>
+        <p>Choose <strong>Q sound → Piano or Strings</strong> on the scarlet Q card, or in the editor's collapsed Key &amp; chord roots settings. Piano is the original Salamander grand from <code>SAMPLES_Q</code>, with 30 sampled pitches across A0–C8 and four velocity layers. Strings uses recorded VSCO 2 CE cello, viola and violin sections from <code>SAMPLES_Q_STRINGS</code>, mapped across 17 roots with two dynamic layers and crossfaded sustain loops. The native string recordings cover C2–D6; notes outside that range are pitch-shifted. Both instruments load only the notes needed and use local files, not Dropbox or an external audio CDN.</p>
+        <p>Changing sound keeps the sequence and effect settings, stops the old instrument's voices and clears its sample bank. If Q is running it resumes on the existing clock once the new samples are ready; other layers do not restart. Strings sustain for the programmed gate, including held/tied chords. The instrument selector stays inside the existing collapsed editor settings and adds no row to the compact grid toolbar.</p>
+        <ol>
+            <li>Open <strong>Edit Sequence</strong>. The playable chord palette sits directly above the compact grid; Practice, Step/Live Record, Rest, Delete, Left 1/Right 1, Chord −/+, green All Play and red All Stop remain in one compact top row. On narrow phones, Practice and Chord −/+ use the short labels Prac and Ch −/+ without changing their functions. Expand <strong>Key &amp; chord roots</strong> to choose the scale tonic, one of 85 named scales/modes, octave, inversion and voicing together. <strong>Custom</strong> lets you select any twelve-tone pitch set; the tonic stays included. These are twelve-tone equal-tempered scales, not microtonal tunings.</li>
+            <li>The palette includes every supported chord whose notes fit the current scale: C major has 71 choices with the default octave and voicing. Filter by triads/suspended, four-note or extended chords if desired. <strong>Root focus</strong> puts that scale degree's chords first; it does not change the key. Changing inversion or voicing changes the displayed and played notes. Playing chords and individual sounding notes light up.</li>
+            <li><strong>Practice</strong> plays chords without writing. The <strong>dual-function Record</strong> button first arms <strong>Step</strong>; tap it again to switch to <strong>Live</strong>, then again to return to Step. A note underneath explains both functions. Step writes each palette tap at the edit cursor and advances. Live records each tap into the currently sounding grid step, using Q's audio clock and grid rate, not the edit cursor; it does not advance manually or restart the pattern. Recording wraps and overdubs, replacing only the tapped step. Tap timing is captured before piano loading. Live can start with an empty grid; arm Live then press green All Play. While stopped, Live auditions but never falls back to step entry. Practice disarms both modes.</li>
+            <li><strong>Rest</strong> writes silence at the live playhead in Live mode; otherwise it writes at the edit cursor and advances, including in Practice. It stops the audition. <strong>Delete</strong> clears only the selected cell without advancing. Tap an occupied grid cell to select and hear its chord, without recording or advancing; tapping an empty cell or Rest stops the audition. Copy/section marking stays silent. <strong>Green All Play</strong> starts/restarts the whole enabled pattern, Bastardloops and programmed drums on the existing shared transport; it respects layer enable/mute/solo and main-loop settings. <strong>Red All Stop</strong> stops every transport and Q audition. Q-only Play/Stop remain in Step editing.</li>
+            <li><strong>Left 1 / Right 1</strong> move the selected grid chord by one cell to correct a live-recorded placement. On the narrowest phones they display as <strong>← 1 / 1 →</strong>. Immediately after recording, the latest recorded chord is selected; otherwise tap its grid cell first. The selection follows the moved chord for repeated nudges. Moves wrap at the active pattern boundaries. An occupied neighbour, including a Rest, swaps places with the chord so neither step is lost. Notes, velocity, gate, ratchet, accent and tie stay with each step. Empty/Rest selections disable nudge. While playing, scheduling updates without restarting the shared clock; a chord moved behind the playhead is heard on the next pass. The current audition stops when nudging, but transport continues.</li>
+            <li><strong>Chord − / Chord +</strong> in the compact top control row transpose only the selected grid chord by one semitone and audition the result. They do not change other cells, the key, or whole-sequence transpose, and do not advance the cursor. Empty cells and Rests disable these controls; out-of-range changes are rejected. <strong>Seq − / Seq +</strong> remain available in Step editing for the complete sequence or marked section.</li>
+            <li>Expand <strong>Step editing, transpose &amp; chord builder</strong> for manual or out-of-scale harmonies, then use <strong>Audition Chord</strong> or <strong>Insert Chord</strong>. Select an existing step and use <strong>Audition Step</strong> to hear it. Major/minor, suspended, diminished, augmented, sixths, sevenths, ninths, elevenths, thirteenths and altered dominants are available.</li>
+            <li><strong>Back/Forward</strong>, <strong>Clear Step/All</strong>, <strong>Accent</strong>, ratchets and <strong>Rate −/+</strong> work on the chord sequence. Length is measured in sequencer steps. <strong>Tie (Slide)</strong> sustains the same adjacent chord rather than applying a synthesizer pitch glide to a piano sample.</li>
+            <li><strong>Seq −/+</strong> transposes the sequence by semitones. For a section, press <strong>Mark Trans</strong>, tap its first and last steps, then transpose. <strong>Clear Mark</strong> returns to whole-sequence editing. Out-of-range notes are rejected rather than silently folded into another octave.</li>
+            <li><strong>Copy</strong> selects a first/last step and overwrites at the chosen destination. <strong>Copy Sec</strong> repeats the selected section through the destination tail, matching L/X. <strong>Export MIDI</strong> includes every chord note and the saved tempo.</li>
+            <li><strong>Play Grid</strong> stops other playback and plays Q from step one. <strong>Stop</strong> also cancels any practice arpeggio. <strong>Start Bastardloops</strong> uses the shared clock; Stop All/Panic also stops Q. Q has its own volume, mixer channel, mute/solo, highpass, lowpass, room reverb and tempo-synced delay.</li>
+            <li><strong>Chord playback</strong> switches between polyphonic block chords and an arpeggiator. Orders are Up, Down, Updown (without doubled endpoints), Odds (odd note positions first, then even positions) and Evens (the reverse priority); every chord note is retained. <strong>One cycle</strong> lets each grid chord finish its order even when the next cell contains another chord; overlapping arpeggios keep their independent notes. An explicit Rest or pattern restart interrupts unfinished cycles. <strong>Until next chord</strong> repeats through empty cells until a new chord or explicit Rest. If chords occupy adjacent cells, choose a faster arp division or slower grid rate to hear more notes before that handover. A new practice chord replaces the preceding practice arpeggio.</li>
+            <li><strong>Chord playback</strong> settings collapse by default to leave more room for the chord palette and editing grid. Expand the summary to change block/ARP playback, order, repeat or timing; collapsing the menu does not reset those settings. <strong>Arp time — separate from grid</strong> sets the pulse division against shared BPM independently of the grid rate, from whole notes to 1/128, including triplets. The displayed divider/multiplier is relative to a sixteenth note. Step ratchets retrigger the chord/arpeggio at their own subdivisions. MIDI export follows the saved block or arpeggiated playback.</li>
+        </ol>
+        <p><strong>Accent on empty cells:</strong> select any grid cell, expand Editing Tools and tap Accent. An empty cell displays <strong>— !</strong>; it neither adds notes nor stops or restarts the hanging chord/arpeggio. The accent boosts all Q notes sounding during that grid cell, including notes started earlier. Accent Amount now controls actual audio gain independently of the MIDI velocity ceiling: 25% adds about 3.5 dB, 50% adds about 6 dB and 100% adds about 9.5 dB. The slider displays that boost in dB. At zero there is no boost. Leave mixer headroom; accents do not bypass Q's volume, effects or the main compressor. Clearing the cell removes its accent.</p>
+        <p><strong>Custom Arp / Repository:</strong> open this popup from the Q card, or Build / Load Custom Arp inside Chord playback. Choose 1–32 pulses. Each column plays the selected chord-note rank, ordered from the lowest pitch; ranks 1–8 wrap to the number of notes in the current chord. The Gap row skips that pulse without shortening the rhythm. Tap a selected note again to turn it into a gap. Choose the independent arp division and One cycle or Until next chord / rest, then press <strong>Apply to Q</strong>. The shorter custom-arp release keeps notes from bleeding into dry gaps; reverb and delay tails may continue naturally.</p>
+        <p><strong>Global arp repository:</strong> give the pattern a name and press <strong>Save new to server</strong>. This stores its exact note order, gaps, pulse division and repeat mode on the server, shared by MYGRAIN devices without browser storage. Existing names cannot be overwritten. Refresh fetches the latest library; Load selected brings a preset into the editable grid, then Apply to Q activates it. Closing without applying leaves Q unchanged. Saving a preset does not apply it automatically. Song New Part / Save Amendment embed the applied pattern itself, not just a repository reference. Version-six Q freezes include the corrected accents and custom gaps; re-arm older accented Q parts to rebuild their audio. Older unaccented Q freezes remain reusable.</p>
+        <p><strong>Delay time</strong> offers straight, dotted and triplet choices for every division from 1/32 to one bar. Dotted times are 1.5 times the straight duration; triplets are two-thirds. Timing follows shared BPM, up to the existing 11-second delay limit. Q's room impulse is gain-normalised and its wet return is restrained, so adding reverb no longer applies the old excessive amplification. The dry piano path is unchanged; stacked chords, feedback and the overall mix still need headroom.</p>
+        <p><strong>Check Gain Staging</strong> includes Q's level, reverb, delay and feedback controls with a piano/effects-path graph. Q and M+ have live mixer VU meters tapped after their own effects, including pan; M+'s existing input, compressor, delay, chorus and reverb audit checks remain available.</p>
+        <p>Song New Part and Save Amendment embed the exact samples needed by the complete saved Q sequence, plus the selected instrument, string sustain points and all chord, arpeggiator and effect settings, including dotted/triplet delay times. Recall restores that embedded bank, not another phone's cache or the source repository. String parts require a strings-aware freeze marker; an older piano-only renderer cannot silently substitute piano. Wet piano parts require the corrected effects-freeze marker; Arm Cache rebuilds older wet freezes using the quieter reverb while retaining the saved notes, samples and effect controls. Dry block-chord and arpeggiator freezes keep their existing compatibility. Existing Q parts without an instrument setting remain Piano, those without arpeggiator settings remain block chords, and older parts without Q load with Q off. The existing Song freeze rule still applies: it captures one global pattern and repeats that audio; it does not extend a freeze to cover a slower independent sequence cycle.</p>
+        <p>Source: Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0. Q uses velocity layers 4/8/12/16, converted from the original FLAC recordings to stereo PCM16 at 44.1 kHz without trimming or normalizing. Attribution and the full licence are included in <code>SAMPLES_Q</code> and linked on the card. The local scale dictionary is derived from Tonal under its included MIT licence.</p>
+        <p>Strings source: VSCO 2 Community Edition by Versilian Studios / Sam Gossner, CC0 1.0. Q maps sustained-vibrato section recordings using the original SFZ numeric pitch centres, retains the original recordings and applies the original layer gains with a common headroom attenuation. The prepared 34 stereo PCM16 / 44.1 kHz WAVs have 1.5–4.5-second sustain loops with a 200 ms seam crossfade. The pinned source revisions, checksums, preparation details and CC0 licence are included in <code>SAMPLES_Q_STRINGS</code> and linked on the card. No endorsement implied.</p>
 
         <h2 id="troubleshooting">Troubleshooting</h2>
         <table>
