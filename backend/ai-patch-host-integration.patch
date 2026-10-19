@@ -1,0 +1,26 @@
+--- server.py
++++ server.py
+@@ -2529,6 +2529,13 @@
+ _videolab_module_spec.loader.exec_module(_videolab_module)
+ 
+ 
++_ai_patch_module_spec = importlib.util.spec_from_file_location(
++    'mygrain_ai_patch', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_ai_patch.py'
++)
++_ai_patch_module = importlib.util.module_from_spec(_ai_patch_module_spec)
++_ai_patch_module_spec.loader.exec_module(_ai_patch_module)
++
++
+ _accounts_module_spec = importlib.util.spec_from_file_location(
+     'mygrain_accounts', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_accounts.py'
+ )
+@@ -2698,6 +2705,9 @@
+                     raise ValueError('Expected a JSON object.')
+                 share = MYGRAIN_ACCOUNTS.share(payload.get('filename'), payload.get('username'))
+                 return self.send_json({'ok': True, 'share': share}, extra_headers={'Cache-Control': 'no-store'})
++            # Stateless AI inference must not hold the account storage lock while waiting.
++            if route['base'] == '/mygrain' and inner == '/api/ai-patch-direction':
++                return _ai_patch_module.handle_ai_patch_request(self, self.command, inner)
+             with MYGRAIN_ACCOUNTS.user_lock(user):
+                 if route['base'] == MYGRAIN_WAVS_ROUTE and inner == '/api/shares' and self.command in ('GET', 'HEAD'):
+                     return self.send_json({'ok': True, 'shares': MYGRAIN_ACCOUNTS.outbound_shares()}, extra_headers={'Cache-Control': 'no-store'})

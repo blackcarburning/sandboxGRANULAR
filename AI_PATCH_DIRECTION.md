@@ -32,6 +32,8 @@ if route['base'] == '/mygrain' and inner == '/api/ai-patch-direction':
     return _ai_patch_module.handle_ai_patch_request(self, self.command, inner)
 ```
 
+The exact minimal shared-server change is included as [backend/ai-patch-host-integration.patch](backend/ai-patch-host-integration.patch). It adds the module import and dispatch without publishing unrelated shared-server source.
+
 A plain static/GitHub Pages host does not provide this authenticated backend endpoint. It requires the host's configured OpenClaw model access. Keep shared server configuration and credentials out of this repository.
 
 ## Checks
