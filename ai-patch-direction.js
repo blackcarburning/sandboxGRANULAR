@@ -8,7 +8,6 @@
     function update() {
         byId('aiPatchGenerate').disabled = locked || !controls || Boolean(request) || Boolean(previous);
         byId('aiPatchCancel').hidden = !request;
-        byId('aiPatchApply').hidden = !proposal || Boolean(previous);
         byId('aiPatchUndo').hidden = !previous;
         byId('aiPatchKeep').hidden = !previous;
         byId('aiPatchPrompt').disabled = Boolean(request) || Boolean(previous) || locked;
@@ -83,7 +82,7 @@
             if (!Object.entries(recipe.parameters).some(([key, value]) => current[key] !== value)) throw Error('No control changes proposed. Try a contrasting direction.');
             proposal = { recipe, current, fingerprint };
             show(recipe, current);
-            status('Proposal ready. Review the changes, then Apply to hear them.');
+            apply();
         } catch (error) {
             if (token === serial && !locked) status(error.message || 'AI unavailable. Your patch is unchanged.');
         } finally {
@@ -97,7 +96,8 @@
             const before = Object.fromEntries(Object.keys(proposal.recipe.parameters).map(key => [key, proposal.current[key]]));
             const result = adapter().write(proposal.recipe.parameters, proposal.fingerprint);
             previous = { values: before, fingerprint: adapter().fingerprint(), saved: result.saved };
-            status(result.saved ? 'Applied and autosaved. Listen using your usual controls. Keep finishes this choice; Undo restores the changed controls.' : 'Applied, but autosave is unavailable. Export this patch to keep a copy. Undo is still available.');
+            const count = Object.entries(proposal.recipe.parameters).filter(([key, value]) => proposal.current[key] !== value).length;
+            status(result.saved ? `Applied ${count} parameter changes and autosaved. Listen using your usual controls. Keep finishes this choice; Undo restores the changed controls.` : `Applied ${count} parameter changes, but autosave is unavailable. Export this patch to keep a copy. Undo is still available.`);
         } catch (error) { proposal = null; status(error.message); }
         update();
     }
@@ -117,7 +117,6 @@
         if (!byId('aiPatchCard')) return;
         byId('aiPatchGenerate').addEventListener('click', generate);
         byId('aiPatchCancel').addEventListener('click', () => cancel());
-        byId('aiPatchApply').addEventListener('click', apply);
         byId('aiPatchUndo').addEventListener('click', undo);
         byId('aiPatchKeep').addEventListener('click', () => {
             const saved = previous?.saved;

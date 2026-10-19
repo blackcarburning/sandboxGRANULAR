@@ -196,4 +196,4 @@ For reproducible development/debugging, rhythmic blueprint generation is determi
 
 ## AI Patch Direction · Beta
 
-Build `v2026.10.19.AI.1` adds a bright-pink prompt-to-patch-direction card, fixed GPT-6.1 Sol, preview/Apply/Undo, and a large Jump shortcut. See [AI_PATCH_DIRECTION.md](AI_PATCH_DIRECTION.md) for scope, setup, checks and rollback.
+Build `v2026.10.20.AI.2` adds a bright-pink prompt-to-patch-direction card, fixed GPT-6.1 Sol, direct Generate & Apply with Undo, and a large Jump shortcut. See [AI_PATCH_DIRECTION.md](AI_PATCH_DIRECTION.md) for scope, setup, checks and rollback.

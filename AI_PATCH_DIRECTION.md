@@ -1,21 +1,21 @@
 # AI Patch Direction · Beta
 
-Build: `v2026.10.19.AI.1`.
+Build: `v2026.10.20.AI.2`.
 
-A bright-pink card and a full-width, two-column Jump tile generate a proposed direction for the existing patch. The fixed model is `openai/gpt-6.1-sol`; it runs through the host's existing OpenClaw one-shot model bridge. No provider key is delivered to the browser. This is not a full-song generator or an autonomous agent.
+A bright-pink card and a full-width, two-column Jump tile generate and apply a direction to the existing patch. The fixed model is `openai/gpt-6.1-sol`; it runs through the host's existing OpenClaw one-shot model bridge. No provider key is delivered to the browser. This is not a full-song generator or an autonomous agent.
 
 ## Behaviour
 
 1. Start MYGRAIN and finish any Song edit, playback, arming, recording or randomisation.
-2. Describe the desired texture, or choose an example. Generate returns a proposal without changing anything.
-3. Review the title, description and exact control changes. Apply updates the existing controls and their normal engine handlers, then autosaves through the existing persistence path.
+2. Describe the desired texture, or choose an example, then press **Generate & Apply**. Your existing patch stays unchanged while the AI request is pending.
+3. As soon as the result passes validation and the patch/account/Song state is still current, the app directly updates the actual controls and their normal engine handlers, then autosaves through the existing persistence path. There is no separate Apply button. The result lists the exact before/after parameter values and applied change count.
 4. Keep current clears the temporary Undo snapshot. Undo restores precisely the controls changed by the proposal. Undo is one-step and in-memory, not retained across reloads. Save/export a named patch as usual.
 
 The allowlist in `ai-patch-controls.json` has 21 scalar controls: Main/A/B grain size, envelopes, smoothing and stereo width; Main blend; shared low-pass/high-pass cutoff. Generated filter ranges are narrower than the engine's full ranges. Original values outside those narrower ranges can still be restored by Undo.
 
 Samples, sample regions, layer enable/mute states, pitches, BPM, modulation routing, mixer/master levels, effects and arrangement remain unchanged. An inactive granular layer stays inactive, so the result depends on existing sounds and routing. Standard patch JSON/ZIP schemas are unchanged; applied AI settings are ordinary patch values.
 
-Full local patch/source/account/Song fingerprints invalidate stale results. A changed patch also prevents stale Apply/Undo from overwriting newer edits. Account lock aborts the browser request and discards any late result. Hidden Song render decks do not initialise AI or fetch its control schema.
+Full local patch/source/account/Song fingerprints invalidate stale results. A changed patch also prevents stale generation/Undo from overwriting newer edits. Account lock aborts the browser request and discards any late result. Hidden Song render decks do not initialise AI or fetch its control schema.
 
 ## Backend boundary
 
@@ -45,7 +45,7 @@ python3 tests/song-beta-test-server.py 18876
 AI_PATCH_TEST_URL=http://127.0.0.1:18876/mygrain/ node tests/ai-patch-browser.js
 ```
 
-The browser checks run Chromium and WebKit at phone portrait, landscape and desktop sizes, covering navigation, proposal-only behaviour, Apply, exact Undo, protected state, stale patch handling, cancellation, Keep, invalid model output, provider failures and account lock. Model responses are fixtures in the browser suite. Real fixed-model generation and the authenticated backend are verified separately, so automated UI runs do not create provider charges.
+The browser checks run Chromium and WebKit at phone portrait, landscape and desktop sizes, covering navigation, unchanged pending generation, direct application, real filter-node updates, exact Undo, protected state, stale patch handling, cancellation, Keep, invalid model output, provider failures and account lock. Model responses are fixtures in the browser suite. Real fixed-model generation and the authenticated backend are verified separately, so automated UI runs do not create provider charges.
 
 ## Rollback
 
