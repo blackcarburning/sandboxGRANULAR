@@ -39,7 +39,7 @@ function createHarness(options = {}) {
     } });
     const graph = { context, nodes: [], isLive: options.live !== false, disposed: false,
         impulseGeneration: 0, requestedImpulseKey: '', impulseKey: '', impulseReady: Promise.resolve(true),
-        reverb: context.createConvolver(), shimmer: context.createConvolver() };
+        reverb: context.createConvolver() };
     created.state.drumSendFxGraph = graph;
     const reverb = { enabled: true, amount: 65, send: 100, room: 'hall', size: 40, decay: 60 };
     const request = (changes = {}, mode = 'off') => created.functions.requestDrumSendImpulseBuild(graph, { ...reverb, ...changes }, mode);
@@ -99,13 +99,12 @@ test('latest readiness follows replacement generation and rejects late terminate
     ready.then(() => { settled = true; });
     latest.reply('base');
     await drainMicrotasks();
-    assert.equal(created.graph.impulseStatus, 'shimmer');
+    assert.equal(created.graph.impulseStatus, 'building');
     assert.equal(settled, false);
-    latest.reply('shimmer');
     latest.reply('done');
     assert.equal(await ready, true);
-    assert.equal(created.graph.impulseKey, 'cathedral:40:60:24');
-    assert.equal(created.graph.shimmerImpulseKey, created.graph.impulseKey);
+    assert.equal(created.graph.impulseKey, 'cathedral:40:60:off');
+    assert.equal('shimmer' in created.graph, false);
 });
 
 for (const staleReason of ['disposed', 'closed-context', 'replaced-context', 'replaced-live-graph']) {
@@ -170,26 +169,18 @@ for (const disabledField of ['enabled', 'amount', 'send']) {
     });
 }
 
-test('cached identical room avoids new workers; shimmer reuses copied base PCM without detaching live IR', async () => {
+test('cached identical room ignores legacy shimmer requests without new workers or detached PCM', async () => {
     const created = createHarness();
-    created.request();
-    created.flush(100);
-    created.workers[0].reply('base');
-    created.workers[0].reply('done');
+    created.request(); created.flush(100);
+    created.workers[0].reply('base'); created.workers[0].reply('done');
     assert.equal(await created.graph.impulseReady, true);
     const base = created.graph.reverb.buffer;
-    created.request();
+    created.request({}, '12'); created.flush(100);
+    assert.equal(created.workers.length, 1);
     assert.equal(created.timers.size, 0);
-    created.request({}, '12');
-    created.flush(100);
-    const worker = created.workers[1];
-    assert.equal(worker.request.baseChannels.length, 2);
-    assert.notEqual(worker.request.baseChannels[0].buffer, base.getChannelData(0).buffer);
     assert.equal(base.getChannelData(0)[0], .25);
-    worker.reply('shimmer');
-    worker.reply('done');
-    assert.equal(await created.graph.impulseReady, true);
     assert.equal(created.graph.reverb.buffer, base);
+    assert.equal('shimmer' in created.graph, false);
 });
 
 for (const failure of ['worker-error', 'decode-error', 'reported-error', 'unavailable']) {

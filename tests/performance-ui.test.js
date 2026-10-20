@@ -102,7 +102,7 @@ test('offscreen channel meters neither attach analysers nor read samples', () =>
     assert.deepEqual(calls, ['bass']);
 });
 
-test('meter scheduler runs at 20 Hz and does not keep running in a hidden document', () => {
+test('meter scheduler runs at 10 Hz and does not keep running in a hidden document', () => {
     const timers = [];
     const calls = [];
     const context = fixture(['startPerformanceMixerVuMeters'], {
@@ -113,7 +113,7 @@ test('meter scheduler runs at 20 Hz and does not keep running in a hidden docume
         setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }
     });
     context.startPerformanceMixerVuMeters();
-    assert.equal(timers[0].delay, 50);
+    assert.equal(timers[0].delay, 100);
     timers[0].callback();
     assert.equal(timers.length, 2);
     assert.deepEqual(calls, ['stop', 'channel']);

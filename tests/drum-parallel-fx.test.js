@@ -80,7 +80,9 @@ for (const direct of [false, true]) {
             const options = { direct, placement, sidechain: 'kick' };
             const before = await fixture.makeFixture(baseline, 48000, options);
             const after = await fixture.makeFixture(html, 48000, options);
-            assert.deepEqual(fixture.topology(after), fixture.topology(before));
+            const dryOnly = topology => Object.fromEntries(Object.entries(topology).map(([name, chains]) => [name,
+                chains.map(chain => chain.filter(node => node.kind !== 'WaveShaper' && node.name !== 'legacyDistortionBypassGain'))]));
+            assert.deepEqual(dryOnly(fixture.topology(after)), dryOnly(fixture.topology(before)));
             const ordinary = fixture.dryPaths(after, after.state.drumMachineBusGainNode);
             const kick = fixture.dryPaths(after, after.state.drumMachineKickBypassGainNode);
             assert.ok(ordinary.length > 0);
@@ -88,7 +90,7 @@ for (const direct of [false, true]) {
             assert.deepEqual(kick[0].map(node => node.kind), ['Gain', 'Gain', 'Delay', 'StereoPanner', 'Gain']);
             assert.equal(kick[0].filter(node => node.kind === 'Delay').length, 1);
             if (direct) assert.ok(ordinary.every(chain => chain.filter(node => node.kind === 'Delay').length === 1));
-            else assert.ok(ordinary.some(chain => chain.filter(node => node.kind === 'WaveShaper').length === 5));
+            else assert.ok(ordinary.some(chain => chain.filter(node => node.kind === 'WaveShaper').length === 0));
         });
     }
 }
@@ -102,8 +104,7 @@ test('dedicated controls expose every independent state field and retain main pa
     }
     const pairs = [['drumSendDelayAmount', 'finalDelayDepth'], ['drumSendDelayFeedback', 'finalDelayFeedback'],
         ['drumSendReverbSize', 'finalReverbSize'], ['drumSendReverbDecay', 'finalReverbDecay'],
-        ['drumSendReverbTone', 'finalReverbLowpass'], ['drumSendReverbAmount', 'finalReverbMix'],
-        ['drumSendReverbShimmerMix', 'finalReverbShimmerMix']];
+        ['drumSendReverbTone', 'finalReverbLowpass'], ['drumSendReverbAmount', 'finalReverbMix']];
     for (const [dedicated, main] of pairs) {
         for (const name of ['min', 'max']) {
             const attribute = new RegExp(`\\b${name}="([^"]+)"`);
@@ -111,8 +112,7 @@ test('dedicated controls expose every independent state field and retain main pa
         }
     }
     for (const [dedicated, main] of [['drumSendDelayDivision', 'finalDelayDivision'],
-        ['drumSendDelayTailMode', 'finalDelayTailMode'], ['drumSendReverbRoom', 'finalReverbRoomPreset'],
-        ['drumSendReverbShimmerShift', 'finalReverbShimmerShift']]) {
+        ['drumSendDelayTailMode', 'finalDelayTailMode'], ['drumSendReverbRoom', 'finalReverbRoomPreset']]) {
         const optionValues = id => {
             const start = controlMarkup(id).index;
             return [...html.slice(start, html.indexOf('</select>', start)).matchAll(/<option\b[^>]*value="([^"]*)"/g)].map(match => match[1]);
@@ -154,7 +154,9 @@ test('captured state round-trips every parameter without aliases, main-FX mutati
     const original = JSON.stringify(imported);
     functions.loadDrumSendFxState(imported);
     const exported = functions.captureDrumSendFxState();
-    assert.deepEqual(exported, { version: 1, ...imported });
+    const expected = JSON.parse(JSON.stringify(imported));
+    for (const key of ['shimmerEnabled', 'shimmerShift', 'shimmerMix']) delete expected.reverb[key];
+    assert.deepEqual(exported, { version: 1, ...expected });
     assert.equal(JSON.stringify(imported), original);
     assert.equal(state.finalReverbEnabled, false);
     assert.equal(state.drumMachineDirectDelaySendEnabled, true);
@@ -193,7 +195,7 @@ test('invalid imported values are bounded and unsupported fields/enums cannot en
         shimmerEnabled: 'false', shimmerShift: '99', shimmerMix: 999, room: 'evil' } });
     assert.deepEqual(normalized.delay, { enabled: false, amount: 30, send: 0, timeMode: 'sync', division: '4', time: 2500, feedback: 100, tone: 700, tailMode: 'filtered' });
     assert.deepEqual(normalized.reverb, { enabled: false, amount: 0, send: 200, room: 'cloud', size: 45,
-        decay: 0, predelay: 180, tone: 12000, shimmerEnabled: false, shimmerShift: 'off', shimmerMix: 100 });
+        decay: 0, predelay: 180, tone: 12000 });
 });
 
 test('preset and local-state capture/restore paths call the dedicated serialization API', () => {
@@ -246,7 +248,7 @@ test('clearing and rebuilding wet tails disposes old graphs without touching dry
     assert.notEqual(state.drumSendFxGraph, oldGraph);
     assert.ok(oldGraph.nodes.every(node => node.connections.length === 0));
     assert.equal(oldGraph.reverb.buffer, null);
-    assert.equal(oldGraph.shimmer.buffer, null);
+    assert.equal('shimmer' in oldGraph, false);
     assert.equal(state.drumMachineReverbTailUntil, 0);
     assert.equal(events.filter(event => [state.drumMachineBusGainNode, state.drumMachineKickBypassGainNode].includes(event.node)).length, 0);
     assert.equal(state.drumMachineDirectDelaySendGainNode.connections.length, 1);
@@ -335,12 +337,11 @@ for (const sampleRate of [44100, 48000]) {
         assert.equal(worker.request.sampleRate, sampleRate);
         assert.equal(worker.request.decay, 90);
         worker.reply('base');
-        worker.reply('shimmer');
-        worker.reply('done');
+                worker.reply('done');
         assert.equal(await created.functions.waitForDrumSendImpulse(created.graph), true);
-        assert.equal(created.graph.impulseKey, 'hall:40:90:12');
+        assert.equal(created.graph.impulseKey, 'hall:40:90:off');
         assert.equal(created.graph.reverb.buffer.sampleRate, sampleRate);
-        assert.equal(created.graph.shimmer.buffer.sampleRate, sampleRate);
+    assert.equal('shimmer' in created.graph, false);
         assert.ok(worker.terminated);
         assert.equal(created.urls.size, 0);
         assert.equal(created.timers.size, 0);
@@ -398,12 +399,11 @@ test('controlled protocol disposal settles pending readiness and cannot resurrec
     const worker = created.workers[0];
     created.functions.disposeDrumSendFxGraph();
     worker.reply('base');
-    worker.reply('shimmer');
-    worker.reply('done');
+        worker.reply('done');
     assert.equal(await ready, false);
     assert.equal(created.state.drumSendFxGraph, null);
     assert.equal(created.graph.reverb.buffer, null);
-    assert.equal(created.graph.shimmer.buffer, null);
+    assert.equal('shimmer' in created.graph, false);
     assert.ok(created.graph.nodes.every(node => node.connections.length === 0));
     assert.equal(created.urls.size, 0);
     assert.equal(created.timers.size, 0);

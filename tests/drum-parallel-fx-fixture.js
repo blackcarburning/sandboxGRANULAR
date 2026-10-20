@@ -20,7 +20,7 @@ const invariantFunctions = [
     'startTransportSource', 'cancelPreparedTransportStarts', 'startTransportChordLayer',
     'getTransportClockBpm', 'getTransportScheduleHorizon', 'scheduleTransportSourceStop',
     'retireTransportVoice', 'retireTransportOscillators', 'stopRetiredTransportVoices',
-    'prepareChordTransportHandoff', 'measureTransportComponentLatency', 'ensureTransportLatencyReady',
+    'prepareChordTransportHandoff',
     'getTransportGridPosition', 'setTransportEpoch', 'resolveTransportLaneStart',
     'withBufferedTransportStart', 'retimeSharedTransport', 'scheduleExtraDrumMachineRepeats',
     'alignDrumMachineToTransport', 'scheduleDrumMachineVisualStep', 'scheduleDrumMachineHatStep',
@@ -64,7 +64,7 @@ function collectSources(html) {
                 'smoothFinalShimmerChannel', 'computeFinalShimmerEnvelope', 'matchFinalShimmerEnvelopeToSource',
                 'createFinalReverbShimmerChannel', 'createFinalReverbShimmerImpulseForContext', 'getBufferPeak'];
             const presets = sourceSet.declarations.find(declaration => declaration.startsWith('FINAL_REVERB_ROOM_PRESETS ='));
-            const workerSource = `const ${presets}\n${builders.map(name => latency.extractFunction(html, name)).join('\n')}\n`
+            const workerSource = `const ${presets}\n${builders.filter(name => html.includes('function ' + name + '(')).map(name => latency.extractFunction(html, name)).join('\n')}\n`
                 + `(${latency.extractFunction(html, 'drumSendImpulseWorkerMain')})();`;
             sourceSet.declarations.push(`drumSendImpulseWorkerSource = ${JSON.stringify(workerSource)};`);
         }

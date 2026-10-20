@@ -19,7 +19,8 @@ function extractFunction(html, name) {
 
 function collectSources(html, options = {}) {
     const names = [
-        'setupEffects', 'makeDistortionCurve', 'makeFinalDistortionCurve', 'makeFinalShimmerCurve',
+        'setupEffects', 'makeDistortionCurve', 'makeFinalDistortionCurve', ...(html.includes('function makeFinalShimmerCurve(') ? ['makeFinalShimmerCurve'] : []),
+        ...(html.includes('function configureDistortionStages(') ? ['configureDistortionStages', 'configureLegacyDistortion', 'configureFinalEffectInputs'] : []),
         'getActiveFilterStages', 'safeDisconnectNode', 'getFinalFxFilterSource', 'rebuildFilterChain',
         'configureLPFSlope', 'configureHPFSlope', 'rebuildFinalFxRouting',
         'shouldRouteDrumMachineDirectToOutput', 'getDrumMachineBusDestination', 'ensureDrumMachineBus',
@@ -35,7 +36,7 @@ function collectSources(html, options = {}) {
     for (const name of ['resetTransportSynchronization', 'getTransportTimingDebug', 'flushTransportBypassDelay']) {
         if (html.includes(`function ${name}(`)) names.push(name);
     }
-    const declarations = [];
+    const declarations = html.includes('function configureDistortionStages(') ? ['distortionRoutingStates = new WeakMap();', 'legacyDistortionBypassGain = null;', 'finalEffectInputState = null;'] : [];
     for (const match of html.matchAll(/^        (?:let|const|var) (\w*(?:latency|compensation)\w*|transportSync|finalKickBypassDelay)\s*=[\s\S]*?;(?=\n)/gim)) {
         declarations.push(match[0].trim().replace(/^(?:let|const|var) /, ''));
     }
@@ -228,7 +229,7 @@ if (require.main === module) {
                 functions.ensureDrumMachineBus();
                 assert.equal(drum.connectedTo, state.finalKickBypassMasterGain);
                 const processed = graphPaths(directOff, state.finalAmplifierNode);
-                assert.ok(processed.some(chain => chain.filter(node => node.kind === 'WaveShaper').length === 5));
+                assert.ok(processed.some(chain => chain.filter(node => node.kind === 'WaveShaper').length === 0));
                 assert.equal(state.finalCompressorNode.ratio.value, 1);
                 state.drumMachineDirectDelaySendEnabled = true;
                 state.drumMachineDirectReverbSendEnabled = true;
@@ -330,7 +331,7 @@ if (require.main === module) {
             globals: { window: { OfflineAudioContext: PendingOfflineContext } }
         });
         const pending = fixture.functions.ensureTransportLatencyReady(original);
-        assert.equal(rejectRenders.length, 6, 'the real calibration helper started independent output/pre/post impulse and silence probes');
+        assert.equal(rejectRenders.length, 4, 'the real calibration helper started independent output/2x-stage impulse and silence probes');
         original.state = 'closed';
         const replacement = createFakeContext(44100);
         fixture.state.audioContext = replacement;
@@ -347,11 +348,11 @@ if (require.main === module) {
         const sameRateReplacement = createFakeContext(48000);
         fixture.state.audioContext = sameRateReplacement;
         const retry = fixture.functions.ensureTransportLatencyReady(sameRateReplacement);
-        const retryProbeCount = rejectRenders.length - 6;
-        rejectRenders.slice(6).forEach(reject => reject(new Error('replacement probe failure')));
+        const retryProbeCount = rejectRenders.length - 4;
+        rejectRenders.slice(4).forEach(reject => reject(new Error('replacement probe failure')));
         assert.equal(await retry, false);
-        assert.equal(retryProbeCount, 6,
-            'a discarded failed calibration must start six fresh probes for the next same-rate context');
+        assert.equal(retryProbeCount, 4,
+            'a discarded failed calibration must start four fresh probes for the next same-rate context');
         assert.equal(fixture.state.transportLatencyCache.has(48000), false,
             'a failed replacement calibration must remain uncached and retryable');
     });
