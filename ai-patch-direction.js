@@ -4,13 +4,57 @@
     let schema, previous = null, request = null, serial = 0, locked = false, phase = 'idle', rendered = null, lastPrompt = '', savedPrompts = [], libraryRequest = null, lastSection = null;
     const byId = id => document.getElementById(id);
     const adapter = () => root.mygrainAiPatchAdapter;
-    const status = message => { byId('aiPatchStatus').textContent = message; };
+    let activity = null, usage = null, sessionTokens = 0, usageReplies = 0;
+    function usageText(value) {
+        if (!value?.available || !['inputTokens', 'outputTokens', 'totalTokens', 'cachedInputTokens'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return 'Token usage not reported for this task.';
+        const number = n => n.toLocaleString();
+        return `This AI task: ${number(value.totalTokens)} tokens · ${number(value.inputTokens)} input (${number(value.cachedInputTokens)} cached) · ${number(value.outputTokens)} output. Input includes instructions, musical state and catalogue—not just your prompt.`;
+    }
+    function drawUsage(text) {
+        byId('aiPatchUsage').textContent = text;
+        if (activity) byId('aiActivityUsage').textContent = text.split(' Input includes')[0];
+    }
+    function receiveUsage(value) {
+        const text = usageText(value); usage = text.startsWith('This AI task:') ? value : null;
+        if (usage) { sessionTokens += value.totalTokens; usageReplies++; }
+        drawUsage(text + (usageReplies ? ` This page: ${sessionTokens.toLocaleString()} reported tokens across ${usageReplies} replies.` : ''));
+    }
+    function beginActivity(mode) {
+        activity?.panel.remove(); if (activity) root.clearInterval(activity.timer);
+        const panel = document.createElement('aside'); panel.id = 'aiPatchActivity'; panel.setAttribute('aria-label', 'AI generation activity');
+        panel.innerHTML = '<div class="ai-activity-head"><strong id="aiActivityPhase"></strong><span id="aiActivityElapsed"></span><button id="aiActivityToggle" type="button" aria-expanded="true" aria-controls="aiActivityBody">Minimise</button><button id="aiActivityCancel" type="button">Cancel</button><button id="aiActivityClose" type="button" hidden>Close</button></div><div id="aiActivityBody"><p id="aiActivityStatus" role="status"></p><p id="aiActivityUsage"></p><ol id="aiActivityLog" aria-label="Recent generation activity"></ol></div>';
+        document.body.append(panel);
+        activity = { panel, started: performance.now(), busy: true, phase: 'generating', timer: null };
+        byId('aiActivityPhase').textContent = mode === 'section' ? 'Progression · requesting AI' : mode === 'refine' ? 'Refinement · requesting AI' : 'Generation · requesting AI';
+        byId('aiActivityToggle').addEventListener('click', () => {
+            const body = byId('aiActivityBody'); body.hidden = !body.hidden;
+            byId('aiActivityToggle').textContent = body.hidden ? 'Expand' : 'Minimise'; byId('aiActivityToggle').setAttribute('aria-expanded', String(!body.hidden));
+        });
+        byId('aiActivityClose').addEventListener('click', () => { if (!activity.busy) panel.hidden = true; });
+        byId('aiActivityCancel').addEventListener('click', cancel);
+        const tick = () => { byId('aiActivityElapsed').textContent = `${Math.floor((performance.now() - activity.started) / 1000)}s`; };
+        tick(); activity.timer = root.setInterval(tick, 1000);
+        usage = null; drawUsage('Awaiting token usage for this AI task. Counts arrive with the model reply.');
+    }
+    function finishActivity() {
+        if (!activity?.busy) return;
+        root.clearInterval(activity.timer); activity.busy = false;
+        byId('aiActivityPhase').textContent = 'AI task finished';
+        byId('aiActivityCancel').hidden = true; byId('aiActivityClose').hidden = false;
+        if (!usage) drawUsage('Token usage not reported for this task. Cancelled or timed-out requests may still consume tokens; no zero usage is assumed.');
+    }
+    const status = message => { byId('aiPatchStatus').textContent = message; if (activity?.busy) byId('aiActivityStatus').textContent = message; };
     function report(message) {
         const list = byId('aiPatchChanges'), item = document.createElement('li');
         item.textContent = `${new Date().toLocaleTimeString([], { hour12: false })} · ${message}`;
         list.append(item);
         list.scrollTop = list.scrollHeight;
         byId('aiPatchProposal').hidden = false;
+        if (activity?.busy) {
+            const recent = byId('aiActivityLog'); recent.append(item.cloneNode(true));
+            while (recent.children.length > 5) recent.firstChild.remove();
+            recent.scrollTop = recent.scrollHeight;
+        }
     }
     function inventory() {
         const list = byId('aiPatchSamples'); list.replaceChildren();
@@ -157,6 +201,7 @@
             rendered = null;
             byId('aiPatchPreviewStatus').textContent = 'Render a fresh one-bar preview after this direction finishes. Capture is audible and stays on this device.';
             phase = 'generating';
+            beginActivity(requestMode);
             byId('aiPatchChanges').replaceChildren();
             byId('aiPatchTitle').textContent = 'Live changes'; byId('aiPatchDescription').textContent = '';
             inventory();
@@ -165,6 +210,7 @@
             const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, current, loops, mode: requestMode, ...(['refine', 'section'].includes(requestMode) ? { refinement, musicalState: adapter().musicalState() } : {}), ...(requestMode === 'section' ? { section } : {}) }) });
             const payload = await response.json();
             if (token !== serial || locked || signal.aborted) return;
+            receiveUsage(payload.usage);
             if (!response.ok || !payload.ok) throw Error(payload.error || 'AI unavailable. Your patch is unchanged.');
             if (payload.model !== 'openai/gpt-6.1-sol') throw Error('Unexpected AI model. Nothing was changed.');
             adapter().assertReady();
@@ -187,6 +233,7 @@
             byId('aiPatchTitle').textContent = recipe.title; byId('aiPatchDescription').textContent = recipe.description;
             root.clearTimeout(timeout); timeout = root.setTimeout(() => request?.abort(), 240000);
             phase = 'applying'; status('Applying the recipe. Follow the live changes and sample loads below…');
+            byId('aiActivityPhase').textContent = 'Applying recipe · loading sounds'; activity.phase = 'applying'; update();
             const result = await adapter().execute(recipe, fingerprint, { signal, mode: requestMode, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
             if (locked || token !== serial) return;
             result.promptBefore = lastPrompt; result.sectionBefore = lastSection; previous = result; lastPrompt = usedPrompt;
@@ -205,7 +252,7 @@
             }
         } finally {
             root.clearTimeout(timeout);
-            if (token === serial) { request = null; phase = 'idle'; update(); }
+            if (token === serial) { finishActivity(); request = null; phase = 'idle'; update(); }
         }
     }
     async function undo() {
@@ -261,15 +308,19 @@
         byId('aiPatchKeep').addEventListener('click', () => { previous = null; status('Kept. The change log remains below. Save/export a named patch as usual.'); update(); });
         document.querySelectorAll('[data-ai-patch-example]').forEach(button => button.addEventListener('click', () => { if (!request && !locked) { byId('aiPatchPrompt').value = button.dataset.aiPatchExample; byId('aiPatchPrompt').focus(); } }));
         root.addEventListener('mygrain-account-lock', () => { locked = true; previous = null; rendered = null; lastPrompt = ''; lastSection = null; savedPrompts = []; drawPrompts(''); libraryRequest?.abort(); for (const id of ['aiPatchPrompt', 'aiPatchPromptName', 'aiPatchRefinement']) byId(id).value = ''; byId('aiPatchLibraryStatus').textContent = 'Sign in to recall your prompts.'; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
+        root.addEventListener('mygrain-account-lock', () => {
+            if (activity) { root.clearInterval(activity.timer); activity.panel.remove(); activity = null; }
+            usage = null; sessionTokens = 0; usageReplies = 0; drawUsage('Sign in to see AI task usage.');
+        });
         root.addEventListener('pagehide', () => { cancel(); libraryRequest?.abort(); });
         // Trusted edits outside this card must not race asynchronous patch writes.
         for (const event of ['click', 'input', 'change', 'keydown']) document.addEventListener(event, e => {
-            if (!['applying', 'undo', 'preview', 'audition', 'take'].includes(phase) || !e.isTrusted || e.target.closest('#aiPatchCard, #sectionJumpDrawer') || !e.target.closest('button, input, select, textarea')) return;
+            if (!['applying', 'undo', 'preview', 'audition', 'take'].includes(phase) || !e.isTrusted || e.target.closest('#aiPatchCard, #aiPatchActivity, #sectionJumpDrawer') || !e.target.closest('button, input, select, textarea')) return;
             e.preventDefault(); e.stopImmediatePropagation();
         }, true);
         update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-parts-7', document.baseURI), { credentials: 'same-origin' });
+            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-activity-8', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
             if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 12) throw Error();

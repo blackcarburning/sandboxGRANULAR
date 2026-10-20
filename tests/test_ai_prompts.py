@@ -108,7 +108,7 @@ class RefineTests(unittest.TestCase):
         process = MagicMock(returncode=0); process.__enter__.return_value = process; process.communicate.return_value = (json.dumps({'outputs': [{'text': json.dumps(RECIPE)}]}), '')
         with patch.object(ai.subprocess, 'Popen', return_value=process) as run:
             ai.run_model('warm', CURRENT, LOOPS, direction=ai.validate_direction(self.direction()))
-        prompt = run.call_args.args[0][-1]
+        prompt = process.communicate.call_args.kwargs['input']
         self.assertIn('REFINE MODE OVERRIDES', prompt); self.assertIn('NO library reloads', prompt); self.assertIn('"X":[36,null', prompt); self.assertIn('"notes":[60,63,67]', prompt)
 
 

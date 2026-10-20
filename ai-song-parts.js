@@ -4,7 +4,7 @@
     const byId = id => document.getElementById(id), ai = () => root.mygrainAiPatch;
     const api = new URL('api/ai-parts', document.baseURI);
     const colors = ['#ffd86f', '#f6a5ff', '#98f9ff', '#b7ff84', '#ffb0d8'];
-    let entries = [], loading = null, locked = false, dirtyRecall = false;
+    let entries = [], loading = null, renaming = null, renamingSlot = null, locked = false, dirtyRecall = false, lastRenameMs = null;
     const message = text => { byId('aiPartStatus').textContent = text; };
     const label = type => ({ verse: 'Verse', chorus: 'Chorus', bridge: 'Bridge', middle8: 'Middle 8' }[type] || 'Take');
     const entryAt = slot => entries.find(entry => entry.slot === slot);
@@ -14,7 +14,7 @@
         return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_');
     };
     function update() {
-        const busy = locked || Boolean(loading) || ai()?.busy;
+        const busy = locked || Boolean(loading) || Boolean(renaming) || ai()?.busy;
         byId('aiPartGenerate').disabled = busy || !ai()?.direction().prompt;
         byId('aiPartRefresh').disabled = busy;
         for (const id of ['aiPartType', 'aiPartBars', 'aiPartRolls', 'aiPartInstruction']) byId(id).disabled = busy || (id === 'aiPartBars' && byId('aiPartType').value === 'middle8');
@@ -22,7 +22,10 @@
             const stored = entryAt(slot), row = byId('aiPartSlot' + slot);
             if (!row) continue;
             nameInput(slot).disabled = busy;
-            for (const button of row.querySelectorAll('button')) button.disabled = busy || (button.dataset.action !== 'store' && !stored);
+            for (const button of row.querySelectorAll('button')) {
+                button.disabled = busy || (button.dataset.action !== 'store' && !stored);
+                if (button.dataset.action === 'rename') button.textContent = renamingSlot === slot ? 'Renaming…' : 'Rename';
+            }
             row.querySelector('h5').textContent = `Take ${slot}${stored ? ' ★ · ' + stored.name : ' · empty'}`;
             row.querySelector('.ai-part-meta').textContent = stored ? `${stored.bpm} BPM · ${stored.patternSteps / 16}-bar pattern × ${stored.repeats} = ${stored.patternSteps / 16 * stored.repeats} bars · ${stored.audioAssets} audio assets · saved to your account` : 'Store the current editable pattern and its sounds here.';
         }
@@ -42,7 +45,7 @@
         return payload;
     }
     async function refresh() {
-        if (loading || locked || ai()?.busy) return;
+        if (loading || renaming || locked || ai()?.busy) return;
         const controller = loading = new AbortController(), timeout = root.setTimeout(() => controller.abort(), 15000); update();
         try { const result = await jsonRequest({ signal: controller.signal }); if (!locked && !controller.signal.aborted) { accept(result); message('Part takes loaded from your account. Store, Recall, Rename or Add to Song.'); } }
         catch (error) { if (!locked) message(error.name === 'AbortError' ? 'Part list timed out. Refresh to retry.' : error.message); }
@@ -60,10 +63,26 @@
         return body;
     }
     async function action(kind, slot) {
-        if (loading || locked || ai()?.busy) return;
+        if (loading || renaming || locked || ai()?.busy) return;
         const stored = entryAt(slot), currentName = nameInput(slot).value.trim();
         if (['store', 'rename'].includes(kind) && (!currentName || currentName.length > 100)) { message('Give this take a name using 1–100 characters.'); return; }
         if (kind !== 'store' && !stored) return;
+        if (kind === 'rename') {
+            if (currentName === stored.name) { message(`Take ${slot} already has that name.`); return; }
+            // Metadata only: no audio readiness, fingerprint, capture, ZIP or persistence wait.
+            const controller = renaming = new AbortController(), account = root.mygrainAccounts?.user?.username;
+            renamingSlot = slot;
+            const started = performance.now(), timeout = root.setTimeout(() => controller.abort(), 10000);
+            message(`Renaming Take ${slot} · name only; audio unchanged…`); update();
+            try {
+                const result = await jsonRequest({ method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot, revision: stored.revision, name: currentName }) });
+                if (locked || controller.signal.aborted || root.mygrainAccounts?.user?.username !== account) return;
+                accept(result); lastRenameMs = Math.round(performance.now() - started);
+                message(`Renamed Take ${slot} to ${currentName}. Audio unchanged · ${(lastRenameMs / 1000).toFixed(2)}s.`);
+            } catch (error) { if (!locked) message(error.name === 'AbortError' ? 'Rename timed out. Refresh slots to confirm whether the name saved.' : error.message); }
+            finally { root.clearTimeout(timeout); renaming = null; renamingSlot = null; update(); }
+            return;
+        }
         message(kind === 'store' ? `Storing Take ${slot} with its complete pattern and sounds…` : kind === 'recall' ? `Loading ${stored.name}…` : kind === 'add' ? `Adding saved ${stored.name} to the selected Song…` : 'Renaming saved take…');
         try {
             await ai().withPartAction(async (signal, check) => {
@@ -77,8 +96,6 @@
                     const metadata = { slot, revision: stored?.revision || 0, name: currentName, prompt: context.prompt || byId('aiPatchPrompt').value.trim(), section, repeats: section ? section.bars / 4 : 1 };
                     const result = await jsonRequest({ method: 'POST', signal, headers: { 'Content-Type': 'application/zip', 'X-Mygrain-AI-Part': utf8Base64(metadata) }, body }); check(); accept(result);
                     message(`Stored Take ${slot} · ${currentName}. Pattern, sounds and prompt are saved; Recall restores them.`);
-                } else if (kind === 'rename') {
-                    const result = await jsonRequest({ method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot, revision: stored.revision, name: currentName }) }); check(); accept(result); message(`Renamed Take ${slot} to ${currentName}.`);
                 } else {
                     const fingerprint = root.mygrainAiPatchAdapter.fingerprint({ ignoreQBank: true }), body = await read(stored, signal); check();
                     if (root.mygrainAiPatchAdapter.fingerprint({ ignoreQBank: true }) !== fingerprint) throw Error('Your patch changed while downloading. Recall again.');
@@ -127,8 +144,8 @@
         update();
     });
     root.addEventListener('mygrain-ai-update', update);
-    root.addEventListener('mygrain-account-lock', () => { locked = true; entries = []; loading?.abort(); for (let slot = 1; slot <= 5; slot++) nameInput(slot).value = ''; byId('aiPartInstruction').value = ''; message('Sign in again to use your part takes.'); update(); });
-    root.addEventListener('pagehide', () => loading?.abort());
-    root.mygrainAiParts = Object.freeze({ refresh, diagnostics: () => ({ loading: Boolean(loading), stored: entries.length, dirtyRecall }), get ready() { return !loading; } });
+    root.addEventListener('mygrain-account-lock', () => { locked = true; entries = []; loading?.abort(); renaming?.abort(); lastRenameMs = null; for (let slot = 1; slot <= 5; slot++) nameInput(slot).value = ''; byId('aiPartInstruction').value = ''; message('Sign in again to use your part takes.'); update(); });
+    root.addEventListener('pagehide', () => { loading?.abort(); renaming?.abort(); });
+    root.mygrainAiParts = Object.freeze({ refresh, diagnostics: () => ({ loading: Boolean(loading), renaming: Boolean(renaming), lastRenameMs, stored: entries.length, dirtyRecall }), get ready() { return !loading && !renaming; } });
     update(); void refresh();
 })(window);

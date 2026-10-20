@@ -5771,7 +5771,7 @@
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
     <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-parts-7');</script>
+    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-activity-8');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -5781,7 +5781,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.AI.7</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.AI.8</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5866,7 +5866,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.AI.7</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.AI.8</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -8181,6 +8181,7 @@
                     <button id="aiPatchCancel" type="button" hidden>Cancel</button>
                 </div>
                 <p id="aiPatchStatus" role="status" aria-live="polite">Start MYGRAIN, then describe a direction. Generate &amp; Apply changes the patch when the AI result is ready; Undo restores it.</p>
+                <p id="aiPatchUsage" aria-live="polite">Tokens per AI task appear here after generation, refinement or progression. Store, Recall and Rename do not use AI tokens.</p>
                     <section class="ai-parts-section" aria-labelledby="aiPartHeading">
                         <h4 id="aiPartHeading">AI song structure · editable takes</h4>
                         <p>Make a related section from the current take. Tempo and source sounds stay the same; chords, bass and the groove can change.</p>
@@ -61081,13 +61082,13 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261015-song-portability-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-parts-7&prior=20261019-arm-memory-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-activity-8&prior=20261019-arm-memory-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261019-render-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-ai-parts-7&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-ai-activity-8&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-parts-7');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-song-parts.js?v=20261020-ai-parts-7');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-activity-8');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-song-parts.js?v=20261020-ai-activity-8');</script>
     </template>
 </body>
 </html>

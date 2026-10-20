@@ -198,4 +198,6 @@ For reproducible development/debugging, rhythmic blueprint generation is determi
 
 Build `v2026.10.20.AI.7` adds contextual Verse/Chorus/Bridge/Middle 8 generation and five named editable AI Parts slots with Store, Recall, Rename and Add to Song. See [AI song sections and parts](docs/ai-song-parts.md), including the explicit four-bar-grid/repeat limits.
 
+Build `v2026.10.20.AI.8` adds actual per-request token usage, a floating generation activity/Cancel panel, and a lightweight metadata-only Rename path independent of audio readiness. No saved-audio or Song format changes.
+
 Build `v2026.10.20.AI.3` adds a bright-pink prompt-to-patch-direction card, fixed GPT-6.1 Sol, direct Generate & Apply with Undo, and a large Jump shortcut. See [AI_PATCH_DIRECTION.md](AI_PATCH_DIRECTION.md) for scope, setup, checks and rollback.

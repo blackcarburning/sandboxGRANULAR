@@ -102,9 +102,14 @@ class AiPatchTests(unittest.TestCase):
         with patch.object(ai.subprocess, 'Popen', return_value=process) as run:
             self.assertEqual(ai.run_model('warm', CURRENT, LOOPS), RECIPE)
         args, kwargs = run.call_args
-        self.assertEqual(args[0][args[0].index('--model')+1], 'openai/gpt-6.1-sol')
+        self.assertEqual(args[0][0], '/usr/bin/node')
+        self.assertEqual(pathlib.Path(args[0][1]).name, 'mygrain_model_run.mjs')
         self.assertTrue(kwargs['start_new_session'])
-        process.communicate.assert_called_once_with(timeout=75)
+        self.assertEqual(process.communicate.call_args.kwargs['timeout'], 75)
+        self.assertIn('DEFAULT FOCUS', process.communicate.call_args.kwargs['input'])
+        runner = pathlib.Path(args[0][1]).read_text()
+        for contract in ("model: 'gpt-6.1-sol'", "provider: 'openai'", "modelRun: true", "promptMode: 'none'", "meta.usage"):
+            self.assertIn(contract, runner)
         self.assertNotIn('agent', args[0])
         self.assertNotIn('--file', args[0])
 
@@ -115,6 +120,28 @@ class AiPatchTests(unittest.TestCase):
             process.communicate.return_value = (output, '')
             with patch.object(ai.subprocess, 'Popen', return_value=process):
                 with self.assertRaises(ValueError): ai.run_model('warm', CURRENT, LOOPS)
+
+    def test_reported_usage_includes_cache_without_double_counting(self):
+        raw = {'input': 1000, 'output': 200, 'cacheRead': 8000, 'cacheWrite': 0, 'total': 9200, 'reasoningTokens': 80}
+        usage = ai.reported_usage(raw)
+        self.assertEqual(usage, {'available': True, 'inputTokens': 9000, 'outputTokens': 200, 'totalTokens': 9200, 'cachedInputTokens': 8000, 'cacheWriteTokens': 0, 'reasoningTokens': 80})
+        self.assertEqual(ai.reported_usage({k: v for k, v in raw.items() if k != 'total'})['totalTokens'], 9200)
+        for invalid in (None, [], {}, {**raw, 'input': True}, {**raw, 'output': -1}, {**raw, 'input': '1000'}, {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0}):
+            with self.subTest(invalid=invalid): self.assertEqual(ai.reported_usage(invalid), {'available': False})
+
+    def test_usage_survives_invalid_recipe_and_http_validation_failure(self):
+        raw = {'input': 100, 'output': 20, 'cacheRead': 0, 'cacheWrite': 0, 'total': 120}
+        process = MagicMock(returncode=0); process.__enter__.return_value = process
+        process.communicate.return_value = (json.dumps({'outputs': [{'text': '{}'}], 'usage': raw}), '')
+        usage = {}
+        with patch.object(ai.subprocess, 'Popen', return_value=process), self.assertRaises(ValueError): ai.run_model('warm', CURRENT, LOOPS, usage_report=usage)
+        self.assertEqual(usage['totalTokens'], 120)
+        def invalid(*args, **kwargs):
+            kwargs['usage_report'].update(usage)
+            raise ValueError('Invalid recipe')
+        with patch.object(ai, 'generate', side_effect=invalid):
+            h = Handler(); ai.handle_ai_patch_request(h, 'POST', '/api/ai-patch-direction')
+        self.assertEqual(h.result[0], 400); self.assertEqual(h.result[1]['usage']['totalTokens'], 120)
 
     def test_timeout_reaps_cli_process_group(self):
         process = MagicMock(pid=12345)

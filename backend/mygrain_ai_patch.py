@@ -180,7 +180,29 @@ def validate_drums(drums):
     return drums
 
 
-def run_model(prompt, current, loops, catalogue_context=None, direction=None):
+def reported_usage(raw):
+    """Only observed normalized Gateway counters; no character/token estimates."""
+    if not isinstance(raw, dict):
+        return {'available': False}
+    def count(key):
+        value = raw.get(key)
+        return value if type(value) is int and 0 <= value <= 10**12 else None
+    values = {key: count(key) for key in ('input', 'output', 'cacheRead', 'cacheWrite', 'total', 'reasoningTokens')}
+    if values['input'] is None or values['output'] is None or not any(value for value in values.values() if value is not None):
+        return {'available': False}
+    cached, written = values['cacheRead'], values['cacheWrite']
+    if cached is None or written is None:
+        return {'available': False}
+    input_tokens = values['input'] + cached + written
+    result = {'available': True, 'inputTokens': input_tokens, 'outputTokens': values['output'],
+              'totalTokens': values['total'] if values['total'] is not None else input_tokens + values['output'],
+              'cachedInputTokens': cached, 'cacheWriteTokens': written}
+    if values['reasoningTokens'] is not None:
+        result['reasoningTokens'] = values['reasoningTokens']
+    return result
+
+
+def run_model(prompt, current, loops, catalogue_context=None, direction=None, usage_report=None):
     instruction = (
         'You design and APPLY a MYGRAIN musical patch: tempo, loop layers, samples, melodies and granular controls. '
         'Return ONLY one JSON object with exactly title (1–80 chars), description (1–600 chars), '
@@ -240,13 +262,12 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None):
         instruction += '\nREGENERATE MODE: create a fresh variation of this same prompt. Results need not be identical; use the normal new-patch defaults.\n'
     instruction += json.dumps({'directionContext': direction or {'mode': 'generate'}}, separators=(',', ':'))
     with subprocess.Popen(
-        ['/usr/bin/openclaw', 'infer', 'model', 'run', '--model', MODEL,
-         '--thinking', 'low', '--json', '--prompt', instruction],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True) as process:
+        ['/usr/bin/node', str(pathlib.Path(__file__).with_name('mygrain_model_run.mjs'))],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True) as process:
         try:
-            stdout, _ = process.communicate(timeout=75)
+            stdout, _ = process.communicate(input=instruction, timeout=75)
         except subprocess.TimeoutExpired:
-            # The CLI can launch a Node child: expire the entire dedicated process group.
+            # Expire the bridge and any descendants as one dedicated process group.
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
@@ -257,6 +278,8 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None):
         raise RuntimeError('AI provider unavailable. Your patch is unchanged; try again shortly.')
     try:
         envelope = json.loads(stdout)
+        if usage_report is not None:
+            usage_report.update(reported_usage(envelope.get('usage')))
         output = envelope['outputs'][0]['text']
         if len(output) > 20000:
             raise ValueError('AI response too large.')
@@ -265,10 +288,10 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None):
         raise ValueError('AI returned an unreadable proposal. Nothing was changed; try again.') from exc
 
 
-def generate(prompt, current, loops, source_root=None, catalogue_report=None, direction=None):
+def generate(prompt, current, loops, source_root=None, catalogue_report=None, direction=None, usage_report=None):
     context = ({'status': 'retained', 'reason': 'Refine and progression retain current sources; no fresh shortlist needed.', 'catalogueCount': 0, 'eligibleCount': 0, 'candidates': {}, 'entries': {}, 'sourceRoot': source_root}
                if direction and direction['mode'] in ('refine', 'section') else catalogue.retrieve(prompt, current, source_root))
-    recipe = run_model(prompt, current, loops, context, direction)
+    recipe = run_model(prompt, current, loops, context, direction, usage_report=usage_report)
     if direction and direction['mode'] in ('refine', 'section') and (any(lane.get('reload') for lane in recipe['loops'].values()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
         raise ValueError('Refine keeps current library samples. The AI requested a reload; nothing was changed. Try again or use Regenerate.')
     if direction and direction['mode'] == 'section':
@@ -318,6 +341,7 @@ def handle_ai_patch_request(handler, method, inner_path, source_root=None, promp
         handler.send_json({'ok': False, 'error': 'Log in to use AI Patch Direction.'}, status=401, extra_headers=headers)
         return True
     acquired = False
+    usage_report = {'available': False}
     try:
         if method != 'POST':
             raise ValueError('Use POST to generate a patch direction.')
@@ -342,10 +366,10 @@ def handle_ai_patch_request(handler, method, inner_path, source_root=None, promp
                     del REQUESTS[key]
             REQUESTS[user] = now
         catalogue_report = {}
-        recipe = generate(prompt, current, loops, source_root=source_root, catalogue_report=catalogue_report, direction=direction)
-        handler.send_json({'ok': True, 'model': MODEL, 'recipe': recipe, 'catalogue': catalogue_report}, extra_headers=headers)
+        recipe = generate(prompt, current, loops, source_root=source_root, catalogue_report=catalogue_report, direction=direction, usage_report=usage_report)
+        handler.send_json({'ok': True, 'model': MODEL, 'recipe': recipe, 'catalogue': catalogue_report, 'usage': usage_report}, extra_headers=headers)
     except (ValueError, UnicodeError) as exc:
-        handler.send_json({'ok': False, 'error': str(exc)}, status=400, extra_headers=headers)
+        handler.send_json({'ok': False, 'error': str(exc), 'usage': usage_report}, status=400, extra_headers=headers)
     except subprocess.TimeoutExpired:
         handler.send_json({'ok': False, 'error': 'AI took too long. Your patch is unchanged; try again.'}, status=504, extra_headers=headers)
     except (RuntimeError, OSError):

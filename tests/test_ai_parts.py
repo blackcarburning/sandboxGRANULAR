@@ -34,7 +34,10 @@ class PartsStorageTests(unittest.TestCase):
 
     def test_rename_preserves_audio_and_revision_conflicts(self):
         old = self.store()['parts'][0]
-        saved = parts.library(self.db, OWNER, action='rename', meta={'slot': 1, 'revision': 1, 'name': 'Verse <b>two</b>'})['parts'][0]
+        audio = next((self.db.parent/'ai-part-audio'/OWNER).glob('*.zip')); before = audio.stat()
+        with patch.object(Path, 'read_bytes', side_effect=AssertionError('Rename must not read audio')), patch.object(parts.songs, 'validate_part_zip', side_effect=AssertionError('Rename must not validate audio')), patch.object(parts.hashlib, 'sha256', side_effect=AssertionError('Rename must not hash audio')):
+            saved = parts.library(self.db, OWNER, action='rename', meta={'slot': 1, 'revision': 1, 'name': 'Verse <b>two</b>'})['parts'][0]
+        self.assertEqual(audio.stat().st_mtime_ns, before.st_mtime_ns)
         self.assertEqual(saved['sha256'], old['sha256']); self.assertEqual(saved['revision'], 2)
         with self.assertRaises(parts.Conflict): self.store(revision=1)
         self.assertEqual(parts.library(self.db, OWNER)['parts'][0]['name'], 'Verse <b>two</b>')

@@ -1,4 +1,4 @@
-# AI song sections and editable part takes (AI.7)
+# AI song sections and editable part takes (AI.8)
 
 ## Use
 
@@ -9,6 +9,13 @@
 5. Create/select a Song, then **Add to Song** on a saved slot. This copies that saved archive and its repeats, not the current live patch. Existing Song parts and the live patch are unchanged. Reorder, reuse, play or export with existing Song controls.
 
 The original WAV Take 1–5 / Upload Takes workflow is untouched. This is a separate editable bank. Store replaces the active version of its slot, not an append-only list. Names need not be unique across slots. Another account cannot read the slots. A second device can recall them without the first device's localStorage/IndexedDB.
+
+### Task feedback and Rename (AI.8)
+
+- Every Generate, Regenerate, Refine and Generate progression opens a body-level floating activity panel: phase, elapsed time, recent real log entries, usage and Cancel. It can be minimised while busy or closed afterwards. Full activity remains in the original log. No invented percentage or live token estimate.
+- Usage below the main Generate buttons is the last request's actual reported input/output/total and cached-input counters. Input includes system instructions, controls, musical context and any catalogue shortlist, not only the typed prompt. Cached reads/writes are included once in input; reasoning is already part of output and is not added again. The page total sums only received usage reports, not unreported or cancelled calls. Usage is page-local and cleared on account lock; it does not modify saved take, Song or prompt formats.
+- `backend/mygrain_model_run.mjs` uses the installed OpenClaw Gateway SDK to make the same fixed `openai/gpt-6.1-sol`, low-thinking, `modelRun:true`, `promptMode:none` one-shot request as the former CLI, retaining normalized usage that the CLI envelope discarded. Requests arrive through stdin. No generic agent/tool execution, caller-selected model, credentials or host metadata is exposed to the browser. The Python endpoint still strictly validates every recipe; reported usage is also returned when recipe validation rejects a model reply.
+- Rename was already JSON-only server-side. Its browser path now bypasses audio readiness, fingerprinting and the Store/Recall operation lock too. Only `{slot,revision,name}` is posted, with a ten-second timeout, account guard and existing revision-conflict handling. Unchanged names make no request. Successful feedback includes measured round-trip/UI duration; a timeout explicitly requires refresh before assuming the name saved. Audio ZIPs are neither uploaded, downloaded, decoded, hashed nor rewritten. Store/Recall/Add keep their original audio transaction guards. These operations make no AI request.
 
 ### Pattern length
 

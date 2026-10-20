@@ -45,7 +45,8 @@ const results = [];
             const ctx = await browser.newContext({ viewport, isMobile: viewport.width < 960, hasTouch: viewport.width < 960 }), p = await ctx.newPage();
             await installLiveUploadProbe(p);
             p.setDefaultTimeout(60000);
-            const errors = [], requests = []; let loads = 0, mode = 'normal', release, device, other;
+            const errors = [], requests = [], partRequests = []; let loads = 0, mode = 'normal', release, device, other, renameMs;
+            p.on('request', req => { if (new URL(req.url()).pathname.endsWith('/api/ai-parts')) partRequests.push({ method: req.method(), contentType: req.headers()['content-type'], bytes: req.postDataBuffer()?.length || 0 }); });
             p.on('pageerror', e => errors.push(e.message));
             const routes = async r => {
                 const req = r.request(), u = new URL(req.url()); if (u.origin !== new URL(base).origin) return r.abort();
@@ -61,7 +62,7 @@ const results = [];
                     const recipe = data.mode === 'section' ? structuredClone(sectionRecipe) : data.mode === 'refine' ? { title: 'Gentler bass', description: 'Keep all musical context.', parameters: { performanceBastardLoopXLevel: 30 }, loops: {} } : initial;
                     if (data.mode === 'section' && !data.section.rolls) delete recipe.drums.tracks.snare.ratchets;
                     if (held === 'bad') recipe.loops.X.reload = true;
-                    return r.fulfill({ json: { ok: true, model: 'openai/gpt-6.1-sol', recipe, catalogue: { status: 'retained' } } });
+                    return r.fulfill({ json: { ok: true, model: 'openai/gpt-6.1-sol', recipe, catalogue: { status: 'retained' }, usage: data.mode === 'refine' ? { available: false } : { available: true, inputTokens: 9000, outputTokens: 200, totalTokens: 9200, cachedInputTokens: 8000 } } });
                 }
                 if (req.method() === 'POST' && u.pathname.endsWith('/api/source-sample')) {
                     const data = req.postDataJSON(); loads++;
@@ -86,14 +87,14 @@ const results = [];
             };
             await p.route('**/*', routes);
             const username = 'parts' + Date.now(); assert.equal((await ctx.request.post(apiBase + 'api/auth/register', { data: { username, password: 'isolated-test-fixture' } })).status(), 200);
-            const headers = { 'X-Mygrain-User': username }, ready = async () => { await p.waitForFunction(() => !mygrainAiPatch.busy); assert(await p.evaluate(() => !megaRandomizeInFlight && !stateSaveSuspended && audioContext === __partsContext && mygrainAccounts.authenticated)); };
+            const headers = { 'X-Mygrain-User': username }, ready = async () => { await p.waitForFunction(() => !mygrainAiPatch.busy && !mygrainAiParts.diagnostics().renaming); assert(await p.evaluate(() => !megaRandomizeInFlight && !stateSaveSuspended && audioContext === __partsContext && mygrainAccounts.authenticated)); if (await p.locator('#aiActivityClose').isVisible()) await p.locator('#aiActivityClose').click(); };
             const click = async (id, status = /^Applied/) => { await p.locator(id).click(); await ready(); assert.match(await p.locator('#aiPatchStatus').textContent(), status); };
             const slot = async (number, kind, status) => { await p.locator(`#aiPartSlot${number} [data-action="${kind}"]`).click(); await ready(); assert.match(await p.locator('#aiPartStatus').textContent(), status); };
             const music = () => p.evaluate(() => mygrainAiPatchAdapter.musicalState());
             const prompt = 'Warm C minor strings and matching bass at 104 BPM, a sparse steady kit.';
             try {
                 await p.goto(base); await p.waitForFunction(() => mygrainAiPatch?.ready && mygrainAiParts?.ready && mygrainSongBeta && !mygrainSongBeta.busy);
-                if (liveAssets) assert.match(await p.locator('.build-badge').first().textContent(), /v2026.10.20.AI.7/);
+                if (liveAssets) assert.match(await p.locator('.build-badge').first().textContent(), /v2026.10.20.AI.8/);
                 await p.locator('#start-btn').click(); await p.waitForFunction(() => isAudioGraphReady() && !engineStarting && !stateSaveSuspended);
                 await p.evaluate(() => { stopAllPerformancePlayback({ silent: true }); syncBastardLoopKUi(); syncPatternLengthControls(16, { skipSave: true }); window.__partsContext = audioContext; });
                 await p.evaluate(() => {
@@ -106,6 +107,7 @@ const results = [];
                     };
                 });
                 await p.locator('#aiPatchPrompt').fill(prompt); await click('#aiPatchGenerate');
+                assert.match(await p.locator('#aiPatchUsage').textContent(), /9,200 tokens.*9,000 input \(8,000 cached\).*200 output/);
                 const original = await music(); await p.locator('#aiPartName1').fill('Verse original'); await slot(1, 'store', /^Stored Take 1/);
                 assert(await p.evaluate(() => mygrainAiPatch.diagnostics().undoAvailable));
                 const saved1 = (await (await ctx.request.get(apiBase + 'api/ai-parts', { headers })).json()).parts[0]; assert.equal(saved1.name, 'Verse original'); assert(saved1.audioAssets >= 4 && saved1.bytes > 10000);
@@ -119,8 +121,13 @@ const results = [];
                 await click('#aiPatchUndo', /^Undone/); assert.deepEqual(await music(), original); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), prompt);
                 await slot(2, 'recall', /^Recalled Take 2/); assert.deepEqual(await music(), chorus); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), chorusPrompt);
                 assert(await p.evaluate(() => !mygrainQ.running && !drumMachinePlaying && !bastardLoopPlaying));
+                await p.evaluate(() => { window.__renameFingerprint = mygrainAiPatchAdapter.fingerprint(); window.__captureBeforeRename = mygrainSongBetaAdapter.capture; window.__adapterBeforeRename = mygrainAiPatchAdapter; mygrainSongBetaAdapter.capture = () => { throw Error('Rename must not capture audio'); }; window.mygrainAiPatchAdapter = { ...mygrainAiPatchAdapter, assertReady() { throw Error('Rename must not require the engine'); } }; });
+                const beforeRenameRequests = partRequests.length, tokensBeforeRename = await p.locator('#aiPatchUsage').textContent();
                 await p.locator('#aiPartName2').fill('Chorus <b>lift</b>'); await slot(2, 'rename', /^Renamed Take 2/); assert.equal(await p.locator('#aiPartSlot2 h5 b').count(), 0);
+                renameMs = await p.evaluate(() => { mygrainSongBetaAdapter.capture = __captureBeforeRename; window.mygrainAiPatchAdapter = __adapterBeforeRename; if (mygrainAiPatchAdapter.fingerprint() !== __renameFingerprint) throw Error('Rename changed patch'); return mygrainAiParts.diagnostics().lastRenameMs; });
+                assert.deepEqual(partRequests.slice(beforeRenameRequests).map(r => [r.method, r.contentType]), [['POST', 'application/json']]); assert(partRequests.at(-1).bytes < 250); assert.equal(await p.locator('#aiPatchUsage').textContent(), tokensBeforeRename);
                 await p.locator('#aiPatchRefinement').fill('Make the bass slightly gentler, preserving this chorus.'); await click('#aiPatchRefine'); assert.equal(requests.at(-1).mode, 'refine'); assert.deepEqual(requests.at(-1).musicalState, chorus); assert.equal(loads, initialLoads);
+                assert.match(await p.locator('#aiPatchUsage').textContent(), /Token usage not reported/);
                 await click('#aiPatchUndo', /^Undone/); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), chorusPrompt);
                 if (process.env.AI_PARTS_REAL_MODEL !== '1') { await click('#aiPatchRegenerate'); assert.equal(requests.at(-1).mode, 'section'); assert.equal(requests.at(-1).prompt, chorusPrompt); assert.equal(loads, initialLoads); }
                 await p.locator('#aiPatchRender').click(); await ready(); assert.match(await p.locator('#aiPatchStatus').textContent(), /^Preview captured/); const capture = await p.locator('#aiPatchPreviewStatus').textContent(); assert.match(capture, /RMS 0\.(?!0000)/);
@@ -162,13 +169,19 @@ const results = [];
                 }
                 if (process.env.AI_PARTS_REAL_MODEL !== '1') {
                     mode = 'bad'; const beforeBad = await p.evaluate(() => mygrainAiPatchAdapter.fingerprint()); await click('#aiPartGenerate', /keeps current library samples/); assert.equal(await p.evaluate(() => mygrainAiPatchAdapter.fingerprint()), beforeBad);
-                    mode = 'hold'; await p.locator('#aiPartGenerate').click(); await p.waitForFunction(() => mygrainAiPatch.busy); await p.waitForTimeout(100); await p.locator('#aiPatchCancel').click(); release?.(); mode = 'normal'; await ready(); assert.equal(await p.evaluate(() => mygrainAiPatchAdapter.fingerprint()), beforeBad);
+                    mode = 'hold'; await p.locator('#aiPartGenerate').click(); await p.waitForFunction(() => mygrainAiPatch.busy); await p.waitForTimeout(1100);
+                    const activityLayout = await p.locator('#aiPatchActivity').evaluate(el => { const box = el.getBoundingClientRect(), button = document.getElementById('aiActivityCancel'), b = button.getBoundingClientRect(); return { bodyLevel: el.parentElement === document.body, left: box.left, right: box.right, top: box.top, bottom: box.bottom, overflow: el.scrollWidth > el.clientWidth + 1, hit: document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) === button }; });
+                    assert(activityLayout.bodyLevel && activityLayout.hit && !activityLayout.overflow && activityLayout.left >= 0 && activityLayout.right <= viewport.width && activityLayout.top >= 0 && activityLayout.bottom <= viewport.height, JSON.stringify(activityLayout));
+                    assert.match(await p.locator('#aiActivityElapsed').textContent(), /[1-9]\d*s/); assert.match(await p.locator('#aiActivityUsage').textContent(), /Awaiting token/); assert.match(await p.locator('#aiActivityStatus').textContent(), /developing/);
+                    await p.locator('#aiActivityToggle').click(); assert(await p.locator('#aiActivityBody').isHidden()); assert(await p.locator('#aiActivityCancel').isVisible()); await p.locator('#aiActivityToggle').click();
+                    await p.screenshot({ path: out + '/' + engine + '-' + viewport.width + '-activity.png' });
+                    await p.locator('#aiActivityCancel').click(); release?.(); mode = 'normal'; await ready(); assert.equal(await p.evaluate(() => mygrainAiPatchAdapter.fingerprint()), beforeBad); assert.match(await p.locator('#aiPatchUsage').textContent(), /not reported/);
                 }
                 await p.locator('#aiPartType').selectOption('middle8'); assert.equal(await p.locator('#aiPartBars').inputValue(), '8'); assert(await p.locator('#aiPartBars').isDisabled());
                 const layout = await p.locator('#aiPatchCard').evaluate(el => ({ left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right, width: innerWidth, overflow: el.scrollWidth > el.clientWidth + 1 })); assert(layout.left >= -1 && layout.right <= layout.width + 1 && !layout.overflow, JSON.stringify(layout));
                 await p.locator('#aiPatchCard').screenshot({ path: out + '/' + engine + '-' + viewport.width + '.png' }); assert.deepEqual(errors, []);
                 await p.evaluate(() => window.dispatchEvent(new Event('mygrain-account-lock'))); assert.equal(await p.locator('#aiPartName2').inputValue(), ''); assert(await p.locator('#aiPartGenerate').isDisabled());
-                const result = { engine, viewport, liveAssets, productionWrites: 0, modelRequests: requests.length, sampleLoads: loads, capture, section: { patternSteps: chorus.X.length, qChords: chorus.Q.sequence.filter(x => x && !x.rest).length, rolls: chorus.drumRatchets }, checks: ['contextual-section', 'same-tempo-and-buffer-identities', 'named-store-complete-audio', 'Undo-after-Store', 'full-state-Recall-no-autoplay', 'rename-safe-text', 'refine-current-section', 'regenerate-same-section', 'cross-device-no-local-storage', 'account-isolation', 'CSRF', 'stale-revision-denied', 'Add-to-Song-saved-archive-not-live-patch', 'existing-Song-parts-unchanged', 'source-reload-rejected', 'cancel-no-change', 'audible-preview', 'Middle8-explicit-repeats', 'mobile-layout', 'account-lock'], errors };
+                const result = { engine, viewport, liveAssets, productionWrites: 0, modelRequests: requests.length, sampleLoads: loads, capture, renameMs, renameRequest: partRequests.find(r => r.contentType === 'application/json'), section: { patternSteps: chorus.X.length, qChords: chorus.Q.sequence.filter(x => x && !x.rest).length, rolls: chorus.drumRatchets }, checks: ['contextual-section', 'same-tempo-and-buffer-identities', 'named-store-complete-audio', 'Undo-after-Store', 'full-state-Recall-no-autoplay', 'rename-safe-text', 'refine-current-section', 'regenerate-same-section', 'cross-device-no-local-storage', 'account-isolation', 'CSRF', 'stale-revision-denied', 'Add-to-Song-saved-archive-not-live-patch', 'existing-Song-parts-unchanged', 'source-reload-rejected', 'cancel-no-change', 'audible-preview', 'Middle8-explicit-repeats', 'mobile-layout', 'account-lock'], errors };
                 results.push(result); console.log(JSON.stringify(result));
             } catch (error) { console.error('STATE', await p.evaluate(() => ({ status: document.getElementById('aiPatchStatus')?.textContent, part: document.getElementById('aiPartStatus')?.textContent, song: document.getElementById('songBetaStatus')?.textContent, captureChanges: window.__captureChanges, log: document.getElementById('aiPatchChanges')?.textContent }))); throw error; }
             finally { release?.(); await device?.close(); await other?.close(); await ctx.close(); }
