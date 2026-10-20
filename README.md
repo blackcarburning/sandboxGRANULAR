@@ -3,7 +3,9 @@ Web based granular synth
 
 ## MYGRAIN rainbow brain branding
 
-- Build `v2026.10.20.BRAND.1`: heading and browser title are **MYGRAIN**. A transparent rainbow brain emblem appears beside the main heading and above the start-screen name; the icon is also used for browser and homescreen bookmarks.
+- The header description now covers sound design, beats, songs, samples/synths, AI/manual creation, performance, arrangement, recording and export in a compact four-line gradient card. No patch, Song or storage format changes.
+
+- Build `v2026.10.20.BRAND.2`: heading and browser title are **MYGRAIN**. A transparent rainbow brain emblem appears beside the main heading and above the start-screen name; the icon is also used for browser and homescreen bookmarks.
 - Original generated PNG and optimized WebP/PNG runtime variants are in `assets/brand/`. Generated with the built-in image tool; no patch, Song, audio, account or import/export formats changed.
 
 ## RadioLab current-take preview and normalization (R.10)
