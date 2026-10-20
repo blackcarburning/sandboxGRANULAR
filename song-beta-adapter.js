@@ -787,8 +787,12 @@
         const holdMs = 350, bypass = new WeakSet(), blocked = new WeakMap();
         let gesture = null;
         const cardSelector = '.performance-feature-card[aria-label^="Bastardloop"], #performanceDrumMachineCard, [aria-label="Dropbox sample layer controls"], .drum-machine-track-card, #bastardLoopLOverlay, #bastardLoopXOverlay, #bastardLoopQOverlay';
+        const isSoloButton = button => button.matches('.mygrain-solo-button, .performance-layer-solo-btn, .performance-mixer-solo-btn, [data-source-waveform-solo], [data-grain-layer-solo], [data-q-action="solo"], #performanceSampleSoloBtn') || /^solo\b|\bsolo (on|off)$/i.test(button.textContent.trim());
         function protectedButton(button) {
             if (!button || button.disabled || !button.closest(cardSelector)) return false;
+            // Solo is a reversible performance toggle, not a destructive action.
+            // Let the browser handle normal taps and cancel them naturally on scroll.
+            if (isSoloButton(button)) return false;
             if (button.matches('.key, [data-note], [data-q-step], [data-step], .lead-sequencer-step-btn, .lead-sequencer-key, .q-step, [data-q-degree], [data-q-pitch], .drum-machine-step, .drum-machine-step-btn, [data-q-pad]')) return false;
             return !/\bstop\b|\bclose\b|\bcancel\b/i.test(`${button.id.replace(/([a-z])([A-Z])/g, '$1 $2')} ${button.textContent}`);
         }
@@ -832,8 +836,7 @@
             const buttons = root.matches?.('button') ? [root] : root.querySelectorAll('button');
             buttons.forEach(button => {
                 if (protectedButton(button)) { button.classList.add('phone-card-action'); button.title ||= 'On phones: hold briefly, then release.'; }
-                const text = button.textContent.trim();
-                if (button.matches('.performance-layer-solo-btn, .performance-mixer-solo-btn, [data-source-waveform-solo], [data-grain-layer-solo], [data-q-action="solo"], #performanceSampleSoloBtn') || /^solo\b/i.test(text)) button.classList.add('mygrain-solo-button');
+                if (isSoloButton(button)) button.classList.add('mygrain-solo-button');
             });
         }
         mark();

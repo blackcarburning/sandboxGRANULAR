@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-touch-1"></script>
+    <script src="mygrain-accounts.js?v=20261020-touch-2"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-touch-1';
+            const cacheBuster = '2026-10-20-touch-2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5961,6 +5961,17 @@
             color:#fff!important; background:linear-gradient(145deg,#ff4862,#d91d36)!important; border-color:#ffd0d7!important;
             box-shadow:inset 0 1px 2px #ffffff40,0 0 16px #ff304860!important;
         }
+        .history-edge-controls {
+            position:fixed; left:env(safe-area-inset-left,0px); top:50svh; transform:translateY(-50%);
+            z-index:9990; display:flex; flex-direction:column; gap:8px; pointer-events:none;
+        }
+        .history-edge-controls .history-edge-button {
+            width:34px; min-width:34px; min-height:64px; padding:10px 4px;
+            display:grid; place-items:center; writing-mode:vertical-rl;
+            font-size:9px; font-weight:900; letter-spacing:.08em; text-transform:uppercase;
+            border:1px solid rgba(255,255,255,.65); border-left:0; border-radius:0 12px 12px 0;
+            box-shadow:8px 0 22px rgba(0,0,0,.26); pointer-events:auto; touch-action:manipulation;
+        }
         #sectionJumpUndoBtn { color:#fff!important;background:linear-gradient(150deg,#652b36,#2b111b)!important;border-color:#efb8c3!important; }
         #sectionJumpRedoBtn { color:#fff!important;background:linear-gradient(150deg,#285b46,#102c22)!important;border-color:#a6dfc0!important; }
         #sectionJumpUndoBtn:disabled,#sectionJumpRedoBtn:disabled { opacity:.48; }
@@ -5977,12 +5988,17 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.TOUCH.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.TOUCH.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
     <!-- Fullscreen Button -->
     <button id="fullscreenBtn" class="hidden">Go Fullscreen</button>
+
+    <nav class="history-edge-controls" aria-label="Patch history">
+        <button class="history-edge-button" id="sectionJumpUndoBtn" type="button" disabled>Undo 0</button>
+        <button class="history-edge-button" id="sectionJumpRedoBtn" type="button" disabled>Redo 0</button>
+    </nav>
 
     <nav class="section-jump-drawer" id="sectionJumpDrawer" aria-label="Section jumps">
         <button class="section-jump-handle" id="sectionJumpHandle" type="button" aria-expanded="false" aria-controls="sectionJumpPanel">
@@ -5990,8 +6006,6 @@
             <span class="section-jump-handle-text">Jump</span>
         </button>
         <div class="section-jump-quick-stack" aria-hidden="false">
-            <button class="section-jump-quick" id="sectionJumpUndoBtn" type="button" disabled>Undo 0</button>
-            <button class="section-jump-quick" id="sectionJumpRedoBtn" type="button" disabled>Redo 0</button>
             <button class="section-jump-quick ai-patch-jump" id="sectionJumpAiBtn" type="button" data-jump-target="#aiPatchCard" aria-label="AI Patch Direction beta">✦ AI PATCH · BETA</button>
             <button class="section-jump-quick" id="sectionJumpSongBtn" type="button" data-jump-target="#songBetaCard">Song</button>
             <button class="section-jump-quick" id="sectionJumpMegaRandomBtn" type="button">Mega</button>
@@ -6060,7 +6074,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.TOUCH.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.TOUCH.2</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -61172,13 +61186,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261020-touch-1');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261020-touch-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261015-song-portability-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261019-render-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-touch-1&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-touch-2&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>
