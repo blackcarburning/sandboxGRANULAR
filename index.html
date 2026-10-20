@@ -215,7 +215,7 @@
     </script>
     <link rel="stylesheet" href="mygrain-accounts.css?v=20261020-start-screen-3">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-start-screen-3"></script>
+    <script src="mygrain-accounts.js?v=20261020-x-osc3-1"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -234,7 +234,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-brand-3';
+            const cacheBuster = '2026-10-20-x-osc3-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -708,6 +708,21 @@
 
         .lead-sequencer-toolbar-row.compact-two {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        #bastardLoopXSynthModeBtn,
+        #performanceBastardLoopXSynthModeBtn {
+            min-height: 44px;
+            touch-action: manipulation;
+            color: #d8f7ff;
+        }
+
+        #bastardLoopXSynthModeBtn[aria-pressed="true"],
+        #performanceBastardLoopXSynthModeBtn[aria-pressed="true"] {
+            color: #06141c;
+            background: linear-gradient(120deg, #70e8ff, #9af3d3);
+            border-color: #a0f6ff;
+            box-shadow: 0 0 14px rgba(112, 232, 255, 0.18);
         }
 
         .lead-sequencer-toolbar-row.transport-row {
@@ -5827,7 +5842,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.BRAND.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.OSC.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -5908,7 +5923,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.BRAND.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.OSC.1</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -6833,7 +6848,7 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Bass Seq</div>
                         <h3 class="performance-feature-title">Bastardloop X</h3>
-                        <p class="performance-feature-note">Play one-shot bass samples from `SAMPLES_BASS` as a synced note sequencer with rest, accent, slide, and semitone offset.</p>
+                        <p class="performance-feature-note">Sequence bass samples or the shared OSC3 synth, with rest, accent, slide, ratchets and semitone offset.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopXLoadBtn">Choose Bass Sample</button>
@@ -6841,6 +6856,7 @@
                         <button class="performance-btn" id="performanceBastardLoopXRandomPatternBtn">Random Pattern</button>
                         <button class="performance-btn" id="performanceBastardLoopXCopyQRootsBtn" type="button" disabled title="Copy the full Q chord-root sequence to X from step 1, including rests and accents. Keeps X's rate, sound and tuning.">Copy Q Roots to Bass</button>
                         <button class="performance-btn" id="performanceBastardLoopXRandomAroundNoteBtn" type="button" disabled title="Build a new bass pattern around X's selected note, or its first set note, using root, fifth and octave motion.">Randomise Around Note</button>
+                        <button class="performance-btn" id="performanceBastardLoopXSynthModeBtn" type="button" aria-pressed="false">Source: Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
                         <button class="performance-btn" id="performanceBastardLoopXPasteArpBtn" type="button" data-arp-paste="X" disabled>Paste from Arp</button>
                         <button class="performance-btn" id="performanceBastardLoopXExportMidiBtn" type="button">Export MIDI</button>
@@ -9904,7 +9920,7 @@
                     </div>
                     <div id="oscSynthModuleAnchor"></div>
                     <div class="source-seed-group" aria-label="3-voice synth controls">
-                        <div class="section-title">Serum-Style 3-Voice Synth</div>
+                        <div class="section-title">OSC3 - 3 oscillator synth</div>
                         <div class="control-group highlight" style="grid-column: span 2;">
                             <label><span class="param-name">Synth Preset</span><span class="value" id="synthPresetValue">500 presets</span></label>
                             <select id="synthPresetSelect">
@@ -10954,7 +10970,7 @@
                     <div class="sample-browser-head">
                         <div class="sample-browser-copy">
                             <h3 id="bastardLoopXTitle">Bastardloop X Sequencer</h3>
-                            <p id="bastardLoopXSubtitle">Choose a bass sample, play it from the keybed, record notes into the grid, double tap steps for ratchets, and start the Bastardloops transport with that bass.</p>
+                            <p id="bastardLoopXSubtitle">Choose a bass sample or switch to OSC3, play the keybed, record notes into the grid, and double tap steps for ratchets.</p>
                         </div>
                         <button class="performance-btn" id="bastardLoopXCloseBtn" type="button">Close</button>
                     </div>
@@ -10979,10 +10995,11 @@
                             <button class="performance-btn" id="bastardLoopXCopyBtn" type="button">Copy</button>
                             <button class="performance-btn" id="bastardLoopXCopySectionBtn" type="button">Copy Sec</button>
                         </div>
-                        <div class="lead-sequencer-toolbar-row">
+                        <div class="lead-sequencer-toolbar-row compact-two">
                             <button class="performance-btn" id="bastardLoopXPasteArpBtn" type="button" data-arp-paste="X" disabled>Paste from Arp</button>
+                            <button class="performance-btn" id="bastardLoopXSynthModeBtn" type="button" aria-pressed="false">Source: Sample</button>
                         </div>
-                        <div class="lead-sequencer-status" id="bastardLoopXStatus">Choose a bass sample, play the keybed to hear it, record notes into the grid, then double tap a step to add ratchets.</div>
+                        <div class="lead-sequencer-status" id="bastardLoopXStatus">Choose a bass sample or switch to OSC3, play the keybed, then record notes into the grid.</div>
                         <div class="lead-sequencer-copy-popup" id="bastardLoopXCopyPopup" hidden aria-live="polite"></div>
                     </div>
                     <div class="sample-browser-status" id="bastardLoopXStepCursor">Editing step 1.</div>
@@ -11594,7 +11611,7 @@
             captured.microphones = window.MygrainAudioDiagnostics.describeMicrophones([
                 ['main', micStream], ['M', bastardLoopMMicStream], ['MPlus', bastardLoopMPlusMicStream]
             ]);
-            captured.synth = { oscillatorsEnabled, granularLayersEnabled, lSourceMode: bastardLoopLSourceMode,
+            captured.synth = { oscillatorsEnabled, granularLayersEnabled, lSourceMode: bastardLoopLSourceMode, xSourceMode: bastardLoopXSourceMode,
                 waveforms: [osc1Config.waveform, osc2Config.waveform, osc3Config.waveform],
                 sync: [osc1Config.sync, osc2Config.sync, osc3Config.sync],
                 configs: [{ ...osc1Config }, { ...osc2Config }, { ...osc3Config }],
@@ -13112,6 +13129,7 @@
         let bastardLoopXDelayDivision = '2';
         let bastardLoopXDelayMix = 0;
         let bastardLoopXDelayPingPongEnabled = false;
+        let bastardLoopXSourceMode = 'sample';
         let bastardLoopXRootNote = 'C3';
         let bastardLoopXSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false, ratchet: 1 }));
         let bastardLoopXEditStepIndex = 0;
@@ -20283,8 +20301,9 @@
 
         function prewarmTransportBuffers() {
             if (!audioContext || transportSync.depth > 0) return;
-            if (bastardLoopLTransportActive || hasPlayableBastardLoopLTransportSource()) {
-                if (isBastardLoopLUsingSynth()) ensureBastardLoopLSynthReady({ forceMinimumMix: false });
+            if (((bastardLoopLTransportActive || hasPlayableBastardLoopLTransportSource()) && isBastardLoopLUsingSynth())
+                || ((bastardLoopXTransportActive || hasPlayableBastardLoopXTransportSource()) && isBastardLoopXUsingSynth())) {
+                ensureBastardLoopLSynthReady({ forceMinimumMix: false });
             }
             if (oscillatorsEnabled) {
                 const context = { velocity: 1, randomValue: 0 };
@@ -26458,7 +26477,7 @@
                 bastardLoopPBuffer ||
                 bastardLoopOBuffer ||
                 hasPlayableBastardLoopLTransportSource() ||
-                bastardLoopXSampleBuffer ||
+                hasPlayableBastardLoopXTransportSource() ||
                 (bastardLoopMBuffer || bastardLoopMPlusBuffer) ||
                 window.mygrainQ?.playable() ||
                 dropboxSampleLayerBuffer ||
@@ -31929,7 +31948,7 @@
                 !bastardLoopOBuffer &&
                 !hasPlayableBastardLoopLTransportSource() &&
                 !window.mygrainQ?.playable() &&
-                !bastardLoopXSampleBuffer &&
+                !hasPlayableBastardLoopXTransportSource() &&
                 (!bastardLoopMBuffer && !bastardLoopMPlusBuffer && !bastardLoopKBuffer) &&
                 !dropboxSampleLayerBuffer &&
                 !(drumMachineEnabled && hasPlayableDrumMachinePattern())
@@ -31993,10 +32012,10 @@
             if (hasPlayableBastardLoopLTransportSource()) {
                 uiStateChanged = ensureBastardLoopLReadyForTransport() || uiStateChanged;
             }
-            if (!bastardLoopXSampleBuffer && hasPlayableBastardLoopXSequence() && hasRestorableBastardLoopXSampleReference()) {
+            if (!isBastardLoopXUsingSynth() && !bastardLoopXSampleBuffer && hasPlayableBastardLoopXSequence() && hasRestorableBastardLoopXSampleReference()) {
                 await ensureBastardLoopXSampleBufferReady({ silent: options.silent });
             }
-            if (bastardLoopXSampleBuffer && hasPlayableBastardLoopXSequence()) {
+            if (hasPlayableBastardLoopXTransportSource()) {
                 uiStateChanged = ensureBastardLoopXReadyForTransport() || uiStateChanged;
             }
 
@@ -32311,7 +32330,7 @@
             const granularSelected = hasPerformanceSourceLayerSolo('granular');
             const sampleSelected = hasPerformanceSourceLayerSolo('sample');
             const grainSelected = grainLayerSolo.length > 0;
-            setOscillatorsEnabled(hasPerformanceSourceLayerSolo('osc') || hasLoopLayerSolo('bastardl'), { silent: true, skipSave: true });
+            setOscillatorsEnabled(hasPerformanceSourceLayerSolo('osc') || hasLoopLayerSolo('bastardl') || hasLoopLayerSolo('bastardx'), { silent: true, skipSave: true });
             setGranularLayersEnabled(granularSelected || sampleSelected || grainSelected, { silent: true, skipSave: true });
             setGeneratedSampleLayerEnabled(sampleSelected || ((granularSelected || grainSelected) && baselineSnapshot.generatedSampleLayerEnabled), { silent: true, skipSave: true });
             setGeneratedDryLoopEnabled(hasPerformanceSourceLayerSolo('loop'), { silent: true, skipSave: true });
@@ -34850,9 +34869,9 @@
                 status(`Audio is not ready for Loop ${layer} playback yet.`);
                 return;
             }
-            if (isLead && isBastardLoopLUsingSynth()) {
+            if (isLead ? isBastardLoopLUsingSynth() : isBastardLoopXUsingSynth()) {
                 if (!ensureBastardLoopLSynthReady({ forceMinimumMix: true, minOscMix: 0.35 })) {
-                    status('Loop L synth could not start. Check the synth engine.');
+                    status(`Loop ${layer} synth could not start. Check the synth engine.`);
                     return;
                 }
             } else {
@@ -35859,7 +35878,9 @@
         }
 
         function restartBastardLoopXPlaybackIfNeeded() {
-            if (!shouldRestartBastardLoopXPlayback() || !bastardLoopXSampleBuffer) {
+            if (!shouldRestartBastardLoopXPlayback()) return false;
+            if (!hasBastardLoopXPlaybackSource()) {
+                stopBastardLoopX({ skipUi: true });
                 return false;
             }
             return startBastardLoopX(null, { skipUi: true });
@@ -36189,7 +36210,73 @@
             }
         }
 
+        function normalizeBastardLoopXSourceMode(value) {
+            return normalizeBastardLoopLSourceMode(value);
+        }
+
+        function isBastardLoopXUsingSynth() {
+            return normalizeBastardLoopXSourceMode(bastardLoopXSourceMode) === 'synth';
+        }
+
+        function hasBastardLoopXPlaybackSource() {
+            return isBastardLoopXUsingSynth() || Boolean(bastardLoopXSampleBuffer || hasRestorableBastardLoopXSampleReference());
+        }
+
+        function hasPlayableBastardLoopXTransportSource() {
+            return hasPlayableBastardLoopXSequence() && hasBastardLoopXPlaybackSource();
+        }
+
+        function setBastardLoopXSourceMode(mode, options = {}) {
+            const nextMode = normalizeBastardLoopXSourceMode(mode);
+            const changed = bastardLoopXSourceMode !== nextMode;
+            bastardLoopXSourceMode = nextMode;
+            if (isBastardLoopXUsingSynth() && options.prepareSynth !== false) {
+                ensureBastardLoopLSynthReady({ forceMinimumMix: options.forceMinimumMix === true, minOscMix: 0.35 });
+            }
+            if (changed) {
+                stopAllBastardLoopXVoices({ fade: false });
+                if (!options.skipRestart) restartBastardLoopXPlaybackIfNeeded();
+            }
+            syncBastardLoopXUi();
+            syncPerformanceControlState();
+            if (!options.silent) updateBastardLoopXStatus(nextMode === 'synth'
+                ? 'Loop X now plays OSC3. Shape its sound in the OSC3 synth controls.'
+                : 'Loop X now plays its bass sample.');
+            if (!options.skipSave) saveState();
+            return changed;
+        }
+
+        function playBastardLoopXSynthVoice(step, scheduledTime, stepDuration, nextStep, options = {}) {
+            if (!audioContext || !step?.note || step.rest) return false;
+            if (!ensureBastardLoopLSynthReady({ forceMinimumMix: false })) return false;
+            const start = Math.max(audioContext.currentTime, Number(scheduledTime) || audioContext.currentTime);
+            const role = options.role || 'bastardloopx';
+            const voiceId = `${role}:${step.note}:${Math.round(start * 1000)}:${Math.random().toString(36).slice(2, 8)}`;
+            const note = midiToNoteName(noteNameToMidi(step.note) + getBastardLoopXPitchSemitones());
+            const scale = Math.max(0.18, Math.min(1.4, Number(options.levelScale) || 1));
+            const accentScale = step.accent ? computeBastardLoopLAccentGainMultiplier(getBastardLoopXAccentAmount()) : 1;
+            const velocity = Math.max(0, Math.min(1, getBastardLoopXLevelValue({ applyLayerToggle: false }) * accentScale * scale * 1.28));
+            if (velocity <= 0) return false;
+            const windowSeconds = Math.max(0.025, Number(options.stepWindow) || stepDuration || 0.18);
+            let gate = windowSeconds * Math.max(0.16, (getBastardLoopXStepLengthRatio() * 0.52) + (getBastardLoopXDecayRatio() * 0.48));
+            playOscillatorNote(note, start, velocity, { role, voiceId });
+            const voice = activeOscVoices.get(voiceId);
+            if (!voice) return false;
+            if (step.slide && nextStep?.note && !nextStep.rest && !options.stepWindow) {
+                const nextNote = midiToNoteName(noteNameToMidi(nextStep.note) + getBastardLoopXPitchSemitones());
+                const frequencies = getOscillatorVoiceFrequencies(nextNote, voice.synthModContext);
+                for (const [osc, frequency] of [[voice.osc1, frequencies.osc1Frequency], [voice.osc2, frequencies.osc2MasterFrequency || frequencies.osc2Frequency], [voice.osc3, frequencies.osc3MasterFrequency || frequencies.osc3Frequency]]) {
+                    osc.frequency.setValueAtTime(osc.frequency.value, start);
+                    osc.frequency.linearRampToValueAtTime(frequency, start + windowSeconds);
+                }
+                gate = Math.max(gate, windowSeconds * 1.98);
+            }
+            stopOscillatorNote(note, start + Math.max(0.025, Math.min(8, gate)), { role, voiceId });
+            return true;
+        }
+
         function describeBastardLoopXMeta() {
+            if (isBastardLoopXUsingSynth()) return `OSC3 synth · ${getBastardLoopXPatternLength()} steps · ${getBastardLoopXTimingLabel()}${bastardLoopXSampleBuffer || bastardLoopXSampleMetadata ? ' · bass sample retained' : ''}`;
             const sampleName = bastardLoopXSampleMetadata?.fileName || bastardLoopXSampleMetadata?.relativePath?.split('/').pop() || '';
             if (!bastardLoopXSampleBuffer && !sampleName) return 'Choose a bass sample to begin.';
             const rootNote = getBastardLoopXRootNote();
@@ -36318,7 +36405,14 @@
             if (filterLfoAmountLabel) filterLfoAmountLabel.textContent = `${filterLfoAmountValue}%`;
             if (delayMixLabel) delayMixLabel.textContent = `${delayMixValue}%`;
             if (meta) meta.textContent = describeBastardLoopXMeta();
-            const hasSampleSelection = Boolean(bastardLoopXSampleBuffer || hasRestorableBastardLoopXSampleReference());
+            const hasSampleSelection = hasBastardLoopXPlaybackSource();
+            for (const id of ['performanceBastardLoopXSynthModeBtn', 'bastardLoopXSynthModeBtn']) {
+                const button = document.getElementById(id);
+                if (!button) continue;
+                button.textContent = isBastardLoopXUsingSynth() ? 'Source: OSC3' : 'Source: Sample';
+                button.classList.toggle('active', isBastardLoopXUsingSynth());
+                button.setAttribute('aria-pressed', String(isBastardLoopXUsingSynth()));
+            }
             if (loadButton) loadButton.textContent = (bastardLoopXSampleBuffer || bastardLoopXSampleMetadata?.fileName || bastardLoopXSampleMetadata?.relativePath) ? 'Change Bass Sample' : 'Choose Bass Sample';
             if (editButton) editButton.disabled = !hasSampleSelection;
             syncBastardLoopXAccentAmountUi();
@@ -36382,6 +36476,8 @@
         }
 
         function stopAllBastardLoopXVoices(options = {}) {
+            stopOscillatorsByRole('bastardloopx');
+            stopOscillatorsByRole('bastardloopx-preview');
             if (!Number.isFinite(transportSync.handoffBoundary)) stopRetiredTransportVoices('bastardloopx');
             if (Number.isFinite(transportSync.handoffBoundary)) {
                 for (const voice of bastardLoopXActiveVoices) retireTransportVoice({ ...voice, role: 'bastardloopx' }, transportSync.handoffBoundary);
@@ -36418,6 +36514,10 @@
         }
 
         function auditionBastardLoopXVoice(step, options = {}) {
+            if (isBastardLoopXUsingSynth()) {
+                stopOscillatorsByRole('bastardloopx-preview');
+                return playBastardLoopXSynthVoice(step, audioContext?.currentTime, 0.24, null, { role: 'bastardloopx-preview' });
+            }
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note || step.rest) {
                 return false;
             }
@@ -36460,6 +36560,7 @@
         }
 
         function primeBastardLoopXNoteEntryTone(note) {
+            if (isBastardLoopXUsingSynth()) return false;
             if (!audioContext || !note || !engineInitialized || engineStarting) {
                 return false;
             }
@@ -36507,6 +36608,7 @@
         }
 
         function scheduleBastardLoopXSingleVoice(step, scheduledTime, stepDuration, nextStep, options = {}) {
+            if (isBastardLoopXUsingSynth()) return playBastardLoopXSynthVoice(step, scheduledTime, stepDuration, nextStep, options);
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note) return;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
@@ -36582,6 +36684,7 @@
         }
 
         function previewBastardLoopXStep(step) {
+            if (isBastardLoopXUsingSynth()) return auditionBastardLoopXVoice(step);
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
@@ -36628,7 +36731,7 @@
         }
 
         function scheduleBastardLoopXSteps() {
-            if (!isBastardLoopXRunning() || !audioContext || !bastardLoopXSampleBuffer) return;
+            if (!isBastardLoopXRunning() || !audioContext || !hasBastardLoopXPlaybackSource()) return;
             const stepCount = getBastardLoopXPatternLength();
             const stepDuration = getBastardLoopXStepDurationSeconds();
             const now = audioContext.currentTime;
@@ -36659,7 +36762,7 @@
         }
 
         function startBastardLoopX(startTime = null, options = {}) {
-            if (!audioContext || !bastardLoopXSampleBuffer || !getBastardLoopXPlaybackDestination()) {
+            if (!audioContext || !hasBastardLoopXPlaybackSource() || !getBastardLoopXPlaybackDestination()) {
                 return false;
             }
             if (getBastardLoopXLevelValue() <= 0) {
@@ -36668,6 +36771,7 @@
                 return false;
             }
             stopBastardLoopX({ skipUi: true, fade: false });
+            if (isBastardLoopXUsingSynth() && !ensureBastardLoopLSynthReady({ forceMinimumMix: false })) return false;
             const stepDuration = getBastardLoopXStepDurationSeconds();
             const stepCount = getBastardLoopXPatternLength();
             const position = resolveTransportLaneStart(startTime, 'X', stepDuration, stepCount);
@@ -36690,7 +36794,7 @@
 
         function updateBastardLoopXMix() {
             updateBastardLoopXVoiceFx();
-            if (!shouldRestartBastardLoopXPlayback() || !bastardLoopXSampleBuffer) {
+            if (!shouldRestartBastardLoopXPlayback() || !hasBastardLoopXPlaybackSource()) {
                 stopBastardLoopX({ skipUi: true });
             } else if (getBastardLoopXLevelValue() <= 0) {
                 stopBastardLoopX({ skipUi: true });
@@ -36920,7 +37024,12 @@
                 updateBastardLoopXStatus('Audio is not ready for Bastardloop X transport yet.');
                 return;
             }
-            if (!bastardLoopXSampleBuffer) {
+            if (isBastardLoopXUsingSynth()) {
+                if (!ensureBastardLoopLSynthReady({ forceMinimumMix: true, minOscMix: 0.35 })) {
+                    updateBastardLoopXStatus('OSC3 could not start. Check the synth engine.');
+                    return;
+                }
+            } else if (!bastardLoopXSampleBuffer) {
                 const reloaded = await ensureBastardLoopXSampleBufferReady();
                 if (!reloaded) {
                     updateBastardLoopXStatus(hasRestorableBastardLoopXSampleReference()
@@ -37008,7 +37117,7 @@
                 note,
                 rest: false
             };
-            const canTrySample = Boolean(bastardLoopXSampleBuffer);
+            const canTrySample = hasBastardLoopXPlaybackSource();
             const played = canTrySample
                 ? auditionBastardLoopXVoice(playedStep, { index: bastardLoopXEditStepIndex })
                 : false;
@@ -38804,6 +38913,7 @@
             if (normalizedRole.startsWith('bastardloopl')) {
                 return { group: 'loop', key: 'bastardl' };
             }
+            if (normalizedRole.startsWith('bastardloopx')) return { group: 'loop', key: 'bastardx' };
             return { group: 'source', key: 'osc' };
         }
 
@@ -40072,7 +40182,7 @@
                 bastardLoopOBuffer ||
                 hasPlayableBastardLoopLTransportSource() ||
                 window.mygrainQ?.playable() ||
-                bastardLoopXSampleBuffer ||
+                hasPlayableBastardLoopXTransportSource() ||
                 (bastardLoopMBuffer || bastardLoopMPlusBuffer) ||
                 bastardLoopKBuffer ||
                 dropboxSampleLayerBuffer
@@ -46964,6 +47074,7 @@
                     bastardLoopLTransposeStartIndex: getBastardLoopLTransposeSectionBounds()?.start ?? -1,
                     bastardLoopLTransposeEndIndex: getBastardLoopLTransposeSectionBounds()?.end ?? -1,
                     bastardLoopXEnabled: bastardLoopXEnabled,
+                    bastardLoopXSourceMode: normalizeBastardLoopXSourceMode(bastardLoopXSourceMode),
                     bastardLoopXLevel: bastardLoopXLevel,
                     bastardLoopXLength: bastardLoopXLength,
                     bastardLoopXStartTrim: getBastardLoopXStartTrimRatio(),
@@ -47541,6 +47652,7 @@
                     } else {
                         resetBastardLoopLTransposeSectionState();
                     }
+                    bastardLoopXSourceMode = normalizeBastardLoopXSourceMode(state.modes.bastardLoopXSourceMode);
                     if (state.modes.bastardLoopXEnabled !== undefined) {
                         setBastardLoopXEnabled(state.modes.bastardLoopXEnabled, { silent: true, skipSave: true });
                     }
@@ -48984,7 +49096,7 @@
                 !bastardLoopPBuffer &&
                 !bastardLoopOBuffer &&
                 !hasPlayableBastardLoopLTransportSource() &&
-                !bastardLoopXSampleBuffer &&
+                !hasPlayableBastardLoopXTransportSource() &&
                 (!bastardLoopMBuffer && !bastardLoopMPlusBuffer && !bastardLoopKBuffer) &&
                 !dropboxSampleLayerBuffer &&
                 !forcedRender
@@ -49021,7 +49133,7 @@
             const canStartBastardLoopP = bastardLoopPEnabled && Boolean(bastardLoopPBuffer);
             const canStartBastardLoopO = bastardLoopOEnabled && Boolean(bastardLoopOBuffer);
             const canStartBastardLoopL = bastardLoopLEnabled && hasPlayableBastardLoopLTransportSource();
-            const canStartBastardLoopX = bastardLoopXEnabled && Boolean(bastardLoopXSampleBuffer) && hasPlayableBastardLoopXSequence();
+            const canStartBastardLoopX = bastardLoopXEnabled && hasPlayableBastardLoopXTransportSource();
             const canStartBastardLoopQ = window.mygrainQ?.playable();
             if (canStartBastardLoopQ) await window.mygrainQ.preparePlayback();
             const canStartBastardLoopM = bastardLoopMEnabled && Boolean(bastardLoopMBuffer);
@@ -57900,6 +58012,11 @@
             randomizeBastardLoopLPattern();
         });
 
+        for (const id of ['performanceBastardLoopXSynthModeBtn', 'bastardLoopXSynthModeBtn']) {
+            bindBastardLoopLMobileTap(document.getElementById(id), () => {
+                setBastardLoopXSourceMode(isBastardLoopXUsingSynth() ? 'sample' : 'synth', { forceMinimumMix: true });
+            });
+        }
         performanceBastardLoopLSynthModeBtn?.addEventListener('click', () => {
             setBastardLoopLSourceMode(isBastardLoopLUsingSynth() ? 'sample' : 'synth', {
                 forceMinimumMix: true,

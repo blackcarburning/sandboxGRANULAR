@@ -1,6 +1,13 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## X oscillator source (OSC.1)
+
+- Build `v2026.10.20.OSC.1`: X has a **Source: Sample / OSC3** switch in the editor (beside Paste from Arp) and on its main card. OSC3 plays X's notes without loading a bass sample. Switching sources preserves X's notes and loaded bass sample.
+- The shared synth is now named **OSC3 - 3 oscillator synth**. X uses its existing sound, oscillator/noise envelopes, filter and routing, with X level, transposition, note length/decay, accents, slides and ratchets. X's sample trim/filter/delay controls remain sample-mode controls; shape synth tones in OSC3.
+- The selected source travels with browser state and saved Song/patch settings. Legacy settings with no X source field default to Sample; no audio or archive schema version changes. X synth voices follow X solo and transport Stop, including queued notes and Song cache rendering.
+- Regression checks: `node --test tests/x-osc3.test.js tests/sequencer-editor-transport.test.js tests/transport-sync.test.js tests/synth-custom-patches.test.js`. Actual authenticated Chromium/WebKit signal, Song cache and phone-layout evidence is under `backups/mygrain-x-osc3-20261020T145455Z/verification/`.
+
 ## MYGRAIN rainbow brain branding
 
 - Opening screen is now logo/name → build → compact account card → Start, with no introductory paragraph or saved-log submission controls. The same public launcher is first for signed-out visitors; login/create open on demand and Start requests login until authenticated. Remembered users can start, switch, create or log out as before. Account storage isolation and audio initialization remain unchanged.

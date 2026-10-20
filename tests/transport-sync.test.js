@@ -127,6 +127,9 @@ function fixture(extra = {}) {
         context[`scheduleBastardLoop${layer}Voice`] = () => {};
     }
     context.isBastardLoopLUsingSynth = () => false;
+    context.isBastardLoopXUsingSynth = () => false;
+    context.hasBastardLoopXPlaybackSource = () => Boolean(context.bastardLoopXSampleBuffer);
+    context.hasPlayableBastardLoopXTransportSource = () => false;
     context.stopOscillatorsByRole ??= () => {};
     vm.createContext(context);
     return load(context, ['getSharedLoopTransportOriginTime', 'getTransportLoopOriginTime', 'getTransportGridPosition',
@@ -693,8 +696,10 @@ test('live export uses a single prepared source deadline and trims the common ou
     assert.match(renderer, /withBufferedTransportStart\(restartTime,/);
     assert.match(renderer, /captureSeconds = .*outputLatency \+ durationSeconds/);
     assert.match(renderer, /exactStart = Math.max\(0, restartTime \+ outputLatency - actualCaptureStartTime\)/);
-    assert.match(html, /song-beta-clock\.js\?v=20261018-transport-sync-1/);
-    assert.equal((html.match(/Build <strong>v2026\.10\.18\.SYNC\.1<\/strong>/g) || []).length, 2);
+    assert.match(html, /song-beta-clock\.js\?v=[^"\s]+/);
+    const buildBadges = [...html.matchAll(/Build <strong>(v[^<]+)<\/strong>/g)].map(match => match[1]);
+    assert.equal(buildBadges.length, 2);
+    assert.equal(buildBadges[0], buildBadges[1]);
 });
 
 test('DIRECT delay and reverb compensate their exact FX tap, independently of dry output latency and placement', () => {

@@ -30,6 +30,7 @@ function fixture(overrides = {}) {
         hasPlayableBastardLoopXSequence: () => true,
         ensureAudioReadyForKeyInteraction: async () => true,
         isBastardLoopLUsingSynth: () => false,
+        isBastardLoopXUsingSynth: () => false,
         ensureBastardLoopLSynthReady: () => { calls.push(['synthReady']); return true; },
         ensureBastardLoopLSampleBufferReady: async () => { calls.push(['loadL']); return true; },
         ensureBastardLoopXSampleBufferReady: async () => { calls.push(['loadX']); return true; },
@@ -85,6 +86,14 @@ test('L synth playback prepares the synth without loading a sample', async () =>
     assert.equal(calls.some(call => call[0] === 'loadL'), false);
     assert.equal(calls.some(call => call[0] === 'synthReady'), true);
     assert.equal(calls.some(call => call[0] === 'startL'), true);
+});
+
+test('X synth playback prepares OSC3 without loading a bass sample', async () => {
+    const { context, calls } = fixture({ isBastardLoopXUsingSynth: () => true });
+    await context.playSequencerEditorOnly('X');
+    assert.equal(calls.some(call => call[0] === 'loadX'), false);
+    assert.equal(calls.some(call => call[0] === 'synthReady'), true);
+    assert.equal(calls.some(call => call[0] === 'startX'), true);
 });
 
 test('another editor start supersedes a pending Play', async () => {
