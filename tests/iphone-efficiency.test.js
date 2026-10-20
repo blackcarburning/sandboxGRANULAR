@@ -38,3 +38,14 @@ test('bypass-aware compensation follows live stages and never mutates cached cal
  routing.set(input,{key:'0000'});routing.set(legacy,{key:'0'});state.refreshTransportDistortionLatency();assert.equal(state.transportSync.latency.frames,288);assert.equal(state.transportSync.latency.taps.post.frames,0);
  state.refreshTransportDistortionLatency();assert.equal(counts.send,2);
 });
+
+
+test('fading handoff grains still occupy slots and are never double-counted',()=>{
+ const active={isGrainVoice:true},retiring={isGrainVoice:true},oscillator={};
+ const scheduledGrainVoices=new Set([active]);const retiredTransportVoices=new Set([active,retiring,oscillator]);
+ const state=fixture(['getConcurrentGrainSourceCount'],{scheduledGrainVoices,retiredTransportVoices});
+ assert.equal(state.getConcurrentGrainSourceCount(),2);
+ retiredTransportVoices.delete(retiring);assert.equal(state.getConcurrentGrainSourceCount(),1);
+ scheduledGrainVoices.clear();assert.equal(state.getConcurrentGrainSourceCount(),1);
+ retiredTransportVoices.clear();assert.equal(state.getConcurrentGrainSourceCount(),0);
+});

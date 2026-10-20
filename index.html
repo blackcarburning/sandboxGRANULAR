@@ -38018,13 +38018,21 @@
             };
         }
 
+        function getConcurrentGrainSourceCount() {
+            let count = scheduledGrainVoices.size;
+            for (const voice of retiredTransportVoices) {
+                if (voice.isGrainVoice && !scheduledGrainVoices.has(voice)) count += 1;
+            }
+            return count;
+        }
+
         function playGrain(note, scheduledTime = null, velocity = 1, options = {}) {
             if (!canPlayGrains()) return;
             const grainMode = options.grainMode || getGrainTimingMode();
             const modeProfile = getGrainModeProfile(grainMode);
 
             // A full pool drops new grains; it must never reset while one-shot voices are still alive.
-            if (activeGrainNodes >= MAX_GRAIN_NODES) return;
+            if (activeGrainNodes >= MAX_GRAIN_NODES || getConcurrentGrainSourceCount() >= MAX_GRAIN_NODES) return;
             activeGrainNodes++;
 
             const noteFreq = getGranularKeyboardNoteFrequency(note);
@@ -38083,7 +38091,7 @@
             };
 
             const scheduleLayerSource = (sourceInfo, layer, targetGain) => {
-                if (!sourceInfo?.buffer || targetGain <= 0 || scheduledGrainVoices.size >= MAX_GRAIN_NODES) return;
+                if (!sourceInfo?.buffer || targetGain <= 0 || getConcurrentGrainSourceCount() >= MAX_GRAIN_NODES) return;
                 const sampleWindow = withModulationEvaluationTime(now, () => resolveGranularLayerSampleWindow(
                     sourceInfo,
                     layer,
@@ -38149,7 +38157,7 @@
                 maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, bodyDuration + releaseSeconds);
                 startTransportSource(source, now, sampleWindow.playOffset, sampleWindow.sourceDuration);
                 scheduleTransportSourceStop(source, now + voiceDuration);
-                const trackedVoice = { source, gain: sampleGain, role: options.role || 'keyboard' };
+                const trackedVoice = { source, gain: sampleGain, role: options.role || 'keyboard', isGrainVoice: true };
                 scheduledGrainVoices.add(trackedVoice);
                 source.onended = () => {
                     scheduledGrainVoices.delete(trackedVoice);
@@ -38175,7 +38183,7 @@
 
             const noiseType = document.getElementById('noiseType')?.value || 'none';
             const noiseBuffer = noiseType === 'white' ? whiteNoiseBuffer : (noiseType === 'pink' ? pinkNoiseBuffer : null);
-            if (scheduledGrainVoices.size < MAX_GRAIN_NODES && noiseMix > 0 && noiseBuffer && layerSettings.length > 0
+            if (getConcurrentGrainSourceCount() < MAX_GRAIN_NODES && noiseMix > 0 && noiseBuffer && layerSettings.length > 0
                 && (!hasAnyPerformanceLayerSoloSelection() || hasPerformanceSourceLayerSolo('granular') || grainLayerSolo.length > 0)) {
                 const longestLayer = layerSettings.reduce((best, layer) => {
                     return Math.max(best, layer.sizeSeconds + layer.releaseSeconds);
@@ -38202,7 +38210,7 @@
                 maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, longestLayer + primaryLayer.releaseSeconds);
                 startTransportSource(noiseSource, now);
                 scheduleTransportSourceStop(noiseSource, now + longestLayer + primaryLayer.releaseSeconds + 0.04);
-                const trackedNoise = { source: noiseSource, gain: noiseGain, role: options.role || 'keyboard' };
+                const trackedNoise = { source: noiseSource, gain: noiseGain, role: options.role || 'keyboard', isGrainVoice: true };
                 scheduledGrainVoices.add(trackedNoise);
                 noiseSource.onended = () => {
                     scheduledGrainVoices.delete(trackedNoise);
