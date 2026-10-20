@@ -62,7 +62,7 @@ function fixture(names = []) {
         makePerformanceStreamId: (role, note) => `${role}:${note}`,
         ensureAudioReadyForKeyInteraction: async () => true,
         prepareKeyboardSound: async source => calls.ready.push(source),
-        syncKeyboardSoundControls: () => {}, warmKeyboardSound: () => {},
+        syncKeyboardSoundControls: () => {}, syncKeyboardRecordingLevel: () => {}, warmKeyboardSound: () => {},
         saveState: () => { calls.save += 1; },
         setStatus: (...args) => calls.status.push(args),
         stopArpeggiatorPlayback() {}

@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## K keyboard recording (K.1)
+
+Build `v2026.10.21.K.1` changes **Record Keyboard / Rec K** to stop the current pattern, play a four-beat count-in at the current BPM, and restart the current editable pattern on the recording downbeat. An armed Song cache does not replace that pattern. A second Record press cancels without replacing the preceding take; cancellation during the final count-in beat also stops future-scheduled sources. Missed transport deadlines cancel visibly rather than saving an unaccompanied take.
+
+**Set Recording Level · K** and a recording VU are directly below the keyboard. Raised defaults are Grain 160%, Osc 180%, Q Piano and Q Strings 250%; each sound remembers its own 0–400% setting in the existing account-scoped patch/state. Explicit older non-default gain settings migrate; the former default of 100% adopts the new instrument defaults. Recording level is protected from patch randomisation. It scales only the keyboard capture bus, once, before metering/recording; it never changes the monitored instrument, metronome or backing, and no post-capture gain is applied again. The VU shows recording RMS/peak and a clipping warning. Its analyser connection and 10 Hz timer exist only while the meter is intersecting the viewport and the document/audio context is active.
+
+Checks: `node --test tests/k-count-in-level.test.js`; `tests/k-count-in-level-browser.cjs` uses only the disposable loopback server for native touch controls, four real instrument captures, count-in/transport alignment, exact live input gain, backing/count-in exclusion, cancellation, saved settings and portrait/landscape layouts. Installed Linux WebKit lacks MediaRecorder: its real VU/layout/persistence checks run, but actual captures run in Chromium. Physical iPhone recording remains untested. No stored audio or Song/Undo device-ownership formats are changed.
+
 ## Matched action colours and generated-loop pitch (UI.1)
 
 - Build `v2026.10.20.UI.1`: all Performance Actions reuse the authoritative dark navigation/mixer/layer palette, retaining the raised shading, white text and light borders. RadioLab, VideoLab, drums, synth and recording actions match their modules; Mega and Sparse use exactly their side-jump colours. Active states keep the same hue with an inset marker instead of replacing every colour with teal.
