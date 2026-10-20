@@ -200,4 +200,6 @@ Build `v2026.10.20.AI.7` adds contextual Verse/Chorus/Bridge/Middle 8 generation
 
 Build `v2026.10.20.AI.8` adds actual per-request token usage, a floating generation activity/Cancel panel, and a lightweight metadata-only Rename path independent of audio readiness. No saved-audio or Song format changes.
 
+Build `v2026.10.20.AI.9` makes **Refine current patch** available for Mega Random, loaded or manually edited patches before any AI generation, without requiring a main prompt. Store/Recall save any live patch; guidance is above the refinement box. Existing samples, Undo and storage formats are preserved.
+
 Build `v2026.10.20.AI.3` adds a bright-pink prompt-to-patch-direction card, fixed GPT-6.1 Sol, direct Generate & Apply with Undo, and a large Jump shortcut. See [AI_PATCH_DIRECTION.md](AI_PATCH_DIRECTION.md) for scope, setup, checks and rollback.

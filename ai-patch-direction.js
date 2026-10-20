@@ -80,9 +80,11 @@
         byId('aiPatchReplay').disabled = Boolean(request) || locked;
         byId('aiPatchHear').disabled = Boolean(request) || locked;
         byId('aiPatchPrompt').disabled = Boolean(request) || locked;
-        byId('aiPatchFollowup').hidden = !lastPrompt;
+        byId('aiPatchFollowup').hidden = locked;
+        byId('aiPatchRegenerateGroup').hidden = !lastPrompt;
         byId('aiPatchLastPrompt').textContent = lastPrompt;
-        for (const id of ['aiPatchRegenerate', 'aiPatchRefine', 'aiPatchRefinement']) byId(id).disabled = Boolean(request) || locked || !lastPrompt;
+        byId('aiPatchRegenerate').disabled = Boolean(request) || locked || !lastPrompt;
+        for (const id of ['aiPatchRefine', 'aiPatchRefinement']) byId(id).disabled = Boolean(request) || locked || !schema;
         for (const id of ['aiPatchSavePrompt', 'aiPatchPromptName', 'aiPatchSavedPrompts', 'aiPatchRefreshPrompts']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest);
         for (const id of ['aiPatchRecallPrompt', 'aiPatchRemovePrompt']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest) || !byId('aiPatchSavedPrompts').value;
         byId('aiPatchCard').setAttribute('aria-busy', String(Boolean(request)));
@@ -183,9 +185,10 @@
         if (request || locked || !schema) return;
         const repeatedSection = mode === 'regenerate' && lastSection;
         if (repeatedSection) section = { ...lastSection };
-        const prompt = mode === 'regenerate' ? lastPrompt : byId('aiPatchPrompt').value.trim();
+        const editorPrompt = byId('aiPatchPrompt').value.trim();
+        const prompt = mode === 'regenerate' ? lastPrompt : mode === 'refine' && !editorPrompt ? 'Refine the current patch while preserving its musical identity.' : editorPrompt;
         const refinement = mode === 'refine' ? byId('aiPatchRefinement').value.trim() : mode === 'section' ? byId('aiPartInstruction').value.trim() : '';
-        if (!['generate', 'refine', 'regenerate', 'section'].includes(mode) || (mode !== 'generate' && !lastPrompt)) return;
+        if (!['generate', 'refine', 'regenerate', 'section'].includes(mode) || (['regenerate', 'section'].includes(mode) && !lastPrompt)) return;
         if (mode === 'refine' && !refinement) { status('Describe what should change in the refinement box.'); return; }
         const usedPrompt = mode === 'refine' ? `${prompt}\n\nRefinement: ${refinement}` : mode === 'section' ? `${prompt}\n\nSection: ${section.type} (${section.bars} bars).${refinement ? ' ' + refinement : ''}` : prompt;
         const requestMode = repeatedSection ? 'section' : mode;
@@ -236,7 +239,9 @@
             byId('aiActivityPhase').textContent = 'Applying recipe · loading sounds'; activity.phase = 'applying'; update();
             const result = await adapter().execute(recipe, fingerprint, { signal, mode: requestMode, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
             if (locked || token !== serial) return;
-            result.promptBefore = lastPrompt; result.sectionBefore = lastSection; previous = result; lastPrompt = usedPrompt;
+            result.promptBefore = lastPrompt; result.sectionBefore = lastSection;
+            if (mode === 'refine') result.editorPromptBefore = editorPrompt;
+            previous = result; lastPrompt = usedPrompt;
             if (requestMode === 'section') lastSection = { ...section };
             else if (mode !== 'refine') lastSection = null;
             byId('aiPatchPrompt').value = usedPrompt;
@@ -261,7 +266,8 @@
         try {
             report('Undo: restoring previous controls, tempo, loop patterns and samples…');
             const result = await adapter().undo(previous.before, previous.fingerprint);
-            lastPrompt = previous.promptBefore || ''; lastSection = previous.sectionBefore || null; byId('aiPatchPrompt').value = lastPrompt || byId('aiPatchPrompt').value;
+            lastPrompt = previous.promptBefore || ''; lastSection = previous.sectionBefore || null;
+            byId('aiPatchPrompt').value = lastPrompt || (Object.hasOwn(previous, 'editorPromptBefore') ? previous.editorPromptBefore : byId('aiPatchPrompt').value);
             previous = null; rendered = null;
             byId('aiPatchPreviewStatus').textContent = 'Patch restored. Render a fresh preview to capture this version.';
             inventory(); report('Undo complete. Previous patch and samples restored.');
@@ -320,7 +326,7 @@
         }, true);
         update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-activity-8', document.baseURI), { credentials: 'same-origin' });
+            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-current-patch-9', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
             if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 12) throw Error();

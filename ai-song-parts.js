@@ -30,7 +30,7 @@
             row.querySelector('.ai-part-meta').textContent = stored ? `${stored.bpm} BPM · ${stored.patternSteps / 16}-bar pattern × ${stored.repeats} = ${stored.patternSteps / 16 * stored.repeats} bars · ${stored.audioAssets} audio assets · saved to your account` : 'Store the current editable pattern and its sounds here.';
         }
         const context = ai()?.direction();
-        byId('aiPartContext').textContent = context?.section ? `${label(context.section.type)} · four-bar pattern × ${context.section.bars / 4} = ${context.section.bars} bars. Store this version before developing another part.` : context?.prompt ? 'Current AI take is ready. Store it before generating the next section.' : 'Generate or recall a take first. Store the original in a slot before developing another section.';
+        byId('aiPartContext').textContent = context?.section ? `${label(context.section.type)} · four-bar pattern × ${context.section.bars / 4} = ${context.section.bars} bars. Store this version before developing another part.` : context?.prompt ? 'Store saves whatever patch is live now, including your manual changes. Store it before generating the next section.' : 'Store any current patch, including Mega Random or manual edits. No AI generation is needed. Use “What should change?” above to ask AI to refine it.';
     }
     function accept(payload, replaceNames = false) {
         if (!payload.ok || !Array.isArray(payload.parts) || payload.parts.length > 5 || payload.parts.some(p => !Number.isInteger(p.slot) || p.slot < 1 || p.slot > 5 || typeof p.name !== 'string' || p.name.length > 100 || !/^[a-f0-9]{64}$/.test(p.sha256) || !Number.isInteger(p.revision) || p.revision < 1 || typeof p.prompt !== 'string' || p.prompt.length > 1500)) throw Error(payload.error || 'Saved part list is unreadable.');
@@ -92,7 +92,8 @@
                     const fingerprint = root.mygrainAiPatchAdapter.fingerprint({ ignoreQBank: true }), fullFingerprint = root.mygrainAiPatchAdapter.fingerprint(), context = ai().direction();
                     const body = await adapter.capture(); check();
                     ai().acceptCapture(fullFingerprint, fingerprint);
-                    const section = context.section;
+                    // A new/manual patch may have a different grid from the previous AI section.
+                    const section = root.mygrainAiPatchAdapter.musicalState().X.length === 64 ? context.section : null;
                     const metadata = { slot, revision: stored?.revision || 0, name: currentName, prompt: context.prompt || byId('aiPatchPrompt').value.trim(), section, repeats: section ? section.bars / 4 : 1 };
                     const result = await jsonRequest({ method: 'POST', signal, headers: { 'Content-Type': 'application/zip', 'X-Mygrain-AI-Part': utf8Base64(metadata) }, body }); check(); accept(result);
                     message(`Stored Take ${slot} · ${currentName}. Pattern, sounds and prompt are saved; Recall restores them.`);

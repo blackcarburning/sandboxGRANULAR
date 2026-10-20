@@ -1,14 +1,16 @@
-# AI song sections and editable part takes (AI.8)
+# AI song sections and editable part takes (AI.9)
 
 ## Use
 
-1. Generate an initial AI take. Name a slot and **Store Take 1** to preserve the original.
+1. Start from any live patch—Mega Random, loaded, manually edited or AI-generated. Name a slot and **Store Take 1** to preserve its complete editable state and sounds. Store/Recall do not require an AI prompt or generation. **What should change? → Refine current patch** can apply AI guidance directly to this current patch, with an optional main prompt. To develop related song sections, generate/refine an initial direction or recall a take that has one.
 2. Choose **Verse, Chorus, Bridge or Middle 8**, optionally allow sparse rolls, and write a direction for the next part. **Generate progression** uses the current Q harmony, X/L notes and drum patterns as context.
 3. **Hear patch**, **Refine**, **Regenerate same prompt** and **Undo** remain available. Section regeneration retains its section type/length and current sources. Refinement keeps the section context. Unsent editor changes are ignored by Regenerate, as before.
 4. Name and **Store** the variant in one of five coloured slots. **Recall** restores controls, patterns, source audio and prompt context, without starting playback. **Rename** changes the saved name without changing audio. **Refresh part takes** picks up other-device saves.
 5. Create/select a Song, then **Add to Song** on a saved slot. This copies that saved archive and its repeats, not the current live patch. Existing Song parts and the live patch are unchanged. Reorder, reuse, play or export with existing Song controls.
 
 The original WAV Take 1–5 / Upload Takes workflow is untouched. This is a separate editable bank. Store replaces the active version of its slot, not an append-only list. Names need not be unique across slots. Another account cannot read the slots. A second device can recall them without the first device's localStorage/IndexedDB.
+
+AI.9 exposes refinement before any AI take exists, above the section/take bank. Its guidance explicitly describes non-AI patches and keeping current library samples. Regenerate remains available only after a successful AI direction. If a manual change leaves a different grid length from a previous four-bar AI section, Store drops that incompatible section/repeat label and saves the current pattern once; it never substitutes the old generated patch. No take/database format change.
 
 ### Task feedback and Rename (AI.8)
 

@@ -54,7 +54,7 @@ const results = [];
                 if (u.pathname.endsWith('/api/ai-patch-direction')) {
                     const data = req.postDataJSON(); requests.push(data); const held = mode;
                     if (held === 'hold') await new Promise(resolve => release = resolve);
-                    if (process.env.AI_PARTS_REAL_MODEL === '1' && data.mode === 'section') {
+                    if ((process.env.AI_PARTS_REAL_MODEL === '1' && data.mode === 'section') || (process.env.AI_PARTS_REAL_REFINE === '1' && data.mode === 'refine' && requests.length === 1)) {
                         const response = await r.fetch({ timeout: 90000 });
                         fs.writeFileSync(out + '/real-model.json', JSON.stringify({ request: data, status: response.status(), response: await response.json() }, null, 2));
                         return r.fulfill({ response });
@@ -67,6 +67,10 @@ const results = [];
                 if (req.method() === 'POST' && u.pathname.endsWith('/api/source-sample')) {
                     const data = req.postDataJSON(); loads++;
                     return r.fulfill({ contentType: 'audio/wav', headers: { 'X-Mygrain-Source-Name': data.source + '.wav', 'X-Mygrain-Source-Path': data.source + '.wav' }, body: wav(data.source === 'samples_bass' ? 65.41 : data.source === 'samples_kicks' ? 60 : data.source === 'samples_snares' ? 310 : 2200) });
+                }
+                if (process.env.AI_PARTS_CURRENT_PATCH === '1' && req.method() === 'POST' && u.pathname.endsWith('/api/bastardloop')) {
+                    const data = req.postDataJSON(); loads++;
+                    return r.fulfill({ contentType: 'audio/wav', headers: { 'X-Mygrain-Bastardloop-Meta': Buffer.from(JSON.stringify({ bpm: data.bpm, sourceKey: data.source, sampleNames: ['mega-fixture.wav'], durationSeconds: .5 })).toString('base64url') }, body: wav(220) });
                 }
                 if (liveAssets && u.pathname.includes('/api/')) {
                     // Every API call goes to a disposable localhost store, never the production account backend.
@@ -94,7 +98,7 @@ const results = [];
             const prompt = 'Warm C minor strings and matching bass at 104 BPM, a sparse steady kit.';
             try {
                 await p.goto(base); await p.waitForFunction(() => mygrainAiPatch?.ready && mygrainAiParts?.ready && mygrainSongBeta && !mygrainSongBeta.busy);
-                if (liveAssets) assert.match(await p.locator('.build-badge').first().textContent(), /v2026.10.20.AI.8/);
+                if (liveAssets) assert.match(await p.locator('.build-badge').first().textContent(), /v2026.10.20.AI.9/);
                 await p.locator('#start-btn').click(); await p.waitForFunction(() => isAudioGraphReady() && !engineStarting && !stateSaveSuspended);
                 await p.evaluate(() => { stopAllPerformancePlayback({ silent: true }); syncBastardLoopKUi(); syncPatternLengthControls(16, { skipSave: true }); window.__partsContext = audioContext; });
                 await p.evaluate(() => {
@@ -106,6 +110,26 @@ const results = [];
                         compare(before, after, 'capture'); window.__captureChanges = changes; return result;
                     };
                 });
+                if (process.env.AI_PARTS_CURRENT_PATCH === '1') {
+                    assert(await p.locator('#aiPatchFollowup').isVisible()); assert(await p.locator('#aiPatchRefine').isEnabled()); assert(await p.locator('#aiPatchRegenerateGroup').isHidden());
+                    assert.match(await p.locator('#aiPatchRefineHelp').textContent(), /any current patch.*Mega Random.*No AI generation/s);
+                    assert(await p.locator('#aiPatchRefinement').evaluate(el => Boolean(document.getElementById('aiPatchRefineHelp').compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)));
+                    await p.locator('#performanceMegaRandomBtn').click(); await p.waitForFunction(() => !megaRandomizeInFlight && !stateSaveSuspended, { timeout: 90000 });
+                    await p.evaluate(() => { stopAllPerformancePlayback({ silent: true }); syncBastardLoopKUi(); });
+                    assert.equal(requests.length, 0); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), '');
+                    const megaMusic = await music(); await p.locator('#aiPartName5').fill('Mega without AI'); await slot(5, 'store', /^Stored Take 5/);
+                    const savedMega = (await (await ctx.request.get(apiBase + 'api/ai-parts', { headers })).json()).parts.find(x => x.slot === 5); assert.equal(savedMega.prompt, ''); assert.equal(savedMega.section, null); assert(savedMega.audioAssets > 0); assert.equal(requests.length, 0);
+                    await p.evaluate(() => { const input = document.getElementById('globalBpmSlider'); input.value = String(sequencerBPM === 127 ? 128 : 127); input.dispatchEvent(new Event('input', { bubbles: true })); });
+                    await slot(5, 'recall', /^Recalled Take 5/); assert.deepEqual(await music(), megaMusic); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), '');
+                    await p.evaluate(() => { const input = document.getElementById('performanceBastardLoopXLevel'); input.value = '49'; input.dispatchEvent(new Event('input', { bubbles: true })); window.__manualBass = bastardLoopXSampleBuffer; window.__manualDrums = [drumMachineKickBuffer, drumMachineSnareBuffer, drumMachineHatBuffer]; });
+                    const manual = await music(), manualLoads = loads;
+                    await p.locator('#aiPatchRefinement').fill('Make the current bass quieter; keep these notes, chords and kit.'); await click('#aiPatchRefine');
+                    assert.equal(requests.length, 1); assert.equal(requests[0].mode, 'refine'); assert.deepEqual(requests[0].musicalState, manual); assert.equal(requests[0].current.performanceBastardLoopXLevel, 49); assert.equal(loads, manualLoads); assert(Number(await p.locator('#performanceBastardLoopXLevel').inputValue()) < 49);
+                    assert(await p.evaluate(() => bastardLoopXSampleBuffer === __manualBass && drumMachineKickBuffer === __manualDrums[0] && drumMachineSnareBuffer === __manualDrums[1] && drumMachineHatBuffer === __manualDrums[2]));
+                    await click('#aiPatchUndo', /^Undone/); assert.equal(await p.locator('#performanceBastardLoopXLevel').inputValue(), '49'); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), ''); assert.deepEqual(await music(), manual); assert(!await p.evaluate(() => mygrainAiPatch.diagnostics().lastPromptAvailable)); assert(await p.locator('#aiPatchRefine').isEnabled());
+                    await p.locator('#aiPatchRefinement').fill('');
+                    await p.locator('#aiPatchRefinement').scrollIntoViewIfNeeded(); await p.screenshot({ path: out + '/' + engine + '-' + viewport.width + '-current-patch.png' });
+                }
                 await p.locator('#aiPatchPrompt').fill(prompt); await click('#aiPatchGenerate');
                 assert.match(await p.locator('#aiPatchUsage').textContent(), /9,200 tokens.*9,000 input \(8,000 cached\).*200 output/);
                 const original = await music(); await p.locator('#aiPartName1').fill('Verse original'); await slot(1, 'store', /^Stored Take 1/);
@@ -120,6 +144,11 @@ const results = [];
                 await p.locator('#aiPartName2').fill('Chorus lift'); await slot(2, 'store', /^Stored Take 2/);
                 await click('#aiPatchUndo', /^Undone/); assert.deepEqual(await music(), original); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), prompt);
                 await slot(2, 'recall', /^Recalled Take 2/); assert.deepEqual(await music(), chorus); assert.equal(await p.locator('#aiPatchPrompt').inputValue(), chorusPrompt);
+                if (process.env.AI_PARTS_CURRENT_PATCH === '1') {
+                    await p.evaluate(() => syncPatternLengthControls(16, { skipSave: true })); await p.locator('#aiPartName4').fill('Manual one-bar edit'); await slot(4, 'store', /^Stored Take 4/);
+                    const manualStored = (await (await ctx.request.get(apiBase + 'api/ai-parts', { headers })).json()).parts.find(x => x.slot === 4); assert.equal(manualStored.patternSteps, 16); assert.equal(manualStored.repeats, 1); assert.equal(manualStored.section, null);
+                    await slot(2, 'recall', /^Recalled Take 2/); assert.deepEqual(await music(), chorus);
+                }
                 assert(await p.evaluate(() => !mygrainQ.running && !drumMachinePlaying && !bastardLoopPlaying));
                 await p.evaluate(() => { window.__renameFingerprint = mygrainAiPatchAdapter.fingerprint(); window.__captureBeforeRename = mygrainSongBetaAdapter.capture; window.__adapterBeforeRename = mygrainAiPatchAdapter; mygrainSongBetaAdapter.capture = () => { throw Error('Rename must not capture audio'); }; window.mygrainAiPatchAdapter = { ...mygrainAiPatchAdapter, assertReady() { throw Error('Rename must not require the engine'); } }; });
                 const beforeRenameRequests = partRequests.length, tokensBeforeRename = await p.locator('#aiPatchUsage').textContent();
