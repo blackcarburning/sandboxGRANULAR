@@ -783,59 +783,11 @@
         update();
     }
 
-    function installPhoneCardActions() {
-        const holdMs = 350, bypass = new WeakSet(), blocked = new WeakMap();
-        let gesture = null;
-        const cardSelector = '.performance-feature-card[aria-label^="Bastardloop"], #performanceDrumMachineCard, [aria-label="Dropbox sample layer controls"], .drum-machine-track-card, #bastardLoopLOverlay, #bastardLoopXOverlay, #bastardLoopQOverlay';
+    function installSoloButtonStyles() {
         const isSoloButton = button => button.matches('.mygrain-solo-button, .performance-layer-solo-btn, .performance-mixer-solo-btn, [data-source-waveform-solo], [data-grain-layer-solo], [data-q-action="solo"], #performanceSampleSoloBtn') || /^solo\b|\bsolo (on|off)$/i.test(button.textContent.trim());
-        function protectedButton(button) {
-            if (!button || button.disabled || !button.closest(cardSelector)) return false;
-            // Solo is a reversible performance toggle, not a destructive action.
-            // Let the browser handle normal taps and cancel them naturally on scroll.
-            if (isSoloButton(button)) return false;
-            if (button.matches('.key, [data-note], [data-q-step], [data-step], .lead-sequencer-step-btn, .lead-sequencer-key, .q-step, [data-q-degree], [data-q-pitch], .drum-machine-step, .drum-machine-step-btn, [data-q-pad]')) return false;
-            return !/\bstop\b|\bclose\b|\bcancel\b/i.test(`${button.id.replace(/([a-z])([A-Z])/g, '$1 $2')} ${button.textContent}`);
-        }
-        function cancel() {
-            if (!gesture) return;
-            blocked.set(gesture.button, performance.now());
-            gesture.button.classList.remove('phone-action-holding'); gesture = null;
-        }
-        document.addEventListener('pointerdown', event => {
-            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
-            const button = event.target.closest('button');
-            if (!protectedButton(button)) return;
-            cancel(); gesture = { button, id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
-            button.classList.add('phone-action-holding'); blocked.set(button, performance.now());
-            event.stopImmediatePropagation();
-        }, true);
-        document.addEventListener('pointermove', event => {
-            if (!gesture || event.pointerId !== gesture.id) return;
-            if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10) cancel();
-        }, { capture: true, passive: true });
-        document.addEventListener('pointercancel', cancel, true);
-        document.addEventListener('scroll', cancel, { capture: true, passive: true });
-        document.addEventListener('pointerup', event => {
-            if (!gesture || event.pointerId !== gesture.id) return;
-            const saved = gesture, elapsed = performance.now() - saved.time;
-            const hit = document.elementFromPoint(event.clientX, event.clientY)?.closest('button') === saved.button;
-            cancel(); event.preventDefault(); event.stopImmediatePropagation();
-            if (elapsed < holdMs || !hit || saved.button.disabled) { setStatus('Hold loop-card buttons briefly, then release to apply.'); return; }
-            if (window.mygrainCardHistory?.busy) { setStatus('Wait for the current sound change to finish.'); return; }
-            bypass.add(saved.button);
-            try { saved.button.click(); } finally { bypass.delete(saved.button); }
-        }, true);
-        document.addEventListener('click', event => {
-            const button = event.target.closest('button');
-            if (!button || bypass.has(button)) return;
-            if (performance.now() - (blocked.get(button) ?? -Infinity) < 1200 && (event.detail > 0 || event.pointerType === 'touch' || event.sourceCapabilities?.firesTouchEvents)) {
-                event.preventDefault(); event.stopImmediatePropagation();
-            }
-        }, true);
         function mark(root = document) {
             const buttons = root.matches?.('button') ? [root] : root.querySelectorAll('button');
             buttons.forEach(button => {
-                if (protectedButton(button)) { button.classList.add('phone-card-action'); button.title ||= 'On phones: hold briefly, then release.'; }
                 if (isSoloButton(button)) button.classList.add('mygrain-solo-button');
             });
         }
@@ -862,7 +814,7 @@
         syncLoopLayerSoloButtons();
     }
 
-    if (!window.__mygrainSongRenderDeck) { mountCardSolos(); installCardHistory(); installPhoneCardActions(); }
+    if (!window.__mygrainSongRenderDeck) { mountCardSolos(); installCardHistory(); installSoloButtonStyles(); }
 
     window.mygrainSongBetaAdapter = adapter;
     if (window.__mygrainSongRenderDeck) return;

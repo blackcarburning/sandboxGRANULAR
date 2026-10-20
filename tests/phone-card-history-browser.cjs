@@ -9,30 +9,48 @@ try{
  await context.request.post(base+'api/auth/register',{data:{username:'touchqa'+Date.now(),password:'isolated-history-fixture'}});
  await page.goto(base);await page.waitForFunction(()=>window.mygrainCardHistory&&mygrainQ&&document.documentElement.dataset.mygrainStartup==='ready');
  await page.locator('#start-btn').tap(); await page.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended);
- const cdp=process.env.WEBKIT?null:await context.newCDPSession(page);
- async function hold(selector,ms=420,move=0,cancel=false){const el=page.locator(selector);await el.scrollIntoViewIfNeeded();const box=await el.boundingBox(),x=box.x+box.width/2,y=box.y+box.height/2;
- if(cdp){await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});await page.waitForTimeout(ms);if(move)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y+move}]});await cdp.send('Input.dispatchTouchEvent',{type:cancel?'touchCancel':'touchEnd',touchPoints:[]});}
- else {await page.dispatchEvent(selector,'pointerdown',{pointerType:'touch',pointerId:8,clientX:x,clientY:y,bubbles:true});await page.waitForTimeout(ms);if(move)await page.dispatchEvent(selector,'pointermove',{pointerType:'touch',pointerId:8,clientX:x,clientY:y+move,bubbles:true});await page.dispatchEvent(selector,cancel?'pointercancel':'pointerup',{pointerType:'touch',pointerId:8,clientX:x,clientY:y+move,bubbles:true});}
+ // An empty account has no source yet: seed disposable audio so Edit is enabled.
+ await page.evaluate(()=>{bastardLoopLSampleBuffer=audioContext.createBuffer(1,4410,44100);bastardLoopXSampleBuffer=audioContext.createBuffer(1,4410,44100);syncBastardLoopLUi();syncBastardLoopXUi();});
+ // Every ordinary card action must accept a native tap, not a synthetic click or hold.
+ for (const part of ['L','X','Q']) {
+   await page.locator(`#performanceBastardLoop${part}EditBtn`).tap();
+   assert.equal(await page.locator(`#bastardLoop${part}Overlay`).isVisible(),true);
+   await page.locator(`#bastardLoop${part}CloseBtn`).tap();
+   assert.equal(await page.locator(`#bastardLoop${part}Overlay`).isVisible(),false);
  }
+ for (const part of ['L','X']) {
+   await page.locator(`#performanceBastardLoop${part}OpenSynthBtn`).tap();
+   assert.equal(await page.locator('#synthPopupOverlay').isVisible(),true);
+   await page.locator('#oscPopupCloseBtn').tap();
+   await page.locator(`#performanceBastardLoop${part}LoadBtn`).tap();
+   assert.equal(await page.locator('#dropboxSampleBrowserOverlay').isVisible(),true);
+   await page.locator('#dropboxSampleBrowserCloseBtn').tap();
+ }
+ await page.evaluate(()=>{setBastardLoopLSourceMode('sample',{silent:true,skipSave:true});setBastardLoopXSourceMode('sample',{silent:true,skipSave:true});});
+ for (const part of ['L','X']) {
+   const button=page.locator(`#performanceBastardLoop${part}SynthModeBtn`);
+   await button.tap();assert.match(await button.textContent(),/OSC3|Synth/);
+   await page.waitForTimeout(200);await button.tap();assert.match(await button.textContent(),/Sample/);
+ }
+ assert.equal(await page.locator('.phone-card-action,.phone-action-holding').count(),0);
+ console.log('PASS ordinary native taps: L/X/Q Edit Sequence, L/X Open Synth, sample browsers and source switches');
  const seq=()=>page.evaluate(()=>JSON.stringify(bastardLoopXSequence));
  const count=()=>page.evaluate(()=>mygrainCardHistory.counts);
- const start=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();assert.equal(await seq(),start);console.log('PASS short tap blocked');
- await hold('#performanceBastardLoopXRandomPatternBtn',420,35);assert.equal(await seq(),start);await hold('#performanceBastardLoopXRandomPatternBtn',420,0,true);assert.equal(await seq(),start);console.log('PASS scroll/cancel blocked');
- await hold('#performanceBastardLoopXRandomPatternBtn');const one=await seq();assert.notEqual(one,start);assert.deepEqual(await count(),{undo:1,redo:0});
- await hold('#performanceBastardLoopXRandomPatternBtn');const two=await seq();assert.notEqual(two,one);assert.deepEqual(await count(),{undo:2,redo:0});console.log('PASS hold applies once with 2 levels');
+ const start=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();const one=await seq();assert.notEqual(one,start);assert.deepEqual(await count(),{undo:1,redo:0});
+ await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();const two=await seq();assert.notEqual(two,one);assert.deepEqual(await count(),{undo:2,redo:0});console.log('PASS ordinary native taps apply once with 2 history levels');
  await page.evaluate(()=>{document.getElementById('performanceBastardLoopXLevel').value='41';document.getElementById('performanceBastardLoopXLevel').dispatchEvent(new Event('input'));});
  await page.locator('#sectionJumpUndoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),one);assert.equal(await page.$eval('#performanceBastardLoopXLevel',e=>e.value),'41');
  await page.locator('#sectionJumpUndoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),start);assert.deepEqual(await count(),{undo:0,redo:2});
  await page.locator('#sectionJumpRedoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),one);
  await page.locator('#sectionJumpRedoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),two);console.log('PASS exact Undo x2 / Redo x2; unrelated volume preserved');
- await page.evaluate(()=>randomizeBastardLoopXPattern());await page.evaluate(()=>randomizeBastardLoopLPattern());assert.deepEqual(await count(),{undo:2,redo:0});
+ await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();await page.locator('#performanceBastardLoopLRandomPatternBtn').tap();assert.deepEqual(await count(),{undo:2,redo:0});
  await page.evaluate(()=>mygrainCardHistory.undo());await page.evaluate(()=>randomizeBastardLoopXPattern());assert.deepEqual(await count(),{undo:2,redo:0});console.log('PASS bounded history and redo branch cleared');
  // Q changes its sequence in place: its own card action must snapshot before mutation.
- const qbefore=await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence));await page.evaluate(()=>document.getElementById('performanceBastardLoopQRandomPatternBtn').click());const qafter=await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence));assert.notEqual(qbefore,qafter);await page.evaluate(()=>mygrainCardHistory.undo());assert.equal(await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence)),qbefore);await page.evaluate(()=>mygrainCardHistory.redo());assert.equal(await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence)),qafter);console.log('PASS Q card pattern exact undo/redo');
+ const qbefore=await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence));await page.locator('#performanceBastardLoopQRandomPatternBtn').tap();const qafter=await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence));assert.notEqual(qbefore,qafter);await page.evaluate(()=>mygrainCardHistory.undo());assert.equal(await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence)),qbefore);await page.evaluate(()=>mygrainCardHistory.redo());assert.equal(await page.evaluate(()=>JSON.stringify(mygrainQ.state.sequence)),qafter);console.log('PASS Q card pattern exact undo/redo');
  await page.evaluate(()=>{document.getElementById('drumMachineClapPatternBtn').click()});const clap=await page.evaluate(()=>JSON.stringify(getDrumMachinePattern('clap')));await page.evaluate(()=>mygrainCardHistory.undo());await page.evaluate(()=>mygrainCardHistory.redo());assert.equal(await page.evaluate(()=>JSON.stringify(getDrumMachinePattern('clap'))),clap);console.log('PASS extra drum track history');
  // A real original bass load must be redo-able without rerunning the download.
- await page.evaluate(async()=>{setBastardLoopXRepository('samples_altbass');await loadBastardLoopXSampleFromSource();window.__firstBass=bastardLoopXSampleBuffer;window.__firstMeta=JSON.stringify(bastardLoopXSampleMetadata);});
- await page.evaluate(async()=>{await loadBastardLoopXSampleFromSource();window.__secondBass=bastardLoopXSampleBuffer;window.__secondMeta=JSON.stringify(bastardLoopXSampleMetadata);});
+ await page.evaluate(()=>setBastardLoopXRepository('samples_altbass'));await page.locator('#performanceBastardLoopXRandomBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy&&!!bastardLoopXSampleBuffer);await page.evaluate(()=>{window.__firstBass=bastardLoopXSampleBuffer;window.__firstMeta=JSON.stringify(bastardLoopXSampleMetadata);});
+ await page.locator('#performanceBastardLoopXRandomBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy&&bastardLoopXSampleBuffer!==window.__firstBass);await page.evaluate(()=>{window.__secondBass=bastardLoopXSampleBuffer;window.__secondMeta=JSON.stringify(bastardLoopXSampleMetadata);});
  let bassRequests=0;page.on('request',r=>{if(/sample-source|sample-audio|bastardloop/.test(r.url()))bassRequests++});
  await page.evaluate(()=>mygrainCardHistory.undo());assert.equal(await page.evaluate(()=>bastardLoopXSampleBuffer===__firstBass&&JSON.stringify(bastardLoopXSampleMetadata)===__firstMeta),true);
  await page.evaluate(()=>mygrainCardHistory.redo());assert.equal(await page.evaluate(()=>bastardLoopXSampleBuffer===__secondBass&&JSON.stringify(bastardLoopXSampleMetadata)===__secondMeta),true);assert.equal(bassRequests,0);console.log('PASS actual bass PCM identity and metadata restored; no redo downloads');
@@ -52,10 +70,10 @@ try{
 
  await page.evaluate(()=>setLoopLayerSolo('none',{silent:true}));
  // Async action stays one transaction until the returned Promise settles.
- await page.evaluate(()=>{window.__pending=mygrainCardHistory.run('delayed fixture',async()=>{await new Promise(r=>window.__release=r);randomizeBastardLoopXPattern();});});assert.equal(await page.evaluate(()=>mygrainCardHistory.busy),true);assert.equal(await page.$eval('#sectionJumpUndoBtn',e=>e.disabled),true);const whileBusy=await seq();await hold('#performanceBastardLoopXRandomPatternBtn');assert.equal(await seq(),whileBusy);await page.evaluate(()=>__release());await page.evaluate(()=>__pending);assert.equal(await page.evaluate(()=>mygrainCardHistory.busy),false);console.log('PASS asynchronous history waits for completion');
+ await page.evaluate(()=>{window.__pending=mygrainCardHistory.run('delayed fixture',async()=>{await new Promise(r=>window.__release=r);randomizeBastardLoopXPattern();});});assert.equal(await page.evaluate(()=>mygrainCardHistory.busy),true);assert.equal(await page.$eval('#sectionJumpUndoBtn',e=>e.disabled),true);const whileBusy=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();assert.equal(await seq(),whileBusy);await page.evaluate(()=>__release());await page.evaluate(()=>__pending);assert.equal(await page.evaluate(()=>mygrainCardHistory.busy),false);console.log('PASS asynchronous history waits for completion');
  const countsBeforeFailure=await count();await page.evaluate(()=>{try{mygrainCardHistory.run('failed no-op',()=>{throw new Error('fixture');});}catch{}});assert.deepEqual(await count(),countsBeforeFailure);
  const beforePartial=await seq();await page.evaluate(()=>{try{mygrainCardHistory.run('partial fixture',()=>{randomizeBastardLoopXPattern();throw new Error('fixture');});}catch{}});await page.evaluate(()=>mygrainCardHistory.undo());assert.equal(await seq(),beforePartial);console.log('PASS failure without mutation adds no step; partial failure remains undoable');
- // Stop bypasses hold protection, and ordinary keyboard activation stays immediate.
+ // Stop and ordinary keyboard activation stay immediate.
  await page.evaluate(()=>setBastardLoopPlaying(true,{silent:true,skipSave:true}));await page.locator('#performanceBastardLoopXStartBtn').tap();assert.equal(await page.evaluate(()=>bastardLoopPlaying),false);
  const beforeKeyboard=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').focus();await page.keyboard.press('Enter');assert.notEqual(await seq(),beforeKeyboard);console.log('PASS emergency Stop and keyboard activation immediate');
  const held=await page.evaluate(async()=>{setArpeggiatorEnabled(false,{silent:true,skipSave:true});heldNotes=new Set(['C3']);startHeldKeyboardPlayback();randomizeBastardLoopXPattern();await mygrainCardHistory.undo();const keys=activeKeyCount;stopAllPerformancePlayback({silent:true});setHoldEnabled(true,{silent:true,skipSave:true});setArpeggiatorEnabled(true,{silent:true,skipSave:true});playLoopAndHeldKeys({silent:true});randomizeBastardLoopXPattern();await mygrainCardHistory.undo();const arp=isArpeggiatorPlaying();stopAllPerformancePlayback({silent:true});return {keys,arp};});assert.equal(held.keys,1);assert.equal(held.arp,true);console.log('PASS held keyboard and arpeggiator playback restored');
