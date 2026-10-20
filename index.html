@@ -213,9 +213,9 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="mygrain-accounts.css?v=20261018-account-actions-r1">
+    <link rel="stylesheet" href="mygrain-accounts.css?v=20261020-start-screen-3">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261017-account-credits-r2"></script>
+    <script src="mygrain-accounts.js?v=20261020-start-screen-3"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -234,7 +234,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-brand-2';
+            const cacheBuster = '2026-10-20-brand-3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5800,25 +5800,6 @@
             object-fit: contain;
         }
 
-        #start-overlay .mygrain-start-brand {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            margin: 0 0 16px;
-            color: #fff;
-            font-weight: 900;
-            line-height: 1.1;
-            letter-spacing: 0.12em;
-        }
-
-        .mygrain-start-logo {
-            display: block;
-            width: clamp(76px, 20vh, 144px);
-            height: clamp(76px, 20vh, 144px);
-            object-fit: contain;
-        }
-
         @media (max-width: 480px) {
             .simplified-ui .performance-title.mygrain-brand { gap: 8px; font-size: 1.7rem; letter-spacing: 0.06em; }
             .mygrain-brand-logo { width: 56px; height: 56px; }
@@ -5846,13 +5827,8 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.BRAND.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.BRAND.3</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
-        <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
-            <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
-            <button type="button" id="submitSavedDebugLogBtn">Submit Saved Log</button>
-        </div>
     </div>
 
     <!-- Fullscreen Button -->
@@ -5932,7 +5908,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.BRAND.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.BRAND.3</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>

@@ -309,7 +309,7 @@
         return payload;
     }
 
-    function showLogin(message = '') {
+    function showLogin(message = '', mode = new URL(root.location.href).searchParams.get('account')) {
         if (!document.body) return;
         let shell = byId('mygrain-account-shell');
         if (!shell) {
@@ -317,7 +317,7 @@
             shell.id = 'mygrain-account-shell';
             shell.className = 'mygrain-account-shell';
             shell.setAttribute('aria-labelledby', 'mygrainLoginTitle');
-            shell.innerHTML = `<div class="mygrain-account-panel"><h1 id="mygrainLoginTitle">MYGRAIN</h1>
+            shell.innerHTML = `<div class="mygrain-account-panel"><button type="button" id="mygrainLoginBackBtn">Back</button><h1 id="mygrainLoginTitle">MYGRAIN</h1>
                 <p>Log in or create your own workspace. Your browser can remember your login securely.</p>
                 <form id="mygrainLoginForm" action="/mygrain/api/auth/login" method="post">
                     <label for="mygrainLoginUsername">Username</label><input id="mygrainLoginUsername" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="64">
@@ -325,8 +325,17 @@
                     <div class="mygrain-account-actions"><button id="mygrainLoginBtn" type="submit">Log in</button><button id="mygrainCreateUserBtn" type="submit" name="create" value="true">Create user</button></div>
                     <p id="mygrainLoginStatus" role="status" aria-live="polite"></p>
                 </form><p class="mygrain-account-hint">Passwords are never saved in app storage. Only your password manager and a persistent server session remember your login.</p>
-                <p class="mygrain-account-hint">Build v2026.10.17.R.2</p></div>`;
+                <p class="mygrain-account-hint">Build v2026.10.20.BRAND.3</p></div>`;
             document.body.append(shell);
+            byId('mygrainLoginBackBtn').addEventListener('click', () => {
+                if (byId('mygrainLoginForm').dataset.pending) return;
+                if (!byId('start-overlay')?.querySelector('[data-account-state="guest"]')) return;
+                shell.remove();
+                const next = new URL(root.location.href);
+                next.searchParams.delete('account');
+                root.history.replaceState(null, '', next.href);
+                byId('start-btn')?.focus();
+            });
             const password = byId('mygrainLoginPassword');
             byId('mygrainCreateUserBtn').addEventListener('focus', () => password.autocomplete = 'new-password');
             byId('mygrainLoginBtn').addEventListener('focus', () => password.autocomplete = 'current-password');
@@ -361,13 +370,41 @@
                 }
             });
         }
-        if (new URL(root.location.href).searchParams.get('account') === 'create') {
+        byId('mygrainLoginBackBtn').hidden = !byId('start-overlay')?.querySelector('[data-account-state="guest"]');
+        if (mode === 'create') {
             byId('mygrainLoginTitle').textContent = 'MYGRAIN · Create user';
             byId('mygrainLoginPassword').autocomplete = 'new-password';
             const create = byId('mygrainCreateUserBtn');
             create.parentElement.prepend(create);
         }
         byId('mygrainLoginStatus').textContent = message;
+    }
+
+    function renderStartAccount(start) {
+        const account = document.createElement('section');
+        account.className = 'mygrain-start-account';
+        account.dataset.accountState = active ? 'signed-in' : 'guest';
+        account.setAttribute('aria-label', 'Account');
+        account.innerHTML = '<strong>Account: <span id="mygrainStartCurrentUser"></span></strong><div class="mygrain-account-actions"><button type="button" data-mygrain-account-action="login"></button><button type="button" data-mygrain-account-action="create">Create user</button></div>';
+        const label = account.querySelector('#mygrainStartCurrentUser');
+        label.textContent = active ? username : 'Not signed in';
+        label.title = label.textContent;
+        account.querySelector('[data-mygrain-account-action="login"]').textContent = active ? 'Switch user' : 'Log in';
+        account.querySelectorAll('[data-mygrain-account-action]').forEach(button => {
+            button.addEventListener('click', () => active
+                ? logout(button.dataset.mygrainAccountAction)
+                : showLogin('', button.dataset.mygrainAccountAction));
+        });
+        if (active) {
+            const logoutButton = document.createElement('button');
+            logoutButton.type = 'button';
+            logoutButton.dataset.mygrainLogout = 'true';
+            logoutButton.textContent = 'Log out';
+            logoutButton.addEventListener('click', logout);
+            account.querySelector('.mygrain-account-actions').append(logoutButton);
+        }
+        start.insertBefore(account, byId('start-btn'));
+        byId('start-btn').disabled = false;
     }
 
     async function logout(destination) {
@@ -586,13 +623,21 @@
     root.addEventListener('pageshow', event => { if (event.persisted) verifySession(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) verifySession(); });
     document.addEventListener('click', event => {
-        if (!active && event.target.closest?.('#start-btn')) { event.preventDefault(); event.stopImmediatePropagation(); }
+        if (!active && event.target.closest?.('#start-btn')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            showLogin();
+        }
     }, true);
     document.addEventListener('DOMContentLoaded', () => {
         if (!active) {
-            byId('mygrain-account-inert-app')?.remove();
-            document.body.replaceChildren();
-            showLogin(failure || (!/^https?:$/.test(root.location.protocol) ? 'Open MYGRAIN from its server to log in.' : ''));
+            // Keep the protected app inert; clone only the public opening screen.
+            const start = byId('mygrain-account-inert-app')?.content.querySelector('#start-overlay')?.cloneNode(true);
+            document.body.replaceChildren(...(start ? [start] : []));
+            if (start) renderStartAccount(start);
+            if (!start || failure || new URL(root.location.href).searchParams.has('account') || !/^https?:$/.test(root.location.protocol)) {
+                showLogin(failure || (!/^https?:$/.test(root.location.protocol) ? 'Open MYGRAIN from its server to log in.' : ''));
+            }
             return;
         }
         const toolbar = document.createElement('nav');
@@ -607,18 +652,7 @@
         byId('mygrainLogoutBtn').addEventListener('click', logout);
         byId('mygrainSharedWavsBtn').addEventListener('click', () => openShare());
         const start = byId('start-overlay');
-        if (start) {
-            const account = document.createElement('section');
-            account.className = 'mygrain-start-account';
-            account.setAttribute('aria-label', 'Account');
-            account.innerHTML = '<strong>Account: <span id="mygrainStartCurrentUser"></span></strong><p>Your login is remembered. Switching user or creating a user signs you out first; your saved workspace stays unchanged.</p><div class="mygrain-account-actions"><button type="button" data-mygrain-account-action="login">Log in / Switch user</button><button type="button" data-mygrain-account-action="create">Create user</button><button type="button" data-mygrain-logout="true">Log out</button></div>';
-            account.querySelector('#mygrainStartCurrentUser').textContent = username;
-            account.querySelectorAll('[data-mygrain-account-action]').forEach(button => {
-                button.addEventListener('click', () => logout(button.dataset.mygrainAccountAction));
-            });
-            account.querySelector('[data-mygrain-logout]').addEventListener('click', logout);
-            start.insertBefore(account, byId('start-btn'));
-        }
+        if (start) renderStartAccount(start);
         if (byId('start-btn')) byId('start-btn').disabled = false;
     }, { once: true });
 })(typeof window === 'undefined' ? globalThis : window);

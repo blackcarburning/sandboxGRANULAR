@@ -54,6 +54,9 @@ async function jsonRequest(context, path, options = {}) {
 
 async function login(page, username, password, register = false) {
     await page.goto(base, { waitUntil: 'load' });
+    if (!await page.locator('#mygrainLoginForm').isVisible()) {
+        await page.locator(`[data-mygrain-account-action="${register ? 'create' : 'login'}"]`).click();
+    }
     checked(`${username}: login panel fits the phone width`, await page.evaluate(() => {
         const panel = document.querySelector('.mygrain-account-panel').getBoundingClientRect();
         return panel.left >= 8 && panel.right <= innerWidth - 8;
@@ -214,7 +217,7 @@ async function exerciseRenderDatabase(page, username) {
         await frontpagePage.locator('[data-mygrain-account-action="login"]').click();
         await frontpagePage.waitForURL(address => address.searchParams.get('account') === 'login');
         await frontpagePage.locator('#mygrainLoginUsername').waitFor();
-        checked('initial Log in / Switch user completes logout before showing an inert form', !(await (await frontpage.request.get(`${origin}/mygrain/api/auth/session`)).json()).authenticated && await frontpagePage.locator('#start-btn').count() === 0);
+        checked('initial Switch user completes logout before showing an inert form', !(await (await frontpage.request.get(`${origin}/mygrain/api/auth/session`)).json()).authenticated && await frontpagePage.locator('.synth-container').count() === 0);
         await login(frontpagePage, 'frontpage-ui-user', frontpagePassword);
         await frontpagePage.locator('[data-mygrain-account-action="create"]').click();
         await frontpagePage.waitForURL(address => address.searchParams.get('account') === 'create');
@@ -231,8 +234,8 @@ async function exerciseRenderDatabase(page, username) {
             frontpagePage.waitForNavigation({ waitUntil: 'load' }),
             frontpagePage.locator('.mygrain-start-account [data-mygrain-logout]').click()
         ]);
-        await frontpagePage.locator('#mygrainLoginUsername').waitFor();
-        checked('initial Log out returns to the inert login screen', await frontpagePage.locator('#start-btn').count() === 0);
+        await frontpagePage.locator('.mygrain-start-account[data-account-state="guest"]').waitFor();
+        checked('initial Log out returns to the public opening screen with no protected workspace', await frontpagePage.locator('#start-btn').isVisible() && await frontpagePage.locator('.synth-container').count() === 0 && await frontpagePage.locator('#mygrainLoginForm').count() === 0);
         await login(frontpagePage, 'frontpage-ui-user', frontpagePassword);
         checked('initial account actions preserve the original saved workspace', await frontpagePage.evaluate(() => localStorage.getItem('frontpage-preserved-state') === 'saved-workspace'));
         await frontpage.close();

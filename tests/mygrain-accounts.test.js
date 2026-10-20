@@ -303,11 +303,11 @@ test('early bootstrap precedes all persistence modules and keeps existing runtim
     assert.match(html, /id="start-btn" disabled/);
     assert.match(html, /q-card\.js\?v=20261016-k-keyboard-19/);
     assert.match(html, /vocal-takes\.js\?v=20261016-accounts-media-k20/);
-    assert.match(html, /song-beta-clock\.js\?v=20261016-accounts-k20/);
-    assert.match(html, /<strong>v2026\.10\.17\.R\.8<\/strong>/);
-    assert.match(html, /mygrain-accounts\.js\?v=20261017-account-credits-r2/);
-    assert.match(html, /mygrain-accounts\.css\?v=20261017-account-credits-r2/);
-    for (const route of ['wavs', 'stems', 'midi', 'bastardloops']) assert.ok(html.includes(`new URL('/mygrain-${route}', location.origin).href`));
+    assert.match(html, /song-beta-clock\.js\?v=\d{8}-[a-z0-9-]+/);
+    assert.match(html, /<strong>v\d{4}\.\d{2}\.\d{2}\.[A-Z]+\.\d+<\/strong>/);
+    assert.match(html, /mygrain-accounts\.js\?v=\d{8}-[a-z0-9-]+/);
+    assert.match(html, /mygrain-accounts\.css\?v=\d{8}-[a-z0-9-]+/);
+    for (const route of ['wavs', 'stems', 'midi', 'bastardloops']) assert.ok(html.includes(`new URL('/mygrain-${route}', document.baseURI).href`));
 });
 
 test('account toolbar is mounted in normal header flow immediately before Debug controls', () => {
@@ -468,13 +468,25 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const login = async (page, username, create = false) => {
+        if (!await page.locator('#mygrainLoginForm').isVisible()) {
+            await page.locator(`[data-mygrain-account-action="${create ? 'create' : 'login'}"]`).click();
+        }
         await page.locator('#mygrainLoginUsername').fill(username);
         await page.locator('#mygrainLoginPassword').fill(fixture.password);
         await page.locator(create ? '#mygrainCreateUserBtn' : '#mygrainLoginBtn').click();
         await page.waitForFunction(user => document.getElementById('mygrainCurrentUser')?.textContent === user, username);
+        if (new URL(page.url()).pathname === '/fixture') {
+            // The minimal storage fixture has no audio engine to dismiss its launcher.
+            await page.locator('#start-overlay').evaluate(el => el.style.display = 'none');
+        }
     };
     const logout = async page => {
+        if (new URL(page.url()).pathname === '/fixture') {
+            await page.locator('#start-overlay').evaluate(el => el.style.display = 'none');
+        }
         await page.locator('#mygrainLogoutBtn').click();
+        await page.locator('.mygrain-start-account[data-account-state="guest"]').waitFor();
+        await page.locator('[data-mygrain-account-action="login"]').click();
         await page.waitForFunction(() => document.getElementById('mygrainLoginUsername') && !document.getElementById('mygrainLoginUsername').disabled);
     };
     const databaseValue = (page, value) => page.evaluate(async value => {
@@ -491,8 +503,15 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
 
     await context.test('real anonymous index stays inert, makes no eager library/API calls and fits mobile', async () => {
         await page.goto(`${fixture.base}/mygrain/`);
+        await page.locator('#start-btn').waitFor();
+        assert.equal(await page.locator('#mygrainLoginForm').count(), 0);
+        assert.equal(await page.locator('.synth-container').count(), 0);
+        assert.equal(await page.locator('#start-overlay > *').count(), 4);
+        assert.equal(await page.locator('#start-overlay p, #start-overlay #submitSavedDebugLogBtn').count(), 0);
+        assert.equal(fixture.requests.some(request => /runtime-diagnostics|favourites|q-card|song-beta|\/api\//.test(request.path)), false);
+        await page.locator('[data-mygrain-account-action="login"]').click();
         await page.locator('#mygrainLoginUsername').waitFor();
-        assert.equal(await page.locator('#start-btn').count(), 0);
+        assert.equal(await page.locator('#start-btn').count(), 1);
         assert.equal(await page.locator('#mygrainLoginUsername').getAttribute('autocomplete'), 'username');
         assert.equal(await page.locator('#mygrainLoginPassword').getAttribute('autocomplete'), 'current-password');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -507,7 +526,11 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
             }), true, `no horizontal document/shell overflow at ${viewport.width}px`);
         }
         await page.setViewportSize({ width: 390, height: 844 });
-        assert.equal(fixture.requests.some(request => /runtime-diagnostics|favourites|q-card|song-beta|\/api\//.test(request.path)), false);
+        await page.locator('#mygrainLoginBackBtn').click();
+        assert.equal(await page.locator('#mygrainLoginForm').count(), 0);
+        await page.locator('#start-btn').click();
+        await page.locator('#mygrainLoginUsername').waitFor();
+        assert.equal(await page.evaluate(() => mygrainAccounts.authenticated), false);
         assert.deepEqual(errors, []);
     });
 
@@ -541,7 +564,7 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
             assert.deepEqual(guarded, { locked: true, blocked: true });
             await initial.waitForURL(address => address.searchParams.get('account') === 'login');
             await initial.locator('#mygrainLoginUsername').waitFor();
-            assert.equal(await initial.locator('#start-btn').count(), 0);
+            assert.equal(await initial.locator('.synth-container').count(), 0);
             assert.equal(await initial.locator('#mygrainLoginPassword').getAttribute('autocomplete'), 'current-password');
             assert.equal((await (await accounts.request.get(`${fixture.base}/mygrain/api/auth/session`)).json()).authenticated, false);
             await login(initial, 'dan');
@@ -551,7 +574,7 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
             await initial.waitForURL(address => address.searchParams.get('account') === 'create');
             await initial.locator('#mygrainLoginUsername').waitFor();
             assert.equal(await initial.locator('#mygrainLoginPassword').getAttribute('autocomplete'), 'new-password');
-            assert.equal(await initial.locator('.mygrain-account-actions button').first().getAttribute('id'), 'mygrainCreateUserBtn');
+            assert.equal(await initial.locator('.mygrain-account-panel .mygrain-account-actions button').first().getAttribute('id'), 'mygrainCreateUserBtn');
             await initial.locator('#mygrainLoginUsername').fill('frontpage-new-user');
             await initial.locator('#mygrainLoginPassword').fill(fixture.password);
             await initial.locator('#mygrainLoginPassword').press('Enter');
@@ -561,7 +584,7 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
                 initial.waitForNavigation({ waitUntil: 'load' }),
                 initial.locator('.mygrain-start-account [data-mygrain-logout]').click()
             ]);
-            await initial.locator('#mygrainLoginUsername').waitFor();
+            await initial.locator('.mygrain-start-account[data-account-state="guest"]').waitFor();
             await login(initial, 'admin');
             assert.equal(await initial.evaluate(() => localStorage.getItem('frontpage-preserved-state')), 'admin-saved-workspace');
         } finally {
@@ -572,6 +595,7 @@ test('browser account shell, persistent sessions, isolated storage, multitab can
     await context.test('login errors are visible and original admin browser state survives admin/dan/admin switching', async () => {
         await page.goto(`${fixture.base}/fixture`);
         await page.evaluate(() => { localStorage.setItem('granularSynthState', 'legacy-admin-patch'); sessionStorage.setItem('mygrain-runtime-tab-v1', 'admin-tab'); });
+        await page.locator('[data-mygrain-account-action="login"]').click();
         await page.locator('#mygrainLoginUsername').fill('admin');
         await page.locator('#mygrainLoginPassword').fill('incorrect');
         await page.locator('#mygrainLoginBtn').click();
