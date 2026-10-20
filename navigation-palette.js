@@ -121,9 +121,31 @@
     const buttons = Object.freeze({
         sectionJumpMegaRandomBtn: 'mega', sectionJumpMegaRandomPanelBtn: 'mega',
         sectionJumpSparseRandomBtn: 'sparse', sectionJumpSparseRandomPanelBtn: 'sparse',
-        sectionJumpTransportBtn: 'transport', sectionJumpTransportPanelBtn: 'transport'
+        sectionJumpTransportBtn: 'transport', sectionJumpTransportPanelBtn: 'transport',
+        performanceHoldBtn: 'keyboard', performanceGenerateLoopBtn: 'source-wave',
+        performanceGenerateJunkBtn: 'sample', performanceDrumMachineMainStartBtn: 'drums',
+        performanceSeqPlayBtn: 'source-wave', performanceLoopDisableBtn: 'source-wave',
+        performanceRestartAllBtn: 'transport', performanceMainStopAllBtn: 'transport',
+        performanceOscToggleBtn: 'synth', performanceSampleSoloBtn: 'source-wave',
+        performanceNoiseOffBtn: 'actions', performanceTonalDrumsBtn: 'drums',
+        performanceFxMuteBtn: 'fx', performancePanLabResetBtn: 'pan',
+        performanceFinalReverbBtn: 'reverb', performanceFinalFxPlacementBtn: 'fx',
+        performanceFinalFxPlacementLfoBtn: 'lfo', performanceDryFilterBtn: 'filter',
+        performanceLfoSquareBtn: 'lfo', performanceExportBtn: 'export',
+        performanceRepoExportBtn: 'stem-export', performanceWavBrowserBtn: 'wav-browser',
+        performanceMidiBrowserBtn: 'keyboard', performanceExportPatchBtn: 'export',
+        performanceImportPatchBtn: 'sources', performanceKeyboardRecordBtn: 'keyboard',
+        performanceKeyboardToKRecordBtn: 'loop-k', performanceExportPatchZipBtn: 'export',
+        performancePatchBrowserBtn: 'top', performanceRandomizeBtn: 'actions',
+        performanceMegaRandomBtn: 'mega', performanceSparseRandomBtn: 'sparse',
+        performanceResetPatchBtn: 'grain', performanceSynthPopupBtn: 'synth',
+        performanceDrumMachineMainOpenBtn: 'drums', performanceRecordBtn: 'sources',
+        performanceTakeSlot1Btn: 'wave-a', performanceTakeSlot2Btn: 'wave-b',
+        performanceTakeSlot3Btn: 'loop-m', performanceTakeSlot4Btn: 'loop-x',
+        performanceTakeSlot5Btn: 'loop-q', performanceUploadTakesBtn: 'export',
+        performancePanicBtn: 'transport'
     });
-    const selector = '.section-jump-option, .section-jump-quick, .performance-layer-jump-btn, [data-jump-target], [data-jump-click], [data-granular-keyboard-ready], .performance-mixer-jump-btn, [data-gain-stage-control], #performanceLayerSwitchesCard button, #performanceMixerCard button, .performance-mixer-solo-btn';
+    const selector = '.section-jump-option, .section-jump-quick, .performance-layer-jump-btn, [data-jump-target], [data-jump-click], [data-granular-keyboard-ready], .performance-mixer-jump-btn, [data-gain-stage-control], #performanceLayerSwitchesCard button, #performanceMixerCard button, .performance-mixer-solo-btn, .performance-actions-card .performance-actions > .performance-btn';
     let mixerTargets = Object.freeze({});
 
     function sectionForTarget(targetSelector) {
@@ -139,6 +161,7 @@
     function sectionForButton(button) {
         if (button.dataset.granularKeyboardReady) return 'granular-keys';
         if (buttons[button.id]) return buttons[button.id];
+        if (button.closest('.performance-actions-card') && button.dataset.bastardloopStart === 'true') return 'loop-a';
         const controlId = button.dataset.performanceModuleJump || button.getAttribute('aria-controls') || button.dataset.gainStageControl;
         const destination = button.dataset.jumpTarget || button.dataset.jumpClick || mixerTargets[controlId];
         if (destination) return sectionForTarget(destination);

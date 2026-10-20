@@ -1,6 +1,13 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Matched action colours and generated-loop pitch (UI.1)
+
+- Build `v2026.10.20.UI.1`: all Performance Actions reuse the authoritative dark navigation/mixer/layer palette, retaining the raised shading, white text and light borders. RadioLab, VideoLab, drums, synth and recording actions match their modules; Mega and Sparse use exactly their side-jump colours. Active states keep the same hue with an inset marker instead of replacing every colour with teal.
+- The existing **Loop Pitch** slider is now directly under the **Generated Loop** waveform, from −3 to +3 octaves, showing the current signed setting. This moves the original control and preserves its ID, engine, tempo-preserving audio processing, protected randomisation behavior, reset and saved-state fields; it neither creates a second pitch stage nor resets an existing +1-octave setting.
+- The simplified source section uses its full intrinsic height in landscape, preventing the later Pan Lab panel from overlapping the waveform/pitch control.
+- No audio, patch, Song, account or import/export schema changes.
+
 ## X action controls (OSC.3)
 
 - Build `v2026.10.20.OSC.3`: **Open Synth** sits directly beneath X's source switch and opens the existing shared OSC3 controls without changing source ownership. **Edit Sequence** now sits below Export MIDI, just above Start/Stop.

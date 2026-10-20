@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-x-controls-1"></script>
+    <script src="mygrain-accounts.js?v=20261020-palette-pitch-1"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-x-controls-1';
+            const cacheBuster = '2026-10-20-palette-pitch-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3869,6 +3869,7 @@
 
         .simplified-ui .top-section {
             display: block !important;
+            flex: 0 0 auto;
         }
 
         .performance-controls {
@@ -5197,16 +5198,15 @@
         .simplified-ui .performance-actions-card .performance-actions > .performance-btn {
             color: #f5f7fb !important;
             -webkit-text-fill-color: currentColor;
-            background: linear-gradient(160deg, #343e4b 0%, #242c37 52%, #151b25 100%) !important;
+            background: var(--nav-background, linear-gradient(160deg, #343e4b 0%, #242c37 52%, #151b25 100%)) !important;
             border: 1px solid rgba(255, 255, 255, 0.56) !important;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 14px rgba(0, 0, 0, 0.3) !important;
             transition: filter 150ms ease, box-shadow 150ms ease;
         }
 
         .simplified-ui .performance-actions-card .performance-actions > .performance-btn:is(.active, .playing, .recording, .armed, .loop-disabled, .osc-off, .fx-muted, .dry-filtered, .noise-active, .is-running, [aria-pressed="true"], [data-ui-pressed="true"]) {
-            background: linear-gradient(160deg, #304f4d 0%, #213b3a 52%, #142726 100%) !important;
             border-color: rgba(255, 255, 255, 0.9) !important;
-            box-shadow: inset 3px 0 0 #b7f2e5, inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 14px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: inset 3px 0 0 #f2f6ff, inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 14px rgba(0, 0, 0, 0.3) !important;
         }
 
         .simplified-ui .performance-actions-card .performance-actions > .performance-btn:hover:not(:disabled) {
@@ -5945,7 +5945,7 @@
     <script>window.mygrainAccounts?.loadStyle('q-card.css?v=20261015-q-custom-arp-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
+    <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261020-action-palette-1');</script>
     <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-current-patch-9');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
@@ -5955,7 +5955,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.OSC.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.UI.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6036,7 +6036,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.OSC.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.UI.1</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -8568,13 +8568,6 @@
                         <input type="range" id="performanceGeneratedSwing" min="0" max="60" value="0" step="1">
                     </div>
                     <div class="performance-sound-card">
-                        <label for="performanceGeneratedTranspose">
-                            <span>Loop Transpose</span>
-                            <span class="value" id="performanceGeneratedTransposeValue">0 oct</span>
-                        </label>
-                        <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
-                    </div>
-                    <div class="performance-sound-card">
                         <label for="performanceModAmount">
                             <span>Mod Amount</span>
                             <span class="value" id="performanceModAmountValue">55%</span>
@@ -8992,6 +8985,13 @@
                             <span class="source-waveform-meta" id="generatedLoopMeta">Empty</span>
                         </div>
                         <canvas id="generatedWaveformCanvas" class="source-waveform-canvas" data-source="generated"></canvas>
+                        <div class="performance-sound-card generated-loop-pitch">
+                            <label for="performanceGeneratedTranspose">
+                                <span>Loop Pitch</span>
+                                <span class="value" id="performanceGeneratedTransposeValue">0 oct</span>
+                            </label>
+                            <input type="range" id="performanceGeneratedTranspose" min="-3" max="3" value="0" step="1">
+                        </div>
                         <div class="source-grain-mode-control" aria-label="Main granular engine mode">
                             <label for="mainWaveformGrainTimingMode">
                                 <span>Main Mode</span>
