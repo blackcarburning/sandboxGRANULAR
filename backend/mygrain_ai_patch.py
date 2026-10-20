@@ -299,7 +299,7 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
 def generate(prompt, current, loops, source_root=None, catalogue_report=None, direction=None, usage_report=None):
     context = ({'status': 'retained', 'reason': 'Refine and progression retain current sources; no fresh shortlist needed.', 'catalogueCount': 0, 'eligibleCount': 0, 'candidates': {}, 'entries': {}, 'sourceRoot': source_root}
                if direction and direction['mode'] in ('refine', 'section') else catalogue.retrieve(prompt, current, source_root))
-    context = catalogue.with_x_repository(context, loops['X'].get('repository', 'samples_bass'))
+    context = catalogue.with_x_repository(context, loops['X'].get('repository', 'samples_bass'), prompt)
     recipe = run_model(prompt, current, loops, context, direction, usage_report=usage_report)
     if direction and direction['mode'] in ('refine', 'section') and (any(lane.get('reload') and not (direction['mode'] == 'refine' and key == 'X' and lane.get('repository')) for key, lane in recipe['loops'].items()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
         raise ValueError('Refine keeps current library samples. The AI requested a reload; nothing was changed. Try again or use Regenerate.')

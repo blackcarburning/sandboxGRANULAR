@@ -1,0 +1,12 @@
+--- a/catalogue.py
++++ b/catalogue.py
+@@ -156 +156 @@
+-        if not path.is_file():
++        if not path.is_file() or path.suffix.casefold() not in AUDIO_EXTENSIONS:
+--- a/verify_catalogue.py
++++ b/verify_catalogue.py
+@@ -13,0 +14 @@
++from catalogue import AUDIO_EXTENSIONS
+@@ -26 +27 @@
+-    on_disk={p.relative_to(source).as_posix() for p in source.rglob('*') if p.is_file() and not p.is_symlink()}
++    on_disk={p.relative_to(source).as_posix() for p in source.rglob('*') if p.is_file() and not p.is_symlink() and p.suffix.casefold() in AUDIO_EXTENSIONS}

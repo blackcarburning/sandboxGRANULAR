@@ -1,7 +1,6 @@
 --- a/server.py
 +++ b/server.py
-@@ -190,2 +190,10 @@
-         "local_dir": "SAMPLES_LEADS",
+@@ -190,0 +191,8 @@
 +    },
 +    "samples_altbass": {
 +        "remote": "",
@@ -10,9 +9,36 @@
 +        "local_dir": "SAMPLES_ALTBASS",
 +        "local_only": True,
 +        "packaged_dir": str(pathlib.Path(__file__).resolve().parent.parent / "sandboxGRANULAR" / "SAMPLES_ALTBASS"),
-     },
-@@ -629,2 +637,4 @@
-     _, source_config = get_bastardloop_source_config(source_key)
+@@ -310 +318 @@
+-        "Access-Control-Expose-Headers": "X-Mygrain-Source-Name, X-Mygrain-Source-Key, X-Mygrain-Source-Label, X-Mygrain-Source-Path, X-Mygrain-Bastardloop-Meta",
++        "Access-Control-Expose-Headers": "X-Mygrain-Source-Name, X-Mygrain-Source-Key, X-Mygrain-Source-Label, X-Mygrain-Source-Path, X-Mygrain-Source-Root, X-Mygrain-Source-Region, X-Mygrain-Bastardloop-Meta",
+@@ -629,0 +638,2 @@
 +    if source_config.get("packaged_dir"):
 +        return pathlib.Path(source_config["packaged_dir"]).resolve()
-     local_dir = str(source_config.get("local_dir") or "").strip()
+@@ -646 +656 @@
+-        if path.is_symlink() or not path.is_file() or path.suffix.lower() != ".wav":
++        if path.is_symlink() or not path.is_file() or path.suffix.lower() not in {".wav", ".aif", ".aiff"}:
+@@ -735,0 +746,15 @@
++
++
++def bastardloop_sample_response_headers(result):
++    """Serve original file formats and upstream sampler roots without conversion."""
++    suffix = pathlib.PurePosixPath(result["relativePath"]).suffix.lower()
++    headers = {"Content-Type": "audio/aiff" if suffix in {".aif", ".aiff"} else "audio/wav"}
++    if result["sourceKey"] == "samples_altbass":
++        folder = get_bastardloop_local_source_root("samples_altbass")
++        manifest = json.loads((folder / "manifest.json").read_text())
++        item = next((item for item in manifest["samples"] if item["name"] == result["relativePath"]), None)
++        if item is None:
++            raise ValueError("Bass sample is absent from the source manifest.")
++        headers["X-Mygrain-Source-Root"] = item["rootNote"]
++        headers["X-Mygrain-Source-Region"] = json.dumps({"start": item["sfzStartFrame"] / item["sampleRate"], "end": ((item["sfzEndFrame"] + 1) if item["sfzEndFrame"] is not None else item["frames"]) / item["sampleRate"]})
++    return headers
+@@ -2896 +2921,2 @@
+-                self.send_header("Content-Type", "audio/wav")
++                for header, value in bastardloop_sample_response_headers(result).items():
++                    self.send_header(header, value)
+@@ -3182 +3208,2 @@
+-            self.send_header("Content-Type", "audio/wav")
++            for header, value in bastardloop_sample_response_headers(result).items():
++                self.send_header(header, value)

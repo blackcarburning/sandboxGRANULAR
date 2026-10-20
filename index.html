@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-bass-1"></script>
+    <script src="mygrain-accounts.js?v=20261020-bass-2"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-bass-1';
+            const cacheBuster = '2026-10-20-bass-2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5955,7 +5955,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.BASS.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.BASS.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6036,7 +6036,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.BASS.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.BASS.2</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -36449,8 +36449,9 @@
             const decayRatio = getBastardLoopXDecayRatio();
             const startTrimRatio = getBastardLoopXStartTrimRatio();
             const attackTime = Math.max(0.001, getBastardLoopXAttackSeconds());
-            const startOffsetSeconds = Math.max(0, Math.min(Math.max(0, bastardLoopXSampleBuffer.duration - 0.01), bastardLoopXSampleBuffer.duration * startTrimRatio));
-            const remainingDuration = Math.max(0.02, (bastardLoopXSampleBuffer.duration - startOffsetSeconds) / pitchRatio);
+            const sourceRegion = getBastardLoopXSampleRegion();
+            const startOffsetSeconds = Math.max(sourceRegion.start, Math.min(Math.max(sourceRegion.start, sourceRegion.end - 0.01), sourceRegion.start + (sourceRegion.end - sourceRegion.start) * startTrimRatio));
+            const remainingDuration = Math.max(0.02, (sourceRegion.end - startOffsetSeconds) / pitchRatio);
             const sustainDuration = Math.max(0.02, remainingDuration * lengthRatio);
             const voiceWindow = Math.max(0.02, Number(options.stepWindow) || stepDuration);
             const slideDuration = step.slide && nextStep?.note ? voiceWindow * 2 : voiceWindow;
@@ -36488,7 +36489,7 @@
                     disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
             };
-            source.start(scheduledTime, startOffsetSeconds);
+            source.start(scheduledTime, startOffsetSeconds, sourceRegion.end - startOffsetSeconds);
             scheduleTransportSourceStop(source, endTime + 0.02);
         }
 
@@ -36522,8 +36523,9 @@
             const now = (audioContext.currentTime || 0) + 0.002;
             const startTrimRatio = getBastardLoopXStartTrimRatio();
             const attackTime = Math.max(0.001, getBastardLoopXAttackSeconds());
-            const startOffsetSeconds = Math.max(0, Math.min(Math.max(0, bastardLoopXSampleBuffer.duration - 0.01), bastardLoopXSampleBuffer.duration * startTrimRatio));
-            const remainingDuration = Math.max(0.08, (bastardLoopXSampleBuffer.duration - startOffsetSeconds) / pitchRatio);
+            const sourceRegion = getBastardLoopXSampleRegion();
+            const startOffsetSeconds = Math.max(sourceRegion.start, Math.min(Math.max(sourceRegion.start, sourceRegion.end - 0.01), sourceRegion.start + (sourceRegion.end - sourceRegion.start) * startTrimRatio));
+            const remainingDuration = Math.max(0.08, (sourceRegion.end - startOffsetSeconds) / pitchRatio);
             const decayRatio = getBastardLoopXDecayRatio();
             const allowFullTail = decayRatio >= 0.999;
             const previewDuration = allowFullTail
@@ -36551,7 +36553,7 @@
                     disconnectBastardLoopFilterChain(filters);
                 } catch (error) {}
             };
-            source.start(now, startOffsetSeconds);
+            source.start(now, startOffsetSeconds, sourceRegion.end - startOffsetSeconds);
             source.stop(stopTime + 0.02);
             return true;
         }
@@ -46723,7 +46725,8 @@
             if (!fileName && !relativePath) {
                 return null;
             }
-            const rootNote = resolveLeadSampleRootNote(
+            const original = getOriginalAltBassIdentity({ sourceKey, fileName, relativePath });
+            const rootNote = original?.rootNote || resolveLeadSampleRootNote(
                 fileName,
                 savedModes.bastardLoopXRootNote || fallbackMetadata?.rootNote || ''
             );
@@ -46740,9 +46743,11 @@
             return {
                 sourceKey,
                 sourceLabel: BASTARD_LOOP_SOURCE_LABELS[sourceKey] || fallbackMetadata?.sourceLabel || 'SAMPLES_BASS',
-                fileName: fileName || 'bass sample',
-                relativePath,
+                fileName: original?.fileName || fileName || 'bass sample',
+                relativePath: original?.relativePath || relativePath,
                 rootNote,
+                sourceRegion: Object.prototype.hasOwnProperty.call(savedModes, 'bastardLoopXSourceRegion') ? savedModes.bastardLoopXSourceRegion : (sourceKey === fallbackMetadata?.sourceKey && relativePath === fallbackMetadata?.relativePath ? fallbackMetadata?.sourceRegion || null : null),
+                originalReloadRequired: Boolean(original?.legacy),
                 durationSeconds: durationSeconds || undefined,
                 summary: summaryParts.join(' · ')
             };
@@ -46760,6 +46765,7 @@
                 }
                 return null;
             }
+            if (restoredMetadata.originalReloadRequired) bastardLoopXSampleBuffer = null;
             bastardLoopXSampleMetadata = restoredMetadata;
             bastardLoopXRootNote = restoredMetadata.rootNote;
             return restoredMetadata;
@@ -46903,6 +46909,7 @@
                     bastardLoopXSourceKey: bastardLoopXSampleMetadata?.sourceKey || 'samples_bass',
                     bastardLoopXFileName: bastardLoopXSampleMetadata?.fileName || '',
                     bastardLoopXRelativePath: bastardLoopXSampleMetadata?.relativePath || '',
+                    bastardLoopXSourceRegion: bastardLoopXSampleMetadata?.sourceRegion || null,
                     bastardLoopXSequence: bastardLoopXSequence.slice(0, 64).map((step) => normalizeBastardLoopXStep(step)),
                     bastardLoopXTransposeStartIndex: getBastardLoopXTransposeSectionBounds()?.start ?? -1,
                     bastardLoopXTransposeEndIndex: getBastardLoopXTransposeSectionBounds()?.end ?? -1,
@@ -50334,6 +50341,48 @@
             });
         }
 
+        function createOriginalAltBassPreview(audio, url, onChange = () => {}) {
+            let source = null, controller = null, generation = 0, disposed = false;
+            const stop = () => {
+                generation++; controller?.abort(); controller = null;
+                if (source) { try { source.stop(); } catch {} source.disconnect(); source.buffer = null; source = null; }
+                onChange(false);
+            };
+            const dispose = () => { disposed = true; stop(); window.removeEventListener('mygrain-account-lock', dispose); };
+            window.addEventListener('mygrain-account-lock', dispose);
+            return {
+                get playing() { return Boolean(source); },
+                stop, dispose,
+                async play() {
+                    if (disposed) return false;
+                    if (source) { stop(); return false; }
+                    const context = audioContext, account = window.mygrainAccounts?.user?.username;
+                    if (!context || !account) throw new Error('Start MYGRAIN before previewing this sample.');
+                    createOriginalAltBassPreview.active?.stop();
+                    document.querySelectorAll('#dropboxSampleBrowserList audio').forEach(element => element.pause());
+                    createOriginalAltBassPreview.active = this;
+                    await context.resume();
+                    const current = ++generation, request = controller = new AbortController();
+                    try {
+                        const response = await fetch(url, { cache: 'no-store', signal: request.signal });
+                        if (!response.ok) throw new Error(`Audio download failed (${response.status}).`);
+                        if (Number(response.headers.get('Content-Length')) > 32 * 1024 * 1024) throw new Error('Preview sample is too large.');
+                        const bytes = await response.arrayBuffer();
+                        if (bytes.byteLength > 32 * 1024 * 1024) throw new Error('Preview sample is too large.');
+                        const buffer = await decodeRepositoryAudio(bytes, context);
+                        if (disposed || current !== generation || account !== window.mygrainAccounts?.user?.username || context !== audioContext) return false;
+                        source = context.createBufferSource(); source.buffer = buffer;
+                        source.connect(context.destination);
+                        source.onended = () => { if (current === generation) stop(); };
+                        const region = readRepositorySourceRegion(response);
+                        source.start(0, region?.start || 0, region ? region.end - region.start : buffer.duration);
+                        onChange(true); return true;
+                    } catch (error) { if (request.signal.aborted || disposed) return false; stop(); throw error; }
+                    finally { if (controller === request) controller = null; }
+                }
+            };
+        }
+
         function pauseDropboxSampleBrowserPreviewAudio() {
             document.querySelectorAll('#dropboxSampleBrowserList audio').forEach((audio) => {
                 if (audio.__mygrainPreview) {
@@ -50611,7 +50660,9 @@
                 const audio = document.createElement('audio');
                 audio.controls = true;
                 audio.preload = 'none';
-                const preview = window.mygrainAccounts?.createMediaPreview(audio, file.previewUrl);
+                const originalAiff = file.sourceKey === 'samples_altbass' && /\.aiff?$/i.test(file.name);
+                audio.hidden = originalAiff;
+                const preview = originalAiff ? createOriginalAltBassPreview(audio, file.previewUrl, playing => { previewButton.textContent = playing ? 'Stop preview' : 'Preview sample'; }) : window.mygrainAccounts?.createMediaPreview(audio, file.previewUrl);
                 audio.__mygrainPreview = preview;
 
                 const previewButton = document.createElement('button');
@@ -50624,7 +50675,7 @@
                     previewButton.disabled = true;
                     setDropboxSampleBrowserStatus(`Loading preview: ${file.name}…`);
                     try {
-                        if (await preview.play()) setDropboxSampleBrowserStatus(audio.paused
+                        if (await preview.play()) setDropboxSampleBrowserStatus(!originalAiff && audio.paused
                             ? `Preview loaded: ${file.name}. Press Play on its audio controls.` : `Previewing ${file.name}.`);
                     } catch (error) {
                         setDropboxSampleBrowserStatus(`Preview failed: ${error.message}. Try Preview sample again.`);
@@ -51031,6 +51082,9 @@
         }
 
         async function applyLoadedBastardLoopXSampleBuffer(buffer, sourceLabel, metadata = {}) {
+            const original = getOriginalAltBassIdentity(metadata);
+            if (original?.legacy) return loadBastardLoopXSampleFromSourceRelativePath('samples_altbass', original.relativePath, original.fileName);
+            if (original) metadata = { ...metadata, ...original };
             if (!buffer) {
                 throw new Error('Decoded Bastardloop X sample is empty.');
             }
@@ -51048,6 +51102,7 @@
                 fileName: metadata.fileName || 'bass.wav',
                 relativePath: metadata.relativePath || '',
                 rootNote: bastardLoopXRootNote,
+                sourceRegion: metadata.sourceRegion || null,
                 durationSeconds: buffer.duration,
                 summary: `${metadata.fileName || 'bass.wav'} · ${buffer.duration.toFixed(2)}s · root ${bastardLoopXRootNote}`
             };
@@ -51057,6 +51112,89 @@
             saveState();
             setStatus(`${sourceLabel} ready for Bastardloop X.`);
             restartBastardLoopXPlaybackIfNeeded();
+        }
+
+        function readOriginalAiffInfo(bytes) {
+            const view = new DataView(bytes);
+            if (bytes.byteLength < 12 || view.getUint32(0) !== 0x464f524d || ![0x41494646, 0x41494643].includes(view.getUint32(8))) return null;
+            const formEnd = view.getUint32(4) + 8;
+            if (formEnd > bytes.byteLength) throw new Error('Incomplete original AIFF sample.');
+            let info = null, sound = null;
+            for (let offset = 12; offset + 8 <= formEnd;) {
+                const tag = view.getUint32(offset), size = view.getUint32(offset + 4), start = offset + 8;
+                if (size > formEnd - start) throw new Error('Incomplete original AIFF chunk.');
+                if (tag === 0x434f4d4d && size >= 18) {
+                    const exponent = view.getUint16(start + 8), mantissa = view.getUint32(start + 10) * 4294967296 + view.getUint32(start + 14);
+                    const sampleRate = mantissa * 2 ** ((exponent & 0x7fff) - 16383 - 63);
+                    if ((exponent & 0x8000) || !Number.isFinite(sampleRate)) throw new Error('Invalid AIFF sample rate.');
+                    const compression = view.getUint32(8) === 0x41494643 ? (size >= 22 ? view.getUint32(start + 18) : 0) : 0x4e4f4e45;
+                    if (![0x4e4f4e45, 0x74776f73, 0x736f7774].includes(compression)) throw new Error('Unsupported compressed AIFF sample.');
+                    info = { channels: view.getUint16(start), frames: view.getUint32(start + 2), bits: view.getUint16(start + 6), sampleRate, littleEndian: compression === 0x736f7774 };
+                }
+                if (tag === 0x53534e44 && size >= 8) {
+                    const skip = view.getUint32(start);
+                    if (skip > size - 8) throw new Error('Invalid AIFF sound offset.');
+                    sound = { offset: start + 8 + skip, size: size - 8 - skip };
+                }
+                offset = start + size + size % 2;
+            }
+            if (!info || !sound || ![8,16,24,32].includes(info.bits) || info.channels < 1 || info.channels > 8 || info.sampleRate < 8000 || info.sampleRate > 384000 || !info.frames || info.frames * info.channels * (info.bits / 8) > sound.size) throw new Error('Invalid original AIFF audio data.');
+            return { ...info, dataOffset: sound.offset };
+        }
+
+        async function decodeRepositoryAudio(bytes, context = audioContext) {
+            const info = readOriginalAiffInfo(bytes);
+            if (!info) return context.decodeAudioData(bytes);
+            // Decode the original integer PCM directly: preserve rate, frames,
+            // tuning and samples. No re-encoding or asset conversion is involved.
+            if (info.frames * info.channels * 4 > 32 * 1024 * 1024) throw new Error('Original AIFF exceeds the decoded-audio budget.');
+            const buffer = context.createBuffer(info.channels, info.frames, info.sampleRate), view = new DataView(bytes), width = info.bits / 8;
+            for (let channel = 0; channel < info.channels; channel++) {
+                const output = buffer.getChannelData(channel);
+                for (let frame = 0; frame < info.frames; frame++) {
+                    const offset = info.dataOffset + (frame * info.channels + channel) * width;
+                    let value;
+                    if (width === 1) value = view.getInt8(offset);
+                    else if (width === 2) value = view.getInt16(offset, info.littleEndian);
+                    else if (width === 4) value = view.getInt32(offset, info.littleEndian);
+                    else {
+                        value = info.littleEndian ? view.getUint8(offset) + view.getUint8(offset + 1) * 256 + view.getUint8(offset + 2) * 65536 : view.getUint8(offset) * 65536 + view.getUint8(offset + 1) * 256 + view.getUint8(offset + 2);
+                        if (value >= 8388608) value -= 16777216;
+                    }
+                    output[frame] = value / 2 ** (info.bits - 1);
+                }
+            }
+            return buffer;
+        }
+
+        function getOriginalAltBassIdentity(metadata = {}) {
+            if (metadata.sourceKey !== 'samples_altbass') return null;
+            const name = String(metadata.fileName || metadata.relativePath?.split('/').pop() || '');
+            let match = /^(Pulse Bass|Saw Bass split)-(\d+)-(64|127)\.aif$/i.exec(name), midi, velocity, patch;
+            if (match) { patch = match[1]; midi = Number(match[2]); velocity = Number(match[3]); }
+            else {
+                match = /^Juno6 (Pulse Bass|Saw Bass split) v(64|127) ([A-G]#?[1-3])\.wav$/.exec(name);
+                if (!match) return null;
+                patch = match[1]; velocity = Number(match[2]); midi = noteNameToMidi(match[3]) + 12;
+            }
+            if (midi < 36 || midi > (patch === 'Saw Bass split' ? 48 : 60)) return null;
+            const fileName = `${patch}-${midi}-${velocity}.aif`;
+            return { fileName, relativePath: `${patch}/${fileName}`, rootNote: midiToNoteName(midi), legacy: /\.wav$/i.test(name) };
+        }
+
+        function readRepositorySourceRegion(response) {
+            try {
+                const region = JSON.parse(response.headers.get('X-Mygrain-Source-Region') || 'null');
+                return region && Number.isFinite(region.start) && Number.isFinite(region.end) && region.start >= 0 && region.end > region.start ? region : null;
+            } catch { return null; }
+        }
+
+        function getBastardLoopXSampleRegion() {
+            const duration = bastardLoopXSampleBuffer?.duration || 0;
+            const region = bastardLoopXSampleMetadata?.sourceRegion;
+            const start = Number.isFinite(region?.start) ? Math.max(0, Math.min(duration, region.start)) : 0;
+            const end = Number.isFinite(region?.end) ? Math.max(start, Math.min(duration, region.end)) : duration;
+            return { start, end };
         }
 
         async function loadBastardLoopXSampleFromResponse(response, fallback = {}) {
@@ -51069,13 +51207,14 @@
             const fileName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'bass.wav';
             const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
             const arrayBuffer = await response.arrayBuffer();
-            const buffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            const buffer = await decodeRepositoryAudio(arrayBuffer, audioContext);
             await applyLoadedBastardLoopXSampleBuffer(buffer, sourceLabel, {
                 sourceKey,
                 sourceLabel,
                 fileName,
                 relativePath,
-                rootNote: resolveLeadSampleRootNote(fileName)
+                rootNote: response.headers.get('X-Mygrain-Source-Root') || getOriginalAltBassIdentity({ sourceKey, fileName })?.rootNote || resolveLeadSampleRootNote(fileName),
+                sourceRegion: readRepositorySourceRegion(response)
             });
         }
 
@@ -60648,7 +60787,7 @@
                             });
                             guard();
                             if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || `Loop ${key} load failed (${response.status}).`); }
-                            const metadata = generated ? readBastardLoopBuildResponseMetadata(response, { sourceKey: lane.source, bpm: sequencerBPM }) : { sourceKey: lane.source, sourceLabel: response.headers.get('X-Mygrain-Source-Label') || lane.source, fileName: decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')), relativePath: decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) };
+                            const metadata = generated ? readBastardLoopBuildResponseMetadata(response, { sourceKey: lane.source, bpm: sequencerBPM }) : { sourceKey: lane.source, sourceLabel: response.headers.get('X-Mygrain-Source-Label') || lane.source, fileName: decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')), relativePath: decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')), rootNote: response.headers.get('X-Mygrain-Source-Root') || '', sourceRegion: readRepositorySourceRegion(response) };
                             if (selection) {
                                 const paths = generated ? metadata.samplePaths : [metadata.relativePath];
                                 if (metadata.sourceKey !== selection.source || !paths?.length || paths.some(path => path !== selection.relativePath)) throw new Error(`Loop ${key}: the server did not return the selected catalogue source. Previous patch will be restored.`);
@@ -60661,7 +60800,7 @@
                                 const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join(''); guard();
                                 if (digest !== selection.sha256) throw new Error(`Loop ${key}: source audio changed since catalogue analysis. Previous patch will be restored.`);
                             }
-                            // All library endpoints return PCM WAV. Check decoded size BEFORE WebKit allocates it.
+                            // Check original AIFF or WAV decoded size BEFORE allocating audio.
                             const view = new DataView(bytes);
                             let channels = 0, sampleRate = 0, bits = 0, dataBytes = 0;
                             if (bytes.byteLength >= 44 && view.getUint32(0, false) === 0x52494646 && view.getUint32(8, false) === 0x57415645) {
@@ -60673,10 +60812,11 @@
                                     offset += 8 + size + (size % 2);
                                 }
                             }
-                            const estimate = dataBytes && channels && sampleRate && bits ? dataBytes / (bits / 8) * 4 * context.sampleRate / sampleRate : Infinity;
-                            if (!Number.isFinite(estimate) || estimate > 32 * 1024 * 1024 || decodedBytes + estimate > 80 * 1024 * 1024) throw new Error(`Loop ${key}: WAV exceeds the beta decoded-audio budget. Try fewer/shorter sources.`);
+                            const aiff = readOriginalAiffInfo(bytes);
+                            const estimate = aiff ? aiff.frames * aiff.channels * 4 * Math.max(1, context.sampleRate / aiff.sampleRate) : dataBytes && channels && sampleRate && bits ? dataBytes / (bits / 8) * 4 * context.sampleRate / sampleRate : Infinity;
+                            if (!Number.isFinite(estimate) || estimate > 32 * 1024 * 1024 || decodedBytes + estimate > 80 * 1024 * 1024) throw new Error(`Loop ${key}: Sample exceeds the beta decoded-audio budget. Try fewer/shorter sources.`);
                             report(`Loop ${key}: decoding ${names.join(', ')}…`);
-                            const buffer = await context.decodeAudioData(bytes); guard();
+                            const buffer = await decodeRepositoryAudio(bytes, context); guard();
                             decodedBytes += buffer.length * buffer.numberOfChannels * 4;
                             if (decodedBytes > 80 * 1024 * 1024) throw new Error('Fresh loop audio exceeds the 80 MB beta memory budget. Try fewer layers.');
                             await lane.apply(buffer, metadata);
@@ -61011,7 +61151,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-ai-current-patch-9&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass1-20261020-ai-current-patch-9');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>
     <script>window.mygrainAccounts?.loadScript('ai-song-parts.js?v=20261020-ai-current-patch-9');</script>
     </template>
 </body>
