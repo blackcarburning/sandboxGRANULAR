@@ -55,3 +55,9 @@
 #aiPatchSamples { max-height: 230px; overflow-y: auto; padding-left: 20px; }
 #aiPatchCard summary { cursor: pointer; font-weight: 800; min-height: 44px; padding-top: 10px; }
 #aiPatchCard h4 { margin: 14px 0 6px; }
+
+#aiPatchCard input[type="text"], #aiPatchCard select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; border: 2px solid #8d1558; border-radius: 10px; padding: 10px; background: #fff1f9; color: #270b21; font: 16px/1.4 system-ui,sans-serif; }
+#aiPatchCard .ai-patch-library { border: 1px solid #9b245e; border-radius: 10px; padding: 4px 12px; margin: 12px 0; background: #ffb9df; }
+#aiPatchLibraryStatus { min-height: 24px; }
+#aiPatchFollowup { border-top: 1px solid #b95589; margin-top: 16px; padding-top: 4px; }
+#aiPatchLastPrompt { white-space: pre-wrap; }

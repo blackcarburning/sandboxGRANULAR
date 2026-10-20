@@ -5771,7 +5771,7 @@
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
     <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-catalogue-5');</script>
+    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-prompts-6');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -5781,7 +5781,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.AI.5</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.AI.6</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5866,7 +5866,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.AI.5</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.AI.6</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -8156,6 +8156,20 @@
                 <p>Describe a groove. The AI writes Q chords, X bass and drum patterns, loads samples and sets BPM and real sound controls. Watch each change below as it happens. Undo restores parameters and samples.</p>
                 <label for="aiPatchPrompt">What should this patch feel like?</label>
                 <textarea id="aiPatchPrompt" rows="3" maxlength="1500" placeholder="Warm Q piano chords, a matching X bassline and sparse drums at 104 BPM…" aria-describedby="aiPatchScope"></textarea>
+                <details class="ai-patch-library" open>
+                    <summary>Saved prompts · your account</summary>
+                    <label for="aiPatchPromptName">Prompt name (optional)</label>
+                    <input id="aiPatchPromptName" type="text" maxlength="80" placeholder="Warm late-night groove" autocomplete="off">
+                    <div class="ai-patch-actions"><button id="aiPatchSavePrompt" type="button">Save prompt</button></div>
+                    <label for="aiPatchSavedPrompts">Recall a saved prompt</label>
+                    <select id="aiPatchSavedPrompts"><option value="">Loading saved prompts…</option></select>
+                    <div class="ai-patch-actions">
+                        <button id="aiPatchRecallPrompt" type="button" disabled>Recall</button>
+                        <button id="aiPatchRefreshPrompts" type="button">Refresh list</button>
+                        <button id="aiPatchRemovePrompt" type="button" disabled>Remove saved</button>
+                    </div>
+                    <p id="aiPatchLibraryStatus" role="status" aria-live="polite">Prompts are saved to your account across devices; recalling one does not change the sound.</p>
+                </details>
                 <div class="ai-patch-examples" aria-label="Example patch directions">
                     <button type="button" data-ai-patch-example="Warm Q piano chords, matching X bass and sparse kick/snare/hats at 104 BPM.">Warm chords</button>
                     <button type="button" data-ai-patch-example="Dry minor Q chords, syncopated X bass and tight straight drums at 122 BPM.">Tight groove</button>
@@ -8170,6 +8184,15 @@
                 <div id="aiPatchProposal" hidden>
                     <h3 id="aiPatchTitle"></h3>
                     <p id="aiPatchDescription"></p>
+                    <div id="aiPatchFollowup" hidden>
+                        <h4>Take this patch further</h4>
+                        <button id="aiPatchRegenerate" type="button">Regenerate same prompt</button>
+                        <details><summary>Last applied prompt</summary><p id="aiPatchLastPrompt"></p></details>
+                        <label for="aiPatchRefinement">What should change?</label>
+                        <textarea id="aiPatchRefinement" rows="2" maxlength="500" placeholder="Darker chords, fewer bass notes, quieter hats…" aria-describedby="aiPatchRefineHelp"></textarea>
+                        <p id="aiPatchRefineHelp">Refine the current patch while keeping its library samples. A successful refinement is added to the prompt above so you can save or regenerate the new direction. Regenerate makes a fresh variation, not an identical patch.</p>
+                        <button id="aiPatchRefine" type="button">Refine current patch</button>
+                    </div>
                     <h4>Live execution log</h4>
                     <ol id="aiPatchChanges" role="log" aria-live="polite" aria-relevant="additions" aria-label="Actual parameter and sample changes"></ol>
                     <details open><summary>Samples currently loaded · all loops</summary><ul id="aiPatchSamples"></ul></details>
@@ -60499,6 +60522,18 @@
                     hits: getDrumMachinePattern(kind).filter(Boolean).length
                 }]));
             }
+            function musicalState() {
+                const count = Math.min(64, getPatternLengthSteps()), q = window.mygrainQ?.getState();
+                const notes = sequence => Array.from({ length: count }, (_, index) => {
+                    const step = sequence[index];
+                    return step && !step.rest && parseNoteName(step.note) ? noteNameToMidi(step.note) : null;
+                });
+                return { X: notes(bastardLoopXSequence), L: notes(bastardLoopLSequence),
+                    Q: { instrument: q?.instrument === 'strings' ? 'strings' : 'piano', sequence: Array.from({ length: count }, (_, index) => {
+                        const cell = q?.sequence?.[index];
+                        return cell ? { notes: (cell.notes || []).slice(0, 8), rest: Boolean(cell.rest), gate: Number.isFinite(cell.gate) ? cell.gate : 1, velocity: Number.isFinite(cell.velocity) ? cell.velocity : 82 } : null;
+                    }) }, drumsEnabled: Boolean(drumMachineEnabled), drums: Object.fromEntries(['kick', 'snare', 'hat'].map(kind => [kind, getDrumMachinePattern(kind).slice(0, count).map(Number)])) };
+            }
             function fingerprint() {
                 const preset = gatherPreset(); delete preset.timestamp;
                 return JSON.stringify({ preset, loops: inventory(), q: window.mygrainQ?.getState(), drums: drumInventory(), sourceMutationSerial, account: window.mygrainAccounts?.user?.username, song: window.mygrainSongBeta?.song?.id || null });
@@ -60548,9 +60583,15 @@
                 return saveState({ force: true });
             }
             function resume(transport) {
-                if (transport.seq) startSequencer();
-                if (transport.loops) setBastardLoopPlaying(true, quiet);
-                if (transport.drums) startDrumMachine();
+                if (!transport.seq && !transport.loops && !transport.drums) return;
+                // Plan every returning lane against one fresh deadline. A loop
+                // origin created by the first start can already be in the past
+                // by the next start, especially after a fast refinement.
+                withBufferedTransportStart(null, deadline => {
+                    if (transport.seq) startSequencer(deadline);
+                    if (transport.loops) setBastardLoopPlaying(true, { ...quiet, startTime: deadline });
+                    if (transport.drums) startDrumMachine(deadline);
+                }, { reset: true });
             }
             const frame = () => new Promise(resolve => setTimeout(resolve, 20));
             async function boundedAudio(response, signal) {
@@ -60596,7 +60637,7 @@
                     if (signal?.aborted) abort();
                 });
             }
-            async function execute(recipe, expected, { signal, report = () => {} } = {}) {
+            async function execute(recipe, expected, { signal, report = () => {}, mode = 'generate' } = {}) {
                 assertReady();
                 if (fingerprint() !== expected) throw new Error('Your patch changed. Generate a fresh direction.');
                 const before = snapshot();
@@ -60737,7 +60778,7 @@
                                 report(`Drum ${kind}: ${settings.steps.map(hit => hit ? '●' : '·').join('')} · ${pattern.filter(Boolean).length} hits / ${pattern.length} steps · applied`);
                             }
                         }
-                        if (Object.keys(recipe.drums.tracks || {}).length) {
+                        if (mode !== 'refine' && Object.keys(recipe.drums.tracks || {}).length) {
                             // Explicit straight, single-hit rhythms; old random ratchets cannot bleed into the result.
                             drumMachineKickRatchetPattern.fill(0); drumMachineSnareRatchetPattern.fill(0); drumMachineHatRatchetPattern.fill(0); drumMachineHatAccentPattern.fill(false);
                             drumMachineHatTimingMode = 'straight';
@@ -60897,7 +60938,7 @@
             }
             function stopPreview() { if (previewSource) { try { previewSource.stop(); } catch {} previewSource.disconnect(); previewSource.buffer = null; previewSource = null; } }
             function stop() { stopAllPerformancePlayback({ silent: true }); }
-            return Object.freeze({ assertReady, fingerprint, read, inventory, drumInventory, execute, undo, play, stop, preview, playPreview, stopPreview, get previewPlaying() { return Boolean(previewSource); } });
+            return Object.freeze({ assertReady, fingerprint, read, inventory, drumInventory, musicalState, execute, undo, play, stop, preview, playPreview, stopPreview, get previewPlaying() { return Boolean(previewSource); } });
         })();
 
         performanceControlsReady = true;
@@ -61006,7 +61047,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-catalogue-5');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-prompts-6');</script>
     </template>
 </body>
 </html>

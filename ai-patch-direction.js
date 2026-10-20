@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
     if (root.__mygrainSongRenderDeck) return;
-    let schema, previous = null, request = null, serial = 0, locked = false, phase = 'idle', rendered = null;
+    let schema, previous = null, request = null, serial = 0, locked = false, phase = 'idle', rendered = null, lastPrompt = '', savedPrompts = [], libraryRequest = null;
     const byId = id => document.getElementById(id);
     const adapter = () => root.mygrainAiPatchAdapter;
     const status = message => { byId('aiPatchStatus').textContent = message; };
@@ -36,7 +36,51 @@
         byId('aiPatchReplay').disabled = Boolean(request) || locked;
         byId('aiPatchHear').disabled = Boolean(request) || locked;
         byId('aiPatchPrompt').disabled = Boolean(request) || locked;
+        byId('aiPatchFollowup').hidden = !lastPrompt;
+        byId('aiPatchLastPrompt').textContent = lastPrompt;
+        for (const id of ['aiPatchRegenerate', 'aiPatchRefine', 'aiPatchRefinement']) byId(id).disabled = Boolean(request) || locked || !lastPrompt;
+        for (const id of ['aiPatchSavePrompt', 'aiPatchPromptName', 'aiPatchSavedPrompts', 'aiPatchRefreshPrompts']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest);
+        for (const id of ['aiPatchRecallPrompt', 'aiPatchRemovePrompt']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest) || !byId('aiPatchSavedPrompts').value;
         byId('aiPatchCard').setAttribute('aria-busy', String(Boolean(request)));
+    }
+    function drawPrompts(selected = byId('aiPatchSavedPrompts').value) {
+        const list = byId('aiPatchSavedPrompts'); list.replaceChildren();
+        const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = savedPrompts.length ? 'Choose a saved prompt…' : 'No saved prompts yet'; list.append(placeholder);
+        for (const prompt of savedPrompts) { const option = document.createElement('option'); option.value = prompt.id; option.textContent = prompt.name; list.append(option); }
+        list.value = savedPrompts.some(prompt => prompt.id === selected) ? selected : '';
+    }
+    async function promptLibrary(action = 'list') {
+        if (locked || libraryRequest) return;
+        const selected = savedPrompts.find(prompt => prompt.id === byId('aiPatchSavedPrompts').value);
+        let body;
+        if (action === 'save') {
+            const prompt = byId('aiPatchPrompt').value.trim(), name = byId('aiPatchPromptName').value.trim() || prompt.split('\n')[0].slice(0, 80);
+            if (prompt.length < 3 || prompt.length > 1500) { byId('aiPatchLibraryStatus').textContent = 'Write a prompt using 3–1,500 characters first.'; return; }
+            body = {action: 'save', name, prompt};
+        } else if (action === 'remove') {
+            if (!selected) return;
+            body = {action: 'remove', id: selected.id};
+        }
+        const controller = new AbortController(); libraryRequest = controller;
+        const timeout = root.setTimeout(() => controller.abort(), 15000);
+        byId('aiPatchLibraryStatus').textContent = action === 'list' ? 'Loading your saved prompts…' : action === 'save' ? 'Saving prompt to your account…' : 'Removing saved prompt…'; update();
+        try {
+            const response = await root.fetch(new URL('api/ai-prompts', document.baseURI), {method: body ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store', signal: controller.signal, ...(body ? {headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {})});
+            const payload = await response.json();
+            if (locked || controller.signal.aborted) return;
+            if (!response.ok || !payload.ok) throw Error(payload.error || 'Saved prompts unavailable. Your patch is unchanged.');
+            if (!Array.isArray(payload.prompts) || payload.prompts.length > 200 || payload.prompts.some(p => !p || !/^[a-f0-9]{32}$/.test(p.id) || typeof p.name !== 'string' || p.name.length > 80 || typeof p.prompt !== 'string' || p.prompt.length < 3 || p.prompt.length > 1500)) throw Error('Saved prompt list could not be read. Your patch is unchanged.');
+            savedPrompts = payload.prompts; drawPrompts(payload.savedId || (action === 'remove' ? '' : selected?.id));
+            byId('aiPatchLibraryStatus').textContent = action === 'save' ? 'Saved to your account. Recall on another device; generated results will vary.' : action === 'remove' ? 'Removed from your saved list. The current text and sound are unchanged.' : `${savedPrompts.length} saved prompt${savedPrompts.length === 1 ? '' : 's'} · your account, across devices.`;
+        } catch (error) {
+            if (!locked) byId('aiPatchLibraryStatus').textContent = error.name === 'AbortError' ? 'Prompt library timed out. Retry; no save was confirmed.' : error.message;
+        } finally { root.clearTimeout(timeout); if (libraryRequest === controller) libraryRequest = null; update(); }
+    }
+    function recallPrompt() {
+        if (request || locked || libraryRequest) return;
+        const saved = savedPrompts.find(prompt => prompt.id === byId('aiPatchSavedPrompts').value); if (!saved) return;
+        byId('aiPatchPrompt').value = saved.prompt; byId('aiPatchPromptName').value = saved.name;
+        byId('aiPatchLibraryStatus').textContent = `Recalled “${saved.name}”. Sound unchanged; Generate to try this direction.`;
     }
     function validateRecipe(recipe) {
         if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe) || !['description,loops,parameters,title', 'description,drums,loops,parameters,title'].includes(Object.keys(recipe).sort().join())) throw Error('Invalid AI recipe. Nothing was changed.');
@@ -88,9 +132,14 @@
         if (phase === 'applying') status('Cancelling… restoring the previous patch and samples.');
         else status('Cancelled. Your patch is unchanged.');
     }
-    async function generate() {
+    async function generate(mode = 'generate') {
         if (request || locked || !schema) return;
-        const prompt = byId('aiPatchPrompt').value.trim();
+        const prompt = mode === 'regenerate' ? lastPrompt : byId('aiPatchPrompt').value.trim();
+        const refinement = mode === 'refine' ? byId('aiPatchRefinement').value.trim() : '';
+        if (!['generate', 'refine', 'regenerate'].includes(mode) || (mode !== 'generate' && !lastPrompt)) return;
+        if (mode === 'refine' && !refinement) { status('Describe what should change in the refinement box.'); return; }
+        const usedPrompt = mode === 'refine' ? `${prompt}\n\nRefinement: ${refinement}` : prompt;
+        if (usedPrompt.length > 1500) { status('Prompt plus refinement exceeds 1,500 characters. Shorten the direction first.'); return; }
         if (prompt.length < 3 || prompt.length > 1500) { status('Describe your direction in 3–1500 characters.'); return; }
         let timeout;
         const token = ++serial;
@@ -105,9 +154,9 @@
             byId('aiPatchChanges').replaceChildren();
             byId('aiPatchTitle').textContent = 'Live changes'; byId('aiPatchDescription').textContent = '';
             inventory();
-            report('Requesting a musical recipe from GPT-6.1 Sol. No patch changes yet.');
+            report(mode === 'refine' ? 'Refining the current patch with GPT-6.1 Sol; library samples stay loaded. No patch changes yet.' : mode === 'regenerate' ? 'Regenerating the last applied prompt with GPT-6.1 Sol. A fresh variation, not an identical patch.' : 'Requesting a musical recipe from GPT-6.1 Sol. No patch changes yet.');
             status('GPT-6.1 Sol is choosing tempo, layers and sound parameters…'); update();
-            const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, current, loops }) });
+            const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, current, loops, mode, ...(mode === 'refine' ? { refinement, musicalState: adapter().musicalState() } : {}) }) });
             const payload = await response.json();
             if (token !== serial || locked || signal.aborted) return;
             if (!response.ok || !payload.ok) throw Error(payload.error || 'AI unavailable. Your patch is unchanged.');
@@ -115,17 +164,21 @@
             adapter().assertReady();
             if (adapter().fingerprint() !== fingerprint) throw Error('Your patch or Song changed while AI was working. Generate a fresh direction.');
             const recipe = validateRecipe(payload.recipe), combined = { ...current, ...recipe.parameters };
+            if (mode === 'refine' && (Object.values(recipe.loops).some(lane => lane.reload) || Object.values(recipe.drums?.tracks || {}).some(lane => lane.reload))) throw Error('Refine keeps current library samples. Nothing changed; try again or use Regenerate.');
             if (combined.hpfCutoff >= combined.lpfCutoff / 2) throw Error('The proposed filters would remove too much sound. Try again.');
-            if (payload.catalogue?.status === 'ready') {
+            if (mode === 'refine') report('Refine: existing library samples retained; editing current settings and musical patterns.');
+            else if (payload.catalogue?.status === 'ready') {
                 report(`Catalogue: ${payload.catalogue.catalogueCount} analysed files · ${payload.catalogue.eligibleCount} eligible in this library · ${payload.catalogue.shortlistCount} shortlisted. Filename claims and audio estimates are not guarantees.`);
                 for (const key of payload.catalogue.fallbackLanes || []) report(`Loop ${key}: no eligible catalogue source; using existing random library selection.`);
             } else report(`Catalogue fallback: ${payload.catalogue?.reason || 'This server returned a legacy recipe; using existing library selection.'}`);
             byId('aiPatchTitle').textContent = recipe.title; byId('aiPatchDescription').textContent = recipe.description;
             root.clearTimeout(timeout); timeout = root.setTimeout(() => request?.abort(), 240000);
             phase = 'applying'; status('Applying the recipe. Follow the live changes and sample loads below…');
-            const result = await adapter().execute(recipe, fingerprint, { signal, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
+            const result = await adapter().execute(recipe, fingerprint, { signal, mode, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
             if (locked || token !== serial) return;
-            previous = result;
+            result.promptBefore = lastPrompt; previous = result; lastPrompt = usedPrompt;
+            byId('aiPatchPrompt').value = usedPrompt;
+            if (mode === 'refine') byId('aiPatchRefinement').value = '';
             inventory();
             report(`Complete: ${result.changes} actual changes. ${result.saved ? 'Settings autosaved. Save/export a named patch with audio for a portable copy.' : 'Autosave unavailable: export the patch to retain it.'}`);
             status(`Applied ${result.changes} changes. Ready to play, edit or generate again. Undo restores the patch before this direction.`);
@@ -145,6 +198,7 @@
         try {
             report('Undo: restoring previous controls, tempo, loop patterns and samples…');
             const result = await adapter().undo(previous.before, previous.fingerprint);
+            lastPrompt = previous.promptBefore || ''; byId('aiPatchPrompt').value = lastPrompt || byId('aiPatchPrompt').value;
             previous = null; rendered = null;
             byId('aiPatchPreviewStatus').textContent = 'Patch restored. Render a fresh preview to capture this version.';
             inventory(); report('Undo complete. Previous patch and samples restored.');
@@ -154,7 +208,14 @@
     }
     async function initialize() {
         if (!byId('aiPatchCard')) return;
-        byId('aiPatchGenerate').addEventListener('click', generate);
+        byId('aiPatchGenerate').addEventListener('click', () => generate());
+        byId('aiPatchRegenerate').addEventListener('click', () => generate('regenerate'));
+        byId('aiPatchRefine').addEventListener('click', () => generate('refine'));
+        byId('aiPatchSavePrompt').addEventListener('click', () => promptLibrary('save'));
+        byId('aiPatchRefreshPrompts').addEventListener('click', () => promptLibrary());
+        byId('aiPatchRemovePrompt').addEventListener('click', () => promptLibrary('remove'));
+        byId('aiPatchRecallPrompt').addEventListener('click', recallPrompt);
+        byId('aiPatchSavedPrompts').addEventListener('change', update);
         byId('aiPatchCancel').addEventListener('click', cancel);
         byId('aiPatchUndo').addEventListener('click', undo);
         byId('aiPatchHear').addEventListener('click', async () => {
@@ -183,22 +244,22 @@
         });
         byId('aiPatchKeep').addEventListener('click', () => { previous = null; status('Kept. The change log remains below. Save/export a named patch as usual.'); update(); });
         document.querySelectorAll('[data-ai-patch-example]').forEach(button => button.addEventListener('click', () => { if (!request && !locked) { byId('aiPatchPrompt').value = button.dataset.aiPatchExample; byId('aiPatchPrompt').focus(); } }));
-        root.addEventListener('mygrain-account-lock', () => { locked = true; previous = null; rendered = null; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
-        root.addEventListener('pagehide', cancel);
+        root.addEventListener('mygrain-account-lock', () => { locked = true; previous = null; rendered = null; lastPrompt = ''; savedPrompts = []; drawPrompts(''); libraryRequest?.abort(); for (const id of ['aiPatchPrompt', 'aiPatchPromptName', 'aiPatchRefinement']) byId(id).value = ''; byId('aiPatchLibraryStatus').textContent = 'Sign in to recall your prompts.'; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
+        root.addEventListener('pagehide', () => { cancel(); libraryRequest?.abort(); });
         // Trusted edits outside this card must not race asynchronous patch writes.
         for (const event of ['click', 'input', 'change', 'keydown']) document.addEventListener(event, e => {
             if (!['applying', 'undo', 'preview', 'audition'].includes(phase) || !e.isTrusted || e.target.closest('#aiPatchCard, #sectionJumpDrawer') || !e.target.closest('button, input, select, textarea')) return;
             e.preventDefault(); e.stopImmediatePropagation();
         }, true);
-        update();
+        update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-catalogue-5', document.baseURI), { credentials: 'same-origin' });
+            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-prompts-6', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
             if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 12) throw Error();
             schema = data; inventory(); update();
         } catch { status('AI beta could not load. Reload to try again. Your other controls still work.'); }
     }
-    root.mygrainAiPatch = Object.freeze({ generate, undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), undoAvailable: Boolean(previous), renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
+    root.mygrainAiPatch = Object.freeze({ generate, refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: Boolean(previous), renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true }); else void initialize();
 })(window);
