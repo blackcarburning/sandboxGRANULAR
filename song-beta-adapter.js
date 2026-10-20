@@ -616,9 +616,10 @@
     };
 
     // Card history is deliberately separate from Song and AI take history.
-    // Keep two deltas and AudioBuffer references, never duplicate PCM or refetch on redo.
+    // Keep ten deltas and AudioBuffer references, never duplicate PCM or refetch on redo.
     function installCardHistory() {
-        const undo = [], redo = [];
+        const undo = [], redo = [], historyLimit = 10;
+        const historyIdentity = () => JSON.stringify([window.mygrainAccounts?.user?.username, window.mygrainSongBeta?.lease.device.id, window.mygrainSongBeta?.lease.session]);
         let busy = false, restoring = false, generation = 0;
         const copy = value => value === undefined ? undefined : cloneJson(value);
         const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -648,7 +649,7 @@
                 && [...a.cache].every(([key, value]) => b.cache.get(key) === value);
         }
         function delta(before, after, label) {
-            return { label, json: changes(before.json, after.json),
+            return { label, owner: historyIdentity(), json: changes(before.json, after.json),
                 buffers: before.buffers.flatMap((value, index) => value === after.buffers[index] ? [] : [{ index, before: value, after: after.buffers[index] }]),
                 piano: pianoEqual(before.piano, after.piano) ? null : { before: before.piano, after: after.piano } };
         }
@@ -681,7 +682,7 @@
                     if (epoch !== generation) return;
                     const entry = delta(before, capture(), label);
                     if (entry.json.length || entry.buffers.length || entry.piano) {
-                        undo.push(entry); if (undo.length > 2) undo.shift(); redo.length = 0;
+                        undo.push(entry); if (undo.length > historyLimit) undo.shift(); redo.length = 0;
                     }
                 } finally { busy = false; update(); }
             }
@@ -691,7 +692,8 @@
                 finish(); return result;
             } catch (error) { if (busy) finish(); throw error; }
         }
-        async function restore(entry, direction) {
+        async function restore(entry, direction, reservationGuard) {
+            reservationGuard();
             const current = capture(), target = current.json;
             for (const change of entry.json) {
                 let object = target;
@@ -703,7 +705,7 @@
             for (const change of entry.buffers) buffers[change.index] = change[direction];
             const piano = entry.piano ? entry.piano[direction] : current.piano;
             const account = window.mygrainAccounts.user.username, context = audioContext, epoch = generation;
-            const guard = () => { if (generation !== epoch || !window.mygrainAccounts.authenticated || account !== window.mygrainAccounts.user?.username || context !== audioContext) throw new Error('Account or audio changed; history cleared.'); };
+            const guard = () => { reservationGuard(); if (generation !== epoch || !window.mygrainAccounts.authenticated || account !== window.mygrainAccounts.user?.username || context !== audioContext) throw new Error('Account or audio changed; history cleared.'); };
             const transport = { seq: sequencerPlaying, loops: bastardLoopPlaying, drums: drumMachinePlaying, arp: isArpeggiatorPlaying(), keys: activeKeyCount > 0, q: window.mygrainQ?.running };
             const suspended = stateSaveSuspended, batched = batchSongUiRestore();
             try {
@@ -746,16 +748,38 @@
         }
         async function travel(direction) {
             if (busy) return;
+            const song = window.mygrainSongBeta;
+            const songId = song?.song?.id || null, library = song?.key;
+            const identity = historyIdentity(), epoch = generation, context = audioContext;
+            const reservationGuard = () => {
+                if (epoch !== generation || identity !== historyIdentity() || !window.mygrainAccounts?.authenticated || context !== audioContext) throw new Error('Account, device or audio changed. Undo/Redo stopped.');
+                if (song !== window.mygrainSongBeta || songId !== (song?.song?.id || null) || library !== song?.key) throw new Error('Song selection changed. Undo/Redo stopped; try again for the selected song.');
+                if (songId && !song.canEditSong()) throw new Error(song.lease.message || 'Song editing access is no longer verified. Undo/Redo stopped.');
+            };
             try {
                 assertReady();
                 const from = direction === 'before' ? undo : redo, to = direction === 'before' ? redo : undo;
                 const entry = from.at(-1); if (!entry) return;
+                if (entry.owner !== identity) throw new Error('This history belongs to another device session. Reload MYGRAIN before using Undo/Redo.');
                 busy = restoring = true; update();
-                await restore(entry, direction);
+                // Verify the server reservation on every travel, even for the same account.
+                // Reserve an unowned selected song using its existing device/session identity.
+                if (songId) {
+                    status('Checking Song reservation…');
+                    if (song.lease.token) {
+                        await song.lease.check();
+                    } else await song.ensureEditing();
+                }
+                reservationGuard(); assertReady();
+                await restore(entry, direction, reservationGuard);
+                reservationGuard();
                 from.pop(); to.push(entry);
                 status(`${direction === 'before' ? 'Undid' : 'Redid'} ${entry.label}.`);
-            } catch (error) { setStatus(error.message, 'error'); }
-            finally { busy = restoring = false; update(); }
+            } catch (error) {
+                const owner = song?.lease.lock?.label;
+                const message = owner && !song.lease.token ? `${error.message} Song reserved on ${owner}.` : error.message;
+                setStatus(message, 'error'); showSettlePopup(message);
+            } finally { busy = restoring = false; update(); }
         }
         const randomAction = button => button && /random|generat|samplesonly|loadrandom/i.test(`${button.id} ${button.dataset.qAction || ''} ${button.textContent}`) && !button.closest('#aiPatchCard, #aiSongPartsCard');
         const guardBusyInput = event => {

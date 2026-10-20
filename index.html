@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-touch-3"></script>
+    <script src="mygrain-accounts.js?v=20261020-touch-4"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-touch-3';
+            const cacheBuster = '2026-10-20-touch-4';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5906,9 +5906,19 @@
             }
         }
 
-        /* Rainbow brain identity: decorative mark, accessible text heading. */
+        /* Rainbow brain identity: full-width centred header above the controls. */
+        .mygrain-app-brand {
+            grid-column: 1 / -1;
+            display: grid;
+            justify-items: center;
+            gap: 12px;
+            min-width: 0;
+            padding: 8px 0 12px;
+            text-align: center;
+        }
         .simplified-ui .performance-title.mygrain-brand {
             display: flex;
+            flex-direction: column;
             width: fit-content;
             max-width: 100%;
             align-items: center;
@@ -5923,14 +5933,14 @@
         .mygrain-brand-logo {
             display: block;
             flex: 0 0 auto;
-            width: 64px;
-            height: 64px;
+            width: 128px;
+            height: 128px;
             object-fit: contain;
         }
 
         @media (max-width: 480px) {
             .simplified-ui .performance-title.mygrain-brand { gap: 8px; font-size: 1.7rem; letter-spacing: 0.06em; }
-            .mygrain-brand-logo { width: 56px; height: 56px; }
+            .mygrain-brand-logo { width: 112px; height: 112px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -5984,7 +5994,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.TOUCH.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.TOUCH.4</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6067,10 +6077,11 @@
     <div class="synth-container">
         <div class="performance-controls" aria-label="Performance controls">
             <div class="performance-toolbar">
+                <div class="mygrain-app-brand">
+                    <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="128" height="128" alt=""><span>MYGRAIN</span></h2>
+                    <div class="build-badge">Build <strong>v2026.10.20.TOUCH.4</strong></div>
+                </div>
                 <div class="performance-copy">
-                    <div class="performance-chip">Play · Source · BPM</div>
-                    <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.TOUCH.3</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -61182,13 +61193,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261020-touch-3');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261020-touch-4');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261015-song-portability-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261019-render-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-touch-3&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-touch-4&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>
