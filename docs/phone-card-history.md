@@ -1,6 +1,6 @@
 # Phone loop actions, card history and Solo
 
-Build: v2026.10.20.TOUCH.7.
+Build: v2026.10.20.TOUCH.8.
 
 - All loop-card and L/X/Q editor action buttons use normal native taps. The global hold-delay input interception has been removed entirely; accidental randomisations can be reversed with Undo.
 - Playable keys, chord pads, step grids, Solo toggles, Stop/Close/Cancel, mouse and keyboard activation keep their usual immediate behaviour.
@@ -45,3 +45,7 @@ Undo and Redo retain up to ten changes, with no copied PCM or history shared bet
 - A browser Web Lock prevents another tab on the same device from overwriting or travelling the active journal. An IndexedDB revision check is the fallback and also guards stale writers. Ordinary card taps remain immediate; no hold-delay interception is restored.
 - If browser storage cannot open or fills up, a warning explains that saving is unavailable; current-session randomisation and Undo/Redo remain functional. Clearing website data removes saved history. History is local to that browser/account/device, not synced between devices.
 - The restart regression closes and relaunches actual Chromium/WebKit browser processes and verifies both stacks, all ten Redo steps, exact original ALTBASS PCM hashes/metadata without redownload, lazy audio loading, Q Maps/shared audio, aborted-write atomicity and PCM collection, second-tab protection, separate device/account journals, and unavailable/quota-failed storage fallback. The reservation regression separately verifies foreign-device ownership, identical labels, offline/reconnect and selection races. Browser mobile emulation is not a physical-iPhone test.
+
+## TOUCH.8 — consistent thin button edges
+
+Action buttons retain one-pixel borders in every toggle state; the extra three-pixel active inset stripe is removed. Transient press feedback overlays the existing edge with one pixel instead of adding a thick inner ring, and action-panel keyboard focus remains visible with a thin offset line. Palette colours, labels, toggles, native taps and persistent history are unchanged.
