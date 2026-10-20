@@ -325,7 +325,7 @@
                     <div class="mygrain-account-actions"><button id="mygrainLoginBtn" type="submit">Log in</button><button id="mygrainCreateUserBtn" type="submit" name="create" value="true">Create user</button></div>
                     <p id="mygrainLoginStatus" role="status" aria-live="polite"></p>
                 </form><p class="mygrain-account-hint">Passwords are never saved in app storage. Only your password manager and a persistent server session remember your login.</p>
-                <p class="mygrain-account-hint">Build v2026.10.20.TOUCH.4</p></div>`;
+                <p class="mygrain-account-hint">Build v2026.10.20.TOUCH.5</p></div>`;
             document.body.append(shell);
             byId('mygrainLoginBackBtn').addEventListener('click', () => {
                 if (byId('mygrainLoginForm').dataset.pending) return;

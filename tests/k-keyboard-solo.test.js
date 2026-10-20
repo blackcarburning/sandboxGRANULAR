@@ -318,6 +318,6 @@ test('raw mixer levels retain existing persistence, reset and randomization guar
         assert.ok(skip.includes(`'${id}'`));
         assert.match(html, new RegExp(`${id}: 100`));
     }
-    assert.equal((html.match(/v2026\.10\.20\.TOUCH\.4/g) || []).length, 2);
-    assert.match(html, /q-card\.js\?v=20261020-touch-4/);
+    assert.equal((html.match(/v2026\.10\.20\.TOUCH\.5/g) || []).length, 2);
+    assert.match(html, /q-card\.js\?v=20261020-touch-5/);
 });
