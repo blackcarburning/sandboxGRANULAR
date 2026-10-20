@@ -596,7 +596,11 @@
       "reload": true,
       "divisions": false,
       "notes": true,
-      "recorded": false
+      "recorded": false,
+      "repositories": [
+        "samples_bass",
+        "samples_altbass"
+      ]
     },
     "Q": {
       "source": null,

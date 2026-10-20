@@ -17,6 +17,8 @@ import sqlite3
 DB_PATH = Path(os.environ.get('MYGRAIN_SAMPLE_CATALOGUE_DB', str(Path(__file__).resolve().parents[2] / 'sample-catalogue/catalogues/TONAL/catalogue.sqlite')))
 SOURCE_BASE = Path('/srv/sftp/mark_sftp/files/mygrain-source-mirrors')
 LANES = {'X': 'samples_bass', 'L': 'samples_leads', 'V': 'samples_vocal', 'P': 'samples_piano', 'O': 'samples_orch'}
+BUNDLED_BASS_ROOT = Path(__file__).resolve().parents[1] / 'SAMPLES_ALTBASS'
+X_REPOSITORIES = ('samples_bass', 'samples_altbass')
 LIMIT = 8
 ISSUES = {'key_filename_disagreement', 'tempo_filename_disagreement', 'tempo_half_double_ambiguity', 'oneshot_pitch_class_disagreement', 'filename_note_outside_pitch_analysis_range', 'near_fullscale_samples', 'riff_size_mismatch'}
 RULES = ('Filename key/BPM/tags are unverified claims. Bare tonic has UNKNOWN mode, not major. '
@@ -54,7 +56,7 @@ def safe_path(root, source, relative):
 
 def current_file(row, source_root, source, *, verify_hash=False):
     try:
-        path = safe_path(source_root, source, row['relative_path'])
+        path = safe_path(BUNDLED_BASS_ROOT.parent if source == 'samples_altbass' else source_root, source, row['relative_path'])
         stat = path.stat()
         if not path.is_file() or stat.st_size != row['file_bytes']:
             return False
@@ -178,8 +180,50 @@ def retrieve(prompt, current, source_root=None):
     return result
 
 
+def with_x_repository(context, repository='samples_bass'):
+    """Add bounded public Juno candidates without touching the offline database.
+
+    Public packaged content is separate from every account's private mirror.
+    Candidate identities/roots come from our prepared, checksum-bound manifest.
+    """
+    repository = repository if repository in X_REPOSITORIES else 'samples_bass'
+    context['xRepository'] = repository
+    if context.get('sourceRoot') is None:
+        return context
+    existing = context['candidates'].get('X', [])
+    for candidate in existing:
+        candidate['repository'] = 'samples_bass'
+    try:
+        manifest = json.loads((BUNDLED_BASS_ROOT / 'manifest.json').read_text())
+        # Two bass registers for each of the four patch/velocity variants.
+        offered = []
+        for sample in manifest['samples']:
+            if sample['midi'] not in (24, 36):
+                continue
+            path = safe_path(BUNDLED_BASS_ROOT.parent, 'samples_altbass', sample['name'])
+            row = {'relative_path': sample['name'], 'file_bytes': path.stat().st_size,
+                   'absolute_path': str(path), 'mtime_ns': path.stat().st_mtime_ns, 'sha256': sample['sha256']}
+            if not current_file(row, context['sourceRoot'], 'samples_altbass', verify_hash=True):
+                continue
+            sample_id = hashlib.sha256(('MYGRAIN:ALTBASS:' + sample['name'] + ':' + sample['sha256']).encode()).hexdigest()
+            candidate = {'sampleId': sample_id, 'repository': 'samples_altbass', 'name': sample['name'], 'durationS': round(sample['durationS'], 3),
+                         'filename': {'bpm': None, 'key': None, 'mode': 'unknown', 'tags': ['juno6', 'analogue', 'clean', 'bass', sample['patch']], 'loopClaim': False, 'oneShotClaim': True},
+                         'audioTentative': {'note': None, 'key': None, 'bpm': None, 'structure': 'single-note'},
+                         'measured': {'decodedMiBAt96k': round(sample['durationS'] * sample['channels'] * 4 * 96000 / 1048576, 2)},
+                         'playbackRoot': {'note': sample['rootNote'], 'source': 'measured sounding octave; upstream SFZ mapping with centre tuning'}, 'warnings': []}
+            offered.append(candidate)
+            context['entries'][sample_id] = {'lane': 'X', 'source': 'samples_altbass', 'row': row, 'candidate': candidate}
+        context['candidates']['X'] = existing + offered
+        context['eligibleCount'] += len(offered)
+        if offered:
+            context.update(status='ready', reason='Read-only tonal catalogue and checksum-bound public-domain Juno-6 basses.')
+    except (OSError, ValueError, TypeError, KeyError):
+        pass  # Existing library remains usable if the optional package is absent.
+    return context
+
+
 def model_context(context):
-    return {key: context[key] for key in ('status', 'reason', 'catalogueCount', 'eligibleCount', 'candidates')} | {'rules': RULES}
+    return {key: context[key] for key in ('status', 'reason', 'catalogueCount', 'eligibleCount', 'candidates')} | {'rules': RULES, 'xRepository': context.get('xRepository', 'samples_bass')}
 
 
 def attach_selections(recipe, context):
@@ -187,14 +231,15 @@ def attach_selections(recipe, context):
     for lane, settings in recipe['loops'].items():
         if not settings.get('reload') or lane not in LANES:
             continue
-        candidates = context['candidates'].get(lane, [])
+        repository = settings.get('repository', context.get('xRepository', 'samples_bass')) if lane == 'X' else LANES[lane]
+        candidates = [c for c in context['candidates'].get(lane, []) if lane != 'X' or c.get('repository', 'samples_bass') == repository]
         selected = settings.get('sampleId')
         if not selected:
             if candidates:
                 raise ValueError(f'AI omitted a catalogue sampleId for loop {lane}. Nothing was changed; try again.')
             continue
         entry = context['entries'].get(selected)
-        if not entry or entry['lane'] != lane:
+        if not entry or entry['lane'] != lane or (lane == 'X' and entry['source'] != repository):
             raise ValueError('AI selected a sample outside the supplied catalogue shortlist. Nothing was changed.')
         if not current_file(entry['row'], context['sourceRoot'], entry['source'], verify_hash=True):
             raise ValueError('The chosen catalogue sample changed or disappeared. Nothing was changed; try again.')

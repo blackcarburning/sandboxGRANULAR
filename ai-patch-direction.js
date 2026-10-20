@@ -144,9 +144,10 @@
         for (const [key, lane] of lanes) {
             const spec = schema.loops[key];
             if (!Object.hasOwn(schema.loops, key) || !lane || typeof lane !== 'object' || Array.isArray(lane)) throw Error('Unsupported loop.');
-            const allowed = ['enabled', ...(spec.reload ? ['reload'] : []), ...(spec.divisions ? ['divisions'] : []), ...(spec.notes ? ['notes'] : []), ...(key === 'Q' ? ['instrument', 'chords', 'chordSteps', 'style'] : []), ...(['X', 'L', 'V', 'P', 'O'].includes(key) ? ['sampleId', 'selection'] : [])];
+            const allowed = ['enabled', ...(spec.reload ? ['reload'] : []), ...(spec.divisions ? ['divisions'] : []), ...(spec.notes ? ['notes'] : []), ...(key === 'X' ? ['repository'] : []), ...(key === 'Q' ? ['instrument', 'chords', 'chordSteps', 'style'] : []), ...(['X', 'L', 'V', 'P', 'O'].includes(key) ? ['sampleId', 'selection'] : [])];
             if (!Object.keys(lane).length || Object.keys(lane).some(field => !allowed.includes(field))) throw Error('Unsupported loop operation.');
             for (const field of ['enabled', 'reload']) if (Object.hasOwn(lane, field) && typeof lane[field] !== 'boolean') throw Error('Invalid loop switch.');
+            if (Object.hasOwn(lane, 'repository') && (key !== 'X' || !['samples_bass', 'samples_altbass'].includes(lane.repository) || !lane.reload)) throw Error('Invalid bass repository operation.');
             if (lane.divisions && (!Array.isArray(lane.divisions) || !lane.divisions.length || lane.divisions.length > 3 || lane.divisions.some(d => !schema.divisions.includes(d)) || new Set(lane.divisions).size !== lane.divisions.length || (lane.divisions.includes('uncut') && lane.divisions.length !== 1))) throw Error('Invalid loop divisions.');
             if (Object.hasOwn(lane, 'divisions') && !lane.divisions) throw Error('Invalid loop divisions.');
             if (Object.hasOwn(lane, 'notes') && (!Array.isArray(lane.notes) || !lane.notes.length || lane.notes.length > 64 || !lane.notes.some(n => n !== null) || lane.notes.some(n => n !== null && (!Number.isInteger(n) || n < 24 || n > 84)))) throw Error('Invalid lead/bass notes.');
@@ -155,7 +156,7 @@
             if (Object.hasOwn(lane, 'style') && !['dry', 'warm', 'spacious'].includes(lane.style)) throw Error('Invalid Q style.');
             if (Object.hasOwn(lane, 'chordSteps') && ![4, 8, 16].includes(lane.chordSteps)) throw Error('Invalid Q chord spacing.');
             if (Object.hasOwn(lane, 'sampleId') || Object.hasOwn(lane, 'selection')) {
-                const selection = lane.selection, sources = {X: 'samples_bass', L: 'samples_leads', V: 'samples_vocal', P: 'samples_piano', O: 'samples_orch'};
+                const selection = lane.selection, sources = {X: lane.repository || adapter().inventory({ forModel: true }).X.repository || 'samples_bass', L: 'samples_leads', V: 'samples_vocal', P: 'samples_piano', O: 'samples_orch'};
                 if (!lane.reload || typeof lane.sampleId !== 'string' || !/^[a-f0-9]{64}$/.test(lane.sampleId) || !selection || Array.isArray(selection) || selection.sampleId !== lane.sampleId || selection.source !== sources[key] || !/^[a-f0-9]{64}$/.test(selection.sha256) || typeof selection.relativePath !== 'string' || selection.relativePath.length > 1024 || selection.relativePath.includes('\\') || selection.relativePath.split('/').some(part => !part || part === '.' || part === '..') || /[\x00-\x1f]/.test(selection.relativePath) || typeof selection.name !== 'string' || selection.name !== selection.relativePath.split('/').pop()) throw Error('Invalid catalogue sample identity. Nothing was changed.');
                 if (selection.playbackRoot !== null && (!selection.playbackRoot || typeof selection.playbackRoot.note !== 'string' || !/^[A-G][#b]?[0-8]$/.test(selection.playbackRoot.note) || typeof selection.playbackRoot.source !== 'string')) throw Error('Invalid catalogue playback root.');
                 if (!selection.filename || !selection.audioTentative || !selection.measured || !Array.isArray(selection.warnings) || selection.warnings.some(w => typeof w !== 'string')) throw Error('Invalid catalogue metadata.');
@@ -219,7 +220,7 @@
             adapter().assertReady();
             if (adapter().fingerprint() !== fingerprint) throw Error('Your patch or Song changed while AI was working. Generate a fresh direction.');
             const recipe = validateRecipe(payload.recipe), combined = { ...current, ...recipe.parameters };
-            if (['refine', 'section'].includes(requestMode) && (Object.values(recipe.loops).some(lane => lane.reload) || Object.values(recipe.drums?.tracks || {}).some(lane => lane.reload))) throw Error('Refine keeps current library samples. Nothing changed; try again or use Regenerate.');
+            if (['refine', 'section'].includes(requestMode) && (Object.entries(recipe.loops).some(([key, lane]) => lane.reload && !(requestMode === 'refine' && key === 'X' && lane.repository)) || Object.values(recipe.drums?.tracks || {}).some(lane => lane.reload))) throw Error('Refine keeps current library samples. Nothing changed; try again or use Regenerate.');
             if (requestMode === 'section') {
                 if (recipe.patternSteps !== 64 || !recipe.loops.Q?.chords) throw Error('The progression needs a four-bar Q chord pattern.');
                 const currentMusic = adapter().musicalState();
@@ -326,7 +327,7 @@
         }, true);
         update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-current-patch-9', document.baseURI), { credentials: 'same-origin' });
+            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-bass-1', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
             if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 12) throw Error();

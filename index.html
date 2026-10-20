@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-cpu-1-final"></script>
+    <script src="mygrain-accounts.js?v=20261020-bass-1"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-cpu-1';
+            const cacheBuster = '2026-10-20-bass-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5955,7 +5955,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.CPU.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.BASS.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6036,7 +6036,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.CPU.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.BASS.1</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -6964,6 +6964,12 @@
                         <p class="performance-feature-note">Sequence bass samples or the shared OSC3 synth, with rest, accent, slide, ratchets and semitone offset.</p>
                     </div>
                     <div class="performance-feature-actions">
+                        <label for="performanceBastardLoopXRepository">Bass repository</label>
+                        <select class="performance-select" style="width:100%;min-width:0" id="performanceBastardLoopXRepository" aria-label="Loop X bass repository">
+                            <option value="samples_bass">SAMPLES_BASS — original</option>
+                            <option value="samples_altbass">SAMPLES_ALTBASS — clean Juno-6</option>
+                        </select>
+                        <small>Remembered. Randomise never changes this repository.</small>
                         <button class="performance-btn primary" id="performanceBastardLoopXLoadBtn">Choose Bass Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXRandomBtn">Load Random Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopXRandomPatternBtn">Random Pattern</button>
@@ -12661,6 +12667,7 @@
             samples_orch: 'SAMPLES_ORCH',
             samples_leads: 'SAMPLES_LEADS',
             samples_bass: 'SAMPLES_BASS',
+            samples_altbass: 'SAMPLES_ALTBASS',
             samples_kicks: 'SAMPLES_KICKS',
             samples_snares: 'SAMPLES_SNARES',
             samples_hats: 'SAMPLES_HATS',
@@ -13209,6 +13216,8 @@
         let bastardLoopXDelayMix = 0;
         let bastardLoopXDelayPingPongEnabled = false;
         let bastardLoopXSourceMode = 'sample';
+        // Library preference is independent of loaded audio and all randomisers.
+        let bastardLoopXRepository = 'samples_bass';
         let bastardLoopXRootNote = 'C3';
         let bastardLoopXSequence = Array.from({ length: 64 }, () => ({ note: '', rest: false, accent: false, slide: false, ratchet: 1 }));
         let bastardLoopXEditStepIndex = 0;
@@ -21573,9 +21582,10 @@
                 return {
                     target,
                     title: 'Bass Browser',
-                    subtitle: 'Preview and load one bass one-shot from SAMPLES_BASS into Bastardloop X.',
-                    sourceKey: 'samples_bass',
-                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS.samples_bass,
+                    subtitle: 'Preview and load a bass one-shot from the remembered Loop X repository.',
+                    sourceKey: bastardLoopXRepository,
+                    sourceLabel: BASTARD_LOOP_SOURCE_LABELS[bastardLoopXRepository],
+                    sourceOptions: ['samples_bass', 'samples_altbass'].map(value => ({ value, label: BASTARD_LOOP_SOURCE_LABELS[value] })),
                     loadButtonLabel: 'Load Bass',
                     loadingLabel: 'Loading bass samples...'
                 };
@@ -36129,7 +36139,21 @@
             return bastardLoopXSampleRestorePromise;
         }
 
+        function normalizeBastardLoopXRepository(value) {
+            return value === 'samples_altbass' ? 'samples_altbass' : 'samples_bass';
+        }
+
+        function setBastardLoopXRepository(value, options = {}) {
+            bastardLoopXRepository = normalizeBastardLoopXRepository(value);
+            const select = document.getElementById('performanceBastardLoopXRepository');
+            if (select) select.value = bastardLoopXRepository;
+            if (!options.skipSave) saveState();
+            return bastardLoopXRepository;
+        }
+
         function syncBastardLoopXUi(options = {}) {
+            const repositorySelect = document.getElementById('performanceBastardLoopXRepository');
+            if (repositorySelect) repositorySelect.value = bastardLoopXRepository;
             syncOsc3SequencerLockUi();
             syncBastardLoopXQRootButton();
             const aroundNoteButton = document.getElementById('performanceBastardLoopXRandomAroundNoteBtn');
@@ -45574,6 +45598,7 @@
         function gatherPreset() {
             const preset = {
                 version: '3.1',
+                bastardLoopXRepository,
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 patternLength: getPatternLengthSteps(),
@@ -45829,6 +45854,7 @@
 
         // Helper function to apply preset
         function applyPreset(preset) {
+            if (preset?.bastardLoopXRepository !== undefined) setBastardLoopXRepository(preset.bastardLoopXRepository, { skipSave: true });
             const presetValidator = typeof mygrainUtils.validatePreset === 'function' ? mygrainUtils.validatePreset : null;
             const validated = presetValidator ? presetValidator(preset, {
                 sliderSchema: buildPresetSliderSchema(),
@@ -46723,6 +46749,7 @@
         }
 
         function restoreBastardLoopXSampleSelectionFromState(savedModes = {}, options = {}) {
+            setBastardLoopXRepository(savedModes.bastardLoopXRepository ?? savedModes.bastardLoopXSourceKey ?? 'samples_bass', { skipSave: true });
             const restoredMetadata = buildStoredBastardLoopXSampleMetadata(savedModes, {
                 fallbackMetadata: options.fallbackMetadata || bastardLoopXSampleMetadata,
                 durationSeconds: options.durationSeconds
@@ -46872,6 +46899,7 @@
                     bastardLoopXDelayPingPongEnabled: bastardLoopXDelayPingPongEnabled,
                     bastardLoopXTimingIndex: bastardLoopXTimingIndex,
                     bastardLoopXRootNote: bastardLoopXRootNote,
+                    bastardLoopXRepository,
                     bastardLoopXSourceKey: bastardLoopXSampleMetadata?.sourceKey || 'samples_bass',
                     bastardLoopXFileName: bastardLoopXSampleMetadata?.fileName || '',
                     bastardLoopXRelativePath: bastardLoopXSampleMetadata?.relativePath || '',
@@ -51073,7 +51101,7 @@
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop X sample.');
             }
-            const sourceKey = 'samples_bass';
+            const sourceKey = bastardLoopXRepository;
             const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLES_BASS';
             setStatus(`Loading a random bass sample from ${sourceLabel}…`);
             const response = await fetch(DROPBOX_SAMPLE_SOURCE_API_URL, {
@@ -59294,9 +59322,19 @@
             }
         });
 
+        document.getElementById('performanceBastardLoopXRepository')?.addEventListener('change', event => {
+            setBastardLoopXRepository(event.target.value);
+            setStatus(`Loop X repository saved: ${BASTARD_LOOP_SOURCE_LABELS[bastardLoopXRepository]}. Choose a bass or load a random sample to replace the current sound.`);
+            if (!dropboxSampleBrowserOverlay?.hidden && dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.bastardLoopX) {
+                refreshDropboxSampleBrowser().catch(error => setDropboxSampleBrowserStatus(error.message));
+            }
+        });
+
         dropboxSampleBrowserSourceSelect?.addEventListener('change', () => {
             if (isGrainSampleBrowserTarget(dropboxSampleBrowserTarget)) {
                 setGrainSampleBrowserSourceKey(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect.value);
+            } else if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.bastardLoopX) {
+                setBastardLoopXRepository(dropboxSampleBrowserSourceSelect.value);
             } else if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.drumMachinePerc) {
                 setDrumMachinePercBrowserSourceKey(dropboxSampleBrowserSourceSelect.value);
             } else {
@@ -60349,7 +60387,7 @@
                 "P": {enabled: () => bastardLoopPEnabled, enable: value => setBastardLoopPEnabled(value, quiet), buffer: () => bastardLoopPBuffer, metadata: () => bastardLoopPMetadata, source: "samples_piano", divisions: () => getSelectedBastardLoopPDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopPDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopPBuffer(buffer, "AI Loop P", metadata)},
                 "O": {enabled: () => bastardLoopOEnabled, enable: value => setBastardLoopOEnabled(value, quiet), buffer: () => bastardLoopOBuffer, metadata: () => bastardLoopOMetadata, source: "samples_orch", divisions: () => getSelectedBastardLoopODivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopODivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopOBuffer(buffer, "AI Loop O", metadata)},
                 "L": {enabled: () => bastardLoopLEnabled, enable: value => setBastardLoopLEnabled(value, quiet), buffer: () => bastardLoopLSampleBuffer, metadata: () => bastardLoopLSampleMetadata, source: "samples_leads", apply: (buffer, metadata) => applyLoadedBastardLoopLSampleBuffer(buffer, "AI Loop L", metadata), setNotes: notes => { bastardLoopLSequence = Array.from({ length: 64 }, (_, i) => ({ note: notes[i % notes.length] === null ? "" : midiToNoteName(notes[i % notes.length]), rest: notes[i % notes.length] === null, accent: false, slide: false, ratchet: 1 })); setBastardLoopLSourceMode("sample", quiet); syncBastardLoopLUi(); }},
-                "X": {enabled: () => bastardLoopXEnabled, enable: value => setBastardLoopXEnabled(value, quiet), buffer: () => bastardLoopXSampleBuffer, metadata: () => bastardLoopXSampleMetadata, source: "samples_bass", apply: (buffer, metadata) => applyLoadedBastardLoopXSampleBuffer(buffer, "AI Loop X", metadata), setNotes: notes => { bastardLoopXSequence = Array.from({ length: 64 }, (_, i) => ({ note: notes[i % notes.length] === null ? "" : midiToNoteName(notes[i % notes.length]), rest: notes[i % notes.length] === null, accent: false, slide: false, ratchet: 1 })); syncBastardLoopXUi(); }},
+                "X": {enabled: () => bastardLoopXEnabled, enable: value => setBastardLoopXEnabled(value, quiet), buffer: () => bastardLoopXSampleBuffer, metadata: () => bastardLoopXSampleMetadata, get source() { return bastardLoopXRepository; }, apply: (buffer, metadata) => applyLoadedBastardLoopXSampleBuffer(buffer, "AI Loop X", metadata), setNotes: notes => { bastardLoopXSequence = Array.from({ length: 64 }, (_, i) => ({ note: notes[i % notes.length] === null ? "" : midiToNoteName(notes[i % notes.length]), rest: notes[i % notes.length] === null, accent: false, slide: false, ratchet: 1 })); syncBastardLoopXUi(); }},
                 "M": {enabled: () => bastardLoopMEnabled, enable: value => setBastardLoopMEnabled(value, quiet), buffer: () => bastardLoopMRawBuffer, metadata: () => bastardLoopMMetadata},
                 "M+": {enabled: () => bastardLoopMPlusEnabled, enable: value => setBastardLoopMPlusEnabled(value, quiet), buffer: () => bastardLoopMPlusRawBuffer, metadata: () => bastardLoopMPlusMetadata},
                 "K": {enabled: () => bastardLoopKEnabled, enable: value => setBastardLoopKEnabled(value, quiet), buffer: () => bastardLoopKRawBuffer, metadata: () => bastardLoopKMetadata},
@@ -60410,7 +60448,7 @@
                 return Object.fromEntries(Object.entries(loops).map(([key, lane]) => {
                     const metadata = lane.metadata();
                     const samples = metadata?.sampleNames || (metadata?.fileName ? [metadata.fileName] : metadata?.summary ? [metadata.summary] : []);
-                    return [key, { enabled: lane.enabled(), loaded: Boolean(lane.buffer()) || (key === 'Q' && Boolean(window.mygrainQ?.piano?.cache.size)), samples: samples.slice(0, forModel ? 16 : 64).map(name => String(name).slice(0, 256)) }];
+                    return [key, { ...(key === 'X' ? { repository: bastardLoopXRepository } : {}), enabled: lane.enabled(), loaded: Boolean(lane.buffer()) || (key === 'Q' && Boolean(window.mygrainQ?.piano?.cache.size)), samples: samples.slice(0, forModel ? 16 : 64).map(name => String(name).slice(0, 256)) }];
                 }));
             }
             function drumInventory() {
@@ -60583,6 +60621,14 @@
                         const kind = key.startsWith('drums:') ? key.slice(6) : null;
                         const lane = kind ? { source: DRUM_MACHINE_SOURCE_KEYS[kind], apply: (buffer, metadata) => applyLoadedDrumMachineSampleBuffer(kind, buffer, metadata) } : loops[key];
                         if (settings.divisions) { const old = lane.divisions().join(', '); lane.setDivisions(settings.divisions); if (old !== lane.divisions().join(', ')) changes++; report(`Loop ${key} divisions: ${old} → ${lane.divisions().join(', ')} · applied`); done(); }
+                        if (key === 'X' && settings.repository) {
+                            const previous = bastardLoopXRepository;
+                            setBastardLoopXRepository(settings.repository, { skipSave: true });
+                            setBastardLoopXSourceMode('sample', { silent: true, skipSave: true });
+                            if (previous !== bastardLoopXRepository) changes++;
+                            report(`Loop X repository: ${previous} → ${bastardLoopXRepository} · remembered`);
+                            done();
+                        }
                         if (settings.reload) {
                             report(`Loop ${key}: requesting fresh audio from ${lane.source}…`);
                             await frame(); guard();
@@ -60965,7 +61011,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-ai-current-patch-9&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-current-patch-9');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass1-20261020-ai-current-patch-9');</script>
     <script>window.mygrainAccounts?.loadScript('ai-song-parts.js?v=20261020-ai-current-patch-9');</script>
     </template>
 </body>

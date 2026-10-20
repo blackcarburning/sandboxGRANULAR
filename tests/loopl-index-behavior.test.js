@@ -1082,17 +1082,20 @@ test('Loop L and X mega-random motif length prefers 16 steps when available', ()
     assert.equal(motifContext.getMegaRandomBastardLoopMotifLength(3), 3);
 });
 
-test('Loop L and X random sample loaders use their own fixed source folders', async () => {
+test('Loop L keeps its lead library and X random samples honour its protected repository', async () => {
     for (const [prefix, expectedSource, expectedLabel] of [
         ['L', 'samples_leads', 'SAMPLES_LEADS'],
-        ['X', 'samples_bass', 'SAMPLES_BASS']
+        ['X', 'samples_bass', 'SAMPLES_BASS'],
+        ['X', 'samples_altbass', 'SAMPLES_ALTBASS']
     ]) {
         const loaderContext = {
             audioContext: {},
+            bastardLoopXRepository: expectedSource,
             DROPBOX_SAMPLE_SOURCE_API_URL: 'https://example.invalid/api/source-sample',
             BASTARD_LOOP_SOURCE_LABELS: {
                 samples_leads: 'SAMPLES_LEADS',
-                samples_bass: 'SAMPLES_BASS'
+                samples_bass: 'SAMPLES_BASS',
+                samples_altbass: 'SAMPLES_ALTBASS'
             },
             Date: {
                 now() {

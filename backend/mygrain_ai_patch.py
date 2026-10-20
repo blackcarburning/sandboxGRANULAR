@@ -53,9 +53,11 @@ def validate_request(data):
     inventory = data['loops']
     if not isinstance(inventory, dict) or set(inventory) != set(LOOPS):
         raise ValueError('Reload MYGRAIN to refresh its loop inventory.')
-    for lane in inventory.values():
-        if not isinstance(lane, dict) or set(lane) != {'enabled', 'loaded', 'samples'} or type(lane['enabled']) is not bool or type(lane['loaded']) is not bool or not isinstance(lane['samples'], list) or len(lane['samples']) > 16 or any(not isinstance(name, str) or len(name) > 256 for name in lane['samples']):
+    for key, lane in inventory.items():
+        if not isinstance(lane, dict) or not {'enabled', 'loaded', 'samples'} <= set(lane) or not set(lane) <= ({'enabled', 'loaded', 'samples', 'repository'} if key == 'X' else {'enabled', 'loaded', 'samples'}) or type(lane['enabled']) is not bool or type(lane['loaded']) is not bool or not isinstance(lane['samples'], list) or len(lane['samples']) > 16 or any(not isinstance(name, str) or len(name) > 256 for name in lane['samples']):
             raise ValueError('Invalid loop inventory.')
+    if 'repository' in inventory['X'] and inventory['X']['repository'] not in catalogue.X_REPOSITORIES:
+        raise ValueError('Invalid Loop X repository.')
     return prompt.strip(), {key: number(value, CONTROLS[key]) for key, value in current.items()}, inventory
 
 
@@ -132,9 +134,11 @@ def validate_recipe(recipe):
         raise ValueError('Invalid loop changes.')
     for key, lane in loops.items():
         spec = LOOPS[key]
-        allowed = ({'sampleId'} if key in catalogue.LANES else set()) | {'enabled'} | ({'reload'} if spec['reload'] else set()) | ({'divisions'} if spec['divisions'] else set()) | ({'notes'} if spec['notes'] else set()) | ({'instrument', 'chords', 'chordSteps', 'style'} if key == 'Q' else set())
+        allowed = ({'repository'} if key == 'X' else set()) | ({'sampleId'} if key in catalogue.LANES else set()) | {'enabled'} | ({'reload'} if spec['reload'] else set()) | ({'divisions'} if spec['divisions'] else set()) | ({'notes'} if spec['notes'] else set()) | ({'instrument', 'chords', 'chordSteps', 'style'} if key == 'Q' else set())
         if not isinstance(lane, dict) or not lane or not set(lane) <= allowed:
             raise ValueError('Unsupported loop operation.')
+        if 'repository' in lane and (lane['repository'] not in catalogue.X_REPOSITORIES or not lane.get('reload')):
+            raise ValueError('Loop X repository changes require a valid repository and reload.')
         if 'sampleId' in lane and (not lane.get('reload') or not isinstance(lane['sampleId'], str) or not re.fullmatch(r'[a-f0-9]{64}', lane['sampleId'])):
             raise ValueError('Catalogue selection requires reload and a supplied sampleId.')
         for field in ['enabled', 'reload']:
@@ -223,15 +227,19 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
         'Q additionally allows chordSteps:4|8|16 and style:dry|warm|spacious. Drums tracks keys kick/snare/hat each allow reload:boolean, steps:1–64 integer 0/1 values repeated over the grid. '
         'When enabling drums provide all three track patterns, reload kick and snare (hat may reload or use synth fallback), and set bus/track levels and decay/length controls. '
         'Keep straight timing, no ratchets or swing; use rests and a coherent kick/snare backbeat. For no drums use enabled:false. '
-        'Up to three loop reloads plus three drum hit reloads share the same audio budget and load sequentially. sampleId is the only extra field for catalogued lanes; never output selection, paths, URLs or SQL. No other loop fields. M/M+/K are recordings: preserve their audio and do not enable an empty recording. '
+        'Up to three loop reloads plus three drum hit reloads share the same audio budget and load sequentially. X additionally accepts repository: samples_bass or samples_altbass, with reload:true. Other catalogued lanes accept sampleId only; never output selection, paths, URLs or SQL. No other loop fields. M/M+/K are recordings: preserve their audio and do not enable an empty recording. '
         'Do not enable an empty sample loop without reload, an empty L/X without notes, or empty Q without chords. '
-        'For each reloaded X/L/V/P/O with nonempty catalogue candidates, you MUST add sampleId copied EXACTLY from that lane shortlist. '
+        'For each reloaded X/L/V/P/O with nonempty catalogue candidates in the selected repository, you MUST add sampleId copied EXACTLY from that lane shortlist. '
         'Choose the best candidate for the direction: timbre tags, measured brightness/energy, duration, declared key/BPM and usable playback root. '
         'X/L playback root is applied by the loader, so write the desired sounding MIDI notes, NOT pre-transposed notes. '
         'P/O/V phrases are not automatically transposed to Q: choose compatible stated key/mode or omit that layer; avoid conflicting warnings. '
         'For intact phrases use divisions:["uncut"]; other divisions deliberately slice the chosen source. '
         'Follow catalogue rules; explain the chosen source and any material uncertainty without claiming audio listening. '
         'When a lane has no candidates or catalogue status is fallback, omit sampleId and reload uses existing random library selection. '
+        'Loop X repository is a protected remembered choice: omit repository to retain loopInventory.X.repository (legacy default samples_bass). '
+        'Change repository only when the user asks for a different bass library or clean Juno/analogue bass sounds. '
+        'samples_altbass is a public-domain Roland Juno-6 bass-only collection: Pulse (two velocity tones) and Saw Bass; clean raw analogue, not rave/distorted. '
+        'X sampleId must belong to the retained repository or the explicitly requested repository. Candidate repository identifies its library. '
         'Never invent sample filenames or claim to have heard audio. Omit reload to retain a source. At most 3 reloads per recipe. '
         'For sparse arrangements explicitly disable unwanted loops. Do not modify master volume, recording or Song arrangements. '
         'Respect the allowed bounds and integer steps below. hpfCutoff must remain below lpfCutoff/2. '
@@ -242,7 +250,7 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
         instruction += ('\nREFINE MODE OVERRIDES NEW-PATCH DEFAULTS: This is a targeted edit of the CURRENT audible patch, not a new arrangement. '
                         'Follow refinement in directionContext. Keep tempo, harmony, notes, enabled lanes and mix unless the requested edit needs them changed. '
                         'Do not chase five changes; one useful targeted change is enough. NO library reloads: omit reload or set false for every loop/drum, '
-                        'omit sampleId, keep existing source choices. Leave Q instrument and chords unchanged unless specifically relevant to the requested edit. '
+                        'omit sampleId, keep existing source choices. Exception: an explicitly requested X repository change may use repository with reload:true and its supplied sampleId. Leave Q instrument and chords unchanged unless specifically relevant to the requested edit. '
                         'Use musicalState for current Q chord cells, X/L sounding MIDI notes and drum hits; do not invent a previous patch. '
                         'Only supply changed fields; omit unrelated loops/drums/parameters. Drums are optional: omit the entire drums object unless drums were requested to change; drumsEnabled gives the current switch. Do not apply new-patch enabling defaults. '
                         'The user can choose Regenerate for new samples. Return the same strict recipe contract.\n')
@@ -291,8 +299,9 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
 def generate(prompt, current, loops, source_root=None, catalogue_report=None, direction=None, usage_report=None):
     context = ({'status': 'retained', 'reason': 'Refine and progression retain current sources; no fresh shortlist needed.', 'catalogueCount': 0, 'eligibleCount': 0, 'candidates': {}, 'entries': {}, 'sourceRoot': source_root}
                if direction and direction['mode'] in ('refine', 'section') else catalogue.retrieve(prompt, current, source_root))
+    context = catalogue.with_x_repository(context, loops['X'].get('repository', 'samples_bass'))
     recipe = run_model(prompt, current, loops, context, direction, usage_report=usage_report)
-    if direction and direction['mode'] in ('refine', 'section') and (any(lane.get('reload') for lane in recipe['loops'].values()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
+    if direction and direction['mode'] in ('refine', 'section') and (any(lane.get('reload') and not (direction['mode'] == 'refine' and key == 'X' and lane.get('repository')) for key, lane in recipe['loops'].items()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
         raise ValueError('Refine keeps current library samples. The AI requested a reload; nothing was changed. Try again or use Regenerate.')
     if direction and direction['mode'] == 'section':
         if recipe.get('patternSteps') != 64 or not recipe['loops'].get('Q', {}).get('chords'):
