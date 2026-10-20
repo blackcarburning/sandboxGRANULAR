@@ -1212,7 +1212,11 @@
                 this.changed({ preserveSamples: action === 'accent' && (!step || step.kind === 'accent'), live: true });
                 return;
             }
-            if (action === 'random') this.randomPattern();
+            if (action === 'random') {
+                const randomize = () => { this.randomPattern(); this.changed({ preserveSamples: false, reschedule: true, live: false }); };
+                if (window.mygrainCardHistory) window.mygrainCardHistory.run('Loop Q pattern', randomize); else randomize();
+                return;
+            }
             if (action === 'midi') {
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(new Blob([theory.midiFile(this.state, this.length(), this.host.bpm())], { type: 'audio/midi' }));

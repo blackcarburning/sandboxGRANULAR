@@ -615,6 +615,252 @@
         running: () => Boolean(audioContext?.state === 'running' && (sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || isBastardLoopVCutPreviewRunning() || isBastardLoopLRunning() || isBastardLoopXRunning() || drumMachinePlaying))
     };
 
+    // Card history is deliberately separate from Song and AI take history.
+    // Keep two deltas and AudioBuffer references, never duplicate PCM or refetch on redo.
+    function installCardHistory() {
+        const undo = [], redo = [];
+        let busy = false, restoring = false, generation = 0;
+        const copy = value => value === undefined ? undefined : cloneJson(value);
+        const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+        const status = message => setStatus(message);
+        function capture() {
+            flushPendingSliderUpdates();
+            const state = copy(saveState({ force: true, snapshotOnly: true }));
+            delete state.timestamp;
+            const piano = window.mygrainQ?.piano;
+            return { json: { state, sequencerSteps: copy(sequencerSteps), seqGrainsEnabled,
+                heldNotes: [...heldNotes], performanceSourceLayerSolo: copy(performanceSourceLayerSolo),
+                performanceSourceLayerSoloSnapshot: copy(performanceSourceLayerSoloSnapshot),
+                metadata: Object.fromEntries(metadataBindings.map(([key, get]) => [key, copy(get())])) },
+                buffers: audioBindings.map(([, get]) => get()),
+                piano: piano ? { atlas: piano.atlas, bank: piano.bank, manifest: piano.manifest, pinned: piano.pinned, cache: new Map(piano.cache) } : null };
+        }
+        function changes(a, b, path = [], result = []) {
+            if (equal(a, b)) return result;
+            if (a && b && !Array.isArray(a) && !Array.isArray(b) && typeof a === 'object' && typeof b === 'object') {
+                for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) changes(a[key], b[key], [...path, key], result);
+            } else result.push({ path, before: copy(a), after: copy(b) });
+            return result;
+        }
+        function pianoEqual(a, b) {
+            if (!a || !b) return a === b;
+            return ['atlas', 'bank', 'manifest', 'pinned'].every(key => a[key] === b[key]) && a.cache.size === b.cache.size
+                && [...a.cache].every(([key, value]) => b.cache.get(key) === value);
+        }
+        function delta(before, after, label) {
+            return { label, json: changes(before.json, after.json),
+                buffers: before.buffers.flatMap((value, index) => value === after.buffers[index] ? [] : [{ index, before: value, after: after.buffers[index] }]),
+                piano: pianoEqual(before.piano, after.piano) ? null : { before: before.piano, after: after.piano } };
+        }
+        function update() {
+            for (const [id, entries, verb] of [['sectionJumpUndoBtn', undo, 'Undo'], ['sectionJumpRedoBtn', redo, 'Redo']]) {
+                const button = document.getElementById(id);
+                if (!button) continue;
+                button.disabled = busy || !entries.length;
+                button.textContent = `${verb} ${entries.length}`;
+                button.setAttribute('aria-label', entries.length ? `${verb}: ${entries.at(-1).label} (${entries.length} available)` : `${verb}: no changes`);
+                button.title = button.getAttribute('aria-label');
+            }
+        }
+        function assertReady() {
+            if (!window.mygrainAccounts?.authenticated || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
+            if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || bastardLoopKRecordingState !== 'idle'
+                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing || window.mygrainAiPatch?.busy || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
+            if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
+        }
+        function run(label, action) {
+            if (restoring || window.__mygrainSongRenderDeck) return action();
+            // Internal calls within a larger generation are part of that same step.
+            // Trusted UI input is blocked by the capture listener while it settles.
+            if (busy) return action();
+            assertReady();
+            const before = capture(), epoch = generation;
+            busy = true; update();
+            function finish() {
+                try {
+                    if (epoch !== generation) return;
+                    const entry = delta(before, capture(), label);
+                    if (entry.json.length || entry.buffers.length || entry.piano) {
+                        undo.push(entry); if (undo.length > 2) undo.shift(); redo.length = 0;
+                    }
+                } finally { busy = false; update(); }
+            }
+            try {
+                const result = action();
+                if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(); throw error; });
+                finish(); return result;
+            } catch (error) { if (busy) finish(); throw error; }
+        }
+        async function restore(entry, direction) {
+            const current = capture(), target = current.json;
+            for (const change of entry.json) {
+                let object = target;
+                for (const key of change.path.slice(0, -1)) object = object[key] ||= {};
+                const key = change.path.at(-1), value = change[direction];
+                if (value === undefined) delete object[key]; else object[key] = copy(value);
+            }
+            const buffers = current.buffers.slice();
+            for (const change of entry.buffers) buffers[change.index] = change[direction];
+            const piano = entry.piano ? entry.piano[direction] : current.piano;
+            const account = window.mygrainAccounts.user.username, context = audioContext, epoch = generation;
+            const guard = () => { if (generation !== epoch || !window.mygrainAccounts.authenticated || account !== window.mygrainAccounts.user?.username || context !== audioContext) throw new Error('Account or audio changed; history cleared.'); };
+            const transport = { seq: sequencerPlaying, loops: bastardLoopPlaying, drums: drumMachinePlaying, arp: isArpeggiatorPlaying(), keys: activeKeyCount > 0, q: window.mygrainQ?.running };
+            const suspended = stateSaveSuspended, batched = batchSongUiRestore();
+            try {
+                guard(); stopSongAudio(); stateSaveSuspended = true; sourceMutationSerial += 1;
+                audioBindings.forEach(([key, , set], i) => { if (key !== 'bastardQ') set(buffers[i]); });
+                metadataBindings.forEach(([key, , set]) => set(copy(target.metadata[key])));
+                if (!restoreState({ state: target.state, songSnapshot: true, throwOnError: true })) throw new Error('Could not restore the previous card settings.');
+                sequencerSteps = copy(target.sequencerSteps); normalizeSequencerSteps();
+                sequencerSteps.forEach((step, i) => updateSequencerStepUI(i + 1));
+                seqGrainsEnabled = target.seqGrainsEnabled;
+                document.getElementById('seqGrainsEnabled').checked = seqGrainsEnabled;
+                heldNotes = new Set(target.heldNotes);
+                document.querySelectorAll('.key[data-note]').forEach(key => key.classList.toggle('active', heldNotes.has(key.dataset.note)));
+                performanceSourceLayerSolo = copy(target.performanceSourceLayerSolo);
+                performanceSourceLayerSoloSnapshot = copy(target.performanceSourceLayerSoloSnapshot);
+                // Settings restoration may rerender buffers. Return the exact saved sounds.
+                audioBindings.forEach(([key, , set], i) => { if (key !== 'bastardQ') set(buffers[i]); });
+                metadataBindings.forEach(([key, , set]) => set(copy(target.metadata[key])));
+                if (piano && window.mygrainQ) Object.assign(window.mygrainQ.piano, piano, { cache: new Map(piano.cache) });
+                syncLegacyAudioBuffer(); batched.applyEffects();
+            } finally { stateSaveSuspended = suspended; batched.restore(); }
+            refreshSongAudioUi(); saveState({ force: true });
+            if ((transport.loops || transport.q) && window.mygrainQ?.playable()) { await window.mygrainQ.preparePlayback(); guard(); }
+            if (transport.seq || transport.loops || transport.drums || transport.arp || transport.keys || transport.q) withBufferedTransportStart(null, deadline => {
+                if (transport.seq) startSequencer(deadline);
+                if (transport.loops) setBastardLoopPlaying(true, { silent: true, skipSave: true, startTime: deadline });
+                if (transport.drums) startDrumMachine(deadline);
+                if (transport.q && !transport.loops) window.mygrainQ?.start(deadline);
+                if (transport.arp) { keyboardPlaybackAuthorized = true; keyboardArpTransportPlaying = true; startArpeggiatorPlayback(deadline); }
+                if (transport.keys && !arpEnabled) { keyboardPlaybackAuthorized = true; startHeldKeyboardPlayback(deadline); }
+            }, { reset: true });
+            syncPerformanceControlState();
+            for (const change of entry.buffers) {
+                const key = audioBindings[change.index][3];
+                if (!key) continue;
+                guard();
+                if (buffers[change.index]) await saveAudioBufferToDB(buffers[change.index], key); else await clearAudioBufferFromDB(key);
+                guard();
+            }
+        }
+        async function travel(direction) {
+            if (busy) return;
+            try {
+                assertReady();
+                const from = direction === 'before' ? undo : redo, to = direction === 'before' ? redo : undo;
+                const entry = from.at(-1); if (!entry) return;
+                busy = restoring = true; update();
+                await restore(entry, direction);
+                from.pop(); to.push(entry);
+                status(`${direction === 'before' ? 'Undid' : 'Redid'} ${entry.label}.`);
+            } catch (error) { setStatus(error.message, 'error'); }
+            finally { busy = restoring = false; update(); }
+        }
+        const randomAction = button => button && /random|generat|samplesonly|loadrandom/i.test(`${button.id} ${button.dataset.qAction || ''} ${button.textContent}`) && !button.closest('#aiPatchCard, #aiSongPartsCard');
+        const guardBusyInput = event => {
+            if (!busy || !event.isTrusted || !randomAction(event.target.closest('button'))) return;
+            event.preventDefault(); event.stopImmediatePropagation(); status('Wait for the current sound change to finish.');
+        };
+        for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, guardBusyInput, true);
+        window.addEventListener('mygrain-account-lock', () => { generation++; undo.length = redo.length = 0; update(); });
+        window.mygrainCardHistory = { run, undo: () => travel('before'), redo: () => travel('after'),
+            get busy() { return busy; }, get counts() { return { undo: undo.length, redo: redo.length }; } };
+        document.getElementById('sectionJumpUndoBtn')?.addEventListener('click', window.mygrainCardHistory.undo);
+        document.getElementById('sectionJumpRedoBtn')?.addEventListener('click', window.mygrainCardHistory.redo);
+        const actions = {
+            randomizeDrumMachinePatterns: 'drum patterns', loadRandomDrumMachineSamples: 'drum sounds and patterns', loadRandomDrumMachineSamplesOnly: 'drum sounds',
+            loadRandomSingleDrumMachineSample: 'drum sample', randomizeBastardLoopLPattern: 'Loop L pattern', randomizeBastardLoopXAroundNote: 'Loop X notes', randomizeBastardLoopXPattern: 'Loop X pattern',
+            randomizeSynthPopupPatch: 'OSC3 sound', generateStandaloneSource: 'generated source', generatePerformanceLoop: 'generated loop', runPatchRandomization: 'random patch', runMegaRandomization: 'Mega / Sparse patch',
+            loadBastardLoopLSampleFromSource: 'Loop L sound', loadBastardLoopXSampleFromSource: 'Loop X sound', loadDropboxSampleLayerFromSource: 'sample layer sound',
+            generateBastardLoopWithPlaybackRestart: 'Loop A sound', generateBastardLoop2WithPlaybackRestart: 'Loop B sound', generateBastardLoop3WithPlaybackRestart: 'Loop C sound',
+            generateBastardLoopVWithPlaybackRestart: 'Loop V sound', generateBastardLoopPWithPlaybackRestart: 'Loop P sound', generateBastardLoopOWithPlaybackRestart: 'Loop O sound'
+        };
+        for (const [name, label] of Object.entries(actions)) {
+            const original = window[name];
+            if (typeof original === 'function') window[name] = function (...args) { return run(label, () => original.apply(this, args)); };
+        }
+        update();
+    }
+
+    function installPhoneCardActions() {
+        const holdMs = 350, bypass = new WeakSet(), blocked = new WeakMap();
+        let gesture = null;
+        const cardSelector = '.performance-feature-card[aria-label^="Bastardloop"], #performanceDrumMachineCard, [aria-label="Dropbox sample layer controls"], .drum-machine-track-card, #bastardLoopLOverlay, #bastardLoopXOverlay, #bastardLoopQOverlay';
+        function protectedButton(button) {
+            if (!button || button.disabled || !button.closest(cardSelector)) return false;
+            if (button.matches('.key, [data-note], [data-q-step], [data-step], .lead-sequencer-step-btn, .lead-sequencer-key, .q-step, [data-q-degree], [data-q-pitch], .drum-machine-step, .drum-machine-step-btn, [data-q-pad]')) return false;
+            return !/\bstop\b|\bclose\b|\bcancel\b/i.test(`${button.id.replace(/([a-z])([A-Z])/g, '$1 $2')} ${button.textContent}`);
+        }
+        function cancel() {
+            if (!gesture) return;
+            blocked.set(gesture.button, performance.now());
+            gesture.button.classList.remove('phone-action-holding'); gesture = null;
+        }
+        document.addEventListener('pointerdown', event => {
+            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+            const button = event.target.closest('button');
+            if (!protectedButton(button)) return;
+            cancel(); gesture = { button, id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+            button.classList.add('phone-action-holding'); blocked.set(button, performance.now());
+            event.stopImmediatePropagation();
+        }, true);
+        document.addEventListener('pointermove', event => {
+            if (!gesture || event.pointerId !== gesture.id) return;
+            if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10) cancel();
+        }, { capture: true, passive: true });
+        document.addEventListener('pointercancel', cancel, true);
+        document.addEventListener('scroll', cancel, { capture: true, passive: true });
+        document.addEventListener('pointerup', event => {
+            if (!gesture || event.pointerId !== gesture.id) return;
+            const saved = gesture, elapsed = performance.now() - saved.time;
+            const hit = document.elementFromPoint(event.clientX, event.clientY)?.closest('button') === saved.button;
+            cancel(); event.preventDefault(); event.stopImmediatePropagation();
+            if (elapsed < holdMs || !hit || saved.button.disabled) { setStatus('Hold loop-card buttons briefly, then release to apply.'); return; }
+            if (window.mygrainCardHistory?.busy) { setStatus('Wait for the current sound change to finish.'); return; }
+            bypass.add(saved.button);
+            try { saved.button.click(); } finally { bypass.delete(saved.button); }
+        }, true);
+        document.addEventListener('click', event => {
+            const button = event.target.closest('button');
+            if (!button || bypass.has(button)) return;
+            if (performance.now() - (blocked.get(button) ?? -Infinity) < 1200 && (event.detail > 0 || event.pointerType === 'touch' || event.sourceCapabilities?.firesTouchEvents)) {
+                event.preventDefault(); event.stopImmediatePropagation();
+            }
+        }, true);
+        function mark(root = document) {
+            const buttons = root.matches?.('button') ? [root] : root.querySelectorAll('button');
+            buttons.forEach(button => {
+                if (protectedButton(button)) { button.classList.add('phone-card-action'); button.title ||= 'On phones: hold briefly, then release.'; }
+                const text = button.textContent.trim();
+                if (button.matches('.performance-layer-solo-btn, .performance-mixer-solo-btn, [data-source-waveform-solo], [data-grain-layer-solo], [data-q-action="solo"], #performanceSampleSoloBtn') || /^solo\b/i.test(text)) button.classList.add('mygrain-solo-button');
+            });
+        }
+        mark();
+        new MutationObserver(records => {
+            for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1) mark(node);
+        }).observe(document.body, { childList: true, subtree: true });
+    }
+
+    function mountCardSolos() {
+        const cards = [
+            ['[aria-label="Bastardloop L controls"]', 'bastardl', 'L'], ['[aria-label="Bastardloop X controls"]', 'bastardx', 'X'],
+            ['[aria-label="Bastardloop M controls"]', 'bastardm', 'M'], ['[aria-label="Bastardloop M+ controls"]', 'bastardmplus', 'MPlus'],
+            ['#bastardLoopKCard', 'bastardk', 'K'], ['#performanceDrumMachineCard', 'drums', 'Drums']
+        ];
+        for (const [selector, key, suffix] of cards) {
+            const card = document.querySelector(selector); if (!card) continue;
+            const button = document.createElement('button');
+            button.id = `performanceCard${suffix}SoloBtn`; button.type = 'button'; button.className = 'performance-btn performance-layer-solo-btn mygrain-solo-button';
+            button.dataset.loopCardSolo = key; button.textContent = 'Solo Off'; button.setAttribute('aria-pressed', 'false');
+            button.addEventListener('click', () => setLoopLayerSolo(key, { toggle: true }));
+            (card.querySelector('.performance-feature-actions') || card.querySelector('.performance-layer-switches') || card).append(button);
+        }
+        syncLoopLayerSoloButtons();
+    }
+
+    if (!window.__mygrainSongRenderDeck) { mountCardSolos(); installCardHistory(); installPhoneCardActions(); }
+
     window.mygrainSongBetaAdapter = adapter;
     if (window.__mygrainSongRenderDeck) return;
     try {
