@@ -446,6 +446,9 @@ async function fixtureServer() {
                     setTimeout(() => { if (!response.destroyed) response.end('true}'); }, 1000).unref();
                 }
                 else json(200, { ok: true });
+            } else if (/^\/mygrain\/assets\/brand\/mygrain-(rainbow-brain\.webp|icon\.png)$/.test(url.pathname)) {
+                response.writeHead(200, { 'Content-Type': url.pathname.endsWith('.webp') ? 'image/webp' : 'image/png' });
+                response.end(fs.readFileSync(path.join(root, 'assets/brand', path.basename(url.pathname))));
             } else if (/^\/mygrain\/mygrain-accounts\.(js|css)$/.test(url.pathname)) {
                 response.writeHead(200, { 'Content-Type': url.pathname.endsWith('.css') ? 'text/css' : 'application/javascript' });
                 response.end(fs.readFileSync(path.join(root, path.basename(url.pathname))));

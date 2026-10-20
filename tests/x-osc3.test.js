@@ -21,7 +21,7 @@ function fixture(overrides = {}) {
     const context = {
         audioContext: { currentTime: 10 }, activeOscVoices: new Map(),
         noteSemitoneOffsets: { C:0, 'C#':1, D:2, 'D#':3, E:4, F:5, 'F#':6, G:7, 'G#':8, A:9, 'A#':10, B:11 },
-        bastardLoopXSourceMode: 'sample', bastardLoopXSampleBuffer: null,
+        bastardLoopLSourceMode: 'sample', bastardLoopXSourceMode: 'sample', bastardLoopXSampleBuffer: null,
         ensureBastardLoopLSynthReady: () => true,
         hasRestorableBastardLoopXSampleReference: () => false,
         hasPlayableBastardLoopXSequence: () => true,
@@ -102,4 +102,68 @@ test('slides preserve hard-sync master frequencies rather than retuning synced o
     const { context: c, ramps } = fixture({ getOscillatorVoiceFrequencies: () => ({ osc1Frequency: 110, osc2Frequency: 220, osc3Frequency: 440, osc2MasterFrequency: 110, osc3MasterFrequency: 220 }) });
     c.playBastardLoopXSynthVoice({ note: 'C2', slide: true }, 11, .125, { note: 'D2' });
     assert.deepEqual(ramps.map(ramp => ramp.frequency), [110, 110, 220]);
+});
+
+
+function lockingFixture() {
+    const events = [];
+    const c = { window: {}, document: { getElementById: () => null },
+        bastardLoopLSourceMode: 'sample', bastardLoopXSourceMode: 'sample',
+        ensureBastardLoopLSynthReady: () => events.push('prepare'),
+        stopAllBastardLoopLVoices: () => events.push('stopL'),
+        stopAllBastardLoopXVoices: () => events.push('stopX'),
+        restartBastardLoopLPlaybackIfNeeded: () => events.push('startL'),
+        restartBastardLoopXPlaybackIfNeeded: () => events.push('startX'),
+        syncBastardLoopLUi() {}, syncBastardLoopXUi() {}, syncPerformanceControlState() {},
+        updateBastardLoopLStatus: value => events.push(value), updateBastardLoopXStatus: value => events.push(value),
+        saveState: () => events.push('save') };
+    vm.createContext(c);
+    for (const name of ['normalizeBastardLoopLSourceMode', 'normalizeBastardLoopXSourceMode', 'isBastardLoopLUsingSynth', 'isBastardLoopXUsingSynth', 'normalizeOsc3SequencerSources', 'getOsc3SequencerOwner', 'syncOsc3SequencerLockUi', 'canConnectOsc3Sequencer', 'restoreOsc3SequencerSources', 'setBastardLoopLSourceMode', 'setBastardLoopXSourceMode']) vm.runInContext(source(name), c);
+    c.showOsc3SequencerLockWarning = message => events.push(message);
+    return { c, events };
+}
+
+for (const [owner, other] of [['L', 'X'], ['X', 'L']]) {
+    test(`${owner} keeps exclusive OSC3 ownership; ${other} is refused without stopping voices or saving a conflicting state`, () => {
+        const { c, events } = lockingFixture();
+        assert.equal(c[`setBastardLoop${owner}SourceMode`]('synth'), true);
+        assert.equal(c.getOsc3SequencerOwner(), owner);
+        events.length = 0;
+        assert.equal(c[`setBastardLoop${other}SourceMode`]('synth'), false);
+        assert.equal(c[`bastardLoop${owner}SourceMode`], 'synth');
+        assert.equal(c[`bastardLoop${other}SourceMode`], 'sample');
+        assert(events.some(event => event.includes(`locked to Loop ${owner}`)));
+        assert(!events.some(event => /^(stop|start|save|prepare)/.test(event)));
+        c[`setBastardLoop${owner}SourceMode`]('sample');
+        assert.equal(c.getOsc3SequencerOwner(), null);
+        assert.equal(c[`setBastardLoop${other}SourceMode`]('synth'), true);
+        assert.equal(c.getOsc3SequencerOwner(), other);
+    });
+}
+
+test('restoring old dual-synth state keeps L, switches X to Sample and warns without modifying the imported object', () => {
+    const { c, events } = lockingFixture();
+    const saved = { bastardLoopLSourceMode: 'synth', bastardLoopXSourceMode: 'synth' };
+    c.restoreOsc3SequencerSources(saved);
+    assert.equal(c.bastardLoopLSourceMode, 'synth'); assert.equal(c.bastardLoopXSourceMode, 'sample');
+    assert.equal(saved.bastardLoopXSourceMode, 'synth');
+    assert(events.some(event => event.includes('This saved patch')));
+    assert.equal(c.isBastardLoopXUsingSynth(), false);
+});
+
+test('restoring an exclusive saved part replaces prior ownership atomically, and old parts release the lock', () => {
+    const { c } = lockingFixture();
+    c.setBastardLoopXSourceMode('synth');
+    c.restoreOsc3SequencerSources({ bastardLoopLSourceMode: 'synth' });
+    assert.equal(c.getOsc3SequencerOwner(), 'L'); assert.equal(c.bastardLoopXSourceMode, 'sample');
+    c.restoreOsc3SequencerSources({});
+    assert.equal(c.getOsc3SequencerOwner(), null);
+    assert.equal(c.isBastardLoopLUsingSynth() || c.isBastardLoopXUsingSynth(), false);
+});
+
+test('a directly malformed double assignment never makes both synth source predicates true', () => {
+    const { c } = lockingFixture();
+    c.bastardLoopLSourceMode = c.bastardLoopXSourceMode = 'synth';
+    assert.equal(c.isBastardLoopLUsingSynth(), true);
+    assert.equal(c.isBastardLoopXUsingSynth(), false);
 });

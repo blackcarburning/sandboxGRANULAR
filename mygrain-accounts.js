@@ -325,7 +325,7 @@
                     <div class="mygrain-account-actions"><button id="mygrainLoginBtn" type="submit">Log in</button><button id="mygrainCreateUserBtn" type="submit" name="create" value="true">Create user</button></div>
                     <p id="mygrainLoginStatus" role="status" aria-live="polite"></p>
                 </form><p class="mygrain-account-hint">Passwords are never saved in app storage. Only your password manager and a persistent server session remember your login.</p>
-                <p class="mygrain-account-hint">Build v2026.10.20.OSC.1</p></div>`;
+                <p class="mygrain-account-hint">Build v2026.10.20.OSC.2</p></div>`;
             document.body.append(shell);
             byId('mygrainLoginBackBtn').addEventListener('click', () => {
                 if (byId('mygrainLoginForm').dataset.pending) return;
@@ -594,6 +594,7 @@
             mediaPreviews.forEach(preview => preview.dispose());
             mediaPreviews.clear();
         }, { once: true });
+        root.mygrainStartup?.reveal();
         return;
     }
     document.documentElement.dataset.mygrainLocked = String(!active);
@@ -638,6 +639,7 @@
             if (!start || failure || new URL(root.location.href).searchParams.has('account') || !/^https?:$/.test(root.location.protocol)) {
                 showLogin(failure || (!/^https?:$/.test(root.location.protocol) ? 'Open MYGRAIN from its server to log in.' : ''));
             }
+            root.mygrainStartup?.reveal();
             return;
         }
         const toolbar = document.createElement('nav');
@@ -654,5 +656,6 @@
         const start = byId('start-overlay');
         if (start) renderStartAccount(start);
         if (byId('start-btn')) byId('start-btn').disabled = false;
+        root.mygrainStartup?.reveal();
     }, { once: true });
 })(typeof window === 'undefined' ? globalThis : window);

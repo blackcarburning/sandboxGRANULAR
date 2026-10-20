@@ -1,9 +1,57 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-mygrain-startup="loading" aria-busy="true">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <style id="mygrain-startup-style">
+        html[data-mygrain-startup="loading"] { background: #040a12; }
+        html[data-mygrain-startup="loading"] body,
+        html[data-mygrain-startup="loading"] body * { visibility: hidden !important; }
+        html[data-mygrain-startup="loading"]::before {
+            content: 'Loading…';
+            position: fixed; inset: 0; z-index: 2147483647;
+            display: grid; place-items: center;
+            background: #040a12; color: #c8f5ff;
+            font: 600 18px/1.4 system-ui, sans-serif; letter-spacing: .04em;
+        }
+    </style>
+    <script id="mygrain-startup-script">
+        (() => {
+            const finish = () => {
+                document.documentElement.dataset.mygrainStartup = 'ready';
+                document.documentElement.setAttribute('aria-busy', 'false');
+            };
+            const fail = message => {
+                const shell = document.createElement('section');
+                shell.id = 'mygrain-account-shell';
+                shell.className = 'mygrain-account-shell';
+                shell.setAttribute('role', 'alert');
+                shell.style.cssText = 'position:fixed;inset:0;display:grid;place-content:center;gap:16px;padding:24px;background:#040a12;color:#eef8ff;font:16px/1.5 system-ui,sans-serif;text-align:center';
+                const text = document.createElement('p');
+                text.textContent = message;
+                const retry = document.createElement('button');
+                retry.textContent = 'Reload MYGRAIN';
+                retry.style.cssText = 'min-height:44px;padding:10px 20px;border-radius:12px;border:1px solid #70e8ff;background:#17384a;color:#fff;font:inherit';
+                retry.addEventListener('click', () => location.reload());
+                shell.append(text, retry);
+                document.body.replaceChildren(shell);
+                finish();
+            };
+            window.mygrainStartup = Object.freeze({ fail, async reveal() {
+                if (window.__mygrainSongRenderDeck) { finish(); return; }
+                try {
+                    if (document.getElementById('mygrainAccountStyles')?.dataset.loaded !== 'true') throw new Error('Account styling could not load.');
+                    if (document.fonts?.ready) await document.fonts.ready;
+                    for (const image of document.querySelectorAll('#start-overlay img')) await image.decode();
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                    finish();
+                } catch (error) {
+                    fail(`${error.message} Reload MYGRAIN when connected; your saved workspace is unchanged.`);
+                }
+            } });
+        })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -213,28 +261,23 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="mygrain-accounts.css?v=20261020-start-screen-3">
+    <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-x-osc3-1"></script>
+    <script src="mygrain-accounts.js?v=20261020-lock-startup-1"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
             document.write('<template id="mygrain-account-unavailable">');
             window.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('mygrain-account-unavailable')?.remove();
-                document.body.replaceChildren();
-                const shell = document.createElement('section');
-                shell.id = 'mygrain-account-shell';
-                shell.className = 'mygrain-account-shell';
-                shell.textContent = 'Account controls could not load. Reload MYGRAIN when connected; your saved workspace is unchanged.';
-                document.body.append(shell);
+                window.mygrainStartup.fail('Account controls could not load. Reload MYGRAIN when connected; your saved workspace is unchanged.');
             }, { once: true });
         }
     </script>
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-x-osc3-1';
+            const cacheBuster = '2026-10-20-lock-startup-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -709,6 +752,24 @@
         .lead-sequencer-toolbar-row.compact-two {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+
+        #osc3SequencerLockWarning {
+            box-sizing: border-box; position: fixed;
+            top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+            z-index: 2147483646; display: flex; align-items: center; gap: 12px;
+            width: min(480px, calc(100vw - 24px)); padding: 14px;
+            border: 1px solid #efc27d; border-radius: 14px;
+            background: #201b15; color: #fff0d6;
+            box-shadow: 0 8px 32px #0009; font: 14px/1.45 system-ui, sans-serif;
+        }
+        #osc3SequencerLockWarning[hidden] { display: none; }
+        #osc3SequencerLockWarning span { min-width: 0; overflow-wrap: anywhere; }
+        #osc3SequencerLockWarning button {
+            flex-shrink: 0; min-height: 44px; padding: 8px 12px;
+            border: 1px solid #efc27d; border-radius: 9px;
+            background: #3c3021; color: #fff0d6; font: 600 13px system-ui, sans-serif;
+        }
+        [data-osc3-locked="true"] { border-style: dashed; }
 
         #bastardLoopXSynthModeBtn,
         #performanceBastardLoopXSynthModeBtn {
@@ -5842,7 +5903,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.OSC.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.OSC.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -5923,7 +5984,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.OSC.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.OSC.2</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -34115,6 +34176,7 @@
         }
 
         function syncBastardLoopLUi(options = {}) {
+            syncOsc3SequencerLockUi();
             const usingSynth = isBastardLoopLUsingSynth();
             const levelValue = Math.round(getBastardLoopLLevelValue({ applyLayerToggle: false }) * 100);
             const lengthValue = Math.round(getBastardLoopLStepLengthRatio() * 100);
@@ -34907,6 +34969,7 @@
 
         function setBastardLoopLSourceMode(mode, options = {}) {
             const nextMode = normalizeBastardLoopLSourceMode(mode);
+            if (nextMode === 'synth' && !canConnectOsc3Sequencer('L', options)) return false;
             const changed = bastardLoopLSourceMode !== nextMode;
             bastardLoopLSourceMode = nextMode;
             if (isBastardLoopLUsingSynth() && options.prepareSynth !== false) {
@@ -34916,12 +34979,15 @@
                 });
             }
             if (changed) {
+                const warning = document.getElementById('osc3SequencerLockWarning');
+                if (warning) warning.hidden = true;
                 stopAllBastardLoopLVoices({ fade: false });
                 if (!options.skipRestart) {
                     restartBastardLoopLPlaybackIfNeeded();
                 }
             }
             syncBastardLoopLUi();
+            syncOsc3SequencerLockUi();
             syncPerformanceControlState();
             if (!options.silent) {
                 updateBastardLoopLStatus(
@@ -36210,12 +36276,81 @@
             }
         }
 
+        function normalizeOsc3SequencerSources(modes = {}) {
+            const l = normalizeBastardLoopLSourceMode(modes.bastardLoopLSourceMode);
+            const x = normalizeBastardLoopLSourceMode(modes.bastardLoopXSourceMode);
+            const conflict = l === 'synth' && x === 'synth';
+            return { l, x: conflict ? 'sample' : x, conflict };
+        }
+
+        function getOsc3SequencerOwner() {
+            if (normalizeBastardLoopLSourceMode(bastardLoopLSourceMode) === 'synth') return 'L';
+            if (normalizeBastardLoopLSourceMode(bastardLoopXSourceMode) === 'synth') return 'X';
+            return null;
+        }
+
+        function showOsc3SequencerLockWarning(message) {
+            if (window.__mygrainSongRenderDeck) return;
+            let notice = document.getElementById('osc3SequencerLockWarning');
+            if (!notice) {
+                notice = document.createElement('section');
+                notice.id = 'osc3SequencerLockWarning';
+                notice.setAttribute('role', 'alert');
+                notice.setAttribute('aria-label', 'OSC3 connection warning');
+                const text = document.createElement('span');
+                const close = document.createElement('button');
+                close.type = 'button';
+                close.textContent = 'Dismiss';
+                close.addEventListener('click', () => { notice.hidden = true; });
+                notice.append(text, close);
+                document.body.append(notice);
+            }
+            notice.querySelector('span').textContent = message;
+            notice.hidden = false;
+        }
+
+        function canConnectOsc3Sequencer(layer, options = {}) {
+            const owner = getOsc3SequencerOwner();
+            if (!owner || owner === layer) return true;
+            const message = `OSC3 is locked to Loop ${owner}. Switch Loop ${owner} to Sample before connecting Loop ${layer}.`;
+            if (layer === 'L') updateBastardLoopLStatus(message);
+            else updateBastardLoopXStatus(message);
+            if (!options.silent) showOsc3SequencerLockWarning(message);
+            syncOsc3SequencerLockUi();
+            return false;
+        }
+
+        function syncOsc3SequencerLockUi() {
+            const owner = getOsc3SequencerOwner();
+            for (const layer of ['L', 'X']) {
+                for (const id of [`performanceBastardLoop${layer}SynthModeBtn`, `bastardLoop${layer}SynthModeBtn`]) {
+                    const button = document.getElementById(id);
+                    if (!button) continue;
+                    const locked = Boolean(owner && owner !== layer);
+                    const message = locked ? `OSC3 is locked to Loop ${owner}. Switch it to Sample to release the synth.` : (owner === layer ? `Loop ${layer} owns OSC3. Switch to Sample to release it.` : 'Connect this sequencer to OSC3. Only L or X can use OSC3 at a time.');
+                    button.dataset.osc3Locked = String(locked);
+                    button.title = message;
+                    button.setAttribute('aria-description', message);
+                    button.setAttribute('aria-pressed', String(owner === layer));
+                }
+            }
+        }
+
+        function restoreOsc3SequencerSources(modes = {}) {
+            const sources = normalizeOsc3SequencerSources(modes);
+            if (bastardLoopLSourceMode !== sources.l) stopAllBastardLoopLVoices({ fade: false });
+            if (bastardLoopXSourceMode !== sources.x) stopAllBastardLoopXVoices({ fade: false });
+            bastardLoopLSourceMode = sources.l;
+            bastardLoopXSourceMode = sources.x;
+            if (sources.conflict) showOsc3SequencerLockWarning('This saved patch connected both L and X to OSC3. L keeps OSC3; X has been switched to Sample. Only one sequencer can own OSC3 at a time.');
+        }
+
         function normalizeBastardLoopXSourceMode(value) {
             return normalizeBastardLoopLSourceMode(value);
         }
 
         function isBastardLoopXUsingSynth() {
-            return normalizeBastardLoopXSourceMode(bastardLoopXSourceMode) === 'synth';
+            return normalizeBastardLoopXSourceMode(bastardLoopXSourceMode) === 'synth' && normalizeBastardLoopLSourceMode(bastardLoopLSourceMode) !== 'synth';
         }
 
         function hasBastardLoopXPlaybackSource() {
@@ -36228,16 +36363,20 @@
 
         function setBastardLoopXSourceMode(mode, options = {}) {
             const nextMode = normalizeBastardLoopXSourceMode(mode);
+            if (nextMode === 'synth' && !canConnectOsc3Sequencer('X', options)) return false;
             const changed = bastardLoopXSourceMode !== nextMode;
             bastardLoopXSourceMode = nextMode;
             if (isBastardLoopXUsingSynth() && options.prepareSynth !== false) {
                 ensureBastardLoopLSynthReady({ forceMinimumMix: options.forceMinimumMix === true, minOscMix: 0.35 });
             }
             if (changed) {
+                const warning = document.getElementById('osc3SequencerLockWarning');
+                if (warning) warning.hidden = true;
                 stopAllBastardLoopXVoices({ fade: false });
                 if (!options.skipRestart) restartBastardLoopXPlaybackIfNeeded();
             }
             syncBastardLoopXUi();
+            syncOsc3SequencerLockUi();
             syncPerformanceControlState();
             if (!options.silent) updateBastardLoopXStatus(nextMode === 'synth'
                 ? 'Loop X now plays OSC3. Shape its sound in the OSC3 synth controls.'
@@ -36329,6 +36468,7 @@
         }
 
         function syncBastardLoopXUi(options = {}) {
+            syncOsc3SequencerLockUi();
             syncBastardLoopXQRootButton();
             const aroundNoteButton = document.getElementById('performanceBastardLoopXRandomAroundNoteBtn');
             if (aroundNoteButton) aroundNoteButton.disabled = !getBastardLoopXExistingNote();
@@ -47074,7 +47214,7 @@
                     bastardLoopLTransposeStartIndex: getBastardLoopLTransposeSectionBounds()?.start ?? -1,
                     bastardLoopLTransposeEndIndex: getBastardLoopLTransposeSectionBounds()?.end ?? -1,
                     bastardLoopXEnabled: bastardLoopXEnabled,
-                    bastardLoopXSourceMode: normalizeBastardLoopXSourceMode(bastardLoopXSourceMode),
+                    bastardLoopXSourceMode: isBastardLoopXUsingSynth() ? 'synth' : 'sample',
                     bastardLoopXLevel: bastardLoopXLevel,
                     bastardLoopXLength: bastardLoopXLength,
                     bastardLoopXStartTrim: getBastardLoopXStartTrimRatio(),
@@ -47307,6 +47447,7 @@
             try {
                 const state = options.state ?? readStoredStateSnapshot();
                 if (!state) return false;
+                restoreOsc3SequencerSources(state.modes);
                 setBastardLoopMPlusPanPercent(state.sliders?.performanceBastardLoopMPlusPan ?? ((Number(state.modes?.bastardLoopMPlusPan) || 0) * 100), { skipSave: true });
                 restoreDrumMachineToneDefaults(state.sliders);
                 const savedLfoMode = state.modes?.lfoMode ?? state.toggles?.lfoMode;
@@ -47621,11 +47762,6 @@
                     if (state.modes.bastardLoopLDelayPingPongEnabled !== undefined) {
                         bastardLoopLDelayPingPongEnabled = Boolean(state.modes.bastardLoopLDelayPingPongEnabled);
                     }
-                    if (state.modes.bastardLoopLSourceMode !== undefined) {
-                        bastardLoopLSourceMode = normalizeBastardLoopLSourceMode(state.modes.bastardLoopLSourceMode);
-                    } else {
-                        bastardLoopLSourceMode = 'sample';
-                    }
                     if (state.modes.bastardLoopLTimingIndex !== undefined) {
                         bastardLoopLTimingIndex = clampBastardLoopLTimingIndex(state.modes.bastardLoopLTimingIndex);
                     }
@@ -47652,7 +47788,6 @@
                     } else {
                         resetBastardLoopLTransposeSectionState();
                     }
-                    bastardLoopXSourceMode = normalizeBastardLoopXSourceMode(state.modes.bastardLoopXSourceMode);
                     if (state.modes.bastardLoopXEnabled !== undefined) {
                         setBastardLoopXEnabled(state.modes.bastardLoopXEnabled, { silent: true, skipSave: true });
                     }

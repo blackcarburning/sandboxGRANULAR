@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Exclusive OSC3 routing and complete startup (OSC.2)
+
+- Build `v2026.10.20.OSC.2`: only **L or X**, never both, can own OSC3. Connecting the second sequencer is refused with a visible, dismissible warning. Switch the owner back to **Sample** to release the lock; its sample and sequence are retained.
+- Ownership follows the saved source modes, not transport/mute state. Stopping or muting a sequencer does not silently transfer the synth. Whole-part recall replaces the current ownership with the saved exclusive choice. Older dual-synth snapshots keep L on OSC3 and return X to Sample with a warning; the imported archive is not modified.
+- Startup hides all page content behind **Loading…** until account code/context, successfully loaded account styling, the complete account controls and the decoded logo are ready, then reveals the laid-out screen atomically. Guest, remembered-account and direct-login views use the same readiness gate. Failed account assets show a styled Reload screen instead of a partial page; Song render decks bypass visual readiness waits.
+
 ## X oscillator source (OSC.1)
 
 - Build `v2026.10.20.OSC.1`: X has a **Source: Sample / OSC3** switch in the editor (beside Paste from Arp) and on its main card. OSC3 plays X's notes without loading a bass sample. Switching sources preserves X's notes and loaded bass sample.
