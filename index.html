@@ -5771,7 +5771,7 @@
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
     <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-qxd-4');</script>
+    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-catalogue-5');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -5781,7 +5781,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.AI.4</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.AI.5</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5866,7 +5866,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.AI.4</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.AI.5</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -8161,7 +8161,7 @@
                     <button type="button" data-ai-patch-example="Dry minor Q chords, syncopated X bass and tight straight drums at 122 BPM.">Tight groove</button>
                     <button type="button" data-ai-patch-example="Spacious Q strings, gentle root-note X bass and minimal slow drums at 82 BPM.">Spacious strings</button>
                 </div>
-                <p id="aiPatchScope">Focus: Q chords + matching X bass + kick/snare/hats, with dry, warm or spacious Q styling. Other loops remain available when requested; recorded audio, Song arrangements and master volume are preserved. Settings and sample names go to GPT-6.1 Sol, never audio. Loads are sequential and memory-bounded.</p>
+                <p id="aiPatchScope">Focus: Q chords + matching X bass + kick/snare/hats, with dry, warm or spacious Q styling. Other loops remain available when requested; recorded audio, Song arrangements and master volume are preserved. The analysed tonal catalogue guides exact bass, lead, vocal, piano and orchestral source choices; missing metadata falls back to the existing library. Filename claims, tentative audio estimates and settings go to GPT-6.1 Sol, never audio. Loads are sequential and memory-bounded.</p>
                 <div class="ai-patch-actions">
                     <button id="aiPatchGenerate" type="button" disabled>✦ Generate &amp; Apply</button>
                     <button id="aiPatchCancel" type="button" hidden>Cancel</button>
@@ -60639,17 +60639,34 @@
                             report(`Loop ${key}: requesting fresh audio from ${lane.source}…`);
                             await frame(); guard();
                             const generated = Boolean(lane.divisions);
-                            const response = await fetch(generated ? BASTARD_LOOP_API_URL : DROPBOX_SAMPLE_SOURCE_API_URL, {
-                                method: 'POST', cache: 'no-store', signal: AbortSignal.any ? AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60000)]) : signal,
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(generated ? { source: lane.source, bpm: sequencerBPM, divisions: lane.divisions(), patternLength: getBastardLoopPatternLengthPayload(), seed: String(Date.now()), responseFormat: 'audio' } : { source: lane.source, seed: String(Date.now()) })
+                            const selection = settings.selection;
+                            if (selection) {
+                                const claim = selection.filename, estimate = selection.audioTentative;
+                                report(`Loop ${key}: CATALOGUE ${selection.name} · ${selection.durationS}s · filename key ${claim.key || 'unknown'}, BPM ${claim.bpm || 'unknown'} · audio estimates: note ${estimate.note || 'unknown'}, key ${estimate.key || 'unknown'}, BPM ${estimate.bpm || 'unknown'}`);
+                                if (selection.warnings.length) report(`Loop ${key}: catalogue uncertainty · ${selection.warnings.join(', ')}`);
+                                if (selection.playbackRoot && !generated) report(`Loop ${key}: sampler root ${selection.playbackRoot.note} · ${selection.playbackRoot.source}`);
+                            }
+                            const exactRaw = selection && !generated;
+                            const sourceUrl = exactRaw ? `${DROPBOX_SAMPLE_SOURCE_API_URL}?${new URLSearchParams({ source: lane.source, path: selection.relativePath })}` : (generated ? BASTARD_LOOP_API_URL : DROPBOX_SAMPLE_SOURCE_API_URL);
+                            const response = await fetch(sourceUrl, {
+                                method: exactRaw ? 'GET' : 'POST', cache: 'no-store', signal: AbortSignal.any ? AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60000)]) : signal,
+                                ...(!exactRaw ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(generated ? { source: lane.source, bpm: sequencerBPM, divisions: lane.divisions(), patternLength: getBastardLoopPatternLengthPayload(), seed: String(Date.now()), responseFormat: 'audio', ...(selection ? { sourceFiles: [selection.relativePath] } : {}) } : { source: lane.source, seed: String(Date.now()) }) } : {})
                             });
                             guard();
                             if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || `Loop ${key} load failed (${response.status}).`); }
                             const metadata = generated ? readBastardLoopBuildResponseMetadata(response, { sourceKey: lane.source, bpm: sequencerBPM }) : { sourceKey: lane.source, sourceLabel: response.headers.get('X-Mygrain-Source-Label') || lane.source, fileName: decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')), relativePath: decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) };
+                            if (selection) {
+                                const paths = generated ? metadata.samplePaths : [metadata.relativePath];
+                                if (metadata.sourceKey !== selection.source || !paths?.length || paths.some(path => path !== selection.relativePath)) throw new Error(`Loop ${key}: the server did not return the selected catalogue source. Previous patch will be restored.`);
+                                if (!generated && selection.playbackRoot) metadata.rootNote = selection.playbackRoot.note;
+                            }
                             const names = metadata.sampleNames || [metadata.fileName || '(server did not supply a filename)'];
                             report(`Loop ${key}: downloading ${names.join(', ')} · ${metadata.sourceLabel || lane.source}`);
                             const bytes = await boundedAudio(response, signal); guard();
+                            if (exactRaw) {
+                                const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join(''); guard();
+                                if (digest !== selection.sha256) throw new Error(`Loop ${key}: source audio changed since catalogue analysis. Previous patch will be restored.`);
+                            }
                             // All library endpoints return PCM WAV. Check decoded size BEFORE WebKit allocates it.
                             const view = new DataView(bytes);
                             let channels = 0, sampleRate = 0, bits = 0, dataBytes = 0;
@@ -60989,7 +61006,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-qxd-4');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-catalogue-5');</script>
     </template>
 </body>
 </html>

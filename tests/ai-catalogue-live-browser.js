@@ -1,0 +1,38 @@
+// Public deployed assets with intercepted auth/API; zero production account/audio writes.
+const{chromium,webkit}=require('playwright-core');const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const base='https://openclaw.blackcarburning.com/mygrain/',out=process.env.AI_CATALOGUE_LIVE_EVIDENCE||'/tmp/mygrain-ai-catalogue-live';fs.mkdirSync(out,{recursive:true});
+const proof=JSON.parse(fs.readFileSync(process.env.AI_CATALOGUE_REAL_RESULT||'/tmp/mygrain-ai-catalogue-real-result.json','utf8')),recipe=proof.recipe;
+function wav(){const rate=44100,n=rate*2,b=Buffer.alloc(44+n*2);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(rate,24);b.writeUInt32LE(rate*2,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*2,40);for(let i=0;i<n;i++)b.writeInt16LE(Math.round(Math.sin(2*Math.PI*130.81*i/rate)*6000),44+i*2);return b;}
+const selections=Object.values(recipe.loops).filter(v=>v.selection).map(v=>v.selection),results=[];
+(async()=>{for(const[engine,type]of Object.entries({chromium,webkit})){
+ const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
+ try{for(const viewport of [{width:390,height:844},{width:1280,height:800}]){
+  const ctx=await browser.newContext({viewport,isMobile:viewport.width<960,hasTouch:viewport.width<960}),p=await ctx.newPage();p.setDefaultTimeout(60000);const errors=[],writes=[];p.on('pageerror',e=>errors.push(e.message));
+  await p.route('**/*',async r=>{const req=r.request(),u=new URL(req.url());if(u.origin!==new URL(base).origin)return r.abort();
+   if(u.pathname.endsWith('/account-context.js'))return r.fulfill({contentType:'text/javascript',body:'window.mygrainAccountContext={user:{username:"catalogue-live-fixture"}};'});
+   if(u.pathname.endsWith('/api/ai-patch-direction'))return r.fulfill({json:{ok:true,model:proof.model,recipe,catalogue:proof.catalogue}});
+   if(req.method()==='GET'&&u.pathname.endsWith('/api/source-sample')){
+    const selected=selections.find(s=>s.source===u.searchParams.get('source')&&s.relativePath===u.searchParams.get('path'));assert(selected);
+    const root='/srv/sftp/mark_sftp/files/mygrain-source-mirrors',file=path.resolve(root,selected.source.toUpperCase(),selected.relativePath);assert(file.startsWith(root+'/'));const body=fs.readFileSync(file);assert.equal(crypto.createHash('sha256').update(body).digest('hex'),selected.sha256);
+    return r.fulfill({contentType:'audio/wav',headers:{'X-Mygrain-Source-Name':encodeURIComponent(selected.name),'X-Mygrain-Source-Path':encodeURIComponent(selected.relativePath)},body});
+   }
+   if(req.method()==='POST'&&u.pathname.endsWith('/api/bastardloop')){
+    const data=req.postDataJSON(),selected=selections.find(s=>s.source===data.source);assert.equal(data.sourceFiles[0],selected.relativePath);
+    const meta={sourceKey:selected.source,sourceLabel:selected.source.toUpperCase(),sampleNames:[selected.name],samplePaths:[selected.relativePath],bpm:104,durationSeconds:2};
+    return r.fulfill({contentType:'audio/wav',headers:{'X-Mygrain-Bastardloop-Meta':Buffer.from(JSON.stringify(meta)).toString('base64url')},body:wav()});
+   }
+   if(req.method()==='POST'&&u.pathname.endsWith('/api/source-sample'))return r.fulfill({contentType:'audio/wav',headers:{'X-Mygrain-Source-Name':'fixture-drum.wav','X-Mygrain-Source-Path':'fixture-drum.wav'},body:wav()});
+   if(!['GET','HEAD'].includes(req.method())){writes.push(req.method()+' '+u.pathname);return r.abort();}
+   if(u.pathname.includes('/api/'))return r.fulfill({json:{ok:true,user:{username:'catalogue-live-fixture'},stations:[],samples:[],files:[],songs:[],folders:[],sources:[],favourites:[],patches:[]}});
+   return r.continue();
+  });
+  try{
+   await p.goto(base);await p.waitForFunction(()=>mygrainAiPatch?.ready);assert.match(await p.locator('.build-badge').first().textContent(),/v2026.10.20.AI.5/);await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&window.mygrainSongBeta&&!mygrainSongBeta.busy);
+   await p.evaluate(()=>{syncBastardLoopKUi();window.__catalogueLiveOriginal=bastardLoopXSampleBuffer;window.__catalogueLiveContext=audioContext;});await p.locator('#aiPatchPrompt').fill('C minor with catalogue bass and piano');await p.locator('#aiPatchGenerate').click();await p.waitForFunction(()=>!mygrainAiPatch.busy);assert.match(await p.locator('#aiPatchStatus').textContent(),/^Applied/);
+   assert.equal(await p.evaluate(()=>bastardLoopXRootNote),recipe.loops.X.selection.playbackRoot.note);const log=await p.locator('#aiPatchChanges').textContent();assert(log.includes('Catalogue: 941'));for(const selected of selections)assert(log.includes('CATALOGUE '+selected.name));
+   await p.locator('#aiPatchHear').click();await p.waitForFunction(()=>!mygrainAiPatch.busy);await p.locator('#aiPatchRender').click();await p.waitForFunction(()=>!mygrainAiPatch.busy);assert.match(await p.locator('#aiPatchStatus').textContent(),/^Preview captured/);const capture=await p.locator('#aiPatchPreviewStatus').textContent();assert.match(capture,/RMS 0\.(?!0000)/);
+   await p.locator('#aiPatchCard').screenshot({path:out+'/'+engine+'-'+viewport.width+'.png'});await p.locator('#aiPatchUndo').click();await p.waitForFunction(()=>!mygrainAiPatch.busy);assert.match(await p.locator('#aiPatchStatus').textContent(),/^Undone/);assert(await p.evaluate(()=>audioContext===__catalogueLiveContext&&bastardLoopXSampleBuffer===__catalogueLiveOriginal&&!stateSaveSuspended&&!megaRandomizeInFlight));assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
+   const result={engine,viewport,build:'v2026.10.20.AI.5',liveAssets:true,exactBassBytesAndRoot:true,catalogueLog:true,pianoSourcePinned:true,QXdrums:true,capture,undo:true,productionWrites:0,errors};results.push(result);console.log(JSON.stringify(result));
+  }catch(e){console.error('LIVE',await p.evaluate(()=>({status:document.getElementById('aiPatchStatus')?.textContent,log:document.getElementById('aiPatchChanges')?.textContent})),errors);throw e;}finally{await ctx.close();}
+ }}finally{await browser.close();}
+}fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));})().catch(e=>{console.error(e);process.exitCode=1;});
