@@ -1,8 +1,6 @@
 --- a/server.py
 +++ b/server.py
-@@ -188,6 +188,14 @@
-         "label": "SAMPLES_LEADS",
-         "filename_prefix": "bastardloop-l",
+@@ -190,2 +190,10 @@
          "local_dir": "SAMPLES_LEADS",
 +    },
 +    "samples_altbass": {
@@ -13,14 +11,8 @@
 +        "local_only": True,
 +        "packaged_dir": str(pathlib.Path(__file__).resolve().parent.parent / "sandboxGRANULAR" / "SAMPLES_ALTBASS"),
      },
-     "samples_bass": {
-         "remote": "dropbox:SAMPLES_BASS",
-@@ -627,6 +635,8 @@
- 
- def get_bastardloop_local_source_root(source_key):
+@@ -629,2 +637,4 @@
      _, source_config = get_bastardloop_source_config(source_key)
 +    if source_config.get("packaged_dir"):
 +        return pathlib.Path(source_config["packaged_dir"]).resolve()
      local_dir = str(source_config.get("local_dir") or "").strip()
-     if not local_dir:
-         return None

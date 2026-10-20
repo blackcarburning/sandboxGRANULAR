@@ -34,7 +34,7 @@ def main():
     commit = tree.json()['sha']
     base = 'https://raw.githubusercontent.com/publicsamples/Roland-Juno-6/' + commit + '/'
     license_response = requests.get(base+'LICENSE', timeout=60); license_response.raise_for_status()
-    (ROOT/'LICENSE.txt').write_text(license_response.text)
+    (ROOT/'LICENSE.txt').write_text(license_response.text.rstrip()+'\n')
     entries=[]
     with zipfile.ZipFile(RemoteZip()) as archive:
         for patch in ['Pulse Bass', 'Saw Bass split']:
