@@ -10,5 +10,5 @@
 +
 @@ -2700,0 +2708,3 @@
 +            # Stateless AI inference must not hold the account storage lock while waiting.
-+            if route['base'] == '/mygrain' and inner == '/api/ai-patch-direction':
-+                return _ai_patch_module.handle_ai_patch_request(self, self.command, inner)
++            if route['base'] == '/mygrain' and inner in ('/api/ai-patch-direction', '/api/ai-prompts', '/api/ai-parts'):
++                return _ai_patch_module.handle_ai_patch_request(self, self.command, inner, source_root=pathlib.Path(MYGRAIN_BASTARDLOOP_LOCAL_SOURCE_ROOT), prompt_db=MYGRAIN_ACCOUNTS.database.with_name('ai-prompts.sqlite3'))

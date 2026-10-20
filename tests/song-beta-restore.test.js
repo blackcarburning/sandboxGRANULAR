@@ -67,7 +67,7 @@ test('restoration prepares the saved pattern length before dispatching sequencer
             normalizeStoredLfoSliderValues: values => values,
             resolveStoredPatternLength: saved => saved.patternLength,
             syncPatternLengthControls: length => { steps = Array.from({ length }, () => ({})); return length; },
-            document: { getElementById: id => ({ dispatchEvent: () => { steps[Number(id.match(/\d+/)[0]) - 1].pitch = 'C4'; } }) },
+            document: { getElementById: id => ({ closest: () => null, dispatchEvent: () => { steps[Number(id.match(/\d+/)[0]) - 1].pitch = 'C4'; } }) },
             Event: class Event {}
         };
         vm.createContext(context);

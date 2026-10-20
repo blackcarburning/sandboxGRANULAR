@@ -18,6 +18,10 @@ _prompts_spec = importlib.util.spec_from_file_location('mygrain_ai_prompts', pat
 prompts = importlib.util.module_from_spec(_prompts_spec)
 _prompts_spec.loader.exec_module(prompts)
 
+_parts_spec = importlib.util.spec_from_file_location('mygrain_ai_parts', pathlib.Path(__file__).with_name('mygrain_ai_parts.py'))
+parts = importlib.util.module_from_spec(_parts_spec)
+_parts_spec.loader.exec_module(parts)
+
 MODEL = 'openai/gpt-6.1-sol'
 SCHEMA = json.loads((pathlib.Path(__file__).resolve().parent.parent / 'ai-patch-controls.json').read_text())
 CONTROLS = SCHEMA['controls']
@@ -39,7 +43,7 @@ def number(value, spec, *, recipe=False):
 
 
 def validate_request(data):
-    if not isinstance(data, dict) or not {'prompt', 'current', 'loops'} <= set(data) or not set(data) <= {'prompt', 'current', 'loops', 'mode', 'refinement', 'musicalState'}:
+    if not isinstance(data, dict) or not {'prompt', 'current', 'loops'} <= set(data) or not set(data) <= {'prompt', 'current', 'loops', 'mode', 'refinement', 'musicalState', 'section'}:
         raise ValueError('Send a prompt, current controls and loop inventory only.')
     prompt, current = data['prompt'], data['current']
     if not isinstance(prompt, str) or not 3 <= len(prompt.strip()) <= 1500 or any(ord(c) < 32 and c not in '\n\t' for c in prompt):
@@ -57,7 +61,7 @@ def validate_request(data):
 
 def validate_direction(data):
     mode = data.get('mode', 'generate')
-    if not isinstance(mode, str) or mode not in ('generate', 'regenerate', 'refine'):
+    if not isinstance(mode, str) or mode not in ('generate', 'regenerate', 'refine', 'section'):
         raise ValueError('Unknown AI direction mode.')
     refinement = data.get('refinement', '')
     if not isinstance(refinement, str) or len(refinement) > 500 or any(ord(c) < 32 and c not in '\n\t' for c in refinement):
@@ -67,11 +71,11 @@ def validate_direction(data):
             raise ValueError('Describe what to refine.')
         if len(data['prompt'].strip() + '\n\nRefinement: ' + refinement.strip()) > 1500:
             raise ValueError('Prompt plus refinement exceeds 1,500 characters. Shorten the direction first.')
-    elif refinement:
+    elif refinement and mode != 'section':
         raise ValueError('Refinement instructions require Refine mode.')
     state = data.get('musicalState')
     if state is not None:
-        if not isinstance(state, dict) or set(state) != {'Q', 'X', 'L', 'drums', 'drumsEnabled'} or type(state['drumsEnabled']) is not bool:
+        if not isinstance(state, dict) or not {'Q', 'X', 'L', 'drums', 'drumsEnabled'} <= set(state) or not set(state) <= {'Q', 'X', 'L', 'drums', 'drumsEnabled', 'drumRatchets'} or type(state['drumsEnabled']) is not bool:
             raise ValueError('Invalid current musical state.')
         for key in ('X', 'L'):
             notes = state[key]
@@ -91,14 +95,31 @@ def validate_direction(data):
         drums = state['drums']
         if not isinstance(drums, dict) or set(drums) != {'kick', 'snare', 'hat'} or any(not isinstance(hits, list) or not 1 <= len(hits) <= 64 or any(type(hit) is not int or hit not in (0, 1) for hit in hits) for hits in drums.values()):
             raise ValueError('Invalid current drum patterns.')
-    if mode == 'refine' and state is None:
+    if state is not None and 'drumRatchets' in state:
+        ratchets = state['drumRatchets']
+        if not isinstance(ratchets, dict) or set(ratchets) != {'kick', 'snare', 'hat'} or any(not isinstance(values, list) or not 1 <= len(values) <= 64 or any(type(v) is not int or v not in (0, 2, 3, 4, 5, 6, 7, 8) for v in values) for values in ratchets.values()):
+            raise ValueError('Invalid current drum rolls.')
+    if mode in ('refine', 'section') and state is None:
+
         raise ValueError('Refine needs the current notes, chords and drums. Reload MYGRAIN.')
-    return {'mode': mode, 'refinement': refinement.strip(), 'musicalState': state}
+    section = data.get('section')
+    if mode == 'section':
+        if not isinstance(section, dict) or set(section) != {'type', 'bars', 'rolls'} or section['type'] not in ('verse', 'chorus', 'bridge', 'middle8') or type(section['bars']) is not int or section['bars'] not in (4, 8, 16) or type(section['rolls']) is not bool:
+            raise ValueError('Choose Verse, Chorus, Bridge or Middle 8, with 4, 8 or 16 bars.')
+        if section['type'] == 'middle8' and section['bars'] != 8:
+            raise ValueError('A Middle 8 is eight bars.')
+        if not any(cell and cell['notes'] and not cell['rest'] for cell in state['Q']['sequence']):
+            raise ValueError('Generate or recall a take with Q chords first.')
+    elif section is not None:
+        raise ValueError('Section options require progression generation.')
+    return {'mode': mode, 'refinement': refinement.strip(), 'musicalState': state, **({'section': section} if section is not None else {})}
 
 
 def validate_recipe(recipe):
-    if not isinstance(recipe, dict) or not {'title', 'description', 'parameters', 'loops'} <= set(recipe) or not set(recipe) <= {'title', 'description', 'parameters', 'loops', 'drums'}:
+    if not isinstance(recipe, dict) or not {'title', 'description', 'parameters', 'loops'} <= set(recipe) or not set(recipe) <= {'title', 'description', 'parameters', 'loops', 'drums', 'patternSteps'}:
         raise ValueError('The model did not return a valid patch proposal. Try another direction.')
+    if 'patternSteps' in recipe and (type(recipe['patternSteps']) is not int or recipe['patternSteps'] != 64):
+        raise ValueError('Progressions use a four-bar, 64-step pattern.')
     for key, limit in [('title', 80), ('description', 600)]:
         value = recipe[key]
         if not isinstance(value, str) or not 1 <= len(value.strip()) <= limit or any(ord(c) < 32 and c not in '\n\t' for c in value):
@@ -135,7 +156,7 @@ def validate_recipe(recipe):
         raise ValueError('Use at most three fresh loop sources per direction.')
     if 'drums' in recipe:
         validate_drums(recipe['drums'])
-    return {**({'drums': recipe['drums']} if 'drums' in recipe else {}), 'title': recipe['title'].strip(), 'description': recipe['description'].strip(),
+    return {**({'patternSteps': recipe['patternSteps']} if 'patternSteps' in recipe else {}), **({'drums': recipe['drums']} if 'drums' in recipe else {}), 'title': recipe['title'].strip(), 'description': recipe['description'].strip(),
             'parameters': {key: number(value, CONTROLS[key], recipe=True) for key, value in parameters.items()}, 'loops': loops}
 
 
@@ -148,12 +169,14 @@ def validate_drums(drums):
     if not isinstance(tracks, dict) or not set(tracks) <= {'kick', 'snare', 'hat'}:
         raise ValueError('Unsupported drum track.')
     for lane in tracks.values():
-        if not isinstance(lane, dict) or not lane or not set(lane) <= {'reload', 'steps'}:
+        if not isinstance(lane, dict) or not lane or not set(lane) <= {'reload', 'steps', 'ratchets'}:
             raise ValueError('Unsupported drum operation.')
         if 'reload' in lane and type(lane['reload']) is not bool:
             raise ValueError('Drum reload must be boolean.')
         if 'steps' in lane and (not isinstance(lane['steps'], list) or not 1 <= len(lane['steps']) <= 64 or any(type(hit) is not int or hit not in [0, 1] for hit in lane['steps'])):
             raise ValueError('Drum steps must be 1–64 integer zero/one hits.')
+        if 'ratchets' in lane and (not isinstance(lane['ratchets'], list) or not 1 <= len(lane['ratchets']) <= 64 or any(type(hit) is not int or hit not in (0, 2, 4, 8) for hit in lane['ratchets']) or sum(v > 0 for v in lane['ratchets']) > 8):
+            raise ValueError('Use at most eight roll steps per drum track, with 0, 2, 4 or 8 hits.')
     return drums
 
 
@@ -201,6 +224,18 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None):
                         'Use musicalState for current Q chord cells, X/L sounding MIDI notes and drum hits; do not invent a previous patch. '
                         'Only supply changed fields; omit unrelated loops/drums/parameters. Drums are optional: omit the entire drums object unless drums were requested to change; drumsEnabled gives the current switch. Do not apply new-patch enabling defaults. '
                         'The user can choose Regenerate for new samples. Return the same strict recipe contract.\n')
+    elif direction and direction['mode'] == 'section':
+        instruction += ('\nSONG SECTION MODE OVERRIDES NEW-PATCH DEFAULTS: Derive the requested section from the CURRENT take, not an unrelated composition. '
+                        'Use its existing Q harmony/key, bass motifs and drum groove as context. Verse is restrained and leaves vocal space; chorus lifts through stronger harmonic arrival and energy; '
+                        'bridge contrasts and leads back; middle8 is an eight-bar contrasting section. Follow the section type and refinement, not a fixed genre template. '
+                        'Keep BPM, all library sources, Q instrument and drum sound parameters unchanged. NO reloads or sampleId. '
+                        'Return additional top-level patternSteps:64 (four bars). Provide varied Q chords and harmonically matching X notes over 64 steps. '
+                        'Normally use four Q chords with chordSteps:16 (one chord per bar), not four chords per beat. '
+                        'The application repeats the four-bar pattern to fill section.bars; do not claim eight unique bars. '
+                        'Preserve other layers unless the arrangement needs muting/enabling. Do not change master controls, recordings or Song directly. '
+                        'Only provide drum steps when changing the groove. Each track may additionally have ratchets:1–64 integers 0/2/4/8, 0 means a normal step, at most eight roll steps per track. '
+                        'Only add sparse transition rolls if section.rolls is true; otherwise omit ratchets. Keep kick/snare/hat sample identity, pitch, tune, decay and length. '
+                        'State how this section relates harmonically to the current take. Output the same strict recipe contract plus patternSteps.\n')
     elif direction and direction['mode'] == 'regenerate':
         instruction += '\nREGENERATE MODE: create a fresh variation of this same prompt. Results need not be identical; use the normal new-patch defaults.\n'
     instruction += json.dumps({'directionContext': direction or {'mode': 'generate'}}, separators=(',', ':'))
@@ -231,11 +266,23 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None):
 
 
 def generate(prompt, current, loops, source_root=None, catalogue_report=None, direction=None):
-    context = ({'status': 'retained', 'reason': 'Refine retains current sources; no fresh shortlist needed.', 'catalogueCount': 0, 'eligibleCount': 0, 'candidates': {}, 'entries': {}, 'sourceRoot': source_root}
-               if direction and direction['mode'] == 'refine' else catalogue.retrieve(prompt, current, source_root))
+    context = ({'status': 'retained', 'reason': 'Refine and progression retain current sources; no fresh shortlist needed.', 'catalogueCount': 0, 'eligibleCount': 0, 'candidates': {}, 'entries': {}, 'sourceRoot': source_root}
+               if direction and direction['mode'] in ('refine', 'section') else catalogue.retrieve(prompt, current, source_root))
     recipe = run_model(prompt, current, loops, context, direction)
-    if direction and direction['mode'] == 'refine' and (any(lane.get('reload') for lane in recipe['loops'].values()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
+    if direction and direction['mode'] in ('refine', 'section') and (any(lane.get('reload') for lane in recipe['loops'].values()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
         raise ValueError('Refine keeps current library samples. The AI requested a reload; nothing was changed. Try again or use Regenerate.')
+    if direction and direction['mode'] == 'section':
+        if recipe.get('patternSteps') != 64 or not recipe['loops'].get('Q', {}).get('chords'):
+            raise ValueError('The progression needs a four-bar Q chord pattern. Nothing changed; try again.')
+        if recipe['loops'].get('Q', {}).get('instrument', direction['musicalState']['Q']['instrument']) != direction['musicalState']['Q']['instrument']:
+            raise ValueError('Progressions keep the current Q instrument.')
+        for key, value in recipe['parameters'].items():
+            if (key == 'globalBpmSlider' or (key.startswith('drumMachine') and not key.endswith('Level'))) and value != current[key]:
+                raise ValueError('Progressions keep tempo and drum sound settings. Nothing changed; try again.')
+        if not direction['section']['rolls'] and any(any(track.get('ratchets', [])) for track in recipe.get('drums', {}).get('tracks', {}).values()):
+            raise ValueError('Rolls were not enabled for this progression.')
+    elif 'patternSteps' in recipe:
+        raise ValueError('Pattern length changes require progression generation.')
     combined = {**current, **recipe['parameters']}
     if combined['hpfCutoff'] >= combined['lpfCutoff'] / 2:
         raise ValueError('The proposed filters would remove too much sound. Try a different direction.')
@@ -260,6 +307,8 @@ def generate(prompt, current, loops, source_root=None, catalogue_report=None, di
 
 
 def handle_ai_patch_request(handler, method, inner_path, source_root=None, prompt_db=None):
+    if inner_path == '/api/ai-parts':
+        return parts.handle_request(handler, method, pathlib.Path(prompt_db).with_name('ai-parts.sqlite3') if prompt_db is not None else None)
     if inner_path == '/api/ai-prompts':
         return prompts.handle_request(handler, method, prompt_db)
     if inner_path != '/api/ai-patch-direction':

@@ -398,6 +398,21 @@ test('New Part requests access before capturing and saving audio', async () => {
     assert.deepEqual(calls.filter(call => ['acquire', 'capture', 'save'].includes(call[0])).map(call => call[0]), ['acquire', 'capture', 'save']);
 });
 
+test('stored AI parts append the supplied archive, name and repeats without capturing or clearing the live draft', async () => {
+    const { controller } = makeController({ capture: async () => { throw Error('Must not capture the live patch'); } });
+    controller.song = { id: 'song', revision: 1, parts: [first] };
+    controller.element('songBetaPartName').value = 'Unsent draft';
+    const blob = new Blob(['saved archive']), abort = new AbortController();
+    controller.request = async (path, options) => {
+        assert.equal(path, '/song/parts?name=Chorus%201&repeats=2'); assert.equal(options.body, blob); assert.equal(options.signal, abort.signal);
+        return { song: { ...controller.song, revision: 2, parts: [first, { ...second, name: 'Chorus 1', repeats: 2 }] } };
+    };
+    const part = await controller.newPart({ blob, name: 'Chorus 1', repeats: 2, signal: abort.signal });
+    assert.equal(part.name, 'Chorus 1'); assert.equal(controller.element('songBetaPartName').value, 'Unsent draft'); assert.deepEqual(controller.song.parts[0], first);
+    abort.abort(); controller.request = async () => { throw Error('Cancelled upload must not start'); };
+    await assert.rejects(controller.newPart({ blob, name: 'Cancelled', repeats: 1, signal: abort.signal }), { name: 'AbortError' });
+});
+
 for (const action of ['reuse', 'rename-song', 'rename-part', 'move', 'delete', 'colour', 'repeats', 'save-amendment']) {
     test(`${action} requests editing access automatically before its saved mutation`, async () => {
         const { controller, context } = makeController();

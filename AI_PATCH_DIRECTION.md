@@ -1,5 +1,7 @@
 # AI Patch Direction · Beta
 
+Current additions: [catalogue retrieval (AI.5)](docs/ai-sample-catalogue.md), [saved prompts/refinement (AI.6)](docs/ai-prompts.md), and [contextual song sections/editable part takes (AI.7)](docs/ai-song-parts.md). The original implementation below describes AI.3; the linked documents supersede its API and UI scope where extended.
+
 Build: `v2026.10.20.AI.3`.
 
 A bright-pink card and a full-width, two-column Jump tile generate and apply a direction to the existing patch. The fixed model is `openai/gpt-6.1-sol`; it runs through the host's existing OpenClaw one-shot model bridge. No provider key is delivered to the browser. This is not a full-song generator or an autonomous agent.
@@ -55,7 +57,7 @@ Full patch/source/account/Song fingerprints reject results made stale during inf
 
 Existing MYGRAIN session, same-origin and account-pin checks must run before the handler. There is one global in-flight inference and a 15-second per-account cooldown; inference times out after 75 seconds. Provider errors do not return authentication status codes. Cancel immediately discards the browser result; an already-running provider call can continue until it finishes or times out, and may still be billed. Prompts, scalar values and displayed sample names go to the model; audio and user files do not.
 
-The shared host server loads the module using the same `importlib.util` pattern as the other MYGRAIN backend modules, then dispatches the authenticated `/api/ai-patch-direction` path **before** acquiring `MYGRAIN_ACCOUNTS.user_lock(user)`. Inference is stateless and must not hold that storage lock. The three static AI assets are explicitly listed in `backend/mygrain_accounts.py`'s `PUBLIC_FILES`; do not relax the overall static-file boundary.
+The shared host server loads the module using the same `importlib.util` pattern as the other MYGRAIN backend modules, then dispatches the authenticated `/api/ai-patch-direction` path **before** acquiring `MYGRAIN_ACCOUNTS.user_lock(user)`. Inference is stateless and must not hold that storage lock. The static AI assets are explicitly listed in `backend/mygrain_accounts.py`'s `PUBLIC_FILES`; do not relax the overall static-file boundary.
 
 Example host dispatch after authentication, same-origin checks and `CURRENT_USER.set(user)`:
 

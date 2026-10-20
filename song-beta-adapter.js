@@ -368,7 +368,7 @@
             ) throw new Error('Finish recording before saving or replacing a part.');
         },
 
-        async capture() {
+        async capture({ liveOnly = false } = {}) {
             if (!isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its current sounds finish loading before saving a part.');
             adapter.assertNotRecording();
             flushPendingSliderUpdates();
@@ -389,12 +389,13 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#songBetaCard, #bastardLoopVCutOverlay, #qArpOverlay'))
+                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
                 assets: []
             };
+            if (liveOnly) return { snapshot, buffers: new Map(audioBindings.map(([key, getBuffer]) => [key, getBuffer()])) };
             const entries = [];
             for (const [key, getBuffer] of audioBindings) {
                 const buffer = getBuffer();
@@ -501,7 +502,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#songBetaCard, #bastardLoopVCutOverlay, #qArpOverlay') || input.type !== control.type) continue;
+                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -558,6 +559,7 @@
             return startTime;
         },
 
+        whenPersisted: () => persistence,
         stop: stopSongAudio,
         context: () => audioContext,
         output: () => finalAmplifierNode,

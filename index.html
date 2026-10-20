@@ -5771,7 +5771,7 @@
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
     <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-prompts-6');</script>
+    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-parts-7');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -5781,7 +5781,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.AI.6</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.AI.7</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5866,7 +5866,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.AI.6</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.AI.7</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -8181,6 +8181,25 @@
                     <button id="aiPatchCancel" type="button" hidden>Cancel</button>
                 </div>
                 <p id="aiPatchStatus" role="status" aria-live="polite">Start MYGRAIN, then describe a direction. Generate &amp; Apply changes the patch when the AI result is ready; Undo restores it.</p>
+                    <section class="ai-parts-section" aria-labelledby="aiPartHeading">
+                        <h4 id="aiPartHeading">AI song structure · editable takes</h4>
+                        <p>Make a related section from the current take. Tempo and source sounds stay the same; chords, bass and the groove can change.</p>
+                        <label for="aiPartType">Next section</label>
+                        <select id="aiPartType"><option value="verse">Verse</option><option value="chorus">Chorus</option><option value="bridge">Bridge</option><option value="middle8">Middle 8</option></select>
+                        <label for="aiPartBars">Section length</label>
+                        <select id="aiPartBars"><option value="4">4 bars · four-bar pattern × 1</option><option value="8" selected>8 bars · four-bar pattern × 2</option><option value="16">16 bars · four-bar pattern × 4</option></select>
+                        <label class="ai-part-roll-label"><input id="aiPartRolls" type="checkbox"> Allow sparse drum rolls / transition fills</label>
+                        <label for="aiPartInstruction">Direction for this new part (optional)</label>
+                        <textarea id="aiPartInstruction" rows="2" maxlength="500" placeholder="Lift into the relative major for the chorus; leave room for vocals…"></textarea>
+                        <button id="aiPartGenerate" type="button">Generate progression</button>
+                        <p id="aiPartContext" role="status">Generate or recall a take first. Store the original in a slot before developing another section.</p>
+                        <div class="ai-parts-bank"><h4>Five part takes · saved to your account</h4>
+                            <p>Store keeps the complete editable pattern and sounds, not just a WAV. Storing again replaces that slot’s active take. Recall loads it without playing. Add to Song copies the saved take into the selected Song, without changing the live patch.</p>
+                            <button id="aiPartRefresh" type="button">Refresh part takes</button>
+                            <div id="aiPartSlots"></div>
+                            <p id="aiPartStatus" role="status" aria-live="polite">Loading saved part takes…</p>
+                        </div>
+                    </section>
                 <div id="aiPatchProposal" hidden>
                     <h3 id="aiPatchTitle"></h3>
                     <p id="aiPatchDescription"></p>
@@ -60532,11 +60551,13 @@
                     Q: { instrument: q?.instrument === 'strings' ? 'strings' : 'piano', sequence: Array.from({ length: count }, (_, index) => {
                         const cell = q?.sequence?.[index];
                         return cell ? { notes: (cell.notes || []).slice(0, 8), rest: Boolean(cell.rest), gate: Number.isFinite(cell.gate) ? cell.gate : 1, velocity: Number.isFinite(cell.velocity) ? cell.velocity : 82 } : null;
-                    }) }, drumsEnabled: Boolean(drumMachineEnabled), drums: Object.fromEntries(['kick', 'snare', 'hat'].map(kind => [kind, getDrumMachinePattern(kind).slice(0, count).map(Number)])) };
+                    }) }, drumRatchets: { kick: drumMachineKickRatchetPattern.slice(0, count), snare: drumMachineSnareRatchetPattern.slice(0, count), hat: drumMachineHatRatchetPattern.slice(0, count) }, drumsEnabled: Boolean(drumMachineEnabled), drums: Object.fromEntries(['kick', 'snare', 'hat'].map(kind => [kind, getDrumMachinePattern(kind).slice(0, count).map(Number)])) };
             }
-            function fingerprint() {
+            function fingerprint({ ignoreQBank = false } = {}) {
                 const preset = gatherPreset(); delete preset.timestamp;
-                return JSON.stringify({ preset, loops: inventory(), q: window.mygrainQ?.getState(), drums: drumInventory(), sourceMutationSerial, account: window.mygrainAccounts?.user?.username, song: window.mygrainSongBeta?.song?.id || null });
+                const q = window.mygrainQ?.getState(); if (ignoreQBank && q) q.bank = null;
+                const loopState = inventory(); if (ignoreQBank) loopState.Q.samples = [];
+                return JSON.stringify({ preset, loops: loopState, q, drums: drumInventory(), sourceMutationSerial, account: window.mygrainAccounts?.user?.username, song: window.mygrainSongBeta?.song?.id || null });
             }
             function read(ids) {
                 return Object.fromEntries(ids.map(id => {
@@ -60665,6 +60686,13 @@
                     for (const [key, lane] of Object.entries(inventory())) {
                         if (!recipe.loops[key]?.reload && !(key === 'Q' && (recipe.loops.Q?.instrument || recipe.loops.Q?.chords))) report(`Loop ${key}: ${lane.loaded ? 'KEEP existing audio · ' + (lane.samples.join(', ') || 'no filename metadata') : 'no audio loaded'}`);
                     }
+                    if (recipe.patternSteps) {
+                        const old = getPatternLengthSteps();
+                        syncPatternLengthControls(recipe.patternSteps, { skipSave: true });
+                        if (old !== recipe.patternSteps) changes++;
+                        report(`Pattern grid: ${old} → ${recipe.patternSteps} steps · four bars; section length uses Song repeats.`);
+                        done(); await frame(); guard();
+                    }
                     // Tempo first, then sample sources, then every requested scalar through its live handler.
                     if (Object.hasOwn(recipe.parameters, 'globalBpmSlider')) {
                         const old = sequencerBPM; applyGlobalBpm(recipe.parameters.globalBpmSlider);
@@ -60778,12 +60806,23 @@
                                 report(`Drum ${kind}: ${settings.steps.map(hit => hit ? '●' : '·').join('')} · ${pattern.filter(Boolean).length} hits / ${pattern.length} steps · applied`);
                             }
                         }
-                        if (mode !== 'refine' && Object.keys(recipe.drums.tracks || {}).length) {
+                        if (!['refine', 'section'].includes(mode) && Object.keys(recipe.drums.tracks || {}).length) {
                             // Explicit straight, single-hit rhythms; old random ratchets cannot bleed into the result.
                             drumMachineKickRatchetPattern.fill(0); drumMachineSnareRatchetPattern.fill(0); drumMachineHatRatchetPattern.fill(0); drumMachineHatAccentPattern.fill(false);
                             drumMachineHatTimingMode = 'straight';
                             for (const kind of ['perc', ...Object.keys(drumMachineExtraTracks)]) setDrumMachinePattern(kind, Array(getPatternLengthSteps()).fill(false), { skipSave: true });
                             report('Drums: straight shared grid; old ratchets, percussion and extra patterns cleared.');
+                        }
+                        for (const [kind, settings] of Object.entries(recipe.drums.tracks || {})) {
+                            if (!settings.ratchets) continue;
+                            const rolls = Array.from({ length: getPatternLengthSteps() }, (_, i) => settings.ratchets[i % settings.ratchets.length]);
+                            if (kind === 'kick') drumMachineKickRatchetPattern = rolls;
+                            else if (kind === 'snare') drumMachineSnareRatchetPattern = rolls;
+                            else drumMachineHatRatchetPattern = rolls;
+                            const pattern = getDrumMachinePattern(kind).slice();
+                            rolls.forEach((hits, index) => { if (hits > 0) pattern[index] = true; });
+                            setDrumMachinePattern(kind, pattern, { skipSave: true }); changes++;
+                            report(`Drum ${kind}: ${rolls.filter(Boolean).length} roll steps · same source sample`);
                         }
                         if (Object.hasOwn(recipe.drums, 'enabled')) { setDrumMachineEnabled(recipe.drums.enabled, quiet); changes++; report(`Drums: ${recipe.drums.enabled ? 'ON' : 'OFF'} · applied`); }
                         syncDrumMachineUi(); done(); guard();
@@ -61042,12 +61081,13 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261015-song-portability-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261019-arm-memory-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-parts-7&prior=20261019-arm-memory-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261019-render-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-ai-parts-7&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-prompts-6');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-parts-7');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-song-parts.js?v=20261020-ai-parts-7');</script>
     </template>
 </body>
 </html>

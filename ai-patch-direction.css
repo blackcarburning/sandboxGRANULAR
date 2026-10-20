@@ -61,3 +61,11 @@
 #aiPatchLibraryStatus { min-height: 24px; }
 #aiPatchFollowup { border-top: 1px solid #b95589; margin-top: 16px; padding-top: 4px; }
 #aiPatchLastPrompt { white-space: pre-wrap; }
+
+#aiPatchCard .ai-parts-section { border: 1px solid #9b245e; border-radius: 10px; padding: 12px; margin: 16px 0; background: #ffd5ed; }
+#aiPatchCard .ai-part-roll-label { display: flex; gap: 10px; align-items: center; }
+#aiPatchCard .ai-part-roll-label input { width: 24px; min-width: 24px; height: 24px; }
+#aiPatchCard .ai-part-slot { border: 2px solid var(--take-color); border-radius: 10px; margin: 12px 0; padding: 10px; min-width: 0; }
+#aiPatchCard .ai-part-slot h5 { margin: 0 0 8px; font: 800 15px/1.4 system-ui,sans-serif; }
+#aiPatchCard .ai-part-slot button.ai-part-store { background: var(--take-color); color: #210a1c; }
+#aiPatchCard .ai-part-slot p { font-size: 12px; margin: 8px 0; }

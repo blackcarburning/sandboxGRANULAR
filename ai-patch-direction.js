@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
     if (root.__mygrainSongRenderDeck) return;
-    let schema, previous = null, request = null, serial = 0, locked = false, phase = 'idle', rendered = null, lastPrompt = '', savedPrompts = [], libraryRequest = null;
+    let schema, previous = null, request = null, serial = 0, locked = false, phase = 'idle', rendered = null, lastPrompt = '', savedPrompts = [], libraryRequest = null, lastSection = null;
     const byId = id => document.getElementById(id);
     const adapter = () => root.mygrainAiPatchAdapter;
     const status = message => { byId('aiPatchStatus').textContent = message; };
@@ -42,6 +42,7 @@
         for (const id of ['aiPatchSavePrompt', 'aiPatchPromptName', 'aiPatchSavedPrompts', 'aiPatchRefreshPrompts']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest);
         for (const id of ['aiPatchRecallPrompt', 'aiPatchRemovePrompt']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest) || !byId('aiPatchSavedPrompts').value;
         byId('aiPatchCard').setAttribute('aria-busy', String(Boolean(request)));
+        root.dispatchEvent(new Event('mygrain-ai-update'));
     }
     function drawPrompts(selected = byId('aiPatchSavedPrompts').value) {
         const list = byId('aiPatchSavedPrompts'); list.replaceChildren();
@@ -83,7 +84,8 @@
         byId('aiPatchLibraryStatus').textContent = `Recalled “${saved.name}”. Sound unchanged; Generate to try this direction.`;
     }
     function validateRecipe(recipe) {
-        if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe) || !['description,loops,parameters,title', 'description,drums,loops,parameters,title'].includes(Object.keys(recipe).sort().join())) throw Error('Invalid AI recipe. Nothing was changed.');
+        if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe) || !['title', 'description', 'parameters', 'loops'].every(key => Object.hasOwn(recipe, key)) || Object.keys(recipe).some(key => !['title', 'description', 'parameters', 'loops', 'drums', 'patternSteps'].includes(key))) throw Error('Invalid AI recipe. Nothing was changed.');
+        if (Object.hasOwn(recipe, 'patternSteps') && recipe.patternSteps !== 64) throw Error('Progressions use a four-bar, 64-step pattern.');
         for (const [key, limit] of [['title', 80], ['description', 600]]) if (typeof recipe[key] !== 'string' || !recipe[key].trim() || recipe[key].length > limit) throw Error('Invalid AI description.');
         if (!recipe.parameters || typeof recipe.parameters !== 'object' || Array.isArray(recipe.parameters) || !recipe.loops || typeof recipe.loops !== 'object' || Array.isArray(recipe.loops)) throw Error('Missing patch controls or loop operations.');
         const entries = Object.entries(recipe.parameters), lanes = Object.entries(recipe.loops);
@@ -120,9 +122,10 @@
             if (!drums || typeof drums !== 'object' || Array.isArray(drums) || !Object.keys(drums).length || Object.keys(drums).some(key => !['enabled', 'tracks'].includes(key)) || (Object.hasOwn(drums, 'enabled') && typeof drums.enabled !== 'boolean')) throw Error('Invalid drums.');
             if (Object.hasOwn(drums, 'tracks') && (!drums.tracks || typeof drums.tracks !== 'object' || Array.isArray(drums.tracks))) throw Error('Invalid drum tracks.');
             for (const [key, lane] of Object.entries(drums.tracks || {})) {
-                if (!['kick', 'snare', 'hat'].includes(key) || !lane || typeof lane !== 'object' || Array.isArray(lane) || !Object.keys(lane).length || Object.keys(lane).some(field => !['reload', 'steps'].includes(field))) throw Error('Unsupported drum operation.');
+                if (!['kick', 'snare', 'hat'].includes(key) || !lane || typeof lane !== 'object' || Array.isArray(lane) || !Object.keys(lane).length || Object.keys(lane).some(field => !['reload', 'steps', 'ratchets'].includes(field))) throw Error('Unsupported drum operation.');
                 if (Object.hasOwn(lane, 'reload') && typeof lane.reload !== 'boolean') throw Error('Invalid drum reload.');
                 if (Object.hasOwn(lane, 'steps') && (!Array.isArray(lane.steps) || !lane.steps.length || lane.steps.length > 64 || lane.steps.some(hit => !Number.isInteger(hit) || ![0, 1].includes(hit)))) throw Error('Invalid drum pattern.');
+                if (Object.hasOwn(lane, 'ratchets') && (!Array.isArray(lane.ratchets) || !lane.ratchets.length || lane.ratchets.length > 64 || lane.ratchets.some(v => !Number.isInteger(v) || ![0, 2, 4, 8].includes(v)) || lane.ratchets.filter(Boolean).length > 8)) throw Error('Invalid drum rolls.');
             }
         }
         return recipe;
@@ -132,13 +135,16 @@
         if (phase === 'applying') status('Cancelling… restoring the previous patch and samples.');
         else status('Cancelled. Your patch is unchanged.');
     }
-    async function generate(mode = 'generate') {
+    async function generate(mode = 'generate', section = null) {
         if (request || locked || !schema) return;
+        const repeatedSection = mode === 'regenerate' && lastSection;
+        if (repeatedSection) section = { ...lastSection };
         const prompt = mode === 'regenerate' ? lastPrompt : byId('aiPatchPrompt').value.trim();
-        const refinement = mode === 'refine' ? byId('aiPatchRefinement').value.trim() : '';
-        if (!['generate', 'refine', 'regenerate'].includes(mode) || (mode !== 'generate' && !lastPrompt)) return;
+        const refinement = mode === 'refine' ? byId('aiPatchRefinement').value.trim() : mode === 'section' ? byId('aiPartInstruction').value.trim() : '';
+        if (!['generate', 'refine', 'regenerate', 'section'].includes(mode) || (mode !== 'generate' && !lastPrompt)) return;
         if (mode === 'refine' && !refinement) { status('Describe what should change in the refinement box.'); return; }
-        const usedPrompt = mode === 'refine' ? `${prompt}\n\nRefinement: ${refinement}` : prompt;
+        const usedPrompt = mode === 'refine' ? `${prompt}\n\nRefinement: ${refinement}` : mode === 'section' ? `${prompt}\n\nSection: ${section.type} (${section.bars} bars).${refinement ? ' ' + refinement : ''}` : prompt;
+        const requestMode = repeatedSection ? 'section' : mode;
         if (usedPrompt.length > 1500) { status('Prompt plus refinement exceeds 1,500 characters. Shorten the direction first.'); return; }
         if (prompt.length < 3 || prompt.length > 1500) { status('Describe your direction in 3–1500 characters.'); return; }
         let timeout;
@@ -154,9 +160,9 @@
             byId('aiPatchChanges').replaceChildren();
             byId('aiPatchTitle').textContent = 'Live changes'; byId('aiPatchDescription').textContent = '';
             inventory();
-            report(mode === 'refine' ? 'Refining the current patch with GPT-6.1 Sol; library samples stay loaded. No patch changes yet.' : mode === 'regenerate' ? 'Regenerating the last applied prompt with GPT-6.1 Sol. A fresh variation, not an identical patch.' : 'Requesting a musical recipe from GPT-6.1 Sol. No patch changes yet.');
-            status('GPT-6.1 Sol is choosing tempo, layers and sound parameters…'); update();
-            const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, current, loops, mode, ...(mode === 'refine' ? { refinement, musicalState: adapter().musicalState() } : {}) }) });
+            report(requestMode === 'section' ? 'Developing a related song section with GPT-6.1 Sol; current tempo, kit and library sources stay loaded. No patch changes yet.' : mode === 'refine' ? 'Refining the current patch with GPT-6.1 Sol; library samples stay loaded. No patch changes yet.' : mode === 'regenerate' ? 'Regenerating the last applied prompt with GPT-6.1 Sol. A fresh variation, not an identical patch.' : 'Requesting a musical recipe from GPT-6.1 Sol. No patch changes yet.');
+            status(requestMode === 'section' ? 'GPT-6.1 Sol is developing chords, bass and groove for this section…' : 'GPT-6.1 Sol is choosing tempo, layers and sound parameters…'); update();
+            const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, current, loops, mode: requestMode, ...(['refine', 'section'].includes(requestMode) ? { refinement, musicalState: adapter().musicalState() } : {}), ...(requestMode === 'section' ? { section } : {}) }) });
             const payload = await response.json();
             if (token !== serial || locked || signal.aborted) return;
             if (!response.ok || !payload.ok) throw Error(payload.error || 'AI unavailable. Your patch is unchanged.');
@@ -164,9 +170,16 @@
             adapter().assertReady();
             if (adapter().fingerprint() !== fingerprint) throw Error('Your patch or Song changed while AI was working. Generate a fresh direction.');
             const recipe = validateRecipe(payload.recipe), combined = { ...current, ...recipe.parameters };
-            if (mode === 'refine' && (Object.values(recipe.loops).some(lane => lane.reload) || Object.values(recipe.drums?.tracks || {}).some(lane => lane.reload))) throw Error('Refine keeps current library samples. Nothing changed; try again or use Regenerate.');
+            if (['refine', 'section'].includes(requestMode) && (Object.values(recipe.loops).some(lane => lane.reload) || Object.values(recipe.drums?.tracks || {}).some(lane => lane.reload))) throw Error('Refine keeps current library samples. Nothing changed; try again or use Regenerate.');
+            if (requestMode === 'section') {
+                if (recipe.patternSteps !== 64 || !recipe.loops.Q?.chords) throw Error('The progression needs a four-bar Q chord pattern.');
+                const currentMusic = adapter().musicalState();
+                if (recipe.loops.Q.instrument && recipe.loops.Q.instrument !== currentMusic.Q.instrument) throw Error('Progressions keep the current Q instrument.');
+                for (const [key, value] of Object.entries(recipe.parameters)) if ((key === 'globalBpmSlider' || (key.startsWith('drumMachine') && !key.endsWith('Level'))) && value !== current[key]) throw Error('Progressions keep tempo and drum sound settings.');
+                if (!section.rolls && Object.values(recipe.drums?.tracks || {}).some(track => track.ratchets?.some(Boolean))) throw Error('Rolls were not enabled. Nothing changed.');
+            } else if (Object.hasOwn(recipe, 'patternSteps')) throw Error('Only progression generation changes the pattern length.');
             if (combined.hpfCutoff >= combined.lpfCutoff / 2) throw Error('The proposed filters would remove too much sound. Try again.');
-            if (mode === 'refine') report('Refine: existing library samples retained; editing current settings and musical patterns.');
+            if (['refine', 'section'].includes(requestMode)) report('Refine/progression: existing library samples retained; editing current settings and musical patterns.');
             else if (payload.catalogue?.status === 'ready') {
                 report(`Catalogue: ${payload.catalogue.catalogueCount} analysed files · ${payload.catalogue.eligibleCount} eligible in this library · ${payload.catalogue.shortlistCount} shortlisted. Filename claims and audio estimates are not guarantees.`);
                 for (const key of payload.catalogue.fallbackLanes || []) report(`Loop ${key}: no eligible catalogue source; using existing random library selection.`);
@@ -174,14 +187,17 @@
             byId('aiPatchTitle').textContent = recipe.title; byId('aiPatchDescription').textContent = recipe.description;
             root.clearTimeout(timeout); timeout = root.setTimeout(() => request?.abort(), 240000);
             phase = 'applying'; status('Applying the recipe. Follow the live changes and sample loads below…');
-            const result = await adapter().execute(recipe, fingerprint, { signal, mode, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
+            const result = await adapter().execute(recipe, fingerprint, { signal, mode: requestMode, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
             if (locked || token !== serial) return;
-            result.promptBefore = lastPrompt; previous = result; lastPrompt = usedPrompt;
+            result.promptBefore = lastPrompt; result.sectionBefore = lastSection; previous = result; lastPrompt = usedPrompt;
+            if (requestMode === 'section') lastSection = { ...section };
+            else if (mode !== 'refine') lastSection = null;
             byId('aiPatchPrompt').value = usedPrompt;
             if (mode === 'refine') byId('aiPatchRefinement').value = '';
             inventory();
             report(`Complete: ${result.changes} actual changes. ${result.saved ? 'Settings autosaved. Save/export a named patch with audio for a portable copy.' : 'Autosave unavailable: export the patch to retain it.'}`);
             status(`Applied ${result.changes} changes. Ready to play, edit or generate again. Undo restores the patch before this direction.`);
+            return { applied: true, prompt: lastPrompt, section: lastSection };
         } catch (error) {
             if (!locked && token === serial) {
                 const text = error.name === 'AbortError' ? (phase === 'applying' ? 'Cancelled. Previous patch and samples restored.' : 'Cancelled or timed out. Your patch is unchanged.') : error.message || 'AI unavailable.';
@@ -198,7 +214,7 @@
         try {
             report('Undo: restoring previous controls, tempo, loop patterns and samples…');
             const result = await adapter().undo(previous.before, previous.fingerprint);
-            lastPrompt = previous.promptBefore || ''; byId('aiPatchPrompt').value = lastPrompt || byId('aiPatchPrompt').value;
+            lastPrompt = previous.promptBefore || ''; lastSection = previous.sectionBefore || null; byId('aiPatchPrompt').value = lastPrompt || byId('aiPatchPrompt').value;
             previous = null; rendered = null;
             byId('aiPatchPreviewStatus').textContent = 'Patch restored. Render a fresh preview to capture this version.';
             inventory(); report('Undo complete. Previous patch and samples restored.');
@@ -244,22 +260,52 @@
         });
         byId('aiPatchKeep').addEventListener('click', () => { previous = null; status('Kept. The change log remains below. Save/export a named patch as usual.'); update(); });
         document.querySelectorAll('[data-ai-patch-example]').forEach(button => button.addEventListener('click', () => { if (!request && !locked) { byId('aiPatchPrompt').value = button.dataset.aiPatchExample; byId('aiPatchPrompt').focus(); } }));
-        root.addEventListener('mygrain-account-lock', () => { locked = true; previous = null; rendered = null; lastPrompt = ''; savedPrompts = []; drawPrompts(''); libraryRequest?.abort(); for (const id of ['aiPatchPrompt', 'aiPatchPromptName', 'aiPatchRefinement']) byId(id).value = ''; byId('aiPatchLibraryStatus').textContent = 'Sign in to recall your prompts.'; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
+        root.addEventListener('mygrain-account-lock', () => { locked = true; previous = null; rendered = null; lastPrompt = ''; lastSection = null; savedPrompts = []; drawPrompts(''); libraryRequest?.abort(); for (const id of ['aiPatchPrompt', 'aiPatchPromptName', 'aiPatchRefinement']) byId(id).value = ''; byId('aiPatchLibraryStatus').textContent = 'Sign in to recall your prompts.'; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
         root.addEventListener('pagehide', () => { cancel(); libraryRequest?.abort(); });
         // Trusted edits outside this card must not race asynchronous patch writes.
         for (const event of ['click', 'input', 'change', 'keydown']) document.addEventListener(event, e => {
-            if (!['applying', 'undo', 'preview', 'audition'].includes(phase) || !e.isTrusted || e.target.closest('#aiPatchCard, #sectionJumpDrawer') || !e.target.closest('button, input, select, textarea')) return;
+            if (!['applying', 'undo', 'preview', 'audition', 'take'].includes(phase) || !e.isTrusted || e.target.closest('#aiPatchCard, #sectionJumpDrawer') || !e.target.closest('button, input, select, textarea')) return;
             e.preventDefault(); e.stopImmediatePropagation();
         }, true);
         update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-prompts-6', document.baseURI), { credentials: 'same-origin' });
+            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261020-ai-parts-7', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
             if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 12) throw Error();
             schema = data; inventory(); update();
         } catch { status('AI beta could not load. Reload to try again. Your other controls still work.'); }
     }
-    root.mygrainAiPatch = Object.freeze({ generate, refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: Boolean(previous), renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
+    async function withPartAction(action) {
+        if (request || locked) throw Error('Wait for the current AI operation to finish.');
+        adapter().assertReady();
+        request = new AbortController(); phase = 'take'; update();
+        const controller = request, account = root.mygrainAccounts.user.username;
+        const check = () => {
+            if (controller.signal.aborted) throw new DOMException('Cancelled.', 'AbortError');
+            if (locked || !root.mygrainAccounts?.authenticated || root.mygrainAccounts.user.username !== account) throw Error('Account changed. Take operation stopped.');
+        };
+        const timeout = root.setTimeout(() => controller.abort(), 180000);
+        try { return await action(controller.signal, check); }
+        finally { root.clearTimeout(timeout); request = null; phase = 'idle'; update(); }
+    }
+    function setDirection(context) {
+        lastPrompt = context.prompt || ''; lastSection = context.section ? { ...context.section } : null;
+        previous = null; rendered = null;
+        byId('aiPatchPrompt').value = lastPrompt; byId('aiPatchRefinement').value = '';
+        adapter().stopPreview(); byId('aiPatchChanges').replaceChildren();
+        byId('aiPatchTitle').textContent = context.name || 'Recalled part'; byId('aiPatchDescription').textContent = 'Complete editable pattern, sounds and prompt restored from your account.';
+        byId('aiPatchPreviewStatus').textContent = 'Stored part recalled. Render a fresh preview to capture this version.';
+        report('Stored part recalled: ' + (context.name || 'unnamed take') + '. Hear, refine or generate a related section.');
+        status('Stored part recalled. Ready to play, refine or generate a related section.'); inventory(); update();
+    }
+    function acceptCapture(before, stableBefore) {
+        if (phase !== 'take' || adapter().fingerprint({ ignoreQBank: true }) !== stableBefore) throw Error('The patch changed while capturing. Store again.');
+        // Q capture records the already-loaded bank manifest. This bookkeeping does not change the sound.
+        const after = adapter().fingerprint();
+        if (previous?.fingerprint === before) previous.fingerprint = after;
+        if (rendered?.fingerprint === before) rendered.fingerprint = after;
+    }
+    root.mygrainAiPatch = Object.freeze({ generate, section: options => generate('section', options), withPartAction, setDirection, acceptCapture, direction: () => ({ prompt: lastPrompt, section: lastSection ? { ...lastSection } : null }), refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: Boolean(previous), renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true }); else void initialize();
 })(window);

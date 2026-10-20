@@ -570,25 +570,27 @@
             this.status(`Renamed song to ${name}. Saved parts and unchanged cached audio are retained.`);
         }
 
-        async newPart() {
+        async newPart(options = {}) {
             if (!this.song) throw new Error('Create or choose a song first.');
-            const name = this.element('songBetaPartName').value.trim();
-            const repeats = Number(this.element('songBetaRepeats').value);
+            const name = String(options.name ?? this.element('songBetaPartName').value).trim();
+            const repeats = Number(options.repeats ?? this.element('songBetaRepeats').value);
             if (!name) throw new Error('Enter a part name, such as Intro or Verse 1.');
             if (!Number.isInteger(repeats) || repeats < 1 || repeats > 64) throw new Error('Choose 1–64 pattern repeats.');
             await this.ensureEditing();
             const songId = this.song.id;
             this.status('Capturing complete settings, patterns, and current audio…');
-            const blob = await this.adapter.capture();
+            const blob = options.blob || await this.adapter.capture();
             if (blob.size > 128 * 1024 * 1024) throw new Error('This part exceeds the 128 MB upload limit. Shorten its source audio.');
+            if (options.signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
             this.status(`Saving ${name} and its sounds to the song folder…`);
             const result = await this.request(`/${encodeURIComponent(songId)}/parts?name=${encodeURIComponent(name)}&repeats=${repeats}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: blob
+                method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: blob, ...(options.signal ? { signal: options.signal } : {})
             });
             this.acceptSong(result.song);
-            this.element('songBetaPartName').value = '';
+            if (options.name === undefined) this.element('songBetaPartName').value = '';
             this.active = this.song.parts.at(-1).id;
             this.status(`Saved ${name}, including ${this.song.parts.at(-1).audioAssets} audio assets. Existing parts are unchanged.`);
+            return this.song.parts.at(-1);
         }
 
         async readPart(part, generation = this.generation) {
