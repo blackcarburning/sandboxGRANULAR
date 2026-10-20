@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-lock-startup-1"></script>
+    <script src="mygrain-accounts.js?v=20261020-x-controls-1"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-lock-startup-1';
+            const cacheBuster = '2026-10-20-x-controls-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -772,7 +772,8 @@
         [data-osc3-locked="true"] { border-style: dashed; }
 
         #bastardLoopXSynthModeBtn,
-        #performanceBastardLoopXSynthModeBtn {
+        #performanceBastardLoopXSynthModeBtn,
+        #performanceBastardLoopXOpenSynthBtn {
             min-height: 44px;
             touch-action: manipulation;
             color: #d8f7ff;
@@ -3903,6 +3904,8 @@
 
         .simplified-ui .performance-controls {
             display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            min-width: 0;
             gap: 14px;
             padding: 16px;
             border-radius: 20px;
@@ -4058,6 +4061,25 @@
             gap: 8px;
             justify-items: stretch;
             min-width: min(100%, 204px);
+        }
+
+        .simplified-ui [aria-label="Bastardloop X controls"] {
+            min-width: 0;
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .simplified-ui .performance-feature-actions [data-arp-paste]:disabled {
+            display: none;
+        }
+
+        .simplified-ui .performance-feature-actions .performance-btn:not(.primary):not([aria-pressed="true"]):enabled {
+            color: #d8f7ff;
+        }
+
+        .simplified-ui .performance-feature-actions .performance-btn:disabled {
+            color: #a4b8c6;
+            -webkit-text-fill-color: currentColor;
+            cursor: not-allowed;
         }
 
         .simplified-ui .performance-feature-copy {
@@ -5170,6 +5192,36 @@
             box-shadow: 0 0 0 2px rgba(126, 255, 178, 0.24), 0 0 22px rgba(126, 246, 255, 0.34);
         }
 
+        /* One dark, raised treatment for every action, including legacy
+           per-ID states and navigation-palette buttons. */
+        .simplified-ui .performance-actions-card .performance-actions > .performance-btn {
+            color: #f5f7fb !important;
+            -webkit-text-fill-color: currentColor;
+            background: linear-gradient(160deg, #343e4b 0%, #242c37 52%, #151b25 100%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.56) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 14px rgba(0, 0, 0, 0.3) !important;
+            transition: filter 150ms ease, box-shadow 150ms ease;
+        }
+
+        .simplified-ui .performance-actions-card .performance-actions > .performance-btn:is(.active, .playing, .recording, .armed, .loop-disabled, .osc-off, .fx-muted, .dry-filtered, .noise-active, .is-running, [aria-pressed="true"], [data-ui-pressed="true"]) {
+            background: linear-gradient(160deg, #304f4d 0%, #213b3a 52%, #142726 100%) !important;
+            border-color: rgba(255, 255, 255, 0.9) !important;
+            box-shadow: inset 3px 0 0 #b7f2e5, inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 14px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .simplified-ui .performance-actions-card .performance-actions > .performance-btn:hover:not(:disabled) {
+            filter: brightness(1.14);
+        }
+
+        .simplified-ui .performance-actions-card .performance-actions > .performance-btn:focus-visible {
+            outline: 2px solid #e7fff8;
+            outline-offset: 3px;
+        }
+
+        .simplified-ui .performance-actions-card .performance-actions > .performance-btn:disabled {
+            opacity: 0.55;
+        }
+
         .simplified-ui .recording-section {
             gap: 14px;
             padding: 18px;
@@ -5903,7 +5955,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.OSC.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.OSC.3</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -5984,7 +6036,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.OSC.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.OSC.3</strong></div>
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
                         <span><strong>Sound design. Beats. Songs.</strong></span>
                         <span>Shape samples and synths.</span>
@@ -6918,9 +6970,10 @@
                         <button class="performance-btn" id="performanceBastardLoopXCopyQRootsBtn" type="button" disabled title="Copy the full Q chord-root sequence to X from step 1, including rests and accents. Keeps X's rate, sound and tuning.">Copy Q Roots to Bass</button>
                         <button class="performance-btn" id="performanceBastardLoopXRandomAroundNoteBtn" type="button" disabled title="Build a new bass pattern around X's selected note, or its first set note, using root, fifth and octave motion.">Randomise Around Note</button>
                         <button class="performance-btn" id="performanceBastardLoopXSynthModeBtn" type="button" aria-pressed="false">Source: Sample</button>
-                        <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
+                        <button class="performance-btn" id="performanceBastardLoopXOpenSynthBtn" type="button">Open Synth</button>
                         <button class="performance-btn" id="performanceBastardLoopXPasteArpBtn" type="button" data-arp-paste="X" disabled>Paste from Arp</button>
                         <button class="performance-btn" id="performanceBastardLoopXExportMidiBtn" type="button">Export MIDI</button>
+                        <button class="performance-btn" id="performanceBastardLoopXEditBtn">Edit Sequence</button>
                         <button class="performance-btn" id="performanceBastardLoopXStartBtn" type="button">Start Bastardloops</button>
                     </div>
                 </div>
@@ -58152,6 +58205,7 @@
                 setBastardLoopXSourceMode(isBastardLoopXUsingSynth() ? 'sample' : 'synth', { forceMinimumMix: true });
             });
         }
+        document.getElementById('performanceBastardLoopXOpenSynthBtn')?.addEventListener('click', openSynthPopup);
         performanceBastardLoopLSynthModeBtn?.addEventListener('click', () => {
             setBastardLoopLSourceMode(isBastardLoopLUsingSynth() ? 'sample' : 'synth', {
                 forceMinimumMix: true,
@@ -58441,18 +58495,11 @@
                 event?.stopPropagation?.();
                 closeOverlay();
             };
-            if (window.PointerEvent) {
-                button.addEventListener('pointerup', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    const pointerType = String(event.pointerType || '').toLowerCase();
-                    if (pointerType !== 'touch') return;
-                    runClose(event, 'pointertouch');
-                }, { capture: true });
-            } else {
-                button.addEventListener('touchend', (event) => {
-                    runClose(event, 'touchend');
-                }, { capture: true, passive: false });
-            }
+            // Cancel the compatibility mouse click before hiding the overlay;
+            // closing on pointerup lets that click hit a newly exposed button.
+            button.addEventListener('touchend', (event) => {
+                runClose(event, 'touchend');
+            }, { capture: true, passive: false });
             button.addEventListener('click', (event) => {
                 runClose(event, 'click');
             }, { capture: true });

@@ -1,6 +1,13 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## X action controls (OSC.3)
+
+- Build `v2026.10.20.OSC.3`: **Open Synth** sits directly beneath X's source switch and opens the existing shared OSC3 controls without changing source ownership. **Edit Sequence** now sits below Export MIDI, just above Start/Stop.
+- Unavailable main-card **Paste from Arp** controls take no space; they reappear with a copied Q arp. Action labels have explicit readable colours (including disabled states) so Safari does not render apparently blank buttons. The editor's paste controls remain unchanged. L/X editor Close now cancels the touch-generated mouse click before hiding the overlay, avoiding accidental taps on controls underneath.
+- All **Performance Actions** buttons now share dark shaded faces, white labels and light borders, including RadioLab/VideoLab, generation, transport and patch actions. Active states keep the dark palette with a subtle teal shade and inset marker; existing labels and behavior remain intact.
+- Existing exclusive L/X OSC3 routing, complete account startup, transport, samples, sequences and all saved/imported formats are unchanged.
+
 ## Exclusive OSC3 routing and complete startup (OSC.2)
 
 - Build `v2026.10.20.OSC.2`: only **L or X**, never both, can own OSC3. Connecting the second sequencer is refused with a visible, dismissible warning. Switch the owner back to **Sample** to release the lock; its sample and sequence are retained.
