@@ -1,0 +1,3 @@
+
+# Preserve upstream sampler maps verbatim, including original whitespace.
+SAMPLES_ALTBASS/provenance/*.sfz -whitespace
