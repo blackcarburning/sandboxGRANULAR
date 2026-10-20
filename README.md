@@ -1,6 +1,11 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## MYGRAIN rainbow brain branding
+
+- Build `v2026.10.20.BRAND.1`: heading and browser title are **MYGRAIN**. A transparent rainbow brain emblem appears beside the main heading and above the start-screen name; the icon is also used for browser and homescreen bookmarks.
+- Original generated PNG and optimized WebP/PNG runtime variants are in `assets/brand/`. Generated with the built-in image tool; no patch, Song, audio, account or import/export formats changed.
+
 ## RadioLab current-take preview and normalization (R.10)
 
 - Current build: `v2026.10.17.R.10`. After **Record → Stop**, use **Preview** in the main RadioLab panel to hear the current unsaved take. The same button stops its preview; finishing playback resets it automatically. Preview does not require saving or opening the recording browser.

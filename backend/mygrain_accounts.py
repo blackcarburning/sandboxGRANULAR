@@ -27,6 +27,8 @@ CURRENT_USER = contextvars.ContextVar('mygrain_account', default=None)
 USERNAME_PATTERN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
 PUBLIC_FILES = {
     'index.html', 'manual.html', 'q-scales.json',
+    'assets/brand/mygrain-rainbow-brain.png', 'assets/brand/mygrain-rainbow-brain.webp',
+    'assets/brand/mygrain-icon.png',
     'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js',
     'mygrain-utils.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
     'navigation-palette.js', 'navigation-palette.css',

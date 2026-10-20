@@ -7,9 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MYGRAIN v2026.10.05.2">
-    <link rel="icon" href="data:,">
-    <title>MYGRAIN v2026.10.05.2</title>
+    <meta name="apple-mobile-web-app-title" content="MYGRAIN">
+    <link rel="icon" type="image/png" href="assets/brand/mygrain-icon.png?v=20261020-brand-1">
+    <link rel="apple-touch-icon" href="assets/brand/mygrain-icon.png?v=20261020-brand-1">
+    <title>MYGRAIN</title>
     <style id="mygrain-birthday-style">
         #mygrain-birthday-overlay.mygrain-birthday-overlay {
             position: fixed;
@@ -233,7 +234,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-ai-qxd-4';
+            const cacheBuster = '2026-10-20-brand-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5758,6 +5759,52 @@
             }
         }
 
+        /* Rainbow brain identity: decorative mark, accessible text heading. */
+        .simplified-ui .performance-title.mygrain-brand {
+            display: flex;
+            width: fit-content;
+            max-width: 100%;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            font-size: clamp(1.7rem, 3vw, 2.4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: 0.09em;
+        }
+
+        .mygrain-brand-logo {
+            display: block;
+            flex: 0 0 auto;
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+        }
+
+        #start-overlay .mygrain-start-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 16px;
+            color: #fff;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: 0.12em;
+        }
+
+        .mygrain-start-logo {
+            display: block;
+            width: clamp(76px, 20vh, 144px);
+            height: clamp(76px, 20vh, 144px);
+            object-fit: contain;
+        }
+
+        @media (max-width: 480px) {
+            .simplified-ui .performance-title.mygrain-brand { gap: 8px; font-size: 1.7rem; letter-spacing: 0.06em; }
+            .mygrain-brand-logo { width: 56px; height: 56px; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation: none !important;
@@ -5779,9 +5826,9 @@
 
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
-        <h1>MYGRAIN</h1>
+        <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.AI.9</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.BRAND.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5865,8 +5912,8 @@
             <div class="performance-toolbar">
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
-                    <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.AI.9</strong></div>
+                    <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="64" height="64" alt=""><span>MYGRAIN</span></h2>
+                    <div class="build-badge">Build <strong>v2026.10.20.BRAND.1</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
