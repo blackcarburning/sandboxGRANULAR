@@ -233,7 +233,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-ai-loops-3';
+            const cacheBuster = '2026-10-20-ai-qxd-4';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5771,7 +5771,7 @@
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
     <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-loops-3');</script>
+    <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-qxd-4');</script>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -5781,7 +5781,7 @@
     <div id="start-overlay" class="overlay">
         <h1>MYGRAIN</h1>
         <p>Start the engine to unlock audio. Microphone access is only requested when you press <strong>Record Mic</strong>.</p>
-        <div class="build-badge">Build <strong>v2026.10.20.AI.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.AI.4</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
         <div id="startupDebugRecovery" class="startup-debug-recovery hidden">
             <div id="startupDebugRecoveryStatus" role="status" aria-live="polite"></div>
@@ -5866,7 +5866,7 @@
                 <div class="performance-copy">
                     <div class="performance-chip">Play · Source · BPM</div>
                     <h2 class="performance-title">Keyboard-first MYGRAIN</h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.AI.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.AI.4</strong></div>
                     <p class="performance-subtitle">Generate or capture a source, set one BPM for every LFO, then play the keyboard.</p>
                     <div class="manual-link-row">
                         <a class="manual-link" href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -8153,15 +8153,15 @@
             <section class="performance-feature-card ai-patch-card" id="aiPatchCard" aria-labelledby="aiPatchHeading">
                 <span class="ai-patch-badge">BETA · GPT-6.1 SOL</span>
                 <h2 id="aiPatchHeading">AI Patch Direction</h2>
-                <p>Describe a patch. The AI sets BPM, chooses loop layers, loads fresh samples and changes the real sound controls. Watch each change below as it happens. Undo restores parameters and samples.</p>
+                <p>Describe a groove. The AI writes Q chords, X bass and drum patterns, loads samples and sets BPM and real sound controls. Watch each change below as it happens. Undo restores parameters and samples.</p>
                 <label for="aiPatchPrompt">What should this patch feel like?</label>
-                <textarea id="aiPatchPrompt" rows="3" maxlength="1500" placeholder="Warm, hazy ambient pad with slow attacks, wide grains and soft edges…" aria-describedby="aiPatchScope"></textarea>
+                <textarea id="aiPatchPrompt" rows="3" maxlength="1500" placeholder="Warm Q piano chords, a matching X bassline and sparse drums at 104 BPM…" aria-describedby="aiPatchScope"></textarea>
                 <div class="ai-patch-examples" aria-label="Example patch directions">
-                    <button type="button" data-ai-patch-example="Warm, hazy ambient pad with slow attacks, wide grains and soft edges.">Hazy pad</button>
-                    <button type="button" data-ai-patch-example="Tight, dry, nervous granular pulses. Short attacks and releases, clear rhythmic edges.">Nervous pulses</button>
-                    <button type="button" data-ai-patch-example="A spacious, glassy frozen texture, contrasting grain lengths and smooth wide tails. Keep it gentle.">Glassy texture</button>
+                    <button type="button" data-ai-patch-example="Warm Q piano chords, matching X bass and sparse kick/snare/hats at 104 BPM.">Warm chords</button>
+                    <button type="button" data-ai-patch-example="Dry minor Q chords, syncopated X bass and tight straight drums at 122 BPM.">Tight groove</button>
+                    <button type="button" data-ai-patch-example="Spacious Q strings, gentle root-note X bass and minimal slow drums at 82 BPM.">Spacious strings</button>
                 </div>
-                <p id="aiPatchScope">Beta: BPM + all 12 Bastardloops (A/B/C/V/P/O/L/X/Q/M/M+/K), levels, pitch, filters and granular controls. Fresh library sources: A/B/C/V/P/O/L/X; lead, bass and Q chord patterns. Recorded M/M+/K audio is preserved. Up to three fresh sources per direction, loaded sequentially. Your prompt, control values and displayed sample names go to the AI; no audio is uploaded. Song arrangements and master volume stay unchanged.</p>
+                <p id="aiPatchScope">Focus: Q chords + matching X bass + kick/snare/hats, with dry, warm or spacious Q styling. Other loops remain available when requested; recorded audio, Song arrangements and master volume are preserved. Settings and sample names go to GPT-6.1 Sol, never audio. Loads are sequential and memory-bounded.</p>
                 <div class="ai-patch-actions">
                     <button id="aiPatchGenerate" type="button" disabled>✦ Generate &amp; Apply</button>
                     <button id="aiPatchCancel" type="button" hidden>Cancel</button>
@@ -8175,9 +8175,13 @@
                     <details open><summary>Samples currently loaded · all loops</summary><ul id="aiPatchSamples"></ul></details>
                     <div class="ai-patch-actions">
                         <button id="aiPatchHear" type="button" hidden>▶ Hear patch</button>
+                        <button id="aiPatchStop" type="button">■ Stop</button>
+                        <button id="aiPatchRender" type="button">Render 1-bar preview</button>
+                        <button id="aiPatchReplay" type="button" hidden>▶ Play rendered preview</button>
                         <button id="aiPatchUndo" type="button" hidden>Undo direction</button>
                         <button id="aiPatchKeep" type="button" hidden>Keep current</button>
                     </div>
+                    <p id="aiPatchPreviewStatus" role="status">One-bar render uses the live mix and is audible while capturing. Audio stays on this device; the text model does not listen to it.</p>
                 </div>
             </section>
             <div class="performance-feature-card" id="songBetaCard" aria-label="Song beta controls">
@@ -11890,6 +11894,7 @@
             if (!audioContext) return null;
 
             const debug = {
+                aiPatch: window.mygrainAiPatch?.diagnostics() || null,
                 timestamp: new Date().toISOString(),
                 audioContext: {
                     state: audioContext.state,
@@ -31882,6 +31887,7 @@
                 return false;
             }
 
+            if (window.mygrainQ?.playable()) await window.mygrainQ.preparePlayback();
             let uiStateChanged = false;
             if (loopLayerSolo.length > 0) {
                 setLoopLayerSolo('none', { silent: true, skipSave: true });
@@ -39736,6 +39742,7 @@
         }
 
         function panicAllNotes(options = {}) {
+            window.mygrainAiPatchAdapter?.stopPreview();
             stopRetiredTransportVoices();
             transportSync.handoffBoundary = null;
             transportSync.scheduleUntil = null;
@@ -39805,6 +39812,7 @@
         }
 
         function stopAllPerformancePlayback(options = {}) {
+            window.mygrainAiPatchAdapter?.stopPreview();
             const hadPlayback = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || isBastardLoopLRunning() || isBastardLoopXRunning() || window.mygrainQ?.hasAudio() || isBastardLoopVCutPreviewRunning() || drumMachinePlaying;
             stopRetiredTransportVoices();
             restartPerformanceOnFocusReturn = false;
@@ -60410,7 +60418,7 @@
         syncPerformanceStemExportControls();
         // Bounded AI boundary. Existing setters/loaders remain the audio authority.
         window.mygrainAiPatchAdapter = (() => {
-            const allowed = {"grainSize":{"label":"Main grain size","min":10,"max":500,"step":1,"unit":"ms"},"attack":{"label":"Main attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainMainDecay":{"label":"Main decay","min":1,"max":5000,"step":1,"unit":"ms"},"release":{"label":"Main release","min":1,"max":8000,"step":1,"unit":"ms"},"grainMainBlend":{"label":"Main blend","min":0,"max":100,"step":1,"unit":"%"},"grainMainSmoothing":{"label":"Main smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainMainWidth":{"label":"Main stereo width","min":0,"max":100,"step":1,"unit":"%"},"lpfCutoff":{"label":"Low-pass cutoff","min":500,"max":12000,"step":1,"unit":"Hz"},"hpfCutoff":{"label":"High-pass cutoff","min":20,"max":800,"step":1,"unit":"Hz"},"grainSynthASize":{"label":"A grain size","min":10,"max":500,"step":1,"unit":"ms"},"grainSynthAAttack":{"label":"A attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthADecay":{"label":"A decay","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthARelease":{"label":"A release","min":1,"max":8000,"step":1,"unit":"ms"},"grainSynthASmoothing":{"label":"A smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainSynthAWidth":{"label":"A stereo width","min":0,"max":100,"step":1,"unit":"%"},"grainSynthBSize":{"label":"B grain size","min":10,"max":500,"step":1,"unit":"ms"},"grainSynthBAttack":{"label":"B attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthBDecay":{"label":"B decay","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthBRelease":{"label":"B release","min":1,"max":8000,"step":1,"unit":"ms"},"grainSynthBSmoothing":{"label":"B smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainSynthBWidth":{"label":"B stereo width","min":0,"max":100,"step":1,"unit":"%"},"globalBpmSlider":{"label":"Global tempo","min":40,"max":200,"step":1,"unit":"BPM"},"performanceBastardLoopLevel":{"label":"Loop A level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopSemitone":{"label":"Loop A transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopFilterCutoff":{"label":"Loop A cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoop2Level":{"label":"Loop B level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoop2Semitone":{"label":"Loop B transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoop2FilterCutoff":{"label":"Loop B cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoop3Level":{"label":"Loop C level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoop3Pitch":{"label":"Loop C octave","min":-1,"max":1,"step":1,"unit":"octaves"},"performanceBastardLoop3FilterCutoff":{"label":"Loop C cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopVLevel":{"label":"Loop V level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopVSemitone":{"label":"Loop V transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopVFilterCutoff":{"label":"Loop V cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopPLevel":{"label":"Loop P level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopPSemitone":{"label":"Loop P transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopPFilterCutoff":{"label":"Loop P cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopOLevel":{"label":"Loop O level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopOSemitone":{"label":"Loop O transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopOFilterCutoff":{"label":"Loop O cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopLLevel":{"label":"Loop L level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopLSemitone":{"label":"Loop L transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopLFilterCutoff":{"label":"Loop L cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopLLength":{"label":"Loop L note length","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopLAttack":{"label":"Loop L attack","min":2,"max":150,"step":1,"unit":"ms"},"performanceBastardLoopLStartTrim":{"label":"Loop L sample start","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopLDecay":{"label":"Loop L decay","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopXLevel":{"label":"Loop X level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopXSemitone":{"label":"Loop X transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopXFilterCutoff":{"label":"Loop X cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopXLength":{"label":"Loop X note length","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopXAttack":{"label":"Loop X attack","min":2,"max":150,"step":1,"unit":"ms"},"performanceBastardLoopXStartTrim":{"label":"Loop X sample start","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopXDecay":{"label":"Loop X decay","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopQLevelMixer":{"label":"Loop Q level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopMLevel":{"label":"Loop M level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopMSemitone":{"label":"Loop M transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopMFilterCutoff":{"label":"Loop M cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopMPlusLevel":{"label":"Loop M+ level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopMPlusSemitone":{"label":"Loop M+ transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopMPlusFilterCutoff":{"label":"Loop M+ cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopKLevel":{"label":"Loop K level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopKSemitone":{"label":"Loop K transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopKFilterCutoff":{"label":"Loop K cutoff","min":300,"max":12000,"step":10,"unit":"Hz"}};
+            const allowed = {"grainSize":{"label":"Main grain size","min":10,"max":500,"step":1,"unit":"ms"},"attack":{"label":"Main attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainMainDecay":{"label":"Main decay","min":1,"max":5000,"step":1,"unit":"ms"},"release":{"label":"Main release","min":1,"max":8000,"step":1,"unit":"ms"},"grainMainBlend":{"label":"Main blend","min":0,"max":100,"step":1,"unit":"%"},"grainMainSmoothing":{"label":"Main smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainMainWidth":{"label":"Main stereo width","min":0,"max":100,"step":1,"unit":"%"},"lpfCutoff":{"label":"Low-pass cutoff","min":500,"max":12000,"step":1,"unit":"Hz"},"hpfCutoff":{"label":"High-pass cutoff","min":20,"max":800,"step":1,"unit":"Hz"},"grainSynthASize":{"label":"A grain size","min":10,"max":500,"step":1,"unit":"ms"},"grainSynthAAttack":{"label":"A attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthADecay":{"label":"A decay","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthARelease":{"label":"A release","min":1,"max":8000,"step":1,"unit":"ms"},"grainSynthASmoothing":{"label":"A smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainSynthAWidth":{"label":"A stereo width","min":0,"max":100,"step":1,"unit":"%"},"grainSynthBSize":{"label":"B grain size","min":10,"max":500,"step":1,"unit":"ms"},"grainSynthBAttack":{"label":"B attack","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthBDecay":{"label":"B decay","min":1,"max":5000,"step":1,"unit":"ms"},"grainSynthBRelease":{"label":"B release","min":1,"max":8000,"step":1,"unit":"ms"},"grainSynthBSmoothing":{"label":"B smoothing","min":0,"max":100,"step":1,"unit":"%"},"grainSynthBWidth":{"label":"B stereo width","min":0,"max":100,"step":1,"unit":"%"},"globalBpmSlider":{"label":"Global tempo","min":40,"max":200,"step":1,"unit":"BPM"},"performanceBastardLoopLevel":{"label":"Loop A level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopSemitone":{"label":"Loop A transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopFilterCutoff":{"label":"Loop A cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoop2Level":{"label":"Loop B level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoop2Semitone":{"label":"Loop B transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoop2FilterCutoff":{"label":"Loop B cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoop3Level":{"label":"Loop C level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoop3Pitch":{"label":"Loop C octave","min":-1,"max":1,"step":1,"unit":"octaves"},"performanceBastardLoop3FilterCutoff":{"label":"Loop C cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopVLevel":{"label":"Loop V level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopVSemitone":{"label":"Loop V transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopVFilterCutoff":{"label":"Loop V cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopPLevel":{"label":"Loop P level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopPSemitone":{"label":"Loop P transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopPFilterCutoff":{"label":"Loop P cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopOLevel":{"label":"Loop O level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopOSemitone":{"label":"Loop O transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopOFilterCutoff":{"label":"Loop O cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopLLevel":{"label":"Loop L level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopLSemitone":{"label":"Loop L transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopLFilterCutoff":{"label":"Loop L cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopLLength":{"label":"Loop L note length","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopLAttack":{"label":"Loop L attack","min":2,"max":150,"step":1,"unit":"ms"},"performanceBastardLoopLStartTrim":{"label":"Loop L sample start","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopLDecay":{"label":"Loop L decay","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopXLevel":{"label":"Loop X level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopXSemitone":{"label":"Loop X transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopXFilterCutoff":{"label":"Loop X cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopXLength":{"label":"Loop X note length","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopXAttack":{"label":"Loop X attack","min":2,"max":150,"step":1,"unit":"ms"},"performanceBastardLoopXStartTrim":{"label":"Loop X sample start","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopXDecay":{"label":"Loop X decay","min":15,"max":100,"step":1,"unit":"%"},"performanceBastardLoopQLevelMixer":{"label":"Loop Q level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopMLevel":{"label":"Loop M level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopMSemitone":{"label":"Loop M transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopMFilterCutoff":{"label":"Loop M cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopMPlusLevel":{"label":"Loop M+ level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopMPlusSemitone":{"label":"Loop M+ transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopMPlusFilterCutoff":{"label":"Loop M+ cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"performanceBastardLoopKLevel":{"label":"Loop K level","min":0,"max":70,"step":1,"unit":"%"},"performanceBastardLoopKSemitone":{"label":"Loop K transpose","min":-12,"max":12,"step":1,"unit":"semitones"},"performanceBastardLoopKFilterCutoff":{"label":"Loop K cutoff","min":300,"max":12000,"step":10,"unit":"Hz"},"drumMachineKickLevel":{"label":"Kick level","min":0,"max":85,"step":1,"unit":"%"},"drumMachineKickPitch":{"label":"Kick pitch","min":-7,"max":7,"step":1,"unit":"semitones"},"drumMachineKickDecay":{"label":"Kick decay","min":20,"max":100,"step":1,"unit":"%"},"drumMachineKickLength":{"label":"Kick length","min":20,"max":100,"step":1,"unit":"%"},"drumMachineSnareLevel":{"label":"Snare level","min":0,"max":85,"step":1,"unit":"%"},"drumMachineSnarePitch":{"label":"Snare pitch","min":-7,"max":7,"step":1,"unit":"semitones"},"drumMachineSnareDecay":{"label":"Snare decay","min":20,"max":100,"step":1,"unit":"%"},"drumMachineSnareLength":{"label":"Snare length","min":20,"max":100,"step":1,"unit":"%"},"drumMachineHatLevel":{"label":"Hat level","min":0,"max":85,"step":1,"unit":"%"},"drumMachineHatTune":{"label":"Hat pitch","min":-7,"max":7,"step":1,"unit":"semitones"},"drumMachineHatDecay":{"label":"Hat decay","min":20,"max":100,"step":1,"unit":"%"},"drumMachineHatLength":{"label":"Hat length","min":20,"max":100,"step":1,"unit":"%"},"performanceDrumMachineLevel":{"label":"Drum bus level","min":0,"max":70,"step":1,"unit":"%"}};
             const quiet = { silent: true, skipSave: true, skipRestart: true };
             const loops = {
                 "A": {enabled: () => bastardLoopEnabled, enable: value => setBastardLoopEnabled(value, quiet), buffer: () => bastardLoopBuffer, metadata: () => bastardLoopMetadata, source: "sampledrop", divisions: () => getSelectedBastardLoopDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopBuffer(buffer, "AI Loop A", metadata)},
@@ -60427,6 +60435,12 @@
                 Q: { enabled: () => window.mygrainQ?.state.enabled === true, enable: value => window.mygrainQ?.setEnabled(value, quiet), buffer: () => window.mygrainQ?.getAudioBuffer(), metadata: () => ({ sampleNames: window.mygrainQ?.piano?.bank?.samples?.map(sample => sample.id + '.wav') || [...(window.mygrainQ?.piano?.cache?.keys() || [])].map(id => id + '.wav') }) }
             };
             const bindings = [
+                [() => drumMachineHatBuffer, value => { drumMachineHatBuffer = value; }, DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY],
+                [() => drumMachineHatMetadata, value => { drumMachineHatMetadata = value; }, null],
+                [() => drumMachineSnareBuffer, value => { drumMachineSnareBuffer = value; }, DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY],
+                [() => drumMachineSnareMetadata, value => { drumMachineSnareMetadata = value; }, null],
+                [() => drumMachineKickBuffer, value => { drumMachineKickBuffer = value; }, DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY],
+                [() => drumMachineKickMetadata, value => { drumMachineKickMetadata = value; }, null],
                 [() => bastardLoopBuffer, value => { bastardLoopBuffer = value; }, BASTARD_LOOP_AUDIO_BUFFER_KEY],
                 [() => bastardLoopMetadata, value => { bastardLoopMetadata = value; }, null],
                 [() => bastardLoopSourceBpm, value => { bastardLoopSourceBpm = value; }, null],
@@ -60469,7 +60483,7 @@
                 if (window.__mygrainSongRenderDeck || !window.mygrainAccounts?.authenticated) throw new Error('Sign in to use AI Patch Direction.');
                 if (!performanceControlsReady || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
                 if (applying || megaRandomizeInFlight || isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || bastardLoopKRecordingState !== 'idle' || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing) throw new Error('Finish recording, randomisation or Song operations before using AI Patch Direction.');
-                if (bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sample loads to finish.');
+                if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sample loads to finish.');
             }
             function inventory({ forModel = false } = {}) {
                 return Object.fromEntries(Object.entries(loops).map(([key, lane]) => {
@@ -60478,9 +60492,16 @@
                     return [key, { enabled: lane.enabled(), loaded: Boolean(lane.buffer()) || (key === 'Q' && Boolean(window.mygrainQ?.piano?.cache.size)), samples: samples.slice(0, forModel ? 16 : 64).map(name => String(name).slice(0, 256)) }];
                 }));
             }
+            function drumInventory() {
+                return Object.fromEntries(['kick', 'snare', 'hat'].map(kind => [kind, {
+                    loaded: Boolean(kind === 'kick' ? drumMachineKickBuffer : kind === 'snare' ? drumMachineSnareBuffer : drumMachineHatBuffer),
+                    sample: getDrumMachineTrackMetadata(kind)?.fileName || (kind === 'hat' ? 'Synth hats' : 'Empty'),
+                    hits: getDrumMachinePattern(kind).filter(Boolean).length
+                }]));
+            }
             function fingerprint() {
                 const preset = gatherPreset(); delete preset.timestamp;
-                return JSON.stringify({ preset, loops: inventory(), q: window.mygrainQ?.getState(), sourceMutationSerial, account: window.mygrainAccounts?.user?.username, song: window.mygrainSongBeta?.song?.id || null });
+                return JSON.stringify({ preset, loops: inventory(), q: window.mygrainQ?.getState(), drums: drumInventory(), sourceMutationSerial, account: window.mygrainAccounts?.user?.username, song: window.mygrainSongBeta?.song?.id || null });
             }
             function read(ids) {
                 return Object.fromEntries(ids.map(id => {
@@ -60498,7 +60519,7 @@
                     transport: { seq: sequencerPlaying, loops: bastardLoopPlaying, drums: drumMachinePlaying } };
             }
             function sync() {
-                syncPerformanceControlState(); updateEffects();
+                syncPerformanceControlState(); syncDrumMachineUi(); updateEffects();
             }
             async function restore(before) {
                 const account = window.mygrainAccounts?.user?.username, context = audioContext;
@@ -60558,6 +60579,23 @@
                 for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
                 return bytes.buffer;
             }
+            // Q's manifest/decoder jobs have their own generation guards. Do not
+            // hold the whole UI hostage to an unresponsive asset request.
+            function awaitStage(promise, signal, label = 'Q sample preparation') {
+                return new Promise((resolve, reject) => {
+                    let timer, settled = false;
+                    const finish = (error, value) => {
+                        if (settled) return; settled = true;
+                        clearTimeout(timer); signal?.removeEventListener('abort', abort);
+                        error ? reject(error) : resolve(value);
+                    };
+                    const abort = () => finish(new DOMException('Cancelled.', 'AbortError'));
+                    signal?.addEventListener('abort', abort, { once: true });
+                    timer = setTimeout(() => finish(new Error(`${label} timed out. Controls are available again; try again.`)), 60000);
+                    promise.then(value => finish(null, value), error => finish(error));
+                    if (signal?.aborted) abort();
+                });
+            }
             async function execute(recipe, expected, { signal, report = () => {} } = {}) {
                 assertReady();
                 if (fingerprint() !== expected) throw new Error('Your patch changed. Generate a fresh direction.');
@@ -60573,11 +60611,11 @@
                 const done = () => { checkpoint = fingerprint(); };
                 applying = true; megaRandomizeInFlight = true;
                 document.body.classList.add('ai-patch-applying');
-                setMegaRandomAudioSuppressed(true);
-                stopAllPerformancePlayback({ silent: true });
-                stateSaveSuspended = true;
-                done();
                 try {
+                    setMegaRandomAudioSuppressed(true);
+                    stopAllPerformancePlayback({ silent: true });
+                    stateSaveSuspended = true;
+                    done();
                     report('Playback paused while changes are applied.'); await frame(); guard();
                     if (loopLayerSolo.length || performanceSourceLayerSolo.length) {
                         setPerformanceSourceLayerSolo([], quiet); setLoopLayerSolo(null, quiet);
@@ -60592,15 +60630,17 @@
                         if (old !== sequencerBPM) { changes++; report(`Global tempo: ${old} → ${sequencerBPM} BPM · applied`); }
                         done(); await frame(); guard();
                     }
-                    for (const [key, settings] of Object.entries(recipe.loops)) {
-                        const lane = loops[key];
+                    const operations = [...Object.entries(recipe.loops), ...Object.entries(recipe.drums?.tracks || {}).map(([kind, settings]) => ['drums:' + kind, settings])];
+                    for (const [key, settings] of operations) {
+                        const kind = key.startsWith('drums:') ? key.slice(6) : null;
+                        const lane = kind ? { source: DRUM_MACHINE_SOURCE_KEYS[kind], apply: (buffer, metadata) => applyLoadedDrumMachineSampleBuffer(kind, buffer, metadata) } : loops[key];
                         if (settings.divisions) { const old = lane.divisions().join(', '); lane.setDivisions(settings.divisions); if (old !== lane.divisions().join(', ')) changes++; report(`Loop ${key} divisions: ${old} → ${lane.divisions().join(', ')} · applied`); done(); }
                         if (settings.reload) {
                             report(`Loop ${key}: requesting fresh audio from ${lane.source}…`);
                             await frame(); guard();
                             const generated = Boolean(lane.divisions);
                             const response = await fetch(generated ? BASTARD_LOOP_API_URL : DROPBOX_SAMPLE_SOURCE_API_URL, {
-                                method: 'POST', cache: 'no-store', signal: AbortSignal.any ? AbortSignal.any([signal, AbortSignal.timeout(60000)]) : signal,
+                                method: 'POST', cache: 'no-store', signal: AbortSignal.any ? AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60000)]) : signal,
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(generated ? { source: lane.source, bpm: sequencerBPM, divisions: lane.divisions(), patternLength: getBastardLoopPatternLengthPayload(), seed: String(Date.now()), responseFormat: 'audio' } : { source: lane.source, seed: String(Date.now()) })
                             });
@@ -60637,20 +60677,26 @@
                             lane.setNotes(settings.notes); changes++;
                             report(`Loop ${key} notes: ${settings.notes.map(note => note === null ? 'rest' : midiToNoteName(note)).join(' · ')} · written to ${getPatternLengthSteps()} steps`); done();
                         }
-                        if (key === 'Q' && (settings.instrument || settings.chords)) {
+                        if (key === 'Q' && (settings.instrument || settings.chords || settings.style)) {
                             const q = window.mygrainQ;
                             if (!q) throw new Error('Q is not ready. Reload MYGRAIN.');
                             const next = q.getState();
                             if (settings.instrument) next.instrument = settings.instrument;
                             if (settings.chords) {
-                                const stride = Math.max(1, Math.floor(Math.min(getPatternLengthSteps(), settings.chords.length * 4) / settings.chords.length));
+                                const stride = Math.max(1, (settings.chordSteps || 4));
                                 next.sequence = Array.from({ length: getPatternLengthSteps() }, (_, index) => index % stride === 0 ? { notes: settings.chords[Math.floor(index / stride) % settings.chords.length], root: settings.chords[Math.floor(index / stride) % settings.chords.length][0], velocity: 82, gate: stride * .9, rest: false } : null);
                                 next.transpose = 0;
-                                next.record = false;
+                                next.record = false; next.arpEnabled = false; next.rate = 1;
+                                next.sampleLength = 1; next.sampleDecay = 1; next.bank = null;
                             }
-                            q.restore(next); done();
+                            if (settings.style) {
+                                const styles = { dry: { lowpass: 14000, highpass: 70, room: 0, delay: 0, feedback: .2 }, warm: { lowpass: 5200, highpass: 90, room: .12, delay: .08, feedback: .2 }, spacious: { lowpass: 8500, highpass: 100, room: .25, delay: .15, feedback: .25 } };
+                                Object.assign(next, styles[settings.style]);
+                                report(`Loop Q style: ${settings.style} · cutoff ${next.lowpass} Hz · room ${Math.round(next.room * 100)}% · delay ${Math.round(next.delay * 100)}%`);
+                            }
+                            q.restore(next); q.updateEffects(); done();
                             report(`Loop Q: loading ${next.instrument}; chords ${settings.chords?.map(chord => chord.map(midiToNoteName).join('+')).join(' → ') || 'retained'}…`);
-                            const catalog = await q.piano.catalog(); guard();
+                            const catalog = await awaitStage(q.piano.catalog(), signal); guard();
                             const events = MygrainQTheory.events(q.state, q.length());
                             const samples = [...new Map(events.flatMap(event => event.notes.map(midi => {
                                 const sample = q.piano.sample(catalog.samples, midi, event.sampleVelocity ?? event.velocity);
@@ -60659,11 +60705,30 @@
                             const qBytes = samples.reduce((total, sample) => total + Math.ceil(sample.frames * context.sampleRate / sample.sampleRate) * 8, 0);
                             if (decodedBytes + qBytes > 80 * 1024 * 1024) throw new Error('Q notes exceed the beta decoded-audio budget. Use fewer chord pitches.');
                             report(`Loop Q: downloading ${samples.map(sample => sample.file).join(', ')} · ${next.instrument}`);
-                            await q.preparePlayback();
+                            await awaitStage(q.preparePlayback(), signal);
                             decodedBytes += qBytes;
                             done(); guard(); changes++;
                             report(`Loop Q: LOADED ${[...q.piano.cache.keys()].map(id => id + '.wav').join(', ') || q.piano.bank?.samples?.map(sample => sample.id + '.wav').join(', ') || next.instrument}`);
                         }
+                    }
+                    if (recipe.drums) {
+                        for (const [kind, settings] of Object.entries(recipe.drums.tracks || {})) {
+                            if (settings.steps) {
+                                const pattern = Array.from({ length: getPatternLengthSteps() }, (_, index) => settings.steps[index % settings.steps.length] === 1);
+                                if (kind !== 'hat' && pattern.some(Boolean) && !drumInventory()[kind].loaded) throw new Error(`Drum ${kind} needs a sample. Request reload or leave its pattern empty.`);
+                                setDrumMachinePattern(kind, pattern, { skipSave: true }); changes++;
+                                report(`Drum ${kind}: ${settings.steps.map(hit => hit ? '●' : '·').join('')} · ${pattern.filter(Boolean).length} hits / ${pattern.length} steps · applied`);
+                            }
+                        }
+                        if (Object.keys(recipe.drums.tracks || {}).length) {
+                            // Explicit straight, single-hit rhythms; old random ratchets cannot bleed into the result.
+                            drumMachineKickRatchetPattern.fill(0); drumMachineSnareRatchetPattern.fill(0); drumMachineHatRatchetPattern.fill(0); drumMachineHatAccentPattern.fill(false);
+                            drumMachineHatTimingMode = 'straight';
+                            for (const kind of ['perc', ...Object.keys(drumMachineExtraTracks)]) setDrumMachinePattern(kind, Array(getPatternLengthSteps()).fill(false), { skipSave: true });
+                            report('Drums: straight shared grid; old ratchets, percussion and extra patterns cleared.');
+                        }
+                        if (Object.hasOwn(recipe.drums, 'enabled')) { setDrumMachineEnabled(recipe.drums.enabled, quiet); changes++; report(`Drums: ${recipe.drums.enabled ? 'ON' : 'OFF'} · applied`); }
+                        syncDrumMachineUi(); done(); guard();
                     }
                     for (const [id, value] of Object.entries(recipe.parameters)) {
                         if (id === 'globalBpmSlider') continue;
@@ -60692,6 +60757,7 @@
                     if (!changes) throw new Error('The recipe made no real changes. Try a contrasting direction.');
                     stateSaveSuspended = false;
                     const saved = saveState();
+                    megaRandomizeInFlight = false;
                     resume(before.transport); done();
                     return { before, changes, saved, fingerprint: fingerprint(), inventory: inventory() };
                 } catch (error) {
@@ -60699,6 +60765,7 @@
                     if (window.mygrainAccounts?.authenticated && account === window.mygrainAccounts.user?.username && context === audioContext) {
                         report('Applying stopped. Restoring the previous parameters and sample buffers…');
                         await restore(before);
+                        megaRandomizeInFlight = false;
                         if (error.name !== 'AbortError') resume(before.transport);
                         report('Restored previous patch and samples. No partial direction was kept.');
                     } else report('Account/audio session ended. No further patch writes were made.');
@@ -60715,9 +60782,10 @@
                 if (fingerprint() !== expected) throw new Error('Your patch changed. Undo has not overwritten your newer edits.');
                 applying = true; megaRandomizeInFlight = true;
                 document.body.classList.add('ai-patch-applying');
-                setMegaRandomAudioSuppressed(true);
                 try {
+                    setMegaRandomAudioSuppressed(true);
                     const saved = await restore(before);
+                    megaRandomizeInFlight = false;
                     resume(before.transport);
                     return { saved };
                 } finally {
@@ -60727,8 +60795,92 @@
                     syncPerformanceControlState();
                 }
             }
-            function play() { assertReady(); return setBastardLoopPlaying(true, quiet); }
-            return Object.freeze({ assertReady, fingerprint, read, inventory, execute, undo, play });
+            let captureModule = null, captureContext = null, previewSource = null;
+            async function preview(signal, report = () => {}) {
+                assertReady();
+                const context = audioContext, account = window.mygrainAccounts.user.username;
+                const transport = { seq: sequencerPlaying, loops: bastardLoopPlaying, drums: drumMachinePlaying };
+                if (!context.audioWorklet || !window.AudioWorkletNode) throw new Error('One-bar capture needs AudioWorklet support. Hear patch still works.');
+                const valid = () => {
+                    if (signal?.aborted) throw new DOMException('Cancelled.', 'AbortError');
+                    if (context !== audioContext || !window.mygrainAccounts?.authenticated || account !== window.mygrainAccounts.user?.username) throw new Error('Audio/account changed. Preview stopped.');
+                };
+                let capture;
+                try {
+                    await awaitStage(context.resume(), signal, 'Audio resume'); valid();
+                    if (captureContext !== context) { captureModule = null; captureContext = context; }
+                    if (!captureModule) captureModule = context.audioWorklet.addModule(new URL('song-beta-capture-worklet.js?v=20261013-clock-2', document.baseURI)).catch(error => { captureModule = null; throw error; });
+                    await awaitStage(captureModule, signal, 'Preview capture module'); valid();
+                    if (window.mygrainQ?.playable()) await awaitStage(window.mygrainQ.preparePlayback(), signal);
+                    valid(); assertReady(); applying = true; stateSaveSuspended = true;
+                    stop();
+                    const seconds = 240 / sequencerBPM;
+                    if (seconds > 12) throw new Error('Preview exceeds the 12 second limit.');
+                    const frames = Math.round(seconds * context.sampleRate);
+                    const startTime = Math.ceil((context.currentTime + .4) * context.sampleRate) / context.sampleRate;
+                    capture = new AudioWorkletNode(context, 'mygrain-song-capture-v1', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: { startFrame: Math.round(startTime * context.sampleRate), frames } });
+                    const channels = await new Promise((resolve, reject) => {
+                        let timeout;
+                        const finish = (error, channels) => {
+                            clearTimeout(timeout); signal?.removeEventListener('abort', abort);
+                            context.removeEventListener('statechange', interrupted); document.removeEventListener('visibilitychange', hidden);
+                            capture.port.onmessage = null; capture.onprocessorerror = null;
+                            error ? reject(error) : resolve(channels);
+                        };
+                        const abort = () => finish(new DOMException('Cancelled.', 'AbortError'));
+                        const interrupted = () => { if (context.state !== 'running') finish(new Error('Audio suspended during preview. Resume and try again.')); };
+                        const hidden = () => { if (document.hidden) finish(new Error('Preview stopped when the page was hidden. Keep MYGRAIN open.')); };
+                        signal?.addEventListener('abort', abort, { once: true });
+                        context.addEventListener('statechange', interrupted); document.addEventListener('visibilitychange', hidden);
+                        capture.port.onmessage = event => finish(null, event.data.channels);
+                        capture.onprocessorerror = () => finish(new Error('Preview capture failed.'));
+                        timeout = setTimeout(() => finish(new Error('Preview timed out. Playback controls are available again.')), (seconds + 8) * 1000);
+                        try {
+                            valid(); finalAmplifierNode.connect(capture); capture.connect(context.destination);
+                            if (!setBastardLoopPlaying(true, { ...quiet, startTime })) throw new Error('No playable loops or drums for the preview.');
+                            report(`Rendering one bar at ${sequencerBPM} BPM · ${seconds.toFixed(2)} seconds through the live mix…`);
+                        } catch (error) { finish(error); }
+                    });
+                    valid();
+                    const buffer = context.createBuffer(2, frames, context.sampleRate);
+                    let peak = 0, sum = 0;
+                    channels.forEach((channel, index) => {
+                        const data = new Float32Array(channel); buffer.copyToChannel(data, index);
+                        for (const value of data) { if (!Number.isFinite(value)) throw new Error('Non-finite audio in preview. Stop and adjust this patch.'); peak = Math.max(peak, Math.abs(value)); sum += value * value; }
+                    });
+                    const rms = Math.sqrt(sum / (frames * 2));
+                    report(`Rendered actual audio: peak ${peak.toFixed(3)} · RMS ${rms.toFixed(4)}${rms < .0001 ? ' · near-silent: check levels and active patterns' : peak >= .99 ? ' · close to full scale: reduce layer levels' : ' · signal present'}. No audio sent to the LLM.`);
+                    return { buffer, peak, rms, fingerprint: fingerprint() };
+                } finally {
+                    if (capture) { try { finalAmplifierNode?.disconnect(capture); } catch {} capture.port.onmessage = null; capture.onprocessorerror = null; capture.port.close(); capture.disconnect(); }
+                    stateSaveSuspended = false; applying = false;
+                    if (context === audioContext && window.mygrainAccounts?.authenticated && account === window.mygrainAccounts.user?.username) {
+                        stopAllPerformancePlayback({ silent: true });
+                        if (context.state === 'running' && !document.hidden && !signal?.aborted) resume(transport);
+                    }
+                    syncPerformanceControlState();
+                }
+            }
+            function playPreview(buffer) {
+                assertReady(); stop();
+                const source = audioContext.createBufferSource(); source.buffer = buffer;
+                source.connect(audioContext.destination); previewSource = source;
+                source.onended = () => { source.disconnect(); source.buffer = null; if (previewSource === source) previewSource = null; };
+                source.start();
+            }
+            async function play(signal) {
+                assertReady();
+                const context = audioContext, account = window.mygrainAccounts.user.username;
+                await awaitStage(context.resume(), signal, 'Audio resume');
+                if (window.mygrainQ?.playable()) await awaitStage(window.mygrainQ.preparePlayback(), signal);
+                assertReady();
+                if (signal?.aborted) throw new DOMException('Cancelled.', 'AbortError');
+                if (context !== audioContext || account !== window.mygrainAccounts.user?.username) throw new Error('Audio/account changed. Playback stopped.');
+                return setBastardLoopPlaying(true, quiet);
+            }
+            function stopPreview() { if (previewSource) { try { previewSource.stop(); } catch {} previewSource.disconnect(); previewSource.buffer = null; previewSource = null; } }
+            function stop() { stopAllPerformancePlayback({ silent: true }); }
+            return Object.freeze({ assertReady, fingerprint, read, inventory, drumInventory, execute, undo, play, stop, preview, playPreview, stopPreview, get previewPlaying() { return Boolean(previewSource); } });
         })();
 
         performanceControlsReady = true;
@@ -60837,7 +60989,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
-    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-loops-3');</script>
+    <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261020-ai-qxd-4');</script>
     </template>
 </body>
 </html>

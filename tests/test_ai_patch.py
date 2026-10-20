@@ -34,13 +34,21 @@ class AiPatchTests(unittest.TestCase):
     def test_controls_match_real_sliders(self):
         import re
         html = (pathlib.Path(__file__).parents[1] / 'index.html').read_text()
-        self.assertEqual(len(ai.CONTROLS), 64)
+        self.assertEqual(len(ai.CONTROLS), 77)
         for key, spec in ai.CONTROLS.items():
             tag = re.search(r'<input[^>]+id="' + key + r'"[^>]*>', html).group()
             attrs = dict(re.findall(r'(\w+)="([^"]*)"', tag))
             self.assertGreaterEqual(spec['min'], int(attrs['min']))
             self.assertLessEqual(spec['max'], int(attrs['max']))
             self.assertEqual(spec['step'], int(attrs['step']))
+
+    def test_drums_and_q_styles(self):
+        recipe = {**RECIPE, 'loops': {'Q': {'chords': [[48, 52, 55]], 'style': 'warm', 'chordSteps': 8}, 'X': {'notes': [36, None] * 32}}, 'drums': {'enabled': True, 'tracks': {'kick': {'reload': True, 'steps': [1, 0, 0, 0]}, 'hat': {'steps': [0, 0, 1, 0]}}}}
+        self.assertEqual(ai.validate_recipe(recipe), recipe)
+        for drums in [None, [], {'enabled': 1}, {'tracks': []}, {'tracks': {'tom': {'steps': [1]}}}, {'tracks': {'kick': {'url': 'https://invalid'}}}, {'tracks': {'hat': {'steps': [True]}}}, {'tracks': {'snare': {'steps': [2]}}}, {'tracks': {'kick': {'steps': [1]*65}}}, {'tracks': {'kick': {'reload': 'yes'}}}]:
+            with self.subTest(drums=drums), self.assertRaises(ValueError): ai.validate_recipe({**RECIPE, 'drums': drums})
+        for q in [{'style': 'extreme'}, {'chordSteps': True}, {'chordSteps': 3}]:
+            with self.assertRaises(ValueError): ai.validate_recipe({**RECIPE, 'loops': {'Q': q}})
 
     def test_current_outside_generation_bounds_is_valid(self):
         self.assertEqual(ai.validate_request({'prompt': 'dark and warm', 'current': {**CURRENT, 'hpfCutoff': 5000}, 'loops': LOOPS})[1]['hpfCutoff'], 5000)

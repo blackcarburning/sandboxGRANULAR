@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "controls": {
     "grainSize": {
       "label": "Main grain size",
@@ -448,6 +448,97 @@
       "max": 12000,
       "step": 10,
       "unit": "Hz"
+    },
+    "drumMachineKickLevel": {
+      "label": "Kick level",
+      "min": 0,
+      "max": 85,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineKickPitch": {
+      "label": "Kick pitch",
+      "min": -7,
+      "max": 7,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "drumMachineKickDecay": {
+      "label": "Kick decay",
+      "min": 20,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineKickLength": {
+      "label": "Kick length",
+      "min": 20,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineSnareLevel": {
+      "label": "Snare level",
+      "min": 0,
+      "max": 85,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineSnarePitch": {
+      "label": "Snare pitch",
+      "min": -7,
+      "max": 7,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "drumMachineSnareDecay": {
+      "label": "Snare decay",
+      "min": 20,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineSnareLength": {
+      "label": "Snare length",
+      "min": 20,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineHatLevel": {
+      "label": "Hat level",
+      "min": 0,
+      "max": 85,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineHatTune": {
+      "label": "Hat pitch",
+      "min": -7,
+      "max": 7,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "drumMachineHatDecay": {
+      "label": "Hat decay",
+      "min": 20,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "drumMachineHatLength": {
+      "label": "Hat length",
+      "min": 20,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceDrumMachineLevel": {
+      "label": "Drum bus level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
     }
   },
   "loops": {
@@ -546,5 +637,14 @@
     "1/16",
     "1/32"
   ],
-  "maxReloads": 3
+  "maxReloads": 3,
+  "drums": {
+    "tracks": [
+      "kick",
+      "snare",
+      "hat"
+    ],
+    "maxReloads": 3,
+    "maxSteps": 64
+  }
 }
