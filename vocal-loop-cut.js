@@ -42,6 +42,28 @@
         return normalize({ ...normalize(settings), fromStart: fromStart === true });
     }
 
+    function randomize(settings, timing = {}, random = Math.random) {
+        const current = normalize(settings);
+        const cycle = Number(timing.cycle) > 0 ? Number(timing.cycle) : 1;
+        const bar = Number(timing.bar) > 0 ? Number(timing.bar) : cycle;
+        const step = current.snap ? Math.min(1, current.grid * bar / cycle) : 1 / 128;
+        const units = Math.max(1, Math.floor(1 / step + 1e-9));
+        const integer = (min, max) => min + Math.floor(random() * (max - min + 1));
+        const minimum = Math.min(units, Math.max(1, Math.ceil(.125 / step)));
+        const maximum = Math.min(units, Math.max(minimum, Math.floor(.75 / step)));
+        const length = integer(minimum, maximum);
+        const start = integer(0, units - length);
+        const stretch = random() < .5;
+        const fromStart = random() < .5;
+        const ratios = [.5, .75, 1.25, 1.5, 2];
+        const targetLength = Math.max(1, Math.min(units, Math.round(length * ratios[integer(0, ratios.length - 1)])));
+        const targetStart = fromStart ? 0 : integer(0, units - targetLength);
+        return normalize({ ...current, enabled: true,
+            start: start * step, end: Math.min(1, (start + length) * step), stretch, fromStart,
+            targetStart: stretch ? targetStart * step : null,
+            targetDuration: stretch ? Math.min(1, targetLength * step) : null });
+    }
+
     function moveBoundary(settings, boundary, position, step = 0, minimum = .000001) {
         const next = normalize(settings);
         if (!Number.isFinite(position)) return next;
@@ -251,6 +273,7 @@
             this.element('bastardLoopVCutRepeat').addEventListener('click', () => this.change({ enabled: true, repeat: !this.adapter.settings().repeat }));
             this.element('bastardLoopVCutFromStart').addEventListener('click', () => this.change({ ...setFromStart(this.adapter.settings(), !this.adapter.settings().fromStart), enabled: true }));
             this.element('bastardLoopVCutStretch').addEventListener('click', () => this.change({ ...setStretch(this.adapter.settings(), !this.adapter.settings().stretch), enabled: true }));
+            this.element('bastardLoopVCutRandomize')?.addEventListener('click', () => this.edit(() => this.adapter.randomize(), 'Loop V cut'));
             this.element('bastardLoopVCutSnap').addEventListener('change', event => this.change({ snap: event.target.checked }));
             grid.addEventListener('change', event => this.change({ grid: Number(event.target.value) }));
             this.element('bastardLoopVCutReset').addEventListener('click', () => this.change({ enabled: false, repeat: false, fromStart: false, stretch: false, targetStart: null, targetDuration: null, start: 0, end: 1 }));
@@ -289,6 +312,14 @@
         handle(boundary) { return this.element(boundary === 'start' ? 'bastardLoopVCutStart' : 'bastardLoopVCutEnd'); }
         message(text) { this.element('bastardLoopVCutStatus').textContent = text; }
 
+        edit(action, label = 'Loop V cut edit') {
+            try {
+                const result = this.adapter.edit ? this.adapter.edit(label, action) : action();
+                if (result?.catch) result.catch(error => this.message(error.message));
+                return result;
+            } catch (error) { this.message(error.message); }
+        }
+
         bindDrag(element, boundary, body = false) {
             element.addEventListener('pointerdown', event => {
                 if (event.button !== 0 || this.drag) return;
@@ -299,8 +330,11 @@
                 if (body && (!settings.stretch || position < selected.start || position > selected.end)) return;
                 event.preventDefault();
                 event.stopPropagation();
-                this.drag = { boundary, pointerId: event.pointerId, offset: settings.stretch ? position - selected[boundary] : 0 };
-                element.setPointerCapture(event.pointerId);
+                this.edit(() => new Promise(resolve => {
+                    this.drag = { boundary, pointerId: event.pointerId, offset: settings.stretch ? position - selected[boundary] : 0, finish: resolve };
+                    try { element.setPointerCapture(event.pointerId); }
+                    catch (error) { this.drag = null; throw error; }
+                }));
             });
             element.addEventListener('pointermove', event => {
                 if (this.drag?.pointerId !== event.pointerId) return;
@@ -320,14 +354,16 @@
 
         finishDrag() {
             if (!this.drag) return;
+            const finish = this.drag.finish;
             this.drag = null;
-            this.adapter.set(this.adapter.settings());
-            this.refresh();
+            try { this.adapter.set(this.adapter.settings()); }
+            catch (error) { this.message(error.message); }
+            finally { finish?.(); this.refresh(); }
         }
 
         change(patch) {
-            this.drag = null;
-            this.adapter.set(normalize({ ...this.adapter.settings(), ...patch }));
+            this.finishDrag();
+            this.edit(() => this.adapter.set(normalize({ ...this.adapter.settings(), ...patch })));
             this.refresh();
         }
 
@@ -335,7 +371,8 @@
             const settings = this.adapter.settings();
             const timing = this.adapter.timing();
             const step = settings.snap ? timing.bar * settings.grid / timing.cycle : 0;
-            this.adapter.set(moveBoundary(settings, boundary, position, step, 1 / timing.frames), { preview });
+            const apply = () => this.adapter.set(moveBoundary(settings, boundary, position, step, 1 / timing.frames), { preview });
+            if (preview) apply(); else this.edit(apply);
             this.refresh();
         }
 
@@ -473,7 +510,7 @@
         }
     }
 
-    const api = { normalize, region, setStretch, setFromStart, moveBoundary, gate, sourcePhase, peaks, grids, Editor };
+    const api = { normalize, region, setStretch, setFromStart, randomize, moveBoundary, gate, sourcePhase, peaks, grids, Editor };
     root.MygrainVocalCut = api;
     if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof window === 'object' ? window : globalThis);

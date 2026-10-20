@@ -1,6 +1,6 @@
 # Phone loop actions, card history and Solo
 
-Build: v2026.10.20.TOUCH.8.
+Build: v2026.10.20.TOUCH.9.
 
 - All loop-card and L/X/Q editor action buttons use normal native taps. The global hold-delay input interception has been removed entirely; accidental randomisations can be reversed with Undo.
 - Playable keys, chord pads, step grids, Solo toggles, Stop/Close/Cancel, mouse and keyboard activation keep their usual immediate behaviour.
@@ -49,3 +49,9 @@ Undo and Redo retain up to ten changes, with no copied PCM or history shared bet
 ## TOUCH.8 — consistent thin button edges
 
 Action buttons retain one-pixel borders in every toggle state; the extra three-pixel active inset stripe is removed. Transient press feedback overlays the existing edge with one pixel instead of adding a thick inner ring, and action-panel keyboard focus remains visible with a thin offset line. Palette colours, labels, toggles, native taps and persistent history are unchanged.
+
+## TOUCH.9 — V loop cut randomisation and edit history
+
+V’s card and Loop Cut editor have Randomise Loop Cut. It selects source Start/End, Stretch and From Start, enables the cut, respects the selected snap grid and keeps a non-empty source/destination within the loop. Stretch stays between roughly half and twice the chosen duration (grid-rounded); Repeat, snap size and the original source audio stay unchanged. Plain patch randomisation includes existing V cuts; Mega/Sparse chooses V’s cut after source replacements settle so the new mapping is not reset.
+
+Randomisation, editor toggles/fields and complete handle drags each participate in the existing ten-step account/device-scoped persistent history. A drag is one transaction, not one entry per pointer movement; pointer release/cancel, lost capture and Close finish it. Existing Song/preset/state cut fields retain their format.

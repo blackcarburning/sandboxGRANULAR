@@ -833,6 +833,7 @@
         document.getElementById('sectionJumpUndoBtn')?.addEventListener('click', window.mygrainCardHistory.undo);
         document.getElementById('sectionJumpRedoBtn')?.addEventListener('click', window.mygrainCardHistory.redo);
         const actions = {
+            randomizeBastardLoopVCut: 'Loop V cut',
             randomizeDrumMachinePatterns: 'drum patterns', loadRandomDrumMachineSamples: 'drum sounds and patterns', loadRandomDrumMachineSamplesOnly: 'drum sounds',
             loadRandomSingleDrumMachineSample: 'drum sample', randomizeBastardLoopLPattern: 'Loop L pattern', randomizeBastardLoopXAroundNote: 'Loop X notes', randomizeBastardLoopXPattern: 'Loop X pattern',
             randomizeSynthPopupPatch: 'OSC3 sound', generateStandaloneSource: 'generated source', generatePerformanceLoop: 'generated loop', runPatchRandomization: 'random patch', runMegaRandomization: 'Mega / Sparse patch',

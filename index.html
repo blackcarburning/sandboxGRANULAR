@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261020-touch-8"></script>
+    <script src="mygrain-accounts.js?v=20261020-touch-9"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-20-touch-8';
+            const cacheBuster = '2026-10-20-touch-9';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -292,7 +292,7 @@
     <script>window.mygrainAccounts?.loadScript('mygrain-utils.js');</script>
     <script>window.mygrainAccounts?.loadScript('audio-diagnostics.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('audio-debug-storage.js?v=20261015-persistent-debug-1');</script>
-    <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261018-vocal-stretch-1');</script>
+    <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261020-vcut-random-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('drum-tone.js?v=20261014-drum-tone-1');</script>
     <script>window.mygrainAccounts?.loadStyle('drum-enhancements.css?v=20261014-drum-tone-1');</script>
     <script>window.mygrainAccounts?.loadScript('sample-favourites.js?v=20261014-favourites-1');</script>
@@ -6004,7 +6004,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.20.TOUCH.8</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.20.TOUCH.9</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6089,7 +6089,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.20.TOUCH.8</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.20.TOUCH.9</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -6578,6 +6578,7 @@
                         <button class="performance-btn" id="performanceBastardLoopVUseRadiolabBtn" type="button">Use RADIOLAB</button>
                         <button class="performance-btn" id="performanceBastardLoopVSamplesBtn">Used Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopVCutBtn" type="button" disabled>Loop Cut</button>
+                        <button class="performance-btn" id="performanceBastardLoopVCutRandomizeBtn" type="button" disabled>Randomise Loop Cut</button>
                         <button class="performance-btn" id="performanceBastardLoopVSoloBtn" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
@@ -11002,6 +11003,7 @@
                     <button class="performance-btn" id="bastardLoopVCutRepeat" type="button" aria-pressed="false">Section Repeat Off</button>
                     <button class="performance-btn" id="bastardLoopVCutFromStart" type="button" aria-pressed="false" aria-describedby="bastardLoopVCutHelp">From Start Off</button>
                     <button class="performance-btn" id="bastardLoopVCutStretch" type="button" aria-pressed="false" aria-describedby="bastardLoopVCutHelp">Stretch Off</button>
+                    <button class="performance-btn" id="bastardLoopVCutRandomize" type="button">Randomise Loop Cut</button>
                     <button class="performance-btn" id="bastardLoopVCutReset" type="button">Full Loop / Reset</button>
                 </div>
                 <div class="vocal-cut-timeline" id="bastardLoopVCutTimeline">
@@ -27167,6 +27169,10 @@
                 cutButton.setAttribute('aria-pressed', String(bastardLoopVCut.enabled));
             }
             bastardLoopVCutEditor?.refresh();
+            for (const id of ['performanceBastardLoopVCutRandomizeBtn', 'bastardLoopVCutRandomize']) {
+                const randomize = document.getElementById(id);
+                if (randomize) randomize.disabled = bastardLoopVGenerationInFlight || !bastardLoopVBuffer;
+            }
             if (activeBastardLoopSamplesLayer === 'V') {
                 renderBastardLoopSamplesDialog();
             }
@@ -27360,6 +27366,15 @@
             }
             syncBastardLoopVUi();
             if (!options.preview && !options.skipSave) saveState();
+        }
+
+        function randomizeBastardLoopVCut(options = {}) {
+            if (!bastardLoopVBuffer) throw new Error('Load or generate a vocal loop before randomising its cut.');
+            if (bastardLoopVGenerationInFlight) throw new Error('Wait for Loop V to finish loading.');
+            const timing = { cycle: getBastardLoopVCycleDuration(), bar: getLoopBarDurationSeconds() };
+            setBastardLoopVCut(MygrainVocalCut.randomize(bastardLoopVCut, timing), options);
+            if (!options.silent) setStatus('Loop V cut randomised: source Start/End, Stretch and From Start.');
+            return bastardLoopVCut;
         }
 
         function isBastardLoopVCutPreviewRunning() {
@@ -44736,6 +44751,7 @@
                 sourceBlueprint = buildGeneratedSourceDrumBlueprint(generationProfile);
                 randomizeLfoRoutingMatrix({ profile: generationProfile });
                 randomizeSourceGrainAndLoopLfoRouting({ profile: generationProfile });
+                if (!megaRandomizeInFlight && bastardLoopVBuffer) randomizeBastardLoopVCut({ skipSave: true });
 
                 // Randomize key type/division selectors while leaving waveform controls manual.
                 [
@@ -45182,6 +45198,8 @@
 
                 megaRandomCommentary.message('All layer jobs finished. Settling the audio and saving your new patch…');
                 await waitForMegaRandomLoadsToSettle();
+                // Source replacement clears stretch mapping: choose the cut only after all loads settle.
+                if (bastardLoopVBuffer) randomizeBastardLoopVCut({ skipSave: true, skipRestart: true, silent: true });
                 if (sparseMode) {
                     megaRandomCommentary.message('Picking the four sparse layers to keep, plus drums…');
                     sparseLayerSelection = applySparseRandomLayerSelection({ silent: true });
@@ -59374,6 +59392,8 @@
         bastardLoopVCutEditor = new MygrainVocalCut.Editor({
             settings: () => bastardLoopVCut,
             set: setBastardLoopVCut,
+            randomize: () => randomizeBastardLoopVCut(),
+            edit: (label, action) => window.mygrainCardHistory ? window.mygrainCardHistory.run(label, action) : action(),
             buffer: () => getBastardLoopVPlaybackBuffer({ uncut: true }),
             timing: () => {
                 const buffer = getBastardLoopVPlaybackBuffer({ uncut: true });
@@ -59390,6 +59410,9 @@
         });
         document.getElementById('performanceBastardLoopVCutBtn').addEventListener('click', () => {
             try { bastardLoopVCutEditor.open(); } catch (error) { setStatus(error.message, 'error'); }
+        });
+        document.getElementById('performanceBastardLoopVCutRandomizeBtn').addEventListener('click', () => {
+            try { randomizeBastardLoopVCut(); } catch (error) { setStatus(error.message, 'error'); showSettlePopup(error.message); }
         });
 
         performanceBastardLoopPLevel?.addEventListener('input', (event) => {
@@ -61201,13 +61224,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261020-touch-8');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261020-touch-9');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261020-persistent-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261019-render-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-touch-8&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261020-touch-9&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>
