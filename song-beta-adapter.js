@@ -616,11 +616,37 @@
     };
 
     // Card history is deliberately separate from Song and AI take history.
-    // Keep ten deltas and AudioBuffer references, never duplicate PCM or refetch on redo.
+    // Keep ten deltas; persist distinct PCM once and hydrate old sounds lazily.
     function installCardHistory() {
         const undo = [], redo = [], historyLimit = 10;
-        const historyIdentity = () => JSON.stringify([window.mygrainAccounts?.user?.username, window.mygrainSongBeta?.lease.device.id, window.mygrainSongBeta?.lease.session]);
-        let busy = false, restoring = false, generation = 0;
+        const historyIdentity = () => JSON.stringify([window.mygrainAccounts?.user?.username, window.mygrainSongBeta?.lease.device.id]);
+        let busy = false, restoring = false, generation = 0, initializing = true;
+        let storageWarning = '', saving = Promise.resolve(), durable = true, warningShown = false;
+        const store = new MygrainSongStorage.HistoryStore(historyIdentity(), window.mygrainSongBeta.lease.device.id);
+        function showStorageWarning() {
+            if (!warningShown && storageWarning) { warningShown = true; setStatus(storageWarning, 'error'); showSettlePopup(storageWarning); }
+        }
+        const warnStorage = error => {
+            if (store.closed) return;
+            durable = false;
+            storageWarning = store.readOnly ? error.message : 'Undo/Redo works this session, but history could not be saved on this device. Browser storage may be full or unavailable.';
+            showStorageWarning();
+        };
+        const ready = store.open().then(saved => {
+            if (store.closed) return;
+            if ([...saved.undo, ...saved.redo].some(entry => entry.buffers.some(change => change.index >= audioBindings.length))) throw new Error('Saved history has an unknown audio slot.');
+            undo.push(...saved.undo); redo.push(...saved.redo);
+        }).catch(error => { store.close(); durable = false; storageWarning = 'Saved history could not be opened. Undo/Redo will work for this session only.'; })
+            .finally(() => { initializing = false; update(); });
+        function persist() {
+            if (!durable || store.closed) { if (!generation) showStorageWarning(); return saving; }
+            const past = undo.slice(), future = redo.slice(), epoch = generation;
+            saving = saving.then(async () => {
+                if (epoch !== generation || !durable || store.closed) return;
+                await store.save(past, future);
+            }).catch(warnStorage);
+            return saving;
+        }
         const copy = value => value === undefined ? undefined : cloneJson(value);
         const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
         const status = message => setStatus(message);
@@ -649,21 +675,28 @@
                 && [...a.cache].every(([key, value]) => b.cache.get(key) === value);
         }
         function delta(before, after, label) {
-            return { label, owner: historyIdentity(), json: changes(before.json, after.json),
-                buffers: before.buffers.flatMap((value, index) => value === after.buffers[index] ? [] : [{ index, before: value, after: after.buffers[index] }]),
+            const buffers = before.buffers.flatMap((value, index) => value === after.buffers[index] ? [] : [{ index, before: value, after: after.buffers[index] }]);
+            const changedSounds = new Set(buffers.map(change => audioBindings[change.index][0]));
+            const json = changes(before.json, after.json).filter(change => change.path[0] !== 'metadata');
+            // A sound's provenance is atomic, including absence of startup-only flags.
+            for (const [key] of metadataBindings) if (changedSounds.has(key) || !equal(before.json.metadata[key], after.json.metadata[key])) {
+                json.push({ path: ['metadata', key], before: copy(before.json.metadata[key]), after: copy(after.json.metadata[key]) });
+            }
+            return { label, owner: historyIdentity(), json, buffers,
                 piano: pianoEqual(before.piano, after.piano) ? null : { before: before.piano, after: after.piano } };
         }
         function update() {
             for (const [id, entries, verb] of [['sectionJumpUndoBtn', undo, 'Undo'], ['sectionJumpRedoBtn', redo, 'Redo']]) {
                 const button = document.getElementById(id);
                 if (!button) continue;
-                button.disabled = busy || !entries.length;
+                button.disabled = initializing || busy || !entries.length;
                 button.textContent = `${verb} ${entries.length}`;
                 button.setAttribute('aria-label', entries.length ? `${verb}: ${entries.at(-1).label} (${entries.length} available)` : `${verb}: no changes`);
                 button.title = button.getAttribute('aria-label');
             }
         }
         function assertReady() {
+            if (initializing) throw new Error('Restoring this device’s Undo/Redo history. Try again in a moment.');
             if (!window.mygrainAccounts?.authenticated || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
             if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || bastardLoopKRecordingState !== 'idle'
                 || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing || window.mygrainAiPatch?.busy || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
@@ -683,6 +716,7 @@
                     const entry = delta(before, capture(), label);
                     if (entry.json.length || entry.buffers.length || entry.piano) {
                         undo.push(entry); if (undo.length > historyLimit) undo.shift(); redo.length = 0;
+                        persist();
                     }
                 } finally { busy = false; update(); }
             }
@@ -750,9 +784,9 @@
             if (busy) return;
             const song = window.mygrainSongBeta;
             const songId = song?.song?.id || null, library = song?.key;
-            const identity = historyIdentity(), epoch = generation, context = audioContext;
+            const identity = historyIdentity(), session = song?.lease.session, epoch = generation, context = audioContext;
             const reservationGuard = () => {
-                if (epoch !== generation || identity !== historyIdentity() || !window.mygrainAccounts?.authenticated || context !== audioContext) throw new Error('Account, device or audio changed. Undo/Redo stopped.');
+                if (epoch !== generation || identity !== historyIdentity() || session !== song?.lease.session || !window.mygrainAccounts?.authenticated || context !== audioContext) throw new Error('Account, device or audio changed. Undo/Redo stopped.');
                 if (song !== window.mygrainSongBeta || songId !== (song?.song?.id || null) || library !== song?.key) throw new Error('Song selection changed. Undo/Redo stopped; try again for the selected song.');
                 if (songId && !song.canEditSong()) throw new Error(song.lease.message || 'Song editing access is no longer verified. Undo/Redo stopped.');
             };
@@ -760,8 +794,11 @@
                 assertReady();
                 const from = direction === 'before' ? undo : redo, to = direction === 'before' ? redo : undo;
                 const entry = from.at(-1); if (!entry) return;
-                if (entry.owner !== identity) throw new Error('This history belongs to another device session. Reload MYGRAIN before using Undo/Redo.');
+                if (entry.owner !== identity) throw new Error('This history belongs to another device. Reload MYGRAIN before using Undo/Redo.');
                 busy = restoring = true; update();
+                await saving;
+                if (store.readOnly) throw store.conflict();
+                if (durable) await store.check();
                 // Verify the server reservation on every travel, even for the same account.
                 // Reserve an unowned selected song using its existing device/session identity.
                 if (songId) {
@@ -771,9 +808,12 @@
                     } else await song.ensureEditing();
                 }
                 reservationGuard(); assertReady();
-                await restore(entry, direction, reservationGuard);
+                const restoredEntry = await store.hydrate(entry, context);
                 reservationGuard();
-                from.pop(); to.push(entry);
+                await restore(restoredEntry, direction, reservationGuard);
+                reservationGuard();
+                from.pop(); to.push(restoredEntry);
+                await persist();
                 status(`${direction === 'before' ? 'Undid' : 'Redid'} ${entry.label}.`);
             } catch (error) {
                 const owner = song?.lease.lock?.label;
@@ -787,9 +827,9 @@
             event.preventDefault(); event.stopImmediatePropagation(); status('Wait for the current sound change to finish.');
         };
         for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, guardBusyInput, true);
-        window.addEventListener('mygrain-account-lock', () => { generation++; undo.length = redo.length = 0; update(); });
-        window.mygrainCardHistory = { run, undo: () => travel('before'), redo: () => travel('after'),
-            get busy() { return busy; }, get counts() { return { undo: undo.length, redo: redo.length }; } };
+        window.addEventListener('mygrain-account-lock', () => { generation++; store.close(); undo.length = redo.length = 0; update(); });
+        window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, undo: () => travel('before'), redo: () => travel('after'),
+            get busy() { return busy || initializing; }, get counts() { return { undo: undo.length, redo: redo.length }; } };
         document.getElementById('sectionJumpUndoBtn')?.addEventListener('click', window.mygrainCardHistory.undo);
         document.getElementById('sectionJumpRedoBtn')?.addEventListener('click', window.mygrainCardHistory.redo);
         const actions = {
@@ -838,12 +878,13 @@
         syncLoopLayerSoloButtons();
     }
 
-    if (!window.__mygrainSongRenderDeck) { mountCardSolos(); installCardHistory(); installSoloButtonStyles(); }
+    if (!window.__mygrainSongRenderDeck) { mountCardSolos(); installSoloButtonStyles(); }
 
     window.mygrainSongBetaAdapter = adapter;
     if (window.__mygrainSongRenderDeck) return;
     try {
         window.mygrainSongBeta = new MygrainSongBeta.Controller(adapter);
+        installCardHistory();
         window.mygrainSongBeta.run(() => window.mygrainSongBeta.refresh());
     } catch (error) {
         document.getElementById('songBetaStatus').textContent = `Song beta unavailable: ${error.message}`;

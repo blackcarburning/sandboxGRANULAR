@@ -94,6 +94,7 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
                 mygrainSongBeta.lease.check = () => new Promise(resolve => { window.__finishCheck = resolve; });
                 window.__travel = mygrainCardHistory.redo();
             });
+            await a.page.waitForFunction(() => typeof window.__finishCheck === 'function');
             await a.page.evaluate(async () => {
                 const selected = mygrainSongBeta.song;
                 mygrainSongBeta.song = null;

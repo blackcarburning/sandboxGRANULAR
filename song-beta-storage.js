@@ -103,6 +103,149 @@
         }
     }
 
-    root.MygrainSongStorage = { MemoryBudget, RenderStore };
+    // Separate from Song render caches: durable local history belongs to a stable
+    // account/device, never to the short-lived Song reservation token.
+    class HistoryStore {
+        constructor(owner, device) {
+            this.owner = owner;
+            this.device = device;
+            this.revision = 0;
+            this.references = new Set();
+            this.ids = new WeakMap();
+            this.decoded = new Map();
+            this.database = null;
+            this.closed = false;
+            this.readOnly = false;
+        }
+
+        conflict() { return new Error('Undo/Redo history is active or changed in another tab on this device. Close that tab and reload MYGRAIN.'); }
+
+        async open() {
+            if (root.navigator?.locks?.request) {
+                await new Promise((resolve, reject) => {
+                    root.navigator.locks.request(`mygrain-history:${this.owner}`, { ifAvailable: true }, lock => {
+                        this.readOnly = !lock;
+                        resolve();
+                        return lock ? new Promise(release => { this.release = release; if (this.closed) release(); }) : undefined;
+                    }).catch(reject);
+                });
+            }
+            if (this.closed) throw new Error('History storage closed.');
+            this.database = await new Promise((resolve, reject) => {
+                const request = root.indexedDB.open('mygrain-card-history-v1', 1);
+                request.onupgradeneeded = () => {
+                    request.result.createObjectStore('journals');
+                    request.result.createObjectStore('audio');
+                };
+                request.onerror = () => reject(request.error);
+                request.onblocked = () => reject(new Error('Close other MYGRAIN tabs to open history storage.'));
+                request.onsuccess = () => resolve(request.result);
+            });
+            if (this.closed) { this.database.close(); throw new Error('History storage closed.'); }
+            this.database.onversionchange = () => this.close();
+            const journal = await this.read('journals', this.device);
+            if (!journal) return { undo: [], redo: [] };
+            if (journal.version !== 1 || journal.owner !== this.owner || !Array.isArray(journal.undo) || !Array.isArray(journal.redo) || journal.undo.length + journal.redo.length > 10) throw new Error('Saved history is incompatible; current-session Undo/Redo remains available.');
+            const validPath = change => Array.isArray(change.path) && change.path.length > 0 && change.path.every(key => typeof key === 'string' && !['__proto__', 'constructor', 'prototype'].includes(key));
+            if (!Number.isInteger(journal.revision) || journal.revision < 1 || !Array.isArray(journal.references)
+                || journal.references.some(id => typeof id !== 'string' || !id.startsWith(`${this.device}:`))
+                || [...journal.undo, ...journal.redo].some(entry => entry.owner !== this.owner || typeof entry.label !== 'string' || !Array.isArray(entry.json) || !entry.json.every(validPath) || !Array.isArray(entry.buffers) || entry.buffers.some(change => !Number.isInteger(change.index) || change.index < 0 || change.index > 100))) throw new Error('Saved history is damaged; current-session Undo/Redo remains available.');
+            this.revision = journal.revision;
+            this.references = new Set(journal.references);
+            return { undo: journal.undo, redo: journal.redo };
+        }
+
+        read(store, key) {
+            return new Promise((resolve, reject) => {
+                if (this.closed) return reject(new Error('History storage closed.'));
+                const tx = this.database.transaction(store, 'readonly'), request = tx.objectStore(store).get(key);
+                let result;
+                request.onsuccess = () => { result = request.result; };
+                tx.oncomplete = () => resolve(result);
+                tx.onabort = () => reject(tx.error || request.error || new Error('History read cancelled.'));
+                tx.onerror = () => {};
+            });
+        }
+
+        async check() {
+            if (this.readOnly) throw this.conflict();
+            const journal = await this.read('journals', this.device);
+            if ((journal?.revision || 0) !== this.revision) { this.readOnly = true; throw this.conflict(); }
+        }
+
+        async save(undo, redo) {
+            if (this.closed) throw new Error('History storage closed.');
+            if (this.readOnly) throw this.conflict();
+            const references = new Set(), additions = new Map();
+            const audio = buffer => {
+                if (!buffer) return null;
+                let id = typeof buffer === 'string' ? buffer : this.ids.get(buffer);
+                if (!id) { id = `${this.device}:${root.crypto.randomUUID()}`; this.ids.set(buffer, id); }
+                references.add(id);
+                if (typeof buffer !== 'string' && !this.references.has(id)) additions.set(id, {
+                    sampleRate: buffer.sampleRate, length: buffer.length, channels: buffer.numberOfChannels,
+                    // IndexedDB clones these arrays once; do not re-encode unchanged sounds.
+                    data: Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel))
+                });
+                return id;
+            };
+            const piano = value => value && ({ ...value, atlas: audio(value.atlas), cache: [...value.cache].map(([key, buffer]) => [key, audio(buffer)]) });
+            const entry = value => ({ ...value, buffers: value.buffers.map(change => ({ ...change, before: audio(change.before), after: audio(change.after) })), piano: value.piano && { before: piano(value.piano.before), after: piano(value.piano.after) } });
+            const journal = { version: 1, owner: this.owner, revision: this.revision + 1, undo: undo.map(entry), redo: redo.map(entry), references: [...references] };
+            await new Promise((resolve, reject) => {
+                const tx = this.database.transaction(['journals', 'audio'], 'readwrite');
+                const journals = tx.objectStore('journals'), sounds = tx.objectStore('audio');
+                const request = journals.get(this.device);
+                let conflict;
+                request.onsuccess = () => {
+                    try {
+                    if ((request.result?.revision || 0) !== this.revision) { this.readOnly = true; conflict = this.conflict(); tx.abort(); return; }
+                    for (const [key, value] of additions) sounds.put(value, key);
+                    for (const key of this.references) if (!references.has(key)) sounds.delete(key);
+                    journals.put(journal, this.device);
+                    } catch (error) { conflict = error; tx.abort(); }
+                };
+                tx.oncomplete = resolve;
+                tx.onabort = () => reject(conflict || tx.error || new Error('History save cancelled.'));
+                tx.onerror = () => {};
+            });
+            this.revision = journal.revision;
+            this.references = references;
+            for (const key of this.decoded.keys()) if (!references.has(key)) this.decoded.delete(key);
+        }
+
+        async hydrate(entry, context) {
+            const audio = async value => {
+                if (!value || typeof value !== 'string') return value;
+                if (!value.startsWith(`${this.device}:`)) throw new Error('Saved history belongs to another device.');
+                if (!this.decoded.has(value)) {
+                    const data = await this.read('audio', value);
+                    if (!data || !Number.isInteger(data.channels) || data.channels < 1 || data.channels > 32 || !Number.isInteger(data.length) || data.length < 1 || !Array.isArray(data.data) || data.data.length !== data.channels || data.data.some(channel => !(channel instanceof Float32Array) || channel.length !== data.length)) throw new Error('Saved history audio is incomplete. Undo/Redo stopped without changing the patch.');
+                    const buffer = context.createBuffer(data.channels, data.length, data.sampleRate);
+                    data.data.forEach((channel, index) => buffer.getChannelData(index).set(channel));
+                    this.ids.set(buffer, value); this.decoded.set(value, buffer);
+                }
+                return this.decoded.get(value);
+            };
+            const piano = async value => {
+                if (!value) return value;
+                const cache = new Map();
+                for (const [key, buffer] of value.cache) cache.set(key, await audio(buffer));
+                return { ...value, atlas: await audio(value.atlas), cache };
+            };
+            const buffers = [];
+            for (const change of entry.buffers) buffers.push({ ...change, before: await audio(change.before), after: await audio(change.after) });
+            return { ...entry, buffers, piano: entry.piano && { before: await piano(entry.piano.before), after: await piano(entry.piano.after) } };
+        }
+
+        close() {
+            this.closed = true;
+            this.database?.close();
+            this.release?.();
+            this.decoded.clear();
+        }
+    }
+
+    root.MygrainSongStorage = { MemoryBudget, RenderStore, HistoryStore };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.MygrainSongStorage;
 })(typeof window !== 'undefined' ? window : globalThis);
