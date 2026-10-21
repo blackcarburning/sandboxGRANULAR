@@ -49,7 +49,7 @@ function audioBuffer(channels, sampleRate = 8) {
 
 function recordingFixture(overrides = {}) {
     const timers = new Map();
-    const calls = { capture: [], restart: [], monitor: [], applied: [], statuses: [], stops: 0, arpStops: 0, prepared: [], history: [] };
+    const calls = { capture: [], restart: [], held: [], monitor: [], applied: [], statuses: [], stops: 0, arpStops: 0, prepared: [], history: [] };
     const buffer = audioBuffer([[0, .2, -.2, 0]]);
     const context = {
         AbortController, MediaRecorder: class {},
@@ -63,7 +63,8 @@ function recordingFixture(overrides = {}) {
         },
         audioContext: { state: 'running', currentTime: 10 },
         keyboardGrainCaptureGain: { name: 'keyboard-only' }, keyboardRecordingGainNode: { name: 'post-record-level' },
-        arpEnabled: false, holdEnabled: false, keyboardSoundSource: 'grain',
+        arpEnabled: false, holdEnabled: false, heldNotes: new Set(), keyboardSoundSource: 'grain', keyboardPlaybackAuthorized: false,
+        startHeldKeyboardPlayback: time => { calls.held.push(time); return true; },
         prepareKeyboardSound: async sound => calls.prepared.push(sound),
         stopKeyboardArpTransport: () => { calls.arpStops++; },
         syncKeyboardRecordingLevel() {}, prewarmTransportBuffers() {}, getTransportPreparationLeadSeconds: () => .3,
@@ -76,7 +77,7 @@ function recordingFixture(overrides = {}) {
         bastardLoopKRecordingState: 'idle', bastardLoopKRecordingToken: 0,
         bastardLoopKRecordingAbortController: null,
         bastardLoopKCountInTimerIds: [],
-        bastardLoopKRecordingCancelled: false, bastardLoopKRecordingStartsFullLoop: false, bastardLoopKRecordingArp: false,
+        bastardLoopKRecordingCancelled: false, bastardLoopKRecordingStartsFullLoop: false, bastardLoopKRecordingArp: false, bastardLoopKRecordingHeld: false,
         bastardLoopKSourceBpm: 300, sequencerBPM: 300,
         bastardLoopPlaying: false, sequencerPlaying: false, drumMachinePlaying: false,
         isArpeggiatorPlaying: () => false,
@@ -212,6 +213,77 @@ test('ordinary keyboard takes do not authorize or stop an unrelated arp', async 
     await timers.get(context.bastardLoopKRecordStopTimerId).callback();
     assert.equal(calls.arpStops, 0);
     assert.deepEqual(calls.prepared, []);
+});
+
+test('held non-arp chords restart on the capture downbeat from stopped/running playback, then hand over to K', async () => {
+    for (const running of [false, true]) {
+        const notes = new Set(['C4', 'E4', 'G4']);
+        const { context, calls, timers } = recordingFixture({ holdEnabled: true, heldNotes: notes, bastardLoopPlaying: running, keyboardSoundSource: 'strings' });
+        assert.equal(await context.beginBastardLoopKRecording(), true);
+        assert.equal(calls.stops, 1);
+        assert.equal(calls.held.length, 0, 'No immediate restart during count-in');
+        assert.deepEqual(calls.prepared, ['strings']);
+        await timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback();
+        assert.equal(calls.restart[0].startTime, calls.capture[0][0]);
+        assert.deepEqual(calls.held, [calls.capture[0][0]]);
+        assert.equal(context.keyboardPlaybackAuthorized, true);
+        await timers.get(context.bastardLoopKRecordStopTimerId).callback();
+        assert.equal(calls.arpStops, 1, 'Shared keyboard stop prevents live-chord doubling');
+        assert.equal(context.bastardLoopKRecordingHeld, false);
+        assert.equal(calls.applied.length, 1);
+        assert.equal(context.heldNotes, notes);
+        assert.equal(context.holdEnabled, true);
+        assert.equal(context.arpEnabled, false);
+    }
+});
+
+test('held-only recording can schedule its chord without starting backing transport', async () => {
+    const { context, calls, timers } = recordingFixture({ holdEnabled: true, heldNotes: new Set(['C4']) });
+    await context.beginBastardLoopKRecording({ startFullLoop: false });
+    await timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback();
+    assert.equal(calls.restart.length, 0);
+    assert.deepEqual(calls.held, [calls.capture[0][0]]);
+});
+
+test('empty Hold selection leaves ordinary manual recording unchanged', async () => {
+    const { context, calls, timers } = recordingFixture({ holdEnabled: true });
+    await context.beginBastardLoopKRecording();
+    await timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback();
+    await timers.get(context.bastardLoopKRecordStopTimerId).callback();
+    assert.deepEqual(calls.held, []);
+    assert.deepEqual(calls.prepared, []);
+    assert.equal(calls.arpStops, 0);
+});
+
+test('held recording cancellation/failure drops owned playback without applying a take or clearing its chord', async () => {
+    for (const failure of ['countin', 'live', 'capture', 'start']) {
+        const notes = new Set(['C4']);
+        const { context, calls, timers } = recordingFixture({ holdEnabled: true, heldNotes: notes });
+        if (failure === 'capture') context.recordKeyboardKAtTime = async () => { throw new Error('capture interrupted'); };
+        if (failure === 'start') context.startHeldKeyboardPlayback = () => false;
+        await context.beginBastardLoopKRecording();
+        if (failure !== 'capture') {
+            const prepare = timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback;
+            if (failure === 'countin') { context.cancelBastardLoopKRecording({ silent: true }); await prepare(); }
+            else { await prepare(); if (failure === 'live') context.cancelBastardLoopKRecording({ silent: true }); }
+        }
+        await Promise.resolve();
+        assert.equal(context.bastardLoopKRecordingState, 'idle', failure);
+        assert.equal(context.bastardLoopKRecordingHeld, false, failure);
+        assert.equal(calls.arpStops, 1, failure);
+        assert.equal(context.heldNotes, notes);
+        assert.equal(calls.applied.length, 0);
+        assert.equal(calls.history.length, 0);
+        if (failure === 'countin') assert.equal(calls.held.length, 0, 'Stale timer cannot resurrect a cancelled chord');
+    }
+});
+
+test('failed held instrument preparation leaves the currently playing chord and previous take untouched', async () => {
+    const { context, calls } = recordingFixture({ holdEnabled: true, heldNotes: new Set(['C4']),
+        prepareKeyboardSound: async () => { throw new Error('Instrument unavailable'); } });
+    assert.equal(await context.beginBastardLoopKRecording(), false);
+    assert.equal(calls.stops, 0);
+    assert.equal(calls.capture.length, 0);
 });
 
 test('cancelling or failing a recorded arp releases its live playback permission and preserves setup', async () => {

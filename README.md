@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Held keyboard chord to K recording (K.8)
+
+Build `v2026.10.21.K.8`: with **Hold on / Arp off** and selected keyboard notes, **Record to K** stops the live chord and current playback for the four-beat count-in, then schedules the held notes together on the exact capture/pattern downbeat. It works from stopped or running playback and prepares the selected instrument before starting the timed count-in. At completion K takes over and the recording-owned live chord stops, preventing doubling while retaining Hold, the selected notes and sound. Cancellation/failure releases scheduled/live recording-owned notes without replacing the previous K take or consuming Redo. Empty-Hold/manual recording and configured Arp recording retain their existing behavior. No persistence/export/history schema changes.
+
+Local-only actual-audio regression: `MYGRAIN_TEST_URL=http://127.0.0.1:18839/mygrain/ node tests/k-held-recording-browser.cjs`. Exercises native phone taps, Hold without Arp, Grain/OSC/Piano/Strings from both stopped/running transport in Chromium/WebKit, silent count-in, simultaneous exact-downbeat chord restart, real PCM, no doubled live notes, retained setup, exact take Undo/Redo and late count-in/live cancellation. Accounts and data are disposable localhost fixtures.
+
 ## Granular keyboard recovery and paired jumps (K.7)
 
 Build `v2026.10.21.K.7` fixes stopped keyboard/ARP grains occupying the six-source pool after their audible outputs had been disconnected. Immediate keyboard stops now reclaim scheduled/retired keyboard and ARP one-shots synchronously, without stopping sequencer/backing voices. Ended cleanup is idempotent so delayed browser events cannot decrement the next generation's voice count. Normal key releases retain their existing tails; the six-source limit is unchanged.
