@@ -1,6 +1,16 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Desktop layer colours and Jump curtain (D.4)
+
+Build `v2026.10.21.D.4` makes desktop sound/layer card backgrounds use the exact existing Jump appearance for their semantic section: Bastardloops A/B/C/V/P/O/Q/L/X/M/M+/K, RadioLab, VideoLab, Sample, keyboard and granular controls. The immutable navigation palette and Jump colours are not changed. **The drum machine keeps its existing background**; unrelated utility cards are not recoloured.
+
+Desktop navigation now presents an opaque dark screen with the existing MYGRAIN brain logo and **jumping**, moves directly to the destination behind it, then reveals the interface after destination readiness, fonts/images and stable layout/paint frames. This also covers layer-card Jump, mixer module/slider shortcuts, synth/WAV openings from Jump, and gain-stage guidance. It keeps the actual app/audio graph running underneath; it does not hide or recreate the app, clear audio, reload a document, change storage or create history. A short minimum dwell makes the logo readable; Escape, viewport-mode changes and page lifecycle cancellation clear the curtain, and superseded requests cannot reveal a newer jump early. Resource waits are bounded so a failed external asset cannot trap the interface.
+
+All new visuals/navigation behavior require `(min-width: 961px) and (hover: hover) and (pointer: fine)`. Phone/touch styling and their existing smooth/reduced-motion Jump behavior remain unchanged. Gesture-sensitive granular-key activation retains its original synchronous action path. No audio engine, Song, account/device identity, history, persistence or import/export schemas change.
+
+Local-only browser check: `node tests/desktop-card-jumps-browser.cjs`. Optional `DESKTOP_JUMP_BASELINE=<timestamped-backup-directory>` compares the exact previous HTML/palette/CSS for drum and mobile isolation; `DESKTOP_JUMP_EVIDENCE=<directory>` selects the screenshots/results directory. All network requests and writes are intercepted. It exercises Chromium/WebKit at three desktop widths, the curtain's coverage/readiness/cancellation, shared navigation paths and touch-layout isolation. Fast existing checks: `node --test tests/mixer-jumps.test.js tests/desktop-transport-start.test.js`.
+
 ## Desktop button readability (D.3)
 
 Build `v2026.10.21.D.3` gives enabled desktop buttons readable light text on raised coloured backgrounds, centred wrapping labels and a compact 11px default font. The large Start/Stop control keeps its 19px label and green Start/red Stop states. Layer switchboard columns reserve enough space for channel names, Solo and Jump; selected/recording states retain distinct colours. Genuinely unavailable actions stay disabled with a readable dashed treatment. Piano keys retain their black/white styling and waveform handles retain their specialised layout.

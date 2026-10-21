@@ -6020,7 +6020,7 @@
     <script>window.mygrainAccounts?.loadStyle('q-card.css?v=20261015-q-custom-arp-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
-    <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261020-action-palette-1');</script>
+    <script>window.mygrainAccounts?.loadScript('navigation-palette.js?v=20261021-desktop-card-jumps-1');</script>
     <script>window.mygrainAccounts?.loadStyle('ai-patch-direction.css?v=20261020-ai-current-patch-9');</script>
 
     <style id="desktop-transport-style">
@@ -6238,15 +6238,37 @@
     body.simplified-ui [hidden] { display: none !important; }
 }
     </style>
+    <style id="desktop-card-jump-style">
+        #desktopJumpCurtain { display: none; }
+        @media (min-width: 961px) and (hover: hover) and (pointer: fine) {
+            html { background: #040a12; }
+            body.simplified-ui [data-nav-card] { background: var(--nav-card-background) !important; }
+            html[data-mygrain-jumping="true"], html[data-mygrain-jumping="true"] body { scroll-behavior: auto !important; }
+            #desktopJumpCurtain:not([hidden]) {
+                position: fixed; inset: 0; z-index: 2147483647;
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                gap: 18px; margin: 0; padding: 24px; box-sizing: border-box;
+                background: #040a12; color: #f2f6ff; opacity: 1;
+                isolation: isolate; transform: translateZ(0); pointer-events: auto; cursor: wait;
+            }
+            #desktopJumpCurtain img { display: block; width: 144px; height: 144px; object-fit: contain; }
+            #desktopJumpCurtain p { margin: 0; font: 650 18px/1.4 system-ui, sans-serif; letter-spacing: .09em; text-align: center; }
+        }
+    </style>
 </head>
 <body class="simplified-ui granular-sampler-mode">
+
+    <div id="desktopJumpCurtain" hidden aria-hidden="true" role="status" aria-live="polite">
+        <img src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt="MYGRAIN">
+        <p>jumping</p>
+    </div>
 
     <div id="settlePopup" class="settle-popup" role="status" aria-live="polite" aria-hidden="true">let it settle</div>
 
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.D.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.D.4</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6333,7 +6355,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.D.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.D.4</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -43820,8 +43842,11 @@
                 }
             };
 
-            const jumpToButtonTarget = (button) => {
-                if (button.dataset.jumpTarget === '#performanceVideoLabCard') window.mygrainVideolab?.open();
+            const jumpToButtonTarget = (button, desktopJump = false) => {
+                // Keep gesture-sensitive granular-key activation on its original path.
+                if (!desktopJump && (button.dataset.jumpTarget || button.dataset.jumpClick) && !button.dataset.granularKeyboardReady && window.mygrainNavigation?.transitionJump(() => jumpToButtonTarget(button, true))) return;
+                let jumpReady;
+                if (button.dataset.jumpTarget === '#performanceVideoLabCard') jumpReady = window.mygrainVideolab?.open();
                 else window.mygrainVideolab?.close();
                 if (button.dataset.granularKeyboardReady) {
                     clearCloseTimer();
@@ -43844,7 +43869,7 @@
                     drawer.classList.remove('is-settling');
                     setDrawerOpen(false);
                     clickTarget.click();
-                    if (!button.dataset.jumpTarget) return;
+                    if (!button.dataset.jumpTarget) return { ready: jumpReady };
                 }
 
                 const selector = button.dataset.jumpTarget;
@@ -43854,17 +43879,25 @@
                     drawer.classList.remove('is-settling');
                     setDrawerOpen(false);
                     openSynthPopup();
-                    return;
+                    return { target: synthPopupOverlay, ready: jumpReady };
                 }
-                const target = document.querySelector(selector);
+                // Mix & Trim was merged into Mixer; retain the old phone path,
+                // but resolve its desktop Jump to the live trim section.
+                const target = document.querySelector(selector) || (desktopJump && selector.replace(/'/g, '"') === '[aria-label="Mix controls"]' ? document.getElementById('performanceMixerTrimGrid') : null);
                 if (!target) return;
 
                 button.blur();
                 target.scrollIntoView({
-                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                    behavior: desktopJump ? 'instant' : window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
                     block: 'start',
                     inline: 'nearest'
                 });
+                if (desktopJump) {
+                    clearCloseTimer();
+                    drawer.classList.remove('is-settling');
+                    setDrawerOpen(false);
+                    return { target, ready: jumpReady, block: 'start' };
+                }
                 closeAfterArrival(target);
             };
 
@@ -56335,15 +56368,17 @@
             return cleared;
         }
 
-        function jumpToPerformanceMixerSlider(controlId) {
+        function jumpToPerformanceMixerSlider(controlId, desktopJump = false) {
+            if (!desktopJump && window.mygrainNavigation?.transitionJump(() => jumpToPerformanceMixerSlider(controlId, true))) return;
             const control = document.getElementById(controlId);
             if (!(control instanceof HTMLElement) || control.type !== 'range' || !performanceMixerCard?.contains(control)) return;
             control.focus({ preventScroll: true });
             control.scrollIntoView({
-                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                behavior: desktopJump ? 'instant' : window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
                 block: 'center',
                 inline: 'nearest'
             });
+            return { target: control, block: 'center' };
         }
 
         function ensurePerformanceMixerSoloButtonsMounted() {
@@ -56374,15 +56409,17 @@
             });
         }
 
-        function jumpToPerformanceMixerModule(controlId) {
+        function jumpToPerformanceMixerModule(controlId, desktopJump = false) {
+            if (!desktopJump && window.mygrainNavigation?.transitionJump(() => jumpToPerformanceMixerModule(controlId, true))) return;
             const selector = PERFORMANCE_MIXER_MODULE_JUMPS[controlId];
-            if (selector === '.synth-container') return openSynthPopup();
+            if (selector === '.synth-container') { openSynthPopup(); return { target: synthPopupOverlay }; }
             const target = selector && document.querySelector(selector);
             if (!(target instanceof HTMLElement)) return;
             target.scrollIntoView({
-                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                behavior: desktopJump ? 'instant' : window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
                 block: 'start', inline: 'nearest'
             });
+            return { target, block: 'start' };
         }
 
         function ensurePerformanceMixerModuleJumpButtonsMounted() {
@@ -56538,8 +56575,9 @@
             return control?.closest('.performance-sound-card, .control-group') || null;
         }
 
-        function jumpToGainStageControl(controlId) {
+        function jumpToGainStageControl(controlId, desktopJump = false) {
             if (!controlId) return;
+            if (!desktopJump && window.mygrainNavigation?.transitionJump(() => jumpToGainStageControl(controlId, true))) return;
             const control = document.getElementById(controlId);
             if (!(control instanceof HTMLElement)) return;
             const isSynthPopupControl = Boolean(control.closest('.source-seed-group[aria-label="3-voice synth controls"]'));
@@ -56547,6 +56585,8 @@
                 openSynthPopup();
             }
             clearPerformanceGainStageHighlights();
+            let finishJump;
+            const ready = desktopJump ? new Promise(resolve => { finishJump = resolve; }) : undefined;
             window.setTimeout(() => {
                 const tabPanel = control.closest('.tab-content');
                 if (tabPanel instanceof HTMLElement && tabPanel.id) {
@@ -56560,13 +56600,13 @@
                 if (card) {
                     card.classList.add('gain-stage-alert', 'gain-stage-primary');
                     card.scrollIntoView({
-                        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                        behavior: desktopJump ? 'instant' : window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
                         block: 'center',
                         inline: 'nearest'
                     });
                 } else {
                     control.scrollIntoView({
-                        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                        behavior: desktopJump ? 'instant' : window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
                         block: 'center',
                         inline: 'nearest'
                     });
@@ -56578,8 +56618,10 @@
                         control.focus();
                     }
                 }
+                finishJump?.();
             }, 120);
             mixerGainStageHighlightsActive = true;
+            return { target: control, ready, block: 'center' };
         }
 
         function getPerformanceSliderNumber(id, fallback = 0) {

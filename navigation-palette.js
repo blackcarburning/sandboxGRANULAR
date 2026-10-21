@@ -204,13 +204,87 @@
         }
     }
 
+    const cardSelector = '.performance-feature-card, .performance-layer-switches-card';
+    function paintCard(card) {
+        const section = Object.entries(targets).find(([alias]) => card.matches(alias))?.[1];
+        // Only sound/layer cards change; drums and unrelated utility cards retain their backgrounds.
+        if (!section || !(section.startsWith('loop-') || ['radiolab', 'videolab', 'sample', 'keyboard', 'grain', 'quick-grain'].includes(section))) return;
+        card.dataset.navCard = section;
+        card.style.setProperty('--nav-card-background', appearances[section].background);
+    }
+
+    const desktopJumpQuery = '(min-width: 961px) and (hover: hover) and (pointer: fine)';
+    let jumpSerial = 0;
+    const frame = () => new Promise(resolve => root.requestAnimationFrame(resolve));
+    const pause = ms => new Promise(resolve => root.setTimeout(resolve, ms));
+    async function settleWithin(promise, ms = 8000) {
+        let timer;
+        try {
+            await Promise.race([Promise.resolve(promise).catch(() => {}), new Promise(resolve => { timer = root.setTimeout(resolve, ms); })]);
+        } finally { root.clearTimeout(timer); }
+    }
+    function cancelDesktopJump() {
+        jumpSerial += 1;
+        const curtain = root.document.getElementById('desktopJumpCurtain');
+        if (curtain) { curtain.hidden = true; curtain.setAttribute('aria-hidden', 'true'); }
+        delete root.document.documentElement.dataset.mygrainJumping;
+    }
+    function transitionJump(action) {
+        const curtain = root.document.getElementById('desktopJumpCurtain');
+        if (!curtain || !root.matchMedia(desktopJumpQuery).matches) return false;
+        const serial = ++jumpSerial;
+        const started = root.performance.now();
+        curtain.hidden = false;
+        curtain.setAttribute('aria-hidden', 'false');
+        root.document.documentElement.dataset.mygrainJumping = 'true';
+        void (async () => {
+            try {
+                // Present the opaque curtain before scrolling or changing a panel.
+                await frame(); await frame();
+                if (serial !== jumpSerial) return;
+                const result = await action() || {};
+                await settleWithin(result.ready);
+                const target = result.target;
+                await Promise.all([
+                    settleWithin(root.document.fonts?.ready),
+                    ...[...(target?.querySelectorAll?.('img') || [])].map(image => settleWithin(image.decode?.()))
+                ]);
+                if (serial !== jumpSerial) return;
+                if (target?.isConnected && result.block) {
+                    target.scrollIntoView({ behavior: 'instant', block: result.block, inline: 'nearest' });
+                }
+                // Layout and canvas/resize observers get actual painted frames;
+                // never expose the intermediate smooth-scroll compositor tiles.
+                let previous = '', stable = 0;
+                for (let i = 0; i < 45 && stable < 3; i += 1) {
+                    await frame();
+                    if (serial !== jumpSerial) return;
+                    const box = target?.getBoundingClientRect();
+                    const next = [root.scrollX, root.scrollY, box?.x, box?.y, box?.width, box?.height].map(n => Math.round(n || 0)).join(',');
+                    stable = next === previous ? stable + 1 : 0;
+                    previous = next;
+                }
+                await pause(Math.max(0, 180 - (root.performance.now() - started)));
+                await frame();
+            } catch (error) {
+                root.console.warn('MYGRAIN desktop jump could not finish.', error);
+            } finally {
+                // A superseded jump must not reveal a newer destination early.
+                if (serial === jumpSerial) cancelDesktopJump();
+            }
+        })();
+        return true;
+    }
+
     function refresh(container = root.document) {
         if (container.matches?.(selector)) paint(container);
         container.querySelectorAll?.(selector).forEach(paint);
+        if (container.matches?.(cardSelector)) paintCard(container);
+        container.querySelectorAll?.(cardSelector).forEach(paintCard);
     }
 
     root.mygrainNavigation = Object.freeze({
-        palette, appearances, foreground, states, targets, selector, sectionForTarget, sectionForButton, refresh,
+        palette, appearances, foreground, states, targets, selector, sectionForTarget, sectionForButton, refresh, transitionJump, cancelDesktopJump,
         setMixerTargets(mapping) {
             mixerTargets = Object.freeze({ ...mapping });
             refresh();
@@ -220,6 +294,10 @@
     function initialize() {
         refresh();
         initializeDesktopDock();
+        root.matchMedia(desktopJumpQuery).addEventListener('change', cancelDesktopJump);
+        root.addEventListener('pagehide', cancelDesktopJump);
+        root.document.addEventListener('visibilitychange', () => { if (root.document.hidden) cancelDesktopJump(); });
+        root.document.addEventListener('keydown', event => { if (event.key === 'Escape') cancelDesktopJump(); });
         const observer = new MutationObserver(records => {
             for (const record of records) {
                 if (record.type === 'attributes') refresh(record.target);
