@@ -1,6 +1,10 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## K waveform audition (K.5)
+
+Build `v2026.10.21.K.5` adds **Audition / Stop Audition** directly below K's waveform. It previews the rendered recording once, using current tuning/reverse/tempo and the K fader while bypassing the layer mute/solo gate, through the existing dry source-audition/master path (not K filter modulation). It does not start or stop backing transport, change the saved recording, or add history. Empty/busy K disables preview. Natural completion, a second tap, Stop All/Panic, Clear K, replacement/rerender and new recording release the preview. Token checks prevent a late audio-recovery completion resurrecting a stopped/cleared audition. Shared source audition remains exclusive. No persistence/export schema changes.
+
 ## Arpeggiator to K recording (K.4)
 
 Build `v2026.10.21.K.4`: with keyboard **Arp** enabled and a selected chord, **Record to K** stops audition/backing for the count-in, then starts the arp and current pattern at the exact recording downbeat. It uses the current keyboard sound, arp mode, multiplier and BPM; the existing keyboard-only capture bus records its audio, not backing or metronome. The instrument is prepared before the count-in. On completion, live arp stops as the captured K joins playback (no doubled arp); chord, sound and arp settings remain selected. Cancellation/failure stops the recording-owned arp and keeps the previous K take. Arp-off manual recording and device-owned Clear Undo/Redo are unchanged; no persistence/export schema changes.

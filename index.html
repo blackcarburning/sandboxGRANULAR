@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261021-k-4"></script>
+    <script src="mygrain-accounts.js?v=20261021-k-5"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-21-k-4';
+            const cacheBuster = '2026-10-21-k-5';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6045,7 +6045,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.K.4</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.K.5</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6130,7 +6130,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.K.4</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.K.5</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7618,6 +7618,7 @@
                 <div class="source-waveform-panel" aria-label="Bastardloop K recorded waveform">
                     <div class="source-waveform-header"><span>Recorded Keyboard</span><span class="source-waveform-meta" id="performanceBastardLoopKWaveformStatus">Empty — record the keyboard</span></div>
                     <canvas id="performanceBastardLoopKWaveform" class="source-waveform-canvas" role="img" aria-label="Bastardloop K waveform: no recording"></canvas>
+                    <button class="performance-btn" id="performanceBastardLoopKAuditionBtn" type="button" aria-pressed="false" disabled style="width:100%;margin-top:10px">Audition</button>
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopKLevel">
@@ -13738,6 +13739,8 @@
         let bastardLoopMPlusRecordingStartsFullLoop = false;
         let bastardLoopKRecordingStartsFullLoop = false;
         let bastardLoopKRecordingArp = false;
+        let bastardLoopKAuditionToken = 0;
+        let bastardLoopKAuditionPreparing = false;
         let bastardLoopMRecordingToken = 0;
 
         let bastardLoopMPlusRecordingToken = 0;
@@ -18697,6 +18700,7 @@
         }
 
         function syncSourceCardAuditionButtons() {
+            syncBastardLoopKAuditionButton();
             document.querySelectorAll('[data-source-card-audition]').forEach((button) => {
                 const kind = normalizeSourceWaveformKind(button.dataset.sourceCardAudition);
                 const hasBuffer = kind !== 'none' && Boolean(getSourceBuffer(kind));
@@ -18777,6 +18781,9 @@
         }
 
         function stopSourceCardAudition(options = {}) {
+            // Also invalidate a K preview still awaiting audio recovery.
+            bastardLoopKAuditionToken += 1;
+            bastardLoopKAuditionPreparing = false;
             auditionSources.forEach(({ source, gain }) => {
                 try {
                     source.stop();
@@ -25662,7 +25669,71 @@
             context.stroke();
         }
 
+        function syncBastardLoopKAuditionButton() {
+            const button = document.getElementById('performanceBastardLoopKAuditionBtn');
+            if (!button) return;
+            const active = activeSourceCardAuditionKind === 'bastardk' && auditionSources.some(node => node.kind === 'bastardk');
+            button.disabled = !bastardLoopKBuffer || bastardLoopKRecordingState !== 'idle' || bastardLoopKAuditionPreparing;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', String(active));
+            button.textContent = active ? 'Stop Audition' : bastardLoopKAuditionPreparing ? 'Loading…' : 'Audition';
+        }
+
+        async function auditionBastardLoopK() {
+            if (!bastardLoopKBuffer || bastardLoopKRecordingState !== 'idle') return false;
+            const wasActive = activeSourceCardAuditionKind === 'bastardk' && auditionSources.some(node => node.kind === 'bastardk');
+            stopSourceCardAudition();
+            if (wasActive) return false;
+            const token = bastardLoopKAuditionToken;
+            const buffer = bastardLoopKBuffer;
+            bastardLoopKAuditionPreparing = true;
+            syncBastardLoopKAuditionButton();
+            try {
+                if (!await ensureAudioReadyForKeyInteraction()) throw new Error('Start MYGRAIN before auditioning K.');
+                if (token !== bastardLoopKAuditionToken || buffer !== bastardLoopKBuffer || bastardLoopKRecordingState !== 'idle') return false;
+                const now = audioContext.currentTime;
+                const source = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+                const rate = Math.max(.001, getBastardLoopKPlaybackRate());
+                const duration = buffer.duration / rate;
+                const fade = Math.min(duration / 2, getFadeSecondsForDuration(duration));
+                const level = getBastardLoopKOutputGain(getBastardLoopKLevelValue({ applyLayerToggle: false }));
+                source.buffer = buffer;
+                source.loop = false;
+                source.playbackRate.value = rate;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(level, now + fade);
+                gain.gain.setValueAtTime(level, now + duration - fade);
+                gain.gain.linearRampToValueAtTime(0, now + duration);
+                source.connect(gain);
+                gain.connect(masterGain || audioContext.destination);
+                source.onended = () => {
+                    source.disconnect();
+                    gain.disconnect();
+                    source.buffer = null;
+                    auditionSources = auditionSources.filter(node => node.source !== source);
+                    if (!auditionSources.length && activeSourceCardAuditionKind === 'bastardk') activeSourceCardAuditionKind = 'none';
+                    syncSourceCardAuditionButtons();
+                };
+                auditionSources = [{ source, gain, kind: 'bastardk' }];
+                activeSourceCardAuditionKind = 'bastardk';
+                source.start(now, 0, buffer.duration);
+                setStatus('Auditioning K recording.');
+                return true;
+            } catch (error) {
+                if (token === bastardLoopKAuditionToken) {
+                    stopSourceCardAudition();
+                    setStatus(`K audition failed: ${error.message}`, 'error');
+                }
+                return false;
+            } finally {
+                if (token === bastardLoopKAuditionToken) bastardLoopKAuditionPreparing = false;
+                syncBastardLoopKAuditionButton();
+            }
+        }
+
         function syncBastardLoopKUi() {
+            syncBastardLoopKAuditionButton();
             const levelValue = Math.round(getBastardLoopKLevelValue({ applyLayerToggle: false }) * 100);
             const inputGainValue = Math.round(getBastardLoopKInputGainPercent());
             const filterCutoffValue = getBastardLoopKFilterCutoff();
@@ -25952,6 +26023,7 @@
         }
 
         function rerenderBastardLoopKFromRaw(options = {}) {
+            if (activeSourceCardAuditionKind === 'bastardk' || bastardLoopKAuditionPreparing) stopSourceCardAudition();
             if (!bastardLoopKRawBuffer || !audioContext) {
                 bastardLoopKBuffer = null;
                 drawBastardLoopKWaveform();
@@ -26427,6 +26499,7 @@
         }
 
         async function clearBastardLoopK(options = {}) {
+            if (activeSourceCardAuditionKind === 'bastardk' || bastardLoopKAuditionPreparing) stopSourceCardAudition();
             const hadRecording = Boolean(bastardLoopKRawBuffer || bastardLoopKBuffer || bastardLoopKMetadata);
             const wasBusy = bastardLoopKRecordingState !== 'idle';
             if (wasBusy) {
@@ -59269,6 +59342,7 @@
         performanceBastardLoopKReverseBtn?.addEventListener('click', () => {
             setBastardLoopKReverse(!bastardLoopKReverse);
         });
+        document.getElementById('performanceBastardLoopKAuditionBtn')?.addEventListener('click', auditionBastardLoopK);
         performanceKeyboardToKRecordBtn?.addEventListener('click', async () => {
             await handleBastardLoopKRecordButtonPress({ startFullLoop: true });
         });
@@ -61459,13 +61533,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-4');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-5');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261020-persistent-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-4');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-4&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-5');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-5&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>
