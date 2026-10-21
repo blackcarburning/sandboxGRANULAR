@@ -831,7 +831,7 @@
                 setStatus(message, 'error'); showSettlePopup(message);
             } finally { busy = restoring = false; update(); }
         }
-        const randomAction = button => button && /random|generat|samplesonly|loadrandom/i.test(`${button.id} ${button.dataset.qAction || ''} ${button.textContent}`) && !button.closest('#aiPatchCard, #aiSongPartsCard');
+        const randomAction = button => button && /random|generat|samplesonly|loadrandom|re-?cut/i.test(`${button.id} ${button.dataset.qAction || ''} ${button.textContent}`) && !button.closest('#aiPatchCard, #aiSongPartsCard');
         const guardBusyInput = event => {
             if (!busy || !event.isTrusted || !randomAction(event.target.closest('button'))) return;
             event.preventDefault(); event.stopImmediatePropagation(); status('Wait for the current sound change to finish.');

@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Single-sample Loop V re-cut (V.1)
+
+Load a saved RadioLab or VideoLab sample into **Loop V**, choose its cut resolutions, then press **Re-cut Loaded Sample**. The existing server chop engine samples different regions, rearranges and crossfades them into a tempo/pattern-length-matched stereo loop. Each result is saved under a unique name in **Bastardloop Browser**; the original private library file is read-only. Re-cutting again uses the original source, not the previous generated WAV. Normal Generate V still uses `SAMPLES_VOCAL`.
+
+Radio/video re-cuts require at least two chops. Uncut, oversized or non-fitting sizes are excluded for this action; if none fit, it uses 1/16 (1/32 for the smallest pattern). Saved resolution choices are not changed. The previous cut window is reset to the whole new loop, retaining tuning/level; Undo / Redo restores the exact previous stereo PCM, cut settings and source metadata through the existing ten-step account/device journal and Song reservation checks, including browser restarts. A missing original fails without choosing another sample or adding a history step. Existing playback is restarted against the result; stopped playback stays stopped. No backend, account, Song or export schema changes.
+
+Local-only real-backend regression: `MYGRAIN_TEST_ROOT=/tmp/mygrain-v-recut-store python3 tests/song-beta-test-server.py 18840`, then `node tests/v-single-sample-recut-browser.cjs`. Uses disposable accounts/files, Chromium/WebKit phone portrait/landscape, generated WAV readback, original checksums, exact audio history, cold process restart, live audio, repeat re-cut and missing-source rejection.
+
 ## Held keyboard chord to K recording (K.8)
 
 Build `v2026.10.21.K.8`: with **Hold on / Arp off** and selected keyboard notes, **Record to K** stops the live chord and current playback for the four-beat count-in, then schedules the held notes together on the exact capture/pattern downbeat. It works from stopped or running playback and prepares the selected instrument before starting the timed count-in. At completion K takes over and the recording-owned live chord stops, preventing doubling while retaining Hold, the selected notes and sound. Cancellation/failure releases scheduled/live recording-owned notes without replacing the previous K take or consuming Redo. Empty-Hold/manual recording and configured Arp recording retain their existing behavior. No persistence/export/history schema changes.
