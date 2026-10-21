@@ -558,6 +558,23 @@
             this.status(`Added another use of ${part.name} at the end of the song. Move it with the arrows. Audio and amendments are shared; order and repeat counts are independent. No sounds or renders were copied.`);
         }
 
+        async fullCopyPart(part) {
+            if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before making a full copy.');
+            await this.ensureEditing(part);
+            const wasArmed = this.armed;
+            const sourceReady = this.isPartReady(part);
+            this.status(`Making a full independent copy of ${part.name}…`);
+            const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/full-copy?sha256=${part.sha256}`, { method: 'POST' });
+            this.acceptSong(result.song);
+            const copied = this.song.parts.find(entry => entry.id === result.partId);
+            if (copied && sourceReady && copied.sha256 === part.sha256 && copied.render?.sha256 === part.render?.sha256 && this.hasSavedRender(copied)) {
+                this.renderSources.set(copied.id, contentKey(copied));
+            }
+            this.armed = wasArmed && this.song.parts.every(entry => this.isPartReady(entry));
+            if (copied) this.expandedParts.add(`${this.song.id}:${copied.id}`);
+            this.status(`Added ${copied?.name || 'the full copy'} at the end of the song. It has independent saved sounds and settings: Amend either part without changing the other. Your live pattern is unchanged.`);
+        }
+
         async newSong() {
             const name = this.element('songBetaName').value.trim();
             if (!name) throw new Error('Enter a song name first.');
@@ -1521,6 +1538,7 @@
                 for (const [label, className, action] of [
                     ['Recall', 'song-beta-load', () => this.recall(part, { start: false })],
                     ['Reuse Part', 'song-beta-reuse', () => this.reusePart(part)],
+                    ['Make a full copy', 'song-beta-full-copy', () => this.fullCopyPart(part)],
                     ['Amend', 'song-beta-amend', () => this.amendPart(part)],
                     ['Delete', 'song-beta-delete', () => this.deletePart(part)],
                     ['Copy From Part', 'song-beta-copy', null],
@@ -1532,6 +1550,7 @@
                     actionButton.textContent = label;
                     actionButton.setAttribute('aria-label', `${label} ${part.name}`);
                     if (className === 'song-beta-reuse') actionButton.title = 'Add this existing part again at the end, without copying sounds or renders. Amendments affect every use; order and repeats are independent.';
+                    if (className === 'song-beta-full-copy') actionButton.title = 'Append a full independent copy of this saved part, including all sounds and settings. Its name ends in _full_copy; editing it does not change the original.';
                     if (className === 'song-beta-amend') actionButton.title = 'Amend the shared pattern and sounds for every use of this part.';
                     if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy a Bastardloop from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace Bastardloop ${this.loopClipboard.layer} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
                     actionButton.disabled = (!['song-beta-load', 'song-beta-copy'].includes(className) && changesBlocked) || this.busy || this.playing || Boolean(this.editing) || (className === 'song-beta-paste' && !this.loopClipboard);

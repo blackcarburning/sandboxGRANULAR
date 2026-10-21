@@ -251,6 +251,67 @@ def send_asset(handler, folder, filename, content_type):
             handler.wfile.write(chunk)
 
 
+def full_copy_part(folder, song, occurrence, part, edit_headers):
+    if len(song['parts']) >= MAX_PARTS:
+        raise ValueError('The beta supports up to 64 parts per song.')
+
+    def checked_asset(filename, digest, extension):
+        if not re.fullmatch(r'[a-f0-9-]+\.' + extension, filename):
+            raise ValueError('Invalid copied part asset.')
+        path = folder / 'parts' / filename
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_UPLOAD:
+            raise ValueError('The saved part asset is unavailable or too large.')
+        body = path.read_bytes()
+        if hashlib.sha256(body).hexdigest() != digest:
+            raise ValueError('Saved part integrity check failed. No copy was created.')
+        return body
+
+    archive = checked_asset(part.get('archive', f'{part["id"]}.zip'), part['sha256'], 'zip')
+    details = validate_part_zip(archive)
+    part_id = secrets.token_hex(16)
+    suffix = '_full_copy'
+    copied = {**copy.deepcopy(part), **details, 'id': part_id,
+              'name': part['name'][:100 - len(suffix)] + suffix, 'repeats': occurrence['repeats'],
+              'createdAt': time.time(), 'revision': 1, 'archive': f'{part_id}.zip', 'bytes': len(archive)}
+    for field in ('sourcePartId', 'updatedAt', 'render'):
+        copied.pop(field, None)
+    assets = {copied['archive']: archive}
+    render = part.get('render')
+    if render and render.get('sourceSha256') == part['sha256']:
+        body = checked_asset(render['file'], render['sha256'], 'wav')
+        validate_render(body, copied)
+        filename = f'{part_id}-{render["sha256"]}.wav'
+        copied['render'] = {**copy.deepcopy(render), 'file': filename}
+        assets[filename] = body
+    published = []
+    temporary = None
+    owns_temporary = False
+    try:
+        for filename, body in assets.items():
+            destination = folder / 'parts' / filename
+            if destination.exists() or destination.is_symlink():
+                raise ValueError('Copy identity collision. Try again.')
+            temporary = folder / 'parts' / f'.full-copy-{secrets.token_hex(8)}.tmp'
+            with temporary.open('xb') as output:
+                owns_temporary = True
+                output.write(body)
+                output.flush()
+                os.fsync(output.fileno())
+            temporary.replace(destination)
+            owns_temporary = False
+            published.append(destination)
+        song['parts'].append(copied)
+        write_song(folder, song, edit_headers=edit_headers)
+    except Exception:
+        for path in published:
+            path.unlink(missing_ok=True)
+        raise
+    finally:
+        if temporary is not None and owns_temporary:
+            temporary.unlink(missing_ok=True)
+    return copied
+
+
 def validate_render(body, part):
     with wave.open(BytesIO(body), 'rb') as audio:
         frames = audio.getnframes()
@@ -673,6 +734,9 @@ def handle_song_request(handler, method, inner_path):
                         song['parts'].append({'id': secrets.token_hex(16), 'sourcePartId': part['id'], 'repeats': occurrence['repeats'], 'createdAt': time.time()})
                         write_song(folder, song, edit_headers=handler.headers)
                         handler.send_json({'ok': True, 'song': public_song(song)}, status=201, extra_headers=headers)
+                    elif method == 'POST' and action == 'full-copy':
+                        copied = full_copy_part(folder, song, occurrence, part, handler.headers)
+                        handler.send_json({'ok': True, 'song': public_song(song), 'partId': copied['id']}, status=201, extra_headers=headers)
                     elif method == 'GET' and not action:
                         send_asset(handler, folder, part.get('archive', f'{part["id"]}.zip'), 'application/zip')
                     elif method == 'GET' and action == 'render':

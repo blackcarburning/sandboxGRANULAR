@@ -1,5 +1,27 @@
 # Song beta
 
+## Make a full independent copy — 21 October 2026
+
+Build `v2026.10.21.COPY.5` adds **Make a full copy** to each expanded Song part
+card. The complete current saved snapshot, every included original audio asset,
+settings, colour and occurrence repeat count are duplicated under a new part ID.
+The copy is appended to the end of the song and named `Original name_full_copy`.
+For a 100-character name, only the original-name prefix is shortened to retain
+the full suffix. Copies can themselves be copied.
+
+Unlike **Reuse Part**, a full copy has no shared-source reference. Amending,
+renaming, colouring or deleting either original or copy does not affect the
+other. Copying a reused occurrence copies its source audio/settings and that
+occurrence's own repeats, but the result is independent of all shared uses.
+
+Valid saved playback renders are copied byte-for-byte to independent files too;
+armed playback stays ready when the source was ready. The copy does not capture
+or overwrite the current live editor. Stop Song and finish any amendment before
+copying. Editing access is requested automatically, with the existing device
+lease, exact song revision and exact source-hash checks. The 64-part limit
+still applies. Corrupt source assets, disk errors or lost leases leave no
+partial copy or orphaned files. Existing Song/export formats are unchanged.
+
 ## Recover a crashed same-name editor — 21 October 2026
 
 Build `v2026.10.21.LOCK.2` adds **Clear Lock & Edit** beside the editing

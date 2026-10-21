@@ -177,7 +177,7 @@ class SongLockTests(unittest.TestCase):
     def test_all_content_endpoints_require_lock(self):
         saved = self.call('POST', self.base + '/parts?name=Intro', body=part_zip(), headers=self.credentials(self.acquire()))
         part = saved.response['song']['parts'][0]
-        endpoints = ['/rename', '/arrange', '/parts?name=New'] + [f'/parts/{part["id"]}/{action}?sha256={part["sha256"]}' for action in ['save', 'delete', 'reuse', 'colour']]
+        endpoints = ['/rename', '/arrange', '/parts?name=New'] + [f'/parts/{part["id"]}/{action}?sha256={part["sha256"]}' for action in ['save', 'delete', 'reuse', 'full-copy', 'colour']]
         for endpoint in endpoints:
             with self.subTest(endpoint=endpoint):
                 self.assertEqual(self.call('POST', self.base + endpoint, payload={}, body=part_zip()).status, 423)

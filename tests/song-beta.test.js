@@ -413,7 +413,7 @@ test('stored AI parts append the supplied archive, name and repeats without capt
     await assert.rejects(controller.newPart({ blob, name: 'Cancelled', repeats: 1, signal: abort.signal }), { name: 'AbortError' });
 });
 
-for (const action of ['reuse', 'rename-song', 'rename-part', 'move', 'delete', 'colour', 'repeats', 'save-amendment']) {
+for (const action of ['reuse', 'full-copy', 'rename-song', 'rename-part', 'move', 'delete', 'colour', 'repeats', 'save-amendment']) {
     test(`${action} requests editing access automatically before its saved mutation`, async () => {
         const { controller, context } = makeController();
         const part = { ...first, sha256: 'saved' };
@@ -427,6 +427,7 @@ for (const action of ['reuse', 'rename-song', 'rename-part', 'move', 'delete', '
         context.confirm = () => true;
         context.prompt = () => 'Renamed';
         if (action === 'reuse') await controller.reusePart(part);
+        if (action === 'full-copy') await controller.fullCopyPart(part);
         if (action === 'rename-song') await controller.renameSong();
         if (action === 'rename-part') await controller.arrange(part);
         if (action === 'move') await controller.arrange(part, 1);
@@ -1542,6 +1543,47 @@ test('reusing an armed part appends a reference without capturing or duplicating
     controller.prepareRender = async () => assert.fail('An unchanged reference must not render again');
     await controller.arm();
     assert.equal(controller.renders.size, 2);
+});
+
+test('a full copy appends an independent ready part without recalling or capturing the live pattern', async () => {
+    const { controller } = cachedSongFixture();
+    const part = controller.song.parts[0];
+    part.render = { version: 1, sourceSha256: part.sha256, sha256: 'render-hash', keyboardVersion: 1, grainVersion: 1, portableVersion: 1 };
+    const copied = { ...part, id: 'independent', name: 'Intro_full_copy', archive: 'independent.zip', render: { ...part.render, file: 'independent.wav' } };
+    controller.armed = true;
+    controller.adapter.capture = async () => assert.fail('Copy must not capture live sounds');
+    controller.adapter.recall = async () => assert.fail('Copy must not recall over live sounds');
+    controller.request = async (path, options) => {
+        assert.equal(path, `/song/parts/${part.id}/full-copy?sha256=${part.sha256}`);
+        assert.equal(options.method, 'POST');
+        assert.equal(options.body, undefined);
+        return { song: { ...controller.song, parts: [...controller.song.parts, copied] }, partId: copied.id };
+    };
+    await controller.fullCopyPart(part);
+    assert.equal(controller.song.parts.at(-1), copied);
+    assert.equal(controller.armed, true);
+    assert.equal(controller.isPartReady(copied), true);
+    assert.equal(controller.cache.has(copied.id), false);
+    assert.equal(controller.renders.has(copied.id), false);
+    assert.equal(controller.expandedParts.has(`song:${copied.id}`), true);
+});
+
+test('full copy refuses playback or unsaved amendments and preserves the song on server failure', async () => {
+    const { controller } = cachedSongFixture();
+    const part = controller.song.parts[0], song = controller.song;
+    let requested = false;
+    controller.request = async () => { requested = true; throw Error('Disk full'); };
+    controller.playing = true;
+    await assert.rejects(controller.fullCopyPart(part), /Stop the song/);
+    controller.playing = false;
+    controller.editing = { id: part.id };
+    await assert.rejects(controller.fullCopyPart(part), /finish the amendment/);
+    assert.equal(requested, false);
+    controller.editing = null;
+    controller.armed = true;
+    await assert.rejects(controller.fullCopyPart(part), /Disk full/);
+    assert.equal(controller.song, song);
+    assert.equal(controller.armed, true);
 });
 
 test('cache preparation admits each shared source only once even with ten workers', async () => {
