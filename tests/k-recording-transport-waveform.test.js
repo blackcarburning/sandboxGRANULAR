@@ -49,7 +49,7 @@ function audioBuffer(channels, sampleRate = 8) {
 
 function recordingFixture(overrides = {}) {
     const timers = new Map();
-    const calls = { capture: [], restart: [], monitor: [], applied: [], statuses: [], stops: 0 };
+    const calls = { capture: [], restart: [], monitor: [], applied: [], statuses: [], stops: 0, arpStops: 0, prepared: [] };
     const buffer = audioBuffer([[0, .2, -.2, 0]]);
     const context = {
         AbortController, MediaRecorder: class {},
@@ -62,6 +62,9 @@ function recordingFixture(overrides = {}) {
         },
         audioContext: { state: 'running', currentTime: 10 },
         keyboardGrainCaptureGain: { name: 'keyboard-only' }, keyboardRecordingGainNode: { name: 'post-record-level' },
+        arpEnabled: false, holdEnabled: false, keyboardSoundSource: 'grain',
+        prepareKeyboardSound: async sound => calls.prepared.push(sound),
+        stopKeyboardArpTransport: () => { calls.arpStops++; },
         syncKeyboardRecordingLevel() {}, prewarmTransportBuffers() {}, getTransportPreparationLeadSeconds: () => .3,
         ensureAudioReadyForKeyInteraction: async () => true,
         clampBpmValue: Number,
@@ -72,7 +75,7 @@ function recordingFixture(overrides = {}) {
         bastardLoopKRecordingState: 'idle', bastardLoopKRecordingToken: 0,
         bastardLoopKRecordingAbortController: null,
         bastardLoopKCountInTimerIds: [],
-        bastardLoopKRecordingCancelled: false, bastardLoopKRecordingStartsFullLoop: false,
+        bastardLoopKRecordingCancelled: false, bastardLoopKRecordingStartsFullLoop: false, bastardLoopKRecordingArp: false,
         bastardLoopKSourceBpm: 300, sequencerBPM: 300,
         bastardLoopPlaying: false, sequencerPlaying: false, drumMachinePlaying: false,
         isArpeggiatorPlaying: () => false,
@@ -135,6 +138,59 @@ test('K restarts the current pattern on the take downbeat whether loops, sequenc
         assert.equal(calls.stops, 1);
          assert.ok(Math.abs(calls.restart[0].startTime - 10.88) < 1e-9);
     }
+});
+
+test('Record K explicitly authorizes configured arp on the capture downbeat and releases only its live arp at handover', async () => {
+    const { context, calls, timers } = recordingFixture({ arpEnabled: true, holdEnabled: true, keyboardSoundSource: 'piano' });
+    await context.beginBastardLoopKRecording({ startFullLoop: true });
+    assert.deepEqual(calls.prepared, ['piano']);
+    assert.equal(calls.restart.length, 0, 'count-in cannot start arp immediately');
+    await timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback();
+    assert.equal(calls.restart[0].keyboardPlay, true);
+    assert.equal(calls.restart[0].startTime, calls.capture[0][0]);
+    await timers.get(context.bastardLoopKRecordStopTimerId).callback();
+    assert.equal(calls.arpStops, 1);
+    assert.equal(context.bastardLoopKRecordingArp, false);
+    assert.equal(context.arpEnabled, true);
+    assert.equal(context.holdEnabled, true);
+    assert.equal(calls.stops, 1, 'handover must not stop backing');
+});
+
+test('ordinary keyboard takes do not authorize or stop an unrelated arp', async () => {
+    const { context, calls, timers } = recordingFixture();
+    await context.beginBastardLoopKRecording({ startFullLoop: true });
+    await timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback();
+    assert.equal(calls.restart[0].keyboardPlay, false);
+    await timers.get(context.bastardLoopKRecordStopTimerId).callback();
+    assert.equal(calls.arpStops, 0);
+    assert.deepEqual(calls.prepared, []);
+});
+
+test('cancelling or failing a recorded arp releases its live playback permission and preserves setup', async () => {
+    for (const fail of [false, true]) {
+        const { context, calls, timers } = recordingFixture({ arpEnabled: true, holdEnabled: true });
+        if (fail) context.recordKeyboardKAtTime = async () => { throw new Error('capture interrupted'); };
+        await context.beginBastardLoopKRecording({ startFullLoop: true });
+        if (!fail) {
+            await timers.get(context.bastardLoopKRecordLoopTransportTimerId).callback();
+            await timers.get(context.bastardLoopKRecordStartTimerId).callback();
+            context.cancelBastardLoopKRecording({ silent: true });
+        }
+        await Promise.resolve();
+        assert.equal(calls.arpStops, 1);
+        assert.equal(context.bastardLoopKRecordingArp, false);
+        assert.equal(context.arpEnabled, true);
+        assert.equal(calls.applied.length, 0);
+    }
+});
+
+test('failed arp instrument preparation leaves existing playback and the previous take untouched', async () => {
+    const { context, calls } = recordingFixture({ arpEnabled: true, holdEnabled: true,
+        prepareKeyboardSound: async () => { throw new Error('Piano unavailable'); } });
+    assert.equal(await context.beginBastardLoopKRecording(), false);
+    assert.equal(calls.stops, 0);
+    assert.equal(calls.capture.length, 0);
+    assert.equal(context.bastardLoopKRecordingState, 'idle');
 });
 
 test('an armed Song cache does not replace the current pattern during a keyboard take', async () => {

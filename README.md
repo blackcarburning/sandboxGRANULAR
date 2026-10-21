@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Arpeggiator to K recording (K.4)
+
+Build `v2026.10.21.K.4`: with keyboard **Arp** enabled and a selected chord, **Record to K** stops audition/backing for the count-in, then starts the arp and current pattern at the exact recording downbeat. It uses the current keyboard sound, arp mode, multiplier and BPM; the existing keyboard-only capture bus records its audio, not backing or metronome. The instrument is prepared before the count-in. On completion, live arp stops as the captured K joins playback (no doubled arp); chord, sound and arp settings remain selected. Cancellation/failure stops the recording-owned arp and keeps the previous K take. Arp-off manual recording and device-owned Clear Undo/Redo are unchanged; no persistence/export schema changes.
+
+`tests/k-arp-recording-browser.cjs` exercises native phone taps, stopped/running arp setup, actual PCM for Grain/Osc/Piano/Strings, first-note/downbeat timing, clock/order preservation, handover and late count-in/live cancellation in Chromium/WebKit using isolated local accounts only.
+
 ## Keyboard K shortcuts (K.3)
 
 Build `v2026.10.21.K.3` adds **Jump to K** below the keyboard's Record/Clear row, using the existing section-jump handler and K card. K recording buttons are dark red during idle/count-in/processing and light red only while the take is actually recording. State follows the existing K lifecycle, including cancellation/failure. No audio or persistence formats change.
