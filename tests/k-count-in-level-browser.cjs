@@ -105,12 +105,12 @@ async function holdKey(page) {
                 username: `k_${name}_${Date.now()}`, password: 'isolated-k-level-fixture' } });
             assert.ok(registration.ok(), await registration.text());
             await startup(page);
-            const mediaRecorderAvailable = await page.evaluate(() => typeof MediaRecorder !== 'undefined');
-            if (!mediaRecorderAvailable) {
-                results.push({ engine: name, captureSkipped: 'Installed WebKit runtime has no MediaRecorder; real capture verified in Chromium.' });
-                console.log('SKIP', name, 'actual capture: installed runtime has no MediaRecorder');
+            const captureAvailable = await page.evaluate(() => Boolean(audioContext.audioWorklet && window.AudioWorkletNode && window.MygrainSongClock?.prepareCapture));
+            if (!captureAvailable) {
+                results.push({ engine: name, captureSkipped: 'AudioWorklet unavailable' });
+                console.log('SKIP', name, 'actual capture: installed runtime has no AudioWorklet');
             }
-            for (const [index, source] of (mediaRecorderAvailable ? ['grain', 'osc', 'piano', 'strings'] : []).entries()) {
+            for (const [index, source] of (captureAvailable ? (process.env.MYGRAIN_K_SOURCES || 'grain,osc,piano,strings').split(',') : []).entries()) {
                 await configure(page);
                 await selected(page, source, 'performanceKeyboardSoundSwitch');
                 const level = await page.locator('#performanceBastardLoopKInputGain').inputValue();
@@ -144,7 +144,7 @@ async function holdKey(page) {
                 await page.evaluate(() => { panicAllNotes({ immediate: true, preserveStatus: true }); setHoldEnabled(false); });
             }
             // Cancellation keeps the preceding take and never leaves scheduled backing running.
-            if (mediaRecorderAvailable) {
+            if (captureAvailable) {
             await page.evaluate(() => { window.lastKTake = bastardLoopKRawBuffer; });
             await page.locator('#performanceKeyboardToKRecordSurfaceBtn').tap();
             await page.waitForFunction(() => bastardLoopKRecordingState === 'countin');
@@ -169,7 +169,7 @@ async function holdKey(page) {
             await page.waitForTimeout(250);
             const secondDb = parseFloat(await page.locator('#performanceKeyboardRecordingVuValue').textContent());
             assert.ok(Math.abs(secondDb - firstDb - 6.02) < .8, `meter follows +6dB live gain: ${firstDb}, ${secondDb}`);
-            if (mediaRecorderAvailable) {
+            if (captureAvailable) {
                 await page.evaluate(() => levelTone.frequency.setValueAtTime(660, audioContext.currentTime));
                 await page.locator('#performanceKeyboardToKRecordSurfaceBtn').tap();
                 await page.waitForFunction(() => bastardLoopKRecordingState === 'countin');
@@ -214,7 +214,58 @@ async function holdKey(page) {
             const hiddenText = await page.locator('#performanceKeyboardRecordingVuValue').textContent();
             await page.waitForTimeout(350);
             assert.equal(await page.locator('#performanceKeyboardRecordingVuValue').textContent(), hiddenText);
-            await page.evaluate(() => { levelTone.stop(); stopAllPerformancePlayback({ silent: true }); stateSaveSuspended = false;
+            await page.evaluate(() => {
+                stopAllPerformancePlayback({ silent: true });
+                stateSaveSuspended = false;
+                window.kBeforeClear = bastardLoopKRawBuffer;
+                window.kBeforeClearPcm = bastardLoopKRawBuffer.getChannelData(0).slice();
+                setBastardLoopKEnabled(true, { silent: true, skipSave: true });
+            });
+            await page.locator('#performanceKeyboardKLevel').fill('73');
+            assert.deepEqual(await page.evaluate(() => [
+                document.getElementById('performanceBastardLoopKLevel').value,
+                document.getElementById('performanceBastardLoopKLevelMixer').value,
+                document.getElementById('performanceKeyboardKLevelValue').textContent
+            ]), ['73', '73', '73%']);
+            await page.evaluate(() => setBastardLoopPlaying(true, { silent: true, skipSave: true }));
+            await page.waitForFunction(() => Math.abs((bastardLoopKGainNode?.gain.value ?? -1) - .73 * .9 * .88) < .001);
+            const highGain = await page.evaluate(() => bastardLoopKGainNode.gain.value);
+            await page.locator('#performanceKeyboardKLevel').fill('0');
+            await page.waitForTimeout(100);
+            assert.equal(await page.evaluate(() => bastardLoopKGainNode?.gain.value ?? 0), 0);
+            assert.ok(Math.abs(highGain - .73 * .9 * .88) < .001);
+            assert.ok(await page.evaluate(() => bastardLoopKRawBuffer.getChannelData(0).every((v, i) => v === kBeforeClearPcm[i])));
+            await page.locator('#performanceKeyboardKLevel').fill('73');
+            await page.evaluate(() => stopAllPerformancePlayback({ silent: true }));
+            const pcmProof = await page.evaluate(() => {
+                const data = bastardLoopKRawBuffer.getChannelData(0);
+                const bits = new Uint32Array(data.buffer, data.byteOffset, data.length);
+                return { length: data.length, hash: bits.reduce((hash, value) => Math.imul(hash ^ value, 16777619) >>> 0, 2166136261) };
+            });
+            const counts = await page.evaluate(() => mygrainCardHistory.counts);
+            await page.locator('#performanceKeyboardClearKBtn').tap();
+            await page.waitForFunction(() => !mygrainCardHistory.busy && !bastardLoopKRawBuffer && !bastardLoopKBuffer);
+            assert.ok(await page.locator('#performanceKeyboardClearKBtn').isDisabled());
+            assert.equal((await page.evaluate(() => mygrainCardHistory.counts)).undo, Math.min(10, counts.undo + 1));
+            await page.locator('#sectionJumpUndoBtn').tap();
+            await page.waitForFunction(() => !mygrainCardHistory.busy && Boolean(bastardLoopKRawBuffer));
+            assert.ok(await page.evaluate(() => bastardLoopKRawBuffer.getChannelData(0).every((v, i) => v === kBeforeClearPcm[i])));
+            await page.locator('#sectionJumpRedoBtn').tap();
+            await page.waitForFunction(() => !mygrainCardHistory.busy && !bastardLoopKRawBuffer && !bastardLoopKBuffer);
+            await page.evaluate(() => mygrainCardHistory.flush());
+            await startup(page);
+            await page.locator('#sectionJumpUndoBtn').tap();
+            await page.waitForFunction(() => !mygrainCardHistory.busy && Boolean(bastardLoopKRawBuffer));
+            const restoredProof = await page.evaluate(() => {
+                const data = bastardLoopKRawBuffer.getChannelData(0);
+                const bits = new Uint32Array(data.buffer, data.byteOffset, data.length);
+                return { length: data.length, hash: bits.reduce((hash, value) => Math.imul(hash ^ value, 16777619) >>> 0, 2166136261) };
+            });
+            assert.deepEqual(restoredProof, pcmProof);
+            assert.equal(await page.locator('#performanceKeyboardKLevel').inputValue(), '73');
+            assert.equal(await page.locator('#performanceKeyboardToKRecordSurfaceBtn').textContent(), 'Record to K');
+            console.log('PASS', name, 'K playback actual gain, Clear K, exact PCM Undo/Redo and history after reload');
+            await page.evaluate(() => { stopAllPerformancePlayback({ silent: true }); stateSaveSuspended = false;
                 for (const [source, level] of Object.entries({ grain: 217, osc: 0, piano: 236, strings: 189 })) {
                     setKeyboardSoundSource(source, { skipSave: true }); setBastardLoopKInputGainPercent(level, { skipSave: true });
                 }
@@ -230,7 +281,7 @@ async function holdKey(page) {
             });
             assert.deepEqual(restored, { grain: 217, osc: 0, piano: 236, strings: 189 });
             assert.deepEqual(errors, []);
-            console.log('PASS', name, (mediaRecorderAvailable ? 'cancel, ' : '') + 'meter +6dB, hidden detach, portrait/landscape, saved instrument levels');
+            console.log('PASS', name, (captureAvailable ? 'cancel, ' : '') + 'meter +6dB, hidden detach, portrait/landscape, saved instrument levels');
         } finally { await context.close(); await browser.close(); }
     }
     fs.writeFileSync(path.join(evidence, 'results.json'), JSON.stringify(results, null, 2));

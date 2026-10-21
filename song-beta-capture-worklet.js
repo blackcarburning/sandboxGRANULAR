@@ -5,6 +5,11 @@ class MygrainSongCapture extends AudioWorkletProcessor {
         this.frames = options.processorOptions.frames;
         this.channels = [new Float32Array(this.frames), new Float32Array(this.frames)];
         this.finished = false;
+        this.port.onmessage = event => {
+            if (event.data?.type !== 'cancel') return;
+            this.finished = true;
+            this.channels = [];
+        };
     }
 
     process(inputs, outputs) {

@@ -57,6 +57,7 @@ function recordingFixture(overrides = {}) {
         document: { getElementById: () => ({ value: '300' }) },
         window: {
             setTimeout(callback, delay) { const timerId = timers.size + 1; timers.set(timerId, { callback, delay }); return timerId; },
+            MygrainSongClock: { prepareCapture: async () => {} },
             mygrainSongBetaAdapter: { setKeyboardRecordingMonitor: enabled => calls.monitor.push(enabled) }
         },
         audioContext: { state: 'running', currentTime: 10 },
@@ -86,7 +87,7 @@ function recordingFixture(overrides = {}) {
         setGeneratedDryLoopEnabled: () => assert.fail('Capture must not change the audible mix'),
         syncBastardLoopKUi() {}, syncPerformanceControlState() {}, saveState() {},
         setStatus: (...args) => calls.statuses.push(args),
-        recordLiveOutputBuffer: async (...args) => {
+        recordKeyboardKAtTime: async (...args) => {
             calls.capture.push(args);
             return { audioBuffer: buffer, captureStartTime: 10 };
         },
@@ -117,8 +118,10 @@ test('K arming stops the backing for count-in without modifying solo or layer en
     assert.equal(context.performanceSourceLayerSoloSnapshot, snapshot);
     assert.deepEqual(context.grainLayerSolo, ['grainA']);
     assert.equal(context.oscillatorsEnabled, true);
-    assert.equal(calls.capture[0][1].sourceNode, context.keyboardRecordingGainNode);
-    assert.equal(calls.capture[0][1].captureStartTime, undefined);
+    assert.ok(Math.abs(calls.capture[0][0] - 10.88) < 1e-9);
+    assert.equal(calls.capture[0][1], 1.6);
+    assert.equal(calls.capture[0][2], context.bastardLoopKRecordingAbortController.signal);
+    assert.equal(context.bastardLoopKRecorderStartTime, calls.capture[0][0]);
     assert.deepEqual(calls.monitor, [true]);
 });
 
@@ -144,7 +147,7 @@ test('an armed Song cache does not replace the current pattern during a keyboard
     assert.equal(calls.restart.length, 1);
 });
 
-test('capture processing does not apply the live input gain twice, preserves exact trim and releases monitoring', async () => {
+test('capture processing does not apply gain twice or trim count-in audio; preserves the exact frame buffer', async () => {
     const { context, calls, timers, buffer } = recordingFixture();
     await context.beginBastardLoopKRecording({ startFullLoop: true });
     await timers.get(context.bastardLoopKRecordStopTimerId).callback();
@@ -164,9 +167,9 @@ test('cancelled count-in cannot start stale backing and capture failure finalize
     assert.equal(calls.restart.length, 0);
     assert.deepEqual(calls.monitor, [true, false]);
     assert.equal(context.bastardLoopKRecordingState, 'idle');
-    const failed = recordingFixture({ recordLiveOutputBuffer: async () => { throw new Error('capture failed'); } });
+    const failed = recordingFixture({ recordKeyboardKAtTime: async () => { throw new Error('capture failed'); } });
     await failed.context.beginBastardLoopKRecording({ startFullLoop: true });
-    await failed.timers.get(failed.context.bastardLoopKRecordStopTimerId).callback();
+    await Promise.resolve();
     assert.equal(failed.context.bastardLoopKRecordingState, 'idle');
     assert.deepEqual(failed.calls.monitor, [true, false]);
     assert.match(failed.calls.statuses.at(-1)[0], /capture failed/);
@@ -195,7 +198,8 @@ test('cancelling the final count-in beat also stops already scheduled future sou
 });
 
 test('unsupported recording fails before stopping current playback or counting in', async () => {
-    const { context, calls } = recordingFixture({ MediaRecorder: undefined, bastardLoopPlaying: true });
+    const { context, calls } = recordingFixture({ bastardLoopPlaying: true });
+    context.window.MygrainSongClock.prepareCapture = async () => { throw new Error('Worklet unavailable'); };
     assert.equal(await context.beginBastardLoopKRecording(), false);
     assert.equal(calls.stops, 0);
     assert.equal(calls.capture.length, 0);

@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261021-k-1"></script>
+    <script src="mygrain-accounts.js?v=20261021-k-2"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-21-k-1';
+            const cacheBuster = '2026-10-21-k-2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5396,6 +5396,20 @@
             font-size: 11px;
         }
 
+        .simplified-ui .keyboard-section #performanceKeyboardToKRecordSurfaceBtn {
+            grid-column: 2 / span 2;
+            grid-row: 4;
+        }
+
+        .simplified-ui .keyboard-section #performanceKeyboardClearKBtn {
+            grid-column: 4;
+            grid-row: 4;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: linear-gradient(180deg, #133b63, #1c6098);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.25);
+        }
+
         .simplified-ui .keyboard-section #holdBtn {
             order: 3;
             grid-column: 1;
@@ -6010,7 +6024,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.K.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.K.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6095,7 +6109,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.K.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.K.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8360,7 +8374,7 @@
                     <button class="performance-btn" id="performanceExportPatchBtn">Export JSON</button>
                     <button class="performance-btn" id="performanceImportPatchBtn">Import JSON</button>
                     <button class="performance-btn" id="performanceKeyboardRecordBtn" type="button">Key Record</button>
-                    <button class="performance-btn" id="performanceKeyboardToKRecordBtn" type="button">Record K</button>
+                    <button class="performance-btn" id="performanceKeyboardToKRecordBtn" type="button">Record to K</button>
                     <label class="performance-patch-name-group" for="performancePatchZipName">
                         <span class="performance-patch-name-label">Patch ZIP Name</span>
                         <input class="performance-patch-name-input" id="performancePatchZipName" type="text" placeholder="Leave blank for timestamped name" maxlength="120" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -8601,7 +8615,8 @@
                     <button class="hold-btn" id="arpBtn">Arp</button>
                     <button class="arp-clock-btn" id="arpClockMultiplierBtn" title="Arpeggiator clock multiplier">Mul 1x</button>
                     <button class="arp-clock-btn" id="arpModeBtn" title="Arpeggiator direction mode">Arp Up</button>
-                    <button class="arp-clock-btn" id="performanceKeyboardToKRecordSurfaceBtn" title="Stop, count in and record the selected keyboard sound into Bastardloop K">Rec K</button>
+                    <button class="arp-clock-btn" id="performanceKeyboardToKRecordSurfaceBtn" title="Stop, count in and record the selected keyboard sound into Bastardloop K">Record to K</button>
+                    <button class="arp-clock-btn" id="performanceKeyboardClearKBtn" type="button" title="Clear K recording (Undo/Redo available)" disabled>Clear K</button>
                     <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
                     <div class="keyboard" id="keyboardContainer">
                     </div>
@@ -8621,7 +8636,12 @@
                         <div class="performance-vu-fill" id="performanceKeyboardRecordingVuFill"></div>
                         <div class="performance-vu-peak" id="performanceKeyboardRecordingVuPeak"></div>
                     </div>
-                    <p class="performance-feature-note">Record K: stop, count 4 beats, then play over the current pattern. Set the level before recording; avoid CLIP.</p>
+                    <label for="performanceKeyboardKLevel">
+                        <span>K Playback Volume</span>
+                        <span class="value" id="performanceKeyboardKLevelValue">50%</span>
+                    </label>
+                    <input type="range" id="performanceKeyboardKLevel" min="0" max="100" value="50" step="1">
+                    <p class="performance-feature-note">Record to K: count 4 beats, then record with the pattern. Recording level sets the take; K playback volume sets its mix.</p>
                 </div>
             </div>
             <div class="performance-feature-card" id="performanceGrainControlsCard" aria-label="Grain controls">
@@ -14337,6 +14357,7 @@
             'performanceKeyboardPianoVolume',
             'performanceKeyboardStringsVolume',
             'performanceBastardLoopKInputGain',
+            'performanceKeyboardKLevel',
             ...INTERNAL_BPM_CLOCK_RATE_IDS,
             'finalPanCenter',
             'oscMix',
@@ -22034,6 +22055,10 @@
             const mixerLabel = document.getElementById('performanceBastardLoopKLevelMixerValue');
             if (primary) primary.value = String(clamped);
             if (mixer) mixer.value = String(clamped);
+            const keyboard = document.getElementById('performanceKeyboardKLevel');
+            const keyboardLabel = document.getElementById('performanceKeyboardKLevelValue');
+            if (keyboard) keyboard.value = String(clamped);
+            if (keyboardLabel) keyboardLabel.textContent = `${Math.round(clamped)}%`;
             if (primaryLabel) primaryLabel.textContent = `${Math.round(clamped)}%`;
             if (mixerLabel) mixerLabel.textContent = `${Math.round(clamped)}%`;
             updateBastardLoopKMix();
@@ -25627,6 +25652,7 @@
             const recordButton = document.getElementById('performanceBastardLoopKRecordBtn');
             const recordLoopButton = document.getElementById('performanceBastardLoopKRecordLoopBtn');
             const clearButton = document.getElementById('performanceBastardLoopKClearBtn');
+            const keyboardClearButton = document.getElementById('performanceKeyboardClearKBtn');
             const startButton = document.getElementById('performanceBastardLoopKStartBtn');
             const recordLengthSlider = document.getElementById('performanceBastardLoopKRecordLength');
             const recordLengthLabel = document.getElementById('performanceBastardLoopKRecordLengthValue');
@@ -25667,6 +25693,10 @@
             if (inputGainLabel) inputGainLabel.textContent = `${inputGainValue}%`;
             if (levelSlider) levelSlider.value = String(levelValue);
             if (levelMixer) levelMixer.value = String(levelValue);
+            const keyboardLevel = document.getElementById('performanceKeyboardKLevel');
+            const keyboardLevelLabel = document.getElementById('performanceKeyboardKLevelValue');
+            if (keyboardLevel) keyboardLevel.value = String(levelValue);
+            if (keyboardLevelLabel) keyboardLevelLabel.textContent = `${levelValue}%`;
             if (levelLabel) levelLabel.textContent = `${levelValue}%`;
             if (mixerLabel) mixerLabel.textContent = `${levelValue}%`;
             if (filterModeSelect) filterModeSelect.value = filterModeValue;
@@ -25731,6 +25761,7 @@
                 clearButton.disabled = bastardLoopKRecordingState === 'processing' || (!hasRecording && !isBusy);
                 clearButton.textContent = isBusy ? 'Cancel & Clear' : 'Clear';
             }
+            if (keyboardClearButton) keyboardClearButton.disabled = isBusy || !hasRecording;
             if (startButton) {
                 startButton.disabled = bastardLoopKRecordingState !== 'idle';
                 startButton.classList.toggle('active', transportRunning);
@@ -26119,6 +26150,59 @@
             );
         }
 
+        function recordKeyboardKAtTime(startTime, durationSeconds, signal) {
+            const context = audioContext;
+            const source = keyboardRecordingGainNode;
+            const startFrame = Math.round(startTime * context.sampleRate);
+            const frames = Math.max(1, Math.round(durationSeconds * context.sampleRate));
+            if (signal?.aborted) return Promise.reject(new DOMException('Recording cancelled.', 'AbortError'));
+            if (startFrame <= Math.ceil(context.currentTime * context.sampleRate)) return Promise.reject(new Error('The recording downbeat has already passed.'));
+            const capture = new AudioWorkletNode(context, 'mygrain-song-capture-v1', {
+                numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+                processorOptions: { startFrame, frames }
+            });
+            return new Promise((resolve, reject) => {
+                let settled = false;
+                const cleanup = () => {
+                    clearTimeout(timeout);
+                    signal?.removeEventListener('abort', abort);
+                    context.removeEventListener('statechange', interrupted);
+                    document.removeEventListener('visibilitychange', hidden);
+                    capture.port.onmessage = null;
+                    capture.onprocessorerror = null;
+                    capture.port.postMessage({ type: 'cancel' });
+                    capture.port.close();
+                    try { source.disconnect(capture); } catch (error) {}
+                    capture.disconnect();
+                };
+                const finish = (error, channels) => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    if (error) { reject(error); return; }
+                    try {
+                        const buffer = context.createBuffer(2, frames, context.sampleRate);
+                        channels.forEach((channel, index) => buffer.copyToChannel(new Float32Array(channel), index));
+                        resolve({ audioBuffer: buffer, captureStartTime: startFrame / context.sampleRate });
+                    } catch (error) { reject(error); }
+                };
+                const abort = () => finish(new DOMException('Recording cancelled.', 'AbortError'));
+                const interrupted = () => { if (context.state !== 'running') finish(new Error('Audio interrupted. Record the take again.')); };
+                const hidden = () => { if (document.hidden) finish(new Error('Keep MYGRAIN visible while recording.')); };
+                const timeout = setTimeout(() => finish(new Error('Keyboard recording timed out.')), Math.max(1000, (startTime - context.currentTime + durationSeconds) * 1000 + 5000));
+                capture.port.onmessage = event => finish(null, event.data.channels);
+                capture.onprocessorerror = () => finish(new Error('Keyboard audio capture failed.'));
+                signal?.addEventListener('abort', abort, { once: true });
+                context.addEventListener('statechange', interrupted);
+                document.addEventListener('visibilitychange', hidden);
+                source.connect(capture);
+                // The capture processor outputs silence; this connection pulls its
+                // clock without adding a second audible keyboard path.
+                capture.connect(context.destination);
+                if (signal?.aborted) abort();
+            });
+        }
+
         async function beginBastardLoopKRecording(options = {}) {
             if (bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle') {
                 setStatus('Finish Bastardloop M or M+ recording before recording into K.', 'error');
@@ -26130,8 +26214,11 @@
                 return false;
             }
             if (audioContext.state === 'suspended') await audioContext.resume();
-            if (typeof MediaRecorder === 'undefined') {
-                setStatus('Keyboard recording is not supported by this browser.', 'error');
+            try {
+                if (!window.MygrainSongClock?.prepareCapture) throw new Error('Exact keyboard capture is not ready yet.');
+                await window.MygrainSongClock.prepareCapture(audioContext);
+            } catch (error) {
+                setStatus(`Keyboard recording unavailable: ${error.message}`, 'error');
                 return false;
             }
             const currentBpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || bastardLoopKSourceBpm || 120);
@@ -26170,12 +26257,13 @@
                 : `Bastardloop K armed: 1 bar count-in at ${currentBpm} BPM${recordLoopCount > 1 ? ` for ${recordLengthLabel} of recording` : ''}.`);
 
             bastardLoopKRecordingAbortController = new AbortController();
-            const capturePromise = recordLiveOutputBuffer(countInSeconds + recordingDurationSeconds + 0.18, {
-                sourceNode: keyboardRecordingGainNode,
-                signal: bastardLoopKRecordingAbortController.signal
+            const capturePromise = recordKeyboardKAtTime(recordingStartTime, recordingDurationSeconds, bastardLoopKRecordingAbortController.signal);
+            capturePromise.catch(error => {
+                if (sessionToken !== bastardLoopKRecordingToken || bastardLoopKRecordingCancelled) return;
+                cancelBastardLoopKRecording({ silent: true });
+                setStatus(`Bastardloop K record failed: ${error.message}`, 'error');
             });
-            capturePromise.catch(() => {});
-            bastardLoopKRecorderStartTime = audioContext.currentTime;
+            bastardLoopKRecorderStartTime = recordingStartTime;
 
             if (startFullLoop) {
                 // Prepare transport ahead of the audio-clock downbeat; do not
@@ -26228,11 +26316,10 @@
                 bastardLoopKRecordStatus = 'Processing keyboard loop…';
                 syncBastardLoopKUi();
                 try {
-                    const { audioBuffer: rendered, captureStartTime: actualCaptureStartTime } = await capturePromise;
+                    const { audioBuffer: exactLoop } = await capturePromise;
                     if (sessionToken !== bastardLoopKRecordingToken || bastardLoopKRecordingCancelled) return;
-                    // Gain is applied live, once, before capture and metering.
-                    const captureTrimSeconds = Math.max(0, recordingStartTime - actualCaptureStartTime);
-                    const exactLoop = createFixedLengthAudioBufferFromSource(rendered, captureTrimSeconds, recordingDurationSeconds);
+                    // The audio-thread frame window begins at the pattern downbeat.
+                    // No count-in audio is recorded, encoded or trimmed afterwards.
                     await applyRecordedBastardLoopKBuffer(exactLoop, {
                         bpm: currentBpm,
                         durationSeconds: recordingDurationSeconds,
@@ -59034,13 +59121,19 @@
                 syncBastardLoopKUi();
             }
         });
-        performanceBastardLoopKClearBtn?.addEventListener('click', async () => {
-            try {
-                await clearBastardLoopK();
-            } catch (error) {
-                console.error(error);
-                setStatus(`Bastardloop K clear failed: ${error.message}`, 'error');
-            }
+        for (const button of [performanceBastardLoopKClearBtn, document.getElementById('performanceKeyboardClearKBtn')]) {
+            button?.addEventListener('click', async () => {
+                try {
+                    if (bastardLoopKRecordingState !== 'idle') cancelBastardLoopKRecording({ silent: true });
+                    if (!window.mygrainCardHistory || window.mygrainCardHistory.busy) throw new Error('Wait for Undo/Redo to finish loading or restoring.');
+                    await window.mygrainCardHistory.run('Clear K', () => clearBastardLoopK());
+                } catch (error) {
+                    setStatus(`Bastardloop K clear failed: ${error.message}`, 'error');
+                }
+            });
+        }
+        document.getElementById('performanceKeyboardKLevel')?.addEventListener('input', event => {
+            setBastardLoopKLevelPercent(event.target.value);
         });
         performanceBastardLoopKStartBtn?.addEventListener('click', async () => {
             try {
@@ -61321,13 +61414,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-1');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261020-persistent-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261019-render-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-1&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-2&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>

@@ -175,13 +175,21 @@
         return { sourceTime: sourceFrame / sampleRate, startFrame: sourceFrame + latencyFrames, latencyFrames };
     }
 
+    function prepareCapture(context) {
+        if (!context.audioWorklet || !root.AudioWorkletNode) return Promise.reject(new Error('Exact recording requires AudioWorklet support. Use an up-to-date browser over HTTPS.'));
+        if (!modules.has(context)) {
+            const url = new URL('song-beta-capture-worklet.js?v=20261021-k-2', root.document.baseURI);
+            modules.set(context, context.audioWorklet.addModule(url.href).catch(error => { modules.delete(context); throw error; }));
+        }
+        return modules.get(context);
+    }
+
     async function render(context, part, timing, signal) {
         if (root.document.hidden) throw new Error('Keep MYGRAIN in the foreground while preparing song audio.');
         if (!context.audioWorklet || !root.AudioWorkletNode) throw new Error('Exact song rendering requires AudioWorklet support. Use an up-to-date browser over HTTPS.');
         if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
         const base = new URL('.', root.document.baseURI);
-        if (!modules.has(context)) modules.set(context, context.audioWorklet.addModule(new URL('song-beta-capture-worklet.js?v=20261013-clock-2', base).href).catch(error => { modules.delete(context); throw error; }));
-        await modules.get(context);
+        await prepareCapture(context);
         if (!renderHtml) {
             renderHtml = fetch(base, { cache: 'no-store', signal }).then(response => {
                 if (!response.ok) throw new Error('Could not load the isolated song renderer.');
@@ -284,6 +292,6 @@
         }
     }
 
-    root.MygrainSongClock = { schedule, scheduleStored, render, renderCaptureTiming };
+    root.MygrainSongClock = { schedule, scheduleStored, render, renderCaptureTiming, prepareCapture };
     if (typeof module !== 'undefined' && module.exports) module.exports = { schedule, scheduleStored, renderCaptureTiming };
 })(globalThis);

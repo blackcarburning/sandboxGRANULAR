@@ -1,13 +1,17 @@
 # sandboxGRANULAR
 Web based granular synth
 
-## K keyboard recording (K.1)
+## K keyboard recording (K.2)
 
-Build `v2026.10.21.K.1` changes **Record Keyboard / Rec K** to stop the current pattern, play a four-beat count-in at the current BPM, and restart the current editable pattern on the recording downbeat. An armed Song cache does not replace that pattern. A second Record press cancels without replacing the preceding take; cancellation during the final count-in beat also stops future-scheduled sources. Missed transport deadlines cancel visibly rather than saving an unaccompanied take.
+Build `v2026.10.21.K.2` uses an **audio-thread PCM capture window** that starts at the pattern downbeat after the four-beat count-in. It no longer starts MediaRecorder during the count-in and trims it afterwards. The keyboard button reads **Record to K**; pressing it during backing playback stops the pattern before counting in. The selected editable pattern starts on the recording downbeat, not an armed Song cache. Cancellation preserves the previous take and stops any future-scheduled backing.
 
-**Set Recording Level · K** and a recording VU are directly below the keyboard. Raised defaults are Grain 160%, Osc 180%, Q Piano and Q Strings 250%; each sound remembers its own 0–400% setting in the existing account-scoped patch/state. Explicit older non-default gain settings migrate; the former default of 100% adopts the new instrument defaults. Recording level is protected from patch randomisation. It scales only the keyboard capture bus, once, before metering/recording; it never changes the monitored instrument, metronome or backing, and no post-capture gain is applied again. The VU shows recording RMS/peak and a clipping warning. Its analyser connection and 10 Hz timer exist only while the meter is intersecting the viewport and the document/audio context is active.
+The keyboard also has a blue **Clear K** button. Both keyboard and K-card Clear actions use the existing ten-step account/device-owned Undo/Redo journal, restoring exact K audio and metadata, including after a reload. Clear is disabled on the keyboard during recording/processing; the main card can cancel an active take before clearing. **K Playback Volume** under the keyboard mirrors the existing K-card/mixer fader; it does not change recording level or stored PCM.
 
-Checks: `node --test tests/k-count-in-level.test.js`; `tests/k-count-in-level-browser.cjs` uses only the disposable loopback server for native touch controls, four real instrument captures, count-in/transport alignment, exact live input gain, backing/count-in exclusion, cancellation, saved settings and portrait/landscape layouts. Installed Linux WebKit lacks MediaRecorder: its real VU/layout/persistence checks run, but actual captures run in Chromium. Physical iPhone recording remains untested. No stored audio or Song/Undo device-ownership formats are changed.
+**Set Recording Level · K** and its recording VU remain below the keys. Defaults: Grain 160%, Osc 180%, Q Piano/Strings 250%; each instrument remembers its 0–400% setting. That gain scales the keyboard-only capture path exactly once, not the backing or metronome. Recording and playback controls are separate. The meter's analyser connection and 10 Hz timer exist only while visible and the document/audio context are active.
+
+K and Song share the same per-context worklet loader. The processor accepts only the requested frame interval and outputs silence, so it cannot double-monitor the keyboard. Cancellation releases capture storage and connections. Worklet/context failure preserves the preceding take. No audio assets, Song formats or device-ownership rules are changed.
+
+Checks: `tests/k-downbeat-capture.test.js` verifies every recorded frame at 44.1/48 kHz, including the first/last samples and complete exclusion of count-in input. `tests/k-count-in-level-browser.cjs` uses only disposable loopback accounts/stores for actual keyboard recording, Clear Undo/Redo/reload, volume, visible-only VU and phone layouts. Both Chromium and WebKit use actual PCM capture; MediaRecorder is no longer needed for K. Physical iPhone recording remains untested.
 
 ## Matched action colours and generated-loop pitch (UI.1)
 
