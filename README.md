@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Desktop Start / Stop and Space shortcut (D.1)
+
+Build `v2026.10.21.D.1` adds a large fixed **Start / Stop** button to the left of the desktop Jump dock, with a reserved gutter so it cannot cover the main controls. **Start is green; Stop is red.** It uses the existing shared transport restart/stop functions and stays synchronized with other playback controls, held keys and Song playback. Each click toggles once without the phone sidebar's double-tap/solo shortcut.
+
+On desktop, an unmodified **Space** toggles playback without scrolling. Held-key repeats do not retrigger it. Typing, sliders, focused buttons/links, editable text and dialogs retain their native keyboard behavior; Space on the new button toggles only once. Both the button and shortcut require the existing desktop breakpoint (961px+) plus a fine hover pointer, so phone/tablet touch layouts and their Space behavior remain unchanged, including wide landscape touch screens. No patch, Song, history or export schemas change.
+
 ## Single-sample Loop V re-cut (V.1)
 
 Load a saved RadioLab or VideoLab sample into **Loop V**, choose its cut resolutions, then press **Re-cut Loaded Sample**. The existing server chop engine samples different regions, rearranges and crossfades them into a tempo/pattern-length-matched stereo loop. Each result is saved under a unique name in **Bastardloop Browser**; the original private library file is read-only. Re-cutting again uses the original source, not the previous generated WAV. Normal Generate V still uses `SAMPLES_VOCAL`.
