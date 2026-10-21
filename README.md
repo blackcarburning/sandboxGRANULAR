@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Song parts retain the full live pattern (SONG.1)
+
+Build `v2026.10.21.SONG.1` makes New Part and Save Amendment retain the complete current pattern cycle, including enabled L/X sequences at ×2/×4/×8 and Q at slower rates. A separate `snapshot.extra.patternCycleMultiplier` records the longest active cycle without changing the 8–64-step grid, notes or playback rate. Part duration, isolated audio capture, render validation, playback, repeats and WAV export all use that same cycle length. The part card displays the full-cycle multiplier where needed.
+
+Existing archives without this optional field retain their original duration; no saved Song is rewritten or automatically doubled. Newly saved normal-speed parts explicitly reset the multiplier to one. Reused occurrences and full copies retain their source duration; amendments update it from the current live state.
+
+Regression: `node --test tests/song-full-pattern.test.cjs`; `python3 -m unittest discover -s tests -p 'test_song_full_pattern.py'`. Real New Part / Arm Cache / PCM / playback / recall / restart checks use `node tests/song-full-pattern-browser.cjs` against the disposable `tests/song-beta-test-server.py 18890` server, with Chromium/WebKit in portrait and landscape phone emulation. `SONG_LENGTH_EVIDENCE=<directory>` selects its evidence directory. No production account or Song data is changed by these tests.
+
 ## Manual ETC drum lane (ETC.1)
 
 Build `v2026.10.21.ETC.1` adds **ETC**, an independent Crash-style drum lane with its own Jump tab, sample browser, pitch, level, decay, length, accents, ratchets and filter controls. It starts empty and is manual-only: Random Drums, Random Samples, random patterns/envelopes and the direct random loaders leave its sample and settings alone. ETC has no lane-level Random buttons; AI drum generation also leaves its manually entered pattern intact.

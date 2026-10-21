@@ -5,10 +5,11 @@
         const bpm = Number(part.bpm);
         const steps = Number(part.patternSteps);
         const repeats = Number(part.repeats);
-        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64) {
+        const cycle = part.patternCycleMultiplier ?? 1;
+        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || ![1, 2, 4, 8].includes(cycle)) {
             throw new Error('Invalid saved part timing.');
         }
-        return (60 / bpm) * (steps / 4) * repeats;
+        return (60 / bpm) * (steps / 4) * cycle * repeats;
     }
 
     function libraryKey(storage, crypto) {
@@ -1493,7 +1494,7 @@
                 const detail = this.document.createElement('span');
                 detail.className = 'song-beta-part-detail';
                 const uses = this.song.parts.filter(entry => sourceId(entry) === sourceId(part)).length;
-                detail.textContent = `${part.bpm} BPM · ${part.patternSteps} steps · ${partDurationSeconds(part).toFixed(1)}s${uses > 1 ? ` · Shared: ${uses} uses` : ''}`;
+                detail.textContent = `${part.bpm} BPM · ${part.patternSteps} steps${(part.patternCycleMultiplier ?? 1) > 1 ? ` · full cycle ×${part.patternCycleMultiplier}` : ''} · ${partDurationSeconds(part).toFixed(1)}s${uses > 1 ? ` · Shared: ${uses} uses` : ''}`;
                 controls.append(detail);
                 const colourLabel = this.document.createElement('label');
                 colourLabel.className = 'song-beta-part-colour';

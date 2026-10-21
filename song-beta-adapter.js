@@ -211,6 +211,25 @@
         } else if (assets.has('bastardQ')) throw new Error('Saved Q piano audio has no settings.');
     }
 
+    function songPatternCycleMultiplier(state) {
+        // Keep the grid intact. Slower enabled sequencers need more than one
+        // base-grid duration to reach their last step (x2, x4, x8 / Q rate).
+        const modes = state.modes || {};
+        const steps = Number(state.patternLength);
+        let multiplier = 1;
+        for (const lane of ['L', 'X']) {
+            const prefix = `bastardLoop${lane}`;
+            const active = modes[`${prefix}Enabled`] === true
+                && modes[`${prefix}Sequence`]?.slice(0, steps).some(step => step?.note && !step.rest);
+            if (active) multiplier = Math.max(multiplier, [0.125, 0.25, 0.5, 1, 2, 4, 8][modes[`${prefix}TimingIndex`] ?? 3] || 1);
+        }
+        if (state.q?.enabled === true && state.q.sequence?.slice(0, steps).some(step => step?.notes?.length && !step.rest)) {
+            const rate = Number(state.q.rate ?? 1);
+            if ([.25, .5, 1, 2, 4].includes(rate)) multiplier = Math.max(multiplier, 1 / rate);
+        }
+        return multiplier;
+    }
+
     function prepareSongState(state) {
         const prepared = cloneJson(state);
         prepared.modes = {
@@ -383,6 +402,7 @@
                 state: prepareSongState(state),
                 extra: {
                     freezeStateVersion: 1,
+                    patternCycleMultiplier: songPatternCycleMultiplier(state),
                     audioSlots: Object.fromEntries(audioBindings.map(([key, getBuffer]) => [key, Boolean(getBuffer())])),
                     sequencerSteps: cloneJson(sequencerSteps),
                     seqGrainsEnabled,
@@ -417,6 +437,7 @@
                 throw new Error('This is not a supported complete song-part snapshot.');
             }
             const { snapshot, lanes } = normalizeSongAudioInventory(original);
+            if (![1, 2, 4, 8].includes(snapshot.extra.patternCycleMultiplier ?? 1)) throw new Error('Invalid saved pattern cycle length.');
             if (!Array.isArray(snapshot.extra.sequencerSteps) || snapshot.extra.sequencerSteps.length !== Number(snapshot.state.patternLength)) throw new Error('Part sequencer pattern is incomplete.');
             validateSongAudioInventory(snapshot);
             validateSongAudioEntries(snapshot, entries);

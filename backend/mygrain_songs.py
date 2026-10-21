@@ -316,7 +316,7 @@ def validate_render(body, part):
     with wave.open(BytesIO(body), 'rb') as audio:
         frames = audio.getnframes()
         rate = audio.getframerate()
-        duration = 60 / part['bpm'] * part['patternSteps'] / 4
+        duration = 60 / part['bpm'] * part['patternSteps'] / 4 * part.get('patternCycleMultiplier', 1)
         if audio.getnchannels() != 2 or audio.getsampwidth() != 2 or not 8000 <= rate <= 192000 or abs(frames - round(duration * rate)) > 1:
             raise ValueError('Song render must be stereo PCM16 and exactly one saved pattern long.')
         if len(audio.readframes(frames)) != frames * 4:
@@ -471,6 +471,9 @@ def validate_part_zip(body):
         if not 8 <= steps <= 64 or not 40 <= bpm <= 300 or float(state.get('patternLength', 0)) != steps:
             raise ValueError('Invalid part pattern length or tempo.')
         sequence = extra.get('sequencerSteps')
+        cycle = extra.get('patternCycleMultiplier', 1)
+        if type(cycle) is not int or cycle not in (1, 2, 4, 8):
+            raise ValueError('Invalid part pattern cycle length.')
         if not isinstance(sequence, list) or len(sequence) != steps:
             raise ValueError('Part is missing its sequencer pattern.')
         assets = snapshot.get('assets')
@@ -516,7 +519,7 @@ def validate_part_zip(body):
         content['assets'] = sorted(assets, key=lambda asset: asset['key'])
         content['audioHashes'] = audio_hashes
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
-        return {'bpm': bpm, 'patternSteps': steps, 'audioAssets': len(assets), 'contentSha256': digest, **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
+        return {'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
 
 
 LOOP_LAYERS = ('A', 'B', 'C', 'V', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')

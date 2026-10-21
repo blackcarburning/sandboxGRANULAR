@@ -39,7 +39,7 @@
         try {
             for (const part of parts) {
                 const buffer = renders.get(part.sourcePartId || part.id);
-                const baseDuration = 60 / part.bpm * part.patternSteps / 4;
+                const baseDuration = root.MygrainSongBeta.partDurationSeconds({ ...part, repeats: 1 });
                 if (!buffer || !Number.isFinite(baseDuration) || baseDuration <= 0) throw new Error(`Arm Cache again: ${part.name} has no prepared song audio.`);
                 const start = startTime + Math.round(duration * context.sampleRate) / context.sampleRate;
                 duration += root.MygrainSongBeta.partDurationSeconds(part);
@@ -232,7 +232,7 @@
             deck.saveAudioBufferToDB = async () => {};
             deck.clearAudioBufferFromDB = async () => {};
             deck.mygrainSongBetaAdapter.recall(part, { start: false });
-            const frames = Math.round(60 / timing.bpm * timing.patternSteps / 4 * context.sampleRate);
+            const frames = Math.round(root.MygrainSongBeta.partDurationSeconds({ ...timing, repeats: 1 }) * context.sampleRate);
             const captureTiming = renderCaptureTiming(context, deck);
             const startFrame = captureTiming.startFrame;
             capture = new root.AudioWorkletNode(context, 'mygrain-song-capture-v1', {
