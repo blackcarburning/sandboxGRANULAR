@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Desktop button readability (D.3)
+
+Build `v2026.10.21.D.3` gives enabled desktop buttons readable light text on raised coloured backgrounds, centred wrapping labels and a compact 11px default font. The large Start/Stop control keeps its 19px label and green Start/red Stop states. Layer switchboard columns reserve enough space for channel names, Solo and Jump; selected/recording states retain distinct colours. Genuinely unavailable actions stay disabled with a readable dashed treatment. Piano keys retain their black/white styling and waveform handles retain their specialised layout.
+
+Editor/browser Close buttons share a non-shrinking, high-contrast treatment and sticky dialog headers. The entire override is confined to `min-width: 961px` plus a fine hover pointer: phone, touch/tablet and mobile styles are unchanged. This release changes CSS and build labels only; scripts, audio timing, device history, saved data and import/export behavior are unchanged.
+
 ## Desktop transport response and colours (D.2)
 
 Build `v2026.10.21.D.2` makes desktop Jump Start/Stop use the same action, running state and colours as the large desktop control: **green Start, red Stop**. The Space shortcut uses that same path. Manual desktop starts request a 120ms scheduling lead instead of inheriting a slow historical preparation estimate (which could leave seconds of silence before a warm start). If current preparation is genuinely too slow, the existing transaction cancels the unsafe plan and retries with more lead based on that attempt's actual cost; it never schedules expired audio. Explicit recording/synchronization deadlines are retained. Phone/touch CSS, sidebar behavior, adaptive scheduling, and saved-data formats are unchanged.

@@ -6084,6 +6084,160 @@
         #sectionJumpRedoBtn { color:#fff!important;background:linear-gradient(150deg,#285b46,#102c22)!important;border-color:#a6dfc0!important; }
         #sectionJumpUndoBtn:disabled,#sectionJumpRedoBtn:disabled { opacity:.48; }
     </style>
+    <style id="desktop-button-readability-style">
+/* Desktop mouse/trackpad layouts only. Phone and touch layouts keep their existing rules. */
+@media (min-width: 961px) and (hover: hover) and (pointer: fine) {
+    body.simplified-ui button,
+    body.simplified-ui input:is([type="button"], [type="submit"]),
+    body.simplified-ui [role="button"]:not(.key) {
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: 100%;
+        color: #f0f8ff;
+        background: linear-gradient(150deg, #205273, #12334f);
+        border: 1px solid #6797b8;
+        border-radius: 10px;
+        font-size: 11px !important;
+        font-weight: 750;
+        line-height: 1.25 !important;
+        letter-spacing: .025em !important;
+        text-align: center !important;
+        justify-content: center !important;
+        align-items: center !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        text-shadow: none;
+    }
+
+    body.simplified-ui .performance-btn,
+    body.simplified-ui .source-seed-buttons button,
+    body.simplified-ui .source-secondary-buttons button,
+    body.simplified-ui .source-seed-buttons-stack button {
+        min-width: 0;
+        min-height: 40px;
+        padding: 8px 10px;
+        color: #f0f8ff;
+        background: linear-gradient(150deg, #205273, #12334f);
+        border-color: #6797b8;
+        box-shadow: inset 0 1px #ffffff18, 0 3px 8px #0004;
+    }
+
+    body.simplified-ui :is(.lfo-toggle, .inv-toggle, .mode-toggle, .slope-toggle, .filter-power-toggle):not(.active):not([aria-pressed="true"]) {
+        color: #f0f8ff;
+        background: linear-gradient(150deg, #205273, #12334f);
+        border-color: #6797b8;
+    }
+    body.simplified-ui .performance-vocal-card .performance-btn:not(.recording) {
+        color: #f0f8ff;
+        background: linear-gradient(150deg, #205273, #12334f);
+        border-color: #6797b8;
+    }
+    body.simplified-ui .performance-btn:is(.active, [aria-pressed="true"]):not(.recording):not(.mygrain-solo-button) {
+        color: #effff9;
+        background: linear-gradient(150deg, #1d6459, #124338);
+        border-color: #85e3c6;
+        box-shadow: inset 0 0 0 2px #85e3c666, 0 3px 8px #0004;
+    }
+    body.simplified-ui button:is(#performanceKeyboardToKRecordSurfaceBtn, #performanceKeyboardToKRecordBtn, #performanceBastardLoopKRecordBtn, #performanceBastardLoopKRecordLoopBtn).is-recording {
+        color: #190409 !important;
+    }
+    body.simplified-ui :is(.slope-toggle, .filter-power-toggle).active {
+        background: #6743a2; color: #fff; border-color: #bca1ed;
+    }
+    body.simplified-ui .inv-toggle.active {
+        background: #a5153e; color: #fff; border-color: #ff8fab;
+    }
+    body.simplified-ui .grain-preserve-duration-btn[aria-pressed="true"],
+    body.simplified-ui button.mygrain-solo-button.active,
+    body.simplified-ui button.mygrain-solo-button[aria-pressed="true"],
+    body.simplified-ui .performance-actions-card .performance-actions > button.mygrain-solo-button:is(.active, [aria-pressed="true"]) {
+        background: linear-gradient(135deg, #a5153e, #7d1731) !important;
+        color: #fff !important; border-color: #ff8fab !important;
+    }
+    body.simplified-ui .lead-sequencer-step-btn:is(.is-empty, .is-rest) { color: #e0eaf6; }
+    body.simplified-ui .lead-sequencer-step-btn :is(.lead-sequencer-step-index, .lead-sequencer-step-note) { color: inherit; }
+
+    body.simplified-ui button:enabled:not([aria-disabled="true"]) { opacity: 1; cursor: pointer; }
+    body.simplified-ui button:disabled,
+    body.simplified-ui button[aria-disabled="true"] {
+        color: #d5e1ee !important;
+        -webkit-text-fill-color: currentColor;
+        background: #182b3e !important;
+        border-color: #6f8194 !important;
+        border-style: dashed;
+        opacity: .7 !important;
+        cursor: not-allowed;
+    }
+    body.simplified-ui button:focus-visible { outline: 3px solid #b8f1ff; outline-offset: 3px; }
+    body.simplified-ui button:enabled:hover { filter: brightness(1.12); }
+    body.simplified-ui button[data-nav-section].layer-muted:enabled {
+        background: linear-gradient(150deg, #205273, #12334f) !important;
+        color: #f0f8ff !important; border-color: #6797b8 !important;
+    }
+
+    /* The channel name, Solo and Jump each need a real column, not a 26px remainder. */
+    body.simplified-ui #performanceLayerSwitchesCard .performance-layer-switches {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+    }
+    body.simplified-ui #performanceLayerSwitchesCard .performance-layer-switch-row {
+        grid-template-columns: minmax(0, 1fr) 58px 58px;
+    }
+    body.simplified-ui #performanceLayerSwitchesCard .performance-layer-switch-row--solo-only {
+        grid-template-columns: minmax(0, 1fr) 58px;
+    }
+    body.simplified-ui #performanceLayerSwitchesCard .performance-layer-solo-btn {
+        width: 58px; inline-size: 58px; min-inline-size: 0; max-inline-size: 58px;
+    }
+    body.simplified-ui #performanceLayerSwitchesCard .performance-layer-jump-btn { min-width: 0; padding-inline: 6px; }
+    body.simplified-ui .performance-feature-head { min-width: 0; flex-wrap: wrap; }
+    body.simplified-ui .performance-feature-copy { flex: 1 1 220px; }
+    body.simplified-ui .performance-feature-actions {
+        flex: 1 1 180px; min-width: 0; max-width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+    }
+    body.simplified-ui .performance-feature-card .performance-btn { min-width: 0; }
+    body.simplified-ui .sample-browser-copy { flex: 1 1 auto; min-width: 0; }
+
+    body.simplified-ui #bastardLoopQOverlay #bastardLoopQPalette .q-chord {
+        height: auto; min-height: 44px;
+    }
+    body.simplified-ui #bastardLoopQPalette :is(.q-chord-name, .q-chord-notes) {
+        min-width: 0; max-width: 100%; text-align: center;
+        white-space: normal; overflow-wrap: anywhere;
+    }
+    body.simplified-ui #bastardLoopQPalette .q-chord-name { font-size: 10px; line-height: 1.2; }
+
+    /* One obvious, non-shrinking Close treatment for static and dynamically-created dialogs. */
+    body.simplified-ui button:is([id*="Close"], [id*="close"], [data-action="close"], [data-q-action="close"], [aria-label^="Close"]) {
+        flex: 0 0 auto !important;
+        width: auto !important; min-width: 78px !important; max-width: 180px !important;
+        min-height: 40px !important; padding: 9px 14px !important;
+        color: #fff5f7 !important;
+        background: linear-gradient(145deg, #933851, #572036) !important;
+        border: 1px solid #ee9db4 !important; border-radius: 10px;
+        font-size: 11px !important;
+        align-self: flex-start;
+        box-shadow: inset 0 1px #ffffff20, 0 3px 8px #0004;
+    }
+    body.simplified-ui :is(.sample-browser-head, .vocal-cut-head, .radiolab-browser-head, .mygrain-share-head, #vocalTakesDialog header, .osc-popup-toolbar) {
+        position: sticky; top: 0; z-index: 5;
+        flex-shrink: 0; gap: 12px; align-items: flex-start;
+        padding: 8px; border-radius: 12px; background: #0d1d2d;
+    }
+
+    /* Preserve specialised affordances: large transport, edge tabs and waveform handles. */
+    body.simplified-ui #desktopTransportBtn { font-size: 19px !important; }
+    body.simplified-ui :is(#desktopTransportBtn, #sectionJumpTransportBtn, #sectionJumpTransportPanelBtn) {
+        background: linear-gradient(150deg, #18783e, #0b4929) !important;
+    }
+    body.simplified-ui .history-edge-button { font-size: 9px !important; }
+    body.simplified-ui .key.active { color: #00131a; }
+    body.simplified-ui .vocal-cut-handle {
+        padding: 0; border: 0; border-radius: 0; background: transparent;
+    }
+    body.simplified-ui [hidden] { display: none !important; }
+}
+    </style>
 </head>
 <body class="simplified-ui granular-sampler-mode">
 
@@ -6092,7 +6246,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.D.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.D.3</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6179,7 +6333,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.D.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.D.3</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
