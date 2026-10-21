@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## K recording Undo/Redo (K.6)
+
+Build `v2026.10.21.K.6` journals a completed keyboard/ARP recording as **Record to K**, immediately before replacing the prior K audio. Undo restores the previous take (or empty K); Redo restores the exact raw/rendered PCM, metadata and source BPM, including after a browser restart. It uses the existing ten-step account/device-scoped journal and Song reservation checks. Cancelled/failed capture does not add a step or discard Redo. Pending history blocks a new recording; account/audio changes reject a stale completed take. Count-in timing, capture gain and manual edits outside the recording replacement are unchanged.
+
+Local-only real-audio regression: `MYGRAIN_TEST_URL=http://127.0.0.1:18837/mygrain/ node tests/k-record-history-browser.cjs` (disposable server/accounts; Chromium and WebKit, portrait/landscape, browser-process restart).
+
 ## K waveform audition (K.5)
 
 Build `v2026.10.21.K.5` adds **Audition / Stop Audition** directly below K's waveform. It previews the rendered recording once, using current tuning/reverse/tempo and the K fader while bypassing the layer mute/solo gate, through the existing dry source-audition/master path (not K filter modulation). It does not start or stop backing transport, change the saved recording, or add history. Empty/busy K disables preview. Natural completion, a second tap, Stop All/Panic, Clear K, replacement/rerender and new recording release the preview. Token checks prevent a late audio-recovery completion resurrecting a stopped/cleared audition. Shared source audition remains exclusive. No persistence/export schema changes.

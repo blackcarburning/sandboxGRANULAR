@@ -695,19 +695,20 @@
                 button.title = button.getAttribute('aria-label');
             }
         }
-        function assertReady() {
+        function assertReady(completedKRecording = false) {
             if (initializing) throw new Error('Restoring this device’s Undo/Redo history. Try again in a moment.');
             if (!window.mygrainAccounts?.authenticated || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
-            if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || bastardLoopKRecordingState !== 'idle'
-                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing || window.mygrainAiPatch?.busy || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
+            const kReady = bastardLoopKRecordingState === 'idle' || (completedKRecording && bastardLoopKRecordingState === 'processing');
+            if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || !kReady
+                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording) || window.mygrainAiPatch?.busy || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
             if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
         }
-        function run(label, action) {
+        function run(label, action, completedKRecording = false) {
             if (restoring || window.__mygrainSongRenderDeck) return action();
             // Internal calls within a larger generation are part of that same step.
             // Trusted UI input is blocked by the capture listener while it settles.
             if (busy) return action();
-            assertReady();
+            assertReady(completedKRecording);
             const before = capture(), epoch = generation;
             busy = true; update();
             function finish() {
@@ -725,6 +726,15 @@
                 if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(); throw error; });
                 finish(); return result;
             } catch (error) { if (busy) finish(); throw error; }
+        }
+        function recordK(action) {
+            // The timer that arms Record returns before capture finishes. Journal
+            // only the completed replacement, while the old K PCM is still live.
+            // Never fold a recording into an unrelated pending randomisation.
+            // Recording an amendment is allowed; travel stays blocked until the
+            // amendment is saved/cancelled and its Song reservation is verified.
+            if (busy || bastardLoopKRecordingState !== 'processing') throw new Error('Wait for the current recording or sound change to finish.');
+            return run('Record to K', action, true);
         }
         async function restore(entry, direction, reservationGuard) {
             reservationGuard();
@@ -828,7 +838,7 @@
         };
         for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, guardBusyInput, true);
         window.addEventListener('mygrain-account-lock', () => { generation++; store.close(); undo.length = redo.length = 0; update(); });
-        window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, undo: () => travel('before'), redo: () => travel('after'),
+        window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, recordK, undo: () => travel('before'), redo: () => travel('after'),
             get busy() { return busy || initializing; }, get counts() { return { undo: undo.length, redo: redo.length }; } };
         document.getElementById('sectionJumpUndoBtn')?.addEventListener('click', window.mygrainCardHistory.undo);
         document.getElementById('sectionJumpRedoBtn')?.addEventListener('click', window.mygrainCardHistory.redo);

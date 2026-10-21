@@ -49,7 +49,7 @@ function audioBuffer(channels, sampleRate = 8) {
 
 function recordingFixture(overrides = {}) {
     const timers = new Map();
-    const calls = { capture: [], restart: [], monitor: [], applied: [], statuses: [], stops: 0, arpStops: 0, prepared: [] };
+    const calls = { capture: [], restart: [], monitor: [], applied: [], statuses: [], stops: 0, arpStops: 0, prepared: [], history: [] };
     const buffer = audioBuffer([[0, .2, -.2, 0]]);
     const context = {
         AbortController, MediaRecorder: class {},
@@ -58,6 +58,7 @@ function recordingFixture(overrides = {}) {
         window: {
             setTimeout(callback, delay) { const timerId = timers.size + 1; timers.set(timerId, { callback, delay }); return timerId; },
             MygrainSongClock: { prepareCapture: async () => {} },
+            mygrainCardHistory: { busy: false, recordK(action) { calls.history.push('Record to K'); return action(); } },
             mygrainSongBetaAdapter: { setKeyboardRecordingMonitor: enabled => calls.monitor.push(enabled) }
         },
         audioContext: { state: 'running', currentTime: 10 },
@@ -126,6 +127,53 @@ test('K arming stops the backing for count-in without modifying solo or layer en
     assert.equal(calls.capture[0][2], context.bastardLoopKRecordingAbortController.signal);
     assert.equal(context.bastardLoopKRecorderStartTime, calls.capture[0][0]);
     assert.deepEqual(calls.monitor, [true]);
+    assert.deepEqual(calls.history, [], 'Arming/count-in must not create history');
+});
+
+test('K recording waits for pending history before stopping playback or arming capture', async () => {
+    const { context, calls } = recordingFixture();
+    context.window.mygrainCardHistory.busy = true;
+    assert.equal(await context.beginBastardLoopKRecording(), false);
+    assert.equal(calls.stops, 0);
+    assert.equal(calls.capture.length, 0);
+    assert.equal(context.bastardLoopKRecordingState, 'idle');
+    assert.match(calls.statuses.at(-1)[0], /Undo\/Redo/);
+});
+
+test('a completed K take cannot be applied or journaled into a changed account history or audio context', async () => {
+    for (const target of ['history', 'audio']) {
+        const { context, calls, timers } = recordingFixture();
+        await context.beginBastardLoopKRecording();
+        if (target === 'history') context.window.mygrainCardHistory = { ...context.window.mygrainCardHistory };
+        else context.audioContext = { ...context.audioContext };
+        await timers.get(context.bastardLoopKRecordStopTimerId).callback();
+        assert.equal(calls.applied.length, 0);
+        assert.equal(calls.history.length, 0);
+        assert.equal(context.bastardLoopKRecordingState, 'idle');
+        assert.match(calls.statuses.at(-1)[0], /Account or audio changed/);
+    }
+});
+
+test('K completion is the only recording-phase history exception; an amendment cannot block saving the captured take', () => {
+    function fixture(overrides = {}) {
+        return load({
+            initializing: false, window: { mygrainAccounts: { authenticated: true }, mygrainSongBeta: { editing: { id: 'amending' } } },
+            isAudioGraphReady: () => true, engineStarting: false, stateSaveSuspended: false,
+            isRecording: false, isOutputRecording: false, isOutputRecordingArmed: false,
+            bastardLoopMRecordingState: 'idle', bastardLoopMPlusRecordingState: 'idle', bastardLoopKRecordingState: 'processing',
+            megaRandomizeInFlight: false, drumMachineLoadInFlight: false,
+            bastardLoopGenerationInFlight: false, bastardLoop2GenerationInFlight: false, bastardLoop3GenerationInFlight: false,
+            bastardLoopVGenerationInFlight: false, bastardLoopPGenerationInFlight: false, bastardLoopOGenerationInFlight: false,
+            dropboxSampleLayerLoadInFlight: false, ...overrides
+        }, ['assertReady'], adapterSource);
+    }
+    const context = fixture();
+    assert.throws(() => context.assertReady(), /Finish recording/, 'Travel keeps its original recording/amendment guard');
+    assert.doesNotThrow(() => context.assertReady(true));
+    for (const phase of ['countin', 'recording']) assert.throws(() => fixture({ bastardLoopKRecordingState: phase }).assertReady(true), /Finish recording/);
+    for (const override of [{ isRecording: true }, { bastardLoopMRecordingState: 'recording' }, { bastardLoopMPlusRecordingState: 'recording' }, { megaRandomizeInFlight: true }, { drumMachineLoadInFlight: true }]) {
+        assert.throws(() => fixture(override).assertReady(true), /Finish recording|Wait for the current/);
+    }
 });
 
 test('K restarts the current pattern on the take downbeat whether loops, sequencer, drums or song were active', async () => {
@@ -181,6 +229,7 @@ test('cancelling or failing a recorded arp releases its live playback permission
         assert.equal(context.bastardLoopKRecordingArp, false);
         assert.equal(context.arpEnabled, true);
         assert.equal(calls.applied.length, 0);
+        assert.equal(calls.history.length, 0, 'Cancelled/failed capture must preserve the Redo branch');
     }
 });
 
@@ -209,6 +258,7 @@ test('capture processing does not apply gain twice or trim count-in audio; prese
     await timers.get(context.bastardLoopKRecordStopTimerId).callback();
     assert.equal(calls.applied[0][0], buffer);
     assert.equal(calls.applied[0][1].joinSharedTransport, true);
+    assert.deepEqual(calls.history, ['Record to K']);
     assert.equal(context.bastardLoopKRecordingState, 'idle');
     assert.deepEqual(calls.monitor, [true, false]);
     assert.deepEqual(context.performanceSourceLayerSolo, ['generated']);

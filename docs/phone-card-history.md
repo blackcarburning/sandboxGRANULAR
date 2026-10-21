@@ -2,6 +2,12 @@
 
 Build: v2026.10.20.TOUCH.9.
 
+## K.6 — completed keyboard / ARP recordings
+
+Each successfully captured K take adds one **Record to K** step at the asynchronous replacement boundary, not when the count-in is armed. Both previous and new raw/rendered buffers, metadata and source BPM are retained by the existing exact-PCM journal. Undo can return to empty K or the previous take; Redo restores the recording after travel and browser restarts. The narrow `recordK` transaction permits only K's processing phase, never history travel or unrelated randomisation during capture. Pending history prevents arming a take. A changed account history/audio context rejects stale completion; failed/cancelled capture leaves the existing Redo branch intact. Ten-step limits, stable device identity, tab locks, Song reservations, lazy PCM restoration and persistence formats remain unchanged.
+
+Regression: `tests/k-record-history-browser.cjs` uses real ARP and keyboard-bus captures, native phone taps, per-channel PCM hashes, replacement takes, unrelated fader preservation, actual browser-process restarts, cancellation and existing Clear K history in Chromium/WebKit.
+
 - All loop-card and L/X/Q editor action buttons use normal native taps. The global hold-delay input interception has been removed entirely; accidental randomisations can be reversed with Undo.
 - Playable keys, chord pads, step grids, Solo toggles, Stop/Close/Cancel, mouse and keyboard activation keep their usual immediate behaviour.
 - Left-edge Undo (red) and Redo (green) retain ten global randomisation steps. Numbers show available steps. New changes discard the redo branch. History survives reloads and browser restarts in local browser storage, scoped to the account and stable Song device ID. Account lock clears RAM only; the saved journal remains isolated for that account/device.

@@ -43,6 +43,7 @@ async function setup(page, sound, mode, multiplier, stopped) {
         setArpMode(mode, { skipSave: true });
         setArpClockMultiplier(multiplier, { skipSave: true });
         setArpeggiatorEnabled(true, { skipSave: true });
+        stateSaveSuspended = false;
     }, { mode, multiplier });
     await page.locator('#keyboardContainer').evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
     const notes = await page.evaluate(() => [...document.querySelectorAll('#keyboardContainer .key:not(.black)')].filter(key => {

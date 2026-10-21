@@ -55,6 +55,7 @@ async function configure(page) {
             silent.connect(audioContext.destination);
         }
         syncBastardLoopKUi();
+        stateSaveSuspended = false;
     });
 }
 
