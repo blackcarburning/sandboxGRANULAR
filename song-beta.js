@@ -300,7 +300,7 @@
                     : this.revisionConflict ? 'Song changed on the server: Refresh Songs before saving. Your live pattern is still available.'
                     : this.lease.message || (this.canEditSong() ? `Editing on ${this.lease.device.label}. Finish Editing releases access for another device.`
                     : this.lease.lock ? `Read-only: being edited on ${this.lease.lock.label}. Last confirmed expiry: ${new Date(this.lease.lock.expiresAt * 1000).toLocaleTimeString()}. Playback is available.`
-                    : 'Ready to edit. Amend, Paste and other changes request editing access automatically. Another device’s lock is never overridden.');
+                    : 'Ready to edit. Changes request editing access automatically. A same-name crashed session can be cleared explicitly; other device names stay protected.');
                 status.classList.toggle('song-beta-error', Boolean(this.lease.message || this.revisionConflict));
             }
             const edit = this.element('songBetaEditSong');
@@ -309,14 +309,33 @@
             if (finish) finish.disabled = this.busy || !this.lease.token;
             const device = this.element('songBetaDeviceName');
             if (device) device.disabled = this.busy || Boolean(this.lease.token);
+            const recover = this.element('songBetaRecoverLock');
+            if (recover) {
+                recover.hidden = !this.canRecoverLock();
+                recover.disabled = this.busy || this.playing || this.revisionConflict;
+            }
         }
 
-        async beginEditing() {
+        canRecoverLock() {
+            const label = (this.element('songBetaDeviceName')?.value || this.lease.device.label).trim();
+            return Boolean(this.song && !this.canEditSong() && this.lease.lock?.recoveryId
+                && label && label.toLowerCase() === this.lease.lock.label.trim().toLowerCase());
+        }
+
+        async recoverEditingLock() {
+            if (!this.canRecoverLock()) throw new Error('Only a lock with the same device name can be cleared here.');
+            const recoveryId = this.lease.lock.recoveryId;
+            const label = this.lease.lock.label;
+            if (!root.confirm(`Clear the editing lock for ${label} and edit this song here? Use this after a crash. Any other session using that name will lose editing access. Saved song data and your unsaved live pattern stay unchanged.`)) return;
+            await this.beginEditing(recoveryId);
+        }
+
+        async beginEditing(recoveryId = null) {
             if (!this.song) throw new Error('Choose a song first.');
             if (this.revisionConflict) throw new Error('Refresh Songs before editing the changed song.');
             const label = (this.element('songBetaDeviceName')?.value || this.lease.device.label).trim();
             if (!label || label.length > 100 || /[\x00-\x1f]/.test(label)) throw new Error('Use a device name between 1 and 100 characters.');
-            const song = await this.lease.acquire(this.song.id, this.song.revision, label);
+            const song = await this.lease.acquire(this.song.id, this.song.revision, label, recoveryId);
             this.lease.device.label = label;
             this.storage.setItem('mygrain-song-device-label-v1', label);
             this.song = song;
@@ -353,6 +372,8 @@
 
         bind() {
             this.element('songBetaEditSong')?.addEventListener('click', () => this.run(() => this.beginEditing()));
+            this.element('songBetaRecoverLock')?.addEventListener('click', () => this.run(() => this.recoverEditingLock()));
+            this.element('songBetaDeviceName')?.addEventListener('input', () => this.renderLockUi());
             this.element('songBetaFinishEditing')?.addEventListener('click', () => this.run(() => this.finishEditing()));
             this.element('songBetaBackupAccess')?.addEventListener('click', () => this.run(() => this.backupLibraryAccess()));
             this.element('songBetaOpenAccess')?.addEventListener('click', () => this.element('songBetaAccessFile')?.click());

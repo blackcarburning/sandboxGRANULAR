@@ -230,3 +230,65 @@ test('revision conflicts leave the amendment intact and disable further writes',
     assert.equal(controller.canEditSong(), false);
     await assert.rejects(controller.request('/song-1234abcd/rename', { method: 'POST' }), /changed on the server/);
 });
+
+test('explicit recovery sends the observed lock identity with fresh session identity and exact revision', async () => {
+    const state = fixture();
+    await state.lease.acquire('song-1234abcd', 8, 'Marks Phone', 'c'.repeat(64));
+    const recovered = state.requests.find(entry => entry.path.endsWith('/recover'));
+    assert.equal(recovered.options.headers['If-Match'], '"8"');
+    assert.deepEqual(JSON.parse(recovered.options.body), {
+        deviceId: state.lease.device.id, sessionId: state.lease.session, label: 'Marks Phone', recoveryId: 'c'.repeat(64)
+    });
+    assert.equal(state.lease.canWrite, true);
+    state.dispose();
+});
+
+test('recovery option follows the entered name and never grants write access by itself', () => {
+    const controller = controllerFixture(async () => {});
+    controller.lease.lock = { label: 'Marks Phone', expiresAt: 2000, recoveryId: 'c'.repeat(64) };
+    const input = controller.element('songBetaDeviceName');
+    input.value = 'Laptop';
+    controller.renderLockUi();
+    assert.equal(controller.element('songBetaRecoverLock').hidden, true);
+    input.value = '  marks phone  ';
+    controller.renderLockUi();
+    assert.equal(controller.element('songBetaRecoverLock').hidden, false);
+    assert.equal(controller.canEditSong(), false);
+});
+
+test('cancelled recovery never calls the server or changes the live amendment', async () => {
+    const controller = controllerFixture(async () => { throw new Error('Unexpected network request'); });
+    controller.element('songBetaDeviceName').value = 'Marks Phone';
+    controller.lease.lock = { label: 'Marks Phone', expiresAt: 2000, recoveryId: 'c'.repeat(64) };
+    const draft = controller.editing = { id: 'draft' };
+    const original = global.confirm;
+    try {
+        global.confirm = () => false;
+        await controller.recoverEditingLock();
+        assert.equal(controller.editing, draft);
+        assert.equal(controller.lease.token, null);
+    } finally { global.confirm = original; }
+});
+
+test('accepted recovery preserves draft and obtains server-validated ownership without recalling audio', async () => {
+    const requests = [];
+    const controller = controllerFixture(async (url, options) => {
+        requests.push({ url, options });
+        return { ok: true, json: async () => ({ ok: true, token: 'd'.repeat(64), serverTime: 1000,
+            lock: { label: 'Marks Phone', expiresAt: 1600, recoveryId: 'e'.repeat(64) },
+            song: { id: 'song-1234abcd', revision: 8, parts: [] } }) };
+    });
+    controller.element('songBetaDeviceName').value = 'Marks Phone';
+    controller.lease.lock = { label: 'Marks Phone', expiresAt: 2000, recoveryId: 'c'.repeat(64) };
+    const draft = controller.editing = { id: 'draft' };
+    const original = global.confirm;
+    try {
+        global.confirm = () => true;
+        await controller.recoverEditingLock();
+        assert.equal(controller.editing, draft);
+        assert.equal(controller.canEditSong(), true);
+        assert.equal(requests.length, 1);
+        assert.match(requests[0].url, /\/lock\/recover$/);
+        assert.equal(controller.lease.device.label, 'Marks Phone');
+    } finally { global.confirm = original; clearTimeout(controller.lease.timer); }
+});

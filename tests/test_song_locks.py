@@ -49,7 +49,9 @@ class SongLockTests(unittest.TestCase):
     def test_ten_minute_lease_has_no_public_secret_or_hardware_identity(self):
         acquired = self.acquire()
         self.assertEqual(acquired.status, 200)
-        self.assertEqual(acquired.response['lock'], {'label': 'Mark iPhone', 'expiresAt': 1600})
+        self.assertEqual(acquired.response['lock']['label'], 'Mark iPhone')
+        self.assertEqual(acquired.response['lock']['expiresAt'], 1600)
+        self.assertRegex(acquired.response['lock']['recoveryId'], r'^[a-f0-9]{64}$')
         status = self.call('GET', self.base + '/lock')
         self.assertEqual(status.response['leaseSeconds'], 600)
         self.assertEqual(status.response_headers['Cache-Control'], 'no-store')
@@ -79,6 +81,60 @@ class SongLockTests(unittest.TestCase):
         self.acquire()
         other_tab = {**self.first, 'sessionId': '5' * 32}
         self.assertEqual(self.acquire(other_tab).status, 423)
+
+    def recover(self, acquired, identity=None, revision=1):
+        return self.call('POST', self.base + '/lock/recover',
+                         payload={**(identity or self.first), 'recoveryId': acquired.response['lock']['recoveryId']},
+                         headers={'If-Match': f'"{revision}"'})
+
+    def test_explicit_same_name_recovery_rotates_credentials_without_changing_song(self):
+        old = self.acquire()
+        before = (SONGS.SONGS_ROOT / self.song['id'] / 'song.json').read_bytes()
+        replacement_identity = {**self.second, 'label': self.first['label']}
+        recovered = self.recover(old, replacement_identity)
+        self.assertEqual(recovered.status, 200)
+        self.assertNotEqual(recovered.response['token'], old.response['token'])
+        self.assertNotEqual(recovered.response['lock']['recoveryId'], old.response['lock']['recoveryId'])
+        self.assertEqual((SONGS.SONGS_ROOT / self.song['id'] / 'song.json').read_bytes(), before)
+        self.assertEqual(self.rename(self.credentials(old)).status, 423)
+        for action in ('renew', 'release'):
+            self.assertEqual(self.call('POST', self.base + '/lock/' + action, headers=self.credentials(old)).status, 423)
+        self.assertEqual(self.rename(self.credentials(recovered, replacement_identity)).status, 200)
+
+    def test_recovery_does_not_allow_other_names_or_stale_confirmation(self):
+        old = self.acquire()
+        self.assertEqual(self.recover(old, self.second).response['code'], 'SONG_LOCK_NAME_MISMATCH')
+        recovered = self.recover(old)
+        self.assertEqual(recovered.status, 200)
+        self.assertEqual(self.recover(old).response['code'], 'SONG_LOCK_CHANGED')
+        self.assertEqual(self.rename(self.credentials(recovered)).status, 200)
+
+    def test_recovery_checks_revision_library_and_identity_before_replacing_lock(self):
+        old = self.acquire()
+        self.rename(self.credentials(old))
+        self.assertEqual(self.recover(old).response['code'], 'SONG_REVISION_CONFLICT')
+        payload = {**self.first, 'recoveryId': old.response['lock']['recoveryId']}
+        self.assertEqual(self.call('POST', self.base + '/lock/recover', key='b' * 64, payload=payload).status, 404)
+        self.assertEqual(self.call('POST', self.base + '/lock/recover', payload={**payload, 'deviceId': '../bad'}).status, 400)
+        for invalid in ('', 'not-a-lock', '\u00e9' * 64):
+            self.assertEqual(self.call('POST', self.base + '/lock/recover', payload={**payload, 'recoveryId': invalid}, headers={'If-Match': '"2"'}).response['code'], 'SONG_LOCK_CHANGED')
+        self.assertEqual(self.rename(self.credentials(old, revision=2)).status, 200)
+
+    def test_recovery_confirmation_survives_heartbeat_but_not_expiry_or_replacement(self):
+        old = self.acquire()
+        self.now = 1030
+        renewed = self.call('POST', self.base + '/lock/renew', headers=self.credentials(old))
+        self.assertEqual(old.response['lock']['recoveryId'], renewed.response['lock']['recoveryId'])
+        self.assertEqual(self.recover(old).status, 200)
+        self.now = 1630
+        self.assertEqual(self.recover(old).response['code'], 'SONG_LOCK_CHANGED')
+
+    def test_simultaneous_recovery_of_one_observed_lock_has_one_winner(self):
+        old = self.acquire()
+        identities = [self.first, {**self.second, 'label': self.first['label']}]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda identity: self.recover(old, identity), identities))
+        self.assertEqual(sorted(result.status for result in results), [200, 423])
 
     def test_different_songs_can_have_different_editors(self):
         first = self.acquire()

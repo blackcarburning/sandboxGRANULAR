@@ -56,7 +56,8 @@ def read_edit_lock(folder):
 
 
 def public_edit_lock(lock):
-    return {'label': lock['label'], 'expiresAt': lock['expiresAt']} if lock else None
+    return {'label': lock['label'], 'expiresAt': lock['expiresAt'],
+            'recoveryId': hashlib.sha256(('mygrain-song-recovery:' + lock['tokenHash']).encode('ascii')).hexdigest()} if lock else None
 
 
 def write_edit_lock(folder, lock):
@@ -94,8 +95,8 @@ def require_song_editor(folder, song, headers):
 def handle_edit_lock(handler, folder, song, action):
     lock = read_edit_lock(folder)
     token = None
-    if action == 'acquire':
-        if lock:
+    if action in ('acquire', 'recover'):
+        if lock and action == 'acquire':
             raise SongEditError(f'This song is being edited on {lock["label"]}. Playback is still available.', code='SONG_LOCKED', lock=public_edit_lock(lock))
         payload = json_object(handler.read_json())
         for field in ('deviceId', 'sessionId'):
@@ -103,6 +104,12 @@ def handle_edit_lock(handler, folder, song, action):
                 raise ValueError('A valid browser installation and editing session are required.')
         label = clean_name(payload.get('label'))
         check_song_revision(song, handler.headers)
+        if action == 'recover':
+            expected = payload.get('recoveryId')
+            if not lock or not isinstance(expected, str) or not re.fullmatch(r'[a-f0-9]{64}', expected) or not secrets.compare_digest(expected, public_edit_lock(lock)['recoveryId']):
+                raise SongEditError('The editing lock changed. Check the current lock before recovering it.', code='SONG_LOCK_CHANGED', lock=public_edit_lock(lock))
+            if label.lower() != lock['label'].strip().lower():
+                raise SongEditError('Only a lock with the same device name can be cleared here.', code='SONG_LOCK_NAME_MISMATCH', lock=public_edit_lock(lock))
         token = secrets.token_hex(32)
         lock = {**{field: payload[field] for field in ('deviceId', 'sessionId')}, 'label': label,
                 'tokenHash': hashlib.sha256(token.encode('ascii')).hexdigest(), 'expiresAt': time.time() + EDIT_LEASE_SECONDS}

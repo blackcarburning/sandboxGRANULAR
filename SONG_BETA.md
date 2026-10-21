@@ -1,5 +1,22 @@
 # Song beta
 
+## Recover a crashed same-name editor — 21 October 2026
+
+Build `v2026.10.21.LOCK.2` adds **Clear Lock & Edit** beside the editing
+controls when the selected song is locked by the same name as **This device**
+(ignoring case and leading/trailing spaces). Choose it and confirm after a
+crash. It replaces the observed lock atomically with a fresh session credential;
+it does not reload sounds, cancel an amendment, save a part or change the song.
+The abandoned session can no longer save, renew or release the new lock.
+
+Other device names remain blocked. Ordinary Edit Song never takes over a lock.
+Recovery still requires access to the same account/library, a matching current
+song revision and the exact lock shown at confirmation. A replacement lock is
+not cleared by an older confirmation. Device names are a deliberate recovery
+choice within that library, not device identity: Undo/Redo remains scoped to
+the original exact account/device ID, never to the shared display name.
+No Song Access, song-part, audio, history or export schema changes are required.
+
 ## Familiar Song workflow with copy/paste — 15 October 2026
 
 Build `v2026.10.15.COPY.4` keeps the existing Song controls and adds only

@@ -97,15 +97,15 @@
             }
         }
 
-        async acquire(songId, revision, label) {
+        async acquire(songId, revision, label, recoveryId = null) {
             if (this.songId !== songId) await this.watch(songId);
             this.generation += 1;
             const generation = this.generation;
             root.clearTimeout(this.timer);
             try {
-                const payload = await this.network(`/${encodeURIComponent(songId)}/lock/acquire`, {
+                const payload = await this.network(`/${encodeURIComponent(songId)}/lock/${recoveryId ? 'recover' : 'acquire'}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'If-Match': `"${revision}"` },
-                    body: JSON.stringify({ deviceId: this.device.id, sessionId: this.session, label })
+                    body: JSON.stringify({ deviceId: this.device.id, sessionId: this.session, label, ...(recoveryId ? { recoveryId } : {}) })
                 });
                 if (generation !== this.generation || songId !== this.songId) throw new Error('Song selection changed; the editing lock will expire automatically.');
                 this.token = payload.token;
