@@ -294,7 +294,7 @@
     <script>window.mygrainAccounts?.loadScript('audio-debug-storage.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261020-vcut-random-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('drum-tone.js?v=20261014-drum-tone-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('drum-enhancements.css?v=20261014-drum-tone-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('drum-enhancements.css?v=20261021-etc-1');</script>
     <script>window.mygrainAccounts?.loadScript('sample-favourites.js?v=20261014-favourites-1');</script>
     <script>window.mygrainAccounts?.loadStyle('sample-favourites.css?v=20261014-favourites-1');</script>
     <style>
@@ -6268,7 +6268,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.LX.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.ETC.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6355,7 +6355,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.LX.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.ETC.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -11492,7 +11492,7 @@
                 <div class="drum-machine-head">
                     <div class="drum-machine-copy">
                         <h3 id="drumMachineTitle">Drum Machine</h3>
-                        <p id="drumMachineSubtitle">Kick · Snare · Hat · Perc · Clap · Cymbals. Browse or randomise hits, then edit the synced grid.</p>
+                        <p id="drumMachineSubtitle">Kick · Snare · Hat · Perc · Clap · Crash · ETC (manual). Browse or randomise hits, then edit the synced grid.</p>
                     </div>
                     <button class="performance-btn drum-machine-close-btn" id="drumMachineCloseBtn" type="button">Close</button>
                 </div>
@@ -13039,7 +13039,8 @@
             hat: 'samples_hats',
             perc: 'sampledrop',
             clap: 'samples_clap',
-            cymbals: 'samples_crash'
+            cymbals: 'samples_crash',
+            etc: 'samples_crash'
         };
         const FINAL_COMPRESSOR_SIDECHAIN_OPTIONS = [
             { value: 'off', label: 'SC Off', status: 'Final sidechain off.' },
@@ -13059,6 +13060,7 @@
             drumMachinePerc: 'drumMachinePerc',
             drumMachineClap: 'drumMachineClap',
             drumMachineCymbals: 'drumMachineCymbals',
+            drumMachineEtc: 'drumMachineEtc',
             bastardLoopL: 'bastardLoopL',
             bastardLoopX: 'bastardLoopX',
             grainMainMic: 'grainMainMic',
@@ -14028,10 +14030,10 @@
         let drumMachineHatMetadata = null;
         let drumMachinePercMetadata = null;
         let drumMachinePercBrowserSourceKey = DRUM_MACHINE_SOURCE_KEYS.perc;
-        const drumMachineExtraTracks = Object.fromEntries(['clap', 'cymbals'].map(kind => [kind, {
+        const drumMachineExtraTracks = Object.fromEntries(['clap', 'cymbals', 'etc'].map(kind => [kind, {
             kind,
-            id: kind === 'clap' ? 'drumMachineClap' : 'drumMachineCymbals',
-            label: kind === 'clap' ? 'Clap' : 'Cymbals',
+            id: kind === 'etc' ? 'drumMachineEtc' : kind === 'clap' ? 'drumMachineClap' : 'drumMachineCymbals',
+            label: kind === 'etc' ? 'ETC' : kind === 'clap' ? 'Clap' : 'Cymbals',
             buffer: null,
             metadata: null,
             pattern: Array.from({ length: DEFAULT_PATTERN_LENGTH_STEPS }, () => false),
@@ -28966,13 +28968,13 @@
                     const initial = property === 'pitch' ? 0 : 100;
                     return `<div class="performance-sound-card"><label for="${track.id}${title}"><span>${track.label} ${title}</span><span class="value" id="${track.id}${title}Value">${initial}${property === 'pitch' ? ' st' : '%'}</span></label><input type="range" id="${track.id}${title}" min="${minimum}" max="${maximum}" value="${initial}" step="1"></div>`;
                 }).join('');
-                layout.insertAdjacentHTML('beforeend', `<article class="drum-machine-track-card" aria-label="${track.label} track"><div class="drum-machine-track-head"><div class="drum-machine-track-copy"><div class="performance-chip">${track.label}</div><p id="${track.id}Meta"></p></div><div class="drum-machine-track-actions"><button class="performance-btn" id="${track.id}BrowseBtn" type="button">Browse ${track.label}</button><button class="performance-btn" id="${track.id}RandomBtn" type="button">Random Sample</button><button class="performance-btn" id="${track.id}PatternBtn" type="button">Random Pattern</button><button class="performance-btn" id="${track.id}ClearBtn" type="button">Clear</button></div></div>${controls}<div class="drum-machine-track-meta"><span>Ratchet above</span><span>Tap = step</span></div><div class="drum-machine-step-grid" id="${track.id}Grid" role="group" aria-label="${track.label} pattern grid"></div></article>`);
+                layout.insertAdjacentHTML('beforeend', `<article class="drum-machine-track-card" aria-label="${track.label} track"><div class="drum-machine-track-head"><div class="drum-machine-track-copy"><div class="performance-chip">${track.label}</div><p id="${track.id}Meta"></p></div><div class="drum-machine-track-actions"><button class="performance-btn" id="${track.id}BrowseBtn" type="button">Browse ${track.label}</button>${track.kind === 'etc' ? '' : `<button class="performance-btn" id="${track.id}RandomBtn" type="button">Random Sample</button><button class="performance-btn" id="${track.id}PatternBtn" type="button">Random Pattern</button>`}<button class="performance-btn" id="${track.id}ClearBtn" type="button">Clear</button></div></div>${controls}<div class="drum-machine-track-meta"><span>Ratchet above</span><span>Tap = step</span></div><div class="drum-machine-step-grid" id="${track.id}Grid" role="group" aria-label="${track.label} pattern grid"></div></article>`);
                 document.getElementById(`${track.id}BrowseBtn`).addEventListener('click', () => openDropboxSampleBrowser(track.id));
-                document.getElementById(`${track.id}RandomBtn`).addEventListener('click', async () => {
+                document.getElementById(`${track.id}RandomBtn`)?.addEventListener('click', async () => {
                     try { await loadRandomSingleDrumMachineSample(track.kind); }
                     catch (error) { setStatus(`${track.label} sample load failed: ${error.message}`, 'error'); }
                 });
-                document.getElementById(`${track.id}PatternBtn`).addEventListener('click', () => window.mygrainCardHistory.run(`${track.label} pattern`, () => setDrumMachinePattern(track.kind, buildRandomDrumMachinePattern(track.kind, { force: true }))));
+                document.getElementById(`${track.id}PatternBtn`)?.addEventListener('click', () => window.mygrainCardHistory.run(`${track.label} pattern`, () => setDrumMachinePattern(track.kind, buildRandomDrumMachinePattern(track.kind, { force: true }))));
                 document.getElementById(`${track.id}ClearBtn`).addEventListener('click', () => {
                     track.ratchets.fill(0);
                     track.accents.fill(false);
@@ -28987,7 +28989,7 @@
         }
 
         function getDrumMachineToneOptions(kind, accent = false) {
-            const prefix = kind === 'hat' ? 'drumMachineHat' : 'drumMachineCymbals';
+            const prefix = kind === 'etc' ? 'drumMachineEtc' : kind === 'hat' ? 'drumMachineHat' : 'drumMachineCymbals';
             return {
                 cutoff: Number(document.getElementById(`${prefix}FilterCutoff`)?.value ?? 100),
                 envAmount: Number(document.getElementById(`${prefix}FilterEnv`)?.value ?? 0) / 100,
@@ -28996,7 +28998,7 @@
         }
 
         function restoreDrumMachineToneDefaults(sliders = {}) {
-            for (const prefix of ['drumMachineHat', 'drumMachineCymbals']) {
+            for (const prefix of ['drumMachineHat', 'drumMachineCymbals', 'drumMachineEtc']) {
                 for (const [suffix, fallback] of [['FilterCutoff', 100], ['FilterEnv', 0]]) {
                     const control = document.getElementById(`${prefix}${suffix}`);
                     if (control) {
@@ -29013,7 +29015,7 @@
             const jumps = document.createElement('nav');
             jumps.className = 'drum-machine-jumps';
             jumps.setAttribute('aria-label', 'Jump to drum lane');
-            const lanes = [['Kick', 'kick'], ['Snare', 'snare'], ['Hat', 'hat'], ['Perc', 'perc'], ['Clap', 'clap'], ['Crash', 'cymbals']];
+            const lanes = [['Kick', 'kick'], ['Snare', 'snare'], ['Hat', 'hat'], ['Perc', 'perc'], ['Clap', 'clap'], ['Crash', 'cymbals'], ['ETC', 'etc']];
             const cards = [...layout.children];
             lanes.forEach(([label, kind], index) => {
                 const card = cards[index];
@@ -29029,9 +29031,9 @@
                     jumps.querySelectorAll('button').forEach(button => button.setAttribute('aria-current', String(button === tab)));
                 });
                 jumps.append(tab);
-                if (!['hat', 'cymbals'].includes(kind)) return;
-                const prefix = kind === 'hat' ? 'drumMachineHat' : 'drumMachineCymbals';
-                const fields = kind === 'cymbals' ? [['AccentAmount', 'Accent Amount', 35], ['FilterCutoff', 'Low Pass · 48 dB/oct', 100], ['FilterEnv', 'Accent Filter Envelope', 0]] : [['FilterCutoff', 'Low Pass · 48 dB/oct', 100], ['FilterEnv', 'Accent Filter Envelope', 0]];
+                if (!['hat', 'cymbals', 'etc'].includes(kind)) return;
+                const prefix = kind === 'etc' ? 'drumMachineEtc' : kind === 'hat' ? 'drumMachineHat' : 'drumMachineCymbals';
+                const fields = ['cymbals', 'etc'].includes(kind) ? [['AccentAmount', 'Accent Amount', 35], ['FilterCutoff', 'Low Pass · 48 dB/oct', 100], ['FilterEnv', 'Accent Filter Envelope', 0]] : [['FilterCutoff', 'Low Pass · 48 dB/oct', 100], ['FilterEnv', 'Accent Filter Envelope', 0]];
                 const grid = card.querySelector('.drum-machine-step-grid');
                 for (const [suffix, title, initial] of fields) {
                     const id = `${prefix}${suffix}`;
@@ -29043,7 +29045,7 @@
                     const update = () => {
                         const value = Number(slider.value);
                         field.querySelector('.value').textContent = `${value}%`;
-                        if (suffix === 'AccentAmount') drumMachineExtraTracks.cymbals.accentAmount = value / 100;
+                        if (suffix === 'AccentAmount') drumMachineExtraTracks[kind].accentAmount = value / 100;
                     };
                     update();
                     slider.addEventListener('input', () => { update(); saveState(); });
@@ -29067,8 +29069,8 @@
             const count = Math.max(1, Math.min(8, Number(track.ratchets[stepIndex]) || 1));
             for (let hit = 0; hit < count; hit += 1) {
                 const scale = hit === 0 ? 1 : count >= 4 ? .6 : count === 3 ? .68 : .76;
-                const accent = kind === 'cymbals' && Boolean(track.accents?.[stepIndex]);
-                playDrumMachineHit(track.buffer, scheduledTime + stepDuration * hit / count, Math.pow(2, track.pitch / 12), { level: track.level * scale * (accent ? 1 + track.accentAmount * .5 : 1), decayRatio: track.decay, lengthRatio: track.length, distortionAmount: 0, bypassFinalCompressor: false, accent, tone: kind === 'cymbals' ? getDrumMachineToneOptions(kind, accent) : null });
+                const accent = ['cymbals', 'etc'].includes(kind) && Boolean(track.accents?.[stepIndex]);
+                playDrumMachineHit(track.buffer, scheduledTime + stepDuration * hit / count, Math.pow(2, track.pitch / 12), { level: track.level * scale * (accent ? 1 + track.accentAmount * .5 : 1), decayRatio: track.decay, lengthRatio: track.length, distortionAmount: 0, bypassFinalCompressor: false, accent, tone: ['cymbals', 'etc'].includes(kind) ? getDrumMachineToneOptions(kind, accent) : null });
             }
         }
 
@@ -30024,6 +30026,7 @@
         }
 
         function buildRandomDrumMachinePattern(track, options = {}) {
+            if (track === 'etc') return drumMachineExtraTracks.etc.pattern.slice();
             if (drumMachineExtraTracks[track]) {
                 const lane = drumMachineExtraTracks[track];
                 return Array.from({ length: getDrumMachinePatternLength() }, (unused, index) => {
@@ -30087,7 +30090,7 @@
             setDrumMachinePattern('kick', kickPattern, { skipSave: true });
             setDrumMachinePattern('snare', snarePattern, { skipSave: true });
             setDrumMachinePattern('hat', hatPattern, { skipSave: true });
-            for (const kind of Object.keys(drumMachineExtraTracks)) setDrumMachinePattern(kind, buildRandomDrumMachinePattern(kind), { skipSave: true });
+            for (const kind of Object.keys(drumMachineExtraTracks).filter(kind => kind !== 'etc')) setDrumMachinePattern(kind, buildRandomDrumMachinePattern(kind), { skipSave: true });
             const accentPattern = hatPattern.map((active, index) => active && (index % 4 === 0 || Math.random() < 0.18));
             const ratchetPattern = hatPattern.map((active, index) => (active && (index % 4 !== 0) && Math.random() < 0.16) ? 2 : 0);
             drumMachineHatAccentPattern = accentPattern;
@@ -30110,7 +30113,7 @@
                 'drumMachineHatLength',
                 'drumMachinePercDecay',
                 'drumMachinePercLength',
-                ...Object.values(drumMachineExtraTracks).flatMap(track => [`${track.id}Decay`, `${track.id}Length`])
+                ...Object.values(drumMachineExtraTracks).filter(track => track.kind !== 'etc').flatMap(track => [`${track.id}Decay`, `${track.id}Length`])
             ].forEach((id) => {
                 setSliderValue(id, randomIntegerInRange(minimumPercent, maximumPercent));
             });
@@ -30210,7 +30213,7 @@
             if (container.childElementCount !== expectedChildren) {
                 container.replaceChildren();
                 for (let index = 0; index < stepCount; index += 1) {
-                    if (track === 'hat' || track === 'cymbals') {
+                    if (['hat', 'cymbals', 'etc'].includes(track)) {
                         const cell = document.createElement('div');
                         cell.className = 'drum-machine-step-cell';
                         const accentButton = document.createElement('button');
@@ -30221,7 +30224,7 @@
                         accentButton.addEventListener('click', () => {
                             if (track === 'hat') toggleDrumMachineHatAccentStep(index);
                             else {
-                                drumMachineExtraTracks.cymbals.accents[index] = !drumMachineExtraTracks.cymbals.accents[index];
+                                drumMachineExtraTracks[track].accents[index] = !drumMachineExtraTracks[track].accents[index];
                                 renderDrumMachineStepGrid(track);
                                 saveState();
                             }
@@ -30270,14 +30273,14 @@
             }
 
             Array.from(container.children).forEach((button, index) => {
-                if (track === 'hat' || track === 'cymbals') {
+                if (['hat', 'cymbals', 'etc'].includes(track)) {
                     const cell = button;
                     const accentButton = cell.children[0];
                     const ratchetButton = cell.children[1];
                     const stepButton = cell.children[2];
                     const active = Boolean(pattern[index]);
-                    const accented = Boolean((track === 'hat' ? drumMachineHatAccentPattern : drumMachineExtraTracks.cymbals.accents)[index]);
-                    const ratchetCount = Math.max(0, Math.min(8, Number((track === 'hat' ? drumMachineHatRatchetPattern : drumMachineExtraTracks.cymbals.ratchets)[index]) || 0));
+                    const accented = Boolean((track === 'hat' ? drumMachineHatAccentPattern : drumMachineExtraTracks[track].accents)[index]);
+                    const ratchetCount = Math.max(0, Math.min(8, Number((track === 'hat' ? drumMachineHatRatchetPattern : drumMachineExtraTracks[track].ratchets)[index]) || 0));
                     accentButton.textContent = accented ? 'Accent' : 'Accent';
                     accentButton.classList.toggle('active', accented);
                     accentButton.setAttribute('aria-pressed', String(accented));
@@ -31134,6 +31137,7 @@
         }
 
         async function loadDrumMachineSample(kind, options = {}) {
+            if (kind === 'etc') return false; // Manual lane: random loaders must never replace its sample.
             if (!DRUM_MACHINE_SOURCE_KEYS[kind]) throw new Error('Unknown drum lane.');
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading drum samples.');
@@ -31251,7 +31255,7 @@
                     loadDrumMachineSample('kick', { requireDifferentSample: true }),
                     loadDrumMachineSample('snare', { requireDifferentSample: true }),
                     loadDrumMachineSample('hat', { requireDifferentSample: true }),
-                    ...Object.keys(drumMachineExtraTracks).map(kind => loadDrumMachineSample(kind, { requireDifferentSample: true }))
+                    ...Object.keys(drumMachineExtraTracks).filter(kind => kind !== 'etc').map(kind => loadDrumMachineSample(kind, { requireDifferentSample: true }))
                 ]);
                 const failures = [kickResult, snareResult, hatResult, ...extraResults]
                     .filter((result) => result.status === 'rejected')
@@ -31297,6 +31301,7 @@
         }
 
         async function loadRandomSingleDrumMachineSample(kind) {
+            if (kind === 'etc') return false;
             if (drumMachineLoadInFlight) return;
             const label = getDrumMachineTrackLabel(kind);
             drumMachineLoadInFlight = true;
@@ -46432,6 +46437,7 @@
                     hasDrumMachinePerc: Boolean(drumMachinePercBuffer),
                     hasDrumMachineClap: Boolean(drumMachineExtraTracks.clap.buffer),
                     hasDrumMachineCymbals: Boolean(drumMachineExtraTracks.cymbals.buffer),
+                    hasDrumMachineEtc: Boolean(drumMachineExtraTracks.etc.buffer),
                     hasDrumMachineHats: drumMachineHatPattern.some(Boolean),
                     hasLegacySample: Boolean(audioBuffer)
                 },
@@ -49827,7 +49833,7 @@
             { key: 'drumSnare', label: 'Drum machine snare sample', role: 'drum-sample', path: 'drums/snare.wav', getBuffer: () => drumMachineSnareBuffer },
             { key: 'drumHat', label: 'Drum machine hat sample', role: 'drum-sample', path: 'drums/hat.wav', getBuffer: () => drumMachineHatBuffer },
             { key: 'drumPerc', label: 'Drum machine perc sample', role: 'drum-sample', path: 'drums/perc.wav', getBuffer: () => drumMachinePercBuffer },
-            ...Object.values(drumMachineExtraTracks).map(track => ({ key: track.kind === 'clap' ? 'drumClap' : 'drumCymbals', label: `Drum machine ${track.label} sample`, role: 'drum-sample', path: `drums/${track.kind}.wav`, getBuffer: () => track.buffer, getMetadata: () => track.metadata }))
+            ...Object.values(drumMachineExtraTracks).map(track => ({ key: track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', label: `Drum machine ${track.label} sample`, role: 'drum-sample', path: `drums/${track.kind}.wav`, getBuffer: () => track.buffer, getMetadata: () => track.metadata }))
         ];
 
         function sanitizeWavRepositoryFilename(value, fallbackBase) {
@@ -50738,7 +50744,7 @@
                 }),
                 ...Object.values(drumMachineExtraTracks).map(track => {
                     readExtraDrumMachineControls(track);
-                    return buildDrumMachineMidiTrackChunk({ trackName: track.label, description: `${getDrumMachinePatternLength()} steps`, bpm, channel: 9, baseNote: track.kind === 'clap' ? 39 : 49, pitchSemitones: track.pitch, pattern: track.pattern, ratchets: track.ratchets, accents: track.kind === 'cymbals' ? track.accents : [], accentAmount: track.accentAmount, level: track.level, decayRatio: track.decay, lengthRatio: track.length });
+                    return buildDrumMachineMidiTrackChunk({ trackName: track.label, description: `${getDrumMachinePatternLength()} steps`, bpm, channel: 9, baseNote: track.kind === 'clap' ? 39 : 49, pitchSemitones: track.pitch, pattern: track.pattern, ratchets: track.ratchets, accents: ['cymbals', 'etc'].includes(track.kind) ? track.accents : [], accentAmount: track.accentAmount, level: track.level, decayRatio: track.decay, lengthRatio: track.length });
                 })
             ];
             return createMidiFileBlob([createMidiTempoTrackChunk(bpm), ...tracks], { format: 1 });
@@ -54077,7 +54083,7 @@
                 await saveAudioBufferToDB(drumMachinePercBuffer, DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY);
                 return true;
             }
-            const extraTrack = drumMachineExtraTracks[definition.key === 'drumClap' ? 'clap' : definition.key === 'drumCymbals' ? 'cymbals' : ''];
+            const extraTrack = drumMachineExtraTracks[definition.key === 'drumClap' ? 'clap' : definition.key === 'drumCymbals' ? 'cymbals' : definition.key === 'drumEtc' ? 'etc' : ''];
             if (extraTrack) {
                 await applyLoadedDrumMachineSampleBuffer(extraTrack.kind, decoded, metadata);
                 return true;
@@ -61636,7 +61642,7 @@
                             // Explicit straight, single-hit rhythms; old random ratchets cannot bleed into the result.
                             drumMachineKickRatchetPattern.fill(0); drumMachineSnareRatchetPattern.fill(0); drumMachineHatRatchetPattern.fill(0); drumMachineHatAccentPattern.fill(false);
                             drumMachineHatTimingMode = 'straight';
-                            for (const kind of ['perc', ...Object.keys(drumMachineExtraTracks)]) setDrumMachinePattern(kind, Array(getPatternLengthSteps()).fill(false), { skipSave: true });
+                            for (const kind of ['perc', ...Object.keys(drumMachineExtraTracks).filter(kind => kind !== 'etc')]) setDrumMachinePattern(kind, Array(getPatternLengthSteps()).fill(false), { skipSave: true });
                             report('Drums: straight shared grid; old ratchets, percussion and extra patterns cleared.');
                         }
                         for (const [kind, settings] of Object.entries(recipe.drums.tracks || {})) {
@@ -61912,7 +61918,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261021-song-full-copy-5');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-v-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-ai-history-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-etc-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>

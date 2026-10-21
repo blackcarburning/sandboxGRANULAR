@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Manual ETC drum lane (ETC.1)
+
+Build `v2026.10.21.ETC.1` adds **ETC**, an independent Crash-style drum lane with its own Jump tab, sample browser, pitch, level, decay, length, accents, ratchets and filter controls. It starts empty and is manual-only: Random Drums, Random Samples, random patterns/envelopes and the direct random loaders leave its sample and settings alone. ETC has no lane-level Random buttons; AI drum generation also leaves its manually entered pattern intact.
+
+ETC has distinct audio/metadata slots in portable patches, Song parts, local audio storage and device-scoped Undo/Redo; Crash is not overwritten. Existing Song parts without ETC import with an empty silent lane. Existing audio-slot order is retained, with ETC appended, so older history buffer indices do not shift. MIDI export includes its named track using Crash's note mapping.
+
+Local regression: `ETC_EVIDENCE=<directory> node tests/drum-etc-browser.cjs` against `tests/song-beta-test-server.py 18889`. Disposable accounts only; Chromium/WebKit desktop and phone cover manual browser loading, audible isolated-lane playback, independent Crash/ETC controls, randomisation exclusion, portable Song recall, exact audio Undo/Redo and reload persistence. Desktop cases also capture ETC through the real isolated Song renderer. Focused checks: `node --test tests/drum-extra-lanes.test.js tests/drum-tone.test.js tests/song-beta-compatibility.test.js tests/drum-perc-routing.test.js`.
+
 ## L/X held sample keyboards (LX.1)
 
 Build `v2026.10.21.LX.1` makes the L and X sequencer-panel keys play their loaded sample until key release or the end of the sample/selected source region, with transport either stopped or running. Keyboard auditions ignore the sequence's short length/decay gates and old four-second preview cap, retain sample pitch/trim/attack/filter/delay and X filter LFO, and do not add the built-in feedback tone. Normal sequence playback and explicit Synth/OSC3 mode remain unchanged. Record On still stores one note per press and advances the edit step; Practice does not edit the sequence.

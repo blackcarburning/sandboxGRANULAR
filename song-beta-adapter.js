@@ -56,7 +56,7 @@
         ['drumSnare', () => drumMachineSnareBuffer, buffer => { drumMachineSnareBuffer = buffer; }, DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY],
         ['drumHat', () => drumMachineHatBuffer, buffer => { drumMachineHatBuffer = buffer; }, DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY],
         ['drumPerc', () => drumMachinePercBuffer, buffer => { drumMachinePercBuffer = buffer; }, DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY],
-        ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.buffer, buffer => { track.buffer = buffer; }, `${track.id}Buffer`])
+        ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.buffer, buffer => { track.buffer = buffer; }, `${track.id}Buffer`])
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
@@ -79,7 +79,7 @@
         ['drumSnare', () => drumMachineSnareMetadata, metadata => { drumMachineSnareMetadata = metadata; }],
         ['drumHat', () => drumMachineHatMetadata, metadata => { drumMachineHatMetadata = metadata; }],
         ['drumPerc', () => drumMachinePercMetadata, metadata => { drumMachinePercMetadata = metadata; }],
-        ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.metadata, metadata => { track.metadata = metadata; }])
+        ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.metadata, metadata => { track.metadata = metadata; }])
     ];
     let persistence = Promise.resolve();
 
@@ -88,6 +88,7 @@
     }
 
     const additiveSongLanes = [
+        { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
         { name: 'K', slots: ['bastardK', 'bastardKRender'], settings: /bastard(?:Loop)?K/i, references: /^(?:k|bastard(?:loop)?k)$/i },
         { name: 'M+', slots: ['bastardMPlus', 'bastardMPlusRender'], settings: /bastard(?:Loop)?MPlus/i, references: /^(?:m\+|mplus|bastard(?:loop)?mplus)$/i },
         { name: 'Q', slots: ['bastardQ'], settings: /^(?:q$|q[A-Z]|performanceQ|bastard(?:Loop)?Q)/, references: /^(?:q|bastard(?:loop)?q)$/i, emptyState: { q: null }, piano: true }

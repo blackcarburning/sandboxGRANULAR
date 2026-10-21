@@ -20,7 +20,7 @@ function extract(name) {
 }
 
 function fixture() {
-    const tracks = Object.fromEntries(['clap', 'cymbals'].map(kind => [kind, { kind, id: kind === 'clap' ? 'drumMachineClap' : 'drumMachineCymbals', label: kind === 'clap' ? 'Clap' : 'Cymbals', buffer: null, metadata: null, pattern: Array(16).fill(false), ratchets: Array(16).fill(0), pitch: 0, level: 1, decay: 1, length: 1 }]));
+    const tracks = Object.fromEntries(['clap', 'cymbals', 'etc'].map(kind => [kind, { kind, id: kind === 'etc' ? 'drumMachineEtc' : kind === 'clap' ? 'drumMachineClap' : 'drumMachineCymbals', label: kind === 'etc' ? 'ETC' : kind === 'clap' ? 'Clap' : 'Cymbals', buffer: null, metadata: null, pattern: Array(16).fill(false), ratchets: Array(16).fill(0), pitch: 0, level: 1, decay: 1, length: 1 }]));
     const elements = new Map();
     const hits = [];
     const calls = [];
@@ -29,7 +29,7 @@ function fixture() {
         drumMachineExtraTracks: tracks,
         drumMachineKickPattern: Array(16).fill(false), drumMachineSnarePattern: [], drumMachineHatPattern: [], drumMachinePercPattern: [],
         drumMachineKickBuffer: {}, drumMachineSnareBuffer: {},
-        DRUM_MACHINE_SOURCE_KEYS: { clap: 'samples_clap', cymbals: 'samples_crash' },
+        DRUM_MACHINE_SOURCE_KEYS: { clap: 'samples_clap', cymbals: 'samples_crash', etc: 'samples_crash' },
         BASTARD_LOOP_SOURCE_LABELS: { samples_clap: 'SAMPLES_CLAP', samples_crash: 'SAMPLES_CRASH' },
         MAX_SAMPLE_DURATION_SECONDS: 300,
         PATTERN_STEPS_PER_BAR: 16,
@@ -100,14 +100,14 @@ test('legacy extra lanes recall empty accent grids and the neutral accent amount
 
 test('new sample loads save the correct independent buffers and metadata in IndexedDB and state', async () => {
     const { context, tracks, calls } = fixture();
-    for (const kind of ['clap', 'cymbals']) {
+    for (const kind of ['clap', 'cymbals', 'etc']) {
         const buffer = { duration: 2 };
         await context.applyLoadedDrumMachineSampleBuffer(kind, buffer, { fileName: `${kind}.wav`, relativePath: `folder/${kind}.wav` });
         assert.equal(tracks[kind].buffer, buffer);
         assert.equal(tracks[kind].metadata.sourceKey, kind === 'clap' ? 'samples_clap' : 'samples_crash');
         assert.ok(calls.some(call => call[0] === 'audio' && call[1] === `${tracks[kind].id}Buffer`));
     }
-    assert.equal(calls.filter(call => call[0] === 'save').length, 2);
+    assert.equal(calls.filter(call => call[0] === 'save').length, 3);
 });
 
 test('new lanes schedule independently at the shared grid with pitch, envelope, level and ratchets', () => {
@@ -169,7 +169,7 @@ test('out-of-range restored controls are clamped and unrecognized lanes cannot l
     assert.equal(tracks.clap.length, 1);
     assert.equal(tracks.cymbals.pitch, -12);
     assert.equal(tracks.cymbals.decay, .05);
-    assert.deepEqual(Object.keys(context.captureExtraDrumMachineTracks()), ['clap', 'cymbals']);
+    assert.deepEqual(Object.keys(context.captureExtraDrumMachineTracks()), ['clap', 'cymbals', 'etc']);
 });
 
 test('random patterns stay empty without samples unless requested and cymbals start on the downbeat', () => {
@@ -186,4 +186,43 @@ test('song and patch audio entries include both new lanes while retaining all ol
     assert.match(html, /path: `drums\/\$\{track.kind\}\.wav`/);
     assert.match(html, /restoreExtraDrumMachineTracks\(state.modes.drumMachineExtraTracks\)/);
     assert.match(html, /source\.buffer = playbackBuffer/);
+});
+
+test('ETC has independent crash-style accent, ratchet, pitch and sample routing', async () => {
+    const { context, tracks, hits } = fixture();
+    const buffer = { duration: 2 };
+    await context.applyLoadedDrumMachineSampleBuffer('etc', buffer, { fileName: 'manual.wav' });
+    tracks.etc.pattern[2] = true; tracks.etc.accents = Array(16).fill(false); tracks.etc.accents[2] = true;
+    tracks.etc.accentAmount = .8; tracks.etc.pitch = 12; tracks.etc.ratchets[2] = 3;
+    context.scheduleExtraDrumMachineRepeats('etc', 2, 1, .12);
+    assert.equal(hits.length, 3); assert(hits.every(hit => hit.buffer === buffer && hit.ratio === 2 && hit.tone.accent));
+    assert.equal(hits[0].level, 1.4);
+    assert(tracks.cymbals.pattern.every(value => !value)); assert.equal(tracks.cymbals.buffer, null);
+    const saved = context.captureExtraDrumMachineTracks();
+    context.restoreExtraDrumMachineTracks(saved); assert.equal(tracks.etc.accents[2], true);
+    context.restoreExtraDrumMachineTracks({ cymbals: { pattern: [true] } });
+    assert(tracks.etc.pattern.every(value => !value)); assert.equal(tracks.etc.metadata, null);
+});
+
+test('all random drum entry points preserve the entire manual ETC lane', async () => {
+    const { context: c, tracks, elements } = fixture();
+    Object.assign(tracks.etc, { buffer: {}, metadata: { fileName: 'keep.wav' }, pattern: Array.from({ length: 16 }, (_, i) => i === 7), accents: Array(16).fill(true), ratchets: Array(16).fill(3), accentAmount: .8, pitch: 7, level: .61, decay: .23, length: .45 });
+    const before = JSON.stringify(tracks.etc), original = tracks.etc.buffer;
+    const loads = [];
+    Object.assign(c, { drumMachineLoadInFlight: false, drumMachineHatBuffer: {}, randomIntegerInRange: () => 77,
+        loadDrumMachineSample: async kind => { loads.push(kind); },
+        forceDrumMachineRandomLevel() {}, forceFinalSidechainKickRandomLevel() {}, setDrumMachineDirectOutput() {},
+        describeDrumMachineSummary: () => 'fixture', syncPerformanceControlState() {}, setStatus() {} });
+    for (const name of ['randomizeDrumMachinePatterns', 'randomizeDrumMachineEnvelopeShape', 'loadDrumMachineSampleSet']) vm.runInContext(extract(name), c);
+    assert.deepEqual([...c.buildRandomDrumMachinePattern('etc', { force: true })], tracks.etc.pattern);
+    c.randomizeDrumMachinePatterns(); c.randomizeDrumMachineEnvelopeShape();
+    await c.loadDrumMachineSampleSet({ randomizePattern: true });
+    await c.loadDrumMachineSampleSet({ randomizePattern: false });
+    assert.deepEqual(loads, ['kick', 'snare', 'hat', 'clap', 'cymbals', 'kick', 'snare', 'hat', 'clap', 'cymbals']);
+    assert.equal(JSON.stringify(tracks.etc), before); assert.equal(tracks.etc.buffer, original);
+    assert(![...elements.keys()].some(key => key.startsWith('drumMachineEtc')));
+    for (const name of ['loadDrumMachineSample', 'loadRandomSingleDrumMachineSample']) vm.runInContext(extract(name), c);
+    c.fetch = () => assert.fail('ETC cannot request a random sample');
+    assert.equal(await c.loadDrumMachineSample('etc'), false); assert.equal(await c.loadRandomSingleDrumMachineSample('etc'), false);
+    assert.equal(JSON.stringify(tracks.etc), before);
 });

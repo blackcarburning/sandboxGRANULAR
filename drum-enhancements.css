@@ -12,6 +12,6 @@
 #drumMachineOverlay .drum-machine-step-cell button { min-width: 0; padding: 4px 2px; }
 #drumMachineOverlay .drum-machine-accent-btn, #drumMachineOverlay .drum-machine-ratchet-btn { font-size: 9px; letter-spacing: .02em; }
 #drumMachineOverlay .drum-machine-step-btn.current { border-color: #ffac45; box-shadow: 0 0 0 2px #ffac45, 0 0 12px #ffac4544; transition: transform .08s ease; }
-.drum-machine-jumps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; flex: 0 0 auto; }
+.drum-machine-jumps { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; flex: 0 0 auto; }
 #drumMachineOverlay .drum-machine-jumps button { min-height: 32px; color: #b4efff; border: 1px solid #428da8; background: #163544; }
 #drumMachineOverlay .drum-machine-jumps button[aria-current="true"] { color: #18120a; border-color: #ffac45; background: #ffac45; }

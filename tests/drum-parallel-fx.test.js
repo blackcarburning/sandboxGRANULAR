@@ -70,7 +70,12 @@ test('dedicated drum FX baseline is the exact post-sync/post-K-mute source', () 
 
 for (const name of fixture.invariantFunctions) {
     test(`dedicated FX leave dry/sidechain/scheduler function ${name} unchanged`, () => {
-        assert.equal(fixture.extractFunction(html, name), fixture.extractFunction(baseline, name));
+        let current = fixture.extractFunction(html, name);
+        // ETC deliberately shares Crash's accent/tone path. Apart from that lane
+        // extension, keep the original dry scheduler byte-for-byte unchanged.
+        // Independent ETC scheduling is exercised in drum-extra-lanes.test.js.
+        if (name === 'scheduleExtraDrumMachineRepeats') current = current.replaceAll("['cymbals', 'etc'].includes(kind)", "kind === 'cymbals'");
+        assert.equal(current, fixture.extractFunction(baseline, name));
     });
 }
 

@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../song-beta-adapter.js'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const bindings = source.slice(source.indexOf('    const audioBindings ='), source.indexOf('    const metadataBindings ='));
-const audioKeys = [...bindings.matchAll(/\['([^']+)', \(\) =>/g)].map(match => match[1]).concat('drumClap', 'drumCymbals');
+const audioKeys = [...bindings.matchAll(/\['([^']+)', \(\) =>/g)].map(match => match[1]).concat('drumClap', 'drumCymbals', 'drumEtc');
 
 function audioBytes() {
     const bytes = Buffer.alloc(44 + 64 * 2);
@@ -221,4 +221,30 @@ test('inventories are not invented for pre-portable snapshots', async () => {
     const info = current.adapter.inspectPart(await current.archive());
     assert.equal(info.upgrade, null);
     assert.equal(info.snapshot.extra.audioSlots, undefined);
+});
+
+test('old songs without ETC upgrade to an explicitly empty lane without mutating Crash or audio', async () => {
+    const current = fixture();
+    delete current.snapshot.extra.audioSlots.drumEtc;
+    current.snapshot.state.modes.drumMachineExtraTracks = { cymbals: { pattern: [true], metadata: { fileName: 'crash.wav' } } };
+    const original = JSON.stringify(current.snapshot);
+    const info = current.adapter.inspectPart(await current.archive());
+    assert.deepEqual([...info.upgrade.lanes], ['ETC']);
+    assert.equal(info.snapshot.extra.audioSlots.drumEtc, false); assert.equal(info.snapshot.extra.metadata.drumEtc, null);
+    assert.equal(JSON.stringify(current.snapshot), original);
+    assert.deepEqual(JSON.parse(JSON.stringify(info.snapshot.state.modes.drumMachineExtraTracks)), current.snapshot.state.modes.drumMachineExtraTracks);
+    const archive = await (await current.adapter.upgradePart(info)).arrayBuffer();
+    assert.equal(current.adapter.inspectPart(archive).upgrade, null);
+});
+
+test('ETC settings or audio without its declared inventory slot are rejected rather than silently discarded', () => {
+    for (const mutate of [
+        snapshot => { snapshot.state.modes.drumMachineExtraTracks = { etc: { pattern: [true] } }; },
+        snapshot => { snapshot.state.sliders.drumMachineEtcFilterCutoff = '33'; },
+        snapshot => { snapshot.extra.metadata.drumEtc = { fileName: 'manual.wav' }; },
+        snapshot => { snapshot.assets.push({ key: 'drumEtc', path: 'audio/drumEtc.wav' }); }
+    ]) {
+        const current = fixture(); delete current.snapshot.extra.audioSlots.drumEtc; mutate(current.snapshot);
+        assert.throws(() => current.context.normalizeSongAudioInventory(current.snapshot), /inventory is incomplete for drumEtc/);
+    }
 });
