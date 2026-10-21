@@ -29,6 +29,8 @@ function fixture() {
         bastardLoopXAccentAmount: .35,
         bastardLoopXFilterEnvelopeAmount: .4,
         bastardLoopXSampleBuffer: { duration: 1 },
+        bastardLoopXSampleMetadata: null,
+        isBastardLoopXUsingSynth: () => false,
         bastardLoopXActiveVoices: new Set(),
         getLoopLayerSoloGain: () => 1,
         audioContext: {
@@ -50,12 +52,13 @@ function fixture() {
         getBastardLoopXDecayRatio: () => 1,
         getBastardLoopXStartTrimRatio: () => 0,
         getBastardLoopXAttackSeconds: () => .004,
+        scheduleTransportSourceStop: (source, time) => source.stop(time),
         connectBastardLoopFilterChain() {},
         applyBastardLoopXFilterEnvelope() {},
         attachBastardLoopXFilterLfoToVoice() {}
     };
     vm.createContext(context);
-    for (const name of ['getBastardLoopXAccentAmount', 'getBastardLoopXFilterEnvelopeAmount',
+    for (const name of ['getBastardLoopXSampleRegion', 'getBastardLoopXAccentAmount', 'getBastardLoopXFilterEnvelopeAmount',
         'getBastardLoopXFilterEnvelopeAmountForStep', 'getBastardLoopXLevelValue',
         'getBastardLoopXAuditionLevel', 'scheduleBastardLoopXSingleVoice', 'previewBastardLoopXStep']) {
         vm.runInContext(functionSource(name), context);

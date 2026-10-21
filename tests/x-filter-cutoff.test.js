@@ -35,6 +35,7 @@ function fixture(amount, invert = false) {
             createConstantSource: () => ({ offset: parameter(1), connect() {}, start() {}, stop() {} })
         },
         bastardLoopXActiveVoices: new Set([voice]),
+        sequencerKeyboardHolds: new Set(),
         bastardLoopXFilterCutoff: 12000,
         performanceBastardLoopXFilterCutoff: slider,
         getBastardLoopXFilterCutoff: () => Number(slider.value),
@@ -48,7 +49,7 @@ function fixture(amount, invert = false) {
         safeDisconnectNode() {}
     };
     vm.createContext(context);
-    for (const name of ['rampBastardLoopXDelayParam', 'smoothBastardLoopFilterCutoff', 'getBastardLoopXFilterLfoDepthHz', 'destroyBastardLoopXVoiceLfo', 'attachBastardLoopXFilterLfoToVoice', 'updateBastardLoopXVoiceFx']) {
+    for (const name of ['getSequencerKeyboardVoices', 'rampBastardLoopXDelayParam', 'smoothBastardLoopFilterCutoff', 'getBastardLoopXFilterLfoDepthHz', 'destroyBastardLoopXVoiceLfo', 'attachBastardLoopXFilterLfoToVoice', 'updateBastardLoopXVoiceFx']) {
         vm.runInContext(functionSource(name), context);
     }
     const listener = html.match(/performanceBastardLoopXFilterCutoff\?\.addEventListener\('input', \(event\) => \{[\s\S]*?\n        \}\);/);
@@ -104,4 +105,15 @@ test('X cutoff changes without active notes are retained for the next voice', ()
     assert.equal(context.bastardLoopXFilterCutoff, 600);
     assert.equal(voice.filterLfoDepthGain.gain.value, 220);
     assert.equal(voice.filterLfoOffsetSource.offset.value, -220);
+});
+
+test('X held keyboard samples follow live filter/LFO changes alongside transport voices', () => {
+    const { context, slider } = fixture(.8);
+    const heldVoice = { filterNodes: [{ frequency: parameter(12000) }] };
+    context.sequencerKeyboardHolds.add({ layer: 'X', voice: heldVoice });
+    slider.value = '600';
+    context.updateBastardLoopXVoiceFx();
+    assert.equal(heldVoice.filterNodes[0].frequency.value, 600);
+    assert.equal(heldVoice.filterLfoDepthGain.gain.value, 220);
+    assert.equal(heldVoice.filterLfoOffsetSource.offset.value, -220);
 });

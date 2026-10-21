@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## L/X held sample keyboards (LX.1)
+
+Build `v2026.10.21.LX.1` makes the L and X sequencer-panel keys play their loaded sample until key release or the end of the sample/selected source region, with transport either stopped or running. Keyboard auditions ignore the sequence's short length/decay gates and old four-second preview cap, retain sample pitch/trim/attack/filter/delay and X filter LFO, and do not add the built-in feedback tone. Normal sequence playback and explicit Synth/OSC3 mode remain unchanged. Record On still stores one note per press and advances the edit step; Practice does not edit the sequence.
+
+Held sample voices are transport-independent and remain transient (not saved/exported). Pointer up/cancel, lost capture, key up, panel close, browser blur/hide, source-mode switch, Stop All and Panic clear gestures/voices. A key released during audio/sample restoration cannot sound or record later. No Song, account/device history, audio storage or import/export schema changes.
+
+Local real-audio/input regression: `node tests/lx-held-keyboard-browser.cjs` against the disposable `tests/song-beta-test-server.py 18889` server; `LX_KEY_EVIDENCE=<directory>` selects results. Covers Chromium/WebKit desktop and phone emulation, stopped/running/recording playback, release, natural sample endings beyond four seconds, pitch/trim/X region and cancellation. Focused tests: `node --test tests/lx-held-keyboard.test.cjs tests/x-filter-accent.test.js tests/x-filter-cutoff.test.js tests/x-osc3.test.js tests/sequencer-editor-transport.test.js`.
+
 ## AI patches in Undo/Redo (AI.10)
 
 Build `v2026.10.21.AI.10` adds each successfully applied AI Generate, Regenerate, Refine and section to the shared device-scoped ten-step Undo/Redo list. Previously loaded sounds/settings are retained; Redo restores exact saved audio and musical state without another AI request. The AI card's Undo uses the same journal; Keep does not delete history. Cancel/failure/no-op preserves the current Redo branch. Existing Song reservation, account/device/tab protection, storage/audio codecs and import/export formats are unchanged. Desktop/mobile styling is untouched.

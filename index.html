@@ -6268,7 +6268,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.COPY.5</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.LX.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6355,7 +6355,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.COPY.5</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.LX.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -13314,7 +13314,7 @@
             'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
             'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'
         ];
-        const BASTARD_LOOP_L_KEYBOARD_RENDER_VERSION = '2026-10-11-sample-grid-ratchets';
+        const BASTARD_LOOP_L_KEYBOARD_RENDER_VERSION = '2026-10-21-held-sample-keys';
         const BASTARD_LOOP_L_TIMING_OPTIONS = [
             { label: '/8', multiplier: 0.125 },
             { label: '/4', multiplier: 0.25 },
@@ -13330,7 +13330,7 @@
             'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
             'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'
         ];
-        const BASTARD_LOOP_X_KEYBOARD_RENDER_VERSION = '2026-10-11-sample-grid-ratchets';
+        const BASTARD_LOOP_X_KEYBOARD_RENDER_VERSION = '2026-10-21-held-sample-keys';
         const BASTARD_LOOP_X_TIMING_OPTIONS = [
             { label: '/8', multiplier: 0.125 },
             { label: '/4', multiplier: 0.25 },
@@ -13736,6 +13736,8 @@
         let bastardLoopLNextStepTime = null;
         let bastardLoopLNextStepIndex = 0;
         let bastardLoopLSlideCarryIndex = -1;
+        // Keyboard auditions are independent of transport voices and their short step gates.
+        const sequencerKeyboardHolds = new Set();
         const bastardLoopLActiveVoices = new Set();
         let bastardLoopLDelayBusContext = null;
         let bastardLoopLDelayDestinationNode = null;
@@ -34040,7 +34042,7 @@
         function updateBastardLoopLVoiceFx() {
             updateBastardLoopLDelayBusSettings();
             const cutoff = getBastardLoopLFilterCutoff();
-            bastardLoopLActiveVoices.forEach((voice) => {
+            [...bastardLoopLActiveVoices, ...getSequencerKeyboardVoices('L')].forEach((voice) => {
                 if (voice?.filterNodes?.length) {
                     smoothBastardLoopFilterCutoff(voice.filterNodes, cutoff, 0.03);
                 }
@@ -34265,60 +34267,102 @@
             keyboard.dataset.layoutVersion = BASTARD_LOOP_L_KEYBOARD_RENDER_VERSION;
         }
 
-        function flashBastardLoopLKeyboardKey(button) {
-            if (!button) return;
-            if (button._loopLFlashTimer) {
-                clearTimeout(button._loopLFlashTimer);
+        function releaseSequencerKeyboardHold(hold) {
+            if (!hold || hold.released) return;
+            hold.released = true;
+            hold.button.classList.remove('is-active');
+            hold.cleanup?.();
+            sequencerKeyboardHolds.delete(hold);
+            const voice = hold.voice;
+            if (!voice) return;
+            const now = voice.source.context.currentTime;
+            try {
+                if (typeof voice.gain.gain.cancelAndHoldAtTime === 'function') {
+                    voice.gain.gain.cancelAndHoldAtTime(now);
+                } else {
+                    voice.gain.gain.cancelScheduledValues(now);
+                    voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+                }
+                voice.gain.gain.linearRampToValueAtTime(0.0001, now + 0.012);
+                voice.source.stop(now + 0.015);
+            } catch (error) {}
+        }
+
+        function releaseSequencerKeyboardHolds(layer = null) {
+            for (const hold of sequencerKeyboardHolds) {
+                if (!layer || hold.layer === layer) releaseSequencerKeyboardHold(hold);
             }
-            button.classList.add('is-active');
-            button._loopLFlashTimer = window.setTimeout(() => {
-                button.classList.remove('is-active');
-                button._loopLFlashTimer = null;
-            }, 130);
+        }
+
+        function getSequencerKeyboardVoices(layer) {
+            return [...sequencerKeyboardHolds].filter(hold => hold.layer === layer && hold.voice).map(hold => hold.voice);
+        }
+
+        window.addEventListener('blur', () => releaseSequencerKeyboardHolds());
+        window.addEventListener('pagehide', () => releaseSequencerKeyboardHolds());
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) releaseSequencerKeyboardHolds();
+        });
+
+        function bindSequencerSampleKeyboardKey(button, layer, preview, status) {
+            if (!button || button.dataset.heldSampleBound === 'true') return;
+            let hold = null;
+            const release = () => {
+                releaseSequencerKeyboardHold(hold);
+                hold = null;
+            };
+            const trigger = async (event) => {
+                if (event.button !== undefined && event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.repeat || (hold && !hold.released)) return;
+                const keyHold = { layer, button, released: false, voice: null, keyboardInput: event.type === 'keydown' };
+                hold = keyHold;
+                sequencerKeyboardHolds.add(keyHold);
+                button.classList.add('is-active');
+                const keyboardInput = event.type === 'keydown';
+                const pointerId = event.pointerId;
+                const touchId = event.changedTouches?.[0]?.identifier;
+                const finish = (up) => {
+                    if (keyboardInput && up.key !== event.key) return;
+                    if (pointerId !== undefined && up.pointerId !== pointerId) return;
+                    if (touchId !== undefined && ![...up.changedTouches].some(touch => touch.identifier === touchId)) return;
+                    release();
+                };
+                const endEvents = keyboardInput ? ['keyup'] : (pointerId !== undefined ? ['pointerup', 'pointercancel'] : (touchId !== undefined ? ['touchend', 'touchcancel'] : ['mouseup']));
+                endEvents.forEach(name => document.addEventListener(name, finish, true));
+                keyHold.cleanup = () => endEvents.forEach(name => document.removeEventListener(name, finish, true));
+                if (pointerId !== undefined) {
+                    try { button.setPointerCapture(pointerId); } catch (error) {}
+                }
+                try {
+                    await preview(button.dataset.note, { keyHold });
+                } catch (error) {
+                    console.error(`Loop ${layer} keyboard note failed:`, error);
+                    status(`Loop ${layer} keyboard failed: ${error.message}`);
+                    releaseSequencerKeyboardHold(keyHold);
+                }
+            };
+            button.style.touchAction = 'none';
+            if (window.PointerEvent) {
+                button.addEventListener('pointerdown', trigger);
+                button.addEventListener('lostpointercapture', release);
+            } else {
+                button.addEventListener('touchstart', trigger, { passive: false });
+                button.addEventListener('mousedown', trigger);
+            }
+            button.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') void trigger(event);
+            });
+            button.addEventListener('blur', () => {
+                if (hold?.keyboardInput) release();
+            });
+            button.addEventListener('click', event => event.preventDefault());
+            button.dataset.heldSampleBound = 'true';
         }
 
         function bindBastardLoopLKeyboardKey(button) {
-            if (!button) return;
-            if (button.dataset.loopLBound === 'true') return;
-            const trigger = async (event) => {
-                event?.preventDefault?.();
-                event?.stopPropagation?.();
-                if (button.dataset.loopLTriggering === 'true') {
-                    return;
-                }
-                button.dataset.loopLTriggering = 'true';
-                flashBastardLoopLKeyboardKey(button);
-                const tonePrimed = primeBastardLoopLNoteEntryTone(button.dataset.note);
-                try {
-                    await previewBastardLoopLNoteFromInput(button.dataset.note, { tonePrimed });
-                } catch (error) {
-                    console.error('Loop L keyboard note failed:', error);
-                    updateBastardLoopLStatus(`Loop L keyboard failed: ${error.message}`);
-                } finally {
-                    button.dataset.loopLTriggering = 'false';
-                }
-            };
-            button.style.touchAction = 'manipulation';
-            if (window.PointerEvent) {
-                button.addEventListener('pointerdown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    void trigger(event);
-                });
-            } else {
-                button.addEventListener('touchstart', (event) => {
-                    void trigger(event);
-                }, { passive: false });
-                button.addEventListener('mousedown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    void trigger(event);
-                });
-            }
-            button.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                void trigger(event);
-            });
-            button.addEventListener('click', (event) => event.preventDefault());
-            button.dataset.loopLBound = 'true';
+            bindSequencerSampleKeyboardKey(button, 'L', previewBastardLoopLNoteFromInput, updateBastardLoopLStatus);
         }
 
         function updateBastardLoopLStatus(message) {
@@ -34757,22 +34801,6 @@
             return true;
         }
 
-        function primeBastardLoopLNoteEntryTone(note) {
-            if (!audioContext || !note || !engineInitialized || engineStarting) {
-                return false;
-            }
-            if (audioContext.state === 'suspended') {
-                try {
-                    void audioContext.resume();
-                } catch (error) {}
-            }
-            return playBastardLoopLFeedbackTone(note, {
-                duration: 0.14,
-                gain: 0.22,
-                destination: audioContext.destination
-            });
-        }
-
         function auditionBastardLoopLCurrentStep(options = {}) {
             const step = getBastardLoopLStep(bastardLoopLEditStepIndex);
             if (step.rest) {
@@ -34901,7 +34929,7 @@
             }
         }
 
-        function previewBastardLoopLStep(step) {
+        function previewBastardLoopLStep(step, options = {}) {
             if (!audioContext || !bastardLoopLSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
             const gain = audioContext.createGain();
@@ -34913,27 +34941,35 @@
             const accentBoost = getBastardLoopLAccentGainMultiplier(step);
             const now = (audioContext.currentTime || 0) + 0.002;
             const startTrimRatio = getBastardLoopLStartTrimRatio();
-            const attackTime = Math.max(0.001, getBastardLoopLAttackSeconds());
+            let attackTime = Math.max(0.001, getBastardLoopLAttackSeconds());
             const startOffsetSeconds = Math.max(0, Math.min(Math.max(0, bastardLoopLSampleBuffer.duration - 0.01), bastardLoopLSampleBuffer.duration * startTrimRatio));
             const remainingDuration = Math.max(0.08, (bastardLoopLSampleBuffer.duration - startOffsetSeconds) / pitchRatio);
             const decayRatio = getBastardLoopLDecayRatio();
             const allowFullTail = decayRatio >= 0.999;
-            const previewDuration = allowFullTail
+            const previewDuration = options.keyHold ? remainingDuration : allowFullTail
                 ? Math.max(0.08, Math.min(remainingDuration, 4))
                 : Math.max(0.08, Math.min(1.4, remainingDuration * Math.max(0.18, getBastardLoopLStepLengthRatio())));
             const fadeEndTime = now + Math.max(0.05, previewDuration * Math.max(0.16, getBastardLoopLDecayRatio()));
             const stopTime = now + previewDuration;
+            attackTime = Math.min(attackTime, previewDuration * 0.4);
             source.buffer = bastardLoopLSampleBuffer;
             source.playbackRate.setValueAtTime(pitchRatio, now);
             gain.gain.setValueAtTime(0.0001, now);
             gain.gain.linearRampToValueAtTime(Math.max(0.0001, level * accentBoost), now + attackTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
+            if (options.keyHold) {
+                gain.gain.setValueAtTime(Math.max(0.0001, level * accentBoost), Math.max(now + attackTime, stopTime - 0.008));
+                gain.gain.linearRampToValueAtTime(0.0001, stopTime);
+            } else {
+                gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
+            }
             source.connect(gain);
             connectBastardLoopFilterChain(gain, filters, destination);
             applyBastardLoopLFilterEnvelope(filters, now, previewDuration, step);
             const voice = { source, gain, filterNodes: filters };
-            bastardLoopLActiveVoices.add(voice);
+            if (options.keyHold) options.keyHold.voice = voice;
+            else bastardLoopLActiveVoices.add(voice);
             source.onended = () => {
+                if (options.keyHold) options.keyHold.voice = null;
                 bastardLoopLActiveVoices.delete(voice);
                 try {
                     source.disconnect();
@@ -35142,6 +35178,15 @@
                 updateBastardLoopLStatus('Audio is not ready for Loop L playback yet.');
                 return false;
             }
+            if (options.keyHold?.released) return false;
+            if (options.keyHold && !isBastardLoopLUsingSynth() && !bastardLoopLSampleBuffer) {
+                const restored = await ensureBastardLoopLSampleBufferReady();
+                if (options.keyHold.released) return false;
+                if (!restored) {
+                    updateBastardLoopLStatus('Choose a sample before playing the Loop L keyboard.');
+                    return false;
+                }
+            }
             return applyBastardLoopLNoteEntry(note, options);
         }
 
@@ -35274,6 +35319,7 @@
                 });
             }
             if (changed) {
+                releaseSequencerKeyboardHolds('L');
                 const warning = document.getElementById('osc3SequencerLockWarning');
                 if (warning) warning.hidden = true;
                 stopAllBastardLoopLVoices({ fade: false });
@@ -35336,6 +35382,7 @@
         }
 
         function closeBastardLoopLOverlay() {
+            releaseSequencerKeyboardHolds('L');
             const overlay = document.getElementById('bastardLoopLOverlay');
             if (!overlay) return;
             if (!overlay.hidden) window.guardSectionJumpAfterOverlayClose?.();
@@ -35364,9 +35411,11 @@
                 note,
                 rest: false
             };
-            const played = auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex });
+            const played = options.keyHold && !isBastardLoopLUsingSynth()
+                ? previewBastardLoopLStep(playedStep, options)
+                : auditionBastardLoopLVoice(playedStep, { index: bastardLoopLEditStepIndex });
             let tonePlayed = options.tonePrimed === true;
-            if (!played && !tonePlayed) {
+            if (!played && !tonePlayed && !options.keyHold) {
                 tonePlayed = playBastardLoopLFeedbackTone(note, {
                     duration: 0.14,
                     gain: 0.22,
@@ -35971,6 +36020,8 @@
             bastardLoopXFilterLfoPendingStartTime = Number.isFinite(numericStartTime)
                 ? Math.max(audioContext.currentTime, numericStartTime)
                 : null;
+            // Transport resets must reconnect held keyboard samples to the new LFO.
+            getSequencerKeyboardVoices('X').forEach(voice => attachBastardLoopXFilterLfoToVoice(voice));
         }
 
         function ensureBastardLoopXFilterLfoSource(options = {}) {
@@ -36217,7 +36268,7 @@
             updateBastardLoopXDelayBusSettings();
             ensureBastardLoopXFilterLfoSource();
             const cutoff = getBastardLoopXFilterCutoff();
-            bastardLoopXActiveVoices.forEach((voice) => {
+            [...bastardLoopXActiveVoices, ...getSequencerKeyboardVoices('X')].forEach((voice) => {
                 if (voice?.filterNodes?.length) {
                     smoothBastardLoopFilterCutoff(voice.filterNodes, cutoff, 0.03);
                     attachBastardLoopXFilterLfoToVoice(voice, cutoff);
@@ -36445,60 +36496,8 @@
             keyboard.dataset.layoutVersion = BASTARD_LOOP_X_KEYBOARD_RENDER_VERSION;
         }
 
-        function flashBastardLoopXKeyboardKey(button) {
-            if (!button) return;
-            if (button._loopXFlashTimer) {
-                clearTimeout(button._loopXFlashTimer);
-            }
-            button.classList.add('is-active');
-            button._loopXFlashTimer = window.setTimeout(() => {
-                button.classList.remove('is-active');
-                button._loopXFlashTimer = null;
-            }, 130);
-        }
-
         function bindBastardLoopXKeyboardKey(button) {
-            if (!button) return;
-            if (button.dataset.loopXBound === 'true') return;
-            const trigger = async (event) => {
-                event?.preventDefault?.();
-                event?.stopPropagation?.();
-                if (button.dataset.loopXTriggering === 'true') {
-                    return;
-                }
-                button.dataset.loopXTriggering = 'true';
-                flashBastardLoopXKeyboardKey(button);
-                const tonePrimed = primeBastardLoopXNoteEntryTone(button.dataset.note);
-                try {
-                    await previewBastardLoopXNoteFromInput(button.dataset.note, { tonePrimed });
-                } catch (error) {
-                    console.error('Loop X keyboard note failed:', error);
-                    updateBastardLoopXStatus(`Loop X keyboard failed: ${error.message}`);
-                } finally {
-                    button.dataset.loopXTriggering = 'false';
-                }
-            };
-            button.style.touchAction = 'manipulation';
-            if (window.PointerEvent) {
-                button.addEventListener('pointerdown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    void trigger(event);
-                });
-            } else {
-                button.addEventListener('touchstart', (event) => {
-                    void trigger(event);
-                }, { passive: false });
-                button.addEventListener('mousedown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    void trigger(event);
-                });
-            }
-            button.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                void trigger(event);
-            });
-            button.addEventListener('click', (event) => event.preventDefault());
-            button.dataset.loopXBound = 'true';
+            bindSequencerSampleKeyboardKey(button, 'X', previewBastardLoopXNoteFromInput, updateBastardLoopXStatus);
         }
 
         function updateBastardLoopXStatus(message) {
@@ -36665,6 +36664,7 @@
                 ensureBastardLoopLSynthReady({ forceMinimumMix: options.forceMinimumMix === true, minOscMix: 0.35 });
             }
             if (changed) {
+                releaseSequencerKeyboardHolds('X');
                 const warning = document.getElementById('osc3SequencerLockWarning');
                 if (warning) warning.hidden = true;
                 stopAllBastardLoopXVoices({ fade: false });
@@ -37008,23 +37008,6 @@
             return true;
         }
 
-        function primeBastardLoopXNoteEntryTone(note) {
-            if (isBastardLoopXUsingSynth()) return false;
-            if (!audioContext || !note || !engineInitialized || engineStarting) {
-                return false;
-            }
-            if (audioContext.state === 'suspended') {
-                try {
-                    void audioContext.resume();
-                } catch (error) {}
-            }
-            return playBastardLoopXFeedbackTone(note, {
-                duration: 0.14,
-                gain: 0.22,
-                destination: audioContext.destination
-            });
-        }
-
         function auditionBastardLoopXCurrentStep(options = {}) {
             const step = getBastardLoopXStep(bastardLoopXEditStepIndex);
             if (step.rest) {
@@ -37133,7 +37116,7 @@
             }
         }
 
-        function previewBastardLoopXStep(step) {
+        function previewBastardLoopXStep(step, options = {}) {
             if (isBastardLoopXUsingSynth()) return auditionBastardLoopXVoice(step);
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note || step.rest) return false;
             const source = audioContext.createBufferSource();
@@ -37145,29 +37128,37 @@
             const pitchRatio = Math.max(0.125, Math.min(8, getBastardLoopXPitchRatioForNote(step.note)));
             const now = (audioContext.currentTime || 0) + 0.002;
             const startTrimRatio = getBastardLoopXStartTrimRatio();
-            const attackTime = Math.max(0.001, getBastardLoopXAttackSeconds());
+            let attackTime = Math.max(0.001, getBastardLoopXAttackSeconds());
             const sourceRegion = getBastardLoopXSampleRegion();
             const startOffsetSeconds = Math.max(sourceRegion.start, Math.min(Math.max(sourceRegion.start, sourceRegion.end - 0.01), sourceRegion.start + (sourceRegion.end - sourceRegion.start) * startTrimRatio));
             const remainingDuration = Math.max(0.08, (sourceRegion.end - startOffsetSeconds) / pitchRatio);
             const decayRatio = getBastardLoopXDecayRatio();
             const allowFullTail = decayRatio >= 0.999;
-            const previewDuration = allowFullTail
+            const previewDuration = options.keyHold ? remainingDuration : allowFullTail
                 ? Math.max(0.08, Math.min(remainingDuration, 4))
                 : Math.max(0.08, Math.min(1.4, remainingDuration * Math.max(0.18, getBastardLoopXStepLengthRatio())));
             const fadeEndTime = now + Math.max(0.05, previewDuration * Math.max(0.16, getBastardLoopXDecayRatio()));
             const stopTime = now + previewDuration;
+            attackTime = Math.min(attackTime, previewDuration * 0.4);
             source.buffer = bastardLoopXSampleBuffer;
             source.playbackRate.setValueAtTime(pitchRatio, now);
             gain.gain.setValueAtTime(0.0001, now);
             gain.gain.linearRampToValueAtTime(Math.max(0.0001, level), now + attackTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
+            if (options.keyHold) {
+                gain.gain.setValueAtTime(Math.max(0.0001, level), Math.max(now + attackTime, stopTime - 0.008));
+                gain.gain.linearRampToValueAtTime(0.0001, stopTime);
+            } else {
+                gain.gain.exponentialRampToValueAtTime(0.0001, Math.min(stopTime, fadeEndTime));
+            }
             source.connect(gain);
             connectBastardLoopFilterChain(gain, filters, destination);
             applyBastardLoopXFilterEnvelope(filters, now, previewDuration, step);
             const voice = { source, gain, filterNodes: filters };
             attachBastardLoopXFilterLfoToVoice(voice, getBastardLoopXFilterCutoff());
-            bastardLoopXActiveVoices.add(voice);
+            if (options.keyHold) options.keyHold.voice = voice;
+            else bastardLoopXActiveVoices.add(voice);
             source.onended = () => {
+                if (options.keyHold) options.keyHold.voice = null;
                 bastardLoopXActiveVoices.delete(voice);
                 destroyBastardLoopXVoiceLfo(voice);
                 try {
@@ -37434,6 +37425,15 @@
                 updateBastardLoopXStatus('Audio is not ready for Loop X playback yet.');
                 return false;
             }
+            if (options.keyHold?.released) return false;
+            if (options.keyHold && !isBastardLoopXUsingSynth() && !bastardLoopXSampleBuffer) {
+                const restored = await ensureBastardLoopXSampleBufferReady();
+                if (options.keyHold.released) return false;
+                if (!restored) {
+                    updateBastardLoopXStatus('Choose a sample before playing the Loop X keyboard.');
+                    return false;
+                }
+            }
             return applyBastardLoopXNoteEntry(note, options);
         }
 
@@ -37540,6 +37540,7 @@
         }
 
         function closeBastardLoopXOverlay() {
+            releaseSequencerKeyboardHolds('X');
             const overlay = document.getElementById('bastardLoopXOverlay');
             if (!overlay) return;
             if (!overlay.hidden) window.guardSectionJumpAfterOverlayClose?.();
@@ -37570,10 +37571,12 @@
             };
             const canTrySample = hasBastardLoopXPlaybackSource();
             const played = canTrySample
-                ? auditionBastardLoopXVoice(playedStep, { index: bastardLoopXEditStepIndex })
+                ? (options.keyHold && !isBastardLoopXUsingSynth()
+                    ? previewBastardLoopXStep(playedStep, options)
+                    : auditionBastardLoopXVoice(playedStep, { index: bastardLoopXEditStepIndex }))
                 : false;
             let tonePlayed = options.tonePrimed === true;
-            if (!played && !tonePlayed) {
+            if (!played && !tonePlayed && !options.keyHold) {
                 tonePlayed = playBastardLoopXFeedbackTone(note, {
                     duration: 0.14,
                     gain: 0.22,
@@ -40399,6 +40402,7 @@
         }
 
         function panicAllNotes(options = {}) {
+            releaseSequencerKeyboardHolds();
             window.mygrainAiPatchAdapter?.stopPreview();
             stopRetiredTransportVoices();
             transportSync.handoffBoundary = null;
@@ -40469,6 +40473,7 @@
         }
 
         function stopAllPerformancePlayback(options = {}) {
+            releaseSequencerKeyboardHolds();
             window.mygrainAiPatchAdapter?.stopPreview();
             const hadPlayback = sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || isBastardLoopLRunning() || isBastardLoopXRunning() || window.mygrainQ?.hasAudio() || isBastardLoopVCutPreviewRunning() || drumMachinePlaying;
             stopRetiredTransportVoices();

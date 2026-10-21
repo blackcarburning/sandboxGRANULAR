@@ -107,7 +107,7 @@ test('slides preserve hard-sync master frequencies rather than retuning synced o
 
 function lockingFixture() {
     const events = [];
-    const c = { window: {}, document: { getElementById: () => null },
+    const c = { window: {}, sequencerKeyboardHolds: new Set(), document: { getElementById: () => null },
         bastardLoopLSourceMode: 'sample', bastardLoopXSourceMode: 'sample',
         ensureBastardLoopLSynthReady: () => events.push('prepare'),
         stopAllBastardLoopLVoices: () => events.push('stopL'),
@@ -118,7 +118,7 @@ function lockingFixture() {
         updateBastardLoopLStatus: value => events.push(value), updateBastardLoopXStatus: value => events.push(value),
         saveState: () => events.push('save') };
     vm.createContext(c);
-    for (const name of ['normalizeBastardLoopLSourceMode', 'normalizeBastardLoopXSourceMode', 'isBastardLoopLUsingSynth', 'isBastardLoopXUsingSynth', 'normalizeOsc3SequencerSources', 'getOsc3SequencerOwner', 'syncOsc3SequencerLockUi', 'canConnectOsc3Sequencer', 'restoreOsc3SequencerSources', 'setBastardLoopLSourceMode', 'setBastardLoopXSourceMode']) vm.runInContext(source(name), c);
+    for (const name of ['releaseSequencerKeyboardHolds', 'normalizeBastardLoopLSourceMode', 'normalizeBastardLoopXSourceMode', 'isBastardLoopLUsingSynth', 'isBastardLoopXUsingSynth', 'normalizeOsc3SequencerSources', 'getOsc3SequencerOwner', 'syncOsc3SequencerLockUi', 'canConnectOsc3Sequencer', 'restoreOsc3SequencerSources', 'setBastardLoopLSourceMode', 'setBastardLoopXSourceMode']) vm.runInContext(source(name), c);
     c.showOsc3SequencerLockWarning = message => events.push(message);
     return { c, events };
 }

@@ -867,15 +867,21 @@ test('Loop X transport helpers stay cloned from Loop L for delay and filter sche
     );
 });
 
-test('Loop X keyboard binding owns X guard state instead of leftover L markers', () => {
-    const flashSource = extractFunctionSource('flashBastardLoopXKeyboardKey');
-    const bindSource = extractFunctionSource('bindBastardLoopXKeyboardKey');
-
-    assert.match(flashSource, /_loopXFlashTimer/);
-    assert.doesNotMatch(flashSource, /_loopLFlashTimer/);
-    assert.match(bindSource, /dataset\.loopXBound/);
-    assert.match(bindSource, /dataset\.loopXTriggering/);
-    assert.doesNotMatch(bindSource, /loopLBound|loopLTriggering/);
+test('Loop L and X keyboard bindings retain independent layer and playback callbacks', () => {
+    const calls = [];
+    const bindings = {
+        bindSequencerSampleKeyboardKey: (...args) => calls.push(args),
+        previewBastardLoopLNoteFromInput() {}, previewBastardLoopXNoteFromInput() {},
+        updateBastardLoopLStatus() {}, updateBastardLoopXStatus() {}
+    };
+    vm.runInNewContext(['bindBastardLoopLKeyboardKey', 'bindBastardLoopXKeyboardKey'].map(extractFunctionSource).join('\n'), bindings);
+    const l = {}, x = {};
+    bindings.bindBastardLoopLKeyboardKey(l);
+    bindings.bindBastardLoopXKeyboardKey(x);
+    assert.deepEqual(calls, [
+        [l, 'L', bindings.previewBastardLoopLNoteFromInput, bindings.updateBastardLoopLStatus],
+        [x, 'X', bindings.previewBastardLoopXNoteFromInput, bindings.updateBastardLoopXStatus]
+    ]);
 });
 
 test('Loop L and X performance start buttons use layer-specific mobile transport wiring', () => {
