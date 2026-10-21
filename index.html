@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261021-k-2"></script>
+    <script src="mygrain-accounts.js?v=20261021-k-3"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-21-k-2';
+            const cacheBuster = '2026-10-21-k-3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5401,6 +5401,27 @@
             grid-row: 4;
         }
 
+        .simplified-ui .keyboard-section #performanceKeyboardJumpToKBtn {
+            grid-column: 1 / -1;
+            grid-row: 5;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: linear-gradient(180deg, #203d52, #122331);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.25);
+        }
+
+        body button:is(#performanceKeyboardToKRecordSurfaceBtn, #performanceKeyboardToKRecordBtn, #performanceBastardLoopKRecordBtn, #performanceBastardLoopKRecordLoopBtn) {
+            color: #fff !important;
+            border: 1px solid rgba(255, 255, 255, 0.7) !important;
+            background: linear-gradient(160deg, #682733, #341018) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.25) !important;
+        }
+
+        body button:is(#performanceKeyboardToKRecordSurfaceBtn, #performanceKeyboardToKRecordBtn, #performanceBastardLoopKRecordBtn, #performanceBastardLoopKRecordLoopBtn).is-recording {
+            background: linear-gradient(160deg, #f7818b, #d8495d) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(247, 129, 139, 0.3) !important;
+        }
+
         .simplified-ui .keyboard-section #performanceKeyboardClearKBtn {
             grid-column: 4;
             grid-row: 4;
@@ -6024,7 +6045,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.K.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.K.3</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6109,7 +6130,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.K.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.K.3</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8617,6 +8638,7 @@
                     <button class="arp-clock-btn" id="arpModeBtn" title="Arpeggiator direction mode">Arp Up</button>
                     <button class="arp-clock-btn" id="performanceKeyboardToKRecordSurfaceBtn" title="Stop, count in and record the selected keyboard sound into Bastardloop K">Record to K</button>
                     <button class="arp-clock-btn" id="performanceKeyboardClearKBtn" type="button" title="Clear K recording (Undo/Redo available)" disabled>Clear K</button>
+                    <button class="arp-clock-btn performance-layer-jump-btn" id="performanceKeyboardJumpToKBtn" type="button" data-jump-target="#bastardLoopKCard">Jump to K</button>
                     <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
                     <div class="keyboard" id="keyboardContainer">
                     </div>
@@ -25760,6 +25782,15 @@
             if (clearButton) {
                 clearButton.disabled = bastardLoopKRecordingState === 'processing' || (!hasRecording && !isBusy);
                 clearButton.textContent = isBusy ? 'Cancel & Clear' : 'Clear';
+            }
+            for (const id of ['performanceKeyboardToKRecordSurfaceBtn', 'performanceKeyboardToKRecordBtn', 'performanceBastardLoopKRecordBtn', 'performanceBastardLoopKRecordLoopBtn']) {
+                const button = document.getElementById(id);
+                if (!button) continue;
+                button.classList.toggle('is-recording', bastardLoopKRecordingState === 'recording');
+                if (id.startsWith('performanceKeyboard')) {
+                    button.disabled = bastardLoopKRecordingState === 'processing';
+                    button.setAttribute('aria-pressed', String(isBusy));
+                }
             }
             if (keyboardClearButton) keyboardClearButton.disabled = isBusy || !hasRecording;
             if (startButton) {
@@ -61414,13 +61445,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-2');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-3');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261020-persistent-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-2&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-3');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-3&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>

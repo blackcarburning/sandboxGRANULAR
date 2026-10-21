@@ -1,6 +1,10 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Keyboard K shortcuts (K.3)
+
+Build `v2026.10.21.K.3` adds **Jump to K** below the keyboard's Record/Clear row, using the existing section-jump handler and K card. K recording buttons are dark red during idle/count-in/processing and light red only while the take is actually recording. State follows the existing K lifecycle, including cancellation/failure. No audio or persistence formats change.
+
 ## K keyboard recording (K.2)
 
 Build `v2026.10.21.K.2` uses an **audio-thread PCM capture window** that starts at the pattern downbeat after the four-beat count-in. It no longer starts MediaRecorder during the count-in and trims it afterwards. The keyboard button reads **Record to K**; pressing it during backing playback stops the pattern before counting in. The selected editable pattern starts on the recording downbeat, not an armed Song cache. Cancellation preserves the previous take and stops any future-scheduled backing.
