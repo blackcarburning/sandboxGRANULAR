@@ -1,9 +1,19 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Per-part playback Steps (SONG.2)
+
+Build `v2026.10.21.SONG.2` adds a **Steps** number box beside Repeats on every Song part card. It defaults to the full saved cycle (including slow L/X/Q timing); set 1 through that full step count to play only the opening section of each repeat. Leaving the box or pressing Enter saves it. Raise the value again to restore more of the original pattern. The grid, notes, source archive and complete rendered audio stay untouched.
+
+`playbackSteps` is occurrence-specific arrangement metadata: reused placements can have different cuts. Reuse and Make a full copy initially carry the selected occurrence's length, then remain independent. Reorder, rename, repeats and reload preserve it. Amendments keep a shorter cut within the new source length; full-length placements follow the newly saved pattern length. Older parts/clients without a playback cut continue to use the full saved cycle.
+
+Song scheduling, part looping, repeats and WAV export use the same cut region without pitch compression. Audio rendering/validation and memory sizing always use the complete source cycle, so changing Steps does not require regenerating audio. Existing Song reservation, revision and device checks still guard arrangement edits. Stop playback and finish amendments before changing Steps; Arm Cache reuses the unchanged renders.
+
+Regression: `node --test tests/song-part-steps.test.cjs`; `python3 -m unittest discover -s tests -p 'test_song_part_steps.py'`. `SONG_STEPS_EVIDENCE=<directory> node tests/song-part-steps-browser.cjs` checks actual UI inputs, independent reused occurrences, complete cached audio, cut-region repeats/export, looping, restart, restore and input layout in Chromium/WebKit desktop and phone emulation, against the disposable `tests/song-beta-test-server.py 18890` server.
+
 ## Song parts retain the full live pattern (SONG.1)
 
-Build `v2026.10.21.SONG.1` makes New Part and Save Amendment retain the complete current pattern cycle, including enabled L/X sequences at ×2/×4/×8 and Q at slower rates. A separate `snapshot.extra.patternCycleMultiplier` records the longest active cycle without changing the 8–64-step grid, notes or playback rate. Part duration, isolated audio capture, render validation, playback, repeats and WAV export all use that same cycle length. The part card displays the full-cycle multiplier where needed.
+Build `v2026.10.21.SONG.1` makes New Part and Save Amendment retain the complete current pattern cycle, including enabled L/X sequences at ×2/×4/×8 and Q at slower rates. A separate `snapshot.extra.patternCycleMultiplier` records the longest active cycle without changing the 8–64-step grid, notes or playback rate. Part duration, isolated audio capture, render validation, playback, repeats and WAV export all use that same cycle length. The part card reflects the complete cycle duration (SONG.2 additionally shows full/cut step counts).
 
 Existing archives without this optional field retain their original duration; no saved Song is rewritten or automatically doubled. Newly saved normal-speed parts explicitly reset the multiplier to one. Reused occurrences and full copies retain their source duration; amendments update it from the current live state.
 

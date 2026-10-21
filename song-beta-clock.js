@@ -48,7 +48,9 @@
                 sources.push(source);
                 source.buffer = buffer;
                 source.loop = true;
-                source.playbackRate.value = buffer.duration / baseDuration;
+                const fullDuration = root.MygrainSongBeta.sourcePartDurationSeconds(part);
+                source.playbackRate.value = buffer.duration / fullDuration;
+                source.loopEnd = buffer.duration * baseDuration / fullDuration;
                 source.connect(destination);
                 source.start(start);
                 source.stop(end);
@@ -117,7 +119,9 @@
             sources.add(source);
             source.buffer = buffer;
             source.loop = true;
-            source.playbackRate.value = buffer.duration / baseDuration;
+            const fullDuration = root.MygrainSongBeta.sourcePartDurationSeconds(part);
+            source.playbackRate.value = buffer.duration / fullDuration;
+            source.loopEnd = buffer.duration * baseDuration / fullDuration;
             source.connect(destination);
             source.onended = () => {
                 if (stopped) return;
@@ -232,7 +236,7 @@
             deck.saveAudioBufferToDB = async () => {};
             deck.clearAudioBufferFromDB = async () => {};
             deck.mygrainSongBetaAdapter.recall(part, { start: false });
-            const frames = Math.round(root.MygrainSongBeta.partDurationSeconds({ ...timing, repeats: 1 }) * context.sampleRate);
+            const frames = Math.round(root.MygrainSongBeta.sourcePartDurationSeconds(timing) * context.sampleRate);
             const captureTiming = renderCaptureTiming(context, deck);
             const startFrame = captureTiming.startFrame;
             capture = new root.AudioWorkletNode(context, 'mygrain-song-capture-v1', {

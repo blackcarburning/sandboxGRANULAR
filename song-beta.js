@@ -6,10 +6,15 @@
         const steps = Number(part.patternSteps);
         const repeats = Number(part.repeats);
         const cycle = part.patternCycleMultiplier ?? 1;
-        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || ![1, 2, 4, 8].includes(cycle)) {
+        const playbackSteps = part.playbackSteps ?? steps * cycle;
+        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || ![1, 2, 4, 8].includes(cycle) || !Number.isInteger(playbackSteps) || playbackSteps < 1 || playbackSteps > steps * cycle) {
             throw new Error('Invalid saved part timing.');
         }
-        return (60 / bpm) * (steps / 4) * cycle * repeats;
+        return (60 / bpm) * (playbackSteps / 4) * repeats;
+    }
+
+    function sourcePartDurationSeconds(part) {
+        return partDurationSeconds({ ...part, playbackSteps: undefined, repeats: 1 });
     }
 
     function libraryKey(storage, crypto) {
@@ -657,7 +662,7 @@
             const existing = this.cache.get(sourceId(part));
             if (existing && (existing.contentSha256 || existing.sourceSha256) === contentKey(part)) return existing;
             const info = inspected || await this.readPart(part, generation);
-            const renderSize = partDurationSeconds({ ...part, repeats: 1 }) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+            const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
             let release;
             try {
                 this.armStage(generation, 'Waiting for preparation memory', part);
@@ -738,7 +743,7 @@
                 buffer = await this.adapter.decodeRender(bytes.slice(0));
             } else {
                 rendered = true;
-                this.status(`Rendering ${part.name} for exact beat playback (${partDurationSeconds({ ...part, repeats: 1 }).toFixed(1)}s). Keep this page open…`);
+                this.status(`Rendering ${part.name} for exact beat playback (${sourcePartDurationSeconds(part).toFixed(1)}s). Keep this page open…`);
                 this.armStage(generation, 'Rendering exact beat playback', part);
                 await this.paintBeforeArmWork(generation);
                 buffer = await this.adapter.renderPart(decoded, part, this.abort?.signal);
@@ -803,7 +808,7 @@
         }
 
         retainRender(part, buffer) {
-            const expected = partDurationSeconds({ ...part, repeats: 1 });
+            const expected = sourcePartDurationSeconds(part);
             if (Math.abs(buffer.duration - expected) > 2 / buffer.sampleRate) throw new Error(`Prepared audio has the wrong pattern length for ${part.name}.`);
             const size = buffer.length * buffer.numberOfChannels * 4;
             if (this.renders.has(sourceId(part))) {
@@ -881,7 +886,7 @@
                     const digest = Array.from(new Uint8Array(await this.crypto.subtle.digest('SHA-256', await body.arrayBuffer())), value => value.toString(16).padStart(2, '0')).join('');
                     let renderBytes;
                     if (part.render?.version === 1 && part.render.sourceSha256 === part.sha256 && this.isRenderCompatible(part, info)) {
-                        releaseRender = await this.memoryBudget.acquire(Number(part.render.bytes) || partDurationSeconds({ ...part, repeats: 1 }) * 48000 * 8, this.abort?.signal);
+                        releaseRender = await this.memoryBudget.acquire(Number(part.render.bytes) || sourcePartDurationSeconds(part) * 48000 * 8, this.abort?.signal);
                         renderBytes = await this.readRender(part, this.abort?.signal, generation);
                     }
                     this.assertUpgradeCurrent(generation, expected);
@@ -983,7 +988,7 @@
                             info = this.snapshots.get(sourceId(part));
                             if (!info && (!this.isRenderCompatible(part) || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPart(part, generation);
                             if (this.hasSavedRender(part)) {
-                                const renderSize = partDurationSeconds({ ...part, repeats: 1 }) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+                                const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 this.armStage(generation, 'Waiting for playback memory', part);
                                 releaseRender = await this.memoryBudget.acquire(renderSize * 3, abort.signal);
                                 await this.prepareRender(part, info || {}, generation);
@@ -1289,9 +1294,20 @@
             const repeats = Number(value);
             if (!Number.isInteger(repeats) || repeats < 1 || repeats > 64) throw new Error('Choose 1–64 whole-pattern repeats.');
             if (repeats === part.repeats) return;
-            const parts = this.song.parts.map(entry => ({ id: entry.id, name: entry.name, repeats: entry.id === part.id ? repeats : entry.repeats }));
+            const parts = this.song.parts.map(entry => ({ id: entry.id, name: entry.name, playbackSteps: entry.playbackSteps, repeats: entry.id === part.id ? repeats : entry.repeats }));
             await this.saveArrangement(parts);
             if (this.active === part.id) this.element('songBetaRepeats').value = repeats;
+        }
+
+        async setSteps(part, value) {
+            if (this.playing || this.editing) throw new Error('Stop playback and finish the amendment before changing steps.');
+            const steps = Number(value);
+            const fullSteps = part.patternSteps * (part.patternCycleMultiplier ?? 1);
+            if (!Number.isInteger(steps) || steps < 1 || steps > fullSteps) throw new Error(`Choose 1–${fullSteps} steps. The complete saved pattern is retained.`);
+            if (steps === (part.playbackSteps ?? fullSteps)) return;
+            const parts = this.song.parts.map(entry => ({ id: entry.id, name: entry.name, repeats: entry.repeats, playbackSteps: entry.id === part.id ? steps : entry.playbackSteps }));
+            await this.saveArrangement(parts);
+            this.status(`Saved ${steps} of ${fullSteps} steps for this occurrence of ${part.name}. The full pattern is unchanged; increase Steps to restore it. Arm Cache before playback; existing audio is reused.`);
         }
 
         async setColour(part, value) {
@@ -1309,7 +1325,7 @@
 
         async arrange(part, direction = 0) {
             if (this.playing) throw new Error('Stop the song before changing its arrangement.');
-            const parts = this.song.parts.map(entry => ({ id: entry.id, name: entry.name, repeats: entry.repeats }));
+            const parts = this.song.parts.map(entry => ({ id: entry.id, name: entry.name, repeats: entry.repeats, playbackSteps: entry.playbackSteps }));
             const index = parts.findIndex(entry => entry.id === part.id);
             if (direction) {
                 const destination = index + direction;
@@ -1494,7 +1510,9 @@
                 const detail = this.document.createElement('span');
                 detail.className = 'song-beta-part-detail';
                 const uses = this.song.parts.filter(entry => sourceId(entry) === sourceId(part)).length;
-                detail.textContent = `${part.bpm} BPM · ${part.patternSteps} steps${(part.patternCycleMultiplier ?? 1) > 1 ? ` · full cycle ×${part.patternCycleMultiplier}` : ''} · ${partDurationSeconds(part).toFixed(1)}s${uses > 1 ? ` · Shared: ${uses} uses` : ''}`;
+                const savedSteps = part.patternSteps * (part.patternCycleMultiplier ?? 1);
+                const playedSteps = part.playbackSteps ?? savedSteps;
+                detail.textContent = `${part.bpm} BPM · ${playedSteps} steps${playedSteps < savedSteps ? ` of ${savedSteps} saved` : ''} · ${partDurationSeconds(part).toFixed(1)}s${uses > 1 ? ` · Shared: ${uses} uses` : ''}`;
                 controls.append(detail);
                 const colourLabel = this.document.createElement('label');
                 colourLabel.className = 'song-beta-part-colour';
@@ -1536,6 +1554,27 @@
                 });
                 repeatLabel.append(repeats);
                 header.append(repeatLabel);
+                const stepsLabel = this.document.createElement('label');
+                stepsLabel.className = 'song-beta-part-steps';
+                stepsLabel.textContent = 'Steps';
+                const steps = this.document.createElement('input');
+                const fullSteps = part.patternSteps * (part.patternCycleMultiplier ?? 1);
+                steps.type = 'number';
+                steps.min = '1';
+                steps.max = String(fullSteps);
+                steps.step = '1';
+                steps.value = part.playbackSteps ?? fullSteps;
+                steps.setAttribute('aria-label', `Steps for ${part.name}`);
+                steps.title = `Play the first 1–${fullSteps} steps per repeat. The full saved pattern is retained. Saves when you leave the box or press Enter.`;
+                steps.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing);
+                steps.addEventListener('change', () => this.run(() => this.setSteps(part, steps.value)));
+                steps.addEventListener('keydown', event => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    steps.blur();
+                });
+                stepsLabel.append(steps);
+                header.append(stepsLabel);
                 for (const [label, className, action] of [
                     ['Recall', 'song-beta-load', () => this.recall(part, { start: false })],
                     ['Reuse Part', 'song-beta-reuse', () => this.reusePart(part)],
@@ -1576,6 +1615,6 @@
         }
     }
 
-    root.MygrainSongBeta = { Controller, partDurationSeconds, libraryKey, libraryStorage, parseLibraryAccess };
+    root.MygrainSongBeta = { Controller, partDurationSeconds, sourcePartDurationSeconds, libraryKey, libraryStorage, parseLibraryAccess };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.MygrainSongBeta;
 })(globalThis);

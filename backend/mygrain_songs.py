@@ -161,6 +161,16 @@ def checked_repeats(value):
     return repeats
 
 
+def full_pattern_steps(part):
+    return part['patternSteps'] * part.get('patternCycleMultiplier', 1)
+
+
+def checked_playback_steps(value, source):
+    if type(value) is not int or not 1 <= value <= full_pattern_steps(source):
+        raise ValueError(f'Part steps must be a whole number from 1 to {full_pattern_steps(source)}.')
+    return value
+
+
 def checked_colour(value):
     if value is None:
         return None
@@ -201,7 +211,14 @@ def source_part(song, part):
 
 def public_song(song):
     result = {key: value for key, value in song.items() if key not in ('ownerHash', 'deletedParts', 'history', 'sharedParts')}
-    result['parts'] = [{**source_part(song, part), **part} for part in song['parts']]
+    result['parts'] = []
+    for part in song['parts']:
+        source = source_part(song, part)
+        merged = {**source, **part}
+        # Playback cuts belong to occurrences, never inherited from the source.
+        if 'playbackSteps' in source or 'playbackSteps' in part:
+            merged['playbackSteps'] = part.get('playbackSteps', full_pattern_steps(source))
+        result['parts'].append(merged)
     result['revision'] = song.get('revision', 1)
     return result
 
@@ -275,6 +292,9 @@ def full_copy_part(folder, song, occurrence, part, edit_headers):
               'createdAt': time.time(), 'revision': 1, 'archive': f'{part_id}.zip', 'bytes': len(archive)}
     for field in ('sourcePartId', 'updatedAt', 'render'):
         copied.pop(field, None)
+    copied.pop('playbackSteps', None)
+    if 'playbackSteps' in occurrence:
+        copied['playbackSteps'] = checked_playback_steps(occurrence['playbackSteps'], part)
     assets = {copied['archive']: archive}
     render = part.get('render')
     if render and render.get('sourceSha256') == part['sha256']:
@@ -714,7 +734,10 @@ def handle_song_request(handler, method, inner_path):
                         if source['id'] in source_names and source_names[source['id']] != name:
                             raise ValueError('Reused occurrences must share the same part name.')
                         source_names[source['id']] = name
-                        ordered.append({**original, 'repeats': checked_repeats(part.get('repeats'))})
+                        arranged = {**original, 'repeats': checked_repeats(part.get('repeats'))}
+                        if 'playbackSteps' in part:
+                            arranged['playbackSteps'] = checked_playback_steps(part['playbackSteps'], source)
+                        ordered.append(arranged)
                     for source_id, name in source_names.items():
                         source_part(song, {'id': source_id})['name'] = name
                     for part in ordered:
@@ -734,7 +757,10 @@ def handle_song_request(handler, method, inner_path):
                     if method == 'POST' and action == 'reuse':
                         if len(song['parts']) >= MAX_PARTS:
                             raise ValueError('The beta supports up to 64 parts per song.')
-                        song['parts'].append({'id': secrets.token_hex(16), 'sourcePartId': part['id'], 'repeats': occurrence['repeats'], 'createdAt': time.time()})
+                        reused = {'id': secrets.token_hex(16), 'sourcePartId': part['id'], 'repeats': occurrence['repeats'], 'createdAt': time.time()}
+                        if 'playbackSteps' in occurrence:
+                            reused['playbackSteps'] = occurrence['playbackSteps']
+                        song['parts'].append(reused)
                         write_song(folder, song, edit_headers=handler.headers)
                         handler.send_json({'ok': True, 'song': public_song(song)}, status=201, extra_headers=headers)
                     elif method == 'POST' and action == 'full-copy':
@@ -812,6 +838,10 @@ def handle_song_request(handler, method, inner_path):
                         repeats = occurrence['repeats'] if action == 'paste-loop' else checked_repeats((query.get('repeats') or [str(occurrence['repeats'])])[0])
                         name = part['name'] if action == 'paste-loop' else clean_name((query.get('name') or [part['name']])[0])
                         updated = {**part, **details, 'name': name, 'repeats': repeats if occurrence is part else part['repeats'], 'sha256': digest, 'bytes': len(body), 'archive': f'{part["id"]}-{secrets.token_hex(16)}.zip', 'revision': part.get('revision', 1) + 1, 'updatedAt': time.time()}
+                        old_steps, new_steps = full_pattern_steps(part), full_pattern_steps(updated)
+                        for slot in [updated] + [entry for entry in song['parts'] if 'sourcePartId' in entry]:
+                            if slot.get('sourcePartId', slot['id']) == part['id'] and 'playbackSteps' in slot:
+                                slot['playbackSteps'] = new_steps if slot['playbackSteps'] == old_steps else min(slot['playbackSteps'], new_steps)
                         if 'qVersion' not in details:
                             updated.pop('qVersion', None)
                         if previous_content == details['contentSha256'] and part.get('render', {}).get('sourceSha256') == part['sha256']:

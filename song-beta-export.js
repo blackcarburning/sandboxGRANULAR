@@ -59,18 +59,22 @@
             if (!buffer || !Number.isInteger(buffer.length) || buffer.length < 1 || !buffer.numberOfChannels || typeof buffer.getChannelData !== 'function') throw new Error(`Arm Cache again: ${entry.part.name} has no prepared song audio.`);
             if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
             const channels = [buffer.getChannelData(0), buffer.getChannelData(Math.min(1, buffer.numberOfChannels - 1))];
-            const step = buffer.length / (baseDuration * sampleRate);
+            const fullDuration = root.MygrainSongBeta.sourcePartDurationSeconds(entry.part);
+            const step = buffer.length / (fullDuration * sampleRate);
+            const cycleFrames = baseDuration * sampleRate;
+            const loopSamples = buffer.length * baseDuration / fullDuration;
             for (let chunkStart = start; chunkStart < end; chunkStart += 32768) {
                 if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
                 const chunkEnd = Math.min(end, chunkStart + 32768);
                 const chunk = new Uint8Array((chunkEnd - chunkStart) * 6);
                 let offset = 0;
                 for (let frame = chunkStart; frame < chunkEnd; frame += 1) {
-                    const position = ((frame - start) * step) % buffer.length;
+                    const position = (((frame - start) % cycleFrames) * step) % buffer.length;
                     const index = Math.floor(position);
                     const fraction = position - index;
                     for (const channel of channels) {
-                        const value = channel[index] * (1 - fraction) + channel[(index + 1) % buffer.length] * fraction;
+                        const next = index + 1 >= loopSamples ? 0 : index + 1;
+                        const value = channel[index] * (1 - fraction) + channel[next] * fraction;
                         if (!Number.isFinite(value)) throw new Error('A song render contains invalid audio. Arm Cache again.');
                         peak = Math.max(peak, Math.abs(value));
                         const sample = Math.max(-1, Math.min(1, value));

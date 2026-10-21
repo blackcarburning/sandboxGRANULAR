@@ -339,17 +339,28 @@
     cursor: pointer;
 }
 
-#songBetaCard label.song-beta-part-repeats {
+#songBetaCard label.song-beta-part-repeats,
+#songBetaCard label.song-beta-part-steps {
     flex: 0 0 90px;
     flex-direction: row;
     align-items: center;
     gap: 4px;
 }
 
-#songBetaCard .song-beta-part-repeats input {
+#songBetaCard .song-beta-part-repeats input,
+#songBetaCard .song-beta-part-steps input {
     flex: 1 1 0;
     width: 0;
     padding: 6px;
+}
+
+#songBetaCard label.song-beta-part-steps { flex-basis: 98px; }
+#songBetaCard .song-beta-part-repeats input,
+#songBetaCard .song-beta-part-steps input { min-width: 48px; text-align: center; }
+
+@media (min-width: 481px) and (max-width: 700px) {
+    #songBetaCard .song-beta-part-header { flex-wrap: wrap; }
+    #songBetaCard .song-beta-part-header .song-beta-toggle { flex-basis: 100%; }
 }
 
 #songBetaCard .song-beta-edit {
