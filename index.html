@@ -263,7 +263,7 @@
     </script>
     <link id="mygrainAccountStyles" onload="this.dataset.loaded='true'" onerror="this.dataset.loaded='false'" rel="stylesheet" href="mygrain-accounts.css?v=20261020-lock-startup-1">
     <script>if (!window.__mygrainSongRenderDeck && /^https?:$/.test(location.protocol)) document.write('<script src="/mygrain/account-context.js"><\/script>');</script>
-    <script src="mygrain-accounts.js?v=20261021-k-6"></script>
+    <script src="mygrain-accounts.js?v=20261021-k-7"></script>
     <script>
         if (!window.mygrainAccounts) {
             document.documentElement.dataset.mygrainLocked = 'true';
@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-21-k-6';
+            const cacheBuster = '2026-10-21-k-7';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5933,6 +5933,20 @@
             color: #e1baff;
         }
 
+        .keyboard-sound-split {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .keyboard-sound-split .performance-btn {
+            height: 100%;
+            min-height: 48px;
+            font-size: 11px;
+            letter-spacing: 0.04em;
+        }
+
         #performanceKeyboardSoundSwitch .performance-btn[aria-pressed="true"],
         #performanceBastardLoopKSoundSwitch .performance-btn[aria-pressed="true"] {
             background: #70408e;
@@ -6045,7 +6059,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.K.6</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.K.7</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6130,7 +6144,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.K.6</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.K.7</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8613,8 +8627,14 @@
                     </div>
                 </div>
                 <div class="keyboard-sound-switch" id="performanceKeyboardSoundSwitch" role="group" aria-label="Keyboard sound">
-                    <button class="performance-btn" type="button" data-keyboard-sound="osc" aria-pressed="false">Osc</button>
-                    <button class="performance-btn active" type="button" data-keyboard-sound="grain" aria-pressed="true">Grain</button>
+                    <div class="keyboard-sound-split">
+                        <button class="performance-btn" type="button" data-keyboard-sound="osc" aria-pressed="false">Osc</button>
+                        <button class="performance-btn performance-layer-jump-btn" id="performanceKeyboardSynthJumpBtn" type="button" data-jump-target=".synth-container" aria-label="Jump to OSC3 synth">Jump</button>
+                    </div>
+                    <div class="keyboard-sound-split">
+                        <button class="performance-btn active" id="performanceKeyboardGrainOnBtn" type="button" data-keyboard-sound="grain" data-granular-keyboard-ready="true" aria-pressed="true" title="Enable and repair the granular keyboard path">Grain On</button>
+                        <button class="performance-btn performance-layer-jump-btn" id="performanceKeyboardGrainJumpBtn" type="button" data-jump-target="#grainAWaveformEditor" aria-label="Jump to Grain A">Jump</button>
+                    </div>
                     <button class="performance-btn" type="button" data-keyboard-sound="piano" aria-pressed="false">Q Piano</button>
                     <button class="performance-btn" type="button" data-keyboard-sound="strings" aria-pressed="false">Q Strings</button>
                 </div>
@@ -20098,6 +20118,7 @@
                 }
                 try { voice.source.stop(); } catch (error) {}
                 try { voice.gain.disconnect(); } catch (error) {}
+                try { voice.source.onended?.(); } catch (error) {}
                 scheduledGrainVoices.delete(voice);
             }
         }
@@ -32727,6 +32748,13 @@
             for (const [voiceId, voice] of activeOscVoices) {
                 if (isKeyboardSoundRole(voice.role)) stopOscillatorNote(voice.note, null, { role: voice.role, voiceId, instant: options.immediate === true });
             }
+            if (options.immediate === true) {
+                // Reclaim scheduled one-shots, not only their disconnected outputs.
+                for (const role of ['keyboard', 'arp']) {
+                    stopScheduledGrainVoices(role);
+                    stopRetiredTransportVoices(role);
+                }
+            }
             keyboardSamplePlayer?.stop();
         }
 
@@ -38556,6 +38584,8 @@
                 const trackedVoice = { source, gain: sampleGain, role: options.role || 'keyboard', isGrainVoice: true };
                 scheduledGrainVoices.add(trackedVoice);
                 source.onended = () => {
+                    if (trackedVoice.ended) return;
+                    trackedVoice.ended = true;
                     scheduledGrainVoices.delete(trackedVoice);
                     try {
                         source.disconnect();
@@ -38609,6 +38639,8 @@
                 const trackedNoise = { source: noiseSource, gain: noiseGain, role: options.role || 'keyboard', isGrainVoice: true };
                 scheduledGrainVoices.add(trackedNoise);
                 noiseSource.onended = () => {
+                    if (trackedNoise.ended) return;
+                    trackedNoise.ended = true;
                     scheduledGrainVoices.delete(trackedNoise);
                     try {
                         noiseSource.disconnect();
@@ -39247,6 +39279,12 @@
             try {
                 if (!await ensureAudioReadyForKeyInteraction()) throw new Error('Audio could not start. Tap Start MYGRAIN and try again.');
                 setKeyboardSoundSource('grain', { skipSave: true });
+                // A Ready action must free stale/inaudible keyboard pool slots.
+                // Active streams are rescheduled below; backing roles stay intact.
+                for (const role of ['keyboard', 'arp']) {
+                    stopScheduledGrainVoices(role);
+                    stopRetiredTransportVoices(role);
+                }
                 clearAllPerformanceSoloStates({ silent: true, skipSave: true });
                 setGranularLayersEnabled(true, { silent: true, skipSave: true });
                 setOscillatorsEnabled(false, { silent: true, skipSave: true });
@@ -59357,6 +59395,7 @@
             await handleBastardLoopKRecordButtonPress({ startFullLoop: true });
         });
         document.querySelectorAll('[data-keyboard-sound]').forEach(button => {
+            if (button.matches('[data-granular-keyboard-ready]')) return;
             button.addEventListener('click', () => selectKeyboardSoundFromUi(button.dataset.keyboardSound));
         });
         window.addEventListener('pagehide', () => keyboardSamplePlayer?.stop());
@@ -61540,13 +61579,13 @@
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261015-q-length-decay-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-6');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261021-k-7');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261014-reuse-parts-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261020-persistent-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261015-song-locks-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261020-ai-current-patch-9&prior=20261019-arm-memory-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-6');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-6&prior=20261019-render-startup-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-k-7');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261021-k-7&prior=20261019-render-startup-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=bass2-20261020-ai-current-patch-9');</script>

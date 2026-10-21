@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Granular keyboard recovery and paired jumps (K.7)
+
+Build `v2026.10.21.K.7` fixes stopped keyboard/ARP grains occupying the six-source pool after their audible outputs had been disconnected. Immediate keyboard stops now reclaim scheduled/retired keyboard and ARP one-shots synchronously, without stopping sequencer/backing voices. Ended cleanup is idempotent so delayed browser events cannot decrement the next generation's voice count. Normal key releases retain their existing tails; the six-source limit is unchanged.
+
+The keyboard's **Grain On** is the same activation/repair action as **Granular Keys Ready + Jump**, not a second independent switch. It also clears stale keyboard pool entries and reschedules held grains. Each OSC/Grain control shares its cell with a **Jump** half: OSC opens the shared OSC3 popup and Grain goes to Grain A's waveform. Navigation alone does not select a sound or start playback. Valid source buffers are preserved; no saved-state or export schema changes.
+
+Local-only actual-audio regression: `MYGRAIN_TEST_URL=http://127.0.0.1:18838/mygrain/ node tests/grain-keyboard-ready-browser.cjs` (disposable server/accounts; Chromium/WebKit, phone portrait/landscape). It fills all six slots with long grains, stops/replays, checks real granular output with OSC off, repeated recovery, late ended events, backing-role isolation, paired controls and navigation.
+
 ## K recording Undo/Redo (K.6)
 
 Build `v2026.10.21.K.6` journals a completed keyboard/ARP recording as **Record to K**, immediately before replacing the prior K audio. Undo restores the previous take (or empty K); Redo restores the exact raw/rendered PCM, metadata and source BPM, including after a browser restart. It uses the existing ten-step account/device-scoped journal and Song reservation checks. Cancelled/failed capture does not add a step or discard Redo. Pending history blocks a new recording; account/audio changes reject a stale completed take. Count-in timing, capture gain and manual edits outside the recording replacement are unchanged.

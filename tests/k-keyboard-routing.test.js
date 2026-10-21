@@ -35,6 +35,7 @@ function fixture(names = []) {
         setAttribute(name, value) { this.attributes[name] = value; }
     }))).flat();
     const player = {
+        voices: new Map(),
         noteOn: async (...args) => { calls.sample.push(args); },
         noteOff: (...args) => calls.release.push(args),
         stop: () => { calls.stop += 1; },
@@ -49,7 +50,7 @@ function fixture(names = []) {
         activeGrains: new Map(), activeOscVoices: new Map(),
         heldNotes: new Set(['C4']), activeKeyCount: 1,
         document: { querySelectorAll: selector => selector === '[data-keyboard-sound]' ? buttons : [], getElementById: () => null },
-        audioContext: { currentTime: 1 }, granularLayersEnabled: true,
+        audioContext: { currentTime: 1 }, granularLayersEnabled: true, transportSync: { depth: 0 },
         startGrainStream: (...args) => calls.grain.push(args),
         playOscillatorNote: (...args) => calls.oscillator.push(args),
         stopGrainStream: (...args) => calls.release.push(['grain', ...args]),
@@ -65,7 +66,9 @@ function fixture(names = []) {
         syncKeyboardSoundControls: () => {}, syncKeyboardRecordingLevel: () => {}, warmKeyboardSound: () => {},
         saveState: () => { calls.save += 1; },
         setStatus: (...args) => calls.status.push(args),
-        stopArpeggiatorPlayback() {}
+        stopArpeggiatorPlayback() {},
+        stopScheduledGrainVoices: role => calls.release.push(['scheduled', role]),
+        stopRetiredTransportVoices: role => calls.release.push(['retired', role])
     };
     vm.createContext(context);
     vm.runInContext(['normalizeKeyboardSoundSource', 'isKeyboardSoundRole', 'getKeyboardSamplePitches', 'silenceKeyboardVoiceOutputs', 'stopKeyboardArpTransport', ...names].map(extractFunction).join('\n'), context);
@@ -97,9 +100,19 @@ test('changing sounds cancels keyboard and arp voices without touching sequencer
     assert.equal(context.heldNotes.size, 0);
     assert.equal(context.activeKeyCount, 0);
     assert.equal(calls.stop, 1);
-    assert.equal(calls.release.length, 2);
+    assert.equal(calls.release.length, 6);
+    assert.deepEqual(calls.release.filter(args => ['scheduled', 'retired'].includes(args[0])), [
+        ['scheduled', 'keyboard'], ['retired', 'keyboard'], ['scheduled', 'arp'], ['retired', 'arp']
+    ]);
     assert.ok(calls.release.every(args => args[2]?.role !== 'sequencer'));
     assert.equal(calls.save, 1);
+});
+
+test('ordinary keyboard release keeps scheduled grain tails instead of applying immediate pool cleanup', () => {
+    const { context, calls } = fixture(['stopKeyboardSounds']);
+    context.stopKeyboardSounds();
+    assert.deepEqual(calls.release, []);
+    assert.equal(calls.stop, 1);
 });
 
 test('restoring the same source refreshes switches without killing held notes or saving', () => {

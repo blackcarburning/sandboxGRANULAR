@@ -301,7 +301,7 @@ test('early bootstrap precedes all persistence modules and keeps existing runtim
     assert.ok(html.indexOf('mygrain-accounts.js') < html.indexOf('audio-debug-storage.js'));
     assert.ok(html.indexOf('mygrain-accounts.js') < html.indexOf('sample-favourites.js'));
     assert.match(html, /id="start-btn" disabled/);
-    assert.match(html, /q-card\.js\?v=20261021-k-6/);
+    assert.match(html, /q-card\.js\?v=20261021-k-7/);
     assert.match(html, /vocal-takes\.js\?v=20261016-accounts-media-k20/);
     assert.match(html, /song-beta-clock\.js\?v=\d{8}-[a-z0-9-]+/);
     assert.match(html, /<strong>v\d{4}\.\d{2}\.\d{2}\.[A-Z]+\.\d+<\/strong>/);
