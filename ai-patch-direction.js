@@ -1,10 +1,11 @@
 (function (root) {
     'use strict';
     if (root.__mygrainSongRenderDeck) return;
-    let schema, previous = null, request = null, serial = 0, locked = false, phase = 'idle', rendered = null, lastPrompt = '', savedPrompts = [], libraryRequest = null, lastSection = null;
+    let schema, kept = false, request = null, serial = 0, locked = false, phase = 'idle', rendered = null, lastPrompt = '', savedPrompts = [], libraryRequest = null, lastSection = null;
     const byId = id => document.getElementById(id);
     const adapter = () => root.mygrainAiPatchAdapter;
-    let activity = null, usage = null, sessionTokens = 0, usageReplies = 0;
+    const canUndo = () => /^AI (generated patch|regenerated patch|refined patch|song section)$/.test(root.mygrainCardHistory?.undoLabel || '');
+    let activity = null, usage = null, sessionTokens = 0, usageReplies = 0, historyFingerprint = null;
     function usageText(value) {
         if (!value?.available || !['inputTokens', 'outputTokens', 'totalTokens', 'cachedInputTokens'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return 'Token usage not reported for this task.';
         const number = n => n.toLocaleString();
@@ -68,26 +69,27 @@
         }
     }
     function update() {
-        byId('aiPatchGenerate').disabled = locked || !schema || Boolean(request);
+        const busy = Boolean(request) || Boolean(root.mygrainCardHistory?.busy);
+        byId('aiPatchGenerate').disabled = locked || !schema || busy;
         byId('aiPatchCancel').hidden = !request || phase === 'undo';
-        byId('aiPatchUndo').hidden = !previous;
-        byId('aiPatchKeep').hidden = !previous;
-        byId('aiPatchUndo').disabled = Boolean(request) || locked;
-        byId('aiPatchKeep').disabled = Boolean(request) || locked;
+        byId('aiPatchUndo').hidden = kept || !canUndo();
+        byId('aiPatchKeep').hidden = kept || !canUndo();
+        byId('aiPatchUndo').disabled = busy || locked;
+        byId('aiPatchKeep').disabled = busy || locked;
         byId('aiPatchHear').hidden = false;
-        byId('aiPatchRender').disabled = Boolean(request) || locked || !schema;
+        byId('aiPatchRender').disabled = busy || locked || !schema;
         byId('aiPatchReplay').hidden = !rendered;
-        byId('aiPatchReplay').disabled = Boolean(request) || locked;
-        byId('aiPatchHear').disabled = Boolean(request) || locked;
-        byId('aiPatchPrompt').disabled = Boolean(request) || locked;
+        byId('aiPatchReplay').disabled = busy || locked;
+        byId('aiPatchHear').disabled = busy || locked;
+        byId('aiPatchPrompt').disabled = busy || locked;
         byId('aiPatchFollowup').hidden = locked;
         byId('aiPatchRegenerateGroup').hidden = !lastPrompt;
         byId('aiPatchLastPrompt').textContent = lastPrompt;
-        byId('aiPatchRegenerate').disabled = Boolean(request) || locked || !lastPrompt;
-        for (const id of ['aiPatchRefine', 'aiPatchRefinement']) byId(id).disabled = Boolean(request) || locked || !schema;
-        for (const id of ['aiPatchSavePrompt', 'aiPatchPromptName', 'aiPatchSavedPrompts', 'aiPatchRefreshPrompts']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest);
-        for (const id of ['aiPatchRecallPrompt', 'aiPatchRemovePrompt']) byId(id).disabled = Boolean(request) || locked || Boolean(libraryRequest) || !byId('aiPatchSavedPrompts').value;
-        byId('aiPatchCard').setAttribute('aria-busy', String(Boolean(request)));
+        byId('aiPatchRegenerate').disabled = busy || locked || !lastPrompt;
+        for (const id of ['aiPatchRefine', 'aiPatchRefinement']) byId(id).disabled = busy || locked || !schema;
+        for (const id of ['aiPatchSavePrompt', 'aiPatchPromptName', 'aiPatchSavedPrompts', 'aiPatchRefreshPrompts']) byId(id).disabled = busy || locked || Boolean(libraryRequest);
+        for (const id of ['aiPatchRecallPrompt', 'aiPatchRemovePrompt']) byId(id).disabled = busy || locked || Boolean(libraryRequest) || !byId('aiPatchSavedPrompts').value;
+        byId('aiPatchCard').setAttribute('aria-busy', String(busy));
         root.dispatchEvent(new Event('mygrain-ai-update'));
     }
     function drawPrompts(selected = byId('aiPatchSavedPrompts').value) {
@@ -238,18 +240,18 @@
             root.clearTimeout(timeout); timeout = root.setTimeout(() => request?.abort(), 240000);
             phase = 'applying'; status('Applying the recipe. Follow the live changes and sample loads below…');
             byId('aiActivityPhase').textContent = 'Applying recipe · loading sounds'; activity.phase = 'applying'; update();
-            const result = await adapter().execute(recipe, fingerprint, { signal, mode: requestMode, report: text => { if (!locked && token === serial) { report(text); inventory(); } } });
+            const result = await adapter().execute(recipe, fingerprint, { signal, mode: requestMode, report: text => { if (!locked && token === serial) { report(text); inventory(); } }, onApplied: () => {
+                // Direction belongs to the same persistent step as the sounds.
+                kept = false; lastPrompt = usedPrompt;
+                if (requestMode === 'section') lastSection = { ...section };
+                else if (mode !== 'refine') lastSection = null;
+                byId('aiPatchPrompt').value = usedPrompt;
+                if (mode === 'refine') byId('aiPatchRefinement').value = '';
+            } });
             if (locked || token !== serial) return;
-            result.promptBefore = lastPrompt; result.sectionBefore = lastSection;
-            if (mode === 'refine') result.editorPromptBefore = editorPrompt;
-            previous = result; lastPrompt = usedPrompt;
-            if (requestMode === 'section') lastSection = { ...section };
-            else if (mode !== 'refine') lastSection = null;
-            byId('aiPatchPrompt').value = usedPrompt;
-            if (mode === 'refine') byId('aiPatchRefinement').value = '';
             inventory();
             report(`Complete: ${result.changes} actual changes. ${result.saved ? 'Settings autosaved. Save/export a named patch with audio for a portable copy.' : 'Autosave unavailable: export the patch to retain it.'}`);
-            status(`Applied ${result.changes} changes. Ready to play, edit or generate again. Undo restores the patch before this direction.`);
+            status(`Applied ${result.changes} changes. Added to Undo/Redo on this device. Undo restores the previous patch; Redo restores this exact result without generating again.`);
             return { applied: true, prompt: lastPrompt, section: lastSection };
         } catch (error) {
             if (!locked && token === serial) {
@@ -262,19 +264,20 @@
         }
     }
     async function undo() {
-        if (!previous || request || locked) return;
+        if (!canUndo() || request || locked || root.mygrainCardHistory.busy) return;
+        if (historyFingerprint && adapter().fingerprint() !== historyFingerprint) {
+            status('Your patch changed. Undo direction has not overwritten your newer edits. Use the main Undo/Redo list to travel history, or Keep current.');
+            return;
+        }
+        const count = root.mygrainCardHistory.counts.undo;
         request = new AbortController(); phase = 'undo'; update();
         try {
-            report('Undo: restoring previous controls, tempo, loop patterns and samples…');
-            const result = await adapter().undo(previous.before, previous.fingerprint);
-            lastPrompt = previous.promptBefore || ''; lastSection = previous.sectionBefore || null;
-            byId('aiPatchPrompt').value = lastPrompt || (Object.hasOwn(previous, 'editorPromptBefore') ? previous.editorPromptBefore : byId('aiPatchPrompt').value);
-            previous = null; rendered = null;
-            byId('aiPatchPreviewStatus').textContent = 'Patch restored. Render a fresh preview to capture this version.';
-            inventory(); report('Undo complete. Previous patch and samples restored.');
-            status(result.saved ? 'Undone. Previous patch and samples restored.' : 'Undone in this session; export the patch to keep a copy.');
-        } catch (error) { status(`${error.message} Keep current to continue.`); }
-        finally { request = null; phase = 'idle'; update(); }
+            await root.mygrainCardHistory.undoAI();
+            if (root.mygrainCardHistory.counts.undo < count) {
+                inventory(); report('Undo complete. Previous patch and samples restored; Redo is available in the main Undo/Redo list.');
+                status('Undone. Previous patch and samples restored. Use Redo to restore the exact AI patch.');
+            }
+        } finally { request = null; phase = 'idle'; update(); }
     }
     async function initialize() {
         if (!byId('aiPatchCard')) return;
@@ -312,9 +315,13 @@
                 adapter().playPreview(rendered.buffer); status('Playing the rendered one-bar capture. Stop remains available.');
             } catch (error) { status(error.message); }
         });
-        byId('aiPatchKeep').addEventListener('click', () => { previous = null; status('Kept. The change log remains below. Save/export a named patch as usual.'); update(); });
+        byId('aiPatchKeep').addEventListener('click', () => { kept = true; status('Kept. This patch remains in the main Undo/Redo list. Save/export a named patch as usual.'); update(); });
         document.querySelectorAll('[data-ai-patch-example]').forEach(button => button.addEventListener('click', () => { if (!request && !locked) { byId('aiPatchPrompt').value = button.dataset.aiPatchExample; byId('aiPatchPrompt').focus(); } }));
-        root.addEventListener('mygrain-account-lock', () => { locked = true; previous = null; rendered = null; lastPrompt = ''; lastSection = null; savedPrompts = []; drawPrompts(''); libraryRequest?.abort(); for (const id of ['aiPatchPrompt', 'aiPatchPromptName', 'aiPatchRefinement']) byId(id).value = ''; byId('aiPatchLibraryStatus').textContent = 'Sign in to recall your prompts.'; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
+        root.addEventListener('mygrain-account-lock', () => { locked = true; kept = false; rendered = null; lastPrompt = ''; lastSection = null; savedPrompts = []; drawPrompts(''); libraryRequest?.abort(); for (const id of ['aiPatchPrompt', 'aiPatchPromptName', 'aiPatchRefinement']) byId(id).value = ''; byId('aiPatchLibraryStatus').textContent = 'Sign in to recall your prompts.'; request?.abort(); adapter()?.stopPreview(); status('Sign in again. AI work stopped.'); update(); });
+        root.addEventListener('mygrain-history-update', () => {
+            if (!root.mygrainCardHistory?.busy) historyFingerprint = canUndo() ? adapter().fingerprint() : null;
+            update();
+        });
         root.addEventListener('mygrain-account-lock', () => {
             if (activity) { root.clearInterval(activity.timer); activity.panel.remove(); activity = null; }
             usage = null; sessionTokens = 0; usageReplies = 0; drawUsage('Sign in to see AI task usage.');
@@ -349,7 +356,7 @@
     }
     function setDirection(context) {
         lastPrompt = context.prompt || ''; lastSection = context.section ? { ...context.section } : null;
-        previous = null; rendered = null;
+        kept = true; rendered = null;
         byId('aiPatchPrompt').value = lastPrompt; byId('aiPatchRefinement').value = '';
         adapter().stopPreview(); byId('aiPatchChanges').replaceChildren();
         byId('aiPatchTitle').textContent = context.name || 'Recalled part'; byId('aiPatchDescription').textContent = 'Complete editable pattern, sounds and prompt restored from your account.';
@@ -357,13 +364,24 @@
         report('Stored part recalled: ' + (context.name || 'unnamed take') + '. Hear, refine or generate a related section.');
         status('Stored part recalled. Ready to play, refine or generate a related section.'); inventory(); update();
     }
+    function historyState() {
+        return { prompt: lastPrompt, section: lastSection ? { ...lastSection } : null, editorPrompt: byId('aiPatchPrompt').value };
+    }
+    function restoreHistoryState(saved) {
+        if (!saved) return;
+        lastPrompt = saved.prompt || ''; lastSection = saved.section ? { ...saved.section } : null;
+        byId('aiPatchPrompt').value = saved.editorPrompt ?? lastPrompt;
+        kept = false; rendered = null; adapter().stopPreview();
+        byId('aiPatchPreviewStatus').textContent = 'History restored. Render a fresh preview to capture this version.';
+        inventory(); update();
+    }
     function acceptCapture(before, stableBefore) {
         if (phase !== 'take' || adapter().fingerprint({ ignoreQBank: true }) !== stableBefore) throw Error('The patch changed while capturing. Store again.');
         // Q capture records the already-loaded bank manifest. This bookkeeping does not change the sound.
         const after = adapter().fingerprint();
-        if (previous?.fingerprint === before) previous.fingerprint = after;
+        if (historyFingerprint === before) historyFingerprint = after;
         if (rendered?.fingerprint === before) rendered.fingerprint = after;
     }
-    root.mygrainAiPatch = Object.freeze({ generate, section: options => generate('section', options), withPartAction, setDirection, acceptCapture, direction: () => ({ prompt: lastPrompt, section: lastSection ? { ...lastSection } : null }), refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: Boolean(previous), renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
+    root.mygrainAiPatch = Object.freeze({ generate, historyState, restoreHistoryState, section: options => generate('section', options), withPartAction, setDirection, acceptCapture, direction: () => ({ prompt: lastPrompt, section: lastSection ? { ...lastSection } : null }), refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: canUndo() && !kept, renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true }); else void initialize();
 })(window);

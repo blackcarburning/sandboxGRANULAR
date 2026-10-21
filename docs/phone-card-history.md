@@ -2,6 +2,16 @@
 
 Build: v2026.10.20.TOUCH.9.
 
+## AI.10 — AI patches use the same Undo/Redo journal
+
+Successful Generate, Regenerate, Refine and AI section generation each add one named step to the main ten-step history. Nested source/sample/drum operations are part of that step, not extra entries. Undo restores the previously loaded sounds, settings, notes/chords, drum patterns and tempo; Redo restores the exact result without a model request, a new random choice or sample refetch. The AI prompt/direction and section context travel with the same step. Cancelled, failed, invalid and no-op recipes do not add entries or discard an existing Redo branch.
+
+The AI card's **Undo direction** delegates to this same history (with the existing manual-edit fingerprint guard). It is offered only when the next undo is an AI step; it never skips a later card action. **Keep current** dismisses that shortcut but does not remove the step from the main journal. AI controls stay disabled while shared-history travel is pending. Stored-take recalls dismiss the old shortcut; Q capture bookkeeping retains the fingerprint guard.
+
+The journal remains local to the exact account + stable Song device ID. Persistence version, audio-slot order/codecs, ten-step limit, tab-writer protection and Song reservation checks are unchanged. Existing journals need no migration; the AI direction is an optional JSON delta, separate from Song/patch export formats. Main history continues to merge only changed fields, preserving unrelated later manual fader edits. No desktop/mobile styling or audio engine changes are made.
+
+Regression: `tests/ai-patch-history-browser.cjs` uses real audio decoding and stereo PCM hashes, native portrait/landscape taps, fine-pointer desktop clicks and actual browser-process restarts in Chromium/WebKit. Run against the disposable local server documented below; set `MYGRAIN_TEST_URL` and optionally `AI_HISTORY_EVIDENCE`. AI/source replies are deterministic fixtures, not real model requests or production writes.
+
 ## K.6 — completed keyboard / ARP recordings
 
 Each successfully captured K take adds one **Record to K** step at the asynchronous replacement boundary, not when the count-in is armed. Both previous and new raw/rendered buffers, metadata and source BPM are retained by the existing exact-PCM journal. Undo can return to empty K or the previous take; Redo restores the recording after travel and browser restarts. The narrow `recordK` transaction permits only K's processing phase, never history travel or unrelated randomisation during capture. Pending history prevents arming a take. A changed account history/audio context rejects stale completion; failed/cancelled capture leaves the existing Redo branch intact. Ten-step limits, stable device identity, tab locks, Song reservations, lazy PCM restoration and persistence formats remain unchanged.

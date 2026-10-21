@@ -658,7 +658,8 @@
             return { json: { state, sequencerSteps: copy(sequencerSteps), seqGrainsEnabled,
                 heldNotes: [...heldNotes], performanceSourceLayerSolo: copy(performanceSourceLayerSolo),
                 performanceSourceLayerSoloSnapshot: copy(performanceSourceLayerSoloSnapshot),
-                metadata: Object.fromEntries(metadataBindings.map(([key, get]) => [key, copy(get())])) },
+                metadata: Object.fromEntries(metadataBindings.map(([key, get]) => [key, copy(get())])),
+                aiDirection: copy(window.mygrainAiPatch?.historyState?.()) },
                 buffers: audioBindings.map(([, get]) => get()),
                 piano: piano ? { atlas: piano.atlas, bank: piano.bank, manifest: piano.manifest, pinned: piano.pinned, cache: new Map(piano.cache) } : null };
         }
@@ -694,26 +695,27 @@
                 button.setAttribute('aria-label', entries.length ? `${verb}: ${entries.at(-1).label} (${entries.length} available)` : `${verb}: no changes`);
                 button.title = button.getAttribute('aria-label');
             }
+            window.dispatchEvent(new Event('mygrain-history-update'));
         }
-        function assertReady(completedKRecording = false) {
+        function assertReady(completedKRecording = false, aiPatch = false) {
             if (initializing) throw new Error('Restoring this device’s Undo/Redo history. Try again in a moment.');
             if (!window.mygrainAccounts?.authenticated || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
             const kReady = bastardLoopKRecordingState === 'idle' || (completedKRecording && bastardLoopKRecordingState === 'processing');
             if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || !kReady
-                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording) || window.mygrainAiPatch?.busy || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
+                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording) || (window.mygrainAiPatch?.busy && !aiPatch) || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
             if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
         }
-        function run(label, action, completedKRecording = false) {
+        function run(label, action, completedKRecording = false, aiPatch = false) {
             if (restoring || window.__mygrainSongRenderDeck) return action();
             // Internal calls within a larger generation are part of that same step.
             // Trusted UI input is blocked by the capture listener while it settles.
             if (busy) return action();
-            assertReady(completedKRecording);
+            assertReady(completedKRecording, aiPatch);
             const before = capture(), epoch = generation;
             busy = true; update();
-            function finish() {
+            function finish(commit = true) {
                 try {
-                    if (epoch !== generation) return;
+                    if (!commit || epoch !== generation) return;
                     const entry = delta(before, capture(), label);
                     if (entry.json.length || entry.buffers.length || entry.piano) {
                         undo.push(entry); if (undo.length > historyLimit) undo.shift(); redo.length = 0;
@@ -723,9 +725,19 @@
             }
             try {
                 const result = action();
-                if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(); throw error; });
+                if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(!aiPatch); throw error; });
                 finish(); return result;
-            } catch (error) { if (busy) finish(); throw error; }
+            } catch (error) { if (busy) finish(!aiPatch); throw error; }
+        }
+        function recordAI(mode, action) {
+            // AI already validated its response before entering this boundary.
+            // Do not merge it into an unrelated operation, and only journal a
+            // successful apply: execute rolls failed/cancelled recipes back.
+            if (busy) throw new Error('Wait for the current sound change to finish.');
+            if (window.mygrainAiPatch?.busy && window.mygrainAiPatch.diagnostics().phase !== 'applying') throw new Error('Wait for the current AI operation to finish.');
+            const label = { generate: 'AI generated patch', regenerate: 'AI regenerated patch', refine: 'AI refined patch', section: 'AI song section' }[mode];
+            if (!label) throw new Error('Unknown AI patch operation.');
+            return run(label, action, false, true);
         }
         function recordK(action) {
             // The timer that arms Record returns before capture finishes. Journal
@@ -772,6 +784,7 @@
                 syncLegacyAudioBuffer(); batched.applyEffects();
             } finally { stateSaveSuspended = suspended; batched.restore(); }
             refreshSongAudioUi(); saveState({ force: true });
+            if (entry.json.some(change => change.path[0] === 'aiDirection')) window.mygrainAiPatch?.restoreHistoryState(target.aiDirection);
             if ((transport.loops || transport.q) && window.mygrainQ?.playable()) { await window.mygrainQ.preparePlayback(); guard(); }
             if (transport.seq || transport.loops || transport.drums || transport.arp || transport.keys || transport.q) withBufferedTransportStart(null, deadline => {
                 if (transport.seq) startSequencer(deadline);
@@ -790,8 +803,9 @@
                 guard();
             }
         }
-        async function travel(direction) {
+        async function travel(direction, aiUndo = false) {
             if (busy) return;
+            if (aiUndo && (window.mygrainAiPatch?.diagnostics().phase !== 'undo' || !/^AI (generated patch|regenerated patch|refined patch|song section)$/.test(undo.at(-1)?.label || ''))) return;
             const song = window.mygrainSongBeta;
             const songId = song?.song?.id || null, library = song?.key;
             const identity = historyIdentity(), session = song?.lease.session, epoch = generation, context = audioContext;
@@ -801,7 +815,7 @@
                 if (songId && !song.canEditSong()) throw new Error(song.lease.message || 'Song editing access is no longer verified. Undo/Redo stopped.');
             };
             try {
-                assertReady();
+                assertReady(false, aiUndo);
                 const from = direction === 'before' ? undo : redo, to = direction === 'before' ? redo : undo;
                 const entry = from.at(-1); if (!entry) return;
                 if (entry.owner !== identity) throw new Error('This history belongs to another device. Reload MYGRAIN before using Undo/Redo.');
@@ -817,7 +831,7 @@
                         await song.lease.check();
                     } else await song.ensureEditing();
                 }
-                reservationGuard(); assertReady();
+                reservationGuard(); assertReady(false, aiUndo);
                 const restoredEntry = await store.hydrate(entry, context);
                 reservationGuard();
                 await restore(restoredEntry, direction, reservationGuard);
@@ -838,7 +852,9 @@
         };
         for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, guardBusyInput, true);
         window.addEventListener('mygrain-account-lock', () => { generation++; store.close(); undo.length = redo.length = 0; update(); });
-        window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, recordK, undo: () => travel('before'), redo: () => travel('after'),
+        window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, recordK, recordAI, undo: () => travel('before'), redo: () => travel('after'),
+            undoAI: () => travel('before', true),
+            get undoLabel() { return undo.at(-1)?.label || ''; },
             get busy() { return busy || initializing; }, get counts() { return { undo: undo.length, redo: redo.length }; } };
         document.getElementById('sectionJumpUndoBtn')?.addEventListener('click', window.mygrainCardHistory.undo);
         document.getElementById('sectionJumpRedoBtn')?.addEventListener('click', window.mygrainCardHistory.redo);

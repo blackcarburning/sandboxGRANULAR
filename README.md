@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## AI patches in Undo/Redo (AI.10)
+
+Build `v2026.10.21.AI.10` adds each successfully applied AI Generate, Regenerate, Refine and section to the shared device-scoped ten-step Undo/Redo list. Previously loaded sounds/settings are retained; Redo restores exact saved audio and musical state without another AI request. The AI card's Undo uses the same journal; Keep does not delete history. Cancel/failure/no-op preserves the current Redo branch. Existing Song reservation, account/device/tab protection, storage/audio codecs and import/export formats are unchanged. Desktop/mobile styling is untouched.
+
+See [history design and verification](docs/phone-card-history.md). Focused regression: `MYGRAIN_TEST_URL=http://127.0.0.1:18889/mygrain/ node tests/ai-patch-history-browser.cjs` against `tests/song-beta-test-server.py` with a dedicated temporary `MYGRAIN_TEST_ROOT`.
+
 ## Desktop layer colours and Jump curtain (D.4)
 
 Build `v2026.10.21.D.4` makes desktop sound/layer card backgrounds use the exact existing Jump appearance for their semantic section: Bastardloops A/B/C/V/P/O/Q/L/X/M/M+/K, RadioLab, VideoLab, Sample, keyboard and granular controls. The immutable navigation palette and Jump colours are not changed. **The drum machine keeps its existing background**; unrelated utility cards are not recoloured.
