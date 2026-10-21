@@ -6046,6 +6046,14 @@
             .simplified-ui #desktopTransportBtn.is-running::before { content: '■'; }
             .simplified-ui #desktopTransportBtn:hover { filter: brightness(1.15); }
             .simplified-ui #desktopTransportBtn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+            .simplified-ui :is(#desktopTransportBtn, #sectionJumpTransportBtn, #sectionJumpTransportPanelBtn) {
+                background: linear-gradient(150deg, #208b4b, #0b4929) !important;
+                border-color: #8de9ad !important; color: #fff !important;
+            }
+            .simplified-ui :is(#desktopTransportBtn, #sectionJumpTransportBtn, #sectionJumpTransportPanelBtn).is-running {
+                background: linear-gradient(150deg, #d93248, #82172a) !important;
+                border-color: #ffb1b9 !important;
+            }
         }
     </style>
     <style id="phone-history-solo-style">
@@ -6084,7 +6092,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.D.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.21.D.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6171,7 +6179,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.D.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.21.D.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -20343,7 +20351,9 @@
             const initial = { sequencer: sequencerPlaying, drums: drumMachinePlaying,
                 lead: bastardLoopLTransportActive, sample: bastardLoopXTransportActive, loops: bastardLoopPlaying,
                 streams: new Map(activeGrains) };
-            let lead = getTransportPreparationLeadSeconds();
+            // Opt-in for desktop manual starts only; other transports retain their adaptive lead.
+            const hasRequestedLead = Number.isFinite(options.startLeadSeconds);
+            let lead = hasRequestedLead ? Math.min(12, Math.max(0.075, options.startLeadSeconds)) : getTransportPreparationLeadSeconds();
             for (let attempt = 0; attempt < 4; attempt += 1) {
                 const now = audioContext.currentTime;
                 if (explicit && referenceTime < now + 0.02) throw new Error('Transport deadline expired; prepare and replan playback');
@@ -20380,7 +20390,7 @@
                     if (!initial.sample && bastardLoopXTransportActive) stopBastardLoopX({ fade: false, skipUi: true });
                     if (!initial.loops) bastardLoopPlaying = false;
                     if (explicit || attempt === 3 || !/Transport deadline expired/.test(failure.message)) throw failure;
-                    lead = Math.min(12, Math.max(lead * 2, getTransportPreparationLeadSeconds()));
+                    lead = Math.min(12, Math.max(lead * 2, hasRequestedLead ? elapsed * 2 + 0.075 : getTransportPreparationLeadSeconds()));
                     continue;
                 }
                 for (const plan of starts) {
@@ -40428,7 +40438,7 @@
             }
 
             if (transportSync.depth === 0) {
-                return withBufferedTransportStart(options.startTime, deadline => restartAllTransport({ ...options, startTime: deadline }), { reset: true });
+                return withBufferedTransportStart(options.startTime, deadline => restartAllTransport({ ...options, startTime: deadline }), { reset: true, startLeadSeconds: options.startLeadSeconds });
             }
             if (arpEnabled && (options.keyboardPlay === true || (options.keyboardPlay !== false && !options.silent))) {
                 keyboardPlaybackAuthorized = true;
@@ -58017,6 +58027,10 @@
         });
 
         function handleSidebarTransportToggle() {
+            if (desktopTransportMedia.matches) {
+                toggleDesktopTransport();
+                return;
+            }
             const now = Date.now();
             if (now - sidebarTransportLastPressedAt < 450) {
                 sidebarTransportLastPressedAt = 0;
@@ -58041,10 +58055,13 @@
         function syncDesktopTransportControl() {
             if (!desktopTransportBtn || !desktopTransportMedia.matches) return;
             const running = isDesktopTransportRunning();
-            desktopTransportBtn.classList.toggle('is-running', running);
-            desktopTransportBtn.textContent = running ? 'Stop' : 'Start';
-            desktopTransportBtn.setAttribute('aria-label', running ? 'Stop all playback' : 'Start all playback');
-            desktopTransportBtn.setAttribute('aria-pressed', String(running));
+            for (const button of [desktopTransportBtn, sectionJumpTransportBtn, sectionJumpTransportPanelBtn]) {
+                if (!button) continue;
+                button.classList.toggle('is-running', running);
+                button.textContent = running ? 'Stop' : 'Start';
+                button.setAttribute('aria-label', running ? 'Stop all playback' : 'Start all playback');
+                button.setAttribute('aria-pressed', String(running));
+            }
         }
 
         function toggleDesktopTransport() {
@@ -58054,7 +58071,7 @@
                 if (window.mygrainSongBeta?.playing) window.mygrainSongBeta.stop();
                 stopAllPerformancePlayback();
             } else {
-                restartAllTransport({ keyboardPlay: true });
+                restartAllTransport({ keyboardPlay: true, startLeadSeconds: 0.12 });
             }
             syncDesktopTransportControl();
         }

@@ -1,6 +1,12 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Desktop transport response and colours (D.2)
+
+Build `v2026.10.21.D.2` makes desktop Jump Start/Stop use the same action, running state and colours as the large desktop control: **green Start, red Stop**. The Space shortcut uses that same path. Manual desktop starts request a 120ms scheduling lead instead of inheriting a slow historical preparation estimate (which could leave seconds of silence before a warm start). If current preparation is genuinely too slow, the existing transaction cancels the unsafe plan and retries with more lead based on that attempt's actual cost; it never schedules expired audio. Explicit recording/synchronization deadlines are retained. Phone/touch CSS, sidebar behavior, adaptive scheduling, and saved-data formats are unchanged.
+
+Focused scheduler regression: `node --test tests/desktop-transport-start.test.js`.
+
 ## Desktop Start / Stop and Space shortcut (D.1)
 
 Build `v2026.10.21.D.1` adds a large fixed **Start / Stop** button to the left of the desktop Jump dock, with a reserved gutter so it cannot cover the main controls. **Start is green; Stop is red.** It uses the existing shared transport restart/stop functions and stays synchronized with other playback controls, held keys and Song playback. Each click toggles once without the phone sidebar's double-tap/solo shortcut.
