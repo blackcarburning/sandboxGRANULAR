@@ -2494,6 +2494,25 @@
             box-shadow: 0 0 16px var(--accent-glow), 0 0 4px rgba(255, 255, 255, 0.5);
         }
 
+        .k-record-length-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .k-record-length-controls input[type="number"] {
+            flex: 1 1 90px;
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px;
+            border: 1px solid var(--border-color, #596275);
+            border-radius: 6px;
+            color: inherit;
+            background: var(--bg-tertiary, #171c25);
+            font: inherit;
+        }
+
         /* Number Input Styling */
         input[type="number"] {
             -moz-appearance: textfield;
@@ -6279,7 +6298,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.22.AMEND.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.22.K.9</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6366,7 +6385,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.22.AMEND.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.22.K.9</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7869,12 +7888,15 @@
                     <button class="performance-btn" type="button" data-keyboard-sound="strings" aria-pressed="false">Q Strings</button>
                 </div>
                 <div class="keyboard-sound-status" data-keyboard-sound-status role="status" aria-live="polite">Grain ready.</div>
-                <div class="performance-sound-card">
-                    <label for="performanceBastardLoopKRecordLength">
-                        <span>Record Length</span>
-                        <span class="value" id="performanceBastardLoopKRecordLengthValue">1 loop</span>
+                <div class="performance-sound-card k-record-length-card">
+                    <label for="performanceBastardLoopKRecordSteps">
+                        <span>Record Length · Steps</span>
+                        <span class="value" data-k-record-length-value>Pattern length</span>
                     </label>
-                    <input type="range" id="performanceBastardLoopKRecordLength" min="1" max="8" value="1" step="1">
+                    <div class="k-record-length-controls">
+                        <input type="number" id="performanceBastardLoopKRecordSteps" min="1" step="1" inputmode="numeric" aria-label="K recording length in steps">
+                        <button class="performance-btn" type="button" data-k-record-pattern>Use Pattern Length</button>
+                    </div>
                 </div>
                 <div class="source-waveform-panel" aria-label="Bastardloop K recorded waveform">
                     <div class="source-waveform-header"><span>Recorded Keyboard</span><span class="source-waveform-meta" id="performanceBastardLoopKWaveformStatus">Empty — record the keyboard</span></div>
@@ -8916,6 +8938,17 @@
                     <button class="hold-btn panic-btn" id="panicBtn">Panic</button>
                     <div class="keyboard" id="keyboardContainer">
                     </div>
+                </div>
+                <div class="performance-sound-card k-record-length-card" id="keyboardRecordingLengthCard">
+                    <label for="performanceKeyboardKRecordSteps">
+                        <span>Record to K · Steps</span>
+                        <span class="value" data-k-record-length-value>Pattern length</span>
+                    </label>
+                    <div class="k-record-length-controls">
+                        <input type="number" id="performanceKeyboardKRecordSteps" min="1" step="1" inputmode="numeric" aria-label="Keyboard to K recording length in steps">
+                        <button class="performance-btn" type="button" data-k-record-pattern>Use Pattern Length</button>
+                    </div>
+                    <p class="performance-feature-note">Defaults to the pattern length. Enter any positive whole number of steps for a shorter or longer take. Long takes need more browser memory.</p>
                 </div>
                 <div class="performance-sound-card" id="keyboardRecordingLevelCard">
                     <label for="performanceBastardLoopKInputGain">
@@ -13662,7 +13695,7 @@
         let bastardLoopMRecordingLoopCount = 1;
 
         let bastardLoopMPlusRecordingLoopCount = 1;
-        let bastardLoopKRecordingLoopCount = 1;
+        let bastardLoopKRecordingSteps = null; // null follows the current pattern length
         let bastardLoopMPreserveDuration = true;
 
         let bastardLoopMPlusPreserveDuration = true;
@@ -15715,6 +15748,7 @@
             }
             window.mygrainQ?.sync();
             if (typeof syncBastardLoopKInfo === 'function') syncBastardLoopKInfo();
+            if (typeof syncBastardLoopKRecordingLengthControls === 'function') syncBastardLoopKRecordingLengthControls();
             return steps;
         }
 
@@ -22333,32 +22367,64 @@
             );
         }
 
-        function clampBastardLoopKRecordingLoopCount(value, fallback = 1) {
-            return clampBastardLoopMRecordingLoopCount(value, fallback);
-        }
-
         function getBastardLoopKLoopDurationSeconds(sourceBpm = null) {
             const patternRatio = Math.max(1, getPatternLengthSteps()) / PATTERN_STEPS_PER_BAR;
             return getLoopBarDurationSeconds(sourceBpm) * patternRatio;
         }
 
-        function getBastardLoopKRecordingLoopCount() {
-            const input = document.getElementById('performanceBastardLoopKRecordLength');
-            bastardLoopKRecordingLoopCount = clampBastardLoopKRecordingLoopCount(
-                input?.value ?? bastardLoopKRecordingLoopCount,
-                bastardLoopKRecordingLoopCount
-            );
-            if (input) input.value = String(bastardLoopKRecordingLoopCount);
-            return bastardLoopKRecordingLoopCount;
+        function getBastardLoopKRecordingSteps() {
+            return bastardLoopKRecordingSteps ?? getPatternLengthSteps();
         }
 
-        function formatBastardLoopKRecordingLoopCount(value = getBastardLoopKRecordingLoopCount()) {
-            const count = clampBastardLoopKRecordingLoopCount(value, bastardLoopKRecordingLoopCount);
-            return `${count} loop${count === 1 ? '' : 's'}`;
+        function syncBastardLoopKRecordingLengthControls() {
+            const steps = getBastardLoopKRecordingSteps();
+            const followsPattern = bastardLoopKRecordingSteps === null;
+            const busy = bastardLoopKRecordingState !== 'idle';
+            for (const id of ['performanceBastardLoopKRecordSteps', 'performanceKeyboardKRecordSteps']) {
+                const input = document.getElementById(id);
+                if (input) { input.value = String(steps); input.disabled = busy; }
+            }
+            document.querySelectorAll('[data-k-record-length-value]').forEach(label => {
+                label.textContent = `${steps} steps${followsPattern ? ' · pattern' : ''}`;
+            });
+            document.querySelectorAll('[data-k-record-pattern]').forEach(button => {
+                button.disabled = busy;
+                button.setAttribute('aria-pressed', String(followsPattern));
+            });
+        }
+
+        function setBastardLoopKRecordingSteps(value, options = {}) {
+            const steps = value === null || value === '' ? null : Number(value);
+            if (steps !== null && (!Number.isSafeInteger(steps) || steps < 1)) {
+                throw new Error('Enter a positive whole number of recording steps.');
+            }
+            bastardLoopKRecordingSteps = steps;
+            syncBastardLoopKRecordingLengthControls();
+            if (!options.skipSave) saveState();
+            return getBastardLoopKRecordingSteps();
+        }
+
+        function restoreBastardLoopKRecordingSteps(state) {
+            if (Object.prototype.hasOwnProperty.call(state.modes || {}, 'bastardLoopKRecordingSteps')) {
+                const value = state.modes.bastardLoopKRecordingSteps;
+                const valid = value === null || (Number.isSafeInteger(value) && value > 0);
+                setBastardLoopKRecordingSteps(valid ? value : null, { skipSave: true });
+            } else {
+                // Old patches stored a 1–8 pattern multiplier in a range slider.
+                // One loop retains the default-follow behavior; longer takes keep
+                // their old duration instead of interpreting that count as steps.
+                const loops = Number(state.sliders?.performanceBastardLoopKRecordLength);
+                const steps = Number.isInteger(loops) && loops > 1 && loops <= 8 ? loops * getPatternLengthSteps() : null;
+                setBastardLoopKRecordingSteps(steps, { skipSave: true });
+            }
+        }
+
+        function formatBastardLoopKRecordingSteps(steps = getBastardLoopKRecordingSteps()) {
+            return `${steps} step${steps === 1 ? '' : 's'}`;
         }
 
         function getBastardLoopKRecordingDurationSeconds(sourceBpm = null) {
-            return getBastardLoopKLoopDurationSeconds(sourceBpm) * getBastardLoopKRecordingLoopCount();
+            return getLoopBarDurationSeconds(sourceBpm) * getBastardLoopKRecordingSteps() / PATTERN_STEPS_PER_BAR;
         }
 
         function updateBastardLoopKPitchControls() {
@@ -26053,14 +26119,11 @@
             const filterLfoAmountValue = Math.round(getBastardLoopKFilterLfoAmount() * 100);
             const filterLfoRateValue = getBastardLoopKFilterLfoRate();
             const filterLfoWaveformValue = getBastardLoopKFilterLfoWaveform();
-            const recordLoopCount = getBastardLoopKRecordingLoopCount();
             const recordButton = document.getElementById('performanceBastardLoopKRecordBtn');
             const recordLoopButton = document.getElementById('performanceBastardLoopKRecordLoopBtn');
             const clearButton = document.getElementById('performanceBastardLoopKClearBtn');
             const keyboardClearButton = document.getElementById('performanceKeyboardClearKBtn');
             const startButton = document.getElementById('performanceBastardLoopKStartBtn');
-            const recordLengthSlider = document.getElementById('performanceBastardLoopKRecordLength');
-            const recordLengthLabel = document.getElementById('performanceBastardLoopKRecordLengthValue');
             const inputGainSlider = document.getElementById('performanceBastardLoopKInputGain');
             const inputGainLabel = document.getElementById('performanceBastardLoopKInputGainValue');
             const levelSlider = document.getElementById('performanceBastardLoopKLevel');
@@ -26084,13 +26147,7 @@
             const hasRecording = Boolean(bastardLoopKRawBuffer && bastardLoopKBuffer);
             const isBusy = bastardLoopKRecordingState === 'countin' || bastardLoopKRecordingState === 'recording' || bastardLoopKRecordingState === 'processing';
 
-            if (recordLengthSlider) {
-                recordLengthSlider.value = String(recordLoopCount);
-                recordLengthSlider.disabled = isBusy;
-            }
-            if (recordLengthLabel) {
-                recordLengthLabel.textContent = formatBastardLoopKRecordingLoopCount(recordLoopCount);
-            }
+            syncBastardLoopKRecordingLengthControls();
             if (inputGainSlider) {
                 inputGainSlider.value = String(inputGainValue);
                 inputGainSlider.disabled = bastardLoopKRecordingState === 'processing';
@@ -26529,9 +26586,6 @@
             if (!Number.isFinite(buffer.duration) || buffer.duration <= 0.02) {
                 throw new Error('Bastardloop K audio is too short to use.');
             }
-            if (buffer.duration > MAX_SAMPLE_DURATION_SECONDS) {
-                throw new Error(`Bastardloop K audio longer than ${MAX_SAMPLE_DURATION_SECONDS} seconds is not supported.`);
-            }
 
             const bpm = clampBpmValue(options.bpm || document.getElementById('globalBpmSlider')?.value || sequencerBPM || bastardLoopKSourceBpm || 120);
             bastardLoopKSourceBpm = bpm;
@@ -26540,7 +26594,8 @@
                 summary: options.summary || `${buffer.duration.toFixed(2)}s keyboard loop · ${bpm} BPM`,
                 durationSeconds: Number(options.durationSeconds) || buffer.duration,
                 bpm,
-                sourceLabel: 'KEYBOARD'
+                sourceLabel: 'KEYBOARD',
+                recordingSteps: options.recordingSteps
             };
             rerenderBastardLoopKFromRaw({ skipUi: true });
             await saveAudioBufferToDB(bastardLoopKRawBuffer, BASTARD_LOOP_K_AUDIO_BUFFER_KEY);
@@ -26572,7 +26627,8 @@
             const context = audioContext;
             const source = keyboardRecordingGainNode;
             const startFrame = Math.round(startTime * context.sampleRate);
-            const frames = Math.max(1, Math.round(durationSeconds * context.sampleRate));
+            const frames = Math.round(durationSeconds * context.sampleRate);
+            if (!Number.isSafeInteger(frames) || frames < 1) return Promise.reject(new Error('This recording length cannot be represented by the browser audio engine.'));
             if (signal?.aborted) return Promise.reject(new DOMException('Recording cancelled.', 'AbortError'));
             if (startFrame <= Math.ceil(context.currentTime * context.sampleRate)) return Promise.reject(new Error('The recording downbeat has already passed.'));
             const capture = new AudioWorkletNode(context, 'mygrain-song-capture-v1', {
@@ -26654,9 +26710,9 @@
             const beatDurationSeconds = 60 / currentBpm;
             const countInBeats = 4;
             const countInSeconds = beatDurationSeconds * countInBeats;
-            const recordLoopCount = getBastardLoopKRecordingLoopCount();
+            const recordSteps = getBastardLoopKRecordingSteps();
             const recordingDurationSeconds = getBastardLoopKRecordingDurationSeconds(currentBpm);
-            const recordLengthLabel = formatBastardLoopKRecordingLoopCount(recordLoopCount);
+            const recordLengthLabel = formatBastardLoopKRecordingSteps(recordSteps);
             const startFullLoop = options.startFullLoop !== false;
             const sessionToken = bastardLoopKRecordingToken + 1;
             if (window.mygrainSongBeta?.playing) window.mygrainSongBeta.stop();
@@ -26674,7 +26730,7 @@
             const loopStartsStatusSuffix = startFullLoop
                 ? ' · pattern starts on 1'
                 : '';
-            const recordLengthStatusSuffix = recordLoopCount > 1 ? ` · ${recordLengthLabel}` : '';
+            const recordLengthStatusSuffix = ` · ${recordLengthLabel}`;
             bastardLoopKRecordingState = 'countin';
             bastardLoopKCountInBeatsRemaining = countInBeats;
             bastardLoopKRecordingStartsFullLoop = startFullLoop;
@@ -26684,8 +26740,8 @@
             window.mygrainSongBetaAdapter?.setKeyboardRecordingMonitor(true);
             syncBastardLoopKUi();
             setStatus(startFullLoop
-                ? `Bastardloop K armed: 1 bar count-in at ${currentBpm} BPM${recordLoopCount > 1 ? ` for ${recordLengthLabel} of recording` : ''}. The full loop starts with the take.`
-                : `Bastardloop K armed: 1 bar count-in at ${currentBpm} BPM${recordLoopCount > 1 ? ` for ${recordLengthLabel} of recording` : ''}.`);
+                ? `Bastardloop K armed: 1 bar count-in at ${currentBpm} BPM for ${recordLengthLabel} of recording. The full loop starts with the take.`
+                : `Bastardloop K armed: 1 bar count-in at ${currentBpm} BPM for ${recordLengthLabel} of recording.`);
 
             bastardLoopKRecordingAbortController = new AbortController();
             const capturePromise = recordKeyboardKAtTime(recordingStartTime, recordingDurationSeconds, bastardLoopKRecordingAbortController.signal);
@@ -26737,13 +26793,7 @@
                 if (sessionToken !== bastardLoopKRecordingToken) return;
                 bastardLoopKRecordingState = 'recording';
                 bastardLoopKCountInBeatsRemaining = 0;
-                bastardLoopKRecordStatus = recordLoopCount > 1
-                    ? (startFullLoop
-                        ? `Recording ${recordingDurationSeconds.toFixed(2)}s grain take (${recordLengthLabel}) with full loop playback…`
-                        : `Recording ${recordingDurationSeconds.toFixed(2)}s grain take (${recordLengthLabel})…`)
-                    : (startFullLoop
-                        ? `Recording ${recordingDurationSeconds.toFixed(2)}s keyboard loop with full loop playback…`
-                        : `Recording ${recordingDurationSeconds.toFixed(2)}s keyboard loop…`);
+                bastardLoopKRecordStatus = `Recording ${recordLengthLabel} (${recordingDurationSeconds.toFixed(2)}s)${startFullLoop ? ' with full loop playback' : ''}…`;
                 syncBastardLoopKUi();
             }, countInStartDelayMs + Math.round(countInSeconds * 1000));
 
@@ -26766,9 +26816,8 @@
                     await recordingHistory.recordK(() => applyRecordedBastardLoopKBuffer(exactLoop, {
                         bpm: currentBpm,
                         durationSeconds: recordingDurationSeconds,
-                        summary: recordLoopCount > 1
-                            ? `${recordingDurationSeconds.toFixed(2)}s keyboard take · ${recordLengthLabel} · ${currentBpm} BPM`
-                            : `${recordingDurationSeconds.toFixed(2)}s keyboard loop · ${currentBpm} BPM`,
+                        recordingSteps: recordSteps,
+                        summary: `${recordingDurationSeconds.toFixed(2)}s keyboard take · ${recordLengthLabel} · ${currentBpm} BPM`,
                         statusMessage: 'Bastardloop K recorded and ready.',
                         joinedStatusMessage: 'Bastardloop K recorded and joined the loop.',
                         joinSharedTransport: startFullLoop
@@ -47772,6 +47821,7 @@
                 modes: {
                     keyboardSoundSource,
                     keyboardRecordingLevels: { ...keyboardRecordingLevels },
+                    bastardLoopKRecordingSteps,
                     lfoMode: lfoMode,
                     lfo2Mode: lfo2Mode,
                     lfo3Mode: 'bpm',
@@ -48124,6 +48174,8 @@
                         }
                     });
                 }
+
+                restoreBastardLoopKRecordingSteps(state);
 
                 // Restore select values
                 if (state.selects) {
@@ -56157,7 +56209,6 @@
         const performanceBastardLoopKClearBtn = document.getElementById('performanceBastardLoopKClearBtn');
         const performanceBastardLoopKStartBtn = document.getElementById('performanceBastardLoopKStartBtn');
         const performanceBastardLoopKToggleBtn = document.getElementById('performanceBastardLoopKToggleBtn');
-        const performanceBastardLoopKRecordLength = document.getElementById('performanceBastardLoopKRecordLength');
         const performanceBastardLoopKInputGain = document.getElementById('performanceBastardLoopKInputGain');
         const performanceBastardLoopKLevel = document.getElementById('performanceBastardLoopKLevel');
         const performanceBastardLoopKSemitone = document.getElementById('performanceBastardLoopKSemitone');
@@ -60050,11 +60101,18 @@
         performanceBastardLoopKLayerSoloBtn?.addEventListener('click', () => {
             setLoopLayerSolo('bastardk', { toggle: true });
         });
-        performanceBastardLoopKRecordLength?.addEventListener('input', (event) => {
-            bastardLoopKRecordingLoopCount = clampBastardLoopKRecordingLoopCount(event.target.value, bastardLoopKRecordingLoopCount);
-            event.target.value = String(bastardLoopKRecordingLoopCount);
-            syncBastardLoopKUi();
-            saveState();
+        for (const id of ['performanceBastardLoopKRecordSteps', 'performanceKeyboardKRecordSteps']) {
+            const input = document.getElementById(id);
+            input?.addEventListener('change', event => {
+                try { setBastardLoopKRecordingSteps(event.target.value); }
+                catch (error) { syncBastardLoopKRecordingLengthControls(); setStatus(error.message, 'error'); }
+            });
+            input?.addEventListener('keydown', event => {
+                if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+            });
+        }
+        document.querySelectorAll('[data-k-record-pattern]').forEach(button => {
+            button.addEventListener('click', () => setBastardLoopKRecordingSteps(null));
         });
         performanceBastardLoopKInputGain?.addEventListener('input', (event) => {
             setBastardLoopKInputGainPercent(event.target.value);

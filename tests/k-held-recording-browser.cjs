@@ -32,7 +32,7 @@ async function setup(page, sound, running) {
         document.getElementById('grainSynthASource').value = 'grainASample';
         document.getElementById('grainSynthBSource').value = 'grainBSample';
         syncLegacyAudioBuffer();
-        document.getElementById('performanceBastardLoopKRecordLength').value = '2';
+        setBastardLoopKRecordingSteps(getPatternLengthSteps() * 2, { skipSave: true });
         syncBastardLoopUi();
         syncBastardLoopKUi();
     });

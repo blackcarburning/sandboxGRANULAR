@@ -179,8 +179,8 @@ async function captureState(page) {
             }
             await fixture(page, false);
             await page.evaluate(() => {
-                document.getElementById('performanceBastardLoopKRecordLength').value = '2';
-                document.getElementById('performanceBastardLoopKRecordLength').dispatchEvent(new Event('input', { bubbles: true }));
+                setBastardLoopKRecordingSteps(getPatternLengthSteps() * 2, { skipSave: true });
+                syncBastardLoopKRecordingLengthControls();
             });
             await page.locator('#performanceKeyboardToKRecordSurfaceBtn').tap();
             await page.waitForFunction(() => bastardLoopKRecordingState === 'countin', null, { timeout: 2000 });

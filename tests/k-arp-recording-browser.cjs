@@ -32,7 +32,7 @@ async function setup(page, sound, mode, multiplier, stopped) {
         syncLegacyAudioBuffer();
         setGranularLayerMuted('A', false, { silent: true, skipSave: true });
         setGranularLayerMuted('B', true, { silent: true, skipSave: true });
-        document.getElementById('performanceBastardLoopKRecordLength').value = '2';
+        setBastardLoopKRecordingSteps(getPatternLengthSteps() * 2, { skipSave: true });
         syncBastardLoopUi();
         syncBastardLoopKUi();
     });

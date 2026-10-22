@@ -40,7 +40,7 @@ async function setup(page) {
         document.getElementById('grainSynthASource').value = 'grainASample';
         document.getElementById('grainSynthBSource').value = 'grainBSample';
         syncLegacyAudioBuffer();
-        document.getElementById('performanceBastardLoopKRecordLength').value = '2';
+        setBastardLoopKRecordingSteps(getPatternLengthSteps() * 2, { skipSave: true });
         await clearBastardLoopK({ silent: true, skipSave: true });
         syncBastardLoopUi(); syncBastardLoopKUi();
         stateSaveSuspended = false;
