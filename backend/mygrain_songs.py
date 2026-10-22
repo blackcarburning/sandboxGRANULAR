@@ -664,7 +664,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -793,6 +793,9 @@ def handle_song_request(handler, method, inner_path):
                         drum_lanes = (query.get('drumlanes') or [''])[0]
                         if drum_lanes not in ('', '1'):
                             raise ValueError('Unsupported drum-lane render version.')
+                        drum_sample = (query.get('drumsample') or [''])[0]
+                        if drum_sample not in ('', '1'):
+                            raise ValueError('Unsupported drum-sample render version.')
                         portable = (query.get('portable') or [''])[0]
                         if portable not in ('', '1'):
                             raise ValueError('Unsupported portable-freeze render version.')
@@ -813,6 +816,8 @@ def handle_song_request(handler, method, inner_path):
                             render['vocalRepeatVersion'] = 1
                         if drum_lanes == '1':
                             render['drumLanesVersion'] = 1
+                        if drum_sample == '1':
+                            render['drumSampleVersion'] = 1
                         if portable == '1':
                             render['portableVersion'] = 1
                         if piano:

@@ -718,13 +718,26 @@ class SongBackendTests(unittest.TestCase):
         self.assertEqual(restored.wfile.getvalue(), original.wfile.getvalue())
 
     def test_unknown_section_repeat_and_drum_lane_versions_leave_songs_unchanged(self):
-        for feature in ['vocalrepeat', 'drumlanes']:
+        for feature in ['vocalrepeat', 'drumlanes', 'drumsample']:
             with self.subTest(feature=feature):
                 song = self.upload(self.create())
                 part = song['parts'][0]
                 path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&{feature}=2'
                 self.assertEqual(self.request('POST', path, body=render_wav(part)).status, 400)
                 self.assertEqual(self.request('GET', f'/api/songs/{song["id"]}').response['song'], song)
+
+    def test_drum_sample_render_version_is_saved_without_changing_source(self):
+        song = self.upload(self.create())
+        part = song['parts'][0]
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}'
+        original = self.request('GET', path).wfile.getvalue()
+        result = self.request('POST', f'{path}/render?sha256={part["sha256"]}&drumsample=1', body=render_wav(part))
+        self.assertEqual(result.status, 200)
+        saved = result.response['song']['parts'][0]
+        self.assertEqual(saved['render']['drumSampleVersion'], 1)
+        self.assertEqual(saved['sha256'], part['sha256'])
+        self.assertEqual(self.request('GET', path).wfile.getvalue(), original)
+        self.assertEqual(self.request('GET', '/api/songs').response['features']['drumSampleRenders'], 1)
 
     def test_unknown_keyboard_render_version_is_rejected_without_changing_the_song(self):
         song = self.upload(self.create())

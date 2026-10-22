@@ -2535,3 +2535,42 @@ test('held block chords require version-eight freezes; ARP and Hold Off preserve
     decoded.snapshot.state.q.arpEnabled = true;
     assert.equal(controller.isRenderCompatible({ ...part, qVersion: 6 }, decoded), true);
 });
+
+test('active sampled drums refresh old fades, including hot cached PCM, without changing the saved source', async () => {
+    for (const modes of [
+        { drumMachineEnabled: true, drumMachineKickPattern: [true] },
+        { drumMachineEnabled: true, drumMachineExtraTracks: { etc: { pattern: [true], decay: 1, length: 1 } } }
+    ]) {
+        const buffer = { duration: 2, length: 2000, sampleRate: 1000, numberOfChannels: 2 };
+        let rendered = 0;
+        const { controller } = makeController({ renderPart: async () => { rendered++; return buffer; }, encodeRender: () => new ArrayBuffer(8), decodeRender: async () => buffer });
+        const part = { ...first, sha256: 'snapshot', render: { version: 1, sourceSha256: 'snapshot', drumLanesVersion: 1 } };
+        const decoded = { snapshot: { state: { modes } } }, original = JSON.stringify(decoded);
+        controller.song = { id: 'song', parts: [part] };
+        controller.prepareRender = Object.getPrototypeOf(controller).prepareRender;
+        controller.renders.set(part.id, buffer); controller.renderSources.set(part.id, 'snapshot'); controller.renderBytes = 16000;
+        assert.equal(controller.isRenderCompatible(part, decoded), false);
+        controller.request = async requestPath => {
+            assert.match(requestPath, /&drumsample=1/);
+            return { song: { parts: [{ ...part, render: { ...part.render, drumSampleVersion: 1 } }] } };
+        };
+        await controller.prepareRender(part, decoded, controller.generation);
+        assert.equal(rendered, 1); assert.equal(controller.isRenderCompatible(controller.song.parts[0], decoded), true);
+        assert.equal(JSON.stringify(decoded), original); assert.equal(controller.song.parts[0].sha256, 'snapshot');
+        const disabled = structuredClone(decoded); disabled.snapshot.state.modes.drumMachineEnabled = false;
+        assert.equal(controller.isRenderCompatible(part, disabled), true);
+    }
+});
+
+test('full-decay drum renders reject an old server and inspect unversioned legacy sources before reuse', async () => {
+    const { controller } = makeController({ renderPart: async () => ({ duration: 2, length: 2000, sampleRate: 1000, numberOfChannels: 2 }), encodeRender: () => new ArrayBuffer(8) });
+    const part = { ...first, sha256: 'snapshot', render: { version: 1, sourceSha256: 'snapshot', keyboardVersion: 1, grainVersion: 1, portableVersion: 1 } };
+    controller.song = { id: 'song', parts: [part] };
+    controller.prepareRender = Object.getPrototypeOf(controller).prepareRender;
+    controller.request = async () => ({ song: { parts: [part] } });
+    await assert.rejects(controller.prepareRender(part, { snapshot: { state: { modes: { drumMachineEnabled: true, drumMachineSnarePattern: [true] } } } }, controller.generation), /full-decay drum sample render support/);
+    const fixture = makeController(); fixture.controller.song = { id: 'song', parts: [part] };
+    let reads = 0; const read = fixture.controller.readPart;
+    fixture.controller.readPart = async (...args) => { reads++; return read(...args); };
+    await fixture.controller.arm(); assert.equal(reads, 1); assert.equal(fixture.controller.armed, true);
+});
