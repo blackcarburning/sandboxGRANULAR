@@ -6,6 +6,29 @@ function extract(source, name) { const start = source.indexOf(`        function 
 const cycleStart = adapter.indexOf('    function songPatternCycleMultiplier(');
 const songCycle = vm.runInNewContext(`(${adapter.slice(cycleStart, adapter.indexOf('    function validateSongRollCycle('))})`);
 function lane(length, index = length - 1, count = 4) { const s = roll.normalize({length}); s.pattern[index] = true; s.ratchets[index] = count; return s; }
+test('live Roll pattern history permits Song amendment without unlocking Undo or active operations', () => {
+    const context = {initializing:false, window:{mygrainAccounts:{authenticated:true},mygrainSongBeta:{editing:{}},mygrainAiPatch:{}},
+        isAudioGraphReady:()=>true, engineStarting:false, stateSaveSuspended:false,
+        isRecording:false, isOutputRecording:false, isOutputRecordingArmed:false,
+        bastardLoopMRecordingState:'idle', bastardLoopMPlusRecordingState:'idle', bastardLoopKRecordingState:'idle',
+        megaRandomizeInFlight:false, drumMachineLoadInFlight:false, bastardLoopGenerationInFlight:false,
+        bastardLoop2GenerationInFlight:false, bastardLoop3GenerationInFlight:false, bastardLoopVGenerationInFlight:false,
+        bastardLoopPGenerationInFlight:false, bastardLoopOGenerationInFlight:false, dropboxSampleLayerLoadInFlight:false};
+    vm.createContext(context); vm.runInContext(extract(adapter, 'assertReady'), context);
+    assert.throws(() => context.assertReady(), /Finish recording/, 'ordinary history/Undo stays locked');
+    assert.doesNotThrow(() => context.assertReady(false, false, true));
+    for (const key of ['initializing','engineStarting','stateSaveSuspended','isRecording','isOutputRecording','isOutputRecordingArmed',
+        'megaRandomizeInFlight','drumMachineLoadInFlight','bastardLoopGenerationInFlight']) {
+        context[key] = true;
+        assert.throws(() => context.assertReady(false, false, true), undefined, `${key} must remain protected`);
+        context[key] = false;
+    }
+    for (const target of [context.window.mygrainSongBeta, context.window.mygrainAiPatch]) {
+        target.busy = true; assert.throws(() => context.assertReady(false, false, true)); target.busy = false;
+    }
+    context.window.mygrainSongBeta.playing = true;
+    assert.throws(() => context.assertReady(false, false, true));
+});
 test('legacy absent lane is empty; resizing zero-fills without duplicating fills; snapshot is independent', () => {
     assert.equal(roll.normalize().length, 64); assert(!roll.normalize().pattern.some(Boolean));
     const s = lane(64, 63); const larger = roll.normalize({...s, length: 128});

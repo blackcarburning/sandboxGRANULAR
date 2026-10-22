@@ -738,20 +738,20 @@
             }
             window.dispatchEvent(new Event('mygrain-history-update'));
         }
-        function assertReady(completedKRecording = false, aiPatch = false) {
+        function assertReady(completedKRecording = false, aiPatch = false, patternEdit = false) {
             if (initializing) throw new Error('Restoring this device’s Undo/Redo history. Try again in a moment.');
             if (!window.mygrainAccounts?.authenticated || !isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its sounds finish loading first.');
             const kReady = bastardLoopKRecordingState === 'idle' || (completedKRecording && bastardLoopKRecordingState === 'processing');
             if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || !kReady
-                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording) || (window.mygrainAiPatch?.busy && !aiPatch) || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
+                || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording && !patternEdit) || (window.mygrainAiPatch?.busy && !aiPatch) || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
             if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
         }
-        function run(label, action, completedKRecording = false, aiPatch = false) {
+        function run(label, action, completedKRecording = false, aiPatch = false, patternEdit = false) {
             if (restoring || window.__mygrainSongRenderDeck) return action();
             // Internal calls within a larger generation are part of that same step.
             // Trusted UI input is blocked by the capture listener while it settles.
             if (busy) return action();
-            assertReady(completedKRecording, aiPatch);
+            assertReady(completedKRecording, aiPatch, patternEdit);
             const before = capture(), epoch = generation;
             busy = true; update();
             function finish(commit = true) {
@@ -894,6 +894,9 @@
         for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, guardBusyInput, true);
         window.addEventListener('mygrain-account-lock', () => { generation++; store.close(); undo.length = redo.length = 0; update(); });
         window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, recordK, recordAI, undo: () => travel('before'), redo: () => travel('after'),
+            // Editing a live pattern is the purpose of Song Amend. Journal it
+            // without unlocking Undo/Redo or asynchronous recording/Song work.
+            runPatternEdit: (label, action) => run(label, action, false, false, true),
             undoAI: () => travel('before', true),
             get undoLabel() { return undo.at(-1)?.label || ''; },
             get busy() { return busy || initializing; }, get counts() { return { undo: undo.length, redo: redo.length }; } };

@@ -127,10 +127,55 @@ const message = 'stop the drum machine to change roll pattern length';
                 await page.locator('#drumMachineRollLength').fill('96');
                 await page.locator('#drumMachineRollLength').press('Tab');
                 assert.equal(await page.evaluate(() => drumMachineRoll.length), 96);
+                // Real saved-part amendment used to silently reject all Roll edits.
+                await page.evaluate(async () => {
+                    restoreDrumMachineRoll({length: 96});
+                    document.getElementById('songBetaName').value = 'Editable Roll';
+                    await mygrainSongBeta.run(() => mygrainSongBeta.newSong());
+                    document.getElementById('songBetaPartName').value = 'Roll amendment';
+                    await mygrainSongBeta.run(() => mygrainSongBeta.newPart());
+                    window.editorSourceHash = mygrainSongBeta.song.parts[0].sha256;
+                    await mygrainSongBeta.run(() => mygrainSongBeta.amendPart(mygrainSongBeta.song.parts[0]));
+                    if (!mygrainSongBeta.editing) throw new Error('Amendment did not start');
+                    openDrumMachineOverlay();
+                });
+                await press('[data-drum-jump="roll"]');
+                await page.locator('#drumMachineRollPage').selectOption('0');
+                for (const expected of [true, false, true]) {
+                    await press('[data-roll-step="0"]');
+                    assert.equal(await page.evaluate(() => drumMachineRoll.pattern[0]), expected);
+                    assert.equal(await page.locator('[data-roll-step="0"]').getAttribute('aria-pressed'), String(expected));
+                }
+                await press('#drumMachineRollGrid .drum-machine-step-cell:nth-child(1) .drum-machine-ratchet-btn');
+                assert.equal(await page.evaluate(() => drumMachineRoll.ratchets[0]), 2);
+                const amendmentUndo = await page.evaluate(() => mygrainCardHistory.counts.undo);
+                await page.evaluate(() => mygrainCardHistory.undo());
+                assert.equal(await page.evaluate(() => mygrainCardHistory.counts.undo), amendmentUndo, 'Undo must remain locked during an amendment');
+                await press('#drumMachinePlayBtn');
+                const amendmentOrigin = await page.evaluate(() => drumMachineTransportStartTime);
+                await press('[data-roll-step="1"]');
+                for (let i = 0; i < 2; i++) await press('#drumMachineRollGrid .drum-machine-step-cell:nth-child(2) .drum-machine-ratchet-btn');
+                await page.locator('#drumMachineRollPage').selectOption('2');
+                await press('[data-roll-step="95"]');
+                assert.deepEqual(await page.evaluate(() => ({steps: [0, 1, 95].map(i => drumMachineRoll.pattern[i]), ratchets: [0, 1].map(i => drumMachineRoll.ratchets[i]), origin: drumMachineTransportStartTime})),
+                    {steps: [true, true, true], ratchets: [2, 3], origin: amendmentOrigin});
+                await press('#drumMachineRollLength');
+                assert.equal(await page.evaluate(() => drumMachineRoll.length), 96);
+                await press('#drumMachinePlayBtn');
+                const amendment = await page.evaluate(async () => {
+                    if (mygrainSongBeta.song.parts[0].sha256 !== editorSourceHash) throw new Error('Live editing unexpectedly changed the saved source');
+                    await mygrainSongBeta.run(() => mygrainSongBeta.savePart());
+                    const part = mygrainSongBeta.song.parts[0];
+                    const saved = await mygrainSongBeta.loadPart(part);
+                    const state = saved.snapshot.state.modes.drumMachineRoll;
+                    return {changed: part.sha256 !== editorSourceHash, length: state.length,
+                        steps: [0, 1, 95].map(i => state.pattern[i]), ratchets: [0, 1].map(i => state.ratchets[i])};
+                });
+                assert.deepEqual(amendment, {changed: true, length: 96, steps: [true, true, true], ratchets: [2, 3]});
                 await page.evaluate(() => saveState({force: true}));
                 assert.deepEqual(errors, []);
                 results.push({engine, viewport, stableDraft, popup, singlePressClose: 3,
-                    touchReleaseFallback: mobile, runningLengthBlocked: true, stoppedLength: 96, transportUnchanged: true, errors});
+                    touchReleaseFallback: mobile, runningLengthBlocked: true, stoppedLength: 96, transportUnchanged: true, amendment, errors});
                 console.log('PASS', engine, JSON.stringify(viewport));
                 fs.writeFileSync(`${evidence}/results.json`, JSON.stringify(results, null, 2));
                 await context.close();

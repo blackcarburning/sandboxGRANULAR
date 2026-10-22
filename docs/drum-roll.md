@@ -1,4 +1,4 @@
-# Independent Snare Roll lane — DRUMS.3
+# Independent Snare Roll lane — DRUMS.4
 
 In the drum editor, choose **Roll**. Set **Roll length (steps)**, choose a
 32-step page under **Steps shown**, and tap numbered steps. Ratchet buttons
@@ -11,6 +11,13 @@ roll pattern length” above the editor. Page selection, steps and ratchets rema
 editable during playback. UI refreshes preserve unchanged controls and focused
 length drafts; the editor Close button handles touch release directly as well
 as mouse/keyboard clicks, without stopping playback.
+
+Roll edits also work while amending a saved Song part, stopped or running.
+They are journalled through the pattern-edit history entry point rather than
+being rejected by the general Song-amendment lock. Undo/Redo and active
+recording/loading/Song operations retain their existing locks. Any rejected
+edit now explains the reason in a visible popup above the editor. Live changes
+do not overwrite the saved part until **Save Amendment** is pressed.
 
 ## Playback
 
