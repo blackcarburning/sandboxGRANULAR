@@ -53,7 +53,11 @@
             if (event.key === 'Enter') input.blur();
         });
         select.addEventListener('change', () => { page = Number(select.value); render(); });
-        doc.getElementById('drumMachineRollClearBtn').addEventListener('click', () => edit('Clear Roll', () => options.set(normalize({length: get().length}))));
+        const clear = doc.getElementById('drumMachineRollClearBtn');
+        clear.textContent = 'Clear lane';
+        clear.title = 'Clear Snare Roll steps and ratchets; keep the Snare sound and Roll length';
+        clear.setAttribute('aria-label', 'Clear Snare Roll lane');
+        clear.addEventListener('click', () => edit('Clear Roll', () => options.set(normalize({length: get().length}))));
         function reflect(index = visual) {
             visual = index;
             if (doc.hidden || doc.getElementById('drumMachineOverlay').hidden) return;

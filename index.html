@@ -294,7 +294,7 @@
     <script>window.mygrainAccounts?.loadScript('audio-debug-storage.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261020-vcut-random-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('drum-tone.js?v=20261014-drum-tone-1');</script>
-    <script>window.mygrainAccounts?.loadScript('drum-roll.js?v=20261022-drum-controls-2');</script>
+    <script>window.mygrainAccounts?.loadScript('drum-roll.js?v=20261022-drum-clear-1');</script>
     <script>window.mygrainAccounts?.loadStyle('drum-enhancements.css?v=20261022-drum-roll-1');</script>
     <script>window.mygrainAccounts?.loadScript('sample-favourites.js?v=20261014-favourites-1');</script>
     <script>window.mygrainAccounts?.loadStyle('sample-favourites.css?v=20261014-favourites-1');</script>
@@ -6279,7 +6279,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.22.ARM.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.22.DRUM.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6366,7 +6366,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.22.ARM.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.22.DRUM.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7980,6 +7980,7 @@
                         <button class="performance-btn primary" id="performanceDrumMachineRandomBtn">Random Drums</button>
                         <button class="performance-btn" id="performanceDrumMachineSamplesOnlyBtn">Random Samples</button>
                         <button class="performance-btn" id="performanceDrumMachineOpenBtn">Open Drum Machine</button>
+                        <button class="performance-btn" id="performanceDrumMachineClearAllBtn" type="button" title="Clear every drum sequence, including Snare Roll; keep all sounds and settings">Clear all</button>
                         <button class="performance-btn" id="performanceDrumMachineMidiExportBtn" type="button">Export MIDI</button>
                         <button class="performance-btn" id="performanceDrumMachineDirectOutBtn" type="button" aria-pressed="false">Direct Out Off</button>
                     </div>
@@ -11531,6 +11532,7 @@
                 <div class="drum-machine-toolbar">
                     <button class="performance-btn primary" id="drumMachineRandomizeBtn" type="button">Random Drums</button>
                     <button class="performance-btn" id="drumMachineSamplesOnlyBtn" type="button">Random Samples</button>
+                    <button class="performance-btn" id="drumMachineClearAllBtn" type="button" title="Clear every drum sequence, including Snare Roll; keep all sounds and settings">Clear all</button>
                     <button class="performance-btn" id="drumMachineDirectOutBtn" type="button" aria-pressed="false">Direct Out Off</button>
                     <button class="performance-btn" id="drumMachinePlayBtn" type="button">Start Drums</button>
                     <button class="performance-btn" id="drumMachineMidiExportBtn" type="button">Export MIDI</button>
@@ -29036,11 +29038,6 @@
                     catch (error) { setStatus(`${track.label} sample load failed: ${error.message}`, 'error'); }
                 });
                 document.getElementById(`${track.id}PatternBtn`)?.addEventListener('click', () => window.mygrainCardHistory.run(`${track.label} pattern`, () => setDrumMachinePattern(track.kind, buildRandomDrumMachinePattern(track.kind, { force: true }))));
-                document.getElementById(`${track.id}ClearBtn`).addEventListener('click', () => {
-                    track.ratchets.fill(0);
-                    track.accents.fill(false);
-                    setDrumMachinePattern(track.kind, Array.from({ length: getDrumMachinePatternLength() }, () => false));
-                });
                 for (const property of ['Pitch', 'Level', 'Decay', 'Length']) {
                     document.getElementById(`${track.id}${property}`).addEventListener('input', () => { syncExtraDrumMachineUi(); saveState(); });
                 }
@@ -29081,6 +29078,15 @@
             lanes.forEach(([label, kind], index) => {
                 const card = cards[index];
                 card.id = `drumMachineLane-${kind}`;
+                const clear = card.querySelector('[id$="ClearBtn"]') || document.createElement('button');
+                clear.type = 'button';
+                clear.className = 'performance-btn';
+                clear.id = `drumMachine${kind[0].toUpperCase()}${kind.slice(1)}ClearBtn`;
+                clear.textContent = 'Clear lane';
+                clear.title = `Clear ${label} steps, ratchets and accents; keep the sound and settings`;
+                clear.setAttribute('aria-label', `Clear ${label} lane`);
+                clear.addEventListener('click', () => clearDrumMachineSequences(kind));
+                card.querySelector('.drum-machine-track-actions').append(clear);
                 const tab = document.createElement('button');
                 tab.type = 'button';
                 tab.className = 'performance-btn';
@@ -29153,6 +29159,39 @@
         function restoreDrumMachineRoll(value) {
             drumMachineRoll = window.MygrainDrumRoll.normalize(value);
             drumMachineRollUi?.render();
+        }
+
+        function clearDrumMachineSequences(kind = 'all') {
+            try {
+                const history = window.mygrainCardHistory;
+                if (!history || history.busy) throw new Error('Wait for the current sound change to finish.');
+                const lanes = {
+                    kick: [drumMachineKickPattern, drumMachineKickRatchetPattern],
+                    snare: [drumMachineSnarePattern, drumMachineSnareRatchetPattern],
+                    hat: [drumMachineHatPattern, drumMachineHatRatchetPattern, drumMachineHatAccentPattern],
+                    perc: [drumMachinePercPattern, drumMachinePercRatchetPattern],
+                    ...Object.fromEntries(Object.values(drumMachineExtraTracks).map(track => [track.kind, [track.pattern, track.ratchets, track.accents]])),
+                    roll: [drumMachineRoll.pattern, drumMachineRoll.ratchets]
+                };
+                if (kind !== 'all' && !lanes[kind]) throw new Error('Unknown drum lane.');
+                const label = kind === 'all' ? 'Clear all drum sequences' : `Clear ${kind === 'roll' ? 'Snare Roll' : getDrumMachineTrackLabel(kind)} lane`;
+                return history.runPatternEdit(label, () => {
+                    // Sequence arrays only: never replace buffers, metadata,
+                    // sound controls, lengths or the running transport clock.
+                    for (const [lane, arrays] of Object.entries(lanes)) {
+                        if (kind !== 'all' && kind !== lane) continue;
+                        arrays[0].fill(false);
+                        arrays[1].fill(0);
+                        arrays[2]?.fill(false);
+                    }
+                    syncDrumMachineUi();
+                    saveState();
+                    setStatus(kind === 'all' ? 'All drum sequences cleared. Sounds and settings kept.' : `${kind === 'roll' ? 'Snare Roll' : getDrumMachineTrackLabel(kind)} lane cleared. Sound and settings kept.`);
+                });
+            } catch (error) {
+                setStatus(error.message, 'error');
+                showSettlePopup(error.message, { force: true });
+            }
         }
 
         function scheduleDrumMachineRoll(stepIndex, scheduledTime, stepDuration) {
@@ -30988,25 +31027,8 @@
         }
 
         function ensureDrumMachineStartAudibility() {
-            const hasAnyPattern = drumMachineKickPattern.some(Boolean)
-                || drumMachineSnarePattern.some(Boolean)
-                || drumMachineRoll.pattern.some(Boolean)
-                || drumMachineHatPattern.some(Boolean)
-                || drumMachinePercPattern.some(Boolean)
-                || Object.values(drumMachineExtraTracks).some(track => track.pattern.some(Boolean));
-
-                if (!hasAnyPattern) {
-                    const patternLength = getDrumMachinePatternLength();
-                    drumMachineKickPattern = createDefaultDrumMachinePattern('kick', patternLength);
-                    drumMachineSnarePattern = createDefaultDrumMachinePattern('snare', patternLength);
-                    drumMachineHatPattern = createDefaultDrumMachinePattern('hat', patternLength);
-                    drumMachineKickRatchetPattern = Array.from({ length: patternLength }, () => 0);
-                    drumMachineSnareRatchetPattern = Array.from({ length: patternLength }, () => 0);
-                    drumMachineHatAccentPattern = Array.from({ length: patternLength }, () => false);
-                    drumMachineHatRatchetPattern = Array.from({ length: patternLength }, () => 0);
-                    drumMachineHatTimingMode = 'straight';
-                }
-
+            // An empty grid is intentional after Clear all. Starting playback
+            // (including history resume) must not silently program a new beat.
             if (!(drumMachineLevel > 0.0001)) {
                 drumMachineLevel = DEFAULT_DRUM_MACHINE_LEVEL_PERCENT / 100;
             }
@@ -60655,6 +60677,10 @@
             document.getElementById('performanceDropboxSampleLevelValue').textContent = `${Math.round(value)}%`;
             updateDropboxSampleLayerMix();
         });
+
+        for (const id of ['performanceDrumMachineClearAllBtn', 'drumMachineClearAllBtn']) {
+            document.getElementById(id)?.addEventListener('click', () => clearDrumMachineSequences());
+        }
 
         performanceDrumMachineRandomBtn?.addEventListener('click', async () => {
             try {
