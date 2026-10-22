@@ -23,6 +23,9 @@ function fixture(overrides = {}) {
         updateEffects() {}, syncPerformanceControlState() {}, delayMs: async () => {},
         EXPORT_RENDER_SETTLE_MS: 90, EXPORT_RENDER_LEAD_IN_SECONDS: .18, EXPORT_RENDER_TAIL_SECONDS: .06,
         getBufferedTransportStartTime: time => time, restartInternalEffectOscillators() {},
+        prewarmTransportBuffers() {},
+        getTransportOutputLatencySeconds: () => 0,
+        withBufferedTransportStart: (time, callback) => callback(),
         finalFxPlacementLfoEnabled: false, updateFinalFxPlacementLfo() {},
         recordLiveOutputBuffer: async (duration, options) => {
             events.push(['record', duration, options.captureStartTime]);

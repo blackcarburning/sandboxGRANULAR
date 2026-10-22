@@ -1,0 +1,143 @@
+"""Real authenticated HTTP lifecycle checks, using disposable account stores."""
+import hashlib
+import json
+import pathlib
+import unittest
+import zipfile
+from io import BytesIO
+from urllib.parse import quote
+from unittest.mock import patch
+
+import test_mygrain_accounts as account_tests
+from test_mygrain_accounts import SERVER, wav_bytes, part_bytes
+
+PATTERNS = SERVER._wav_patterns_module
+PATTERN_BYTES = part_bytes()
+
+
+def bundle(pattern=None, wav=None):
+    output = BytesIO()
+    with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr('render.wav', wav if wav is not None else wav_bytes())
+        archive.writestr('pattern.zip', pattern if pattern is not None else PATTERN_BYTES)
+    return output.getvalue()
+
+
+class WavPatternTests(unittest.TestCase):
+    setUp = account_tests.AccountHTTPTests.setUp
+    tearDown = account_tests.AccountHTTPTests.tearDown
+    success = account_tests.AccountHTTPTests.success
+    upload = account_tests.AccountHTTPTests.upload
+
+    def save(self, client=None, name='paired.wav', body=None):
+        return self.success(client or self.admin, 'POST', '/mygrain-wavs/api/render-with-pattern?filename=' + quote(name),
+                            body=body if body is not None else bundle(), headers={'Content-Type': 'application/zip'})
+
+    def listing(self, client=None):
+        return self.success(client or self.admin, 'GET', '/mygrain-wavs/api/list')['files']
+
+    def account_root(self, client=None):
+        user = self.accounts.lookup_user((client or self.admin).username)
+        token = SERVER._accounts_module.CURRENT_USER.set(user)
+        try:
+            return pathlib.Path(SERVER.ensure_mygrain_repository_root(SERVER.MYGRAIN_WAVS_ROUTE))
+        finally:
+            SERVER._accounts_module.CURRENT_USER.reset(token)
+
+    def test_exact_source_round_trip_and_unchanged_legacy_listing(self):
+        self.upload(self.admin, 'legacy.wav')
+        saved = self.save()
+        rows = {entry['name']: entry for entry in self.listing()}
+        self.assertNotIn('patternExport', rows['legacy.wav'])
+        details = rows['paired.wav']['patternExport']
+        self.assertEqual(details['sha256'], hashlib.sha256(PATTERN_BYTES).hexdigest())
+        self.assertEqual(self.success(self.admin, 'GET', details['url']), PATTERN_BYTES)
+        self.assertEqual(self.success(self.admin, 'GET', saved['url']), wav_bytes())
+        status, body, headers = self.admin.request('HEAD', details['url'])
+        self.assertEqual((status, body, headers['Content-Length']), (200, b'', str(len(PATTERN_BYTES))))
+        self.assertEqual(self.admin.request('GET', '/mygrain-wavs/api/pattern?filename=legacy.wav')[0], 404)
+
+    def test_same_filename_account_isolation_auth_pin_and_origin(self):
+        own = self.save()
+        self.assertEqual(self.dan.request('GET', own['patternExport']['url'])[0], 401)
+        self.assertEqual(self.dan.request('GET', '/mygrain-wavs/api/pattern?filename=paired.wav')[0], 404)
+        self.assertEqual(self.anonymous.request('GET', own['patternExport']['url'])[0], 401)
+        self.assertEqual(self.admin.request('GET', own['patternExport']['url'], headers={'X-Mygrain-User': 'dan'})[0], 401)
+        self.assertEqual(self.admin.request('POST', '/mygrain-wavs/api/render-with-pattern?filename=bad.wav', body=bundle(), headers={'Origin': 'https://other.invalid'})[0], 403)
+        other = self.save(self.dan, body=bundle(wav=wav_bytes(value=7)))
+        self.assertEqual(other['savedName'], own['savedName'])
+        self.assertNotEqual(self.success(self.admin, 'GET', own['url']), self.success(self.dan, 'GET', other['url']))
+        self.assertEqual(len(self.listing(self.admin)), 1)
+        self.assertEqual(len(self.listing(self.dan)), 1)
+
+    def test_invalid_pair_cannot_leave_an_orphan_wav(self):
+        for body in (bundle(pattern=b'not a patch'), bundle(wav=b'not audio'), b'broken upload'):
+            with self.subTest(body_size=len(body)):
+                self.assertEqual(self.admin.request('POST', '/mygrain-wavs/api/render-with-pattern?filename=bad.wav', body=body)[0], 400)
+                self.assertEqual(self.listing(), [])
+                self.assertEqual(list(self.account_root().glob('*.wav')), [])
+
+    def test_uniquely_named_pairs_do_not_replace_each_other(self):
+        first = self.save()
+        second = self.save(body=bundle(wav=wav_bytes(value=8)))
+        self.assertNotEqual(first['savedName'], second['savedName'])
+        self.assertEqual(len(self.listing()), 2)
+        for row in self.listing():
+            self.assertEqual(self.success(self.admin, 'GET', row['patternExport']['url']), PATTERN_BYTES)
+
+    def test_rename_and_delete_follow_the_associated_wav_only(self):
+        saved = self.save(name='before.wav')
+        self.upload(self.admin, 'legacy.wav')
+        renamed = self.success(self.admin, 'POST', '/mygrain-wavs/api/rename', data={'from': 'before.wav', 'to': 'after.wav'})
+        self.assertEqual(renamed['savedName'], 'after.wav')
+        rows = {row['name']: row for row in self.listing()}
+        self.assertEqual(self.success(self.admin, 'GET', rows['after.wav']['patternExport']['url']), PATTERN_BYTES)
+        self.assertEqual(self.admin.request('GET', saved['patternExport']['url'])[0], 404)
+        self.success(self.admin, 'DELETE', '/mygrain-wavs/api/delete?filename=after.wav')
+        self.assertEqual([row['name'] for row in self.listing()], ['legacy.wav'])
+        self.assertEqual(list((self.account_root() / '.pattern-exports').iterdir()), [])
+
+    def test_missing_changed_or_corrupt_export_hides_import(self):
+        self.save()
+        root = self.account_root()
+        wav, archive, metadata = PATTERNS.paths(root, 'paired.wav')
+        archive.unlink()
+        self.assertNotIn('patternExport', self.listing()[0])
+        self.assertEqual(self.admin.request('GET', '/mygrain-wavs/api/pattern?filename=paired.wav')[0], 404)
+        self.save(name='changed.wav')
+        wav, archive, metadata = PATTERNS.paths(root, 'changed.wav')
+        wav.write_bytes(wav_bytes(value=9))
+        row = next(row for row in self.listing() if row['name'] == 'changed.wav')
+        self.assertNotIn('patternExport', row)
+        self.save(name='corrupt.wav')
+        wav, archive, metadata = PATTERNS.paths(root, 'corrupt.wav')
+        metadata.write_text('not json')
+        row = next(row for row in self.listing() if row['name'] == 'corrupt.wav')
+        self.assertNotIn('patternExport', row)
+
+    def test_storage_cannot_be_downloaded_directly_or_traversed(self):
+        self.save()
+        _, archive, _ = PATTERNS.paths(self.account_root(), 'paired.wav')
+        self.assertEqual(self.admin.request('GET', '/mygrain-wavs/.pattern-exports/' + archive.name)[0], 403)
+        for filename in ('../escape.wav', '.hidden.wav', 'file.zip', 'sub/clip.wav'):
+            self.assertIsNone(PATTERNS.info(self.account_root(), filename))
+        self.assertEqual(self.admin.request('GET', '/mygrain-wavs/api/pattern?filename=../escape.wav')[0], 404)
+
+    def test_sharing_wav_does_not_implicitly_share_source_pattern(self):
+        saved = self.save()
+        self.success(self.admin, 'POST', '/mygrain-wavs/api/share', data={'filename': saved['savedName'], 'username': 'dan'})
+        self.assertTrue(self.listing(self.dan))
+        for row in self.listing(self.dan):
+            self.assertNotIn('patternExport', row)
+
+    def test_failed_provenance_write_rolls_back_only_new_pair(self):
+        root = self.account_root()
+        self.upload(self.admin, 'legacy.wav')
+        with self.assertRaisesRegex(OSError, 'fixture'), patch.object(self.accounts, 'wav_created', side_effect=OSError('fixture')):
+            PATTERNS.save_bundle(root, 'failed.wav', bundle(), lambda name: name, SERVER._song_module.validate_part_zip, self.accounts.wav_created)
+        self.assertEqual([row['name'] for row in self.listing()], ['legacy.wav'])
+        self.assertEqual(list((root / '.pattern-exports').iterdir()), [])
+
+
+if __name__ == '__main__':
+    unittest.main()

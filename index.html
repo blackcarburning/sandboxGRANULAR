@@ -6268,7 +6268,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.21.SONG.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.22.WAV.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6355,7 +6355,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.21.SONG.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.22.WAV.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8798,6 +8798,10 @@
                             <span class="value" id="performanceExportBarsValue">4 bars</span>
                         </label>
                         <input type="number" id="performanceExportBars" min="1" max="64" value="4" step="1" inputmode="numeric">
+                    </div>
+                    <div class="performance-sound-card">
+                        <label for="performanceExportPattern"><span>Save editable pattern with WAV</span><input id="performanceExportPattern" type="checkbox"></label>
+                        <p class="performance-feature-note">Include the notes, settings and original sounds. Repository renders gain Import Pattern in the WAV browser; local exports include a pattern ZIP.</p>
                     </div>
                 </div>
             </div>
@@ -47714,6 +47718,7 @@
                 generatedLoopTransposeOctaves: getGeneratedLoopTransposeOctaves(),
                 volumeBias: keyboardVolumeBias,
                 performanceExportBars: performanceExportBars ? clampExportBars(performanceExportBars.value) : DEFAULT_EXPORT_BARS,
+                performanceExportPattern: document.getElementById('performanceExportPattern')?.checked === true,
                 activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'grain'
             };
 
@@ -48611,6 +48616,7 @@
                 if (state.performanceExportBars !== undefined && performanceExportBars) {
                     syncPerformanceExportBars(state.performanceExportBars, { skipSave: true });
                 }
+                if (document.getElementById('performanceExportPattern')) document.getElementById('performanceExportPattern').checked = state.performanceExportPattern === true;
 
                 if (state.fxMuted !== undefined) {
                     setFxMuted(state.fxMuted, { silent: true });
@@ -49080,7 +49086,7 @@
             if (!files || files.length === 0) return;
 
             if (navigator.share && navigator.canShare) {
-                const shareFiles = files.map(({ blob, filename }) => new File([blob], filename, { type: 'audio/wav' }));
+                const shareFiles = files.map(({ blob, filename }) => new File([blob], filename, { type: blob.type || (/\.zip$/i.test(filename) ? 'application/zip' : 'audio/wav') }));
                 if (navigator.canShare({ files: shareFiles })) {
                     try {
                         await navigator.share({ files: shareFiles, title });
@@ -49736,6 +49742,42 @@
             };
         }
 
+        async function renderPatternWithOptionalSnapshot() {
+            if (!document.getElementById('performanceExportPattern')?.checked) return renderDawReadyBarsExport();
+            if (!window.mygrainSongBetaAdapter || window.mygrainCardHistory?.busy || window.mygrainAiPatch?.busy || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing) throw new Error('Finish Undo/Redo, AI or Song operations before saving an editable render.');
+            const owner = window.mygrainAccounts?.user?.username;
+            await window.mygrainSongBetaAdapter.ready();
+            if (owner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Render the pattern again.');
+            setStatus('Saving the editable pattern and original sounds before rendering…');
+            const patternBlob = await window.mygrainSongBetaAdapter.capture();
+            if (patternBlob.size > 128 * 1024 * 1024) throw new Error('Editable pattern exceeds the 128 MB snapshot limit.');
+            if (owner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Render the pattern again.');
+            const rendered = await renderDawReadyBarsExport();
+            if (owner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Render the pattern again.');
+            return { ...rendered, patternBlob, patternOwner: owner };
+        }
+
+        let editablePatternImportInFlight = false;
+        async function importEditablePattern(arrayBuffer, sourceName = 'pattern.zip', options = {}) {
+            const owner = window.mygrainAccounts?.user?.username;
+            const adapter = window.mygrainSongBetaAdapter;
+            if (!adapter || !window.mygrainCardHistory || window.mygrainCardHistory.busy || editablePatternImportInFlight) throw new Error('Wait for the editable pattern and Undo/Redo tools to finish loading.');
+            editablePatternImportInFlight = true;
+            try {
+                options.signal?.throwIfAborted();
+                await adapter.ready();
+                options.signal?.throwIfAborted();
+                const prepared = await adapter.decode(arrayBuffer, { buffers: new Map(), bytes: 0, limitBytes: 256 * 1024 * 1024 });
+                options.signal?.throwIfAborted();
+                if (owner !== window.mygrainAccounts?.user?.username || window.mygrainCardHistory.busy) throw new Error('Account or editing state changed. Import the pattern again.');
+                await window.mygrainCardHistory.run('Import Pattern', () => adapter.recall(prepared, { start: false }));
+                await adapter.whenPersisted();
+                setStatus(`Imported ${sourceName}. Full pattern and original sounds are ready to edit; playback is stopped. Undo restores your previous pattern.`);
+            } finally {
+                editablePatternImportInFlight = false;
+            }
+        }
+
         async function exportDawReadyBars() {
             if (performanceExportBtn) {
                 performanceExportBtn.disabled = true;
@@ -49744,9 +49786,11 @@
             setStatus('Exporting the live final amp render from a fresh loop restart…');
 
             try {
-                const exportData = await renderDawReadyBarsExport();
-                await saveAudioFiles([{ filename: exportData.filename, blob: exportData.blob }], `MYGRAIN ${exportData.bpm} BPM ${exportData.bars} bar export`);
-                setStatus('Exported one WAV file from the live final output.');
+                const exportData = await renderPatternWithOptionalSnapshot();
+                const files = [{ filename: exportData.filename, blob: exportData.blob }];
+                if (exportData.patternBlob) files.push({ filename: exportData.filename.replace(/\.wav$/i, '.pattern.zip'), blob: exportData.patternBlob });
+                await saveAudioFiles(files, `MYGRAIN ${exportData.bpm} BPM ${exportData.bars} bar export`);
+                setStatus(exportData.patternBlob ? 'Exported WAV and its complete editable pattern ZIP.' : 'Exported one WAV file from the live final output.');
             } finally {
                 if (performanceExportBtn) {
                     performanceExportBtn.disabled = false;
@@ -49876,16 +49920,20 @@
         }
 
         async function uploadWavToRepository(blob, filename, options = {}) {
-            const uploadUrl = `${WAV_REPOSITORY_BASE_URL}/api/upload?filename=${encodeURIComponent(filename)}`;
+            if (options.patternOwner && options.patternOwner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Render the pattern again.');
+            const paired = Boolean(options.patternBlob);
+            const body = paired ? await createStoredZip([{ path: 'render.wav', data: blob }, { path: 'pattern.zip', data: options.patternBlob }]) : blob;
+            if (options.patternOwner && options.patternOwner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Render the pattern again.');
+            const uploadUrl = `${WAV_REPOSITORY_BASE_URL}/api/${paired ? 'render-with-pattern' : 'upload'}?filename=${encodeURIComponent(filename)}`;
             const response = await fetch(uploadUrl, {
                 method: 'POST',
                 mode: 'cors',
                 signal: options.signal,
                 headers: {
-                    'Content-Type': 'audio/wav',
+                    'Content-Type': paired ? 'application/zip' : 'audio/wav',
                     'X-Filename': filename
                 },
-                body: blob
+                body
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.ok) {
@@ -52489,7 +52537,7 @@
                 performanceRepoExportBtn.textContent = 'working';
             }
             try {
-                const exportData = await renderDawReadyBarsExport();
+                const exportData = await renderPatternWithOptionalSnapshot();
                 const defaultName = exportData.filename.replace(/\.wav$/i, '');
                 const userFilename = prompt('Enter filename for WAV repository export:', defaultName);
                 if (!userFilename) {
@@ -52503,8 +52551,9 @@
                 }
                 setStatus(`Uploading ${filename} to the WAV repository…`);
 
-                const result = await uploadWavToRepository(exportData.blob, filename);
-                setStatus(`Uploaded ${result.savedName || filename} to the WAV repository.`);
+                const result = await uploadWavToRepository(exportData.blob, filename, { patternBlob: exportData.patternBlob, patternOwner: exportData.patternOwner });
+                setStatus(`Uploaded ${result.savedName || filename}${result.patternExport ? ' with its editable pattern (Import Pattern in WAV Browser)' : ''} to the WAV repository.`);
+                if (!document.getElementById('wavRepositoryBrowserOverlay')?.hidden) await refreshWavRepositoryBrowser({ forceRefresh: true });
             } finally {
                 if (performanceRepoExportBtn) {
                     performanceRepoExportBtn.disabled = false;
@@ -54094,6 +54143,7 @@
 
         async function openPatchZipFromArrayBuffer(arrayBuffer, sourceName = 'patch.zip') {
             const entries = parseStoredZipEntries(arrayBuffer);
+            if (entries.has('song-part.json')) return importEditablePattern(arrayBuffer, sourceName);
             const manifestText = getZipText(entries, 'manifest.json');
             const presetText = getZipText(entries, 'preset.json');
             if (!presetText) {
@@ -54779,6 +54829,39 @@
                 head.append(name);
                 favourites.decorate('wav', favouriteKey(file), file.name, head);
                 actions.append(repositoryHint, downloadButton, shareButton, renameButton, deleteButton);
+                if (file.patternExport?.url) {
+                    const importButton = document.createElement('button');
+                    importButton.type = 'button';
+                    importButton.className = 'performance-btn primary wav-pattern-import';
+                    importButton.textContent = 'Import Pattern';
+                    importButton.title = 'Restore this render’s complete editable pattern, notes, settings and original sounds. Undo restores the current pattern.';
+                    importButton.addEventListener('click', async () => {
+                        const controller = new AbortController();
+                        wavRepositoryBrowserDownloadControllers.add(controller);
+                        importButton.disabled = true;
+                        importButton.textContent = 'Importing…';
+                        try {
+                            setWavRepositoryBrowserStatus(`Loading editable pattern for ${file.name}…`);
+                            const blob = await fetchWavRepositoryBrowserData(file.patternExport.url, { responseType: 'blob', label: 'Load editable pattern', signal: controller.signal });
+                            const bytes = await blob.arrayBuffer();
+                            controller.signal.throwIfAborted();
+                            const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
+                            if (digest !== file.patternExport.sha256) throw new Error('The editable pattern failed its integrity check. Refresh the WAV browser.');
+                            await importEditablePattern(bytes, file.name, { signal: controller.signal });
+                            closeWavRepositoryBrowser();
+                        } catch (error) {
+                            if (!controller.signal.aborted) {
+                                setWavRepositoryBrowserStatus(`Pattern import failed: ${error.message}`);
+                                setStatus(`Pattern import failed: ${error.message}`, 'error');
+                            }
+                        } finally {
+                            wavRepositoryBrowserDownloadControllers.delete(controller);
+                            importButton.disabled = false;
+                            importButton.textContent = 'Import Pattern';
+                        }
+                    });
+                    actions.append(importButton);
+                }
                 card.append(head, meta, audio, actions, feedback);
                 list.appendChild(card);
             };
@@ -54826,7 +54909,8 @@
                         const previous = previousFiles.get(file.name);
                         const feedback = normalizeWavRepositoryBrowserFeedback(file.feedback, file);
                         if (previous && ['name', 'url', 'size', 'modified', 'createdBy', 'sharedBy', 'commentBy'].every((key) => previous[key] === file[key])
-                            && JSON.stringify(previous.feedback) === JSON.stringify(feedback)) return previous;
+                            && JSON.stringify(previous.feedback) === JSON.stringify(feedback)
+                            && JSON.stringify(previous.patternExport) === JSON.stringify(file.patternExport)) return previous;
                         return { ...file, feedback, feedbackDraft: previous?.feedbackDraft
                             && isWavRepositoryBrowserFeedbackDirty(previous) ? previous.feedbackDraft : null };
                     })
@@ -61004,6 +61088,8 @@
 
         document.getElementById('noiseType')?.addEventListener('change', syncPerformanceControlState);
         document.getElementById('noiseMix')?.addEventListener('input', syncPerformanceControlState);
+
+        document.getElementById('performanceExportPattern')?.addEventListener('change', () => saveState());
 
         performanceExportBars?.addEventListener('input', (event) => {
             previewPerformanceExportBars(event.target.value);

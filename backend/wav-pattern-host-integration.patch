@@ -1,0 +1,57 @@
+--- a/server.py
++++ b/server.py
+@@ -517,6 +517,7 @@
+         feedback = feedback_items.get(repository_feedback_item_key(MYGRAIN_WAVS_ROUTE, entry['name']))
+         entry['feedback'] = normalize_repository_feedback_item(feedback, route_base=MYGRAIN_WAVS_ROUTE, file_name=entry['name'])
+         entry['commentBy'] = entry['feedback']['commentBy']
++    _wav_patterns_module.decorate(mygrain_repository_root(MYGRAIN_WAVS_ROUTE), files)
+     return files
+ 
+ 
+@@ -2516,6 +2517,12 @@
+ )
+ _song_module = importlib.util.module_from_spec(_song_module_spec)
+ _song_module_spec.loader.exec_module(_song_module)
++
++_wav_patterns_spec = importlib.util.spec_from_file_location(
++    'mygrain_wav_patterns', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_wav_patterns.py'
++)
++_wav_patterns_module = importlib.util.module_from_spec(_wav_patterns_spec)
++_wav_patterns_spec.loader.exec_module(_wav_patterns_module)
+ 
+ _vocal_module_spec = importlib.util.spec_from_file_location(
+     'mygrain_vocal_takes', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_vocal_takes.py'
+@@ -2734,6 +2741,11 @@
+             if route['base'] == '/mygrain' and inner in ('/api/ai-patch-direction', '/api/ai-prompts', '/api/ai-parts'):
+                 return _ai_patch_module.handle_ai_patch_request(self, self.command, inner, source_root=pathlib.Path(MYGRAIN_BASTARDLOOP_LOCAL_SOURCE_ROOT), prompt_db=MYGRAIN_ACCOUNTS.database.with_name('ai-prompts.sqlite3'))
+             with MYGRAIN_ACCOUNTS.user_lock(user):
++                if route['base'] == MYGRAIN_WAVS_ROUTE and _wav_patterns_module.handle_request(self, self.command, inner,
++                        root=ensure_mygrain_repository_root(MYGRAIN_WAVS_ROUTE),
++                        unique_name=lambda name: unique_mygrain_repository_filename(MYGRAIN_WAVS_ROUTE, name),
++                        validate_pattern=_song_module.validate_part_zip, wav_created=MYGRAIN_ACCOUNTS.wav_created):
++                    return
+                 if route['base'] == MYGRAIN_WAVS_ROUTE and inner == '/api/shares' and self.command in ('GET', 'HEAD'):
+                     return self.send_json({'ok': True, 'shares': MYGRAIN_ACCOUNTS.outbound_shares()}, extra_headers={'Cache-Control': 'no-store'})
+                 if not inner.startswith('/api/'):
+@@ -3313,6 +3325,8 @@
+             if route_base == MYGRAIN_WAVS_ROUTE and _accounts_module.current_user() is not None:
+                 MYGRAIN_ACCOUNTS.begin_file_change(target_name, deleting=True)
+             target_path.unlink()
++            if route_base == MYGRAIN_WAVS_ROUTE:
++                _wav_patterns_module.delete(root, target_name)
+             delete_mygrain_repository_feedback(route_base, target_name)
+             self.send_json({
+                 "ok": True,
+@@ -3361,6 +3375,12 @@
+             if target_path != source_path:
+                 changes = MYGRAIN_ACCOUNTS.begin_file_change(source_name) if route_base == MYGRAIN_WAVS_ROUTE and _accounts_module.current_user() is not None else None
+                 source_path.rename(target_path)
++                if route_base == MYGRAIN_WAVS_ROUTE:
++                    try:
++                        _wav_patterns_module.rename(root, source_name, target_name)
++                    except Exception:
++                        target_path.rename(source_path)
++                        raise
+                 if changes is not None:
+                     MYGRAIN_ACCOUNTS.finish_file_rename(changes, target_name)
+                 rename_mygrain_repository_feedback(route_base, source_name, target_name)

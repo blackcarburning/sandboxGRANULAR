@@ -1,6 +1,16 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Editable patterns alongside WAV renders (WAV.1)
+
+Build `v2026.10.22.WAV.1` adds **Save editable pattern with WAV**, off by default, beside Export Bars. **Export Final Mix to Repo** saves the WAV and its complete portable pattern together; only WAV Browser entries with a valid associated export gain **Import Pattern**. Existing WAVs and unpaired uploads retain their previous controls. **Export WAV** instead downloads the WAV plus a matching `.pattern.zip`; the existing Import ZIP action accepts these complete pattern snapshots as well as the older preset ZIP format.
+
+Import restores notes, sequencer lengths/rates, controls, effects, layer settings and embedded original source sounds through the complete Song-part snapshot codec, without creating or modifying a Song. This retains the existing PCM16 source-snapshot encoding; final WAV renders remain PCM24. Playback stops on import. One device/account-scoped **Import Pattern** Undo step preserves the prior live pattern, and Redo restores the imported state without regenerating audio.
+
+The host validates both files before saving, keeps sidecars private beneath each account's WAV store, verifies association/integrity, and follows WAV rename/delete. WAV sharing remains audio-only and does not implicitly expose the original source sounds. Missing, changed or corrupt associations do not add import controls. No older WAV, patch or Song is rewritten. The integration changes for the sibling host are recorded in [backend/wav-pattern-host-integration.patch](backend/wav-pattern-host-integration.patch).
+
+Checks: `node --test tests/wav-pattern-export.test.cjs tests/wav-export.test.js tests/wav-browser-responsiveness.test.js tests/wav-browser-recovery.test.js tests/wav-repository-mobile-scroll.test.js tests/mygrain-accounts.test.js`; `python3 -m unittest discover -s tests -p 'test_wav_patterns.py'`. For disposable real browser/audio checks, start `python3 tests/song-beta-test-server.py 18890`, then run `WAV_PATTERN_ENGINE=chromium node tests/wav-pattern-export-browser.cjs` followed by `WAV_PATTERN_ENGINE=webkit WAV_PATTERN_EVIDENCE=/tmp/mygrain-wav-pattern-webkit node tests/wav-pattern-export-browser.cjs`. Chromium covers the actual live render/save and local two-file export; the installed Linux WebKit lacks MediaRecorder, so its checks cover paired upload and full import/Undo/Redo/reload using the real Chromium WAV, not its live renderer. Both use desktop and portrait phone emulation; no physical iPhone verification is implied.
+
 ## Per-part playback Steps (SONG.2)
 
 Build `v2026.10.21.SONG.2` adds a **Steps** number box beside Repeats on every Song part card. It defaults to the full saved cycle (including slow L/X/Q timing); set 1 through that full step count to play only the opening section of each repeat. Leaving the box or pressing Enter saves it. Raise the value again to restore more of the original pattern. The grid, notes, source archive and complete rendered audio stay untouched.
