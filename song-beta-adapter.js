@@ -90,7 +90,9 @@
         ['drumSnare', () => drumMachineSnareBuffer, buffer => { drumMachineSnareBuffer = buffer; }, DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY],
         ['drumHat', () => drumMachineHatBuffer, buffer => { drumMachineHatBuffer = buffer; }, DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY],
         ['drumPerc', () => drumMachinePercBuffer, buffer => { drumMachinePercBuffer = buffer; }, DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY],
-        ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.buffer, buffer => { track.buffer = buffer; }, `${track.id}Buffer`])
+        ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.buffer, buffer => { track.buffer = buffer; }, `${track.id}Buffer`]),
+        // Append only: persisted Undo/Redo journals address these slots by index.
+        ['keyboardSample', () => keyboardSampleBuffer, buffer => setKeyboardSampleBuffer(buffer), KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY]
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
@@ -106,6 +108,7 @@
         ['bastardK', () => bastardLoopKMetadata, metadata => { bastardLoopKMetadata = metadata; }],
         ['dropboxSample', () => dropboxSampleLayerMetadata, metadata => { dropboxSampleLayerMetadata = metadata; }],
         ['mic', () => micSampleMetadata, metadata => { micSampleMetadata = metadata; }],
+        ['keyboardSample', () => keyboardSampleMetadata, metadata => { keyboardSampleMetadata = metadata; }],
         ['grainMainSample', () => grainMainSampleMetadata, metadata => { grainMainSampleMetadata = metadata; }],
         ['grainASample', () => grainASampleMetadata, metadata => { grainASampleMetadata = metadata; }],
         ['grainBSample', () => grainBSampleMetadata, metadata => { grainBSampleMetadata = metadata; }],
@@ -122,6 +125,7 @@
     }
 
     const additiveSongLanes = [
+        { name: 'Keyboard Sample', slots: ['keyboardSample'], settings: /^(?:keyboardSample|performanceKeyboardSample)/, references: /^keyboardsample$/i, keyboardSource: 'sample' },
         { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
         { name: 'K', slots: ['bastardK', 'bastardKRender'], settings: /bastard(?:Loop)?K/i, references: /^(?:k|bastard(?:loop)?k)$/i },
         { name: 'M+', slots: ['bastardMPlus', 'bastardMPlusRender'], settings: /bastard(?:Loop)?MPlus/i, references: /^(?:m\+|mplus|bastard(?:loop)?mplus)$/i },
@@ -131,6 +135,7 @@
     function hasSongLaneEvidence(value, lane, reference = false) {
         if (!value || typeof value !== 'object') return reference && typeof value === 'string' && value.split(',').some(entry => lane.references.test(entry.trim()));
         return Object.entries(value).some(([key, entry]) => lane.settings.test(key)
+            || (lane.keyboardSource && key === 'keyboardSoundSource' && typeof entry === 'string' && entry.toLowerCase() === lane.keyboardSource)
             || (key === 'id' && typeof entry === 'string' && lane.settings.test(entry))
             || hasSongLaneEvidence(entry, lane, reference || ['keyboardSoundSource', 'loopLayerSolo', 'performanceSourceLayerSolo', 'performanceSourceLayerSoloSnapshot'].includes(key)));
     }
@@ -283,6 +288,7 @@
         prepared.modes = {
             drumMachineRoll: window.MygrainDrumRoll.normalize(),
             keyboardSoundSource: 'grain',
+            keyboardSampleSourceKey: 'samples_piano', keyboardSampleMetadata: null,
             bastardLoopMPlusEnabled: false, bastardLoopMPlusLevel: .5,
             bastardLoopMPlusPan: 0,
             bastardLoopMPlusInputGain: 1, bastardLoopMPlusSourceBpm: 120,
@@ -307,6 +313,7 @@
         };
         const modes = prepared.modes;
         prepared.sliders = {
+            performanceKeyboardSampleVolume: '100',
             performanceBastardLoopLReverbMix: '0',
             performanceBastardLoopLReverbSize: '45',
             performanceBastardLoopLReverbDecay: '55',
@@ -653,7 +660,9 @@
         context: () => audioContext,
         output: () => finalAmplifierNode,
         startAt(startTime) {
-            restartAllTransport({ startTime, silent: true });
+            // A saved part explicitly authorizes its held keyboard / Arp notes,
+            // including in a fresh render deck with no prior key interaction.
+            restartAllTransport({ startTime, silent: true, keyboardPlay: true });
             if (!sequencerPlaying && !isArpeggiatorPlaying()) startSequencer(startTime);
             if (!arpEnabled) startHeldKeyboardPlayback(startTime);
         },

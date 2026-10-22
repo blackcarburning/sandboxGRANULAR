@@ -571,3 +571,32 @@ test('parallel sample preparation shares one validated manifest request per inst
     assert.ok((await Promise.all(requests)).every(manifest => manifest === manifests.piano));
     assert.equal(fetches, 1);
 });
+
+test('single keyboard sample is rooted at middle C and shares the isolated output/capture graph', async () => {
+    const {player, host, context, output, tap, sources} = fixture();
+    const buffer = {duration: 4, length: 192000, numberOfChannels: 2, sampleRate: 48000};
+    host.sample = () => buffer;
+    for (const [midi, rate] of [[60, 1], [72, 2], [48, .5], [61, 2 ** (1 / 12)]]) {
+        const voice = await player.noteOn('sample-key', midi, {instrument: 'sample', velocity: 127});
+        assert.equal(voice.source.buffer, buffer); assert.equal(voice.source.playbackRate.value, rate);
+        assert.equal(voice.peak, 1); assert.equal(voice.source.loop, undefined);
+        assert.deepEqual(voice.gain.connections, [output, tap]);
+        assert.equal(player.activeVoices.size, 1);
+        context.currentTime += .1;
+    }
+    player.noteOff('sample-key');
+    assert.ok(player.voices.get('sample-key').released);
+    player.stop(); assert.equal(player.activeVoices.size, 0);
+    assert.ok(sources.every(source => source.disconnected));
+});
+
+test('empty or suspended single-sample keyboard never loads a Q bank or plays late', async () => {
+    const {player, host, context, sources} = fixture({pinned: false});
+    assert.equal(await player.noteOn('sample', 60, {instrument: 'sample'}), null);
+    host.sample = () => ({duration: 1}); context.state = 'suspended';
+    assert.equal(await player.noteOn('sample', 60, {instrument: 'sample'}), null);
+    assert.equal(sources.length, 0); assert.equal(player.pending.size, 0);
+    context.state = 'running';
+    const voice = await player.noteOn('sample', 60, {instrument: 'sample'});
+    assert.equal(voice.source.playbackRate.value, 1); player.stop();
+});

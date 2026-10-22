@@ -5944,7 +5944,7 @@
 
         .keyboard-sound-switch {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 8px;
             margin: 12px 0;
             width: 100%;
@@ -5961,6 +5961,10 @@
             margin: -4px 0 12px;
             font-size: 12px;
             color: #e1baff;
+        }
+
+        #performanceKeyboardSampleBrowseBtn {
+            grid-column: 1 / -1;
         }
 
         .keyboard-sound-split {
@@ -6298,7 +6302,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.22.K.9</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.22.SAMPLE.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6385,7 +6389,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.22.K.9</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.22.SAMPLE.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7886,6 +7890,7 @@
                     <button class="performance-btn active" type="button" data-keyboard-sound="grain" aria-pressed="true">Grain</button>
                     <button class="performance-btn" type="button" data-keyboard-sound="piano" aria-pressed="false">Q Piano</button>
                     <button class="performance-btn" type="button" data-keyboard-sound="strings" aria-pressed="false">Q Strings</button>
+                    <button class="performance-btn" type="button" data-keyboard-sound="sample" aria-pressed="false">Sample</button>
                 </div>
                 <div class="keyboard-sound-status" data-keyboard-sound-status role="status" aria-live="polite">Grain ready.</div>
                 <div class="performance-sound-card k-record-length-card">
@@ -8912,8 +8917,18 @@
                     </div>
                     <button class="performance-btn" type="button" data-keyboard-sound="piano" aria-pressed="false">Q Piano</button>
                     <button class="performance-btn" type="button" data-keyboard-sound="strings" aria-pressed="false">Q Strings</button>
+                    <button class="performance-btn" type="button" data-keyboard-sound="sample" aria-pressed="false">Sample</button>
                 </div>
                 <div class="keyboard-sound-status" data-keyboard-sound-status role="status" aria-live="polite">Grain ready.</div>
+                <div class="performance-sound-card" id="keyboardSampleCard">
+                    <div class="performance-actions">
+                        <button class="performance-btn primary" id="performanceKeyboardSampleBrowseBtn" type="button">Choose Keyboard Sample</button>
+                    </div>
+                    <p class="performance-feature-note" id="performanceKeyboardSampleName">No keyboard sample chosen.</p>
+                    <label for="performanceKeyboardSampleVolume"><span>Sample Volume</span><span class="value" id="performanceKeyboardSampleVolumeValue">100%</span></label>
+                    <input type="range" id="performanceKeyboardSampleVolume" min="0" max="100" value="100" step="1">
+                    <p class="performance-feature-note">Middle C (C4) plays the original pitch. Other keys transpose the sample; higher notes play faster. Use Hold, Arp and Record to K as usual.</p>
+                </div>
                 <div class="keyboard-section">
                     <div class="octave-controls">
                         <button class="octave-btn" id="octaveUpBtn">+</button>
@@ -13127,6 +13142,7 @@
             triplet: 'Triplet Hats'
         };
         const SAMPLE_BROWSER_TARGETS = {
+            keyboardSample: 'keyboardSample',
             dropboxSampleLayer: 'dropboxSampleLayer',
             drumMachineKick: 'drumMachineKick',
             drumMachineSnare: 'drumMachineSnare',
@@ -14149,6 +14165,10 @@
         let oscillatorsEnabled = true;
         let granularLayersEnabled = true;
         let keyboardSoundSource = 'grain';
+        let keyboardSampleBuffer = null;
+        let keyboardSampleMetadata = null;
+        let keyboardSampleSourceKey = 'samples_piano';
+        let keyboardSampleLoadController = null;
         let keyboardSamplePlayer = null;
         let keyboardSamplePlayerContext = null;
         const keyboardSampleOutputBuses = new Map();
@@ -14703,6 +14723,7 @@
             'globalBpmSlider',
             'performanceKeyboardPianoVolume',
             'performanceKeyboardStringsVolume',
+            'performanceKeyboardSampleVolume',
             'performanceBastardLoopKInputGain',
             'performanceKeyboardKLevel',
             ...INTERNAL_BPM_CLOCK_RATE_IDS,
@@ -16738,7 +16759,8 @@
                             restoredDrumMachineSnareBuffer,
                             restoredDrumMachineHatBuffer,
                             restoredDrumMachinePercBuffer,
-                            restoredDrumMachineExtraBuffers
+                            restoredDrumMachineExtraBuffers,
+                            restoredKeyboardSampleBuffer
                         ] = await Promise.all([
                             loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY).then((buffer) => buffer || loadAudioBufferFromDB(AUDIO_BUFFER_KEY)),
                             loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY),
@@ -16763,9 +16785,11 @@
                             loadAudioBufferFromDB(DRUM_MACHINE_SNARE_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY),
-                            Promise.all(Object.values(drumMachineExtraTracks).map(track => loadAudioBufferFromDB(`${track.id}Buffer`)))
+                            Promise.all(Object.values(drumMachineExtraTracks).map(track => loadAudioBufferFromDB(`${track.id}Buffer`))),
+                            loadAudioBufferFromDB(KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY)
                         ]);
                         const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
+                        if (restoreStillCurrent) setKeyboardSampleBuffer(restoredKeyboardSampleBuffer || null);
                         const shouldRestoreGenerated = restoredGeneratedBuffer && lastGeneratedSourceWriteAt <= restoreStartedAt && restoreStillCurrent;
                         const shouldRestoreMic = restoredMicBuffer && restoreStillCurrent;
                         const shouldRestoreGrainMainSample = restoredGrainMainSampleBuffer && restoreStillCurrent;
@@ -21975,6 +21999,12 @@
         }
 
         function getSampleBrowserTargetConfig(target = dropboxSampleBrowserTarget) {
+            if (target === SAMPLE_BROWSER_TARGETS.keyboardSample) {
+                const sourceKey = normalizeKeyboardSampleSourceKey(keyboardSampleSourceKey);
+                return { target, title: 'Keyboard Sample Browser', subtitle: 'Choose a sample for the keyboard. Middle C (C4) is its original pitch.',
+                    sourceKey, sourceLabel: BASTARD_LOOP_SOURCE_LABELS[sourceKey], loadButtonLabel: 'Load into Keyboard', loadingLabel: 'Loading samples…',
+                    sourceOptions: Object.entries(BASTARD_LOOP_SOURCE_LABELS).map(([value, label]) => ({ value, label })) };
+            }
             if (isGrainSampleBrowserTarget(target)) {
                 const details = GRAIN_SAMPLE_BROWSER_TARGET_DETAILS[target];
                 const sourceKey = getGrainSampleBrowserSourceKey(target);
@@ -22480,7 +22510,7 @@
             const source = normalizeKeyboardSoundSource(keyboardSoundSource);
             // The K playback bus has headroom and a 50% default fader. Compensate
             // capture by instrument, without changing the monitored/live sound.
-            const defaults = { grain: 160, osc: 180, piano: 250, strings: 250 };
+            const defaults = { grain: 160, osc: 180, piano: 250, strings: 250, sample: 160 };
             const value = Number(keyboardRecordingLevels[source] ?? defaults[source]);
             return Math.max(0, Math.min(400, Number.isFinite(value) ? value : defaults[source]));
         }
@@ -32806,7 +32836,7 @@
         }
 
         function normalizePerformanceSourceLayerSolo(value) {
-            const allowed = ['osc', 'granular', 'sample', 'loop', 'piano', 'strings'];
+            const allowed = ['osc', 'granular', 'sample', 'loop', 'piano', 'strings', 'keyboardsample'];
             const rawValues = Array.isArray(value)
                 ? value
                 : String(value ?? 'none').split(',');
@@ -32958,7 +32988,7 @@
                     sample: 'Sample',
                     loop: 'Loop',
                     piano: 'Piano',
-                    strings: 'Strings'
+                    strings: 'Strings', keyboardsample: 'Keyboard Sample'
                 };
                 const activeLabels = nextSelection.map((key) => labels[key] || 'Source');
                 setStatus(`${activeLabels.join(', ')} soloed.`);
@@ -33118,16 +33148,79 @@
         }
 
         function normalizeKeyboardSoundSource(source) {
-            return ['osc', 'grain', 'piano', 'strings'].includes(source) ? source : 'grain';
+            return ['osc', 'grain', 'piano', 'strings', 'sample'].includes(source) ? source : 'grain';
         }
 
         function isKeyboardSoundRole(role) {
             return role === 'keyboard' || role === 'arp';
         }
 
+        function keyboardSoundLabel() {
+            return { piano: 'Q Piano', strings: 'Q Strings', osc: 'Osc', grain: 'Grain', sample: 'Sample' }[keyboardSoundSource];
+        }
+
+        function setKeyboardSampleBuffer(buffer) {
+            keyboardSampleBuffer = buffer || null;
+            if (keyboardSoundSource === 'sample') keyboardSoundReadiness = buffer ? 'ready' : 'idle';
+            syncKeyboardSoundControls();
+        }
+
+        function normalizeKeyboardSampleSourceKey(value) {
+            return Object.hasOwn(BASTARD_LOOP_SOURCE_LABELS, value) ? value : 'samples_piano';
+        }
+
+        async function loadKeyboardSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
+            // Reuse the card history boundary: sample changes are editable in Amend,
+            // but must not join an unrelated asynchronous history operation.
+            if (window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
+            const action = async () => {
+                if (!await ensureAudioReadyForKeyInteraction()) throw new Error('Start MYGRAIN before loading a keyboard sample.');
+                if (bastardLoopKRecordingState !== 'idle') throw new Error('Finish Record to K before changing the sample.');
+                keyboardSampleLoadController?.abort();
+                const controller = keyboardSampleLoadController = new AbortController();
+                const context = audioContext, selection = keyboardSoundSelectionToken, serial = sourceMutationSerial;
+                const account = window.mygrainAccounts?.user?.username;
+                const song = window.mygrainSongBeta;
+                const editing = song?.editing, songId = song?.song?.id;
+                const guard = () => {
+                    if (controller.signal.aborted || context !== audioContext || selection !== keyboardSoundSelectionToken || serial !== sourceMutationSerial
+                        || !window.mygrainAccounts?.authenticated || account !== window.mygrainAccounts.user?.username
+                        || bastardLoopKRecordingState !== 'idle' || song?.playing || song?.busy || song?.editing !== editing || song?.song?.id !== songId
+                        || (editing && !song.canEditSong())) throw new Error('Keyboard sample load cancelled because the sound, account or Song changed.');
+                };
+                try {
+                    sourceKey = normalizeKeyboardSampleSourceKey(sourceKey);
+                    const response = await fetch(buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath), { cache: 'no-store', signal: controller.signal });
+                    if (!response.ok) throw new Error(`Sample download failed (${response.status}).`);
+                    if (Number(response.headers.get('Content-Length')) > 32 * 1024 * 1024) throw new Error('Keyboard sample exceeds 32 MB.');
+                    const bytes = await response.arrayBuffer();
+                    if (bytes.byteLength > 32 * 1024 * 1024) throw new Error('Keyboard sample exceeds 32 MB.');
+                    const buffer = await decodeRepositoryAudio(bytes, context);
+                    if (!buffer.length || buffer.duration > MAX_SAMPLE_DURATION_SECONDS) throw new Error(`Choose a sample up to ${MAX_SAMPLE_DURATION_SECONDS} seconds long.`);
+                    guard();
+                    stopKeyboardSounds({ immediate: true });
+                    keyboardSampleMetadata = { sourceKey, sourceLabel: BASTARD_LOOP_SOURCE_LABELS[sourceKey], relativePath, fileName: fileName || relativePath.split('/').pop(), rootMidi: 60 };
+                    keyboardSampleSourceKey = sourceKey;
+                    setKeyboardSampleBuffer(buffer);
+                    setKeyboardSoundSource('sample', { skipSave: true });
+                    keyboardSoundReadiness = 'ready';
+                    sourceMutationSerial += 1;
+                    syncKeyboardSoundControls();
+                    saveState();
+                    await saveAudioBufferToDB(buffer, KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY);
+                    setStatus(`Keyboard sample: ${keyboardSampleMetadata?.fileName || fileName}. C4 is original pitch.`);
+                } finally { if (keyboardSampleLoadController === controller) keyboardSampleLoadController = null; }
+            };
+            return window.mygrainCardHistory ? window.mygrainCardHistory.runDraftEdit('keyboard sample', action) : action();
+        }
+
         function syncKeyboardSoundControls() {
-            const sampled = keyboardSoundSource === 'piano' || keyboardSoundSource === 'strings';
-            const label = keyboardSoundSource === 'piano' ? 'Q Piano' : keyboardSoundSource === 'strings' ? 'Q Strings' : keyboardSoundSource === 'osc' ? 'Osc' : 'Grain';
+            const sampled = ['piano', 'strings', 'sample'].includes(keyboardSoundSource);
+            const label = keyboardSoundLabel();
+            const sampleName = document.getElementById('performanceKeyboardSampleName');
+            if (sampleName) sampleName.textContent = keyboardSampleBuffer
+                ? `${keyboardSampleMetadata?.fileName || 'Saved keyboard sample'} · ${keyboardSampleMetadata?.sourceLabel || ''} · ${keyboardSampleBuffer.duration.toFixed(2)}s`
+                : 'No keyboard sample chosen.';
             document.querySelectorAll('[data-keyboard-sound]').forEach(button => {
                 const selected = button.dataset.keyboardSound === keyboardSoundSource;
                 button.classList.toggle('active', selected);
@@ -33135,20 +33228,20 @@
                 button.setAttribute('aria-busy', String(selected && sampled && keyboardSoundReadiness === 'loading'));
             });
             document.querySelectorAll('[data-keyboard-sound-status]').forEach(status => {
-                status.textContent = !sampled ? `${label} ready.` : keyboardSoundReadiness === 'ready' ? `${label} ready for visible keys.` : keyboardSoundReadiness === 'loading' ? `Loading ${label} visible keys…` : keyboardSoundReadiness === 'error' ? `${label} loading failed. Tap its sound button to retry.` : `Tap ${label} to load keyboard samples.`;
+                status.textContent = keyboardSoundSource === 'sample' ? (keyboardSampleBuffer ? `Sample ready: ${keyboardSampleMetadata?.fileName || 'saved sample'} · C4 original pitch.` : 'Choose a sample to play on the keyboard. C4 is original pitch.') : !sampled ? `${label} ready.` : keyboardSoundReadiness === 'ready' ? `${label} ready for visible keys.` : keyboardSoundReadiness === 'loading' ? `Loading ${label} visible keys…` : keyboardSoundReadiness === 'error' ? `${label} loading failed. Tap its sound button to retry.` : `Tap ${label} to load keyboard samples.`;
                 status.dataset.keyboardSoundReadiness = sampled ? keyboardSoundReadiness : 'ready';
             });
         }
 
         function getKeyboardSampleVolume(instrument) {
-            const id = instrument === 'strings' ? 'performanceKeyboardStringsVolume' : 'performanceKeyboardPianoVolume';
+            const id = instrument === 'sample' ? 'performanceKeyboardSampleVolume' : instrument === 'strings' ? 'performanceKeyboardStringsVolume' : 'performanceKeyboardPianoVolume';
             const value = Number(document.getElementById(id)?.value ?? 100);
             return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 100)) / 100;
         }
 
         function getKeyboardSampleSoloGain(instrument) {
             if (!hasAnyPerformanceLayerSoloSelection()) return 1;
-            return hasPerformanceSourceLayerSolo(instrument) ? 1 : 0;
+            return hasPerformanceSourceLayerSolo(instrument === 'sample' ? 'keyboardsample' : instrument) ? 1 : 0;
         }
 
         function getKeyboardSampleOutputNode(instrument) {
@@ -33167,8 +33260,8 @@
         }
 
         function syncKeyboardSampleMixControls() {
-            for (const instrument of ['piano', 'strings']) {
-                const id = instrument === 'strings' ? 'performanceKeyboardStringsVolume' : 'performanceKeyboardPianoVolume';
+            for (const instrument of ['piano', 'strings', 'sample']) {
+                const id = instrument === 'sample' ? 'performanceKeyboardSampleVolume' : instrument === 'strings' ? 'performanceKeyboardStringsVolume' : 'performanceKeyboardPianoVolume';
                 const label = document.getElementById(`${id}Value`);
                 if (label) label.textContent = `${Math.round(getKeyboardSampleVolume(instrument) * 100)}%`;
             }
@@ -33186,6 +33279,7 @@
                 keyboardSamplePlayerContext = audioContext;
                 keyboardSamplePlayer = window.MygrainQ.createKeyboardPlayer({
                     context: () => audioContext,
+                    sample: () => keyboardSampleBuffer,
                     output: instrument => getKeyboardSampleOutputNode(instrument),
                     capture: () => keyboardGrainCaptureGain,
                     volume: instrument => getKeyboardSampleVolume(instrument) * getKeyboardSampleSoloGain(instrument)
@@ -33236,6 +33330,7 @@
             const next = normalizeKeyboardSoundSource(source);
             if (next !== keyboardSoundSource) {
                 keyboardSoundSelectionToken += 1;
+                keyboardSampleLoadController?.abort();
                 if (arpEnabled) {
                     stopKeyboardSounds({ immediate: true });
                     silenceKeyboardVoiceOutputs();
@@ -33249,7 +33344,7 @@
                 }
                 keyboardSoundSource = next;
                 keyboardSoundPreparation = null;
-                keyboardSoundReadiness = 'idle';
+                keyboardSoundReadiness = next === 'sample' && keyboardSampleBuffer ? 'ready' : 'idle';
             }
             syncKeyboardSoundControls();
             syncKeyboardRecordingLevel();
@@ -33280,6 +33375,12 @@
         }
 
         async function prepareKeyboardSound(source = keyboardSoundSource) {
+            if (source === 'sample') {
+                if (!keyboardSampleBuffer) throw new Error('Choose a keyboard sample first.');
+                keyboardSoundReadiness = 'ready';
+                syncKeyboardSoundControls();
+                return;
+            }
             if (source === 'osc') {
                 ensureSynthVoicePathAudible({ forceOscillatorsEnabled: true, forceMinimumMix: true, disableSampleSolo: true });
             } else if (source === 'grain') {
@@ -33332,12 +33433,17 @@
         async function selectKeyboardSoundFromUi(source) {
             setKeyboardSoundSource(source, { skipSave: true });
             const token = ++keyboardSoundSelectionToken;
+            if (source === 'sample' && !keyboardSampleBuffer) {
+                saveState();
+                openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.keyboardSample);
+                return;
+            }
             try {
                 if (!await ensureAudioReadyForKeyInteraction() || token !== keyboardSoundSelectionToken) return;
                 await prepareKeyboardSound(keyboardSoundSource);
                 if (token !== keyboardSoundSelectionToken) return;
                 saveState();
-                setStatus(`Keyboard and K sound: ${keyboardSoundSource === 'piano' ? 'Q Piano' : keyboardSoundSource === 'strings' ? 'Q Strings' : keyboardSoundSource === 'osc' ? 'Osc' : 'Grain'}.`);
+                setStatus(`Keyboard and K sound: ${keyboardSoundLabel()}.`);
             } catch (error) {
                 if (token === keyboardSoundSelectionToken) setStatus(`Keyboard sound: ${error.message}`, 'error');
             }
@@ -33351,7 +33457,7 @@
             if (keyboardSoundSource === 'grain' && !granularLayersEnabled) setGranularLayersEnabled(true, { silent: true, skipSave: true });
             startGrainStream(note, scheduledTime, velocity, { ...options, voiceOutputs: keyboardVoiceOutputs });
             playOscillatorNote(note, scheduledTime, velocity, { role, voiceOutputs: keyboardVoiceOutputs });
-            if (keyboardSoundSource !== 'piano' && keyboardSoundSource !== 'strings') return;
+            if (!['piano', 'strings', 'sample'].includes(keyboardSoundSource)) return;
             const player = getKeyboardSamplePlayer();
             if (!player) return;
             const pitch = 69 + 12 * Math.log2(getKeyboardNoteFrequency(note) / 440);
@@ -38527,6 +38633,10 @@
             stopGeneratedDryLoop();
             stopAllBastardLoopLayers();
             audioBuffer = null;
+            keyboardSampleLoadController?.abort();
+            setKeyboardSampleBuffer(null);
+            keyboardSampleMetadata = null;
+            clearAudioBufferFromDB(KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY);
             generatedLoopBuffer = null;
             generatedLoopBaseBuffer = null;
             micAudioBuffer = null;
@@ -46292,6 +46402,7 @@
                 performanceOscVolume: 100,
                 performanceKeyboardPianoVolume: 100,
                 performanceKeyboardStringsVolume: 100,
+                performanceKeyboardSampleVolume: 100,
                 performanceSampleVolume: 100,
                 performanceGeneratedDryMix: 0,
                 performanceBastardLoopPitch: 0,
@@ -46610,6 +46721,8 @@
         function gatherPreset() {
             const preset = {
                 version: '3.1',
+                keyboardSoundSource,
+                keyboardSampleSourceKey,
                 q: window.mygrainQ?.getState() || null,
                 bastardLoopXRepository,
                 bpmOnlyLfos: true,
@@ -46869,6 +46982,8 @@
 
         // Helper function to apply preset
         function applyPreset(preset) {
+            if (preset?.keyboardSampleSourceKey !== undefined) keyboardSampleSourceKey = normalizeKeyboardSampleSourceKey(preset.keyboardSampleSourceKey);
+            if (preset?.keyboardSoundSource !== undefined) setKeyboardSoundSource(preset.keyboardSoundSource, { skipSave: true });
             if (preset?.bastardLoopXRepository !== undefined) setBastardLoopXRepository(preset.bastardLoopXRepository, { skipSave: true });
             const presetValidator = typeof mygrainUtils.validatePreset === 'function' ? mygrainUtils.validatePreset : null;
             const validated = presetValidator ? presetValidator(preset, {
@@ -47536,6 +47651,7 @@
         const AUDIO_BUFFER_KEY = 'currentAudioBuffer';
         const GENERATED_AUDIO_BUFFER_KEY = 'generatedLoopBuffer';
         const MIC_AUDIO_BUFFER_KEY = 'micAudioBuffer';
+        const KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY = 'keyboardSampleBuffer';
         const GRAIN_MAIN_SAMPLE_AUDIO_BUFFER_KEY = 'grainMainSampleBuffer';
         const GRAIN_A_SAMPLE_AUDIO_BUFFER_KEY = 'grainASampleBuffer';
         const GRAIN_B_SAMPLE_AUDIO_BUFFER_KEY = 'grainBSampleBuffer';
@@ -47820,6 +47936,8 @@
                 },
                 modes: {
                     keyboardSoundSource,
+                    keyboardSampleSourceKey,
+                    keyboardSampleMetadata: keyboardSampleMetadata ? { ...keyboardSampleMetadata } : null,
                     keyboardRecordingLevels: { ...keyboardRecordingLevels },
                     bastardLoopKRecordingSteps,
                     lfoMode: lfoMode,
@@ -48232,7 +48350,7 @@
                 // Restore per-instrument recording levels. Legacy sliders retain
                 // deliberate non-default settings; old 100% becomes the new default.
                 keyboardRecordingLevels = {};
-                for (const source of ['grain', 'osc', 'piano', 'strings']) {
+                for (const source of ['grain', 'osc', 'piano', 'strings', 'sample']) {
                     const value = state.modes?.keyboardRecordingLevels?.[source];
                     if (value != null && Number.isFinite(Number(value))) keyboardRecordingLevels[source] = Math.max(0, Math.min(400, Number(value)));
                 }
@@ -48240,6 +48358,8 @@
                     const legacy = Number(state.sliders?.performanceBastardLoopKInputGain);
                     if (Number.isFinite(legacy) && legacy !== 100) keyboardRecordingLevels[normalizeKeyboardSoundSource(state.modes?.keyboardSoundSource)] = Math.max(0, Math.min(400, legacy));
                 }
+                keyboardSampleSourceKey = normalizeKeyboardSampleSourceKey(state.modes?.keyboardSampleSourceKey);
+                keyboardSampleMetadata = state.modes?.keyboardSampleMetadata || null;
                 // Restore other modes
                 if (bastardLoopKRecordingState === 'idle') {
                     setKeyboardSoundSource(state.modes?.keyboardSoundSource, { skipSave: true });
@@ -50223,6 +50343,7 @@
         const PATCH_REPOSITORY_AUDIO_ENTRIES = [
             { key: 'generated', label: 'Generated / loaded source', role: 'source', path: 'audio/generated-source.wav', getBuffer: () => generatedLoopBuffer },
             { key: 'mic', label: 'Main mic recording', role: 'recorded-mic', path: 'audio/main-mic.wav', getBuffer: () => micAudioBuffer },
+            { key: 'keyboardSample', label: 'Keyboard sample', role: 'keyboard-sample', path: 'audio/keyboard-sample.wav', getBuffer: () => keyboardSampleBuffer, getMetadata: () => keyboardSampleMetadata },
             { key: 'grainMainSample', label: 'Main grain sample', role: 'source', path: 'audio/grain-main-sample.wav', getBuffer: () => grainMainSampleBuffer },
             { key: 'grainASample', label: 'Grain A sample', role: 'source', path: 'audio/grain-a-sample.wav', getBuffer: () => grainASampleBuffer },
             { key: 'grainBSample', label: 'Grain B sample', role: 'source', path: 'audio/grain-b-sample.wav', getBuffer: () => grainBSampleBuffer },
@@ -51783,7 +51904,9 @@
                     loadButton.disabled = true;
                     setDropboxSampleBrowserStatus(`Loading ${file.name}…`);
                     try {
-                        if (config.drumKind) {
+                        if (config.target === SAMPLE_BROWSER_TARGETS.keyboardSample) {
+                            await loadKeyboardSampleFromSourceRelativePath(file.sourceKey, file.relativePath, file.name);
+                        } else if (config.drumKind) {
                             await loadDrumMachineSampleFromSourceRelativePath(config.drumKind, file.sourceKey, file.relativePath, file.name);
                         } else if (config.target === SAMPLE_BROWSER_TARGETS.drumMachineKick) {
                             await loadDrumMachineSampleFromSourceRelativePath('kick', file.sourceKey, file.relativePath, file.name);
@@ -54461,6 +54584,12 @@
             const definition = PATCH_REPOSITORY_AUDIO_ENTRIES.find((entry) => entry.key === asset.key || entry.path === asset.path);
             if (!definition) return false;
             const metadata = asset.metadata || {};
+            if (definition.key === 'keyboardSample') {
+                setKeyboardSampleBuffer(decoded);
+                keyboardSampleMetadata = { ...metadata, rootMidi: 60 };
+                await saveAudioBufferToDB(decoded, KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY);
+                return true;
+            }
             if (definition.role === 'recorded-vocal-loop') {
                 const apply = definition.key === 'bastardMPlus' ? applyRecordedBastardLoopMPlusBuffer : applyRecordedBastardLoopMBuffer;
                 await apply(decoded, { bpm: metadata.bpm, durationSeconds: metadata.durationSeconds, summary: metadata.summary });
@@ -56619,6 +56748,7 @@
             ['performanceOscVolume', 'Osc Volume'],
             ['performanceKeyboardPianoVolume', 'Piano Volume'],
             ['performanceKeyboardStringsVolume', 'Strings Volume'],
+            ['performanceKeyboardSampleVolume', 'Keyboard Sample Volume'],
             ['performanceSampleVolume', 'Sample Volume'],
             ['performanceGeneratedDryMix', 'Loop Level'],
             ['performanceDropboxSampleLevel', 'Dropbox Sample'],
@@ -56647,6 +56777,7 @@
             { controlId: 'performanceOscVolume', label: 'Osc', getNode: () => oscOutputGain },
             { controlId: 'performanceKeyboardPianoVolume', label: 'Piano', getNode: () => keyboardSampleOutputBuses.get('piano')?.node || null },
             { controlId: 'performanceKeyboardStringsVolume', label: 'Strings', getNode: () => keyboardSampleOutputBuses.get('strings')?.node || null },
+            { controlId: 'performanceKeyboardSampleVolume', label: 'Sample', getNode: () => keyboardSampleOutputBuses.get('sample')?.node || null },
             { controlId: 'performanceSampleVolume', label: 'Sample', getNode: () => granularOutputGain },
             { controlId: 'performanceGeneratedDryMix', label: 'Loop', getNode: () => generatedDryGainNode },
             { controlId: 'performanceNoiseLevel', label: 'Noise', getNode: () => oscOutputGain },
@@ -56672,6 +56803,7 @@
             { controlId: 'performanceOscVolume', group: 'source', key: 'osc', label: 'Oscillator' },
             { controlId: 'performanceKeyboardPianoVolume', group: 'source', key: 'piano', label: 'Piano' },
             { controlId: 'performanceKeyboardStringsVolume', group: 'source', key: 'strings', label: 'Strings' },
+            { controlId: 'performanceKeyboardSampleVolume', group: 'source', key: 'keyboardsample', label: 'Keyboard Sample' },
             { controlId: 'performanceSampleVolume', group: 'source', key: 'sample', label: 'Sample' },
             { controlId: 'performanceGeneratedDryMix', group: 'source', key: 'loop', label: 'Loop' },
             { controlId: 'performanceDropboxSampleLevel', group: 'loop', key: 'dropbox', label: 'Dropbox Sample' },
@@ -56701,6 +56833,7 @@
             performanceOscVolume: '.synth-container',
             performanceKeyboardPianoVolume: '.performance-keyboard-card',
             performanceKeyboardStringsVolume: '.performance-keyboard-card',
+            performanceKeyboardSampleVolume: '#keyboardSampleCard',
             performanceSampleVolume: '#generatedWaveformEditor',
             performanceGeneratedDryMix: '#generatedWaveformEditor',
             performanceNoiseLevel: '[aria-label="Main panel controls"]',
@@ -60190,11 +60323,14 @@
         performanceKeyboardToKRecordSurfaceBtn?.addEventListener('click', async () => {
             await handleBastardLoopKRecordButtonPress({ startFullLoop: true });
         });
+        document.getElementById('performanceKeyboardSampleBrowseBtn')?.addEventListener('click', () => openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.keyboardSample));
+        document.getElementById('performanceKeyboardSampleVolume')?.addEventListener('input', () => { syncKeyboardSampleMixControls(); saveState(); });
+        window.addEventListener('mygrain-account-lock', () => { keyboardSampleLoadController?.abort(); keyboardSamplePlayer?.stop(); });
         document.querySelectorAll('[data-keyboard-sound]').forEach(button => {
             if (button.matches('[data-granular-keyboard-ready]')) return;
             button.addEventListener('click', () => selectKeyboardSoundFromUi(button.dataset.keyboardSound));
         });
-        window.addEventListener('pagehide', () => keyboardSamplePlayer?.stop());
+        window.addEventListener('pagehide', () => { keyboardSampleLoadController?.abort(); keyboardSamplePlayer?.stop(); });
 
         for (const id of ['performanceKeyboardPianoVolume', 'performanceKeyboardStringsVolume']) {
             document.getElementById(id)?.addEventListener('input', (event) => {
@@ -60709,7 +60845,9 @@
         });
 
         dropboxSampleBrowserSourceSelect?.addEventListener('change', () => {
-            if (isGrainSampleBrowserTarget(dropboxSampleBrowserTarget)) {
+            if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.keyboardSample) {
+                keyboardSampleSourceKey = normalizeKeyboardSampleSourceKey(dropboxSampleBrowserSourceSelect.value);
+            } else if (isGrainSampleBrowserTarget(dropboxSampleBrowserTarget)) {
                 setGrainSampleBrowserSourceKey(dropboxSampleBrowserTarget, dropboxSampleBrowserSourceSelect.value);
             } else if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.bastardLoopX) {
                 setBastardLoopXRepository(dropboxSampleBrowserSourceSelect.value);
@@ -62393,13 +62531,13 @@
     <script>window.mygrainAccounts?.loadScript('l-reverb.js?v=20261022-l-reverb-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261022-chord-hold-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261022-editor-hold-undo-1');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261022-keyboard-sample-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261022-amend-ready-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261022-amend-ready-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-part-steps-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-amend-random-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-keyboard-sample-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>

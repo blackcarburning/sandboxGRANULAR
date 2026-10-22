@@ -109,7 +109,7 @@
     const bankLimit = 96 * 1024 * 1024;
     const keyboardPianoRepository = 'SAMPLES_Q_KEYBOARD/';
     const keyboardPianoId = 'salamander-v3-k-mp3-44100-v1';
-    const instrumentCalibrationGain = Object.freeze({ piano: .60, strings: 1.30 });
+    const instrumentCalibrationGain = Object.freeze({ piano: .60, strings: 1.30, sample: 1 });
 
     class Piano {
         constructor(host) {
@@ -376,6 +376,16 @@
 
         async request(key, midi, options, preparing) {
             const instrument = options.instrument ?? 'piano';
+            if (instrument === 'sample') {
+                if (!Number.isFinite(Number(midi))) return null;
+                const context = this.host.context(), buffer = this.host.sample?.();
+                this.noteOff(key, { immediate: true });
+                if (!context || context.state === 'closed' || !buffer) return null;
+                const selected = { buffer, offset: 0, duration: buffer.duration, sample: { midi: 60 } };
+                if (preparing) return selected;
+                if (context.state && context.state !== 'running') return null;
+                return this.startVoice({ context, key, midi: theory.clamp(midi, 0, 127, 60), options: { ...options, instrument, velocity: theory.clamp(options.velocity, 1, 127, 100) } }, selected);
+            }
             if (!this.samplers.has(instrument)) throw new Error('Unknown Q keyboard instrument.');
             if (!Number.isFinite(Number(midi))) return null;
             const context = this.host.context();

@@ -275,3 +275,36 @@ test('ETC settings or audio without its declared inventory slot are rejected rat
         assert.throws(() => current.context.normalizeSongAudioInventory(current.snapshot), /inventory is incomplete for drumEtc/);
     }
 });
+
+test('pre-Sample keyboard Songs upgrade to an empty sample slot and reset volume without borrowing device audio', async () => {
+    const current = fixture();
+    delete current.snapshot.extra.audioSlots.keyboardSample;
+    for (const group of ['modes','sliders','selects']) for (const key of Object.keys(current.snapshot.state[group])) if (/^(?:keyboardSample|performanceKeyboardSample)/.test(key)) delete current.snapshot.state[group][key];
+    const original = JSON.stringify(current.snapshot);
+    const checked = current.adapter.inspectPart(await current.archive());
+    assert.equal(checked.snapshot.extra.audioSlots.keyboardSample, false);
+    assert.equal(checked.snapshot.state.sliders.performanceKeyboardSampleVolume, '100');
+    assert.equal(checked.snapshot.extra.metadata.keyboardSample, null);
+    assert.equal(JSON.stringify(current.snapshot), original);
+    assert.ok(checked.upgrade.lanes.includes('Keyboard Sample'));
+});
+
+test('a missing keyboard sample inventory cannot discard selected Sample sound, metadata or solo routing', async () => {
+    for (const evidence of [s=>{s.state.modes.keyboardSoundSource='sample';},s=>{s.extra.metadata.keyboardSample={fileName:'needed.wav'};},s=>{s.extra.performanceSourceLayerSolo=['keyboardsample'];}]) {
+        const current=fixture();delete current.snapshot.extra.audioSlots.keyboardSample;
+        for (const group of ['modes','sliders','selects']) for (const key of Object.keys(current.snapshot.state[group])) if (/^(?:keyboardSample|performanceKeyboardSample)/.test(key)) delete current.snapshot.state[group][key];
+        evidence(current.snapshot);
+        assert.throws(()=>current.adapter.inspectSnapshot(current.snapshot),/incomplete for keyboardSample/);
+    }
+});
+
+test('legacy generated Sample solo is not confused with the new keyboard Sample instrument', () => {
+    for(const solo of [['sample'],'sample',['sample','granular']]) {
+        const current=fixture();delete current.snapshot.extra.audioSlots.keyboardSample;
+        for(const group of ['modes','sliders','selects'])for(const key of Object.keys(current.snapshot.state[group]))if(/^(?:keyboardSample|performanceKeyboardSample)/.test(key))delete current.snapshot.state[group][key];
+        current.snapshot.extra.performanceSourceLayerSolo=solo;
+        const result=current.adapter.inspectSnapshot(current.snapshot);
+        assert.equal(result.snapshot.extra.audioSlots.keyboardSample,false);
+        assert.equal(JSON.stringify(result.snapshot.extra.performanceSourceLayerSolo),JSON.stringify(solo));
+    }
+});
