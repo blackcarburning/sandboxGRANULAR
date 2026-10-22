@@ -562,6 +562,7 @@
             this.selected = 0;
             this.request = 0;
             this.mutedNotes = new Set();
+            this.soloSelected = false;
         }
 
         step() { return this.owner.state.sequence[this.index]; }
@@ -579,10 +580,11 @@
             overlay.setAttribute('aria-hidden', 'true');
             overlay.innerHTML = `<section class="q-chord-editor-shell" role="dialog" aria-modal="true" aria-labelledby="qChordEditorTitle">
                 <header class="sample-browser-head"><div><h3 id="qChordEditorTitle">Q · Individual chord</h3><div id="qChordEditorName" aria-live="polite"></div></div><button type="button" id="qChordEditorClose">Close</button></header>
-                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Double-click / double-tap a note to mute or unmute it; Close unmutes all. Delete Note removes the selected note permanently; Undo restores it.</p>
+                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Solo Note isolates the selected note in this chord only; the rest of the loop keeps playing. Double-click / double-tap to mute or unmute. Close clears mutes and solo. Delete Note is permanent; Undo restores it.</p>
                 <div class="q-chord-editor-tools" aria-label="Note and whole-chord editing">
                     <button type="button" data-q-note-action="down">Note ↓</button><button type="button" data-q-note-action="up">Note ↑</button>
                     <button type="button" data-q-note-action="chord-down">Chord −</button><button type="button" data-q-note-action="chord-up">Chord +</button>
+                    <button type="button" data-q-note-action="solo" aria-pressed="false" title="Solo the selected note in this chord only; other chords and instruments keep playing">Solo Note</button>
                     <button type="button" data-q-note-action="delete">Delete Note</button>
                 </div>
                 <div id="qChordEditorNotes" class="q-chord-pitch-scroll" role="listbox" aria-label="Individual chord notes; Up and Down move the selected note"><div class="q-chord-pitch-roll"><div class="q-chord-pitch-labels" aria-hidden="true"></div><div class="q-chord-pitch-notes"></div></div></div>
@@ -617,7 +619,7 @@
                 const button = event.target.closest('[data-q-note-action]');
                 if (button) this.task(() => this.move(button.dataset.qNoteAction));
                 const note = event.target.closest('[data-q-note-index]');
-                if (note) { this.selected = Number(note.dataset.qNoteIndex); this.render(); }
+                if (note) this.selectNote(Number(note.dataset.qNoteIndex));
                 if (event.target === overlay) this.close();
             });
             overlay.addEventListener('keydown', event => {
@@ -631,8 +633,7 @@
                 }
                 if (['ArrowLeft', 'ArrowRight'].includes(event.key) && !event.target.matches('input, select, textarea')) {
                     event.preventDefault();
-                    this.selected = (this.selected + (event.key === 'ArrowRight' ? 1 : this.step().notes.length - 1)) % this.step().notes.length;
-                    this.render();
+                    this.selectNote((this.selected + (event.key === 'ArrowRight' ? 1 : this.step().notes.length - 1)) % this.step().notes.length);
                     this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`).focus({ preventScroll: true });
                     this.revealSelected();
                 }
@@ -646,7 +647,7 @@
                 const note = event.target.closest('[data-q-note-index]');
                 if (!note || event.button !== 0 || this.drag) return;
                 event.preventDefault();
-                this.selected = Number(note.dataset.qNoteIndex);
+                this.selectNote(Number(note.dataset.qNoteIndex));
                 this.drag = { pointer: event.pointerId, note, index: this.selected, x: event.clientX, y: event.clientY, scroll: this.scroller.scrollTop, notes: this.step().notes.slice(), draft: this.step().notes.slice() };
                 note.setPointerCapture(event.pointerId);
                 note.focus({ preventScroll: true });
@@ -720,6 +721,7 @@
             if (this.opened) this.close({ resume: false });
             this.index = index;
             this.mutedNotes = new Set();
+            this.soloSelected = false;
             this.lastNoteTap = null;
             this.owner.lastChordTouch = null;
             this.selected = 0;
@@ -745,6 +747,7 @@
             this.opened = false;
             this.cancelDrag();
             this.mutedNotes = new Set();
+            this.soloSelected = false;
             this.owner.lastChordTouch = null;
             this.stopLoop();
             this.overlay.hidden = true;
@@ -783,17 +786,20 @@
             preview.reflectPlaying = () => {};
             preview.updatePlayhead = position => this.syncLoop(position);
             const timeline = preview.timeline.bind(preview);
-            let source, muted, filtered;
+            let source, muted, solo, filtered;
             preview.timeline = () => {
                 const events = timeline();
-                if (source !== events || muted !== this.mutedNotes) {
+                const soloPitch = this.soloSelected ? this.step()?.notes[this.selected] : null;
+                if (source !== events || muted !== this.mutedNotes || solo !== soloPitch) {
                     source = events;
                     muted = this.mutedNotes;
+                    solo = soloPitch;
                     // Filter the edited source cell only (including repeats of
                     // that cell), after ARP expansion so its rhythm is retained.
                     // Empty events retain the clock even with every note muted.
-                    filtered = muted.size ? events.map(event => event.index % owner.length() === 0
-                        ? { ...event, notes: event.notes.filter(pitch => !muted.has(pitch - preview.state.transpose)) } : event) : events;
+                    // Solo overrides temporary mutes without discarding them.
+                    filtered = muted.size || solo !== null ? events.map(event => event.index % owner.length() === 0
+                        ? { ...event, notes: event.notes.filter(pitch => solo !== null ? pitch - preview.state.transpose === solo : !muted.has(pitch - preview.state.transpose)) } : event) : events;
                 }
                 return filtered;
             };
@@ -824,7 +830,7 @@
                 this.preview.state = state;
                 const origin = root.mygrainPatternSection ? root.mygrainPatternSection.start(this.index, this.loopSteps, state.rate) : this.owner.host.context().currentTime + .06;
                 this.preview.start(origin);
-                this.status(`Looping the whole pattern from Q step ${this.index + 1} for ${this.loopSteps} steps. Changes use this same sound and effects; Undo restores prior notes.`);
+                this.status(`Looping the whole pattern from Q step ${this.index + 1} for ${this.loopSteps} steps. ${this.soloSelected ? `Solo Note: ${theory.noteName(this.step().notes[this.selected])} in this chord only; all other chords and instruments keep playing.` : 'Changes use this same sound and effects; Undo restores prior notes.'}`);
             } finally {
                 if (request === this.request) { this.loading = false; this.syncLoop(); }
             }
@@ -847,6 +853,9 @@
             const name = theory.identifyChord(pitches, step.root).name;
             this.overlay.querySelector('#qChordEditorTitle').textContent = `Q · Chord at step ${this.index + 1}`;
             this.overlay.querySelector('#qChordEditorName').textContent = name + (this.owner.state.transpose ? ` · sounds as ${theory.identifyChord(theory.transposed(pitches, this.owner.state.transpose)).name}` : '');
+            const soloButton = this.overlay.querySelector('[data-q-note-action="solo"]');
+            soloButton.textContent = this.soloSelected ? 'Unsolo Note' : 'Solo Note';
+            soloButton.setAttribute('aria-pressed', String(this.soloSelected));
             const notes = this.overlay.querySelector('.q-chord-pitch-notes');
             if (notes.children.length !== pitches.length) {
                 notes.replaceChildren();
@@ -856,17 +865,34 @@
                 }
             }
             for (const [index, note] of [...notes.children].entries()) {
-                const muted = this.mutedNotes.has(step.notes[index]);
+                const soloed = this.soloSelected && index === this.selected;
+                const muted = this.soloSelected ? !soloed : this.mutedNotes.has(step.notes[index]);
                 note.textContent = theory.noteName(pitches[index]);
                 note.classList.toggle('q-chord-note-muted', muted);
+                note.classList.toggle('q-chord-note-soloed', soloed);
                 note.style.top = `${(108 - pitches[index]) * this.rowHeight()}px`;
                 note.style.left = `${index * 100 / pitches.length}%`;
                 note.style.width = `${100 / pitches.length}%`;
                 note.setAttribute('aria-selected', String(this.selected === index));
-                note.setAttribute('aria-label', `${theory.noteName(pitches[index])}, voice ${index + 1}${muted ? ', muted' : ''}; double-click to ${muted ? 'unmute' : 'mute'}; Up or Down changes pitch; Delete removes note`);
-                note.title = muted ? 'Muted until Close · double-click / double-tap to unmute' : 'Double-click / double-tap to mute until Close';
+                note.setAttribute('aria-label', `${theory.noteName(pitches[index])}, voice ${index + 1}${soloed ? ', soloed in this chord only' : muted ? ', muted' : ''}; double-click toggles temporary mute; Up or Down changes pitch; Delete removes note`);
+                note.title = this.soloSelected ? soloed ? 'Soloed in this chord only · Unsolo Note restores temporary mutes' : 'Silenced by Solo Note · select this note to solo it instead' : muted ? 'Muted until Close · double-click / double-tap to unmute' : 'Double-click / double-tap to mute until Close';
                 note.tabIndex = this.selected === index ? 0 : -1;
             }
+        }
+        selectNote(index) {
+            if (!this.opened || !Number.isInteger(this.step()?.notes[index])) return;
+            const changed = this.selected !== index;
+            this.selected = index;
+            this.render();
+            if (changed && this.soloSelected && (this.preview?.running || this.loading)) this.task(() => this.startLoop());
+        }
+        async toggleSolo() {
+            if (!this.opened || this.drag) return;
+            this.soloSelected = !this.soloSelected;
+            this.lastNoteTap = null;
+            this.render();
+            if (this.preview?.running || this.loading) await this.startLoop();
+            this.status(this.soloSelected ? `${theory.noteName(this.step().notes[this.selected])} soloed in this chord only. Other chords and instruments keep playing; Close clears solo.` : 'Note solo off. Previous temporary note mutes restored; the rest of the loop is unchanged.');
         }
         toggleMute(index) {
             if (!this.opened || this.drag) return;
@@ -876,7 +902,7 @@
             if (muted.has(pitch)) muted.delete(pitch); else muted.add(pitch);
             this.mutedNotes = muted;
             this.render();
-            this.status(`${theory.noteName(pitch)} ${muted.has(pitch) ? 'muted' : 'unmuted'} for audition only. Close unmutes all notes; saved notes are unchanged.`);
+            this.status(`${theory.noteName(pitch)} ${muted.has(pitch) ? 'muted' : 'unmuted'} for audition only. ${this.soloSelected ? 'Solo Note overrides mutes until switched off.' : 'Close unmutes all notes; saved notes are unchanged.'}`);
             if (this.preview?.running || this.loading) return this.startLoop();
         }
         deleteNote() {
@@ -924,6 +950,7 @@
         }
         move(action) {
             if (!this.opened || this.drag) return;
+            if (action === 'solo') return this.toggleSolo();
             if (action === 'delete') return this.deleteNote();
             const step = this.step(), delta = action.endsWith('down') ? -1 : 1;
             const pitches = step.notes.map((pitch, index) => pitch + (action.startsWith('chord-') || index === this.selected ? delta : 0));

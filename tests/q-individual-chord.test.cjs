@@ -88,6 +88,35 @@ test('muting preserves custom ARP pulse times and slots instead of renumbering t
  assert(original.some(e=>e.notes.includes(64)),'the original cached timeline remains intact');
 });
 
+test('note solo is transient, follows selection, overrides mutes and affects only this chord including source repeats',()=>{
+ const owner=new Controller({context:()=>({currentTime:0}),length:()=>64,bpm:()=>120});
+ owner.state.transpose=2;
+ for(const index of [8,12])owner.state.sequence[index]=theory.normalizeStep({notes:[60,64,67],root:60});
+ const before=JSON.stringify(owner.getState()),editor=new ChordEditor(owner);editor.index=8;editor.loopSteps=128;editor.soloSelected=true;editor.selected=1;editor.mutedNotes=new Set([64]);
+ const preview=editor.createPreview();preview.state=theory.chordEditLoop(owner.state,64,8,128);
+ assert.deepEqual(preview.timeline().map(e=>[e.index,e.notes]),[[0,[66]],[4,[62,66,69]],[64,[66]],[68,[62,66,69]]]);
+ editor.selected=2;
+ assert.deepEqual(preview.timeline().filter(e=>e.index%64===0).map(e=>e.notes),[[69],[69]],'selected pitch is part of the timeline cache key');
+ editor.soloSelected=false;
+ assert.deepEqual(preview.timeline().map(e=>[e.index,e.notes]),[[0,[62,69]],[4,[62,66,69]],[64,[62,69]],[68,[62,66,69]]]);
+ assert.deepEqual([...editor.mutedNotes],[64]);assert.equal(JSON.stringify(owner.getState()),before);
+});
+
+test('solo preserves custom ARP slots and timing for piano and strings, including an all-muted selected voice',()=>{
+ for(const instrument of ['piano','strings']){
+  const owner=new Controller({context:()=>({currentTime:0}),length:()=>64,bpm:()=>120});
+  Object.assign(owner.state,{instrument,arpEnabled:true,arpPattern:'custom',arpSteps:[1,2,0,3],arpRepeat:'until-next'});
+  owner.state.sequence[8]=theory.normalizeStep({notes:[60,64,67],root:60});
+  const editor=new ChordEditor(owner);editor.index=8;editor.loopSteps=4;
+  const preview=editor.createPreview();preview.state=theory.chordEditLoop(owner.state,64,8,4);
+  const original=preview.timeline();editor.soloSelected=true;editor.selected=1;editor.mutedNotes=new Set([60,64,67]);
+  assert.deepEqual(preview.timeline().map(e=>e.start),original.map(e=>e.start));
+  assert.deepEqual(preview.timeline().map(e=>e.notes),[[],[64],[]]);
+  editor.soloSelected=false;assert(preview.timeline().every(e=>!e.notes.length));
+  assert(original.every(e=>e.notes.length===1),'solo never mutates the original ARP timeline');
+ }
+});
+
 test('removing a note keeps the other pitches and chord performance settings',()=>{
  const step=theory.normalizeStep({notes:[60,64,67],root:60,velocity:87,gate:8,accent:true,tie:true,ratchet:2});
  const two=theory.editChordNotes(step,[60,67]),one=theory.editChordNotes(two,[67]);
