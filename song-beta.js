@@ -7,7 +7,7 @@
         const repeats = Number(part.repeats);
         const cycle = part.patternCycleMultiplier ?? 1;
         const playbackSteps = part.playbackSteps ?? steps * cycle;
-        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || ![1, 2, 4, 8].includes(cycle) || !Number.isInteger(playbackSteps) || playbackSteps < 1 || playbackSteps > steps * cycle) {
+        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || (!Number.isInteger(cycle) || cycle < 1 || cycle > 8192) || !Number.isInteger(playbackSteps) || playbackSteps < 1 || playbackSteps > steps * cycle) {
             throw new Error('Invalid saved part timing.');
         }
         return (60 / bpm) * (playbackSteps / 4) * repeats;
@@ -77,10 +77,15 @@
         return state?.enabled === true && state.sequence?.some(step => step?.notes?.length && !step.rest);
     }
 
+    function needsDrumRollRender(decoded) {
+        const modes = decoded?.snapshot?.state?.modes;
+        return modes?.drumMachineEnabled === true && modes.drumMachineRoll?.pattern?.some(Boolean);
+    }
+
     function needsDrumSampleRender(decoded) {
         const modes = decoded?.snapshot?.state?.modes;
         return modes?.drumMachineEnabled === true && (
-            ['Kick', 'Snare', 'Hat', 'Perc'].some(kind => modes[`drumMachine${kind}Pattern`]?.some(Boolean))
+            needsDrumRollRender(decoded) || ['Kick', 'Snare', 'Hat', 'Perc'].some(kind => modes[`drumMachine${kind}Pattern`]?.some(Boolean))
             || Object.values(modes.drumMachineExtraTracks || {}).some(track => track?.pattern?.some(Boolean)));
     }
 
@@ -712,7 +717,7 @@
             const vocalCut = decoded?.snapshot?.state?.modes?.bastardLoopVCut?.enabled === true;
             const vocalRepeat = vocalCut && decoded.snapshot.state.modes.bastardLoopVCut.repeat === true;
             const drumLanes = Object.values(decoded?.snapshot?.state?.modes?.drumMachineExtraTracks || {}).some(track => track?.pattern?.some(Boolean));
-            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || part.render?.grainVersion === 1) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded));
+            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || part.render?.grainVersion === 1) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded));
         }
 
         isPartReady(part) {
@@ -729,6 +734,7 @@
             const portable = needsPortableFreeze(decoded);
             const piano = qRenderVersion(decoded);
             const drumSamples = needsDrumSampleRender(decoded);
+            const drumRoll = needsDrumRollRender(decoded);
             const keyboard = Boolean(decoded?.snapshot?.extra?.heldNotes?.length);
             const grains = decoded?.snapshot?.state?.modes?.granularLayersEnabled === true;
             const vocalCut = decoded?.snapshot?.state?.modes?.bastardLoopVCut?.enabled === true;
@@ -762,7 +768,7 @@
                 const body = this.adapter.encodeRender(buffer);
                 bytes = body;
                 this.armStage(generation, 'Saving playback render to server', part);
-                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=1' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
+                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=1' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
                     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body, signal: this.abort?.signal
                 });
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
@@ -773,6 +779,7 @@
                 if (vocalCut && saved.render.vocalCutVersion !== 1) throw new Error('The song server needs vocal-cut render support. Reload MYGRAIN and arm again.');
                 if (vocalRepeat && saved.render.vocalRepeatVersion !== 1) throw new Error('The song server needs vocal section-repeat render support. Reload MYGRAIN and arm again.');
                 if (drumLanes && saved.render.drumLanesVersion !== 1) throw new Error('The song server needs Clap/Cymbals render support. Reload MYGRAIN and arm again.');
+                if (drumRoll && saved.render.drumRollVersion !== 1) throw new Error('The song server needs snare Roll render support. Reload MYGRAIN and arm again.');
                 if (drumSamples && saved.render.drumSampleVersion !== 1) throw new Error('The song server needs full-decay drum sample render support. Reload MYGRAIN and arm again.');
                 if (portable && saved.render.portableVersion !== 1) throw new Error('The song server needs portable-freeze support. Reload MYGRAIN and arm again.');
                 if (piano && !(Number(saved.render.qVersion) >= piano)) throw new Error(`The song server needs Q ${piano >= 8 ? 'chord hold' : piano >= 7 ? 'sample length / decay' : piano >= 6 ? 'accent / custom arpeggiator' : piano >= 5 ? 'strings' : piano >= 4 ? 'piano effects' : piano >= 2 ? 'piano arpeggiator' : 'piano'} render support. Reload MYGRAIN and arm again.`);
@@ -929,7 +936,7 @@
                     if (renderBytes && !this.hasSavedRender(saved)) {
                         const renderExpected = { ...expected, revision: this.song.revision, sha256: digest };
                         const flags = [['keyboard', 'keyboardVersion'], ['grain', 'grainVersion'], ['vocalcut', 'vocalCutVersion'],
-                            ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['portable', 'portableVersion'], ['q', 'qVersion']]
+                            ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['drumroll', 'drumRollVersion'], ['portable', 'portableVersion'], ['q', 'qVersion']]
                             .filter(([, field]) => part.render[field]).map(([flag, field]) => `&${flag}=${part.render[field]}`).join('');
                         this.armStage(generation, 'Saving retained playback render', part);
                         result = await this.request(`/${encodeURIComponent(songId)}/parts/${saved.id}/render?sha256=${saved.sha256}${flags}`, {
@@ -999,7 +1006,7 @@
                             // Older render metadata cannot tell whether full-decay
                             // sampled drums are present. Inspect the editable source
                             // before trusting a legacy freeze's fast reuse path.
-                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPart(part, generation);
+                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPart(part, generation);
                             if (this.hasSavedRender(part)) {
                                 const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 this.armStage(generation, 'Waiting for playback memory', part);

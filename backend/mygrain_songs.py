@@ -1,3 +1,4 @@
+import math
 import hashlib
 import copy
 import fcntl
@@ -467,6 +468,23 @@ def q_render_version(piano):
     return 5 if piano.get('instrument') == 'strings' else 4 if piano.get('room', 0) > 0 else 3 if piano.get('arpEnabled') else 1
 
 
+def validate_drum_roll_cycle(state, cycle, steps):
+    roll = state['modes'].get('drumMachineRoll')
+    valid = (1, 2, 4, 8)
+    if roll is not None:
+        if (not isinstance(roll, dict) or type(roll.get('version')) is not int or roll['version'] != 1
+            or type(roll.get('length')) is not int or not 1 <= roll['length'] <= 1024
+            or not isinstance(roll.get('pattern'), list) or len(roll['pattern']) != roll['length']
+            or any(type(x) is not bool for x in roll['pattern'])
+            or not isinstance(roll.get('ratchets'), list) or len(roll['ratchets']) != roll['length']
+            or any(type(x) is not int or not 0 <= x <= 8 for x in roll['ratchets'])):
+            raise ValueError('Invalid snare Roll pattern.')
+        if state['modes'].get('drumMachineEnabled') is True and any(roll['pattern']):
+            valid = tuple(math.lcm(steps * base, roll['length']) // steps for base in valid)
+    if type(cycle) is not int or cycle not in valid:
+        raise ValueError('Invalid part pattern cycle length.')
+
+
 def validate_part_zip(body):
     with zipfile.ZipFile(BytesIO(body)) as archive:
         entries = archive.infolist()
@@ -496,8 +514,7 @@ def validate_part_zip(body):
             raise ValueError('Invalid part pattern length or tempo.')
         sequence = extra.get('sequencerSteps')
         cycle = extra.get('patternCycleMultiplier', 1)
-        if type(cycle) is not int or cycle not in (1, 2, 4, 8):
-            raise ValueError('Invalid part pattern cycle length.')
+        validate_drum_roll_cycle(state, cycle, steps)
         if not isinstance(sequence, list) or len(sequence) != steps:
             raise ValueError('Part is missing its sequencer pattern.')
         assets = snapshot.get('assets')
@@ -664,7 +681,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -796,6 +813,9 @@ def handle_song_request(handler, method, inner_path):
                         drum_sample = (query.get('drumsample') or [''])[0]
                         if drum_sample not in ('', '1'):
                             raise ValueError('Unsupported drum-sample render version.')
+                        drum_roll = (query.get('drumroll') or [''])[0]
+                        if drum_roll not in ('', '1'):
+                            raise ValueError('Unsupported snare Roll render version.')
                         portable = (query.get('portable') or [''])[0]
                         if portable not in ('', '1'):
                             raise ValueError('Unsupported portable-freeze render version.')
@@ -818,6 +838,8 @@ def handle_song_request(handler, method, inner_path):
                             render['drumLanesVersion'] = 1
                         if drum_sample == '1':
                             render['drumSampleVersion'] = 1
+                        if drum_roll == '1':
+                            render['drumRollVersion'] = 1
                         if portable == '1':
                             render['portableVersion'] = 1
                         if piano:

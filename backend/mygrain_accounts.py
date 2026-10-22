@@ -29,7 +29,7 @@ PUBLIC_FILES = {
     'index.html', 'manual.html', 'q-scales.json',
     'assets/brand/mygrain-rainbow-brain.png', 'assets/brand/mygrain-rainbow-brain.webp',
     'assets/brand/mygrain-icon.png',
-    'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js',
+    'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js', 'drum-roll.js',
     'mygrain-utils.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
     'navigation-palette.js', 'navigation-palette.css',
     'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',

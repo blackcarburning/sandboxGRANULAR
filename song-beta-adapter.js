@@ -227,12 +227,27 @@
             const rate = Number(state.q.rate ?? 1);
             if ([.25, .5, 1, 2, 4].includes(rate)) multiplier = Math.max(multiplier, 1 / rate);
         }
+        const roll = modes.drumMachineRoll;
+        if (modes.drumMachineEnabled === true && roll?.pattern?.some(Boolean)) {
+            const gcd = (a, b) => b ? gcd(b, a % b) : a;
+            multiplier = (steps * multiplier / gcd(steps * multiplier, roll.length) * roll.length) / steps;
+        }
         return multiplier;
+    }
+
+    function validateSongRollCycle(snapshot) {
+        const roll = snapshot.state.modes.drumMachineRoll;
+        window.MygrainDrumRoll.validate(roll);
+        const cycle = snapshot.extra.patternCycleMultiplier ?? 1;
+        const active = snapshot.state.modes.drumMachineEnabled === true && roll?.pattern?.some(Boolean);
+        const valid = [1, 2, 4, 8].map(base => active ? window.MygrainDrumRoll.cycleSteps(Number(snapshot.state.patternLength) * base, roll.length) / Number(snapshot.state.patternLength) : base);
+        if (!Number.isInteger(cycle) || !valid.includes(cycle)) throw new Error('Invalid saved pattern cycle length.');
     }
 
     function prepareSongState(state) {
         const prepared = cloneJson(state);
         prepared.modes = {
+            drumMachineRoll: window.MygrainDrumRoll.normalize(),
             keyboardSoundSource: 'grain',
             bastardLoopMPlusEnabled: false, bastardLoopMPlusLevel: .5,
             bastardLoopMPlusPan: 0,
@@ -414,7 +429,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay, #qChordEditorOverlay'))
+                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -441,7 +456,7 @@
                 throw new Error('This is not a supported complete song-part snapshot.');
             }
             const { snapshot, lanes } = normalizeSongAudioInventory(original);
-            if (![1, 2, 4, 8].includes(snapshot.extra.patternCycleMultiplier ?? 1)) throw new Error('Invalid saved pattern cycle length.');
+            validateSongRollCycle(snapshot);
             if (!Array.isArray(snapshot.extra.sequencerSteps) || snapshot.extra.sequencerSteps.length !== Number(snapshot.state.patternLength)) throw new Error('Part sequencer pattern is incomplete.');
             validateSongAudioInventory(snapshot);
             validateSongAudioEntries(snapshot, entries);
@@ -528,7 +543,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay, #qChordEditorOverlay') || input.type !== control.type) continue;
+                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));

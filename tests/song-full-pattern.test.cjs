@@ -8,7 +8,7 @@ const {partDurationSeconds} = globalThis.MygrainSongBeta;
 const {schedule, scheduleStored} = require('../song-beta-clock.js');
 const {layout} = require('../song-beta-export.js');
 const source = fs.readFileSync(path.join(__dirname, '../song-beta-adapter.js'), 'utf8');
-const cycle = vm.runInNewContext(`(${source.slice(source.indexOf('    function songPatternCycleMultiplier('), source.indexOf('    function prepareSongState('))})`);
+const cycle = vm.runInNewContext(`(${source.slice(source.indexOf('    function songPatternCycleMultiplier('), source.indexOf('    function validateSongRollCycle('))})`);
 function state(lane, timing, enabled = true, steps = 64) {
     const sequence = Array(64).fill(null); sequence[steps - 1] = {note:'C3',notes:[48],rest:false};
     return {patternLength:steps,modes:{[`bastardLoop${lane}Enabled`]:enabled,[`bastardLoop${lane}TimingIndex`]:timing,[`bastardLoop${lane}Sequence`]:sequence}};
@@ -32,7 +32,7 @@ test('legacy parts retain duration; full-cycle timing also scales whole-pattern 
     const full={...legacy,patternCycleMultiplier:2};assert.equal(partDurationSeconds(full),16);
     assert.equal(partDurationSeconds({...full,repeats:3}),48);
     assert.equal(layout([full,{...full,id:'b'}],null,8000).frames,32*8000);
-    for(const value of [0,3,16,'2',true,null]) {
+    for(const value of [0,8193,'2',true,null]) {
         if(value===null)continue;
         assert.throws(()=>partDurationSeconds({...legacy,patternCycleMultiplier:value}),/timing/);
     }

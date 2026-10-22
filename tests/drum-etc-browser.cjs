@@ -28,7 +28,7 @@ const evidence=process.env.ETC_EVIDENCE||'/tmp/mygrain-etc';fs.mkdirSync(evidenc
     for(const t of Object.values(drumMachineExtraTracks)){t.pattern.fill(false);t.ratchets.fill(0);t.accents.fill(false);}
     openDrumMachineOverlay();
    });
-   assert.equal(await page.locator('.drum-machine-jumps button').count(),7);
+   assert.equal(await page.locator('.drum-machine-jumps button').count(),8);
    const jump=page.locator('[data-drum-jump="etc"]');assert.equal(await jump.textContent(),'ETC');await jump.click();
    assert.equal(await jump.getAttribute('aria-current'),'true');assert.equal(await jump.getAttribute('aria-controls'),'drumMachineLane-etc');
    assert.equal(await page.locator('#drumMachineEtcRandomBtn, #drumMachineEtcPatternBtn').count(),0);

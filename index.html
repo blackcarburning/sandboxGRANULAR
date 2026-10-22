@@ -294,7 +294,8 @@
     <script>window.mygrainAccounts?.loadScript('audio-debug-storage.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261020-vcut-random-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('drum-tone.js?v=20261014-drum-tone-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('drum-enhancements.css?v=20261021-etc-1');</script>
+    <script>window.mygrainAccounts?.loadScript('drum-roll.js?v=20261022-drum-roll-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('drum-enhancements.css?v=20261022-drum-roll-1');</script>
     <script>window.mygrainAccounts?.loadScript('sample-favourites.js?v=20261014-favourites-1');</script>
     <script>window.mygrainAccounts?.loadStyle('sample-favourites.css?v=20261014-favourites-1');</script>
     <style>
@@ -6268,7 +6269,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.22.DRUMS.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.22.DRUMS.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6355,7 +6356,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.22.DRUMS.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.22.DRUMS.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -14075,6 +14076,9 @@
         let drumMachineReverbTailUntil = 0;
         let drumMachineNextStepTime = 0;
         let drumMachineCurrentStep = 0;
+        let drumMachineRollStep = 0;
+        let drumMachineRoll = window.MygrainDrumRoll.normalize();
+        let drumMachineRollUi = null;
         let drumMachineTimerId = null;
         let drumMachineCurrentVisualStep = -1;
         const drumMachineGridRenderSignatures = new WeakMap();
@@ -29122,6 +29126,30 @@
         }
 
         initExtraDrumMachineTracks();
+        drumMachineRollUi = window.MygrainDrumRoll.mount({
+            document, get: () => drumMachineRoll, set: value => { drumMachineRoll = value; },
+            playing: () => drumMachinePlaying,
+            sampleDescription: () => drumMachineSnareBuffer ? describeDrumMachineTrackMetadata('snare') : 'Load a sample in the Snare lane.',
+            edit: (label, action) => {
+                if (window.mygrainCardHistory?.busy) { setStatus('Wait for the current sound change to finish.', 'error'); return; }
+                try { return window.mygrainCardHistory.run(label, () => { action(); drumMachineRollUi?.render(); saveState(); }); }
+                catch (error) { setStatus(error.message, 'error'); }
+            }
+        });
+
+        function restoreDrumMachineRoll(value) {
+            drumMachineRoll = window.MygrainDrumRoll.normalize(value);
+            drumMachineRollUi?.render();
+        }
+
+        function scheduleDrumMachineRoll(stepIndex, scheduledTime, stepDuration) {
+            const event = window.MygrainDrumRoll.eventAt(drumMachineRoll, stepIndex);
+            if (!event) return false;
+            // Reuse the exact Snare scheduler, including pitch, decay, length,
+            // distortion and ratchet dynamics. No second sample or audio bus.
+            scheduleDrumMachineRepeats('snare', stepIndex, scheduledTime, stepDuration, drumMachineRoll);
+            return true;
+        }
 
         function clampDrumMachinePitchSemitones(value) {
             const numeric = Number(value);
@@ -30456,6 +30484,7 @@
         }
 
         function syncDrumMachineUi() {
+            drumMachineRollUi?.render();
             syncDrumSendFxUi();
             syncDrumMachinePitchLabels();
             syncExtraDrumMachineUi();
@@ -30746,20 +30775,23 @@
         function alignDrumMachineToTransport(originTime) {
             const position = resolveTransportLaneStart(originTime, 'drums', getDrumMachineStepDuration(), getDrumMachinePatternLength());
             drumMachineCurrentStep = position.index;
+            drumMachineRollStep = position.elapsedSteps ?? position.index;
             drumMachineNextStepTime = position.time;
         }
 
-        function scheduleDrumMachineVisualStep(stepIndex, scheduledTime) {
+        function scheduleDrumMachineVisualStep(stepIndex, scheduledTime, rollIndex) {
             if (!audioContext) return;
             const delayMs = Math.max(0, (scheduledTime - audioContext.currentTime) * 1000);
             setTimeout(() => {
                 if (!drumMachinePlaying) return;
                 drumMachineCurrentVisualStep = stepIndex;
+                drumMachineRollUi?.reflect(rollIndex);
                 updateDrumMachinePlayhead();
             }, delayMs);
         }
 
         function updateDrumMachinePlayhead() {
+            if (!drumMachinePlaying) drumMachineRollUi?.reflect(-1);
             const overlay = document.getElementById('drumMachineOverlay');
             if (!overlay || overlay.hidden || document.hidden) return;
             for (const track of ['kick', 'snare', 'hat', 'perc', ...Object.keys(drumMachineExtraTracks)]) {
@@ -30793,7 +30825,7 @@
             }
         }
 
-        function scheduleDrumMachineRepeats(track, stepIndex, scheduledTime, stepDuration) {
+        function scheduleDrumMachineRepeats(track, stepIndex, scheduledTime, stepDuration, roll = null) {
             if (!audioContext) return;
             if (drumMachineExtraTracks[track]) {
                 scheduleExtraDrumMachineRepeats(track, stepIndex, scheduledTime, stepDuration);
@@ -30801,7 +30833,7 @@
             }
             const isKick = track === 'kick';
             const isSnare = track === 'snare';
-            const pattern = isKick
+            const pattern = roll ? roll.pattern : isKick
                 ? drumMachineKickPattern
                 : (isSnare ? drumMachineSnarePattern : drumMachinePercPattern);
             const buffer = isKick
@@ -30809,7 +30841,7 @@
                 : (isSnare ? drumMachineSnareBuffer : drumMachinePercBuffer);
             if (!pattern[stepIndex] || !buffer) return;
 
-            const ratchetPattern = isKick
+            const ratchetPattern = roll ? roll.ratchets : isKick
                 ? drumMachineKickRatchetPattern
                 : (isSnare ? drumMachineSnareRatchetPattern : drumMachinePercRatchetPattern);
             const ratchetCount = Math.max(1, Math.min(8, Number(ratchetPattern[stepIndex]) || 1));
@@ -30850,21 +30882,29 @@
             const stepDuration = getDrumMachineStepDuration();
             const patternLength = getDrumMachinePatternLength();
             const now = audioContext.currentTime;
-            const lookaheadUntil = getTransportScheduleHorizon(now);
+            // Song decks are static snapshots; WebKit can throttle their hidden
+            // frame timers. Queue ahead far enough to preserve late Roll hits.
+            // Live editing retains the normal responsive scheduling horizon.
+            const horizon = getTransportScheduleHorizon(now);
+            const lookaheadUntil = window.__mygrainSongRenderDeck && drumMachineRoll.pattern.some(Boolean)
+                ? Math.max(horizon, now + 2) : horizon;
             const skipped = countMissedAudioSteps(drumMachineNextStepTime, stepDuration, now);
             drumMachineNextStepTime += skipped * stepDuration;
             drumMachineCurrentStep = (drumMachineCurrentStep + skipped) % patternLength;
+            drumMachineRollStep += skipped;
             while (drumMachineNextStepTime < lookaheadUntil) {
                 const stepIndex = window.mygrainPatternSection?.position(drumMachineNextStepTime, stepDuration, patternLength, drumMachineCurrentStep % patternLength) ?? drumMachineCurrentStep % patternLength;
                 const scheduledTime = drumMachineNextStepTime;
                 scheduleDrumMachineRepeats('kick', stepIndex, scheduledTime, stepDuration);
-                scheduleDrumMachineRepeats('snare', stepIndex, scheduledTime, stepDuration);
+                const rollIndex = window.mygrainPatternSection?.position(scheduledTime, stepDuration, drumMachineRoll.length, drumMachineRollStep % drumMachineRoll.length) ?? drumMachineRollStep % drumMachineRoll.length;
+                if (!scheduleDrumMachineRoll(rollIndex, scheduledTime, stepDuration)) scheduleDrumMachineRepeats('snare', stepIndex, scheduledTime, stepDuration);
                 scheduleDrumMachineRepeats('perc', stepIndex, scheduledTime, stepDuration);
                 for (const kind of Object.keys(drumMachineExtraTracks)) scheduleDrumMachineRepeats(kind, stepIndex, scheduledTime, stepDuration);
                 scheduleDrumMachineHatStep(stepIndex, scheduledTime, stepDuration);
-                scheduleDrumMachineVisualStep(stepIndex, scheduledTime);
+                scheduleDrumMachineVisualStep(stepIndex, scheduledTime, rollIndex);
                 drumMachineNextStepTime = window.mygrainPatternSection?.next(drumMachineNextStepTime, stepDuration) ?? drumMachineNextStepTime + stepDuration;
                 drumMachineCurrentStep = (drumMachineCurrentStep + 1) % patternLength;
+                drumMachineRollStep += 1;
             }
         }
 
@@ -30937,6 +30977,7 @@
         function ensureDrumMachineStartAudibility() {
             const hasAnyPattern = drumMachineKickPattern.some(Boolean)
                 || drumMachineSnarePattern.some(Boolean)
+                || drumMachineRoll.pattern.some(Boolean)
                 || drumMachineHatPattern.some(Boolean)
                 || drumMachinePercPattern.some(Boolean)
                 || Object.values(drumMachineExtraTracks).some(track => track.pattern.some(Boolean));
@@ -30990,7 +31031,7 @@
         function hasPlayableDrumMachinePattern() {
             return Boolean(
                 (drumMachineKickBuffer && drumMachineKickPattern.some(Boolean))
-                || (drumMachineSnareBuffer && drumMachineSnarePattern.some(Boolean))
+                || (drumMachineSnareBuffer && (drumMachineSnarePattern.some(Boolean) || drumMachineRoll.pattern.some(Boolean)))
                 || (drumMachinePercBuffer && drumMachinePercPattern.some(Boolean))
                 || drumMachineHatPattern.some(Boolean)
                 || Object.values(drumMachineExtraTracks).some(track => track.buffer && track.pattern.some(Boolean))
@@ -31025,6 +31066,7 @@
             drumMachineCurrentVisualStep = -1;
             updateDrumMachineMix();
             drumMachineCurrentStep = position.index;
+            drumMachineRollStep = position.elapsedSteps ?? position.index;
             drumMachineNextStepTime = position.time;
             ensureSharedRhythmClockRunning({ immediate: true });
             syncPerformanceControlState();
@@ -40863,6 +40905,7 @@
             const shouldStartDrumMachine = Boolean(
                 drumMachineKickPattern.some(Boolean) ||
                 drumMachineSnarePattern.some(Boolean) ||
+                drumMachineRoll.pattern.some(Boolean) ||
                 drumMachineHatPattern.some(Boolean) ||
                 drumMachinePercPattern.some(Boolean) ||
                 Object.values(drumMachineExtraTracks).some(track => track.pattern.some(Boolean))
@@ -46571,6 +46614,7 @@
                 drumMachineHatPattern: drumMachineHatPattern.slice(),
                 drumMachinePercPattern: drumMachinePercPattern.slice(),
                 drumMachineExtraTracks: captureExtraDrumMachineTracks(),
+                drumMachineRoll: window.MygrainDrumRoll.normalize(drumMachineRoll),
                 drumMachineKickRatchetPattern: drumMachineKickRatchetPattern.slice(),
                 drumMachineSnareRatchetPattern: drumMachineSnareRatchetPattern.slice(),
                 drumMachineHatAccentPattern: drumMachineHatAccentPattern.slice(),
@@ -46748,9 +46792,13 @@
             restoreDrumMachineToneDefaults(normalizedSliders);
             restoreBastardLoopLReverbDefaults(normalizedSliders);
 
+            const presetPatternLength = syncPatternLengthControls(safePreset.patternLength ?? preset.patternLength ?? DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS, { skipSave: true });
+
             // Apply slider values
             if (normalizedSliders) {
                 Object.keys(normalizedSliders).forEach(id => {
+                    const sequencerSlider = id.match(/^seqStep(\d+)(Pitch|Vol)$/);
+                    if (sequencerSlider && Number(sequencerSlider[1]) > presetPatternLength) return;
                     const slider = document.getElementById(id);
                     if (slider) {
                         if (slider.closest('#drumSendEffects')) return;
@@ -46832,7 +46880,6 @@
             syncOscRouteModeUI(document.getElementById('oscRouteMode')?.value || oscRouteMode);
 
             enforceBpmOnlyLfoMode();
-            syncPatternLengthControls(safePreset.patternLength ?? preset.patternLength ?? DEFAULT_REMEMBERED_PATTERN_LENGTH_STEPS, { skipSave: true });
             const usesSharedBpmPreset = safePreset.bpmOnlyLfos === true || safePreset.globalBpm != null || normalizedSliders?.globalBpmSlider != null;
             const restoredGlobalBpm = safePreset.globalBpm ??
                 normalizedSliders?.globalBpmSlider ??
@@ -47082,6 +47129,7 @@
                 relativePath: safePreset.drumMachinePercRelativePath ?? preset.drumMachinePercRelativePath ?? ''
             };
             restoreExtraDrumMachineTracks(safePreset.drumMachineExtraTracks ?? preset.drumMachineExtraTracks);
+            restoreDrumMachineRoll(safePreset.drumMachineRoll ?? preset.drumMachineRoll);
             syncDrumMachineUi();
             const importedQ = safePreset.q ?? preset.q;
             if (importedQ !== undefined) window.mygrainQ?.restore(importedQ);
@@ -47880,6 +47928,7 @@
                     drumMachineHatPattern: drumMachineHatPattern.slice(),
                     drumMachinePercPattern: drumMachinePercPattern.slice(),
                     drumMachineExtraTracks: captureExtraDrumMachineTracks(),
+                    drumMachineRoll: window.MygrainDrumRoll.normalize(drumMachineRoll),
                     drumMachineKickRatchetPattern: drumMachineKickRatchetPattern.slice(),
                     drumMachineSnareRatchetPattern: drumMachineSnareRatchetPattern.slice(),
                     drumMachineHatAccentPattern: drumMachineHatAccentPattern.slice(),
@@ -48670,6 +48719,7 @@
                         setDrumMachinePattern('perc', state.modes.drumMachinePercPattern, { skipSave: true });
                     }
                     restoreExtraDrumMachineTracks(state.modes.drumMachineExtraTracks);
+                    restoreDrumMachineRoll(state.modes.drumMachineRoll);
                     const restoredPatternLength = getPatternLengthSteps();
                     drumMachineKickRatchetPattern = normalizeDrumMachineRatchetPattern(state.modes.drumMachineKickRatchetPattern, restoredPatternLength);
                     drumMachineSnareRatchetPattern = normalizeDrumMachineRatchetPattern(state.modes.drumMachineSnareRatchetPattern, restoredPatternLength);
@@ -50706,7 +50756,7 @@
                 payload.push(...encodeMidiVariableLength(delta), ...Array.from(event?.bytes || []));
                 lastTick = tick;
             });
-            payload.push(0x00, 0xFF, 0x2F, 0x00);
+            payload.push(...encodeMidiVariableLength(Math.max(0, Math.round(Number(options.endTick) || 0) - lastTick)), 0xFF, 0x2F, 0x00);
             return createMidiChunk('MTrk', payload);
         }
 
@@ -50854,6 +50904,7 @@
         function buildDrumMachineMidiTrackChunk(options = {}) {
             const bpm = clampBpmValue(options.bpm ?? getSharedBpmClockValue());
             const patternLength = getDrumMachinePatternLength();
+            const exportSteps = drumMachineRoll.pattern.some(Boolean) ? window.MygrainDrumRoll.cycleSteps(patternLength, drumMachineRoll.length) : patternLength;
             const stepDurationSeconds = getDrumMachineStepDuration();
             const stepTicks = secondsToMidiTicks(stepDurationSeconds, bpm);
             const channel = Math.max(0, Math.min(15, Math.round(Number(options.channel) || 0)));
@@ -50865,10 +50916,12 @@
             const baseVelocity = clampMidiExportVelocity(54 + (levelValue * 62));
             const events = [];
 
-            for (let stepIndex = 0; stepIndex < patternLength; stepIndex += 1) {
-                if (!options.pattern?.[stepIndex]) continue;
-                const ratchetCount = Math.max(1, Math.min(8, Math.round(Number(options.ratchets?.[stepIndex]) || 1)));
-                const accentScale = options.accents?.[stepIndex]
+            for (let stepIndex = 0; stepIndex < exportSteps; stepIndex += 1) {
+                const sourceIndex = stepIndex % patternLength;
+                const roll = options.pattern === drumMachineSnarePattern ? window.MygrainDrumRoll.eventAt(drumMachineRoll, stepIndex) : null;
+                if (!roll && !options.pattern?.[sourceIndex]) continue;
+                const ratchetCount = roll?.count ?? Math.max(1, Math.min(8, Math.round(Number(options.ratchets?.[sourceIndex]) || 1)));
+                const accentScale = options.accents?.[sourceIndex]
                     ? 1 + (Math.max(0, Math.min(1, Number(options.accentAmount ?? 0.35))) * 1.2)
                     : 1;
                 const swingOffsetTicks = options.useHatSwing
@@ -50906,6 +50959,7 @@
 
             return createMidiTrackChunk(events, {
                 trackName: options.trackName || 'Drum',
+                endTick: exportSteps > patternLength ? exportSteps * stepTicks : undefined,
                 description: options.description || ''
             });
         }
@@ -51018,6 +51072,7 @@
         function hasDrumMachineMidiPattern() {
             return drumMachineKickPattern.some(Boolean)
                 || drumMachineSnarePattern.some(Boolean)
+                || drumMachineRoll.pattern.some(Boolean)
                 || drumMachineHatPattern.some(Boolean)
                 || drumMachinePercPattern.some(Boolean)
                 || Object.values(drumMachineExtraTracks).some(track => track.pattern.some(Boolean));
@@ -62229,9 +62284,9 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261020-persistent-history-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261022-drum-full-decay-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261022-drum-roll-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-part-steps-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-chord-hold-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-drum-roll-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>
