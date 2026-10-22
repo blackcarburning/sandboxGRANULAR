@@ -103,6 +103,88 @@
         }
     }
 
+    // Optional encoded originals, not decoded audio or playback renders. Keep a
+    // bounded disk cache so switching editable parts need not download them again.
+    class SourceStore extends RenderStore {
+        constructor(indexedDB, limitBytes = 64 * 1024 * 1024) {
+            super(indexedDB);
+            this.limitBytes = limitBytes;
+        }
+
+        async open() {
+            if (!this.database) {
+                this.database = new Promise((resolve, reject) => {
+                    if (!this.indexedDB) return reject(new Error('Browser storage is unavailable.'));
+                    const request = this.indexedDB.open('mygrain-song-sources-v1', 1);
+                    request.onupgradeneeded = () => {
+                        request.result.createObjectStore('sources');
+                        request.result.createObjectStore('sizes');
+                    };
+                    request.onerror = () => reject(request.error);
+                    request.onblocked = () => reject(new Error('Source cache is unavailable.'));
+                    request.onsuccess = () => {
+                        const database = request.result;
+                        database.onversionchange = () => { database.close(); this.database = null; };
+                        resolve(database);
+                    };
+                }).catch(error => { this.database = null; throw error; });
+            }
+            return this.database;
+        }
+
+        async get(key) {
+            try {
+                const database = await this.open();
+                return await new Promise((resolve, reject) => {
+                    const tx = database.transaction('sources', 'readonly');
+                    const request = tx.objectStore('sources').get(key);
+                    tx.oncomplete = () => resolve(request.result || null);
+                    tx.onabort = () => reject(tx.error || new Error('Source cache read failed.'));
+                    tx.onerror = () => {};
+                });
+            } catch { return null; }
+        }
+
+        async put(key, bytes) {
+            if (!bytes?.byteLength || bytes.byteLength > this.limitBytes) return false;
+            try {
+                const database = await this.open();
+                await new Promise((resolve, reject) => {
+                    const tx = database.transaction(['sources', 'sizes'], 'readwrite');
+                    const sources = tx.objectStore('sources'), sizes = tx.objectStore('sizes');
+                    const request = sizes.getAll();
+                    request.onsuccess = () => {
+                        const entries = request.result.filter(entry => entry.key !== key).sort((a, b) => a.time - b.time);
+                        let total = entries.reduce((sum, entry) => sum + entry.bytes, bytes.byteLength);
+                        for (const entry of entries) {
+                            if (total <= this.limitBytes) break;
+                            sources.delete(entry.key); sizes.delete(entry.key); total -= entry.bytes;
+                        }
+                        sources.put(bytes, key);
+                        sizes.put({ key, bytes: bytes.byteLength, time: Date.now() }, key);
+                    };
+                    tx.oncomplete = () => resolve();
+                    tx.onabort = () => reject(tx.error || new Error('Source cache write failed.'));
+                    tx.onerror = () => {};
+                });
+                return true;
+            } catch { return false; }
+        }
+
+        async delete(key) {
+            try {
+                const database = await this.open();
+                await new Promise((resolve, reject) => {
+                    const tx = database.transaction(['sources', 'sizes'], 'readwrite');
+                    tx.objectStore('sources').delete(key); tx.objectStore('sizes').delete(key);
+                    tx.oncomplete = resolve;
+                    tx.onabort = () => reject(tx.error);
+                    tx.onerror = () => {};
+                });
+            } catch {}
+        }
+    }
+
     // Separate from Song render caches: durable local history belongs to a stable
     // account/device, never to the short-lived Song reservation token.
     class HistoryStore {
@@ -246,6 +328,6 @@
         }
     }
 
-    root.MygrainSongStorage = { MemoryBudget, RenderStore, HistoryStore };
+    root.MygrainSongStorage = { MemoryBudget, RenderStore, SourceStore, HistoryStore };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.MygrainSongStorage;
 })(typeof window !== 'undefined' ? window : globalThis);

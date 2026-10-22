@@ -2627,3 +2627,65 @@ test('full-decay drum renders reject an old server and inspect unversioned legac
     fixture.controller.readPart = async (...args) => { reads++; return read(...args); };
     await fixture.controller.arm(); assert.equal(reads, 1); assert.equal(fixture.controller.armed, true);
 });
+
+test('Amend exposes preparation before a delayed lease and clears it on failure without claiming readiness', async () => {
+    const {controller} = makeController();
+    const part = {...first, sha256: 'saved'};
+    controller.song = {id: 'song', parts: [part]};
+    let rejectLease;
+    controller.ensureEditing = () => new Promise((resolve, reject) => { rejectLease = reject; });
+    const pending = controller.amendPart(part);
+    assert.equal(controller.amendLoading.id, part.id);
+    assert.equal(controller.editing, null);
+    rejectLease(new Error('Another device owns this Song'));
+    await assert.rejects(pending, /Another device/);
+    assert.equal(controller.amendLoading, null);
+    assert.equal(controller.editing, null);
+});
+
+test('original archive cache is exact-hash/library/song scoped, verified and repairs corrupt local bytes', async () => {
+    const {controller} = makeController({inspectPart: () => ({snapshot: {}, decodedBytes: 4})});
+    const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+    const sha256 = Buffer.from(await webcrypto.subtle.digest('SHA-256', bytes)).toString('hex');
+    const part = {...first, sha256, bytes: bytes.byteLength};
+    controller.song = {id: 'song', parts: [part]};
+    const archives = new Map(), keys = [];
+    controller.sourceStore = {
+        get: async key => {keys.push(key); return archives.get(key);},
+        put: async (key, value) => {archives.set(key, value);},
+        delete: async key => {archives.delete(key);}
+    };
+    let downloads = 0;
+    controller.request = async () => {downloads++; return bytes;};
+    const read = () => Object.getPrototypeOf(controller).readPart.call(controller, part);
+    for (let i = 0; i < 2; i++) {const info = await read(); info.releaseDownload();}
+    assert.equal(downloads, 1);
+    archives.set(keys.at(-1), new Uint8Array([9]).buffer);
+    (await read()).releaseDownload();
+    assert.equal(downloads, 2);
+    controller.key = 'different-library';
+    (await read()).releaseDownload();
+    assert.equal(downloads, 3);
+    assert.notEqual(keys.at(-1), keys[0]);
+    controller.song.id = 'another-song';
+    (await read()).releaseDownload();
+    assert.equal(downloads, 4);
+    part.sha256 = 'bad-server-hash';
+    await assert.rejects(read(), /integrity check failed/);
+    assert.equal(controller.downloadBudget.bytes, 0);
+    assert.equal(archives.size, 3);
+});
+
+test('losing the verified lease during Amend loading never restores audio or enables the draft', async () => {
+    const {controller, calls} = makeController();
+    const part = {...first, sha256: 'saved'};
+    controller.song = {id: 'song', parts: [part]};
+    controller.loadPart = async () => {
+        controller.canEditSong = () => false;
+        return {buffers: new Map(), snapshot: {}};
+    };
+    await assert.rejects(controller.amendPart(part), /editing|access|Edit Song/i);
+    assert.equal(controller.editing, null);
+    assert.equal(controller.amendLoading, null);
+    assert.equal(calls.some(call => call[0] === 'recall'), false);
+});

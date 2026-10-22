@@ -389,3 +389,9 @@
     border-left-color: var(--song-beta-part-colour, #eac979);
     background: #3b321b;
 }
+
+#songBetaCard .song-beta-amend-progress {
+    margin: 0 0 8px;
+    color: #c8d8eb;
+    font-size: 12px;
+}

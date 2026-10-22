@@ -88,3 +88,13 @@ test('render writes await transaction commit rather than treating request succes
     transaction.oncomplete();
     assert.equal(await pending, true);
 });
+
+test('original source caching is optional and oversized archives do not open storage', async () => {
+    const {SourceStore} = require('../song-beta-storage.js');
+    const store = new SourceStore(null, 8);
+    assert.equal(await store.get('source'), null);
+    assert.equal(await store.put('source', new ArrayBuffer(4)), false);
+    await store.delete('source');
+    store.open = () => assert.fail('Oversized sources must not use browser storage');
+    assert.equal(await store.put('source', new ArrayBuffer(9)), false);
+});

@@ -124,11 +124,13 @@
                 || (root.navigator?.platform === 'MacIntel' && root.navigator?.maxTouchPoints > 1);
             this.renderLimitBytes = options.renderLimitBytes ?? (this.phonePreparation ? 24 : 96) * 1024 * 1024;
             this.renderStore = options.renderStore || new root.MygrainSongStorage.RenderStore();
+            this.sourceStore = options.sourceStore || new root.MygrainSongStorage.SourceStore();
             this.memoryBudget = new root.MygrainSongStorage.MemoryBudget(options.preparationLimitBytes);
             this.downloadBudget = new root.MygrainSongStorage.MemoryBudget(64 * 1024 * 1024);
             this.armConcurrency = this.phonePreparation ? 1 : armConcurrency(this.storage.getItem('mygrain-song-arm-concurrency-v1'));
             this.playback = null;
             this.editing = null;
+            this.amendLoading = null;
             this.loopClipboard = null;
             this.expandedParts = new Set();
             this.audioCache = { buffers: new Map(), bytes: 0 };
@@ -226,6 +228,11 @@
         }
 
         armStage(generation, stage, part = null) {
+            if (generation === this.generation && this.amendLoading && part?.id === this.amendLoading.id) {
+                this.amendLoading.stage = stage;
+                const progress = this.element('songBetaAmendProgress');
+                if (progress) progress.textContent = `${stage}… Editing will be available when preparation finishes.`;
+            }
             const feedback = this.armFeedback;
             if (!feedback || feedback.state !== 'running' || feedback.generation !== generation || generation !== this.generation) return;
             if (part) feedback.current.set(sourceId(part), { name: part.name, stage });
@@ -659,15 +666,29 @@
             const releaseDownload = await this.downloadBudget.acquire(Number(part.bytes) || 128 * 1024 * 1024, this.abort?.signal);
             try {
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
-                this.armStage(generation, 'Downloading saved part', part);
-                const body = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}`, { binary: true, signal: this.abort?.signal });
+                const cacheKey = JSON.stringify([this.key, this.song.id, sourceId(part), part.sha256]);
+                this.armStage(generation, 'Checking local original sounds', part);
+                let body = await this.sourceStore.get(cacheKey);
+                if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+                const digestOf = async value => Array.from(new Uint8Array(await this.crypto.subtle.digest('SHA-256', value)), value => value.toString(16).padStart(2, '0')).join('');
+                let cached = false;
+                if (body) {
+                    try { cached = await digestOf(body) === part.sha256; } catch { /* Optional cache damage must fall back to the server. */ }
+                }
+                if (body && !cached) { body = null; await this.sourceStore.delete(cacheKey); }
+                if (!cached) {
+                    this.armStage(generation, 'Downloading original sounds', part);
+                    body = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}`, { binary: true, signal: this.abort?.signal });
+                }
                 this.armStage(generation, 'Checking saved part integrity', part);
-                const digest = Array.from(new Uint8Array(await this.crypto.subtle.digest('SHA-256', body)), value => value.toString(16).padStart(2, '0')).join('');
+                const digest = cached ? part.sha256 : await digestOf(body);
                 if (digest !== part.sha256) throw new Error(`Saved audio integrity check failed for ${part.name}.`);
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 this.armStage(generation, 'Inspecting saved part', part);
                 await this.paintBeforeArmWork(generation);
                 const info = this.adapter.inspectPart(body);
+                if (!cached) await this.sourceStore.put(cacheKey, body);
+                if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 this.snapshots.set(sourceId(part), { snapshot: info.snapshot, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
                 return { body, ...info, releaseDownload };
             } catch (error) { releaseDownload(); throw error; }
@@ -1093,6 +1114,11 @@
             for (const id of [...this.cache.keys()]) if (id !== sourceId(part)) this.releasePart({ id });
             const decoded = await this.loadPart(part, generation);
             if (generation !== this.generation) return;
+            if (options.amend) {
+                this.requireEditing();
+                this.adapter.assertNotRecording?.();
+            }
+            this.armStage(generation, 'Restoring settings and sounds', part);
             this.adapter.recall(decoded, { start: options.start !== false });
             decoded.releaseMemory?.();
             this.active = part.id;
@@ -1208,15 +1234,22 @@
         async amendPart(part) {
             if (this.playing || this.editing) throw new Error('Stop Song and save or cancel the current amendment before amending another part.');
             this.adapter.assertNotRecording?.();
-            await this.ensureEditing(part);
-            this.adapter.assertNotRecording?.();
+            this.amendLoading = { id: part.id, stage: 'Checking editing access' };
             this.expandedParts.add(`${this.song.id}:${part.id}`);
-            if (this.active !== part.id) return this.recall(part, { start: false, amend: true });
-            this.cancel(true, { hardCut: true });
-            this.active = part.id;
-            this.editing = { id: part.id, sha256: part.sha256, songId: this.song.id };
-            if (!this.element('songBetaPartName').value.trim()) this.element('songBetaPartName').value = part.name;
-            this.status(`Amending the currently loaded ${part.name}. Your live edits are kept; Save Amendment commits them to every use of this part.`);
+            this.render();
+            try {
+                await this.ensureEditing(part);
+                this.adapter.assertNotRecording?.();
+                if (this.active !== part.id) return await this.recall(part, { start: false, amend: true });
+                this.cancel(true, { hardCut: true });
+                this.active = part.id;
+                this.editing = { id: part.id, sha256: part.sha256, songId: this.song.id };
+                if (!this.element('songBetaPartName').value.trim()) this.element('songBetaPartName').value = part.name;
+                this.status(`Amending the currently loaded ${part.name}. Your live edits are kept; Save Amendment commits them to every use of this part.`);
+            } finally {
+                this.amendLoading = null;
+                this.render();
+            }
         }
 
         async deletePart(part) {
@@ -1475,6 +1508,15 @@
                 }
                 row.classList.toggle('song-beta-active', part.id === this.active);
                 row.classList.toggle('song-beta-amending', part.id === this.editing?.id);
+                if (part.id === this.amendLoading?.id) {
+                    row.setAttribute('aria-busy', 'true');
+                    const progress = this.document.createElement('p');
+                    progress.id = 'songBetaAmendProgress';
+                    progress.className = 'song-beta-amend-progress';
+                    progress.setAttribute('role', 'status');
+                    progress.textContent = `${this.amendLoading.stage}… Editing will be available when preparation finishes.`;
+                    row.append(progress);
+                }
                 const header = this.document.createElement('div');
                 header.className = 'song-beta-part-header';
                 const controls = this.document.createElement('div');
@@ -1631,6 +1673,7 @@
                     actionButton.type = 'button';
                     actionButton.className = `performance-btn ${className}`;
                     actionButton.textContent = label;
+                    if (className === 'song-beta-amend' && part.id === this.amendLoading?.id) actionButton.textContent = 'Preparing amendment…';
                     actionButton.setAttribute('aria-label', `${label} ${part.name}`);
                     if (className === 'song-beta-reuse') actionButton.title = 'Add this existing part again at the end, without copying sounds or renders. Amendments affect every use; order and repeats are independent.';
                     if (className === 'song-beta-full-copy') actionButton.title = 'Append a full independent copy of this saved part, including all sounds and settings. Its name ends in _full_copy; editing it does not change the original.';
