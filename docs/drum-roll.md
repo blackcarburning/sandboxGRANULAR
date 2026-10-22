@@ -1,9 +1,16 @@
-# Independent Snare Roll lane — DRUMS.2
+# Independent Snare Roll lane — DRUMS.3
 
 In the drum editor, choose **Roll**. Set **Roll length (steps)**, choose a
 32-step page under **Steps shown**, and tap numbered steps. Ratchet buttons
 above each step cycle ×1–×8. Length accepts whole numbers from 1 to 1024;
 64 and 128 are ordinary choices, not the only available lengths.
+
+Stop the drum machine before changing Roll length. While running, the length
+field remains tappable but read-only and shows “stop the drum machine to change
+roll pattern length” above the editor. Page selection, steps and ratchets remain
+editable during playback. UI refreshes preserve unchanged controls and focused
+length drafts; the editor Close button handles touch release directly as well
+as mouse/keyboard clicks, without stopping playback.
 
 ## Playback
 
@@ -60,6 +67,7 @@ node --test tests/drum-roll.test.cjs tests/song-full-pattern.test.cjs tests/patt
 python3 -m unittest discover -s tests -p 'test_drum_roll.py'
 python3 tests/song-beta-test-server.py 18891
 node tests/drum-roll-browser.cjs
+node tests/drum-editor-controls-browser.cjs
 ```
 
 The browser regression uses disposable localhost accounts/Songs and native
