@@ -124,7 +124,7 @@
             for (const key of lane.slots) snapshot.extra.audioSlots[key] = false;
             if (lane.piano) {
                 if (!window.MygrainQTheory?.defaults) throw new Error('This part needs Q piano support. Reload MYGRAIN.');
-                snapshot.state.q = cloneJson(window.MygrainQTheory.defaults());
+                snapshot.state.q = { ...cloneJson(window.MygrainQTheory.defaults()), enabled: false };
             } else {
                 for (const group of ['modes', 'sliders', 'selects']) {
                     const additions = Object.fromEntries(Object.entries(defaults[group]).filter(([key]) => lane.settings.test(key)));

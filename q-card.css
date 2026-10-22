@@ -245,7 +245,7 @@ body.q-sequencer-open {
 .q-settings { flex: 0 0 auto; min-width: 0; font-size: 11px; max-height: 32dvh; overflow-y: auto; }
 .q-settings summary { cursor: pointer; padding: 5px 0; }
 .q-help { margin: 4px 0; font-size: 11px; line-height: 1.4; }
-.q-session-controls { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); flex: 0 0 auto; gap: 3px; margin: 0; }
+.q-session-controls { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); flex: 0 0 auto; gap: 3px; margin: 0; }
 #bastardLoopQOverlay .q-session-controls .performance-btn { min-width: 0; min-height: 32px; height: 32px; padding: 3px 1px; font-size: clamp(7px, 2.1vw, 10px); letter-spacing: 0; text-transform: none; white-space: nowrap; }
 .q-control-short, .q-nudge-short { display: none; }
 #bastardLoopQOverlay #bastardLoopQAllPlayBtn { background: #146a45; border-color: #65db9f; color: #effff5; }
@@ -326,4 +326,8 @@ body.q-sequencer-open {
     #bastardLoopQOverlay #bastardLoopQPalette .q-chord { min-height: 30px; padding: 2px 3px; }
     .q-settings summary { padding: 2px 0; }
     #bastardLoopQStatus { display: none; }
+}
+
+@media (max-width: 760px) {
+    .q-session-controls { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }

@@ -612,7 +612,9 @@ test('normalization bounds effects, strips invalid chords and never auto-enables
     assert.equal(state.level, 0);
     assert.equal(state.sequence.length, 64);
     assert.equal(state.sequence[0], null);
-    assert.equal(theory.normalizeState().enabled, false);
+    assert.equal(theory.normalizeState().enabled, true);
+    assert.equal(state.enabled, false);
+    assert.equal(theory.normalizeState({ enabled: false }).enabled, false);
     assert.equal(state.octave, 8);
 });
 
@@ -710,12 +712,12 @@ test('portable banks do not silently borrow another sampled pitch or velocity fr
     assert.throws(() => piano.source(50, 96), /Saved Q audio/);
 });
 
-test('new or legacy state restores Q stopped and without stale buffers', () => {
+test('fresh state arms Q for shared transport without starting it or retaining stale buffers', () => {
     const instance = controller();
     instance.state.enabled = true;
     instance.piano.atlas = {};
     instance.restore();
-    assert.equal(instance.state.enabled, false);
+    assert.equal(instance.state.enabled, true);
     assert.equal(instance.running, false);
     assert.equal(instance.piano.atlas, null);
 });
@@ -733,7 +735,7 @@ test('Stop while piano samples are loading cancels a pending Q play request', as
     finishLoading();
     await pending;
     assert.equal(started, false);
-    assert.equal(instance.state.enabled, false);
+    assert.equal(instance.state.enabled, true);
 });
 
 test('Stop resets the tempo horizon so a fresh play does not skip its first chord', () => {

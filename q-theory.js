@@ -136,10 +136,10 @@
 
     function defaults() {
         return {
-            version: 1, performanceVersion: 6, instrument: 'piano', enabled: false, level: .5, pan: 0, tonic: 0, scale: 'major', customScale: [0, 2, 4, 5, 7, 9, 11],
+            version: 1, performanceVersion: 6, instrument: 'piano', enabled: true, level: .5, pan: 0, tonic: 0, scale: 'major', customScale: [0, 2, 4, 5, 7, 9, 11],
             octave: 3, chordRoot: 0, chordType: 'major', inversion: 0, voicing: 'close', paletteSize: 3,
             transpose: 0, rate: 1, gate: 4, velocity: 96, accentAmount: .25, sampleLength: 1, sampleDecay: 1, record: false, recordMode: 'step',
-            selection: null,
+            selection: null, chordHold: false,
             paletteFamilies: 'all', paletteBassRoots: null, arpEnabled: false, arpPattern: 'up', arpRepeat: 'once', arpDivision: .25,
             arpSteps: [1, 2, 3, 0, 3, 2, 1, 0],
             lowpass: 18000, highpass: 20, room: 0, delay: 0, delayBeats: .5, feedback: .32,
@@ -154,7 +154,7 @@
             ['accentAmount', 0, 1], ['sampleLength', .05, 1], ['sampleDecay', .05, 1], ['lowpass', 100, 20000], ['highpass', 20, 10000], ['room', 0, 1],
             ['delay', 0, 1], ['feedback', 0, .8], ['delayBeats', 1 / 12, 6]]) state[key] = clamp(state[key], minimum, maximum, defaults()[key]);
         for (const key of ['tonic', 'octave', 'chordRoot', 'inversion', 'transpose', 'velocity']) state[key] = Math.round(state[key]);
-        state.enabled = state.enabled === true;
+        state.enabled = input && typeof input === 'object' ? input.enabled === true : true;
         state.instrument = state.instrument === 'strings' ? 'strings' : 'piano';
         state.record = state.record === true;
         state.recordMode = state.recordMode === 'live' ? 'live' : 'step';
@@ -170,6 +170,7 @@
         const bassRoots = Array.isArray(state.paletteBassRoots) ? [...new Set(state.paletteBassRoots.filter(pitch => Number.isInteger(pitch) && pitch >= 0 && pitch < 12))] : [];
         state.paletteBassRoots = bassRoots.length ? bassRoots : null;
         state.arpEnabled = state.arpEnabled === true;
+        state.chordHold = state.chordHold === true;
         state.arpPattern = ['up', 'down', 'updown', 'odds', 'evens', 'custom'].includes(state.arpPattern) ? state.arpPattern : 'up';
         state.arpSteps = validArpSteps(state.arpSteps) ? state.arpSteps.slice() : defaults().arpSteps;
         state.arpRepeat = state.arpRepeat === 'until-next' ? 'until-next' : 'once';
@@ -271,10 +272,14 @@
 
     function playbackEvents(state, length) {
         const chords = events(state, length);
-        if (!state.arpEnabled) return chords;
-        const interval = state.arpDivision * 4 * state.rate;
         const stops = state.sequence.slice(0, length).flatMap((step, index) => step?.rest ? [index] : []);
         const firstBoundary = Math.min(chords[0]?.start ?? length, stops[0] ?? length);
+        if (!state.arpEnabled) return state.chordHold ? chords.map((event, index) => ({
+            ...event,
+            gate: Math.min(chords[index + 1]?.start ?? length + firstBoundary,
+                stops.find(position => position > event.start) ?? length + firstBoundary) - event.start
+        })) : chords;
+        const interval = state.arpDivision * 4 * state.rate;
         const result = [];
         for (const [index, event] of chords.entries()) {
             const stop = stops.find(position => position > event.start);
@@ -322,6 +327,7 @@
         if (!Object.hasOwn(instruments, instrument)) throw new Error('Saved Q instrument is unsupported.');
         const specification = instruments[instrument];
         if ((state.arpEnabled !== undefined && typeof state.arpEnabled !== 'boolean') || (state.arpPattern !== undefined && !['up', 'down', 'updown', 'odds', 'evens', 'custom'].includes(state.arpPattern)) || (state.arpRepeat !== undefined && !['once', 'until-next'].includes(state.arpRepeat)) || (state.arpDivision !== undefined && (!Number.isFinite(state.arpDivision) || state.arpDivision < .03125 || state.arpDivision > 4)) || (state.arpSteps !== undefined && !validArpSteps(state.arpSteps)) || (state.arpPattern === 'custom' && !validArpSteps(state.arpSteps))) throw new Error('Saved Q arpeggiator settings are invalid.');
+        if (state.chordHold !== undefined && typeof state.chordHold !== 'boolean') throw new Error('Saved Q chord hold is invalid.');
         if (state.performanceVersion !== undefined && state.performanceVersion !== 6) throw new Error('Saved Q performance version is unsupported.');
         for (const key of ['sampleLength', 'sampleDecay']) {
             if (state[key] !== undefined && (!Number.isFinite(state[key]) || state[key] < .05 || state[key] > 1)) throw new Error('Saved Q sample length or decay is invalid.');

@@ -380,6 +380,8 @@ def validate_q_piano(state, assets):
         value = piano.get(key, default)
         if type(value) not in (int, float) or not minimum <= value <= maximum:
             raise ValueError('Invalid Q piano effect setting.')
+    if 'chordHold' in piano and type(piano['chordHold']) is not bool:
+        raise ValueError('Invalid Q chord hold flag.')
     if 'arpEnabled' in piano and type(piano['arpEnabled']) is not bool:
         raise ValueError('Invalid Q arpeggiator enabled flag.')
     if piano.get('arpPattern', 'up') not in ('up', 'down', 'updown', 'odds', 'evens', 'custom') or piano.get('arpRepeat', 'once') not in ('once', 'until-next'):
@@ -456,6 +458,8 @@ def validate_q_piano(state, assets):
 
 
 def q_render_version(piano):
+    if piano.get('chordHold') is True and piano.get('arpEnabled') is not True:
+        return 8
     if piano.get('sampleLength', 1) < 1 or piano.get('sampleDecay', 1) < 1:
         return 7
     if piano.get('performanceVersion') == 6 or piano.get('arpPattern') == 'custom' or any(step and step.get('accent') is True for step in piano['sequence']):
@@ -660,7 +664,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 6, 'contentHashes': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -793,7 +797,7 @@ def handle_song_request(handler, method, inner_path):
                         if portable not in ('', '1'):
                             raise ValueError('Unsupported portable-freeze render version.')
                         piano = (query.get('q') or [''])[0]
-                        if piano not in ('', '1', '2', '3', '4', '5', '6', '7'):
+                        if piano not in ('', '1', '2', '3', '4', '5', '6', '7', '8'):
                             raise ValueError('Unsupported Q piano render version.')
                         if part.get('qVersion', 0) > int(piano or '0'):
                             raise ValueError('This part requires Q-aware rendering.')

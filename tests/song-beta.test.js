@@ -2509,3 +2509,29 @@ test('shortened Q samples require version-seven freezes while full-length legacy
     decoded.snapshot.state.q.sampleDecay = .5;
     assert.equal(controller.isRenderCompatible({ ...part, qVersion: 6 }, decoded), false);
 });
+
+test('held block chords require version-eight freezes; ARP and Hold Off preserve existing renders', async () => {
+    const buffer = { duration: 2, length: 2000, sampleRate: 1000, numberOfChannels: 2 };
+    const { controller } = makeController({ renderPart: async () => buffer, encodeRender: () => new ArrayBuffer(8), decodeRender: async () => buffer });
+    const part = { ...first, sha256: 'snapshot', qVersion: 8, render: { version: 1, sourceSha256: 'snapshot', qVersion: 7 } };
+    const decoded = { snapshot: { state: { q: { enabled: true, performanceVersion: 6, chordHold: true, sampleLength: 1, sampleDecay: 1, sequence: [{ notes: [48, 52, 55] }] } } } };
+    controller.song = { id: 'song', parts: [part] };
+    controller.prepareRender = Object.getPrototypeOf(controller).prepareRender;
+    assert.equal(controller.isRenderCompatible(part, decoded), false);
+    assert.equal(controller.isRenderCompatible(part), false);
+    controller.request = async requestPath => {
+        assert.match(requestPath, /&q=8$/);
+        return { song: { parts: [{ ...part, render: { ...part.render, qVersion: 8 } }] } };
+    };
+    await controller.prepareRender(part, decoded, controller.generation);
+    assert.equal(controller.isRenderCompatible(controller.song.parts[0], decoded), true);
+    controller.song = { id: 'song', parts: [part] };
+    controller.request = async () => ({ song: { parts: [{ ...part, render: { ...part.render, qVersion: 7 } }] } });
+    await assert.rejects(controller.prepareRender(part, decoded, controller.generation), /chord hold render support/);
+    decoded.snapshot.state.q.chordHold = false;
+    assert.equal(controller.isRenderCompatible({ ...part, qVersion: 6 }, decoded), true);
+    decoded.snapshot.state.q.chordHold = true;
+    assert.equal(controller.isRenderCompatible({ ...part, qVersion: 6 }, decoded), false);
+    decoded.snapshot.state.q.arpEnabled = true;
+    assert.equal(controller.isRenderCompatible({ ...part, qVersion: 6 }, decoded), true);
+});

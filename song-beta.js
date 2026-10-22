@@ -80,6 +80,7 @@
     function qRenderVersion(decoded) {
         if (!needsQRender(decoded)) return 0;
         const state = decoded.snapshot.state.q;
+        if (state.chordHold === true && state.arpEnabled !== true) return 8;
         if (Number(state.sampleLength ?? 1) < 1 || Number(state.sampleDecay ?? 1) < 1) return 7;
         if (state.performanceVersion === 6 || state.arpPattern === 'custom' || state.sequence?.some(step => step?.accent === true)) return 6;
         return state.instrument === 'strings' ? 5 : Number(state.room) > 0 ? 4 : state.arpEnabled === true ? 3 : 1;
@@ -765,7 +766,7 @@
                 if (vocalRepeat && saved.render.vocalRepeatVersion !== 1) throw new Error('The song server needs vocal section-repeat render support. Reload MYGRAIN and arm again.');
                 if (drumLanes && saved.render.drumLanesVersion !== 1) throw new Error('The song server needs Clap/Cymbals render support. Reload MYGRAIN and arm again.');
                 if (portable && saved.render.portableVersion !== 1) throw new Error('The song server needs portable-freeze support. Reload MYGRAIN and arm again.');
-                if (piano && !(Number(saved.render.qVersion) >= piano)) throw new Error(`The song server needs Q ${piano >= 7 ? 'sample length / decay' : piano >= 6 ? 'accent / custom arpeggiator' : piano >= 5 ? 'strings' : piano >= 4 ? 'piano effects' : piano >= 2 ? 'piano arpeggiator' : 'piano'} render support. Reload MYGRAIN and arm again.`);
+                if (piano && !(Number(saved.render.qVersion) >= piano)) throw new Error(`The song server needs Q ${piano >= 8 ? 'chord hold' : piano >= 7 ? 'sample length / decay' : piano >= 6 ? 'accent / custom arpeggiator' : piano >= 5 ? 'strings' : piano >= 4 ? 'piano effects' : piano >= 2 ? 'piano arpeggiator' : 'piano'} render support. Reload MYGRAIN and arm again.`);
                 this.song = { ...this.song, parts: this.song.parts.map(entry => sourceId(entry) === sourceId(part) ? { ...entry, render: saved.render } : entry) };
                 this.songs = this.songs.map(song => song.id === this.song.id ? this.song : song);
                 this.armStage(generation, 'Decoding saved playback render', part);

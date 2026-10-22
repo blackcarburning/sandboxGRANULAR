@@ -968,6 +968,7 @@
             this.range = null;
             this.mark = null;
             this.clipboard = null;
+            this.chordClipboard = null;
             this.arpClipboard = null;
             this.voices = new Set();
             this.running = false;
@@ -993,6 +994,7 @@
             this.updateEffects();
             this.sync();
             if (!options.skipSave) this.host.save();
+            this.host.activity?.();
         }
 
         restore(state, options = {}) {
@@ -1008,6 +1010,7 @@
             this.piano.pinned = false;
             if (!options.keepAudio) this.piano.restored(null, null);
             this.sync();
+            this.host.activity?.();
         }
 
         async setInstrument(instrument) {
@@ -1052,6 +1055,7 @@
             this.host.save();
             this.sync();
             this.updateEffects();
+            this.host.activity?.();
             const now = this.host.context()?.currentTime;
             for (const voice of this.voices) if (voice.preview && !voice.grid && voice.end > now) {
                 voice.accentBoost = this.preview?.chord.accent ? 1 + 2 * this.state.accentAmount : 1;
@@ -1065,7 +1069,17 @@
                     if (generation !== this.generation || revision !== this.editRevision) return;
                     this.playbackState = state;
                     const now = this.host.context().currentTime;
-                    for (const voice of this.voices) if (voice.grid && voice.end > now) this.applyVoiceEnvelope(voice, state, Math.max(now, voice.start));
+                    for (const voice of [...this.voices]) if (voice.grid && voice.end > now) {
+                        if (voice.eventStart !== undefined) {
+                            const event = this.timeline().find(event => event.start === voice.eventStart && event.notes.includes(voice.pitch));
+                            if (!event) { this.removeVoice(voice, true); continue; }
+                            const hold = state.chordHold && !state.arpEnabled;
+                            voice.fullRelease = hold ? .006 : Math.min(state.instrument === 'strings' ? .25 : .16, state.arpEnabled && state.arpPattern === 'custom' ? event.gate * voice.stepSeconds / 4 : Infinity);
+                            const end = this.origin + (voice.eventCycle * this.length() + event.start + event.gate) * voice.stepSeconds + (hold ? 0 : voice.fullRelease);
+                            voice.fullDuration = Math.max(.001, Math.min(end - voice.start, voice.naturalDuration));
+                        }
+                        this.applyVoiceEnvelope(voice, state, Math.max(now, voice.start));
+                    }
                     if (options.live) {
                         for (const voice of [...this.voices]) if (!voice.preview && voice.start > now) this.removeVoice(voice, true);
                         this.seek(now + .001);
@@ -1165,7 +1179,8 @@
             const when = Math.max(context.currentTime + .001, start);
             const looped = this.state.instrument === 'strings';
             const release = Math.min(looped ? .25 : .16, options.releaseSeconds ?? Infinity);
-            const end = when + (looped ? duration + release : Math.min(duration + release, selected.duration / rate - .001));
+            const window = duration + (options.hold ? 0 : release);
+            const end = when + (looped ? window : Math.min(window, selected.duration / rate - .001));
             if (end <= when + .004) return;
             while (this.voices.size >= 64) this.removeVoice(this.voices.values().next().value, true);
             const source = context.createBufferSource();
@@ -1180,7 +1195,7 @@
             const baseVelocity = options.baseVelocity ?? velocity;
             const peak = (looped ? baseVelocity / 127 : Math.sqrt(baseVelocity / 127)) * instrumentCalibrationGain[this.state.instrument];
             source.connect(gain).connect(graph.input);
-            const voice = { source, gain, start: when, end, fullDuration: end - when, fullRelease: release, pitch, velocity, peak, release, grid: options.grid === true, stepSeconds: options.stepSeconds, accentBoost: options.accentBoost ?? 1, preview: options.preview === true };
+            const voice = { source, gain, start: when, end, fullDuration: end - when, fullRelease: release, pitch, velocity, peak, release, grid: options.grid === true, stepSeconds: options.stepSeconds, eventStart: options.eventStart, eventCycle: options.eventCycle, naturalDuration: looped ? Infinity : selected.duration / rate - .001, accentBoost: options.accentBoost ?? 1, preview: options.preview === true };
             this.applyVoiceEnvelope(voice, this.playbackState || this.state);
             this.voices.add(voice);
             const tail = Math.max(this.state.room > 0 ? 1.1 : 0, this.state.delay > 0 ? Math.min(8, 60 / this.host.bpm() * this.state.delayBeats * Math.log(.001) / Math.log(Math.max(.01, this.state.feedback))) : 0);
@@ -1274,7 +1289,7 @@
             this.host.activity?.();
         }
 
-        start(startTime) {
+        start(startTime, options = {}) {
             if (!this.playable()) return false;
             this.stop();
             const generation = this.generation;
@@ -1283,12 +1298,23 @@
             const begin = () => {
                 if (generation !== this.generation || !this.running) return;
                 this.ensureGraph();
-                this.origin = startTime;
+                this.origin = Number.isFinite(options.origin) ? options.origin : startTime;
                 this.playbackState = theory.copy(this.state);
                 this.nextCycle = 0;
                 this.nextEvent = 0;
                 const stepSeconds = 60 / this.host.bpm() / 4 / this.state.rate;
-                if (this.host.context().currentTime > startTime) this.nextCycle = Math.floor((this.host.context().currentTime - startTime) / (stepSeconds * this.length()));
+                const readyTime = this.host.context().currentTime > startTime + .02 ? this.host.context().currentTime + .001 : startTime;
+                this.seek(readyTime);
+                // A cold sample load may finish inside a chord. Join its remaining gate on the shared clock.
+                if (!this.state.arpEnabled && readyTime > startTime + .02) {
+                    const position = (readyTime - this.origin) / stepSeconds;
+                    const cycle = Math.floor(position / this.length());
+                    for (const event of this.timeline()) for (const eventCycle of [cycle - 1, cycle]) {
+                        const onset = eventCycle * this.length() + event.start;
+                        if (eventCycle < 0 || onset >= position || onset + event.gate <= position) continue;
+                        for (const pitch of event.notes) this.voice(pitch, event.sampleVelocity ?? event.velocity, readyTime, (onset + event.gate - position) * stepSeconds, { grid: true, stepSeconds, eventStart: event.start, eventCycle, baseVelocity: this.state.sequence[event.index].velocity, hold: this.state.chordHold, releaseSeconds: this.state.chordHold ? .006 : undefined });
+                    }
+                }
                 this.tick();
                 this.timer = setInterval(() => {
                     try { this.tick(); }
@@ -1326,7 +1352,8 @@
                 if (when > horizon) break;
                 this.nextEvent += 1;
                 if (when < context.currentTime - .02) continue;
-                for (const pitch of event.notes) this.voice(pitch, event.sampleVelocity ?? event.velocity, when, event.gate * stepSeconds, { grid: true, stepSeconds, baseVelocity: state.sequence[event.index].velocity, releaseSeconds: state.arpEnabled && state.arpPattern === 'custom' ? event.gate * stepSeconds / 4 : undefined });
+                const hold = state.chordHold && !state.arpEnabled;
+                for (const pitch of event.notes) this.voice(pitch, event.sampleVelocity ?? event.velocity, when, event.gate * stepSeconds, { grid: true, stepSeconds, eventStart: event.start, eventCycle: this.nextCycle, baseVelocity: state.sequence[event.index].velocity, hold, releaseSeconds: hold ? .006 : state.arpEnabled && state.arpPattern === 'custom' ? event.gate * stepSeconds / 4 : undefined });
             }
             const position = Math.floor(Math.max(0, context.currentTime - this.origin) / stepSeconds) % this.length();
             this.updatePlayhead(position);
@@ -1649,6 +1676,32 @@
         }
 
         async action(action) {
+            if (action === 'copy-chord') {
+                const chord = this.state.sequence[this.cursor];
+                if (!chord?.notes?.length || chord.rest) throw new Error('Select a grid chord to copy.');
+                this.chordClipboard = theory.copy(chord);
+                this.sync();
+                this.status(`Copied edited chord from step ${this.cursor + 1}. Select a destination and Paste Chord.`);
+                return;
+            }
+            if (action === 'paste-chord' || action === 'chord-hold') {
+                if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish.');
+                if (action === 'paste-chord' && !this.chordClipboard) throw new Error('Copy a grid chord first.');
+                const edit = () => {
+                    if (action === 'chord-hold') this.state.chordHold = !this.state.chordHold;
+                    else {
+                        const chord = theory.normalizeStep(theory.copy(this.chordClipboard));
+                        this.state.sequence[this.cursor] = chord;
+                        this.state.selection = theory.copy(chord);
+                        this.state.velocity = chord.velocity;
+                        this.state.gate = chord.gate;
+                    }
+                    this.changed({ preserveSamples: action === 'chord-hold', live: true });
+                };
+                if (root.mygrainCardHistory) root.mygrainCardHistory.run(action === 'chord-hold' ? 'Q chord hold' : 'Q paste edited chord', edit); else edit();
+                this.status(action === 'chord-hold' ? `Chord Hold ${this.state.chordHold ? 'on: block chords sustain until the next chord or rest.' : 'off: stored chord lengths restored.'}` : `Pasted the edited chord at step ${this.cursor + 1}.`);
+                return;
+            }
             if (action === 'pool-from-bass' || action === 'pool-from-scale') return this.setPaletteFromBass(action === 'pool-from-bass');
             if (action === 'copy-arp') return this.copyArp();
             if (action === 'arp-builder') return this.arpBuilder.open();
@@ -1842,6 +1895,16 @@
             record.setAttribute('aria-label', `Record ${this.state.recordMode}; tap to ${this.state.record && this.state.recordMode === 'step' ? 'switch to Live' : 'arm Step'} recording`);
             document.getElementById('bastardLoopQPracticeBtn').setAttribute('aria-pressed', String(!this.state.record));
             const current = this.state.sequence[this.cursor];
+            const copyChord = document.getElementById('bastardLoopQCopyChordBtn');
+            if (copyChord) copyChord.disabled = !current?.notes?.length || current.rest;
+            const pasteChord = document.getElementById('bastardLoopQPasteChordBtn');
+            if (pasteChord) pasteChord.disabled = !this.chordClipboard;
+            const chordHold = document.getElementById('bastardLoopQChordHoldBtn');
+            if (chordHold) {
+                chordHold.textContent = `Chord Hold ${this.state.chordHold ? 'On' : 'Off'}`;
+                chordHold.setAttribute('aria-pressed', String(this.state.chordHold));
+                chordHold.title = this.state.arpEnabled ? 'Remembered for block mode; ARP playback is unchanged.' : 'Hold each block chord until the next chord or rest, across the loop boundary.';
+            }
             for (const action of ['transpose-step-down', 'transpose-step-up', 'nudge-left', 'nudge-right']) {
                 const button = document.querySelector(`[data-q-action="${action}"]`);
                 if (button) button.disabled = !current?.notes?.length || current.rest;
@@ -1927,7 +1990,7 @@
             document.getElementById('bastardLoopQPaletteSummary').textContent = `${this.paletteChords.length} ${bassPool ? 'bass-root' : 'scale-matched'} chords · ${this.state.record ? this.liveRecording() ? 'Live: taps record at playhead' : 'Step: taps write and advance' : 'Practice: taps do not change the grid'}`;
             document.getElementById('bastardLoopQTonalSummary').textContent = `${theory.notes[this.state.tonic]} ${this.state.scale} · octave ${this.state.octave} · root ${theory.notes[this.state.chordRoot]}`;
             document.getElementById('bastardLoopQArpEnabled').value = this.state.arpEnabled ? '1' : '0';
-            document.getElementById('bastardLoopQPlaybackSummary').textContent = this.state.arpEnabled ? `ARP · ${this.state.arpPattern}` : 'Block chords';
+            document.getElementById('bastardLoopQPlaybackSummary').textContent = this.state.arpEnabled ? `ARP · ${this.state.arpPattern}` : `Block chords${this.state.chordHold ? ' · Hold' : ''}`;
             document.getElementById('bastardLoopQCustomScale').hidden = this.state.scale !== 'custom';
             document.querySelectorAll('[data-q-pitch]').forEach(button => {
                 const interval = Number(button.dataset.qPitch);
@@ -1976,16 +2039,16 @@
                     ${select('bastardLoopQInstrument', 'Q sound', 'instrument')}${select('bastardLoopQKey', 'Scale tonic / key', 'tonic')}${select('bastardLoopQScale', 'Scale / mode', 'scale')}${select('bastardLoopQRoot', 'Chord root — show this degree first', 'chordRoot')}${select('bastardLoopQOctave', 'Scale octave', 'octave')}${select('bastardLoopQFamilies', 'Shown chord families', 'paletteFamilies')}${select('bastardLoopQInversion', 'Palette inversion', 'inversion')}${select('bastardLoopQVoicing', 'Palette voicing', 'voicing')}</div>
                     <div id="bastardLoopQCustomScale" class="q-custom-pitches" hidden></div><p class="q-help">Key sets the scale pool. From Bass uses Bass X note roots and allows all chord qualities. Chord root puts that note first; inversion and voicing change its playable notes.</p></details>
                 <div class="q-toolbar q-session-controls" aria-label="Practice, Step or Live recording, delete, one-step nudge, transpose and whole-pattern transport">
-                    ${button('practice', '<span class="q-control-full">Practice</span><span class="q-control-short" aria-hidden="true">Prac</span>', 'bastardLoopQPracticeBtn', 'Practice chords without recording')}${button('record', '● Step', 'bastardLoopQRecordBtn', 'Dual-function Record: tap to switch Step and Live')}${button('rest', 'Rest', 'bastardLoopQRestBtn', 'Record a Rest at the cursor or live playhead')}${button('clear-step', 'Delete', 'bastardLoopQDeleteStepBtn', 'Delete selected step without advancing')}${button('nudge-left', '<span class="q-nudge-full">Left 1</span><span class="q-nudge-short" aria-hidden="true">← 1</span>', 'bastardLoopQNudgeLeftBtn', 'Left 1: move selected chord left one grid step; occupied neighbours swap')}${button('nudge-right', '<span class="q-nudge-full">Right 1</span><span class="q-nudge-short" aria-hidden="true">1 →</span>', 'bastardLoopQNudgeRightBtn', 'Right 1: move selected chord right one grid step; occupied neighbours swap')}${button('transpose-step-down', '<span class="q-control-full">Chord −</span><span class="q-control-short" aria-hidden="true">Ch −</span>', 'bastardLoopQChordDownBtn', 'Transpose selected grid chord down one semitone')}${button('transpose-step-up', '<span class="q-control-full">Chord +</span><span class="q-control-short" aria-hidden="true">Ch +</span>', 'bastardLoopQChordUpBtn', 'Transpose selected grid chord up one semitone')}${button('play-all', '▶ All', 'bastardLoopQAllPlayBtn', 'Start the whole pattern and all enabled loops and drums')}${button('stop-all', '■ All', 'bastardLoopQAllStopBtn', 'Stop the whole pattern, every loop, drums and audition')}</div>
+                    ${button('practice', '<span class="q-control-full">Practice</span><span class="q-control-short" aria-hidden="true">Prac</span>', 'bastardLoopQPracticeBtn', 'Practice chords without recording')}${button('record', '● Step', 'bastardLoopQRecordBtn', 'Dual-function Record: tap to switch Step and Live')}${button('rest', 'Rest', 'bastardLoopQRestBtn', 'Record a Rest at the cursor or live playhead')}${button('clear-step', 'Delete', 'bastardLoopQDeleteStepBtn', 'Delete selected step without advancing')}${button('copy-chord', '<span class="q-control-full">Copy Chord</span><span class="q-control-short" aria-hidden="true">Copy</span>', 'bastardLoopQCopyChordBtn', 'Copy the selected grid chord exactly, including edited notes')}${button('paste-chord', '<span class="q-control-full">Paste Chord</span><span class="q-control-short" aria-hidden="true">Paste</span>', 'bastardLoopQPasteChordBtn', 'Paste the copied edited chord at the selected grid step')}${button('nudge-left', '<span class="q-nudge-full">Left 1</span><span class="q-nudge-short" aria-hidden="true">← 1</span>', 'bastardLoopQNudgeLeftBtn', 'Left 1: move selected chord left one grid step; occupied neighbours swap')}${button('nudge-right', '<span class="q-nudge-full">Right 1</span><span class="q-nudge-short" aria-hidden="true">1 →</span>', 'bastardLoopQNudgeRightBtn', 'Right 1: move selected chord right one grid step; occupied neighbours swap')}${button('transpose-step-down', '<span class="q-control-full">Chord −</span><span class="q-control-short" aria-hidden="true">Ch −</span>', 'bastardLoopQChordDownBtn', 'Transpose selected grid chord down one semitone')}${button('transpose-step-up', '<span class="q-control-full">Chord +</span><span class="q-control-short" aria-hidden="true">Ch +</span>', 'bastardLoopQChordUpBtn', 'Transpose selected grid chord up one semitone')}${button('play-all', '▶ All', 'bastardLoopQAllPlayBtn', 'Start the whole pattern and all enabled loops and drums')}${button('stop-all', '■ All', 'bastardLoopQAllStopBtn', 'Stop the whole pattern, every loop, drums and audition')}</div>
                 <div class="q-record-help" id="bastardLoopQRecordHelp">Rec has two functions: tap Step / Live. Practice disarms recording.</div>
                 <div class="q-workbench"><div class="q-pool-controls" aria-label="Chord pick pool source">${button('pool-from-bass', 'From Bass', 'bastardLoopQPoolFromBassBtn', 'Fill the chord pick pool from distinct playable notes in the current Bass X sequence; tap again to refresh')}${button('pool-from-scale', 'Scale Pool', 'bastardLoopQPoolFromScaleBtn', 'Restore chords matched to the current key and scale')}<span id="bastardLoopQPoolHelp"></span></div><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
                     <div class="q-palette" id="bastardLoopQPalette" aria-label="Playable chords in the current scale"></div>
                     <div class="q-grid-heading"><span id="bastardLoopQStepCursor"></span><span id="bastardLoopQSelected"></span></div>
                     <div class="q-grid-scroll"><div class="lead-sequencer-step-grid" id="bastardLoopQStepGrid"></div></div></div>
                 <details class="q-settings q-playback-settings" id="bastardLoopQPlaybackSettings"><summary>Chord playback · <span id="bastardLoopQPlaybackSummary"></span></summary><div class="q-controls q-arp-controls" aria-label="Independent chord arpeggiator">
-                    ${select('bastardLoopQArpEnabled', 'Chord playback', 'arpEnabled')}${select('bastardLoopQArpPattern', 'Arp order', 'arpPattern')}${select('bastardLoopQArpRepeat', 'Arp repeat', 'arpRepeat')}${select('bastardLoopQArpDivision', 'Arp time — separate from grid', 'arpDivision')}</div><div class="q-toolbar">${button('arp-builder', 'Build / Load Custom Arp', 'bastardLoopQArpBuilderBtn')}${button('copy-arp', 'Copy Arp', 'bastardLoopQCopyArpBtn')}</div>
+                    ${select('bastardLoopQArpEnabled', 'Chord playback', 'arpEnabled')}${select('bastardLoopQArpPattern', 'Arp order', 'arpPattern')}${select('bastardLoopQArpRepeat', 'Arp repeat', 'arpRepeat')}${select('bastardLoopQArpDivision', 'Arp time — separate from grid', 'arpDivision')}</div><div class="q-toolbar">${button('chord-hold', 'Chord Hold Off', 'bastardLoopQChordHoldBtn')}${button('arp-builder', 'Build / Load Custom Arp', 'bastardLoopQArpBuilderBtn')}${button('copy-arp', 'Copy Arp', 'bastardLoopQCopyArpBtn')}</div>
                     <div class="q-controls">${slider('bastardLoopQSampleLength', 'Sample Length', 'sampleLength', .05, 1, .01)}${slider('bastardLoopQSampleDecay', 'Sample Decay', 'sampleDecay', .05, 1, .01)}</div>
-                    <p class="q-help">Length trims each sample's sounding window. Lower Decay fades it earlier. Both at 100% keep the original envelope; reverb and delay tails remain controlled by their own mixes.</p></details>
+                    <p class="q-help">Chord Hold sustains block chords through empty steps until the next chord or rest, including the loop wrap. ARP is unchanged. Piano recordings still decay naturally; Strings sustain. Length trims each sample's sounding window. Lower Decay fades it earlier. Both at 100% keep the original envelope; reverb and delay tails remain controlled by their own mixes.</p></details>
                 <details class="q-settings q-edit-tools" id="bastardLoopQEditTools"><summary>Step editing, transpose &amp; chord builder</summary>
                     <div class="q-controls">${select('bastardLoopQQuality', 'Preferred / builder chord quality', 'chordType')}${slider('bastardLoopQVelocity', 'Chord Velocity', 'velocity', 1, 127, 1)}${slider('bastardLoopQGate', 'Grid chord length (steps)', 'gate', .1, 64, .1)}${slider('bastardLoopQAccentAmount', 'Accent Amount', 'accentAmount', 0, 1, .01)}</div>
                     <div class="q-toolbar">${button('audition', '▶ Builder Chord', 'bastardLoopQAuditionBtn')}${button('audition-step', '▶ Selected Step', 'bastardLoopQAuditionStepBtn')}${button('insert', 'Insert Selected', 'bastardLoopQInsertBtn')}${button('play', '▶ Q Only', 'bastardLoopQSoloPlayBtn')}${button('stop', '■ Q Only', 'bastardLoopQSoloStopBtn')}${button('load', 'Load Samples')}${button('midi', 'Export MIDI')}</div>
