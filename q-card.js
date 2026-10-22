@@ -1,5 +1,109 @@
 (function (root) {
     'use strict';
+    // Temporary shared section: map live sequencers and crop looping sources without touching saved patterns.
+    const modulo = (value, length) => ((value % length) + length) % length;
+    class Section {
+        constructor(origin, start, duration) { Object.assign(this, { origin, start, duration }); }
+        phase(time) { return modulo(Math.max(0, time - this.origin) + 1e-8, this.duration); }
+        boundary(time) { return this.origin + (Math.floor(Math.max(0, time - this.origin) / this.duration + 1e-7) + 1) * this.duration; }
+        position(time, step, count) { return Math.floor((this.start + this.phase(time)) / step + 1e-7) % count; }
+        alignment(step) {
+            const value = modulo(-this.start, step);
+            return value < 1e-7 || step - value < 1e-7 ? 0 : value;
+        }
+        hasSteps(step) { return this.alignment(step) < this.duration - 1e-7; }
+        grid(earliest, step, count) {
+            if (!this.hasSteps(step)) return { time: Infinity, index: 0, elapsedSteps: 0 };
+            let cycle = Math.max(0, Math.floor((earliest - this.origin) / this.duration + 1e-7));
+            const alignment = this.alignment(step);
+            let offset = alignment + Math.max(0, Math.ceil((earliest - this.origin - cycle * this.duration - alignment) / step - 1e-7)) * step;
+            if (offset >= this.duration - 1e-7) { cycle += 1; offset = alignment; }
+            const time = this.origin + cycle * this.duration + offset;
+            return { time, index: this.position(time, step, count), elapsedSteps: Math.floor((this.start + offset) / step + 1e-7) };
+        }
+        next(time, step) {
+            if (!this.hasSteps(step)) return Infinity;
+            const boundary = this.boundary(time);
+            return time + step < boundary - 1e-7 ? time + step : boundary + this.alignment(step);
+        }
+        buffer(context, source, offset) {
+            const original = source.buffer, rate = source.playbackRate.value;
+            const first = Math.round(source.loopStart * original.sampleRate);
+            const last = Math.min(original.length, Math.round((source.loopEnd || original.duration) * original.sampleRate));
+            const span = Math.max(1, last - first), start = Math.round(offset * original.sampleRate);
+            const frames = Math.max(1, Math.round(this.duration * rate * original.sampleRate));
+            const result = context.createBuffer(original.numberOfChannels, frames, original.sampleRate);
+            for (let channel = 0; channel < result.numberOfChannels; channel += 1) {
+                const input = original.getChannelData(channel), output = result.getChannelData(channel);
+                const fade = Math.min(Math.floor(frames / 4), Math.round(original.sampleRate * rate * .002));
+                for (let frame = 0; frame < frames; frame += 1) {
+                    const envelope = fade ? Math.min(1, frame / fade, (frames - 1 - frame) / fade) : 1;
+                    output[frame] = input[first + modulo(start - first + frame, span)] * envelope;
+                }
+            }
+            source.buffer = result; source.loopStart = 0; source.loopEnd = result.duration;
+            return 0;
+        }
+    }
+    if (typeof module === 'object' && module.exports) module.exports = { Section };
+    root.MygrainPatternSection = { Section };
+    if (!root.document) return;
+    const api = {
+        active: null,
+        lanes() {
+            return [[bastardLoopSource, startBastardLoop], [bastardLoop2Source, startBastardLoop2],
+                [bastardLoop3Source, startBastardLoop3], [bastardLoopVSource, startBastardLoopV],
+                [bastardLoopPSource, startBastardLoopP], [bastardLoopOSource, startBastardLoopO],
+                [bastardLoopMSource, startBastardLoopM], [bastardLoopMPlusSource, startBastardLoopMPlus],
+                [bastardLoopKSource, startBastardLoopK], [dropboxSampleLayerSource, startDropboxSampleLayer]];
+        },
+        capture() {
+            const shared = sequencerPlaying || drumMachinePlaying || bastardLoopPlaying || bastardLoopLTransportActive || bastardLoopXTransportActive || isArpeggiatorPlaying();
+            const origin = !shared && root.mygrainQ?.running ? root.mygrainQ.origin : getSharedLoopTransportOriginTime();
+            return { origin, sequencer: sequencerPlaying, drums: drumMachinePlaying,
+                loops: bastardLoopPlaying, lead: bastardLoopLTransportActive, bass: bastardLoopXTransportActive,
+                q: Boolean(root.mygrainQ?.running), arp: isArpeggiatorPlaying(),
+                lanes: this.lanes().map(([source]) => Boolean(source)) };
+        },
+        stop() { this.active = null; stopAllPerformancePlayback({ silent: true }); },
+        start(index, steps, rate) {
+            const step = 60 / sequencerBPM / 4 / rate;
+            const deadline = getBufferedTransportStartTime();
+            this.active = new Section(deadline, index * step, steps * step);
+            try {
+                withBufferedTransportStart(deadline, time => {
+                    this.active.origin = time;
+                    if (arpEnabled && holdEnabled) { keyboardArpTransportPlaying = true; startArpeggiatorPlayback(time); }
+                    else startSequencer(time);
+                    startAllBastardLoopLayers(time, { skipUi: true });
+                    syncPerformanceControlState();
+                }, { reset: true, origin: deadline - index * step, exactStart: true });
+                return this.active.origin;
+            } catch (error) { this.stop(); throw error; }
+        },
+        restore(saved) {
+            if (!saved || (!saved.lanes.some(Boolean) && !Object.entries(saved).some(([key, value]) => key !== 'origin' && value === true))) return;
+            withBufferedTransportStart(null, time => {
+                if (saved.sequencer) startSequencer(time);
+                this.lanes().forEach(([, start], index) => { if (saved.lanes[index]) start(time, { skipUi: true }); });
+                if (saved.lead) startBastardLoopL(time, { skipUi: true });
+                if (saved.bass) startBastardLoopX(time, { skipUi: true });
+                if (saved.q) startTransportChordLayer(time, saved.origin ?? time);
+                bastardLoopPlaying = saved.loops;
+                bastardLoopTransportStartTime = saved.loops ? saved.origin ?? time : null;
+                if (saved.drums) startDrumMachine(time, { silent: true, skipSave: true, ensureAudible: false });
+                if (saved.arp) { keyboardArpTransportPlaying = true; startArpeggiatorPlayback(time); }
+            }, { reset: true, origin: saved.origin });
+            syncPerformanceControlState();
+        },
+        position(time, step, count, fallback) { return this.active ? this.active.position(time, step, count) : fallback; },
+        next(time, step) { return this.active ? this.active.next(time, step) : time + step; }
+    };
+    root.mygrainPatternSection = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (root) {
+    'use strict';
 
     const theory = root.MygrainQTheory || (typeof require === 'function' ? require('./q-theory.js') : null);
     const bankLimit = 96 * 1024 * 1024;
@@ -481,7 +585,7 @@
                 </div>
                 <div id="qChordEditorNotes" class="q-chord-pitch-scroll" role="listbox" aria-label="Individual chord notes; Up and Down move the selected note"><div class="q-chord-pitch-roll"><div class="q-chord-pitch-labels" aria-hidden="true"></div><div class="q-chord-pitch-notes"></div></div></div>
                 <div class="q-chord-loop-controls"><label for="qChordLoopSteps">Loop steps<input type="number" id="qChordLoopSteps" min="1" max="256" step="1" inputmode="numeric" value="16"></label><button type="button" id="qChordLoopToggle">Start loop</button><span id="qChordLoopPosition"></span></div>
-                <p id="qChordEditorStatus" role="status">A temporary Q edit loop. The saved pattern and other layers keep their lengths.</p>
+                <p id="qChordEditorStatus" role="status">The whole pattern loops over this section. Saved pattern lengths stay unchanged.</p>
             </section>`;
             document.body.append(overlay);
             this.overlay = overlay;
@@ -568,7 +672,7 @@
             root.addEventListener('resize', () => this.syncViewport());
             root.visualViewport?.addEventListener('resize', () => this.syncViewport());
             root.visualViewport?.addEventListener('scroll', () => this.syncViewport());
-            document.addEventListener('visibilitychange', () => { if (document.hidden && this.opened) { this.cancelDrag(); this.resume = null; this.stopLoop(); } });
+            document.addEventListener('visibilitychange', () => { if (document.hidden && this.opened) { this.cancelDrag(); this.resume = null; this.resumeTransport = null; this.stopLoop(); } });
         }
 
         rowHeight() { return this.overlay.querySelector('.q-chord-pitch-row').getBoundingClientRect().height || 28; }
@@ -599,9 +703,10 @@
             this.owner.lastChordTouch = null;
             this.selected = 0;
             this.owner.cursor = index;
+            this.resumeTransport = root.mygrainPatternSection?.capture();
             this.resume = this.owner.running ? { origin: Number.isFinite(this.owner.origin) ? this.owner.origin : (this.owner.host.context()?.currentTime || 0) + .06, shared: Number.isFinite(this.owner.host.transportOrigin?.()) } : null;
             this.pausingOwner = true;
-            try { this.owner.stop(); } finally { this.pausingOwner = false; }
+            try { if (root.mygrainPatternSection) root.mygrainPatternSection.stop(); else this.owner.stop(); } finally { this.pausingOwner = false; }
             this.opened = true;
             this.overlay.hidden = false;
             this.overlay.setAttribute('aria-hidden', 'false');
@@ -624,21 +729,26 @@
             this.overlay.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('q-individual-chord-open');
             root.guardSectionJumpAfterOverlayClose?.();
-            const resume = this.resume;
+            const resume = this.resume, transport = this.resumeTransport;
             this.resume = null;
+            this.resumeTransport = null;
             this.owner.sync();
             document.querySelector(`#bastardLoopQStepGrid [data-q-step="${this.index}"]`)?.focus({ preventScroll: true });
-            if (options.resume !== false && resume && this.owner.state.enabled && (!resume.shared || Number.isFinite(this.owner.host.transportOrigin?.()))) this.owner.start(resume.origin);
+            if (options.resume !== false && transport) root.mygrainPatternSection.restore(transport);
+            else if (options.resume !== false && resume && this.owner.state.enabled && (!resume.shared || Number.isFinite(this.owner.host.transportOrigin?.()))) this.owner.start(resume.origin);
         }
         onOwnerStop() {
             if (!this.opened || this.pausingOwner) return;
             this.resume = null;
+            this.resumeTransport = null;
             this.stopLoop();
         }
         stopLoop() {
             this.request += 1;
             this.loading = false;
             this.preview?.stop();
+            this.pausingOwner = true;
+            try { root.mygrainPatternSection?.stop(); } finally { this.pausingOwner = false; }
             this.syncLoop();
         }
         createPreview() {
@@ -675,8 +785,9 @@
                 if (!this.opened || request !== this.request) return;
                 this.preview ||= this.createPreview();
                 this.preview.state = state;
-                this.preview.start(this.owner.host.context().currentTime + .06);
-                this.status(`Looping Q from step ${this.index + 1} for ${this.loopSteps} steps. Changes use this same sound and effects; Undo restores prior notes.`);
+                const origin = root.mygrainPatternSection ? root.mygrainPatternSection.start(this.index, this.loopSteps, state.rate) : this.owner.host.context().currentTime + .06;
+                this.preview.start(origin);
+                this.status(`Looping the whole pattern from Q step ${this.index + 1} for ${this.loopSteps} steps. Changes use this same sound and effects; Undo restores prior notes.`);
             } finally {
                 if (request === this.request) { this.loading = false; this.syncLoop(); }
             }
@@ -1888,7 +1999,7 @@
         }
     }
 
-    const api = { Piano, Controller, ChordEditor, createKeyboardPlayer: host => new KeyboardPlayer(host) };
+    const api = { Section: root.MygrainPatternSection.Section, Piano, Controller, ChordEditor, createKeyboardPlayer: host => new KeyboardPlayer(host) };
     if (typeof module === 'object' && module.exports) module.exports = api;
     root.MygrainQ = api;
     if (root.document?.getElementById('bastardLoopQCard')) {
