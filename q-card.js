@@ -580,12 +580,13 @@
             overlay.setAttribute('aria-hidden', 'true');
             overlay.innerHTML = `<section class="q-chord-editor-shell" role="dialog" aria-modal="true" aria-labelledby="qChordEditorTitle">
                 <header class="sample-browser-head"><div><h3 id="qChordEditorTitle">Q · Individual chord</h3><div id="qChordEditorName" aria-live="polite"></div></div><button type="button" id="qChordEditorClose">Close</button></header>
-                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Solo Note isolates the selected note in this chord only; the rest of the loop keeps playing. Double-click / double-tap to mute or unmute. Close clears mutes and solo. Delete Note is permanent; Undo restores it.</p>
+                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Solo Note isolates the selected note in this chord only; the rest of the loop keeps playing. Double-click / double-tap to mute or unmute. Close clears mutes and solo. Delete Note removes the note; the Undo / Redo buttons restore up to 10 chord edits.</p>
                 <div class="q-chord-editor-tools" aria-label="Note and whole-chord editing">
                     <button type="button" data-q-note-action="down">Note ↓</button><button type="button" data-q-note-action="up">Note ↑</button>
                     <button type="button" data-q-note-action="chord-down">Chord −</button><button type="button" data-q-note-action="chord-up">Chord +</button>
                     <button type="button" data-q-note-action="solo" aria-pressed="false" title="Solo the selected note in this chord only; other chords and instruments keep playing">Solo Note</button>
                     <button type="button" data-q-note-action="delete">Delete Note</button>
+                    <button type="button" data-q-history="undo" id="qChordEditorUndo">Undo 0</button><button type="button" data-q-history="redo" id="qChordEditorRedo">Redo 0</button>
                 </div>
                 <div id="qChordEditorNotes" class="q-chord-pitch-scroll" role="listbox" aria-label="Individual chord notes; Up and Down move the selected note"><div class="q-chord-pitch-roll"><div class="q-chord-pitch-labels" aria-hidden="true"></div><div class="q-chord-pitch-notes"></div></div></div>
                 <div class="q-chord-loop-controls"><label for="qChordLoopSteps">Loop steps<input type="number" id="qChordLoopSteps" min="1" max="256" step="1" inputmode="numeric" value="16"></label><button type="button" id="qChordLoopToggle">Start loop</button><span id="qChordLoopPosition"></span></div>
@@ -616,6 +617,8 @@
             length.addEventListener('change', applyLength);
             length.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); applyLength(); } });
             overlay.addEventListener('click', event => {
+                const history = event.target.closest('[data-q-history]');
+                if (history) this.task(() => this.owner.travelEditorHistory(history.dataset.qHistory));
                 const button = event.target.closest('[data-q-note-action]');
                 if (button) this.task(() => this.move(button.dataset.qNoteAction));
                 const note = event.target.closest('[data-q-note-index]');
@@ -624,6 +627,7 @@
             });
             overlay.addEventListener('keydown', event => {
                 event.stopPropagation();
+                if (this.owner.handleEditorHistoryKey(event)) return;
                 if (event.key === 'Escape') { event.preventDefault(); this.close(); return; }
                 if (['Delete', 'Backspace'].includes(event.key) && !event.target.matches('input, select, textarea')) {
                     event.preventDefault(); this.task(() => this.deleteNote()); return;
@@ -977,6 +981,96 @@
             this.timer = null;
             this.nextCycle = 0;
             this.nextEvent = 0;
+            this.editorUndo = [];
+            this.editorRedo = [];
+            this.editorBaseline = this.editorSnapshot();
+        }
+
+        editorSnapshot() {
+            return theory.copy({ sequence: this.state.sequence, transpose: this.state.transpose });
+        }
+
+        resetEditorHistory() {
+            this.editorUndo.length = this.editorRedo.length = 0;
+            this.editorBaseline = this.editorSnapshot();
+            this.syncEditorHistory();
+        }
+
+        recordEditorEdit() {
+            const after = this.editorSnapshot();
+            if (JSON.stringify(after) === JSON.stringify(this.editorBaseline)) return;
+            const before = this.editorBaseline;
+            const index = after.sequence.findIndex((step, index) => JSON.stringify(step) !== JSON.stringify(before.sequence[index]));
+            this.editorUndo.push({ before, after, index: index < 0 ? this.cursor : index });
+            if (this.editorUndo.length > 10) this.editorUndo.shift();
+            this.editorRedo.length = 0;
+            this.editorBaseline = after;
+            this.syncEditorHistory();
+        }
+
+        syncEditorHistory() {
+            if (typeof document === 'undefined') return;
+            for (const direction of ['undo', 'redo']) for (const button of document.querySelectorAll(`[data-q-history="${direction}"]`)) {
+                const count = direction === 'undo' ? this.editorUndo.length : this.editorRedo.length;
+                const label = direction === 'undo' ? 'Undo' : 'Redo';
+                button.textContent = `${label} ${count}`;
+                button.disabled = !count || this.editorHistoryBusy || root.mygrainCardHistory?.busy;
+                button.setAttribute('aria-label', `${label} Q chord edit: ${count} of 10 levels available`);
+            }
+        }
+
+        handleEditorHistoryKey(event) {
+            if (!(event.ctrlKey || event.metaKey) || event.altKey || event.target.matches('input, select, textarea')) return false;
+            const key = event.key.toLowerCase();
+            if (key !== 'z' && key !== 'y') return false;
+            event.preventDefault(); event.stopPropagation();
+            this.task(() => this.travelEditorHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo'));
+            return true;
+        }
+
+        async travelEditorHistory(direction) {
+            if (this.editorHistoryBusy || root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish.');
+            const from = direction === 'undo' ? this.editorUndo : this.editorRedo;
+            const to = direction === 'undo' ? this.editorRedo : this.editorUndo;
+            const entry = from.at(-1);
+            if (!entry) return;
+            const expected = direction === 'undo' ? entry.after : entry.before;
+            if (JSON.stringify(this.editorSnapshot()) !== JSON.stringify(expected)) {
+                this.resetEditorHistory();
+                throw new Error('Q was restored outside this editor; its local history has been reset.');
+            }
+            const restart = this.chordEditor?.opened && (this.chordEditor.preview?.running || this.chordEditor.loading);
+            this.editorHistoryBusy = true;
+            this.syncEditorHistory();
+            try {
+                const edit = () => {
+                    Object.assign(this.state, theory.copy(direction === 'undo' ? entry.before : entry.after));
+                    this.cursor = Math.min(entry.index, this.length() - 1);
+                    const chord = this.state.sequence[this.cursor];
+                    this.state.selection = chord?.notes?.length ? theory.copy(chord) : null;
+                    if (chord?.notes?.length) { this.state.velocity = chord.velocity; this.state.gate = chord.gate; }
+                    this.changed({ editorHistory: false, live: true });
+                };
+                if (root.mygrainCardHistory) root.mygrainCardHistory.run(`Q editor ${direction}`, edit); else edit();
+                from.pop(); to.push(entry);
+                if (to.length > 10) to.shift();
+                this.editorBaseline = this.editorSnapshot();
+                if (this.chordEditor?.opened) {
+                    this.chordEditor.index = this.cursor;
+                    this.chordEditor.selected = Math.min(this.chordEditor.selected, Math.max(0, (this.state.sequence[this.cursor]?.notes?.length || 1) - 1));
+                    this.chordEditor.mutedNotes = new Set();
+                    this.chordEditor.render();
+                    if (restart && this.chordEditor.opened) await this.chordEditor.startLoop();
+                } else if (this.preview) {
+                    const chord = this.state.sequence[this.cursor];
+                    if (chord?.notes?.length && !chord.rest) await this.audition(chord, { endPosition: this.preview.endPosition });
+                    else this.stopPreview();
+                }
+                this.status(`${direction === 'undo' ? 'Undid' : 'Redid'} Q chord edit. ${this.editorUndo.length} undo / ${this.editorRedo.length} redo levels available (maximum 10).`);
+            } finally {
+                this.editorHistoryBusy = false;
+                this.syncEditorHistory();
+            }
         }
 
         length() { return this.host.length(); }
@@ -1001,6 +1095,7 @@
             this.chordEditor?.close({ resume: false });
             this.stop();
             this.state = theory.normalizeState(state);
+            this.resetEditorHistory();
             this.piano.select(this.state.instrument);
             this.range = null;
             this.mark = null;
@@ -1046,6 +1141,7 @@
         }
 
         changed(options = {}) {
+            if (options.editorHistory !== false) this.recordEditorEdit();
             if (options.reschedule !== false) this.editRevision = (this.editRevision || 0) + 1;
             const revision = this.editRevision || 0;
             if (!options.preserveSamples) {
@@ -1057,7 +1153,7 @@
             this.updateEffects();
             this.host.activity?.();
             const now = this.host.context()?.currentTime;
-            for (const voice of this.voices) if (voice.preview && !voice.grid && voice.end > now) {
+            for (const voice of this.voices) if (voice.preview && !voice.grid && !voice.releasing && voice.end > now) {
                 voice.accentBoost = this.preview?.chord.accent ? 1 + 2 * this.state.accentAmount : 1;
                 this.applyVoiceEnvelope(voice, this.state, Math.max(now, voice.start));
             }
@@ -1179,7 +1275,7 @@
             const when = Math.max(context.currentTime + .001, start);
             const looped = this.state.instrument === 'strings';
             const release = Math.min(looped ? .25 : .16, options.releaseSeconds ?? Infinity);
-            const window = duration + (options.hold ? 0 : release);
+            const window = options.sustain && !looped ? selected.duration / rate - .001 : duration + (options.hold ? 0 : release);
             const end = when + (looped ? window : Math.min(window, selected.duration / rate - .001));
             if (end <= when + .004) return;
             while (this.voices.size >= 64) this.removeVoice(this.voices.values().next().value, true);
@@ -1195,21 +1291,33 @@
             const baseVelocity = options.baseVelocity ?? velocity;
             const peak = (looped ? baseVelocity / 127 : Math.sqrt(baseVelocity / 127)) * instrumentCalibrationGain[this.state.instrument];
             source.connect(gain).connect(graph.input);
-            const voice = { source, gain, start: when, end, fullDuration: end - when, fullRelease: release, pitch, velocity, peak, release, grid: options.grid === true, stepSeconds: options.stepSeconds, eventStart: options.eventStart, eventCycle: options.eventCycle, naturalDuration: looped ? Infinity : selected.duration / rate - .001, accentBoost: options.accentBoost ?? 1, preview: options.preview === true };
-            this.applyVoiceEnvelope(voice, this.playbackState || this.state);
+            const voice = { source, gain, start: when, end, fullDuration: end - when, fullRelease: release, pitch, velocity, peak, release, looped, sustain: options.sustain === true, grid: options.grid === true, stepSeconds: options.stepSeconds, eventStart: options.eventStart, eventCycle: options.eventCycle, naturalDuration: looped ? Infinity : selected.duration / rate - .001, accentBoost: options.accentBoost ?? 1, preview: options.preview === true };
+            this.applyVoiceEnvelope(voice, voice.preview ? this.state : this.playbackState || this.state);
             this.voices.add(voice);
             const tail = Math.max(this.state.room > 0 ? 1.1 : 0, this.state.delay > 0 ? Math.min(8, 60 / this.host.bpm() * this.state.delayBeats * Math.log(.001) / Math.log(Math.max(.01, this.state.feedback))) : 0);
-            this.tailUntil = Math.max(this.tailUntil || 0, voice.end + tail);
+            this.tailUntil = Math.max(this.tailUntil || 0, (Number.isFinite(voice.end) ? voice.end : when) + tail);
             if (this.voices.size === 1 && !this.running) this.host.activity?.();
             source.onended = () => this.removeVoice(voice);
             source.start(when, selected.offset);
             voice.started = true;
-            source.stop(voice.end);
+            if (Number.isFinite(voice.end)) source.stop(voice.end);
         }
 
         applyVoiceEnvelope(voice, state, from = voice.start) {
             voice.fullDuration ??= voice.end - voice.start;
             voice.fullRelease ??= voice.release;
+            // A held Strings audition has no next grid onset: leave its sustain
+            // loop open until another chord, Hold Off, Close or Stop releases it.
+            if (voice.sustain && voice.looped && (state.sampleLength ?? 1) === 1 && (state.sampleDecay ?? 1) === 1 && !voice.releasing) {
+                voice.end = Infinity;
+                const parameter = voice.gain.gain;
+                parameter.cancelScheduledValues(from);
+                const peak = voice.peak * (voice.accentBoost ?? 1);
+                const attackEnd = voice.start + .003;
+                parameter.setValueAtTime(from < attackEnd ? peak * Math.max(0, (from - voice.start) / .003) : peak, from);
+                if (from < attackEnd) parameter.linearRampToValueAtTime(peak, attackEnd);
+                return;
+            }
             const shape = theory.sampleEnvelope(state, voice.fullDuration, voice.fullRelease);
             voice.end = voice.start + shape.duration;
             voice.release = shape.release;
@@ -1268,6 +1376,22 @@
             this.updateEffects();
             this.reflectPlaying();
             this.host.activity?.();
+        }
+
+        releaseHeldPreview(end = this.host.context().currentTime + .025) {
+            const now = this.host.context().currentTime;
+            for (const voice of this.voices) if (voice.preview && voice.end > now) {
+                voice.releasing = true;
+                voice.sustain = false;
+                voice.end = Math.max(now + .006, end);
+                const fade = Math.max(now, voice.end - .006);
+                const parameter = voice.gain.gain;
+                parameter.cancelScheduledValues(fade);
+                parameter.setValueAtTime(voice.peak * (voice.accentBoost ?? 1), fade);
+                parameter.linearRampToValueAtTime(0, voice.end);
+                voice.source.stop(voice.end);
+            }
+            if (this.preview) this.preview.held = false;
         }
 
         stop() {
@@ -1404,10 +1528,19 @@
             await this.piano.ensure([event]);
             if (generation !== this.generation || request !== this.previewToken) return;
             clearInterval(this.previewTimer);
-            for (const voice of [...this.voices]) if (voice.preview) this.removeVoice(voice, true);
+            if (this.preview?.held) this.releaseHeldPreview(this.host.context().currentTime + .06);
+            else for (const voice of [...this.voices]) if (voice.preview) this.removeVoice(voice, true);
             this.auditioning = true;
             this.ensureGraph();
-            this.preview = { chord: theory.copy(chord), pitches, velocity: event.velocity, order: theory.arpOrder(pitches, this.state.arpPattern, this.state.arpSteps), next: 0, nextTime: this.host.context().currentTime + .06, arp: this.state.arpEnabled, repeat: this.state.arpRepeat === 'until-next', done: false, endPosition: options.endPosition };
+            const held = this.state.chordHold && !this.state.arpEnabled;
+            let endPosition = options.endPosition;
+            if (held && this.running && !Number.isFinite(endPosition)) {
+                const position = (this.host.context().currentTime + .06 - this.origin) / (60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate);
+                const cycle = Math.floor(position / this.length());
+                const boundaries = [...this.timeline().map(event => event.start), ...this.state.sequence.slice(0, this.length()).flatMap((step, index) => step?.rest ? [index] : [])];
+                if (boundaries.length) endPosition = Math.min(...boundaries.flatMap(cell => [cycle * this.length() + cell, (cycle + 1) * this.length() + cell]).filter(cell => cell > position));
+            }
+            this.preview = { chord: theory.copy(chord), pitches, velocity: event.velocity, order: theory.arpOrder(pitches, this.state.arpPattern, this.state.arpSteps), next: 0, nextTime: this.host.context().currentTime + .06, arp: this.state.arpEnabled, held, repeat: this.state.arpRepeat === 'until-next', done: false, endPosition };
             this.tickPreview();
             if (!this.preview) return;
             this.previewTimer = setInterval(() => {
@@ -1441,12 +1574,14 @@
                     preview.nextTime += interval;
                     if (!preview.repeat && preview.next >= preview.order.length) preview.done = true;
                 } else {
-                    for (const pitch of preview.pitches) this.voice(pitch, preview.velocity, preview.nextTime, .85, voiceOptions);
+                    const bounded = preview.held && Number.isFinite(cutoff);
+                    const duration = bounded ? Math.max(.001, cutoff - preview.nextTime) : .85;
+                    for (const pitch of preview.pitches) this.voice(pitch, preview.velocity, preview.nextTime, duration, { ...voiceOptions, sustain: preview.held && !bounded, hold: bounded, releaseSeconds: bounded ? .006 : undefined });
                     preview.done = true;
                 }
             }
             this.reflectPlaying(context.currentTime);
-            if (preview.done && ![...this.voices].some(voice => voice.preview)) {
+            if (preview.done && !preview.held && ![...this.voices].some(voice => voice.preview)) {
                 clearInterval(this.previewTimer);
                 this.previewTimer = null;
                 this.preview = null;
@@ -1699,7 +1834,14 @@
                     this.changed({ preserveSamples: action === 'chord-hold', live: true });
                 };
                 if (root.mygrainCardHistory) root.mygrainCardHistory.run(action === 'chord-hold' ? 'Q chord hold' : 'Q paste edited chord', edit); else edit();
-                this.status(action === 'chord-hold' ? `Chord Hold ${this.state.chordHold ? 'on: block chords sustain until the next chord or rest.' : 'off: stored chord lengths restored.'}` : `Pasted the edited chord at step ${this.cursor + 1}.`);
+                if (action === 'chord-hold' && !this.state.arpEnabled) {
+                    if (this.preview && !this.preview.arp) {
+                        if (this.state.chordHold) await this.audition(this.preview.chord, { endPosition: this.preview.endPosition });
+                        else if (this.preview.held) this.releaseHeldPreview();
+                    }
+                    if (this.chordEditor?.opened && (this.chordEditor.preview?.running || this.chordEditor.loading)) await this.chordEditor.startLoop();
+                }
+                this.status(action === 'chord-hold' ? this.state.arpEnabled ? `ARP is active. Chord Hold ${this.state.chordHold ? 'On' : 'Off'} is remembered for Block chords; ARP timing is unchanged.` : `Chord Hold ${this.state.chordHold ? 'on: block chords and auditions sustain until the next chord or rest.' : 'off: audition released; stored chord lengths restored.'}` : `Pasted the edited chord at step ${this.cursor + 1}.`);
                 return;
             }
             if (action === 'pool-from-bass' || action === 'pool-from-scale') return this.setPaletteFromBass(action === 'pool-from-bass');
@@ -1845,6 +1987,7 @@
 
         close() {
             this.chordEditor?.close({ resume: false });
+            if (this.preview?.held || this.state.chordHold) this.stopPreview();
             const overlay = document.getElementById('bastardLoopQOverlay');
             if (!overlay.hidden) root.guardSectionJumpAfterOverlayClose?.();
             overlay.hidden = true;
@@ -1878,6 +2021,7 @@
         }
 
         sync() {
+            this.syncEditorHistory();
             if (typeof document === 'undefined' || !document.getElementById('bastardLoopQCard')) return;
             for (const button of document.querySelectorAll('[data-q-action="copy-arp"]')) {
                 button.disabled = !this.state.arpEnabled;
@@ -2040,7 +2184,7 @@
                     <div id="bastardLoopQCustomScale" class="q-custom-pitches" hidden></div><p class="q-help">Key sets the scale pool. From Bass uses Bass X note roots and allows all chord qualities. Chord root puts that note first; inversion and voicing change its playable notes.</p></details>
                 <div class="q-toolbar q-session-controls" aria-label="Practice, Step or Live recording, delete, one-step nudge, transpose and whole-pattern transport">
                     ${button('practice', '<span class="q-control-full">Practice</span><span class="q-control-short" aria-hidden="true">Prac</span>', 'bastardLoopQPracticeBtn', 'Practice chords without recording')}${button('record', '● Step', 'bastardLoopQRecordBtn', 'Dual-function Record: tap to switch Step and Live')}${button('rest', 'Rest', 'bastardLoopQRestBtn', 'Record a Rest at the cursor or live playhead')}${button('clear-step', 'Delete', 'bastardLoopQDeleteStepBtn', 'Delete selected step without advancing')}${button('copy-chord', '<span class="q-control-full">Copy Chord</span><span class="q-control-short" aria-hidden="true">Copy</span>', 'bastardLoopQCopyChordBtn', 'Copy the selected grid chord exactly, including edited notes')}${button('paste-chord', '<span class="q-control-full">Paste Chord</span><span class="q-control-short" aria-hidden="true">Paste</span>', 'bastardLoopQPasteChordBtn', 'Paste the copied edited chord at the selected grid step')}${button('nudge-left', '<span class="q-nudge-full">Left 1</span><span class="q-nudge-short" aria-hidden="true">← 1</span>', 'bastardLoopQNudgeLeftBtn', 'Left 1: move selected chord left one grid step; occupied neighbours swap')}${button('nudge-right', '<span class="q-nudge-full">Right 1</span><span class="q-nudge-short" aria-hidden="true">1 →</span>', 'bastardLoopQNudgeRightBtn', 'Right 1: move selected chord right one grid step; occupied neighbours swap')}${button('transpose-step-down', '<span class="q-control-full">Chord −</span><span class="q-control-short" aria-hidden="true">Ch −</span>', 'bastardLoopQChordDownBtn', 'Transpose selected grid chord down one semitone')}${button('transpose-step-up', '<span class="q-control-full">Chord +</span><span class="q-control-short" aria-hidden="true">Ch +</span>', 'bastardLoopQChordUpBtn', 'Transpose selected grid chord up one semitone')}${button('play-all', '▶ All', 'bastardLoopQAllPlayBtn', 'Start the whole pattern and all enabled loops and drums')}${button('stop-all', '■ All', 'bastardLoopQAllStopBtn', 'Stop the whole pattern, every loop, drums and audition')}</div>
-                <div class="q-record-help" id="bastardLoopQRecordHelp">Rec has two functions: tap Step / Live. Practice disarms recording.</div>
+                <div class="q-toolbar q-editor-history" aria-label="10-level chord Undo and Redo"><button type="button" class="performance-btn" data-q-history="undo" id="bastardLoopQEditorUndo">Undo 0</button><button type="button" class="performance-btn" data-q-history="redo" id="bastardLoopQEditorRedo">Redo 0</button><span>10 chord edits · Undo / Redo</span></div><div class="q-record-help" id="bastardLoopQRecordHelp">Rec has two functions: tap Step / Live. Practice disarms recording.</div>
                 <div class="q-workbench"><div class="q-pool-controls" aria-label="Chord pick pool source">${button('pool-from-bass', 'From Bass', 'bastardLoopQPoolFromBassBtn', 'Fill the chord pick pool from distinct playable notes in the current Bass X sequence; tap again to refresh')}${button('pool-from-scale', 'Scale Pool', 'bastardLoopQPoolFromScaleBtn', 'Restore chords matched to the current key and scale')}<span id="bastardLoopQPoolHelp"></span></div><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
                     <div class="q-palette" id="bastardLoopQPalette" aria-label="Playable chords in the current scale"></div>
                     <div class="q-grid-heading"><span id="bastardLoopQStepCursor"></span><span id="bastardLoopQSelected"></span></div>
@@ -2057,6 +2201,7 @@
                     <div class="q-toolbar" id="bastardLoopQRatchets">${Array.from({ length: 8 }, (_, index) => `<button type="button" class="performance-btn" data-q-ratchet="${index + 1}">×${index + 1}</button>`).join('')}</div></details>
                 <div id="bastardLoopQStatus" role="status" aria-live="polite">Practice plays without writing. Record writes each chord tap at the cursor and advances. Rest writes a silent cell.</div></div>`;
             document.body.append(overlay);
+            root.addEventListener('mygrain-history-update', () => this.syncEditorHistory());
             root.addEventListener('resize', () => this.syncViewport());
             root.addEventListener('orientationchange', () => this.syncViewport());
             for (const event of ['resize', 'scroll']) root.visualViewport?.addEventListener(event, () => this.syncViewport());
@@ -2122,6 +2267,7 @@
             const handleClick = event => {
                 const target = event.target.closest('button');
                 if (!target) return;
+                if (target.dataset.qHistory) this.task(() => this.travelEditorHistory(target.dataset.qHistory));
                 if (target.dataset.qAction) this.task(() => this.action(target.dataset.qAction));
                 if (target.dataset.qStep !== undefined) {
                     const index = Number(target.dataset.qStep);
@@ -2156,7 +2302,7 @@
                 if (['gate', 'velocity'].includes(key) && this.state.sequence[this.cursor]?.notes?.length) this.state.sequence[this.cursor][key] = this.state[key];
                 const previewChord = this.preview?.chord;
                 this.changed({ preserveSamples: ['level', 'pan', 'lowpass', 'highpass', 'room', 'delay', 'delayBeats', 'feedback', 'sampleLength', 'sampleDecay', 'gate', 'rate', 'arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision', 'paletteFamilies'].includes(key) });
-                if (previewChord && ['arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision'].includes(key)) this.task(() => this.audition(previewChord));
+                if (previewChord && (['arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision'].includes(key) || (this.preview?.held && ['sampleLength', 'sampleDecay'].includes(key)))) this.task(() => this.audition(previewChord, { endPosition: this.preview?.endPosition }));
             };
             for (const container of [card, overlay, document.getElementById('performanceLayerSwitchesCard')].filter(Boolean)) {
                 container.addEventListener('click', handleClick);
@@ -2165,6 +2311,7 @@
             }
             overlay.addEventListener('keydown', event => {
                 event.stopPropagation();
+                if (this.handleEditorHistoryKey(event)) return;
                 if (event.key === 'Escape') this.close();
                 if (event.key === 'Tab') {
                     const controls = [...overlay.querySelectorAll('button, select, input, a[href]')].filter(element => !element.disabled && element.getClientRects().length);

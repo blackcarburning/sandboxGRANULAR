@@ -331,3 +331,7 @@ body.q-sequencer-open {
 @media (max-width: 760px) {
     .q-session-controls { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
+
+.q-editor-history { align-items: center; gap: 6px; flex: 0 0 auto; }
+.q-editor-history span { font-size: 10px; opacity: .75; }
+#bastardLoopQOverlay .q-editor-history .performance-btn { min-height: 30px; padding: 4px 10px; }
