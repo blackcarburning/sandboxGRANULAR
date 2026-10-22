@@ -258,6 +258,10 @@
         };
         const modes = prepared.modes;
         prepared.sliders = {
+            performanceBastardLoopLReverbMix: '0',
+            performanceBastardLoopLReverbSize: '45',
+            performanceBastardLoopLReverbDecay: '55',
+            performanceBastardLoopLReverbTone: '6400',
             performanceBastardLoopMPlusRecordLength: '1',
             performanceBastardLoopMPlusLevel: String(modes.bastardLoopMPlusLevel * 100),
             performanceBastardLoopMPlusLevelMixer: String(modes.bastardLoopMPlusLevel * 100),

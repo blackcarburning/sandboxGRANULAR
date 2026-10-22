@@ -6268,7 +6268,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.22.Q.14</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.22.LVERB.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6355,7 +6355,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.22.Q.14</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.22.LVERB.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7274,6 +7274,23 @@
                         <span>Delay Mode</span>
                     </label>
                     <button class="performance-btn" id="performanceBastardLoopLDelayPingPongBtn" type="button" aria-pressed="false">Ping Pong Off</button>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLReverbMix"><span>L Reverb Mix</span><span class="value" id="performanceBastardLoopLReverbMixValue">0%</span></label>
+                    <input type="range" id="performanceBastardLoopLReverbMix" min="0" max="100" value="0" step="1">
+                    <p style="margin:8px 0 0;color:rgba(214,232,255,.72);font-size:.78rem;line-height:1.35">L uses this reverb instead of the overall reverb.</p>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLReverbSize"><span>L Reverb Size</span><span class="value" id="performanceBastardLoopLReverbSizeValue">45%</span></label>
+                    <input type="range" id="performanceBastardLoopLReverbSize" min="0" max="100" value="45" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLReverbDecay"><span>L Reverb Decay</span><span class="value" id="performanceBastardLoopLReverbDecayValue">55%</span></label>
+                    <input type="range" id="performanceBastardLoopLReverbDecay" min="0" max="100" value="55" step="1">
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceBastardLoopLReverbTone"><span>L Reverb Tone</span><span class="value" id="performanceBastardLoopLReverbToneValue">6.4 kHz</span></label>
+                    <input type="range" id="performanceBastardLoopLReverbTone" min="800" max="12000" value="6400" step="100">
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopLMeta">Choose a lead sample or switch Loop L to the synth to begin.</div>
             </div>
@@ -13230,6 +13247,12 @@
         const distortionRoutingStates = new WeakMap();
         let legacyDistortionBypassGain = null;
         let finalEffectInputState = null;
+        let bastardLoopLReverbLane = null;
+        const L_REVERB_DEFAULTS = Object.freeze({ Mix: 0, Size: 45, Decay: 55, Tone: 6400 });
+        window.mygrainLReverb = {
+            get lane() { return bastardLoopLReverbLane; },
+            get tailUntil() { return bastardLoopLReverbLane?.gateTarget > 0 ? bastardLoopLReverbLane.tailUntil : 0; }
+        };
         const audioSchedulingStats = { lateTicks: 0, skippedSteps: 0, maxLatenessMs: 0 };
         const transportLatencyCache = new Map();
         const retiringOscillatorVoices = new Set();
@@ -16959,6 +16982,7 @@
         });
 
         async function setupEffects() {
+            destroyBastardLoopLReverbLane();
             disposeDrumSendFxGraph();
             if (finalKickBypassDelay) {
                 try { finalKickBypassDelay.disconnect(); } catch (error) {}
@@ -17915,6 +17939,7 @@
                 activeKeyCount > 0 ||
                 activeGrains.size > 0 ||
                 activeOscVoices.size > 0 ||
+                window.mygrainLReverb?.tailUntil > (audioContext?.currentTime || 0) ||
                 keyboardSamplePlayer?.activeVoices?.size > 0 ||
                 sourceWaveformSoloKinds.size > 0 ||
                 (Array.isArray(auditionSources) && auditionSources.length > 0)
@@ -18470,6 +18495,7 @@
             smoothRamp(finalReverbWetGain?.gain, reverbMix * (0.68 + reverbSize * 0.18));
             configureFinalEffectInputs(delayMix > 0, reverbMix > 0, ringDepth > 0);
 
+            syncBastardLoopLReverbLane();
             updateFinalCompressorDynamics();
         }
 
@@ -18510,6 +18536,7 @@
                 if (panMoving || isPerformanceElementVisible(document.getElementById('finalPanSection'))) updateFinalOutputPanning();
             }
             updateSynthLfoModulation();
+            syncBastardLoopLReverbLane();
             // Active grain settings are evaluated at each scheduled audio time, not by repainting the UI.
         }
 
@@ -33895,8 +33922,109 @@
             return getBpmDelaySeconds(getBastardLoopLDelayDivision(), bpm);
         }
 
+        function getBastardLoopLReverbSettings() {
+            const read = key => Number(document.getElementById(`performanceBastardLoopLReverb${key}`)?.value ?? L_REVERB_DEFAULTS[key]);
+            return { mix: read('Mix') / 100, size: read('Size') / 100, decay: read('Decay') / 100, tone: read('Tone') };
+        }
+
+        function syncBastardLoopLReverbControls() {
+            for (const key of Object.keys(L_REVERB_DEFAULTS)) {
+                const control = document.getElementById(`performanceBastardLoopLReverb${key}`);
+                const label = document.getElementById(`performanceBastardLoopLReverb${key}Value`);
+                if (control && label) label.textContent = key === 'Tone' ? `${(Number(control.value) / 1000).toFixed(1)} kHz` : `${control.value}%`;
+            }
+        }
+
+        function restoreBastardLoopLReverbDefaults(sliders = {}) {
+            for (const [key, value] of Object.entries(L_REVERB_DEFAULTS)) {
+                const id = `performanceBastardLoopLReverb${key}`;
+                if (!Object.prototype.hasOwnProperty.call(sliders || {}, id)) {
+                    const control = document.getElementById(id);
+                    if (control) control.value = String(value);
+                }
+            }
+            syncBastardLoopLReverbControls();
+            bastardLoopLReverbLane?.setRoom(getBastardLoopLReverbSettings());
+        }
+
+        function destroyBastardLoopLReverbLane() {
+            destroyBastardLoopLDelayBus();
+            bastardLoopLReverbLane?.destroy();
+            bastardLoopLReverbLane = null;
+        }
+
+        function syncBastardLoopLReverbLane() {
+            const lane = bastardLoopLReverbLane;
+            if (!lane || lane.context !== audioContext || !finalFxInput || !makeupGain) return;
+            const legacy = distortionRoutingStates.get(makeupGain)?.key || '0';
+            const final = distortionRoutingStates.get(finalFxInput)?.key || '0000';
+            const delayActive = finalEffectInputState?.key.startsWith('true:') || false;
+            const filters = [...getActiveFilterStages(hpfNodes, hpfSlope, hpfEnabled), ...getActiveFilterStages(lpfNodes, lpfSlope, lpfEnabled)];
+            const key = [finalFxPlacement, hpfEnabled, hpfSlope, lpfEnabled, lpfSlope, legacy, final, delayActive].join(':');
+            lane.topology(key, (edge, chain, mirror) => {
+                const m = mirror;
+                const filterChain = [m(finalFxPlacement === 'pre' ? finalFxOutput : preFilterGainNode), ...filters.map(m), m(makeupGain)];
+                chain(filterChain);
+                chain([m(makeupGain), ...(legacy === '1' ? [m(distortionNode)] : []), m(legacyDistortionBypassGain), ...phaserNodes.map(m), m(tremoloGain), m(dryGainNode), m(masterGain)]);
+                chain([m(finalFxInput), ...finalDistortionNodes.filter((_, i) => final[i] === '1').map(m), m(finalDistortionTrim), m(finalRingGain), m(finalDelayDryGain), m(finalFxOutput)]);
+                chain([lane.roomOutput, m(preFilterGainNode)]);
+                if (finalFxPlacement === 'pre') {
+                    edge(m(preFilterGainNode), m(finalFxInput)); edge(m(masterGain), lane.gate);
+                } else {
+                    edge(m(masterGain), m(finalFxInput)); edge(m(finalFxOutput), lane.gate);
+                }
+                if (delayActive) for (const node of [finalDelayNode, finalDelayShadowNodeA, finalDelayShadowNodeB]) edge(m(finalRingGain), m(node));
+                chain([m(finalDelayNode), m(finalDelayWetGain), m(finalFxOutput)]);
+                chain([m(finalDelayNode), m(finalDelayFeedbackGain), m(finalDelayFeedbackHighpass), m(finalDelayFeedbackLowpass), m(finalDelayNode)]);
+                chain([m(finalDelayShadowNodeA), m(finalDelayShadowGainA), m(finalDelayShadowPanA), m(finalFxOutput)]);
+                chain([m(finalDelayShadowNodeB), m(finalDelayShadowGainB), m(finalDelayShadowPanB), m(finalFxOutput)]);
+                // Deliberately no path to finalReverbPreDelay, node or wet return.
+            });
+            phaserNodes.forEach(node => lane.modulate(phaserLFOGain, lane.mirror(node).frequency));
+            lane.modulate(tremoloLFOGain, lane.mirror(tremoloGain).gain);
+            lane.modulate(finalRingDepthGain, lane.mirror(finalRingGain).gain);
+            const room = lane.settings?.mix > 0 ? (lane.room?.buffer?.duration || 12) + .018 : 0;
+            const localDelay = getBastardLoopLDelayMix() > 0 ? getBastardLoopLDelayTimeSeconds() * 24 : 0;
+            const sharedDelay = delayActive ? (effectParamTargets.get(finalDelayNode.delayTime) || finalDelayNode.delayTime.value) * 32 : 0;
+            if ([...activeOscVoices.values()].some(voice => voice.role?.startsWith('bastardloopl') && voice.role !== 'bastardloopl')) lane.touch(audioContext.currentTime + .1, true);
+            lane.sync(bastardLoopLEnabled, getLoopLayerSoloGain('bastardl'), room + localDelay + sharedDelay + .15);
+        }
+
+        function ensureBastardLoopLReverbLane() {
+            if (!audioContext || !splitterNode || !preFilterGainNode || !window.MygrainLReverbLane) return null;
+            if (bastardLoopLReverbLane?.context !== audioContext || bastardLoopLReverbLane?.output !== splitterNode) {
+                destroyBastardLoopLReverbLane();
+                bastardLoopLReverbLane = new window.MygrainLReverbLane(audioContext, splitterNode,
+                    param => effectParamTargets.get(param) ?? param.value,
+                    (ctx, size, decay) => createFinalReverbImpulseForContext(ctx, size, decay, 'hall'),
+                    node => node === distortionNode ? finalDistortionCurveKey : finalDistortionNodeAmounts.get(node));
+                bastardLoopLReverbLane.setRoom(getBastardLoopLReverbSettings());
+            }
+            syncBastardLoopLReverbLane();
+            return bastardLoopLReverbLane;
+        }
+
         function getBastardLoopLPlaybackDestination() {
-            return preFilterGainNode || masterGain || audioContext?.destination || null;
+            return ensureBastardLoopLReverbLane()?.input || null;
+        }
+
+        function getBastardLoopLSynthDestination() {
+            const lane = ensureBastardLoopLReverbLane();
+            if (!lane) return null;
+            const destination = ensureBastardLoopLDelayBus(lane.input);
+            if (lane.synthDestination !== destination) {
+                const drive = lane.mirror(oscSynthDriveGain), filter = lane.mirror(oscSynthFilter), output = lane.mirror(oscOutputGain);
+                if (lane.synthDestination) output.disconnect(lane.synthDestination);
+                else { drive.connect(filter); filter.connect(output); }
+                output.connect(destination);
+                lane.synthDestination = destination;
+            }
+            return lane.mirror(oscSynthDriveGain);
+        }
+
+        function touchBastardLoopLReverb(end, audition = false) {
+            bastardLoopLReverbLane?.touch(end, audition);
+            syncBastardLoopLReverbLane();
         }
 
         function rampBastardLoopLDelayParam(audioParam, targetValue, rampTime = 0.04) {
@@ -34544,6 +34672,7 @@
         }
 
         function syncBastardLoopLUi(options = {}) {
+            syncBastardLoopLReverbControls();
             syncOsc3SequencerLockUi();
             const usingSynth = isBastardLoopLUsingSynth();
             const levelValue = Math.round(getBastardLoopLLevelValue({ applyLayerToggle: false }) * 100);
@@ -34917,6 +35046,7 @@
             source.patternSectionStart = scheduledTime;
             source.start(scheduledTime, startOffsetSeconds);
             scheduleTransportSourceStop(source, endTime + 0.02);
+            touchBastardLoopLReverb(endTime + 0.02);
         }
 
         function scheduleBastardLoopLVoice(step, scheduledTime, stepDuration, nextStep) {
@@ -35009,6 +35139,7 @@
             };
             source.start(now, startOffsetSeconds);
             source.stop(stopTime + 0.02);
+            touchBastardLoopLReverb(stopTime + 0.02, true);
             return true;
         }
 
@@ -40292,7 +40423,12 @@
             }
 
             // Connect to oscillator output gain node (then to synth filter chain)
-            if (oscSynthDriveGain && oscSynthFilter) {
+            if (role.startsWith('bastardloopl')) {
+                syncOscSynthFilterControls();
+                const destination = getBastardLoopLSynthDestination();
+                if (destination) oscMixer.connect(destination);
+                touchBastardLoopLReverb(startTime + .1, role !== 'bastardloopl');
+            } else if (oscSynthDriveGain && oscSynthFilter) {
                 syncOscSynthFilterControls();
                 oscMixer.connect(oscSynthDriveGain);
             } else {
@@ -40400,6 +40536,7 @@
                     scheduleTransportSourceStop(source, stopTime + release);
                 } catch (error) {}
             }
+            if (voice.role?.startsWith('bastardloopl')) touchBastardLoopLReverb(stopTime + maxRelease, voice.role !== 'bastardloopl');
             retiringOscillatorVoices.add(voice);
             if (voice.cleanupTimer) clearTimeout(voice.cleanupTimer);
             voice.cleanupTimer = setTimeout(() => {
@@ -40482,6 +40619,7 @@
             stopSourceCardAudition({ preserveKind: false, skipSync: false });
             stopAllGrains();
             stopAllOscillators({ instant: options.immediate === true });
+            destroyBastardLoopLReverbLane();
             heldNotes.clear();
             activeKeyCount = 0;
             currentGrainNote = null;
@@ -41524,6 +41662,10 @@
 
             // Create a throttled handler for each slider to prevent audio glitches
             const throttledHandler = throttleSlider((e) => {
+                if (e.target.id.startsWith('performanceBastardLoopLReverb')) {
+                    syncBastardLoopLReverbControls();
+                    return;
+                }
                 if (e.target.id === 'performanceBastardLoopMPlusPan') {
                     syncBastardLoopMPlusPanUi();
                     return;
@@ -46570,6 +46712,7 @@
             });
             setBastardLoopMPlusPanPercent(normalizedSliders?.performanceBastardLoopMPlusPan ?? 0, { skipSave: true });
             restoreDrumMachineToneDefaults(normalizedSliders);
+            restoreBastardLoopLReverbDefaults(normalizedSliders);
 
             // Apply slider values
             if (normalizedSliders) {
@@ -47823,6 +47966,7 @@
                 restoreOsc3SequencerSources(state.modes);
                 setBastardLoopMPlusPanPercent(state.sliders?.performanceBastardLoopMPlusPan ?? ((Number(state.modes?.bastardLoopMPlusPan) || 0) * 100), { skipSave: true });
                 restoreDrumMachineToneDefaults(state.sliders);
+                restoreBastardLoopLReverbDefaults(state.sliders);
                 const savedLfoMode = state.modes?.lfoMode ?? state.toggles?.lfoMode;
                 const savedLfo2Mode = state.modes?.lfo2Mode ?? state.toggles?.lfo2Mode;
                 const savedLfo3Mode = state.modes?.lfo3Mode ?? state.toggles?.lfo3Mode;
@@ -49572,6 +49716,7 @@
         }
 
         async function renderLiveOutputBarsBuffer(options = {}) {
+            bastardLoopLReverbLane?.flushImpulse();
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before exporting.');
             }
@@ -58890,6 +59035,15 @@
             setBastardLoopLDelayPingPongEnabled(!bastardLoopLDelayPingPongEnabled);
         });
 
+        for (const key of Object.keys(L_REVERB_DEFAULTS)) {
+            document.getElementById(`performanceBastardLoopLReverb${key}`)?.addEventListener('input', () => {
+                syncBastardLoopLReverbControls();
+                bastardLoopLReverbLane?.setRoom(getBastardLoopLReverbSettings());
+                syncBastardLoopLReverbLane();
+                saveState();
+            });
+        }
+
         performanceDropboxSampleLayerBtn?.addEventListener('click', () => {
             setDropboxSampleLayerEnabled(!dropboxSampleLayerEnabled);
         });
@@ -62032,6 +62186,7 @@
     </script>
     <script>window.mygrainAccounts?.loadStyle('videolab.css?v=v2026.10.19.wav-edit.2');</script>
     <script>window.mygrainAccounts?.loadScript('videolab.js?v=20261019-start-mmss-1');</script>
+    <script>window.mygrainAccounts?.loadScript('l-reverb.js?v=20261022-l-reverb-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261022-bass-root-pool-1');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261022-note-solo-1');</script>
@@ -62040,7 +62195,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261021-part-steps-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-q-chord-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-l-reverb-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>

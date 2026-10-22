@@ -33,7 +33,7 @@ PUBLIC_FILES = {
     'mygrain-utils.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
     'navigation-palette.js', 'navigation-palette.css',
     'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
-    'q-arp-builder.js', 'q-card.css', 'q-card.js', 'q-theory.js',
+    'l-reverb.js', 'q-arp-builder.js', 'q-card.css', 'q-card.js', 'q-theory.js',
     'radiolab.js', 'radiolab.css', 'radiolab-worklet.js',
     'randomise-commentary.js', 'runtime-diagnostics.js', 'sample-favourites.css', 'sample-favourites.js',
     'song-beta-adapter.js', 'song-beta-capture-worklet.js', 'song-beta-clock.js',
