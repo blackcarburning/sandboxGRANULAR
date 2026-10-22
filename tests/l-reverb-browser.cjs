@@ -119,16 +119,31 @@ fs.mkdirSync(evidence, { recursive: true });
             assert((await page.evaluate(() => readTestMeters())).output > 1e-5);
             await page.evaluate(() => stopOscillatorNote('C4', null, { role: 'bastardloopl-preview', voiceId: testSynthId }));
             const lifecycle = await page.evaluate(() => {
+                // Exercise real waveshapers, not only the default bypass graph.
+                setFxMuted(false, { silent: true, skipSave: true });
+                lfoEnabled.distortion = false; lfo2Enabled.distortion = false; lfo3Enabled.distortion = false;
+                setTestSlider('finalDriveSoft', 55); setTestSlider('distortion', 20);
+                flushPendingSliderUpdates(); updateEffects(); syncBastardLoopLReverbLane();
                 const lane = mygrainLReverb.lane, count = lane.mirrors.size, modCount = lane.modulationEdges.length, curvesBefore = testCurveWrites;
                 const nodes = [...lane.mirrors.values()].map(binding => binding.node).concat(lane.owned);
+                const drives = [distortionNode, finalDistortionNodes[0]];
+                const activeDrives = drives.every(source => lane.mirrors.has(source));
                 for (let i = 0; i < 250; i++) syncBastardLoopLReverbLane();
                 const stable = lane.mirrors.size === count && lane.modulationEdges.length === modCount;
                 const curveRebuilds = testCurveWrites - curvesBefore;
+                setTestSlider('finalDriveSoft', 72); setTestSlider('distortion', 30);
+                flushPendingSliderUpdates(); updateEffects(); syncBastardLoopLReverbLane();
+                const curvesUpdated = drives.every(source => {
+                    const original = source.curve, mirrored = lane.mirror(source).curve;
+                    return original.length === mirrored.length && original.every((value, index) => value === mirrored[index]);
+                });
                 panicAllNotes({ immediate: true });
                 const disconnected = nodes.every(node => !(testAudioEdges.get(node)?.size));
-                return { stable, curveRebuilds, disconnected, cleared: mygrainLReverb.lane === null, tail: mygrainLReverb.tailUntil };
+                setTestSlider('finalDriveSoft', 0); setTestSlider('distortion', 0); flushPendingSliderUpdates(); updateEffects();
+                return { stable, activeDrives, curvesUpdated, curveRebuilds, disconnected, cleared: mygrainLReverb.lane === null, tail: mygrainLReverb.tailUntil };
             });
             assert(lifecycle.stable && lifecycle.disconnected && lifecycle.cleared && lifecycle.tail === 0, JSON.stringify(lifecycle));
+            assert(lifecycle.activeDrives && lifecycle.curvesUpdated, JSON.stringify(lifecycle));
             assert.equal(lifecycle.curveRebuilds, 0);
             const rendered = !mobile ? await page.evaluate(async () => {
                 stopAllPerformancePlayback({ silent: true }); resetStemIsolationState();
