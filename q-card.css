@@ -4,6 +4,71 @@
     --q-scarlet: #ef3340;
 }
 
+/* Individual chord editing stays outside the already crowded Q workbench. */
+body.q-individual-chord-open { overflow: hidden; }
+#qChordEditorOverlay[hidden] { display: none; }
+#qChordEditorOverlay {
+    position: fixed; display: flex; z-index: 2147483520;
+    top: var(--q-chord-top, 0px); left: var(--q-chord-left, 0px);
+    width: var(--q-chord-width, 100vw); height: var(--q-chord-height, 100dvh);
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    box-sizing: border-box; background: rgba(5, 7, 13, .94); overflow: hidden;
+}
+#qChordEditorOverlay .q-chord-editor-shell {
+    display: flex; flex-direction: column; gap: 10px; box-sizing: border-box;
+    width: min(850px, 100%); height: min(820px, 100%); max-height: 100%; min-width: 0; min-height: 0;
+    padding: 16px; margin: auto; background: #211018; color: #fff4f5;
+    border: 1px solid #ef6574; border-radius: 16px; overflow-y: auto; overscroll-behavior: contain;
+}
+#qChordEditorOverlay .sample-browser-head { flex: 0 0 auto; align-items: center; gap: 12px; margin: 0; }
+#qChordEditorOverlay .sample-browser-head > div { min-width: 0; }
+#qChordEditorOverlay h3 { margin: 0; font-size: 17px; color: #ffabb3; }
+#qChordEditorName { font-size: 16px; font-weight: 800; overflow-wrap: anywhere; margin-top: 4px; }
+.q-chord-editor-help, #qChordEditorStatus { margin: 0; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; flex: 0 0 auto; }
+#qChordEditorStatus { min-height: 2.8em; }
+#qChordEditorOverlay button {
+    display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+    min-width: 0; min-height: 42px; padding: 6px 10px; border: 1px solid #ba6070;
+    border-radius: 9px; color: #fff4f5 !important; background: #713044; font-size: 12px;
+    font-weight: 800; line-height: 1.25; text-align: center; white-space: normal;
+    letter-spacing: 0; text-transform: none; cursor: pointer; touch-action: manipulation;
+}
+#qChordEditorOverlay button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+#qChordEditorOverlay #qChordEditorClose { flex: 0 0 auto; width: auto; min-width: 64px; background: #843548; }
+.q-chord-editor-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; flex: 0 0 auto; }
+.q-chord-pitch-scroll { flex: 1 1 0; min-height: 110px; max-width: 100%; border: 1px solid #75414b; border-radius: 8px; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.q-chord-pitch-roll { position: relative; min-width: 0; }
+.q-chord-pitch-row { height: 28px; box-sizing: border-box; border-bottom: 1px solid #57313c; background: #33212a; padding: 4px 6px; font-size: 11px; color: #f3c4cc; }
+.q-chord-pitch-row.q-chord-black-key { background: #1b1118; }
+.q-chord-pitch-notes { position: absolute; top: 0; bottom: 0; left: 50px; right: 4px; }
+#qChordEditorOverlay .q-chord-pitch-notes button {
+    position: absolute; height: 28px; min-height: 28px; padding: 2px; border-radius: 5px;
+    background: #b34663; border: 1px solid #f5a1b7; touch-action: none; user-select: none;
+    white-space: nowrap; overflow: hidden; font-size: 11px;
+}
+#qChordEditorOverlay .q-chord-pitch-notes button[aria-selected="true"] { color: #061c14 !important; background: #75e3b4; border-color: #caffeb; }
+.q-chord-loop-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; flex: 0 0 auto; }
+.q-chord-loop-controls label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; }
+#qChordLoopSteps { width: 90px; min-height: 42px; padding: 6px; box-sizing: border-box; background: #100c14; color: #fff4f5; border: 1px solid #ba6070; border-radius: 8px; font-size: 16px; }
+#qChordEditorOverlay #qChordLoopToggle { background: #146a45; border-color: #65db9f; min-width: 110px; }
+#qChordEditorOverlay #qChordLoopToggle.q-chord-loop-playing { background: #9b2431; border-color: #ff7382; }
+#qChordLoopPosition { font-size: 11px; line-height: 1.4; flex: 1 1 180px; }
+@media (max-width: 480px), (max-height: 500px) {
+    #qChordEditorOverlay .q-chord-editor-shell { padding: 10px; gap: 7px; height: 100%; }
+    #qChordEditorOverlay h3 { font-size: 14px; }
+    #qChordEditorName { font-size: 14px; }
+    .q-chord-editor-help, #qChordEditorStatus { font-size: 11px; }
+    #qChordEditorOverlay .q-chord-editor-tools button { font-size: 11px; padding: 5px 2px; }
+}
+@media (max-height: 500px) {
+    #qChordEditorOverlay .q-chord-editor-help { display: none; }
+    #qChordEditorOverlay .q-chord-editor-tools button { min-height: 36px; }
+    .q-chord-pitch-scroll { min-height: 80px; }
+    .q-chord-loop-controls label { flex-direction: row; align-items: center; }
+    #qChordLoopSteps { min-height: 36px; width: 72px; }
+    #qChordEditorStatus { min-height: 1.4em; }
+}
+
 #bastardLoopQCard .performance-chip,
 #bastardLoopQCard .performance-feature-title,
 #bastardLoopQOverlay h3 {

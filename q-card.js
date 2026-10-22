@@ -451,6 +451,300 @@
         }
     }
 
+    class ChordEditor {
+        constructor(owner) {
+            this.owner = owner;
+            this.loopSteps = 16;
+            this.selected = 0;
+            this.request = 0;
+        }
+
+        step() { return this.owner.state.sequence[this.index]; }
+        status(message, error = false) {
+            const label = this.overlay?.querySelector('#qChordEditorStatus');
+            if (label) { label.textContent = message; label.classList.toggle('q-error', error); }
+        }
+        task(action) { return Promise.resolve().then(action).catch(error => { if (error.name !== 'AbortError') this.status(error.message, true); }); }
+
+        mount() {
+            const overlay = document.createElement('div');
+            overlay.id = 'qChordEditorOverlay';
+            overlay.className = 'sample-browser-overlay';
+            overlay.hidden = true;
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.innerHTML = `<section class="q-chord-editor-shell" role="dialog" aria-modal="true" aria-labelledby="qChordEditorTitle">
+                <header class="sample-browser-head"><div><h3 id="qChordEditorTitle">Q · Individual chord</h3><div id="qChordEditorName" aria-live="polite"></div></div><button type="button" id="qChordEditorClose">Close</button></header>
+                <p class="q-chord-editor-help">Drag a note up/down, or select it and use ↑ / ↓. Edits save on release. Whole-chord transpose keeps every note together.</p>
+                <div class="q-chord-editor-tools" aria-label="Note and whole-chord editing">
+                    <button type="button" data-q-note-action="down">Note ↓</button><button type="button" data-q-note-action="up">Note ↑</button>
+                    <button type="button" data-q-note-action="chord-down">Chord −</button><button type="button" data-q-note-action="chord-up">Chord +</button>
+                </div>
+                <div id="qChordEditorNotes" class="q-chord-pitch-scroll" role="listbox" aria-label="Individual chord notes; Up and Down move the selected note"><div class="q-chord-pitch-roll"><div class="q-chord-pitch-labels" aria-hidden="true"></div><div class="q-chord-pitch-notes"></div></div></div>
+                <div class="q-chord-loop-controls"><label for="qChordLoopSteps">Loop steps<input type="number" id="qChordLoopSteps" min="1" max="256" step="1" inputmode="numeric" value="16"></label><button type="button" id="qChordLoopToggle">Start loop</button><span id="qChordLoopPosition"></span></div>
+                <p id="qChordEditorStatus" role="status">A temporary Q edit loop. The saved pattern and other layers keep their lengths.</p>
+            </section>`;
+            document.body.append(overlay);
+            this.overlay = overlay;
+            this.scroller = overlay.querySelector('#qChordEditorNotes');
+            const labels = overlay.querySelector('.q-chord-pitch-labels');
+            for (let pitch = 108; pitch >= 21; pitch -= 1) {
+                const row = document.createElement('div');
+                row.className = 'q-chord-pitch-row';
+                row.classList.toggle('q-chord-black-key', [1, 3, 6, 8, 10].includes(pitch % 12));
+                row.textContent = theory.noteName(pitch);
+                labels.append(row);
+            }
+            overlay.querySelector('#qChordEditorClose').addEventListener('click', () => this.close());
+            overlay.querySelector('#qChordLoopToggle').addEventListener('click', () => this.preview?.running || this.loading ? this.stopLoop() : this.task(() => this.startLoop()));
+            const length = overlay.querySelector('#qChordLoopSteps');
+            const applyLength = () => {
+                const value = Number(length.value);
+                if (!Number.isInteger(value) || value < 1 || value > 256) { length.value = String(this.loopSteps); this.status('Choose a loop length from 1 to 256 steps.', true); return; }
+                if (value === this.loopSteps) return;
+                this.loopSteps = value;
+                if (this.preview?.running || this.loading) this.task(() => this.startLoop());
+                this.syncLoop();
+            };
+            length.addEventListener('change', applyLength);
+            length.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); applyLength(); } });
+            overlay.addEventListener('click', event => {
+                const button = event.target.closest('[data-q-note-action]');
+                if (button) this.task(() => this.move(button.dataset.qNoteAction));
+                const note = event.target.closest('[data-q-note-index]');
+                if (note) { this.selected = Number(note.dataset.qNoteIndex); this.render(); }
+                if (event.target === overlay) this.close();
+            });
+            overlay.addEventListener('keydown', event => {
+                event.stopPropagation();
+                if (event.key === 'Escape') { event.preventDefault(); this.close(); return; }
+                if (['ArrowUp', 'ArrowDown'].includes(event.key) && !event.target.matches('input, select, textarea')) {
+                    event.preventDefault(); this.task(() => this.move(event.key === 'ArrowUp' ? 'up' : 'down')); return;
+                }
+                if (['ArrowLeft', 'ArrowRight'].includes(event.key) && !event.target.matches('input, select, textarea')) {
+                    event.preventDefault();
+                    this.selected = (this.selected + (event.key === 'ArrowRight' ? 1 : this.step().notes.length - 1)) % this.step().notes.length;
+                    this.render();
+                    this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`).focus({ preventScroll: true });
+                    this.revealSelected();
+                }
+                if (event.key === 'Tab') {
+                    const controls = [...overlay.querySelectorAll('button, input')].filter(node => !node.disabled && node.getClientRects().length);
+                    if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus(); }
+                    if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus(); }
+                }
+            });
+            this.scroller.addEventListener('pointerdown', event => {
+                const note = event.target.closest('[data-q-note-index]');
+                if (!note || event.button !== 0 || this.drag) return;
+                event.preventDefault();
+                this.selected = Number(note.dataset.qNoteIndex);
+                this.drag = { pointer: event.pointerId, note, y: event.clientY, scroll: this.scroller.scrollTop, notes: this.step().notes.slice(), draft: this.step().notes.slice() };
+                note.setPointerCapture(event.pointerId);
+                note.focus({ preventScroll: true });
+                this.render();
+            });
+            this.scroller.addEventListener('pointermove', event => {
+                const drag = this.drag;
+                if (!drag || drag.pointer !== event.pointerId) return;
+                event.preventDefault();
+                const bounds = this.scroller.getBoundingClientRect();
+                if (event.clientY < bounds.top + 24) this.scroller.scrollTop -= 14;
+                if (event.clientY > bounds.bottom - 24) this.scroller.scrollTop += 14;
+                const movement = Math.round((drag.y - event.clientY - this.scroller.scrollTop + drag.scroll) / this.rowHeight());
+                const transpose = this.owner.state.transpose;
+                drag.draft[this.selected] = Math.round(theory.clamp(drag.notes[this.selected] + movement, Math.max(21, 21 - transpose), Math.min(108, 108 - transpose), drag.notes[this.selected]));
+                this.render();
+            });
+            const release = event => {
+                const drag = this.drag;
+                if (!drag || drag.pointer !== event.pointerId) return;
+                this.drag = null;
+                if (drag.note.hasPointerCapture(event.pointerId)) drag.note.releasePointerCapture(event.pointerId);
+                if (event.type === 'pointerup' && drag.notes.join(',') !== drag.draft.join(',')) this.task(() => this.commit(drag.draft, drag.draft[this.selected]));
+                else this.render();
+            };
+            for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) this.scroller.addEventListener(type, release);
+            root.addEventListener('blur', () => this.cancelDrag());
+            root.addEventListener('resize', () => this.syncViewport());
+            root.visualViewport?.addEventListener('resize', () => this.syncViewport());
+            root.visualViewport?.addEventListener('scroll', () => this.syncViewport());
+            document.addEventListener('visibilitychange', () => { if (document.hidden && this.opened) { this.cancelDrag(); this.resume = null; this.stopLoop(); } });
+        }
+
+        rowHeight() { return this.overlay.querySelector('.q-chord-pitch-row').getBoundingClientRect().height || 28; }
+        revealSelected() {
+            const note = this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`);
+            if (!note) return;
+            const box = note.getBoundingClientRect(), bounds = this.scroller.getBoundingClientRect();
+            if (box.top < bounds.top + 2) this.scroller.scrollTop -= bounds.top + 2 - box.top;
+            else if (box.bottom > bounds.bottom - 2) this.scroller.scrollTop += box.bottom - bounds.bottom + 2;
+        }
+        syncViewport() {
+            if (!this.opened) return;
+            const view = root.visualViewport;
+            for (const [key, value] of Object.entries({ top: view?.offsetTop || 0, left: view?.offsetLeft || 0, width: view?.width || root.innerWidth, height: view?.height || root.innerHeight })) this.overlay.style.setProperty(`--q-chord-${key}`, `${value}px`);
+        }
+        cancelDrag() {
+            const drag = this.drag;
+            this.drag = null;
+            if (drag?.note.hasPointerCapture(drag.pointer)) drag.note.releasePointerCapture(drag.pointer);
+            if (this.opened) this.render();
+        }
+        async open(index) {
+            if (this.opened && this.index === index) return;
+            if (!this.owner.state.sequence[index]?.notes?.length || this.owner.state.sequence[index].rest) return;
+            if (root.mygrainSongBeta?.busy || root.mygrainSongBeta?.playing || root.mygrainSongBeta?.editing || root.mygrainCardHistory?.busy || root.mygrainAiPatch?.busy) throw new Error('Finish the current Song, AI or Undo/Redo operation before editing a chord.');
+            if (this.opened) this.close({ resume: false });
+            this.index = index;
+            this.owner.lastChordTouch = null;
+            this.selected = 0;
+            this.owner.cursor = index;
+            this.resume = this.owner.running ? { origin: Number.isFinite(this.owner.origin) ? this.owner.origin : (this.owner.host.context()?.currentTime || 0) + .06, shared: Number.isFinite(this.owner.host.transportOrigin?.()) } : null;
+            this.pausingOwner = true;
+            try { this.owner.stop(); } finally { this.pausingOwner = false; }
+            this.opened = true;
+            this.overlay.hidden = false;
+            this.overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('q-individual-chord-open');
+            this.overlay.querySelector('#qChordLoopSteps').value = String(this.loopSteps);
+            this.syncViewport();
+            this.render();
+            const middle = this.step().notes[Math.floor(this.step().notes.length / 2)];
+            this.scroller.scrollTop = (108 - middle) * this.rowHeight() - this.scroller.clientHeight / 2;
+            this.overlay.querySelector('[data-q-note-index="0"]').focus({ preventScroll: true });
+            await this.task(() => this.startLoop());
+        }
+        close(options = {}) {
+            if (!this.opened) return;
+            this.cancelDrag();
+            this.opened = false;
+            this.owner.lastChordTouch = null;
+            this.stopLoop();
+            this.overlay.hidden = true;
+            this.overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('q-individual-chord-open');
+            root.guardSectionJumpAfterOverlayClose?.();
+            const resume = this.resume;
+            this.resume = null;
+            this.owner.sync();
+            document.querySelector(`#bastardLoopQStepGrid [data-q-step="${this.index}"]`)?.focus({ preventScroll: true });
+            if (options.resume !== false && resume && this.owner.state.enabled && (!resume.shared || Number.isFinite(this.owner.host.transportOrigin?.()))) this.owner.start(resume.origin);
+        }
+        onOwnerStop() {
+            if (!this.opened || this.pausingOwner) return;
+            this.resume = null;
+            this.stopLoop();
+        }
+        stopLoop() {
+            this.request += 1;
+            this.loading = false;
+            this.preview?.stop();
+            this.syncLoop();
+        }
+        createPreview() {
+            const owner = this.owner;
+            const preview = new Controller({ ...owner.host, length: () => this.loopSteps, save() {} });
+            preview.piano = owner.piano;
+            preview.sync = () => {};
+            preview.syncTransport = () => this.syncLoop();
+            preview.status = message => this.status(message);
+            preview.reflectPlaying = () => {};
+            preview.updatePlayhead = position => this.syncLoop(position);
+            const voice = preview.voice.bind(preview);
+            preview.voice = (pitch, velocity, start, duration, options = {}) => {
+                const stepSeconds = 60 / owner.host.bpm() / 4 / preview.state.rate;
+                const cycle = Math.floor((start - preview.origin) / (stepSeconds * this.loopSteps) + .000001);
+                const remaining = preview.origin + (cycle + 1) * this.loopSteps * stepSeconds - Math.max(start, owner.host.context().currentTime + .001);
+                const release = Math.min(options.releaseSeconds ?? (preview.state.instrument === 'strings' ? .25 : .16), remaining / 4);
+                return voice(pitch, velocity, start, Math.min(duration, Math.max(.001, remaining - release)), { ...options, releaseSeconds: release });
+            };
+            return preview;
+        }
+        async startLoop() {
+            this.stopLoop();
+            if (!this.opened) return;
+            const request = this.request;
+            this.loading = true;
+            this.syncLoop();
+            this.status('Loading the chord edit loop…');
+            try {
+                await this.owner.ready();
+                if (!this.opened || request !== this.request) return;
+                const state = theory.chordEditLoop(this.owner.state, this.owner.length(), this.index, this.loopSteps);
+                await this.owner.piano.ensure(theory.events(state, this.loopSteps));
+                if (!this.opened || request !== this.request) return;
+                this.preview ||= this.createPreview();
+                this.preview.state = state;
+                this.preview.start(this.owner.host.context().currentTime + .06);
+                this.status(`Looping Q from step ${this.index + 1} for ${this.loopSteps} steps. Changes use this same sound and effects; Undo restores prior notes.`);
+            } finally {
+                if (request === this.request) { this.loading = false; this.syncLoop(); }
+            }
+        }
+        syncLoop(position) {
+            if (!this.overlay) return;
+            const playing = this.preview?.running === true;
+            const button = this.overlay.querySelector('#qChordLoopToggle');
+            button.textContent = playing || this.loading ? 'Stop loop' : 'Start loop';
+            button.classList.toggle('q-chord-loop-playing', playing || this.loading);
+            button.setAttribute('aria-pressed', String(playing));
+            const end = (this.index + this.loopSteps - 1) % this.owner.length();
+            this.overlay.querySelector('#qChordLoopPosition').textContent = `From ${this.index + 1} · ${this.loopSteps} steps · last ${end + 1}${Number.isInteger(position) && playing ? ` · Q step ${(this.index + position) % this.owner.length() + 1}` : ''}`;
+        }
+        render() {
+            if (!this.opened) return;
+            const step = this.step();
+            if (!step?.notes?.length || step.rest) { this.close({ resume: false }); return; }
+            const pitches = this.drag?.draft || step.notes;
+            const name = theory.identifyChord(pitches, step.root).name;
+            this.overlay.querySelector('#qChordEditorTitle').textContent = `Q · Chord at step ${this.index + 1}`;
+            this.overlay.querySelector('#qChordEditorName').textContent = name + (this.owner.state.transpose ? ` · sounds as ${theory.identifyChord(theory.transposed(pitches, this.owner.state.transpose)).name}` : '');
+            const notes = this.overlay.querySelector('.q-chord-pitch-notes');
+            if (notes.children.length !== pitches.length) {
+                notes.replaceChildren();
+                for (let index = 0; index < pitches.length; index += 1) {
+                    const button = document.createElement('button');
+                    button.type = 'button'; button.dataset.qNoteIndex = String(index); button.setAttribute('role', 'option'); notes.append(button);
+                }
+            }
+            for (const [index, note] of [...notes.children].entries()) {
+                note.textContent = theory.noteName(pitches[index]);
+                note.style.top = `${(108 - pitches[index]) * this.rowHeight()}px`;
+                note.style.left = `${index * 100 / pitches.length}%`;
+                note.style.width = `${100 / pitches.length}%`;
+                note.setAttribute('aria-selected', String(this.selected === index));
+                note.setAttribute('aria-label', `${theory.noteName(pitches[index])}, voice ${index + 1}; Up or Down changes pitch`);
+                note.tabIndex = this.selected === index ? 0 : -1;
+            }
+        }
+        commit(pitches, selectedPitch) {
+            if (!this.opened) return;
+            try {
+                if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish before editing a note.');
+                const replacement = theory.editChordNotes(this.step(), pitches, this.owner.state.transpose);
+                if (this.step().notes.join(',') === replacement.notes.join(',')) { this.render(); return; }
+                const edit = () => {
+                    this.owner.state.sequence[this.index] = replacement;
+                    this.owner.state.selection = theory.copy(replacement);
+                    this.owner.changed({ reschedule: false });
+                };
+                if (root.mygrainCardHistory) root.mygrainCardHistory.run('Q chord notes', edit); else edit();
+                this.selected = Math.max(0, replacement.notes.indexOf(selectedPitch));
+                this.render();
+                if (document.activeElement?.matches('[data-q-note-index]')) this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`)?.focus({ preventScroll: true });
+                this.revealSelected();
+                this.status(`${theory.identifyChord(replacement.notes, replacement.root).name} · saved. Undo restores the previous voicing.`);
+                if (this.preview?.running || this.loading) return this.startLoop();
+            } catch (error) { this.render(); throw error; }
+        }
+        move(action) {
+            if (!this.opened || this.drag) return;
+            const step = this.step(), delta = action.endsWith('down') ? -1 : 1;
+            const pitches = step.notes.map((pitch, index) => pitch + (action.startsWith('chord-') || index === this.selected ? delta : 0));
+            return this.commit(pitches, pitches[this.selected]);
+        }
+    }
+
     class Controller {
         constructor(host) {
             this.host = host;
@@ -478,7 +772,7 @@
         hasSequence() { return this.state.sequence.slice(0, this.length()).some(step => step?.notes?.length && !step.rest); }
         liveRecording() { return this.state.record && this.state.recordMode === 'live'; }
         playable() { return this.state.enabled && (this.hasSequence() || this.liveRecording()); }
-        hasAudio() { return this.running || Boolean(this.preview) || this.voices.size > 0 || (this.host.context()?.currentTime || 0) < (this.tailUntil || 0); }
+        hasAudio() { return this.running || Boolean(this.preview) || this.voices.size > 0 || this.chordEditor?.preview?.hasAudio() || (this.host.context()?.currentTime || 0) < (this.tailUntil || 0); }
 
         setEnabled(enabled, options = {}) {
             this.state.enabled = Boolean(enabled);
@@ -489,6 +783,7 @@
         }
 
         restore(state, options = {}) {
+            this.chordEditor?.close({ resume: false });
             this.stop();
             this.state = theory.normalizeState(state);
             this.piano.select(this.state.instrument);
@@ -748,6 +1043,7 @@
         }
 
         stop() {
+            this.chordEditor?.onOwnerStop();
             this.generation += 1;
             this.running = false;
             this.stopPreview();
@@ -1267,6 +1563,7 @@
         }
 
         close() {
+            this.chordEditor?.close({ resume: false });
             const overlay = document.getElementById('bastardLoopQOverlay');
             if (!overlay.hidden) root.guardSectionJumpAfterOverlayClose?.();
             overlay.hidden = true;
@@ -1330,10 +1627,12 @@
             document.getElementById('bastardLoopQSelected').textContent = selected ? `Selected chord: ${theory.noteName(selected.root)} ${selected.type} · ${selected.notes.map(theory.noteName).join(' – ')}` : 'Chord builder active. Choose a palette chord or use the controls below.';
             const grid = document.getElementById('bastardLoopQStepGrid');
             this.livePlayheadPosition = null;
-            grid.replaceChildren();
+            const gridFingerprint = JSON.stringify(this.state.sequence.slice(0, this.length()));
+            const rebuildGrid = gridFingerprint !== this.gridFingerprint || grid.children.length !== this.length();
+            if (rebuildGrid) grid.replaceChildren();
             for (let index = 0; index < this.length(); index += 1) {
                 const step = this.state.sequence[index];
-                const button = document.createElement('button');
+                const button = rebuildGrid ? document.createElement('button') : grid.children[index];
                 button.type = 'button';
                 button.className = 'performance-btn q-step';
                 button.dataset.qStep = String(index);
@@ -1342,9 +1641,10 @@
                 button.setAttribute('aria-pressed', String(index === this.cursor));
                 const shortType = step?.type?.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug').replace(/dominant/g, '');
                 button.textContent = `${index + 1}\n${!step || step.kind === 'accent' ? '—' : step.rest ? 'REST' : `${theory.noteName(step.root)} ${shortType}`}${step?.accent ? ' !' : ''}${step?.tie ? ' ~' : ''}${step?.ratchet > 1 ? ` ×${step.ratchet}` : ''}`;
-                button.title = step?.kind === 'accent' ? 'Accent only: boosts notes and arpeggios sounding through this cell; does not retrigger a chord.' : step ? step.notes.map(theory.noteName).join(' – ') : 'Empty step';
-                grid.append(button);
+                button.title = step?.kind === 'accent' ? 'Accent only: boosts notes and arpeggios sounding through this cell; does not retrigger a chord.' : step ? `${step.notes.map(theory.noteName).join(' – ')}${!step.rest ? ' · Double-click or press E to edit individual notes' : ''}` : 'Empty step';
+                if (rebuildGrid) grid.append(button);
             }
+            this.gridFingerprint = gridFingerprint;
             const palette = document.getElementById('bastardLoopQPalette');
             const fingerprint = JSON.stringify([this.state.tonic, this.scale(), this.state.octave, this.state.chordRoot, this.state.chordType, this.state.inversion, this.state.voicing, this.state.paletteFamilies]);
             if (fingerprint !== this.paletteFingerprint) {
@@ -1491,12 +1791,51 @@
             for (const [index, note] of theory.notes.entries()) {
                 const pitch = document.createElement('button'); pitch.className = 'performance-btn'; pitch.type = 'button'; pitch.dataset.qPitch = String(index); pitch.textContent = note; document.getElementById('bastardLoopQCustomScale').append(pitch);
             }
+            this.chordEditor = new ChordEditor(this);
+            this.chordEditor.mount();
+            const stepGrid = document.getElementById('bastardLoopQStepGrid');
+            // Safari touch clicks do not reliably carry detail=2/pointerType.
+            // Detect two stationary touch releases directly; a scrolling gesture
+            // cancels the pointer and cannot accidentally open a chord.
+            stepGrid.addEventListener('pointerdown', event => {
+                const cell = event.target.closest('[data-q-step]');
+                this.pendingChordTouch = null;
+                this.chordTouchDown = event.pointerType === 'touch' && cell ? { index: Number(cell.dataset.qStep), x: event.clientX, y: event.clientY, pointer: event.pointerId } : null;
+            });
+            stepGrid.addEventListener('pointercancel', () => { this.chordTouchDown = null; this.lastChordTouch = null; this.pendingChordTouch = null; });
+            stepGrid.addEventListener('pointerup', event => {
+                const down = this.chordTouchDown;
+                this.chordTouchDown = null;
+                if (!down || down.pointer !== event.pointerId || this.mark || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 12) return;
+                if (this.lastChordTouch?.index === down.index && event.timeStamp - this.lastChordTouch.time < 500) {
+                    this.lastChordTouch = null;
+                    // Open on the ensuing click, not pointerup: otherwise its
+                    // compatibility click can hit a newly exposed modal control.
+                    this.pendingChordTouch = down.index;
+                } else this.lastChordTouch = { index: down.index, time: event.timeStamp };
+            });
+            stepGrid.addEventListener('dblclick', event => {
+                const step = event.target.closest('[data-q-step]');
+                if (step && !this.mark) { event.preventDefault(); this.task(() => this.chordEditor.open(Number(step.dataset.qStep))); }
+            });
+            stepGrid.addEventListener('keydown', event => {
+                if (event.key.toLowerCase() !== 'e' || this.mark) return;
+                const step = event.target.closest('[data-q-step]');
+                if (step) { event.preventDefault(); this.task(() => this.chordEditor.open(Number(step.dataset.qStep))); }
+            });
             const handleClick = event => {
                 const target = event.target.closest('button');
                 if (!target) return;
                 if (target.dataset.qAction) this.task(() => this.action(target.dataset.qAction));
                 if (target.dataset.qStep !== undefined) {
                     const index = Number(target.dataset.qStep);
+                    if (this.chordEditor.opened) return;
+                    const doubleTouch = this.pendingChordTouch === index;
+                    this.pendingChordTouch = null;
+                    if (!this.mark && (doubleTouch || event.detail >= 2)) {
+                        this.task(() => this.chordEditor.open(index));
+                        return;
+                    }
                     if (this.mark?.type === 'paste') this.paste(index);
                     else this.stepClicked(index);
                 }
@@ -1549,7 +1888,7 @@
         }
     }
 
-    const api = { Piano, Controller, createKeyboardPlayer: host => new KeyboardPlayer(host) };
+    const api = { Piano, Controller, ChordEditor, createKeyboardPlayer: host => new KeyboardPlayer(host) };
     if (typeof module === 'object' && module.exports) module.exports = api;
     root.MygrainQ = api;
     if (root.document?.getElementById('bastardLoopQCard')) {

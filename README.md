@@ -1,6 +1,16 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Q individual-chord editor (Q.10)
+
+Build `v2026.10.22.Q.10` adds a separate editor: double-click a populated chord in Q's sequence grid (double-tap on touch screens, or focus the cell and press E). Drag an individual note vertically, or select it and use Up/Down or the Note buttons. Left/Right selects another voice. Chord −/+ transposes every note by one semitone. The chord name updates immediately; unrecognised pitch sets are labelled Custom rather than given a guessed chord. Existing gate, velocity, accents, ties and ratchets are retained. Dragging commits once on release, so one Undo restores the preceding voicing; cancelling a drag leaves it untouched.
+
+Opening automatically auditions **Q only**, from the selected chord for **16 steps** by default. The editor's Loop steps field accepts 1–256; regions crossing the pattern end wrap through its beginning. It uses Q's actual piano/strings source, rate, arpeggio and effects. Notes are released at the selected loop boundary. The region is temporary and never changes saved sequence length, other layers, Song parts or portable exports. Close exits the edit loop and resumes previously running Q at its original clock; explicit Stop All cancels that resume. Closing while samples load cannot start a late loop.
+
+All new controls remain inside the separate modal, with no new Q workbench buttons. Changes use the existing account/device-scoped Undo/Redo journal. Song snapshots exclude the transient editor field; source, Song and history formats remain unchanged.
+
+Focused regression: `node --test tests/q-individual-chord.test.cjs`. Real input/audio checks: run `python3 tests/song-beta-test-server.py 18891`, then `Q_CHORD_ENGINE=chromium node tests/q-individual-chord-browser.cjs` and `Q_CHORD_ENGINE=webkit Q_CHORD_EVIDENCE=/tmp/mygrain-q-chord-webkit node tests/q-individual-chord-browser.cjs`. These use disposable local accounts, real piano/strings audio and desktop/phone emulation, including narrow portrait and landscape layouts; no physical iPhone verification is implied.
+
 ## Editable patterns alongside WAV renders (WAV.1)
 
 Build `v2026.10.22.WAV.1` adds **Save editable pattern with WAV**, off by default, beside Export Bars. **Export Final Mix to Repo** saves the WAV and its complete portable pattern together; only WAV Browser entries with a valid associated export gain **Import Pattern**. Existing WAVs and unpaired uploads retain their previous controls. **Export WAV** instead downloads the WAV plus a matching `.pattern.zip`; the existing Import ZIP action accepts these complete pattern snapshots as well as the older preset ZIP format.

@@ -43,6 +43,45 @@
         return Object.keys(qualities).find(name => qualities[name].join(',') === intervals.join(',')) || 'scale chord';
     }
 
+    // Exact pitch-class matching also recognizes inversions and doubled octaves.
+    // Unknown voicings stay custom rather than receiving a misleading major label.
+    function identifyChord(pitches, preferredRoot) {
+        const sorted = [...new Set(pitches)].sort((a, b) => a - b);
+        if (!sorted.length) throw new Error('Choose at least one note.');
+        const classes = [...new Set(sorted.map(pitchClass))].sort((a, b) => a - b);
+        const bass = sorted[0], roots = [...new Set([...(Number.isInteger(preferredRoot) ? [pitchClass(preferredRoot)] : []), pitchClass(bass), ...classes])];
+        for (const rootClass of roots) for (const [type, intervals] of Object.entries(qualities)) {
+            const expected = [...new Set(intervals.map(interval => (interval + rootClass) % 12))].sort((a, b) => a - b);
+            if (expected.join(',') !== classes.join(',')) continue;
+            let rootNote = bass - ((pitchClass(bass) - rootClass + 12) % 12);
+            if (rootNote < 21) rootNote += 12;
+            const inversion = [...new Set(intervals.map(pitchClass))].indexOf((pitchClass(bass) - rootClass + 12) % 12);
+            const rootName = notes[rootClass].split('/')[0], bassName = notes[pitchClass(bass)].split('/')[0];
+            const quality = type.replace(/([a-z])([A-Z])/g, '$1 $2').replace('dominant', 'dominant ');
+            return { root: rootNote, type, inversion: Math.max(0, inversion), name: `${rootName} ${quality}${pitchClass(bass) !== rootClass ? ` / ${bassName}` : ''}` };
+        }
+        return { root: bass, type: 'custom', inversion: 0, name: `Custom · ${classes.map(value => notes[value].split('/')[0]).join(' – ')}` };
+    }
+
+    function editChordNotes(step, pitches, transpose = 0) {
+        if (!step?.notes?.length || step.rest || !Array.isArray(pitches) || !pitches.length || pitches.length > 8 || pitches.some(pitch => !Number.isInteger(pitch) || pitch < 21 || pitch > 108)) throw new Error('Keep notes in the piano range A0–C8.');
+        if (new Set(pitches).size !== pitches.length) throw new Error('That pitch is already used by another note.');
+        transposed(pitches, transpose);
+        const sorted = pitches.slice().sort((a, b) => a - b);
+        const { root, type, inversion } = identifyChord(sorted, step.root);
+        return { ...copy(step), notes: sorted, root, type, inversion, voicing: 'close' };
+    }
+
+    function chordEditLoop(state, patternLength, start, steps) {
+        if (!Number.isInteger(patternLength) || patternLength < 1 || patternLength > 64 || !Number.isInteger(start) || start < 0 || start >= patternLength || !Number.isInteger(steps) || steps < 1 || steps > 256) throw new Error('Choose a loop length from 1 to 256 steps.');
+        const loop = copy(state);
+        loop.enabled = true;
+        loop.record = false;
+        loop.selection = null;
+        loop.sequence = Array.from({ length: Math.max(64, steps) }, (_, index) => index < steps ? copy(state.sequence[(start + index) % patternLength] || null) : null);
+        return loop;
+    }
+
     function scaleChords(tonic, intervals, octave, size = 3) {
         if (!Array.isArray(intervals) || intervals.length < 3) return [];
         const base = (octave + 1) * 12 + tonic;
@@ -331,7 +370,7 @@
         return new Uint8Array([77, 84, 104, 100, 0, 0, 0, 6, 0, 0, 0, 1, 1, 224, 77, 84, 114, 107, ...[24, 16, 8, 0].map(shift => (track.length >> shift) & 255), ...track]);
     }
 
-    const api = { notes, qualities, instruments, stringSections, clamp, copy, pitchClass, noteName, chord, scaleChords, chordPalette, normalizeStep, defaults, normalizeState, sampleEnvelope, validArpSteps, accentGain, transposed, effectiveVelocity, events, arpOrder, arpPhrase, arpSequence, playbackEvents, sampleFor, sampleMidi, sampleVelocity, sampleIdentity, validateBank, midiFile };
+    const api = { notes, qualities, instruments, stringSections, clamp, copy, pitchClass, noteName, chord, identifyChord, editChordNotes, chordEditLoop, scaleChords, chordPalette, normalizeStep, defaults, normalizeState, sampleEnvelope, validArpSteps, accentGain, transposed, effectiveVelocity, events, arpOrder, arpPhrase, arpSequence, playbackEvents, sampleFor, sampleMidi, sampleVelocity, sampleIdentity, validateBank, midiFile };
     if (typeof module === 'object' && module.exports) module.exports = api;
     root.MygrainQTheory = api;
 })(typeof window === 'object' ? window : globalThis);
