@@ -61,3 +61,37 @@ test('piano and string voices release by the edit-loop boundary, even for long g
   p.voice(60,96,10.375,8,{grid:true,stepSeconds:.125});assert(stops.length);assert(stops.at(-1)<=10.5+.000001);
  }
 });
+
+test('temporary muting affects only the edited source cell, with transpose and longer-loop repeats',()=>{
+ const owner=new Controller({context:()=>({currentTime:0}),length:()=>64,bpm:()=>120});
+ owner.state.transpose=2;
+ for(const index of [8,12])owner.state.sequence[index]=theory.normalizeStep({notes:[60,64,67],root:60});
+ const before=JSON.stringify(owner.getState()),editor=new ChordEditor(owner);editor.index=8;editor.loopSteps=128;editor.mutedNotes=new Set([64]);
+ const preview=editor.createPreview();preview.state=theory.chordEditLoop(owner.state,64,8,128);
+ assert.deepEqual(preview.timeline().map(e=>[e.index,e.notes]),[[0,[62,69]],[4,[62,66,69]],[64,[62,69]],[68,[62,66,69]]]);
+ editor.mutedNotes=new Set([60,64,67]);
+ assert.deepEqual(preview.timeline().filter(e=>e.index%64===0).map(e=>e.notes),[[],[]]);
+ assert.equal(preview.playable(),true,'muting all voices must not stop the section clock');
+ editor.mutedNotes=new Set();assert(preview.timeline().every(e=>e.notes.length===3));
+ assert.equal(JSON.stringify(owner.getState()),before);
+});
+
+test('muting preserves custom ARP pulse times and slots instead of renumbering the remaining notes',()=>{
+ const owner=new Controller({context:()=>({currentTime:0}),length:()=>64,bpm:()=>120});
+ Object.assign(owner.state,{arpEnabled:true,arpPattern:'custom',arpSteps:[1,2,0,3],arpRepeat:'until-next'});
+ owner.state.sequence[8]=theory.normalizeStep({notes:[60,64,67],root:60});
+ const editor=new ChordEditor(owner);editor.index=8;editor.loopSteps=4;
+ const preview=editor.createPreview();preview.state=theory.chordEditLoop(owner.state,64,8,4);
+ const original=preview.timeline();editor.mutedNotes=new Set([64]);const muted=preview.timeline();
+ assert.deepEqual(muted.map(e=>e.start),original.map(e=>e.start));
+ assert.deepEqual(muted.map(e=>e.notes),[[60],[],[67]]);
+ assert(original.some(e=>e.notes.includes(64)),'the original cached timeline remains intact');
+});
+
+test('removing a note keeps the other pitches and chord performance settings',()=>{
+ const step=theory.normalizeStep({notes:[60,64,67],root:60,velocity:87,gate:8,accent:true,tie:true,ratchet:2});
+ const two=theory.editChordNotes(step,[60,67]),one=theory.editChordNotes(two,[67]);
+ assert.deepEqual(two.notes,[60,67]);assert.deepEqual(one.notes,[67]);
+ for(const key of ['velocity','gate','accent','tie','ratchet'])assert.equal(one[key],step[key]);
+ assert.deepEqual(step.notes,[60,64,67]);
+});

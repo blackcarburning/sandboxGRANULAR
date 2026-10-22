@@ -1,6 +1,14 @@
 # sandboxGRANULAR
 Web based granular synth
 
+## Q note audition muting and deletion (Q.12)
+
+Build `v2026.10.22.Q.12` adds double-click / double-tap muting inside the individual-chord editor. Muted notes have dashed outlines and struck-through labels; repeat the gesture to unmute. This is audition-only: closing the editor unmutes every remaining note, with no saved-state, Song/export or history changes. Other chords with the same pitch are unaffected. Muting every note still leaves the whole-pattern section loop running; ARP pulse timing/order remains intact.
+
+**Delete Note** permanently removes the selected note (also Delete / Backspace). Chord naming updates, remaining notes and performance settings are retained, and each deletion is one Undo/Redo step. Deleting the final note removes the chord and closes the editor. Temporary mute follows its voice through dragging, pitch changes and whole-chord transpose; permanent deletion survives reload. All controls stay inside the separate editor.
+
+Real-input/audio checks: `node tests/q-note-mute-delete-browser.cjs` against the disposable `python3 tests/song-beta-test-server.py 18891` server, Chromium/WebKit desktop and phone emulation. `Q_NOTE_ENGINE` selects an engine; `Q_NOTE_EVIDENCE` selects the evidence directory.
+
 ## Q individual-chord editor and whole-pattern section loop (Q.11)
 
 Build `v2026.10.22.Q.11` keeps the separate Q.10 chord editor: double-click a populated chord in Q's sequence grid (double-tap on touch screens, or focus the cell and press E). Drag an individual note vertically, or select it and use Up/Down or the Note buttons. Left/Right selects another voice. Chord −/+ transposes every note by one semitone. The chord name updates immediately; unrecognised pitch sets are labelled Custom rather than given a guessed chord. Existing gate, velocity, accents, ties and ratchets are retained. Dragging commits once on release, so one Undo restores the preceding voicing; cancelling a drag leaves it untouched.

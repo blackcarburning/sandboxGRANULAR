@@ -561,6 +561,7 @@
             this.loopSteps = 16;
             this.selected = 0;
             this.request = 0;
+            this.mutedNotes = new Set();
         }
 
         step() { return this.owner.state.sequence[this.index]; }
@@ -578,10 +579,11 @@
             overlay.setAttribute('aria-hidden', 'true');
             overlay.innerHTML = `<section class="q-chord-editor-shell" role="dialog" aria-modal="true" aria-labelledby="qChordEditorTitle">
                 <header class="sample-browser-head"><div><h3 id="qChordEditorTitle">Q · Individual chord</h3><div id="qChordEditorName" aria-live="polite"></div></div><button type="button" id="qChordEditorClose">Close</button></header>
-                <p class="q-chord-editor-help">Drag a note up/down, or select it and use ↑ / ↓. Edits save on release. Whole-chord transpose keeps every note together.</p>
+                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Double-click / double-tap a note to mute or unmute it; Close unmutes all. Delete Note removes the selected note permanently; Undo restores it.</p>
                 <div class="q-chord-editor-tools" aria-label="Note and whole-chord editing">
                     <button type="button" data-q-note-action="down">Note ↓</button><button type="button" data-q-note-action="up">Note ↑</button>
                     <button type="button" data-q-note-action="chord-down">Chord −</button><button type="button" data-q-note-action="chord-up">Chord +</button>
+                    <button type="button" data-q-note-action="delete">Delete Note</button>
                 </div>
                 <div id="qChordEditorNotes" class="q-chord-pitch-scroll" role="listbox" aria-label="Individual chord notes; Up and Down move the selected note"><div class="q-chord-pitch-roll"><div class="q-chord-pitch-labels" aria-hidden="true"></div><div class="q-chord-pitch-notes"></div></div></div>
                 <div class="q-chord-loop-controls"><label for="qChordLoopSteps">Loop steps<input type="number" id="qChordLoopSteps" min="1" max="256" step="1" inputmode="numeric" value="16"></label><button type="button" id="qChordLoopToggle">Start loop</button><span id="qChordLoopPosition"></span></div>
@@ -621,6 +623,9 @@
             overlay.addEventListener('keydown', event => {
                 event.stopPropagation();
                 if (event.key === 'Escape') { event.preventDefault(); this.close(); return; }
+                if (['Delete', 'Backspace'].includes(event.key) && !event.target.matches('input, select, textarea')) {
+                    event.preventDefault(); this.task(() => this.deleteNote()); return;
+                }
                 if (['ArrowUp', 'ArrowDown'].includes(event.key) && !event.target.matches('input, select, textarea')) {
                     event.preventDefault(); this.task(() => this.move(event.key === 'ArrowUp' ? 'up' : 'down')); return;
                 }
@@ -642,7 +647,7 @@
                 if (!note || event.button !== 0 || this.drag) return;
                 event.preventDefault();
                 this.selected = Number(note.dataset.qNoteIndex);
-                this.drag = { pointer: event.pointerId, note, y: event.clientY, scroll: this.scroller.scrollTop, notes: this.step().notes.slice(), draft: this.step().notes.slice() };
+                this.drag = { pointer: event.pointerId, note, index: this.selected, x: event.clientX, y: event.clientY, scroll: this.scroller.scrollTop, notes: this.step().notes.slice(), draft: this.step().notes.slice() };
                 note.setPointerCapture(event.pointerId);
                 note.focus({ preventScroll: true });
                 this.render();
@@ -651,6 +656,7 @@
                 const drag = this.drag;
                 if (!drag || drag.pointer !== event.pointerId) return;
                 event.preventDefault();
+                if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 10) drag.moved = true;
                 const bounds = this.scroller.getBoundingClientRect();
                 if (event.clientY < bounds.top + 24) this.scroller.scrollTop -= 14;
                 if (event.clientY > bounds.bottom - 24) this.scroller.scrollTop += 14;
@@ -664,10 +670,22 @@
                 if (!drag || drag.pointer !== event.pointerId) return;
                 this.drag = null;
                 if (drag.note.hasPointerCapture(event.pointerId)) drag.note.releasePointerCapture(event.pointerId);
-                if (event.type === 'pointerup' && drag.notes.join(',') !== drag.draft.join(',')) this.task(() => this.commit(drag.draft, drag.draft[this.selected]));
-                else this.render();
+                if (event.type === 'pointerup' && drag.notes.join(',') !== drag.draft.join(',')) {
+                    this.lastNoteTap = null;
+                    this.task(() => this.commit(drag.draft, drag.draft[this.selected]));
+                } else {
+                    this.render();
+                    // Pointer releases also work on Safari where prevented touch
+                    // gestures do not reliably produce native dblclick events.
+                    if (event.type !== 'pointerup' || drag.moved || Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 10) { this.lastNoteTap = null; return; }
+                    if (this.lastNoteTap?.index === drag.index && event.timeStamp - this.lastNoteTap.time < 500) {
+                        this.lastNoteTap = null;
+                        this.task(() => this.toggleMute(drag.index));
+                    } else this.lastNoteTap = { index: drag.index, time: event.timeStamp };
+                }
             };
             for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) this.scroller.addEventListener(type, release);
+            this.scroller.addEventListener('dblclick', event => event.preventDefault());
             root.addEventListener('blur', () => this.cancelDrag());
             root.addEventListener('resize', () => this.syncViewport());
             root.visualViewport?.addEventListener('resize', () => this.syncViewport());
@@ -691,6 +709,7 @@
         cancelDrag() {
             const drag = this.drag;
             this.drag = null;
+            this.lastNoteTap = null;
             if (drag?.note.hasPointerCapture(drag.pointer)) drag.note.releasePointerCapture(drag.pointer);
             if (this.opened) this.render();
         }
@@ -700,6 +719,8 @@
             if (root.mygrainSongBeta?.busy || root.mygrainSongBeta?.playing || root.mygrainSongBeta?.editing || root.mygrainCardHistory?.busy || root.mygrainAiPatch?.busy) throw new Error('Finish the current Song, AI or Undo/Redo operation before editing a chord.');
             if (this.opened) this.close({ resume: false });
             this.index = index;
+            this.mutedNotes = new Set();
+            this.lastNoteTap = null;
             this.owner.lastChordTouch = null;
             this.selected = 0;
             this.owner.cursor = index;
@@ -721,8 +742,9 @@
         }
         close(options = {}) {
             if (!this.opened) return;
-            this.cancelDrag();
             this.opened = false;
+            this.cancelDrag();
+            this.mutedNotes = new Set();
             this.owner.lastChordTouch = null;
             this.stopLoop();
             this.overlay.hidden = true;
@@ -760,6 +782,21 @@
             preview.status = message => this.status(message);
             preview.reflectPlaying = () => {};
             preview.updatePlayhead = position => this.syncLoop(position);
+            const timeline = preview.timeline.bind(preview);
+            let source, muted, filtered;
+            preview.timeline = () => {
+                const events = timeline();
+                if (source !== events || muted !== this.mutedNotes) {
+                    source = events;
+                    muted = this.mutedNotes;
+                    // Filter the edited source cell only (including repeats of
+                    // that cell), after ARP expansion so its rhythm is retained.
+                    // Empty events retain the clock even with every note muted.
+                    filtered = muted.size ? events.map(event => event.index % owner.length() === 0
+                        ? { ...event, notes: event.notes.filter(pitch => !muted.has(pitch - preview.state.transpose)) } : event) : events;
+                }
+                return filtered;
+            };
             const voice = preview.voice.bind(preview);
             preview.voice = (pitch, velocity, start, duration, options = {}) => {
                 const stepSeconds = 60 / owner.host.bpm() / 4 / preview.state.rate;
@@ -819,30 +856,67 @@
                 }
             }
             for (const [index, note] of [...notes.children].entries()) {
+                const muted = this.mutedNotes.has(step.notes[index]);
                 note.textContent = theory.noteName(pitches[index]);
+                note.classList.toggle('q-chord-note-muted', muted);
                 note.style.top = `${(108 - pitches[index]) * this.rowHeight()}px`;
                 note.style.left = `${index * 100 / pitches.length}%`;
                 note.style.width = `${100 / pitches.length}%`;
                 note.setAttribute('aria-selected', String(this.selected === index));
-                note.setAttribute('aria-label', `${theory.noteName(pitches[index])}, voice ${index + 1}; Up or Down changes pitch`);
+                note.setAttribute('aria-label', `${theory.noteName(pitches[index])}, voice ${index + 1}${muted ? ', muted' : ''}; double-click to ${muted ? 'unmute' : 'mute'}; Up or Down changes pitch; Delete removes note`);
+                note.title = muted ? 'Muted until Close · double-click / double-tap to unmute' : 'Double-click / double-tap to mute until Close';
                 note.tabIndex = this.selected === index ? 0 : -1;
             }
         }
-        commit(pitches, selectedPitch) {
+        toggleMute(index) {
+            if (!this.opened || this.drag) return;
+            const pitch = this.step().notes[index];
+            if (!Number.isInteger(pitch)) return;
+            const muted = new Set(this.mutedNotes);
+            if (muted.has(pitch)) muted.delete(pitch); else muted.add(pitch);
+            this.mutedNotes = muted;
+            this.render();
+            this.status(`${theory.noteName(pitch)} ${muted.has(pitch) ? 'muted' : 'unmuted'} for audition only. Close unmutes all notes; saved notes are unchanged.`);
+            if (this.preview?.running || this.loading) return this.startLoop();
+        }
+        deleteNote() {
+            if (!this.opened || this.drag) return;
+            if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish before deleting a note.');
+            const pitches = this.step().notes;
+            this.lastNoteTap = null;
+            if (pitches.length > 1) {
+                const indices = pitches.map((_, index) => index).filter(index => index !== this.selected);
+                const remaining = indices.map(index => pitches[index]);
+                return this.commit(remaining, remaining[Math.min(this.selected, remaining.length - 1)], indices);
+            }
+            const edit = () => {
+                this.owner.state.sequence[this.index] = null;
+                this.owner.state.selection = null;
+                this.close();
+                this.owner.changed();
+            };
+            if (root.mygrainCardHistory) root.mygrainCardHistory.run('Q delete last note', edit); else edit();
+            this.owner.status('Last note deleted; chord removed. Undo restores it.');
+        }
+        commit(pitches, selectedPitch, sourceIndices = pitches.map((_, index) => index)) {
             if (!this.opened) return;
             try {
                 if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish before editing a note.');
                 const replacement = theory.editChordNotes(this.step(), pitches, this.owner.state.transpose);
                 if (this.step().notes.join(',') === replacement.notes.join(',')) { this.render(); return; }
+                const focusNote = document.activeElement?.matches('[data-q-note-index]');
+                const muted = new Set(pitches.filter((_, index) => this.mutedNotes.has(this.step().notes[sourceIndices[index]])));
                 const edit = () => {
                     this.owner.state.sequence[this.index] = replacement;
                     this.owner.state.selection = theory.copy(replacement);
                     this.owner.changed({ reschedule: false });
                 };
-                if (root.mygrainCardHistory) root.mygrainCardHistory.run('Q chord notes', edit); else edit();
+                if (root.mygrainCardHistory) root.mygrainCardHistory.run(pitches.length < this.step().notes.length ? 'Q delete note' : 'Q chord notes', edit); else edit();
+                this.mutedNotes = muted;
+                this.lastNoteTap = null;
                 this.selected = Math.max(0, replacement.notes.indexOf(selectedPitch));
                 this.render();
-                if (document.activeElement?.matches('[data-q-note-index]')) this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`)?.focus({ preventScroll: true });
+                if (focusNote) this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`)?.focus({ preventScroll: true });
                 this.revealSelected();
                 this.status(`${theory.identifyChord(replacement.notes, replacement.root).name} · saved. Undo restores the previous voicing.`);
                 if (this.preview?.running || this.loading) return this.startLoop();
@@ -850,6 +924,7 @@
         }
         move(action) {
             if (!this.opened || this.drag) return;
+            if (action === 'delete') return this.deleteNote();
             const step = this.step(), delta = action.endsWith('down') ? -1 : 1;
             const pitches = step.notes.map((pitch, index) => pitch + (action.startsWith('chord-') || index === this.selected ? delta : 0));
             return this.commit(pitches, pitches[this.selected]);
