@@ -115,6 +115,7 @@
             this.songs = [];
             this.cache = new Map();
             this.snapshots = new Map();
+            this.partManifests = false;
             this.renders = new Map();
             this.renderSources = new Map();
             this.renderLoads = new Map();
@@ -511,6 +512,7 @@
             this.cancel(true);
             this.editing = null;
             this.songs = payload.songs;
+            this.partManifests = payload.features?.partManifests === 1;
             const previous = this.song?.id;
             this.song = this.songs.find(song => song.id === selected) || null;
             this.revisionConflict = false;
@@ -540,6 +542,7 @@
             this.loopClipboard = null;
             this.storage.setItem('mygrain-song-library-key-v1', this.key);
             this.songs = payload.songs;
+            this.partManifests = payload.features?.partManifests === 1;
             this.song = this.songs.find(song => song.id === access.songId) || this.songs[0] || null;
             this.storage.setItem('mygrain-song-selected-v1', this.song?.id || '');
             this.editing = null;
@@ -668,6 +671,20 @@
                 this.snapshots.set(sourceId(part), { snapshot: info.snapshot, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
                 return { body, ...info, releaseDownload };
             } catch (error) { releaseDownload(); throw error; }
+        }
+
+        async readPartMetadata(part, generation = this.generation) {
+            if (!this.partManifests || !this.adapter.inspectSnapshot) return this.readPart(part, generation);
+            if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+            this.armStage(generation, 'Checking saved-part metadata', part);
+            const payload = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/manifest?sha256=${part.sha256}`, { signal: this.abort?.signal });
+            if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+            if (payload.format !== 'mygrain-song-part-manifest' || payload.version !== 1 || payload.sourceSha256 !== part.sha256) {
+                throw new Error(`Saved metadata integrity check failed for ${part.name}. Refresh Songs and arm again.`);
+            }
+            const info = this.adapter.inspectSnapshot(payload.snapshot);
+            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
+            return info;
         }
 
         async loadPart(part, generation = this.generation, inspected = null) {
@@ -881,7 +898,7 @@
                 let releaseRender;
                 try {
                     this.armStage(generation, 'Checking saved-part compatibility', part);
-                    info = await this.readPart(part, generation);
+                    info = await this.readPartMetadata(part, generation);
                     if (!info.upgrade) continue;
                     if (writable) {
                         this.armStage(generation, 'Checking editing access for upgrade', part);
@@ -893,6 +910,12 @@
                     }
                     if (!writable) { pending += 1; continue; }
                     if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+                    // Only genuine legacy upgrades need original WAV bytes.
+                    // Normal/current snapshots and reusable renders use JSON.
+                    if (!info.body) {
+                        info = await this.readPart(part, generation);
+                        if (!info.upgrade) continue;
+                    }
                     const songId = this.song.id;
                     const library = this.key;
                     const expected = { songId, library, revision: this.song.revision, sourceRevision: part.revision || 1, sourceId: sourceId(part), partId: part.id, sha256: part.sha256 };

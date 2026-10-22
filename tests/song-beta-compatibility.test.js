@@ -63,6 +63,33 @@ function removeLane(snapshot, name) {
     delete snapshot.extra.metadata[`bastard${name}`];
 }
 
+test('metadata inspection makes the same compatibility decision without requiring audio bytes', async () => {
+    for (const legacy of [false, true]) {
+        const current = fixture();
+        if (legacy) removeLane(current.snapshot, 'K');
+        const original = JSON.stringify(current.snapshot);
+        const metadata = current.adapter.inspectSnapshot(current.snapshot);
+        const archive = current.adapter.inspectPart(await current.archive());
+        assert.deepEqual(JSON.parse(JSON.stringify(metadata.snapshot)), JSON.parse(JSON.stringify(archive.snapshot)));
+        assert.equal(metadata.decodedBytes, archive.decodedBytes);
+        assert.deepEqual(metadata.upgrade?.lanes, archive.upgrade?.lanes);
+        assert.equal(metadata.upgrade?.entries, undefined);
+        assert.equal(JSON.stringify(current.snapshot), original);
+    }
+});
+
+test('metadata cannot bypass malformed inventories, dimensions or Roll timing checks', () => {
+    for (const mutate of [
+        s => { delete s.extra.audioSlots.bastardKRender; },
+        s => { s.assets[0].frames = -1; },
+        s => { s.extra.sequencerSteps.pop(); },
+        s => { s.state.modes.drumMachineEnabled = true; s.state.modes.drumMachineRoll = {version: 1, length: 32, pattern: Array(32).fill(true), ratchets: Array(32).fill(0)}; s.extra.patternCycleMultiplier = 1; }
+    ]) {
+        const current = fixture(); mutate(current.snapshot);
+        assert.throws(() => current.adapter.inspectSnapshot(current.snapshot));
+    }
+});
+
 test('absent K is normalized without mutation, preserving every original audio byte and capture field', async () => {
     const current = fixture();
     removeLane(current.snapshot, 'K');

@@ -129,6 +129,59 @@ function compatibilityController() {
     return { ...fixture, part, reference, history, requests, renderBytes, snapshot };
 }
 
+test('hash-bound metadata avoids source downloads for compatible cached parts and reuses warm checks', async () => {
+    const {controller} = makeController({upgradePart: async () => {}, inspectSnapshot: snapshot => ({snapshot, decodedBytes: 0, upgrade: null})});
+    controller.partManifests = true;
+    const part = {...first, sha256: 'a'.repeat(64), render: {version: 1, sourceSha256: 'a'.repeat(64)}};
+    controller.song = {id: 'metadata-12345678', parts: [part]};
+    let manifests = 0;
+    controller.readPart = () => assert.fail('Compatible cached renders must not fetch original audio');
+    controller.request = async endpoint => {
+        manifests++;
+        assert.equal(endpoint, `/metadata-12345678/parts/intro/manifest?sha256=${part.sha256}`);
+        return {format: 'mygrain-song-part-manifest', version: 1, sourceSha256: part.sha256, snapshot: {state: {modes: {}}}};
+    };
+    await controller.arm(); await controller.arm();
+    assert.equal(controller.armed, true); assert.equal(manifests, 1);
+});
+
+test('metadata only fast-paths advertised servers and rejects mismatched hashes, schemas and cancellation', async () => {
+    const {controller} = makeController({inspectSnapshot: snapshot => ({snapshot, decodedBytes: 0, upgrade: null})});
+    controller.song = {id: 'metadata-12345678', parts: []};
+    const part = {...first, sha256: 'a'.repeat(64)};
+    let sources = 0;
+    controller.readPart = async () => { sources++; return {body: new ArrayBuffer(0)}; };
+    await controller.readPartMetadata(part); assert.equal(sources, 1);
+    controller.partManifests = true;
+    const good = {format: 'mygrain-song-part-manifest', version: 1, sourceSha256: part.sha256, snapshot: {}};
+    for (const changes of [{sourceSha256: 'b'.repeat(64)}, {version: 2}, {format: 'other'}]) {
+        controller.request = async () => ({...good, ...changes});
+        await assert.rejects(controller.readPartMetadata(part), /metadata integrity check failed/);
+        assert.equal(controller.snapshots.size, 0);
+    }
+    controller.request = async () => { controller.generation++; return good; };
+    await assert.rejects(controller.readPartMetadata(part), {name: 'AbortError'});
+    assert.equal(controller.snapshots.size, 0); assert.equal(sources, 1);
+});
+
+test('a genuine metadata-discovered upgrade still downloads the full archive and uses normal guarded save', async () => {
+    const {controller, snapshot, history} = compatibilityController();
+    controller.partManifests = true;
+    controller.adapter.inspectSnapshot = () => ({snapshot, decodedBytes: 0, upgrade: {lanes: ['K']}});
+    let manifests = 0, sources = 0;
+    const request = controller.request, read = controller.readPart;
+    controller.readPart = async (...args) => { sources++; return read(...args); };
+    controller.request = async (endpoint, options) => {
+        if (endpoint.includes('/manifest?')) {
+            manifests++;
+            return {format: 'mygrain-song-part-manifest', version: 1, sourceSha256: controller.song.parts[0].sha256, snapshot};
+        }
+        return request(endpoint, options);
+    };
+    await controller.arm();
+    assert.equal(controller.armed, true); assert.equal(manifests, 1); assert.equal(sources, 1); assert.equal(history.length, 1);
+});
+
 test('arming upgrades each shared source once through editing and exact save hashes, retaining the original render bytes', async () => {
     const { controller, calls, part, reference, requests, history, renderBytes } = compatibilityController();
     const order = controller.song.parts.map(entry => [entry.id, entry.repeats, entry.colour]);

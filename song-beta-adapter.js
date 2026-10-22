@@ -452,6 +452,15 @@
             const entries = parseStoredZipEntries(arrayBuffer);
             validateSongArchiveEntries(arrayBuffer, entries);
             const original = JSON.parse(getZipText(entries, 'song-part.json') || 'null');
+            const info = adapter.inspectSnapshot(original);
+            validateSongAudioEntries(info.snapshot, entries);
+            if (info.upgrade) info.upgrade.entries = entries;
+            return info;
+        },
+
+        // Metadata-only inspection is for the authenticated, hash-bound server
+        // manifest endpoint. Rendering/recall still validate the full archive.
+        inspectSnapshot(original) {
             if (!original || original.format !== 'mygrain-song-part' || original.version !== 1 || !original.state?.modes || !original.extra || !Array.isArray(original.assets)) {
                 throw new Error('This is not a supported complete song-part snapshot.');
             }
@@ -459,10 +468,9 @@
             validateSongRollCycle(snapshot);
             if (!Array.isArray(snapshot.extra.sequencerSteps) || snapshot.extra.sequencerSteps.length !== Number(snapshot.state.patternLength)) throw new Error('Part sequencer pattern is incomplete.');
             validateSongAudioInventory(snapshot);
-            validateSongAudioEntries(snapshot, entries);
             const decodedBytes = snapshot.assets.reduce((bytes, asset) => bytes + Number(asset.frames) * Number(asset.channels) * 4 * Math.max(1, audioContext.sampleRate / Number(asset.sampleRate)), 0);
             if (!Number.isFinite(decodedBytes) || decodedBytes < 0) throw new Error('Invalid saved song audio dimensions.');
-            return { snapshot, decodedBytes, upgrade: lanes.length ? { lanes, entries } : null };
+            return { snapshot, decodedBytes, upgrade: lanes.length ? { lanes } : null };
         },
 
         upgradePart(info) {
