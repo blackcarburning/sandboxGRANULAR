@@ -95,8 +95,11 @@
     }
 
     function chordPalette(state, intervals) {
+        const bassRoots = state.paletteBassRoots?.length ? state.paletteBassRoots : null;
         const allowed = new Set(intervals.map(interval => (state.tonic + interval) % 12));
-        const roots = intervals.map((interval, index) => ({ root: (state.octave + 1) * 12 + state.tonic + interval, degree: index + 1 }));
+        const roots = bassRoots
+            ? bassRoots.map((pitch, index) => ({ root: (state.octave + 1) * 12 + pitch, degree: index + 1 }))
+            : intervals.map((interval, index) => ({ root: (state.octave + 1) * 12 + state.tonic + interval, degree: index + 1 }));
         const focused = roots.findIndex(item => pitchClass(item.root) === state.chordRoot);
         if (focused > 0) roots.push(...roots.splice(0, focused));
         const result = [];
@@ -110,7 +113,7 @@
                 if (state.paletteFamilies === 'sevenths' && size !== 4) continue;
                 if (state.paletteFamilies === 'extended' && size < 5) continue;
                 const pitches = chord(item.root, type, state.inversion, state.voicing);
-                if (pitches.some(pitch => pitch < 21 || pitch > 108 || !allowed.has(pitchClass(pitch)))) continue;
+                if (pitches.some(pitch => pitch < 21 || pitch > 108 || (!bassRoots && !allowed.has(pitchClass(pitch))))) continue;
                 result.push({ ...item, type, notes: pitches, inversion: Math.min(state.inversion, size - 1), voicing: state.voicing, id: `${item.root}-${type}-${state.inversion}-${state.voicing}` });
             }
         }
@@ -137,7 +140,7 @@
             octave: 3, chordRoot: 0, chordType: 'major', inversion: 0, voicing: 'close', paletteSize: 3,
             transpose: 0, rate: 1, gate: 4, velocity: 96, accentAmount: .25, sampleLength: 1, sampleDecay: 1, record: false, recordMode: 'step',
             selection: null,
-            paletteFamilies: 'all', arpEnabled: false, arpPattern: 'up', arpRepeat: 'once', arpDivision: .25,
+            paletteFamilies: 'all', paletteBassRoots: null, arpEnabled: false, arpPattern: 'up', arpRepeat: 'once', arpDivision: .25,
             arpSteps: [1, 2, 3, 0, 3, 2, 1, 0],
             lowpass: 18000, highpass: 20, room: 0, delay: 0, delayBeats: .5, feedback: .32,
             sequence: Array(64).fill(null), bank: null
@@ -164,6 +167,8 @@
         state.sequence = Array.from({ length: 64 }, (_, index) => normalizeStep(state.sequence?.[index]));
         state.selection = state.selection?.notes?.length ? normalizeStep(state.selection) : null;
         state.paletteFamilies = ['all', 'triads', 'sevenths', 'extended'].includes(state.paletteFamilies) ? state.paletteFamilies : 'all';
+        const bassRoots = Array.isArray(state.paletteBassRoots) ? [...new Set(state.paletteBassRoots.filter(pitch => Number.isInteger(pitch) && pitch >= 0 && pitch < 12))] : [];
+        state.paletteBassRoots = bassRoots.length ? bassRoots : null;
         state.arpEnabled = state.arpEnabled === true;
         state.arpPattern = ['up', 'down', 'updown', 'odds', 'evens', 'custom'].includes(state.arpPattern) ? state.arpPattern : 'up';
         state.arpSteps = validArpSteps(state.arpSteps) ? state.arpSteps.slice() : defaults().arpSteps;

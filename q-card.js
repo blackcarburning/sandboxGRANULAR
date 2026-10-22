@@ -1403,6 +1403,20 @@
 
         palette() { return theory.chordPalette(this.state, this.scale()); }
 
+        setPaletteFromBass(fromBass) {
+            if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish before changing the chord pool.');
+            const roots = fromBass ? [...new Set((this.host.bassNotes?.() || []).filter(Number.isInteger).map(theory.pitchClass))] : null;
+            if (fromBass && !roots.length) throw new Error('Bass X has no playable notes in the current pattern. Add bass notes first.');
+            const edit = () => {
+                this.state.paletteBassRoots = roots;
+                this.state.chordRoot = roots ? roots[0] : this.state.tonic;
+                this.state.selection = null;
+                this.changed({ preserveSamples: true, reschedule: false });
+            };
+            if (root.mygrainCardHistory) root.mygrainCardHistory.run(fromBass ? 'Q pool from bass' : 'Q scale pool', edit); else edit();
+            this.status(roots ? `Chord pool filled from Bass X: ${roots.map(pitch => theory.notes[pitch]).join(', ')}. Tap From Bass again after changing the bass sequence.` : 'Scale-matched chord pool restored.');
+        }
+
         updatePlayhead(position) {
             if (typeof document === 'undefined' || document.hidden || document.getElementById('bastardLoopQOverlay')?.hidden !== false) return false;
             const grid = document.getElementById('bastardLoopQStepGrid');
@@ -1608,6 +1622,7 @@
         }
 
         async action(action) {
+            if (action === 'pool-from-bass' || action === 'pool-from-scale') return this.setPaletteFromBass(action === 'pool-from-bass');
             if (action === 'copy-arp') return this.copyArp();
             if (action === 'arp-builder') return this.arpBuilder.open();
             if (action === 'edit') return this.open();
@@ -1832,7 +1847,7 @@
             }
             this.gridFingerprint = gridFingerprint;
             const palette = document.getElementById('bastardLoopQPalette');
-            const fingerprint = JSON.stringify([this.state.tonic, this.scale(), this.state.octave, this.state.chordRoot, this.state.chordType, this.state.inversion, this.state.voicing, this.state.paletteFamilies]);
+            const fingerprint = JSON.stringify([this.state.tonic, this.scale(), this.state.octave, this.state.chordRoot, this.state.chordType, this.state.inversion, this.state.voicing, this.state.paletteFamilies, this.state.paletteBassRoots]);
             if (fingerprint !== this.paletteFingerprint) {
                 this.paletteFingerprint = fingerprint;
                 this.playingFingerprint = null;
@@ -1862,7 +1877,7 @@
                 }
                 const roots = document.getElementById('bastardLoopQRoot');
                 roots.replaceChildren();
-                const classes = this.scale().map(interval => (this.state.tonic + interval) % 12);
+                const classes = this.state.paletteBassRoots?.slice() || this.scale().map(interval => (this.state.tonic + interval) % 12);
                 if (!classes.includes(this.state.chordRoot)) classes.push(this.state.chordRoot);
                 for (const pitch of classes) {
                     const option = document.createElement('option');
@@ -1877,7 +1892,12 @@
                 button.setAttribute('aria-pressed', String(selected));
                 button.title = `${this.state.record ? 'Record' : 'Practice'}: ${button.dataset.notes.split(',').map(Number).map(theory.noteName).join(' – ')}`;
             }
-            document.getElementById('bastardLoopQPaletteSummary').textContent = `${this.paletteChords.length} scale-matched chords · ${this.state.record ? this.liveRecording() ? 'Live: taps record at playhead' : 'Step: taps write and advance' : 'Practice: taps do not change the grid'}`;
+            const bassPool = Boolean(this.state.paletteBassRoots?.length);
+            document.getElementById('bastardLoopQPoolFromBassBtn').setAttribute('aria-pressed', String(bassPool));
+            document.getElementById('bastardLoopQPoolFromScaleBtn').setAttribute('aria-pressed', String(!bassPool));
+            palette.setAttribute('aria-label', bassPool ? 'Playable chords rooted on the bass sequence notes' : 'Playable chords in the current scale');
+            document.getElementById('bastardLoopQPoolHelp').textContent = bassPool ? `Bass roots: ${this.state.paletteBassRoots.map(pitch => theory.notes[pitch]).join(', ')} · all chord qualities; key/scale does not limit chord tones. Tap From Bass to refresh.` : 'Scale pool · chords stay within the current key / scale.';
+            document.getElementById('bastardLoopQPaletteSummary').textContent = `${this.paletteChords.length} ${bassPool ? 'bass-root' : 'scale-matched'} chords · ${this.state.record ? this.liveRecording() ? 'Live: taps record at playhead' : 'Step: taps write and advance' : 'Practice: taps do not change the grid'}`;
             document.getElementById('bastardLoopQTonalSummary').textContent = `${theory.notes[this.state.tonic]} ${this.state.scale} · octave ${this.state.octave} · root ${theory.notes[this.state.chordRoot]}`;
             document.getElementById('bastardLoopQArpEnabled').value = this.state.arpEnabled ? '1' : '0';
             document.getElementById('bastardLoopQPlaybackSummary').textContent = this.state.arpEnabled ? `ARP · ${this.state.arpPattern}` : 'Block chords';
@@ -1927,11 +1947,11 @@
                 <div class="sample-browser-head q-head"><h3 id="bastardLoopQTitle">Bastardloop Q · Chords</h3>${button('close', 'Close', 'bastardLoopQCloseBtn')}</div>
                 <details class="q-settings" id="bastardLoopQTonalSettings"><summary>Key &amp; chord roots · <span id="bastardLoopQTonalSummary"></span></summary><div class="q-controls">
                     ${select('bastardLoopQInstrument', 'Q sound', 'instrument')}${select('bastardLoopQKey', 'Scale tonic / key', 'tonic')}${select('bastardLoopQScale', 'Scale / mode', 'scale')}${select('bastardLoopQRoot', 'Chord root — show this degree first', 'chordRoot')}${select('bastardLoopQOctave', 'Scale octave', 'octave')}${select('bastardLoopQFamilies', 'Shown chord families', 'paletteFamilies')}${select('bastardLoopQInversion', 'Palette inversion', 'inversion')}${select('bastardLoopQVoicing', 'Palette voicing', 'voicing')}</div>
-                    <div id="bastardLoopQCustomScale" class="q-custom-pitches" hidden></div><p class="q-help">Key sets the scale. Chord root puts that degree first. Every shown chord stays within the scale; inversion and voicing change its playable notes.</p></details>
+                    <div id="bastardLoopQCustomScale" class="q-custom-pitches" hidden></div><p class="q-help">Key sets the scale pool. From Bass uses Bass X note roots and allows all chord qualities. Chord root puts that note first; inversion and voicing change its playable notes.</p></details>
                 <div class="q-toolbar q-session-controls" aria-label="Practice, Step or Live recording, delete, one-step nudge, transpose and whole-pattern transport">
                     ${button('practice', '<span class="q-control-full">Practice</span><span class="q-control-short" aria-hidden="true">Prac</span>', 'bastardLoopQPracticeBtn', 'Practice chords without recording')}${button('record', '● Step', 'bastardLoopQRecordBtn', 'Dual-function Record: tap to switch Step and Live')}${button('rest', 'Rest', 'bastardLoopQRestBtn', 'Record a Rest at the cursor or live playhead')}${button('clear-step', 'Delete', 'bastardLoopQDeleteStepBtn', 'Delete selected step without advancing')}${button('nudge-left', '<span class="q-nudge-full">Left 1</span><span class="q-nudge-short" aria-hidden="true">← 1</span>', 'bastardLoopQNudgeLeftBtn', 'Left 1: move selected chord left one grid step; occupied neighbours swap')}${button('nudge-right', '<span class="q-nudge-full">Right 1</span><span class="q-nudge-short" aria-hidden="true">1 →</span>', 'bastardLoopQNudgeRightBtn', 'Right 1: move selected chord right one grid step; occupied neighbours swap')}${button('transpose-step-down', '<span class="q-control-full">Chord −</span><span class="q-control-short" aria-hidden="true">Ch −</span>', 'bastardLoopQChordDownBtn', 'Transpose selected grid chord down one semitone')}${button('transpose-step-up', '<span class="q-control-full">Chord +</span><span class="q-control-short" aria-hidden="true">Ch +</span>', 'bastardLoopQChordUpBtn', 'Transpose selected grid chord up one semitone')}${button('play-all', '▶ All', 'bastardLoopQAllPlayBtn', 'Start the whole pattern and all enabled loops and drums')}${button('stop-all', '■ All', 'bastardLoopQAllStopBtn', 'Stop the whole pattern, every loop, drums and audition')}</div>
                 <div class="q-record-help" id="bastardLoopQRecordHelp">Rec has two functions: tap Step / Live. Practice disarms recording.</div>
-                <div class="q-workbench"><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
+                <div class="q-workbench"><div class="q-pool-controls" aria-label="Chord pick pool source">${button('pool-from-bass', 'From Bass', 'bastardLoopQPoolFromBassBtn', 'Fill the chord pick pool from distinct playable notes in the current Bass X sequence; tap again to refresh')}${button('pool-from-scale', 'Scale Pool', 'bastardLoopQPoolFromScaleBtn', 'Restore chords matched to the current key and scale')}<span id="bastardLoopQPoolHelp"></span></div><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
                     <div class="q-palette" id="bastardLoopQPalette" aria-label="Playable chords in the current scale"></div>
                     <div class="q-grid-heading"><span id="bastardLoopQStepCursor"></span><span id="bastardLoopQSelected"></span></div>
                     <div class="q-grid-scroll"><div class="lead-sequencer-step-grid" id="bastardLoopQStepGrid"></div></div></div>
@@ -2082,6 +2102,7 @@
             context: () => audioContext, destination: () => preFilterGainNode || masterGain || audioContext.destination,
             bpm: () => Number(document.getElementById('globalBpmSlider')?.value || 120), length: () => getPatternLengthSteps(),
             ready: () => ensureAudioReadyForKeyInteraction(), save: () => saveState(),
+            bassNotes: () => bastardLoopXSequence.slice(0, getBastardLoopXPatternLength()).filter(step => step && !step.rest && parseNoteName(step.note)).map(step => noteNameToMidi(step.note)),
             activity: () => { updateFinalMixEffects(); syncPerformanceControlState(); },
             stopAll: () => { root.mygrainSongBeta?.stop?.(); stopAllPerformancePlayback({ silent: true }); },
             sharedPlay: () => setBastardLoopPlaying(true), soloGain: () => getLoopLayerSoloGain('bastardq'),
