@@ -3,6 +3,40 @@
 
     let keyboardRecordingMonitorEnabled = false;
     let songOutputIsolation = null;
+    // Only tag unresampled, canonical PCM16 Song sources. Weak membership adds
+    // no retained ZIP/PCM copy and follows the normal AudioBuffer lifetime.
+    const songPcm16Sources = new WeakSet();
+
+    function markSongPcm16Source(bytes, buffer) {
+        if (bytes.byteLength !== 44 + buffer.length * buffer.numberOfChannels * 2) return;
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        if (view.getUint32(12, false) === 0x666d7420 && view.getUint32(16, true) === 16
+            && view.getUint16(20, true) === 1 && view.getUint16(34, true) === 16
+            && view.getUint32(24, true) === buffer.sampleRate && view.getUint16(22, true) === buffer.numberOfChannels
+            && view.getUint32(36, false) === 0x64617461 && view.getUint32(40, true) === buffer.length * buffer.numberOfChannels * 2) {
+            songPcm16Sources.add(buffer);
+        }
+    }
+
+    function encodeSongSource(buffer) {
+        const body = audioBufferToWav(buffer);
+        if (!songPcm16Sources.has(buffer)) return body;
+        // decodeAudioData maps signed PCM16 to sample / 32768. The general
+        // exporter uses 32767 for positive samples and truncates, losing one
+        // LSB on every recall/save. Invert the decoder for these sources so an
+        // unchanged amendment retains its exact WAV bytes and cached render.
+        const view = new DataView(body);
+        const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
+        let offset = 44;
+        for (let frame = 0; frame < buffer.length; frame += 1) {
+            for (const channel of channels) {
+                const sample = Math.max(-1, Math.min(1, channel[frame]));
+                view.setInt16(offset, Math.max(-32768, Math.min(32767, Math.round(sample * 32768))), true);
+                offset += 2;
+            }
+        }
+        return body;
+    }
 
     function setKeyboardRecordingMonitor(enabled) {
         keyboardRecordingMonitorEnabled = Boolean(enabled);
@@ -441,7 +475,7 @@
                 const buffer = getBuffer();
                 if (!buffer) continue;
                 const path = `audio/${key}.wav`;
-                entries.push({ path, data: audioBufferToWav(buffer) });
+                entries.push({ path, data: encodeSongSource(buffer) });
                 snapshot.assets.push({ key, path, channels: buffer.numberOfChannels, frames: buffer.length, sampleRate: buffer.sampleRate });
             }
             entries.unshift({ path: 'song-part.json', data: JSON.stringify(snapshot) });
@@ -500,6 +534,7 @@
                                 const buffer = await audioContext.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
                                 const size = buffer.length * buffer.numberOfChannels * 4;
                                 if (cache.bytes + cache.reservedBytes - estimatedBytes + size > (cache.limitBytes ?? Infinity)) throw new Error('Invalid or oversized song source audio.');
+                                markSongPcm16Source(bytes, buffer);
                                 cache.buffers.set(digest, buffer);
                                 cache.bytes += size;
                                 return buffer;
@@ -525,7 +560,12 @@
         prepare(part) {
             return {
                 snapshot: cloneJson(part.snapshot),
-                buffers: new Map(audioBindings.map(([key]) => [key, part.buffers.has(key) ? cloneAudioBufferForCurrentContext(part.buffers.get(key)) : null]))
+                buffers: new Map(audioBindings.map(([key]) => {
+                    const original = part.buffers.get(key);
+                    const buffer = original ? cloneAudioBufferForCurrentContext(original) : null;
+                    if (buffer && songPcm16Sources.has(original)) songPcm16Sources.add(buffer);
+                    return [key, buffer];
+                }))
             };
         },
 
