@@ -2814,3 +2814,95 @@ test('losing the verified lease during Amend loading never restores audio or ena
     assert.equal(controller.amendLoading, null);
     assert.equal(calls.some(call => call[0] === 'recall'), false);
 });
+
+function pastePickerFixture() {
+    const fixture = makeController();
+    const { controller, context } = fixture;
+    const parts = [first, second, { ...second, id: 'bridge', name: 'Bridge' }, { ...second, id: 'outro', name: 'Outro' }].map((part, i) => ({ ...part, sha256: `original-${i}` }));
+    controller.song = { id: 'paste-song', revision: 10, parts };
+    controller.songs = [controller.song];
+    controller.copyLoop(parts[0], ['V', 'M', 'drumKick']);
+    const clipboard = controller.loopClipboard;
+    const requests = [];
+    context.confirm = () => assert.fail('The destination dialog is the batch confirmation');
+    controller.arm = async () => assert.fail('Pasting must not arm');
+    controller.adapter.recall = () => assert.fail('Pasting must not replace the live editor');
+    controller.request = async (path, options) => {
+        const id = path.match(/\/parts\/([^/]+)\//)[1];
+        const target = controller.song.parts.find(part => part.id === id);
+        requests.push({ path, payload: JSON.parse(options.body) });
+        return { song: { ...controller.song, revision: controller.song.revision + 1, parts: controller.song.parts.map(part => (part.sourcePartId || part.id) === (target.sourcePartId || target.id) ? { ...part, sha256: `pasted-${requests.length}` } : part) } };
+    };
+    return { ...fixture, parts, clipboard, requests };
+}
+
+test('main-card paste saves multiple destinations sequentially with the pinned clipboard and never arms or recalls', async () => {
+    const { controller, parts, clipboard, requests, calls } = pastePickerFixture();
+    controller.armed = true;
+    await controller.pasteParts([parts[1], parts[2]]);
+    assert.equal(requests.length, 2);
+    assert.equal(controller.song.revision, 12);
+    assert.equal(controller.song.parts[0], parts[0]);
+    assert.equal(controller.song.parts[3], parts[3]);
+    assert.deepEqual(requests.map(request => request.payload), [1, 2].map(() => ({ sourceSongId: 'paste-song', sourcePartId: first.id, sourceSha256: 'original-0', layers: ['V', 'M', 'drumKick'] })));
+    assert.equal(controller.loopClipboard, clipboard);
+    assert.equal(controller.armed, false);
+    assert.match(calls.at(-1)[1], /into 2 saved parts \(2 song positions\).*Arm Cache once/);
+});
+
+test('main-card paste de-duplicates linked destinations and saves every shared use exactly once', async () => {
+    const { controller, parts, requests, calls } = pastePickerFixture();
+    const reused = { ...parts[1], id: 'reused-verse', sourcePartId: parts[1].id, repeats: 5 };
+    controller.song.parts.push(reused);
+    await controller.pasteParts([parts[1], reused, parts[1]]);
+    assert.equal(requests.length, 1);
+    assert.equal(controller.song.parts[1].sha256, controller.song.parts.at(-1).sha256);
+    assert.equal(controller.song.parts.at(-1).repeats, 5);
+    assert.match(calls.at(-1)[1], /into 1 saved part \(2 song positions\)/);
+});
+
+test('main-card paste keeps an immutable source revision even when the source is also a destination', async () => {
+    const { controller, parts, requests } = pastePickerFixture();
+    await controller.pasteParts([parts[0], parts[1]]);
+    assert.equal(requests.length, 2);
+    assert.ok(requests.every(request => request.payload.sourceSha256 === 'original-0'));
+});
+
+test('main-card paste rejects stale song/library/revision or replaced clipboard before saving anything', async () => {
+    for (const change of ['song', 'library', 'revision', 'clipboard', 'target']) {
+        const { controller, parts, clipboard, requests } = pastePickerFixture();
+        const expected = { library: controller.key, songId: controller.song.id, revision: controller.song.revision };
+        const selected = parts[1];
+        if (change === 'song') controller.song = { ...controller.song, id: 'another-song' };
+        if (change === 'library') controller.key = 'different';
+        if (change === 'revision') controller.song = { ...controller.song, revision: 11 };
+        if (change === 'clipboard') controller.loopClipboard = { ...clipboard };
+        if (change === 'target') controller.song.parts[1] = { ...parts[1], sha256: 'amended' };
+        await assert.rejects(controller.pasteParts([selected], expected, clipboard), /changed|current song parts/);
+        assert.equal(requests.length, 0);
+    }
+});
+
+test('main-card paste validates all destinations and recording/amendment/playback guards before the first write', async () => {
+    for (const guard of ['empty', 'invalid', 'recording', 'editing', 'playing']) {
+        const { controller, parts, requests } = pastePickerFixture();
+        if (guard === 'recording') controller.adapter.assertNotRecording = () => { throw new Error('Finish recording'); };
+        if (guard === 'editing') controller.editing = { id: first.id };
+        if (guard === 'playing') controller.playing = true;
+        const targets = guard === 'empty' ? [] : guard === 'invalid' ? [parts[1], { ...parts[2], sha256: 'old' }] : [parts[1]];
+        await assert.rejects(controller.pasteParts(targets));
+        assert.equal(requests.length, 0);
+    }
+});
+
+test('main-card paste stops at the first failed destination, reports acknowledged saves and retains its clipboard', async () => {
+    const { controller, parts, clipboard, requests } = pastePickerFixture();
+    const request = controller.request;
+    controller.request = async (...args) => { if (requests.length === 1) throw new Error('Lost connection'); return request(...args); };
+    await assert.rejects(controller.pasteParts(parts.slice(1)), /Saved 1\/3.*stopped at Bridge.*Lost connection.*remain saved.*Refresh Songs/);
+    assert.equal(requests.length, 1);
+    assert.equal(controller.song.parts[1].sha256, 'pasted-1');
+    assert.equal(controller.song.parts[2], parts[2]);
+    assert.equal(controller.song.parts[3], parts[3]);
+    assert.equal(controller.loopClipboard, clipboard);
+});

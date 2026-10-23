@@ -436,6 +436,7 @@
             this.element('songBetaNewSong').addEventListener('click', () => this.run(() => this.newSong()));
             this.element('songBetaRenameSong')?.addEventListener('click', () => this.run(() => this.renameSong()));
             this.element('songBetaNewPart').addEventListener('click', () => this.run(() => this.newPart()));
+            this.element('songBetaPasteParts')?.addEventListener('click', event => this.openPastePartsPicker(event.currentTarget));
             this.element('songBetaSavePart').addEventListener('click', () => this.run(() => this.savePart()));
             this.element('songBetaCancelEdit').addEventListener('click', () => this.cancelAmendment());
             this.element('songBetaArm').addEventListener('click', () => this.run(() => this.arm()));
@@ -1191,7 +1192,7 @@
         }
 
         openLoopCopyPicker(part, opener) {
-            if (this.busy || this.playing || this.editing || !this.song || this.document.querySelector('.song-beta-copy-dialog')) return;
+            if (this.busy || this.playing || this.editing || !this.song || this.document.querySelector('.song-beta-copy-dialog, .song-beta-paste-dialog')) return;
             const dialog = this.document.createElement('dialog');
             dialog.className = 'song-beta-copy-dialog';
             dialog.setAttribute('aria-labelledby', 'songBetaCopyTitle');
@@ -1276,21 +1277,112 @@
             dialog.showModal();
         }
 
-        async pasteLoop(part) {
+        openPastePartsPicker(opener) {
+            if (this.busy || this.playing || this.editing || !this.song?.parts.length || this.document.querySelector('.song-beta-copy-dialog, .song-beta-paste-dialog')) return;
+            const copied = this.loopClipboard;
+            if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) {
+                this.status('Use Copy From Part and choose loops or drum lanes first.', true);
+                return;
+            }
+            try { this.adapter.assertNotRecording?.(); }
+            catch (error) { this.status(error.message, true); return; }
+            const expected = { library: this.key, songId: this.song.id, revision: this.song.revision };
+            const parts = this.song.parts.map(part => ({ ...part }));
+            const dialog = this.document.createElement('dialog');
+            dialog.className = 'song-beta-copy-dialog song-beta-paste-dialog';
+            dialog.setAttribute('aria-labelledby', 'songBetaPasteTitle');
+            dialog.setAttribute('aria-describedby', 'songBetaPasteHelp');
+            const heading = this.document.createElement('h3');
+            heading.id = 'songBetaPasteTitle'; heading.textContent = 'Paste Part to selected song parts';
+            const help = this.document.createElement('p');
+            help.id = 'songBetaPasteHelp';
+            help.textContent = `Paste ${copiedLabel(copied)} from ${copied.name}. Tick the destinations, then Paste selected. Selected items will be replaced; unselected sounds, tempo and repeats stay unchanged. Shared uses are linked and change together. Arm Cache is not started.`;
+            const inputs = new Map();
+            const choice = (parent, text) => {
+                const label = this.document.createElement('label'); label.className = 'song-beta-copy-choice';
+                const input = this.document.createElement('input'); input.type = 'checkbox';
+                const caption = this.document.createElement('span'); caption.textContent = text;
+                label.append(input, caption); parent.append(label); return input;
+            };
+            const master = this.document.createElement('div');
+            const all = choice(master, 'Select all song parts'); all.dataset.selectAll = 'true';
+            const list = this.document.createElement('div'); list.className = 'song-beta-paste-parts';
+            const counts = new Map();
+            parts.forEach(part => counts.set(sourceId(part), (counts.get(sourceId(part)) || 0) + 1));
+            parts.forEach((part, index) => {
+                const uses = counts.get(sourceId(part));
+                const input = choice(list, `${index + 1}. ${part.name}${uses > 1 ? ` (shared: all ${uses} uses change)` : ''}`);
+                input.dataset.partId = part.id; inputs.set(part.id, input);
+            });
+            const paste = this.document.createElement('button'); paste.type = 'button';
+            paste.className = 'performance-btn primary song-beta-paste-selected';
+            const sync = () => {
+                const selected = [...inputs.values()].filter(input => input.checked).length;
+                all.checked = selected === parts.length;
+                all.indeterminate = selected > 0 && !all.checked;
+                paste.disabled = !selected;
+                paste.textContent = selected ? `Paste selected (${selected})` : 'Paste selected';
+            };
+            for (const part of parts) inputs.get(part.id).addEventListener('change', () => {
+                const checked = inputs.get(part.id).checked;
+                for (const entry of parts) if (sourceId(entry) === sourceId(part)) inputs.get(entry.id).checked = checked;
+                sync();
+            });
+            all.addEventListener('change', () => { for (const input of inputs.values()) input.checked = all.checked; sync(); });
+            paste.addEventListener('click', () => {
+                const selected = parts.filter(part => inputs.get(part.id).checked);
+                if (!selected.length) return;
+                dialog.close();
+                this.run(() => this.pasteParts(selected, expected, copied));
+            });
+            const cancel = this.document.createElement('button'); cancel.type = 'button';
+            cancel.className = 'performance-btn'; cancel.textContent = 'Cancel';
+            cancel.addEventListener('click', () => dialog.close());
+            const actions = this.document.createElement('div'); actions.className = 'song-beta-copy-actions';
+            actions.append(paste, cancel); dialog.append(heading, help, master, list, actions);
+            dialog.addEventListener('keydown', event => event.stopPropagation());
+            dialog.addEventListener('keyup', event => event.stopPropagation());
+            dialog.addEventListener('close', () => { dialog.remove(); if (opener?.isConnected) opener.focus(); }, { once: true });
+            sync(); this.document.body.append(dialog); dialog.showModal();
+        }
+
+        async pasteParts(parts, expected = { library: this.key, songId: this.song?.id, revision: this.song?.revision }, copied = this.loopClipboard) {
+            if (expected.library !== this.key || expected.songId !== this.song?.id || expected.revision !== this.song?.revision) throw new Error('The song changed while choosing destinations. Reopen Paste Part to select its current parts.');
+            if (!copied || copied !== this.loopClipboard || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('The copy buffer changed. Reopen Paste Part before pasting.');
+            if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before pasting parts.');
+            this.adapter.assertNotRecording?.();
+            if (!Array.isArray(parts) || !parts.length || parts.some(part => !this.song.parts.some(entry => entry.id === part?.id && entry.sha256 === part.sha256 && sourceId(entry) === sourceId(part)))) throw new Error('Choose current song parts before pasting.');
+            const targets = [...new Map(parts.map(part => [sourceId(part), part])).values()];
+            const positions = this.song.parts.filter(part => targets.some(target => sourceId(target) === sourceId(part))).length;
+            let completed = 0;
+            let revision = this.song.revision;
+            for (const part of targets) {
+                try {
+                    if (this.key !== expected.library || this.song?.id !== expected.songId || this.song.revision !== revision || this.loopClipboard !== copied) throw new Error('Song or copy buffer changed during pasting.');
+                    await this.pasteLoop(part, { confirmed: true, copied, batch: true, progress: `${completed + 1}/${targets.length}: ` });
+                    completed += 1; revision = this.song.revision;
+                } catch (error) {
+                    throw new Error(`Saved ${completed}/${targets.length} selected saved parts; stopped at ${part.name}: ${error.message} Earlier successful pastes remain saved. No further destinations were attempted. Refresh Songs before retrying; a lost response may mean this destination was also saved.`, { cause: error });
+                }
+            }
+            this.status(`Pasted ${copiedLabel(copied)} from ${copied.name} into ${completed} saved part${completed === 1 ? '' : 's'} (${positions} song position${positions === 1 ? '' : 's'}). Unselected sounds are unchanged. Use Arm Cache once when ready. Your live pattern and copy buffer are unchanged.`);
+        }
+
+        async pasteLoop(part, options = {}) {
             if (this.revisionConflict) this.requireEditing();
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before pasting a loop.');
             this.adapter.assertNotRecording?.();
-            const copied = this.loopClipboard;
+            const copied = options.copied || this.loopClipboard;
             if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('Use Copy From Part and choose loops or drum lanes first.');
             const label = copiedLabel(copied);
             const layers = copySelection(copied.layers || copied.layer);
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Refresh Songs before pasting into a changed part.');
             const uses = this.song.parts.filter(entry => sourceId(entry) === sourceId(part)).length;
-            if (!root.confirm(`Replace ${label} in ${part.name} completely with the saved copy from ${copied.name}?${uses > 1 ? ` This shared part is used ${uses} times; every use changes.` : ''} Unselected sounds, tempo, grid length and repeats stay unchanged.${!this.canEditSong() ? ' Editing access will be requested automatically; another device’s lock cannot be overridden.' : ''}`)) return;
+            if (!options.confirmed && !root.confirm(`Replace ${label} in ${part.name} completely with the saved copy from ${copied.name}?${uses > 1 ? ` This shared part is used ${uses} times; every use changes.` : ''} Unselected sounds, tempo, grid length and repeats stay unchanged.${!this.canEditSong() ? ' Editing access will be requested automatically; another device’s lock cannot be overridden.' : ''}`)) return;
             await this.ensureEditing();
             this.adapter.assertNotRecording?.();
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('The destination changed while requesting editing. Refresh Songs before pasting.');
-            this.status(`Pasting ${label} into ${part.name} on the server…`);
+            this.status(`${options.progress || ''}Pasting ${label} into ${part.name} on the server…`);
             const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/paste-loop?sha256=${part.sha256}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sourceSongId: copied.sourceSongId, sourcePartId: copied.sourcePartId, sourceSha256: copied.sourceSha256, ...(layers.length === 1 ? { layer: layers[0] } : { layers }) })
@@ -1298,7 +1390,7 @@
             this.cancel(true, { hardCut: true });
             this.acceptSong(result.song);
             const message = `Pasted ${label} from ${copied.name} into every use of ${part.name}. Unselected sounds and arrangement settings are unchanged.`;
-            this.status(`${message} Paste more parts, then use Arm Cache once when ready; unchanged audio will be reused. Your live pattern was not replaced; Amend loads the pasted part for editing.`);
+            if (!options.batch) this.status(`${message} Paste more parts, then use Arm Cache once when ready; unchanged audio will be reused. Your live pattern was not replaced; Amend loads the pasted part for editing.`);
         }
 
         async savePart() {
@@ -1557,6 +1649,11 @@
             this.element('songBetaSavePart').disabled = changesBlocked || this.busy || this.playing || !this.editing;
             this.element('songBetaCancelEdit').disabled = this.busy || this.playing || !this.editing;
             this.element('songBetaNewPart').disabled = changesBlocked || this.busy || this.playing || !this.song;
+            const pasteParts = this.element('songBetaPasteParts');
+            if (pasteParts) {
+                pasteParts.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing) || !this.song?.parts.length || !this.loopClipboard || this.loopClipboard.library !== this.key;
+                pasteParts.title = this.loopClipboard ? `Paste ${copiedLabel(this.loopClipboard)} from ${this.loopClipboard.name} into selected saved song parts. Arm Cache stays manual.` : 'Use Copy From Part to fill the copy buffer first.';
+            }
             this.element('songBetaArm').disabled = this.busy || this.playing || !this.song?.parts.length || Boolean(this.editing);
             const pending = this.renderCacheSummary();
             this.element('songBetaArm').textContent = this.armed ? 'Cache Armed ✓' : `Arm Cache${pending ? ` (${pending})` : ''}`;

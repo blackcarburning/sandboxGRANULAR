@@ -87,6 +87,8 @@
 .song-beta-copy-drums p { margin-bottom: 0; }
 .song-beta-copy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .song-beta-copy-dialog .performance-btn.primary { color: #071619; }
+.song-beta-paste-parts { display: grid; gap: 8px; margin: 12px 0 16px; }
+.song-beta-paste-dialog { width: min(560px, calc(100vw - 24px)); }
 
 #songBetaCard .song-beta-row {
     display: flex;

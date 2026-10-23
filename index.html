@@ -6050,7 +6050,7 @@
             }
         }
     </style>
-    <script>window.mygrainAccounts?.loadStyle('song-beta.css?v=20261023-multi-copy-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('song-beta.css?v=20261023-paste-picker-1');</script>
     <script>window.mygrainAccounts?.loadStyle('q-card.css?v=20261022-editor-hold-undo-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-loop-cut.css?v=20261018-vocal-stretch-1');</script>
     <script>window.mygrainAccounts?.loadStyle('navigation-palette.css?v=20261019-ai-patch-1');</script>
@@ -6302,7 +6302,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.ARM.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.PASTE.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6389,7 +6389,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.ARM.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.PASTE.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8815,6 +8815,7 @@
                     <label>Part name<input id="songBetaPartName" type="text" maxlength="100" placeholder="Intro, Verse 1, Chorus…" autocomplete="off"></label>
                     <label class="song-beta-repeat-label">Pattern repeats<input id="songBetaRepeats" type="number" min="1" max="64" step="1" value="1"></label>
                     <button class="performance-btn primary" id="songBetaNewPart" type="button" disabled>New Part</button>
+                    <button class="performance-btn" id="songBetaPasteParts" type="button" disabled>Paste Part</button>
                     <button class="performance-btn primary" id="songBetaSavePart" type="button" disabled>Save Amendment</button>
                     <button class="performance-btn" id="songBetaCancelEdit" type="button" disabled>Cancel Amendment</button>
                 </div>
@@ -8840,7 +8841,7 @@
                     <div class="song-beta-notes-content">
                         <p class="song-beta-help">Loop Song repeats the complete arrangement until Stop Song. Play Song From Here starts at that part and wraps to the beginning when Loop Song is on. Loop Part repeats only that saved part for writing; press Stop Part Loop or Stop Song to finish. Loop controls do not change saved repeats, sounds or WAV exports.</p>
                         <p class="song-beta-help">Reuse Part adds another use of an existing part at the end without copying its sounds or rendered audio; move it with the arrows. Each use has independent order and repeats. Amendments, names and colours apply to every use of the shared part. Delete removes only that occurrence, not other uses.</p>
-                        <p class="song-beta-help">Copy From Part opens tick boxes for loops, Drum machine (all) and individual drum lanes. Choose one or several items, click Copy selected, then Paste Part on each destination. Only the selected items are replaced; other loops, tempo, pattern length and repeats stay unchanged. The normal Recall, Amend, Save Amendment and Cancel Amendment workflow is unchanged. Editing access is handled automatically, while another device's lock is respected. Paste Part saves without starting Arm. Paste into as many parts as needed, then use Arm Cache once; unchanged audio is reused. The copy lasts until reload or a library switch.</p>
+                        <p class="song-beta-help">Copy From Part opens tick boxes for loops, Drum machine (all) and individual drum lanes. Choose one or several items, click Copy selected, then Paste Part on each destination. Only the selected items are replaced; other loops, tempo, pattern length and repeats stay unchanged. The normal Recall, Amend, Save Amendment and Cancel Amendment workflow is unchanged. Editing access is handled automatically, while another device's lock is respected. Paste Part saves without starting Arm. Paste into as many parts as needed, then use Arm Cache once; unchanged audio is reused. The main Song card’s Paste Part opens tick boxes to paste the copy buffer into several destinations at once. Shared uses select together and are saved once. The copy lasts until reload or a library switch.</p>
                         <p class="song-beta-help">New Part saves the complete current pattern, sounds and selected keyboard chord. Unmuted Grain A/B keyboard voices are included automatically when Arm Cache prepares the song audio. Click a part name to expand or collapse its controls; the move arrows stay visible. Audition plays it live, or Recall restores the sounds and keys stopped for editing and New Part. Amend selects an existing part for editing; Save Amendment commits its replacement. Play Song pre-schedules every part on the audio clock, with no engine rebuild at handoffs. Repeats count the saved shared pattern length.</p>
                         <p class="song-beta-help">Choose 1–10 parallel cache preparations; this browser remembers your setting (default 2). Heavy parts automatically use fewer concurrent workers to protect memory. Higher counts are experimental and may cause render gaps or crackles; reduce the count if needed. Arm Cache skips ready parts and reuses unchanged renders. Original samples are released after rendering and remain safely saved on the server. Phones and iPads prepare sequentially with a 96 MB preparation safety budget; desktops use 192 MB. Oversized individual preparations stop before decoding rather than bypassing the budget. Playback renders use optional browser storage and a bounded 24 MB phone / 96 MB desktop hot cache, counted alongside active preparation, with larger songs loaded ahead in part order; there is no 256 MB whole-song decoded limit. If browser storage is full or unavailable, saved renders are loaded from the server instead. Part labels track ready, saved and changed audio. Identical amendments retain renders; only changed settings, patterns, keys or samples need a new render. Names, colours, repeats and order do not change rendered audio. Export Song to WAV Folder reads the complete arrangement, including repeats, one part at a time as a stereo 24-bit WAV; rename it when prompted and the .song.&lt;tempo&gt; postfix is added automatically. Missing audio is armed first. The existing WAV folder has a separate 64 MB upload limit. Recall/Amend loads the full original editable settings and sounds on demand, including Q Piano/Strings samples and sustain loops, X filter/LFO, M/M+ recordings, vocal cuts/repeats and all drum lanes. Old revisions and deleted parts remain recoverable on the server. Use Back Up Song Access once and keep the file private: it grants access to this entire library. Use Open Song Access on another device to load the same songs from the server without copying browser data. If storage is blocked, reopen that file after each reload. Up to 64 parts and 128 MB per snapshot.</p>
                     </div>
@@ -62607,7 +62608,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-batch-arm-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-batch-arm-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-paste-picker-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-keyboard-sample-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>

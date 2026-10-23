@@ -1,3 +1,33 @@
+## Main Song-card destination picker — PASTE.1 (2026-10-23)
+
+- Main Song card now has Paste Part, enabled after Copy From Part fills the
+  existing saved-source clipboard. It opens a body-level native modal showing
+  the copied loop/drum selection and the current Song's destinations in order.
+- Tick one or several destination positions, or Select all song parts, then
+  Paste selected. Empty selection is disabled. Cancel / Escape changes nothing
+  and returns focus to the main button. Clipboard contents are retained.
+- Reused/shared source positions remain listed individually, with an explicit
+  warning that all uses change. Their tick boxes are linked; each selected
+  shared source is saved only once, preserving independent repeats/order/cuts.
+- The picker is the batch confirmation; there is no extra prompt per target.
+  It captures Song/library/revision/source hashes and revalidates all selected
+  destinations before the first write. A changed Song or copy buffer requires
+  reopening the picker. The existing recording, amendment, playback and server
+  editing-lease/revision protections are used for each destination.
+- Destinations save sequentially through the existing atomic per-part endpoint,
+  not an all-or-nothing multi-part server transaction. The first error stops
+  the remaining destinations; the status reports acknowledged saves and says
+  to Refresh Songs before retrying if a response may have been lost. Successful
+  earlier pastes remain saved. Source revision history pins the same original
+  copy even when pasting into the source itself.
+- No Arm runs during pasting. Use Arm Cache once after the batch; unchanged
+  source renders remain reusable. The live editor, Song/archive schemas,
+  backend code and persistence keys are unchanged. Per-part Paste Part remains.
+- Verification covers real browser multi-selection, Cancel/Escape, shared-use
+  selection/de-duplication, manual Arm, editable originals, stale picker
+  rejection, automatic editing access and reload persistence in Chromium and
+  WebKit desktop/phone emulation, plus focused controller/lease/memory tests.
+
 ## Batch paste and Arm memory safeguards — ARM.3 (2026-10-23)
 
 - Paste Part never starts Arm automatically, including when the song was armed.
