@@ -82,7 +82,7 @@ test('a second editor close restarts the cooldown and clears the older timeout',
 });
 
 for (const pointerEvents of [true, false]) {
-    test(`L/X touch Close waits for release and consumes the compatibility click (${pointerEvents ? 'pointer' : 'touch fallback'})`, () => {
+    test(`L/X touch Close waits for the completed click (not touch release) (${pointerEvents ? 'pointer' : 'touch fallback'})`, () => {
         const handlers = new Map();
         let closed = 0;
         const context = vm.createContext({ Date, window: { PointerEvent: pointerEvents ? function PointerEvent() {} : undefined } });
@@ -92,8 +92,8 @@ for (const pointerEvents of [true, false]) {
         assert.equal(handlers.has('touchstart'), false);
         const event = { button: 0, pointerType: 'touch', preventDefault() {}, stopPropagation() {} };
         assert.equal(closed, 0);
-        handlers.get(pointerEvents ? 'pointerup' : 'touchend')(event);
-        assert.equal(closed, 1);
+        assert.equal(handlers.has('pointerup'), false);
+        assert.equal(handlers.has('touchend'), false);
         handlers.get('click')(event);
         assert.equal(closed, 1);
     });
@@ -106,7 +106,8 @@ test('L/X mouse close remains click-driven, not mouse-down or pointer-up driven'
     for (const name of ['computeBastardLoopLMobileTapState', 'bindBastardLoopOverlayClose']) vm.runInContext(extract(name), context);
     context.bindBastardLoopOverlayClose({ addEventListener: (type, handler) => handlers.set(type, handler) }, () => { closed += 1; });
     const event = { button: 0, pointerType: 'mouse', preventDefault() {}, stopPropagation() {} };
-    handlers.get('pointerup')(event);
+    assert.equal(handlers.has('pointerup'), false);
+    assert.equal(handlers.has('touchend'), false);
     assert.equal(closed, 0);
     handlers.get('click')(event);
     assert.equal(closed, 1);
@@ -119,6 +120,7 @@ for (const name of ['closeBastardLoopLOverlay', 'closeBastardLoopXOverlay', 'clo
         const context = vm.createContext({
             window: { guardSectionJumpAfterOverlayClose: () => { guards += 1; } }, synthPopupOverlay: overlay,
             document: { getElementById: id => id.endsWith('Overlay') ? overlay : null, querySelector: () => null, body: { classList: { remove() {} } } },
+            releaseSequencerKeyboardHolds() {},
             resetBastardLoopLStepTapMemory() {}, resetBastardLoopLCopyState() {}, resetBastardLoopLTransposeSectionState() {},
             resetBastardLoopXStepTapMemory() {}, resetBastardLoopXCopyState() {}, resetBastardLoopXTransposeSectionState() {}
         });

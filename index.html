@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-k-hall-1';
+            const cacheBuster = '2026-10-23-scroll-taps-8';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -3287,6 +3287,9 @@
         }
 
         body {
+            /* The document is the page scroller. Do not trap touch pans in
+               this full-height, non-scrolling wrapper before they reach it. */
+            overscroll-behavior-y: auto;
             padding:
                 max(12px, env(safe-area-inset-top))
                 max(12px, env(safe-area-inset-right))
@@ -6297,7 +6300,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.KREV.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.TOUCH.8</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6384,7 +6387,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.KREV.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.TOUCH.8</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -34824,26 +34827,11 @@
                 });
             };
             button.style.touchAction = 'manipulation';
-            if (window.PointerEvent) {
-                button.addEventListener('pointerdown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event, { allowDoubleTap: true });
-                });
-            } else {
-                button.addEventListener('touchstart', (event) => {
-                    runHandler(event, { allowDoubleTap: true });
-                }, { passive: false });
-                button.addEventListener('mousedown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event, { allowDoubleTap: true });
-                });
-            }
-            button.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                resetBastardLoopLStepTapMemory();
-                runHandler(event, { allowDoubleTap: false });
+            button.addEventListener('click', (event) => {
+                const keyboard = event.detail === 0 && event.pointerType !== 'touch';
+                if (keyboard) resetBastardLoopLStepTapMemory();
+                runHandler(event, { allowDoubleTap: !keyboard });
             });
-            button.addEventListener('click', (event) => event.preventDefault());
         }
 
         function toggleBastardLoopLRatchetEdit(index) {
@@ -37059,26 +37047,11 @@
                 });
             };
             button.style.touchAction = 'manipulation';
-            if (window.PointerEvent) {
-                button.addEventListener('pointerdown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event, { allowDoubleTap: true });
-                });
-            } else {
-                button.addEventListener('touchstart', (event) => {
-                    runHandler(event, { allowDoubleTap: true });
-                }, { passive: false });
-                button.addEventListener('mousedown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event, { allowDoubleTap: true });
-                });
-            }
-            button.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                resetBastardLoopXStepTapMemory();
-                runHandler(event, { allowDoubleTap: false });
+            button.addEventListener('click', (event) => {
+                const keyboard = event.detail === 0 && event.pointerType !== 'touch';
+                if (keyboard) resetBastardLoopXStepTapMemory();
+                runHandler(event, { allowDoubleTap: !keyboard });
             });
-            button.addEventListener('click', (event) => event.preventDefault());
         }
 
         function toggleBastardLoopXRatchetEdit(index) {
@@ -59928,6 +59901,48 @@
             }
         });
 
+        function installLoopScrollTapGuard() {
+            let gesture = null;
+            const scopeSelector = '.performance-feature-card, .sample-browser-overlay';
+            const move = touch => {
+                if (gesture && touch && (Math.hypot(touch.clientX - gesture.x, touch.clientY - gesture.y) >= 10)) gesture.cancelled = true;
+            };
+            document.addEventListener('touchstart', event => {
+                const scope = event.target.closest?.(scopeSelector);
+                const touch = event.touches[0];
+                gesture = scope && touch ? { scope, target: event.target, x: touch.clientX, y: touch.clientY, cancelled: event.touches.length !== 1, ended: 0 } : null;
+            }, { capture: true, passive: true });
+            document.addEventListener('touchmove', event => {
+                if (!gesture) return;
+                if (event.touches.length !== 1) gesture.cancelled = true;
+                move(event.touches[0]);
+            }, { capture: true, passive: true });
+            for (const name of ['touchend', 'touchcancel']) document.addEventListener(name, event => {
+                if (!gesture) return;
+                move(event.changedTouches[0]);
+                if (name === 'touchcancel' || event.touches.length) gesture.cancelled = true;
+                gesture.ended = Date.now();
+            }, { capture: true, passive: true });
+            document.addEventListener('scroll', event => {
+                if (!gesture || gesture.ended) return;
+                if (event.target === document || event.target.contains?.(gesture.target)) gesture.cancelled = true;
+            }, { capture: true, passive: true });
+            document.addEventListener('pointerdown', event => {
+                if (event.pointerType === 'mouse' || event.pointerType === 'pen') gesture = null;
+            }, { capture: true, passive: true });
+            document.addEventListener('click', event => {
+                // Keyboard/assistive/programmatic clicks are not touch gestures.
+                if (event.detail === 0 && event.pointerType !== 'touch' && !event.sourceCapabilities?.firesTouchEvents) return;
+                if (!gesture || !gesture.ended || Date.now() - gesture.ended > 900) return;
+                if (gesture.cancelled && gesture.scope.contains(event.target)) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                } else gesture = null;
+            }, { capture: true });
+        }
+
+        installLoopScrollTapGuard();
+
         function computeBastardLoopLMobileTapState(lastHandledAt, suppressClickUntil, triggerType, now = Date.now(), options = {}) {
             const duplicateWindowMs = Math.max(80, Math.min(1000, Number(options.duplicateWindowMs) || 180));
             const touchFollowupMs = Math.max(duplicateWindowMs, Math.min(1400, Number(options.touchFollowupMs) || 650));
@@ -59955,26 +59970,14 @@
             };
         }
 
-        function bindBastardLoopLMobileTap(button, handler, options = {}) {
+        function bindBastardLoopLMobileTap(button, handler) {
             if (!button || typeof handler !== 'function') return;
-            let lastHandledAt = 0;
-            let suppressClickUntil = 0;
-            const runHandler = (event, triggerType = 'generic') => {
-                const tapState = computeBastardLoopLMobileTapState(
-                    lastHandledAt,
-                    suppressClickUntil,
-                    triggerType,
-                    Date.now(),
-                    options
-                );
-                lastHandledAt = tapState.nextLastHandledAt;
-                suppressClickUntil = tapState.nextSuppressClickUntil;
-                if (!tapState.handled) {
-                    event?.preventDefault?.();
-                    return;
-                }
-                event?.preventDefault?.();
-                event?.stopPropagation?.();
+            button.style.touchAction = 'manipulation';
+            // Native click covers touch release, mouse and Enter/Space. Do not
+            // act on finger-down: that may be the beginning of a scroll.
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 const result = handler();
                 if (result && typeof result.then === 'function') {
                     result.catch((error) => {
@@ -59982,63 +59985,17 @@
                         updateBastardLoopLStatus(`Loop L control failed: ${error.message}`);
                     });
                 }
-            };
-            button.style.touchAction = 'manipulation';
-            if (window.PointerEvent) {
-                button.addEventListener('pointerdown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    const triggerType = String(event.pointerType || '').toLowerCase() === 'touch'
-                        ? 'pointertouch'
-                        : 'pointerdown';
-                    runHandler(event, triggerType);
-                });
-            } else {
-                button.addEventListener('touchstart', (event) => {
-                    runHandler(event, 'touchstart');
-                }, { passive: false });
-                button.addEventListener('mousedown', (event) => {
-                    if (event.button !== undefined && event.button !== 0) return;
-                    runHandler(event, 'mousedown');
-                });
-            }
-            button.addEventListener('click', (event) => {
-                runHandler(event, 'click');
-            });
-            button.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                runHandler(event, 'keydown');
             });
         }
 
         function bindBastardLoopOverlayClose(button, closeOverlay) {
             if (!button || typeof closeOverlay !== 'function') return;
-            let lastHandledAt = 0;
-            let suppressClickUntil = 0;
-            const runClose = (event, triggerType) => {
-                const tapState = computeBastardLoopLMobileTapState(
-                    lastHandledAt,
-                    suppressClickUntil,
-                    triggerType,
-                    Date.now()
-                );
-                lastHandledAt = tapState.nextLastHandledAt;
-                suppressClickUntil = tapState.nextSuppressClickUntil;
-                if (!tapState.handled) {
-                    event?.preventDefault?.();
-                    event?.stopPropagation?.();
-                    return;
-                }
-                event?.preventDefault?.();
-                event?.stopPropagation?.();
-                closeOverlay();
-            };
-            // Cancel the compatibility mouse click before hiding the overlay;
-            // closing on pointerup lets that click hit a newly exposed button.
-            button.addEventListener('touchend', (event) => {
-                runClose(event, 'touchend');
-            }, { capture: true, passive: false });
+            // Hide only from the completed click, so it cannot land on a newly
+            // exposed underlying control or close the editor during a swipe.
             button.addEventListener('click', (event) => {
-                runClose(event, 'click');
+                event.preventDefault();
+                event.stopPropagation();
+                closeOverlay();
             }, { capture: true });
         }
 
@@ -61787,13 +61744,7 @@
             }
         });
 
-        [
-            ['pointerdown', { capture: true }],
-            ['touchend', { capture: true, passive: false }],
-            ['click', { capture: true }]
-        ].forEach(([eventName, options]) => {
-            dropboxSampleBrowserCloseBtn?.addEventListener(eventName, handleDropboxSampleBrowserClose, options);
-        });
+        dropboxSampleBrowserCloseBtn?.addEventListener('click', handleDropboxSampleBrowserClose, { capture: true });
 
         dropboxSampleBrowserRefreshBtn?.addEventListener('click', () => {
             refreshDropboxSampleBrowser({ forceRefresh: true }).catch((error) => {
@@ -63034,11 +62985,11 @@
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261022-chord-hold-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261023-k-dsp-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-scroll-taps-8');</script>
     <script>window.mygrainAccounts?.loadScript('k-multitrack.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadScript('k-track-meters.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadScript('k-track-dsp.js?v=20261023-k-hall-1');</script>
-    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-k-hall-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-scroll-taps-8');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-amend-memory-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>

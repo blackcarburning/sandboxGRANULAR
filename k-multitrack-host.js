@@ -275,9 +275,9 @@
             const row = document.createElement('section'); row.dataset.kTrack = index; row.className = 'k-recorder-track';
             row.setAttribute('aria-label', `K track ${index + 1}`); row.style.setProperty('--k-track-rgb', colours[index]);
             row.innerHTML = `<div class="k-track-heading"><strong>K${index + 1}</strong><span data-k-track-status>Empty</span></div>
-                <label><input type="radio" name="kRecordTrack" data-k-record-select aria-label="Record select K${index + 1}"> Record select</label>
-                <label><input type="checkbox" data-k-enabled checked aria-label="Enable K${index + 1}"> On</label>
-                <label><input type="checkbox" data-k-mute aria-label="Mute K${index + 1}"> Mute</label>
+                <label class="k-track-toggle"><input type="radio" name="kRecordTrack" data-k-record-select aria-label="Record select K${index + 1}"> Record select</label>
+                <label class="k-track-toggle"><input type="checkbox" data-k-enabled checked aria-label="Enable K${index + 1}"> On</label>
+                <label class="k-track-toggle"><input type="checkbox" data-k-mute aria-label="Mute K${index + 1}"> Mute</label>
                 <label>Level <output data-k-level-value>100%</output><input type="range" min="0" max="100" value="100" data-k-level aria-label="K${index + 1} level"></label>
                 <div class="k-track-vu" data-k-track-meter="${index}" role="meter" aria-label="K${index + 1} output level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60" aria-valuetext="Silent">
                     <div class="k-track-vu-head"><span>VU</span><span data-k-vu-value>−∞</span></div>
@@ -285,6 +285,12 @@
                 </div>
                 <label>Pan <output data-k-pan-value>C</output><input type="range" min="-100" max="100" value="0" data-k-pan aria-label="K${index + 1} pan"></label>
                 <label>Loop steps<input type="number" min="1" step="1" inputmode="numeric" data-k-steps aria-label="K${index + 1} loop length in steps"></label>`;
+            // Labels own only their checkbox/radio and text. The rest of the
+            // tile selects the editor without changing On, Mute or a slider.
+            row.addEventListener('click', event => {
+                if (event.target.closest('label, input, button, select, textarea, a')) return;
+                if (recorder.selected !== index) safe(() => select(index));
+            });
             row.querySelector('[data-k-record-select]').addEventListener('change', () => safe(() => select(index)));
             for (const [selector, key] of [['[data-k-enabled]', 'enabled'], ['[data-k-mute]', 'mute'], ['[data-k-level]', 'level'], ['[data-k-pan]', 'pan'], ['[data-k-steps]', 'steps']]) {
                 const update = event => safe(() => change(index, key, ['mute', 'enabled'].includes(key) ? event.target.checked : Number(event.target.value) / (key === 'level' || key === 'pan' ? 100 : 1)));

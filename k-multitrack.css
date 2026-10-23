@@ -4,6 +4,7 @@
 .k-track-heading { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; margin-bottom:10px; }
 .k-track-heading span { font-size:11px; opacity:.7; }
 .k-recorder-track label { display:block; margin:8px 0; font-size:12px; }
+.k-recorder-track .k-track-toggle { display:flex; align-items:center; width:fit-content; max-width:100%; min-height:32px; padding-right:8px; box-sizing:border-box; cursor:pointer; }
 .k-recorder-track input[type=range] { display:block; width:100%; margin-top:8px; }
 .k-recorder-track input[type=number] { display:block; box-sizing:border-box; width:100%; max-width:100%; padding:8px; margin-top:6px; color:inherit; background:#171c25; border:1px solid #4f5363; border-radius:6px; }
 .k-recorder-track input[type=radio],.k-recorder-track input[type=checkbox] { width:18px; height:18px; vertical-align:middle; margin-right:6px; }

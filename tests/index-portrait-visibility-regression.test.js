@@ -1182,9 +1182,7 @@ test('dropbox sample browser shows only the active overlay and uses a robust clo
     assert.match(indexHtml, /dropboxSampleBrowserRefreshAbortController\.abort\(\);/);
     assert.match(indexHtml, /signal: abortController\.signal/);
     assert.match(indexHtml, /function handleDropboxSampleBrowserClose\(event\)/);
-    assert.match(indexHtml, /\['pointerdown', \{ capture: true \}\]/);
-    assert.match(indexHtml, /\['touchend', \{ capture: true, passive: false \}\]/);
-    assert.match(indexHtml, /dropboxSampleBrowserCloseBtn\?\.addEventListener\(eventName, handleDropboxSampleBrowserClose, options\);/);
+    assert.match(indexHtml, /dropboxSampleBrowserCloseBtn\?\.addEventListener\('click', handleDropboxSampleBrowserClose, \{ capture: true \}\);/);
 });
 
 test('drum machine transport buttons recover audio before starting playback', () => {
