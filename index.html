@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-synth-preset-step-1';
+            const cacheBuster = '2026-10-23-keyboard-decay-5s-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6293,7 +6293,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.SYNTH.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.DECAY.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6380,7 +6380,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.SYNTH.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.DECAY.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8937,7 +8937,7 @@
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceKeyboardDecay"><span>Keyboard Decay · All Sounds</span><span class="value" id="performanceKeyboardDecayValue">Off</span></label>
-                    <input type="range" id="performanceKeyboardDecay" min="0" max="8000" step="10" value="0">
+                    <input type="range" id="performanceKeyboardDecay" min="0" max="5000" step="10" value="0">
                     <p class="performance-feature-note">Fade each note to silence. Off keeps the original envelopes. Applies to Osc, Grain, Piano, Strings, Sample, Arp and Record to K; does not change existing K takes.</p>
                 </div>
                 <div class="keyboard-section">
@@ -33627,11 +33627,11 @@
         }
 
         function getKeyboardDecaySeconds() {
-            return Math.max(0, Math.min(8000, Number(keyboardDecayMilliseconds) || 0)) / 1000;
+            return Math.max(0, Math.min(5000, Number(keyboardDecayMilliseconds) || 0)) / 1000;
         }
 
         function setKeyboardDecay(value, options = {}) {
-            keyboardDecayMilliseconds = Math.max(0, Math.min(8000, Number(value) || 0));
+            keyboardDecayMilliseconds = Math.max(0, Math.min(5000, Number(value) || 0));
             const input = document.getElementById('performanceKeyboardDecay');
             if (input) input.value = String(keyboardDecayMilliseconds);
             const label = document.getElementById('performanceKeyboardDecayValue');

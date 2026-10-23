@@ -2,7 +2,7 @@
 
 ## Controls
 
-The keyboard has one **Keyboard Decay · All Sounds** control: Off, or 10–8000 ms.
+The keyboard has one **Keyboard Decay · All Sounds** control: Off, or 10–5000 ms (5 seconds at full travel, as of DECAY.1).
 It fades each new Osc / Grain / Piano / Strings / Sample note toward silence,
 including Arp notes and the signal recorded into K. Existing sound attacks,
 source lengths and key-release envelopes still apply; a short source is not
@@ -31,6 +31,8 @@ level/mute/pan/length/metadata fields and add `enabled` and `processing`.
 The generated selected-track controls are not generic global slider/select or
 checkbox state: the versioned K object is their only persisted authority.
 Keyboard decay is `state.sliders.performanceKeyboardDecay`, default 0 (Off).
+Previously saved values above 5000 ms clamp to 5000 ms on recall; values within the
+range retain their original millisecond durations.
 Browser state, presets, card Undo/Redo and Song Save Amendment retain both.
 
 Version-one multitrack settings migrate all five takes and apply the previous
