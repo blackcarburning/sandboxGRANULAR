@@ -42,6 +42,7 @@ function fixture(names = []) {
         prepare: async (...args) => calls.ready.push(args)
     };
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         keyboardSoundSource: 'grain', keyboardSoundSelectionToken: 0, keyboardInteractionEpoch: 0,
         keyboardVoiceOutputs: new Map(),
         arpEnabled: false, keyboardArpTransportPlaying: false,

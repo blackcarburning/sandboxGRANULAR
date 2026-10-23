@@ -50,8 +50,8 @@ assert.match(base,/^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
    await edit('[data-k-track="1"] [data-k-level]',37);await edit('[data-k-track="2"] [data-k-pan]',-80);await press('[data-k-track="3"] [data-k-mute]');await page.waitForFunction(()=>!mygrainCardHistory.busy);
    await page.evaluate(()=>{setBastardLoopKEnabled(true,{silent:true});setBastardLoopPlaying(true,{silent:true})});
    await page.waitForFunction(()=>[...mygrainKMultitrack.voices.values()].every(v=>audioContext.currentTime>v.source.patternSectionStart+.03));
-   const playback=await page.evaluate(()=>[...mygrainKMultitrack.voices.values()].map(v=>({period:v.source.loopEnd,level:v.gain.gain.value,pan:v.pan.pan.value,rate:v.source.playbackRate.value})));
-   assert.equal(playback.length,5);playback.forEach((v,i)=>assert(Math.abs(v.period-[3,5,7,8,11][i]*.05)<.00003));assert(Math.abs(playback[2].pan+.8)<1e-6);assert.equal(playback[3].level,0);
+   const playback=await page.evaluate(()=>[...mygrainKMultitrack.voices.values()].map(v=>({index:v.index,period:v.source.loopEnd,level:v.gain.gain.value,pan:v.pan.pan.value,rate:v.source.playbackRate.value})));
+   assert.equal(playback.length,4);playback.forEach(v=>assert(Math.abs(v.period-[3,5,7,8,11][v.index]*.05)<.00003));assert(Math.abs(playback.find(v=>v.index===2).pan+.8)<1e-6);assert.equal(playback.some(v=>v.index===3),false);
    // Live period edits crop/pad just that track and reject unsafe lengths before replacing its graph.
    await edit('[data-k-track="0"] [data-k-steps]',2);
    assert(Math.abs(await page.evaluate(()=>mygrainKMultitrack.voices.get(0).source.loopEnd)-.1)<.00003);

@@ -270,6 +270,9 @@ class AccountHTTPTests(unittest.TestCase):
             self.assertEqual(headers['Location'], '/mygrain/')
 
     def test_positive_static_allowlist_encoded_traversal_and_symlinks(self):
+        status, body, headers = self.anonymous.request('GET', '/mygrain/k-track-dsp.js')
+        self.assertEqual(status, 200)
+        self.assertEqual(body, (pathlib.Path(__file__).resolve().parents[1] / 'k-track-dsp.js').read_bytes())
         for path in ['/mygrain/backend/mygrain_accounts.py', '/mygrain/ops-backup/a/index.html',
                      '/mygrain/backups/archive.zip', '/mygrain/2026-10-13_pre_song_implementation/app/index.html',
                      '/mygrain/index_working_12_10_2026.html', '/mygrain/working001.html', '/mygrain/.git/config',

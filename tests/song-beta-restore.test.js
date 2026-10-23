@@ -25,6 +25,7 @@ test('unavailable browser storage cannot abort startup before Song Access can be
 function restoreFixture(state, failure) {
     const logged = [];
     const context = {
+        setKeyboardDecay() {},
         readStoredStateSnapshot: () => state,
         setBastardLoopMPlusPanPercent: () => {},
         restoreDrumMachineToneDefaults: () => {},
@@ -63,6 +64,7 @@ test('restoration prepares the saved pattern length before dispatching sequencer
         let steps = Array.from({ length: liveLength }, () => ({}));
         const state = { patternLength: savedLength, sliders: { [`seqStep${savedLength}Pitch`]: '48', seqStep64Pitch: '52' } };
         const context = {
+        setKeyboardDecay() {},
             readStoredStateSnapshot: () => state,
             setBastardLoopMPlusPanPercent: () => {},
             restoreDrumMachineToneDefaults: () => {},
@@ -87,6 +89,7 @@ function deferredSaveFixture() {
     const frames = [];
     let saves = 0;
     const context = {
+        setKeyboardDecay() {},
         stateSaveSuspended: false,
         sourceMutationSerial: 0,
         requestAnimationFrame: callback => frames.push(callback),
@@ -142,6 +145,7 @@ function recallFixture(previousState, restore) {
     const snapshot = { state: { patternLength: 16 }, extra: {} };
     const calls = [];
     const context = {
+        setKeyboardDecay() {},
         isAudioGraphReady: () => true,
         audioContext: { state: 'running' },
         stateSaveSuspended: false,
@@ -209,6 +213,7 @@ test('pending slider updates can be flushed synchronously exactly once using the
     const frames = new Map();
     let nextFrame = 0;
     const context = {
+        setKeyboardDecay() {},
         requestAnimationFrame: callback => { frames.set(++nextFrame, callback); return nextFrame; },
         cancelAnimationFrame: frame => frames.delete(frame)
     };

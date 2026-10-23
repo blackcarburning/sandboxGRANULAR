@@ -6282,7 +6282,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.KEYS.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.KFX.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6369,7 +6369,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.KEYS.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.KFX.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7866,7 +7866,7 @@
                     </div>
                 </div>
                 <div id="kMultitrackTracks" class="k-multitrack-tracks" aria-label="Five K recorder tracks"></div>
-                <p class="performance-feature-note">Record select and the keyboard destination choose the same track. Waveform, audition, clear and normalise apply to that track; K master volume, pitch and filter apply to all five.</p>
+                <p class="performance-feature-note">Record select and the keyboard destination choose the same track. Waveform, audition, clear and normalise apply to that track; The coloured filter, tuning and effects section follows the selected track. K master volume controls all five.</p>
                 <div class="keyboard-sound-switch" id="performanceBastardLoopKSoundSwitch" role="group" aria-label="K keyboard sound">
                     <button class="performance-btn" type="button" data-keyboard-sound="osc" aria-pressed="false">Osc</button>
                     <button class="performance-btn active" type="button" data-keyboard-sound="grain" aria-pressed="true">Grain</button>
@@ -7892,11 +7892,13 @@
                 </div>
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopKLevel">
-                        <span>Bastardloop K Volume</span>
+                        <span>K Master Volume</span>
                         <span class="value" id="performanceBastardLoopKLevelValue">50%</span>
                     </label>
                     <input type="range" id="performanceBastardLoopKLevel" min="0" max="100" value="50" step="1">
                 </div>
+                <section id="kTrackControlSection" class="k-track-editor" aria-label="Selected K track filter, tuning and effects"></section>
+                <div id="kLegacyTrackControls" hidden aria-hidden="true">
                 <div class="performance-sound-card">
                     <label for="performanceBastardLoopKSemitone">
                         <span>Bastardloop K Semitone</span>
@@ -7982,6 +7984,7 @@
                     <button class="performance-btn" id="performanceBastardLoopKNormalizeBtn" type="button">Normalize</button>
                     <button class="performance-btn active" id="performanceBastardLoopKPreserveDurationBtn" type="button" aria-pressed="true">Preserve Duration On</button>
                     <button class="performance-btn" id="performanceBastardLoopKReverseBtn" type="button" aria-pressed="false">Reverse Off</button>
+                </div>
                 </div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopKMeta" role="status" aria-live="polite" aria-atomic="true">Record the live grain output to create a synced loop.</div>
             </div>
@@ -8912,6 +8915,11 @@
                     <label for="performanceKeyboardSampleVolume"><span>Sample Volume</span><span class="value" id="performanceKeyboardSampleVolumeValue">100%</span></label>
                     <input type="range" id="performanceKeyboardSampleVolume" min="0" max="100" value="100" step="1">
                     <p class="performance-feature-note">Middle C (C4) plays the original pitch. Other keys transpose the sample; higher notes play faster. Use Hold, Arp and Record to K as usual.</p>
+                </div>
+                <div class="performance-sound-card">
+                    <label for="performanceKeyboardDecay"><span>Keyboard Decay · All Sounds</span><span class="value" id="performanceKeyboardDecayValue">Off</span></label>
+                    <input type="range" id="performanceKeyboardDecay" min="0" max="8000" step="10" value="0">
+                    <p class="performance-feature-note">Fade each note to silence. Off keeps the original envelopes. Applies to Osc, Grain, Piano, Strings, Sample, Arp and Record to K; does not change existing K takes.</p>
                 </div>
                 <div class="keyboard-section">
                     <div class="octave-controls">
@@ -12114,6 +12122,9 @@
                 drumMachineHatNoiseBuffer, whiteNoiseBuffer, pinkNoiseBuffer });
             for (const [kind, track] of Object.entries(drumMachineExtraTracks)) buffers.push([`drums.${kind}`, track.buffer]);
             buffers.push(['roomImpulse', finalReverbNode?.buffer]);
+            window.mygrainKMultitrack?.tracks.forEach((track, index) => {
+                buffers.push([`K${index + 1}.raw`, track.raw], [`K${index + 1}.rendered`, track.rendered], [`K${index + 1}.padded`, track.padded]);
+            });
             for (const [slot, source] of buffers.slice()) {
                 if (!source) continue;
                 const pitchCache = tempoLockedPitchBufferCache.get(source);
@@ -13193,6 +13204,7 @@
         let currentGrainNote = null; // Last keyboard grain note, retained for legacy UI state
         let octaveOffset = 0; // Keyboard VIEW only; selected notes have absolute pitches.
         let keyboardLegacyBackingOctave = 0; // Preserve pre-KEYS.2 non-keyboard synth/grain tuning on recall.
+        let keyboardDecayMilliseconds = 0;
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
         let arpEnabled = false;
@@ -14711,6 +14723,8 @@
             'performanceKeyboardPianoVolume',
             'performanceKeyboardStringsVolume',
             'performanceKeyboardSampleVolume',
+            'performanceKeyboardDecay',
+            ...['semitone','fine','cutoff','resonance','envelope','envelopeDecay','lfoAmount','drive','delayMix','delayFeedback','delayCutoff','reverbMix','reverbDecay'].map(key => `kTrack_${key}`),
             'performanceBastardLoopKInputGain',
             'performanceKeyboardKLevel',
             ...INTERNAL_BPM_CLOCK_RATE_IDS,
@@ -15442,7 +15456,7 @@
         function buildPresetSliderSchema() {
             const schema = {};
             document.querySelectorAll('input[type="range"]').forEach((slider) => {
-                if (slider.closest('#drumSendEffects')) return;
+                if (slider.closest('#drumSendEffects, #kTrackControlSection')) return;
                 if (slider.closest('#radiolabTrimPanel')) return;
                 if (!slider.id) return;
                 schema[slider.id] = {
@@ -19133,12 +19147,13 @@
             // Also invalidate a K preview still awaiting audio recovery.
             bastardLoopKAuditionToken += 1;
             bastardLoopKAuditionPreparing = false;
-            auditionSources.forEach(({ source, gain }) => {
+            auditionSources.forEach(({ source, gain, dispose }) => {
                 try {
                     source.stop();
                 } catch (error) {
                     console.debug('Source card audition already stopped:', error);
                 }
+                dispose?.();
                 try {
                     source.disconnect();
                     gain.disconnect();
@@ -26103,19 +26118,20 @@
             stopSourceCardAudition();
             if (wasActive) return false;
             const token = bastardLoopKAuditionToken;
-            const buffer = bastardLoopKBuffer;
+            let buffer = bastardLoopKBuffer;
             bastardLoopKAuditionPreparing = true;
             syncBastardLoopKAuditionButton();
             try {
                 if (!await ensureAudioReadyForKeyInteraction()) throw new Error('Start MYGRAIN before auditioning K.');
                 if (token !== bastardLoopKAuditionToken || buffer !== bastardLoopKBuffer || bastardLoopKRecordingState !== 'idle') return false;
+                buffer = window.mygrainKMultitrack?.prepareSelected() || buffer;
                 const now = audioContext.currentTime;
                 const source = audioContext.createBufferSource();
                 const gain = audioContext.createGain();
                 const rate = Math.max(.001, getBastardLoopKPlaybackRate());
                 const duration = buffer.duration / rate;
                 const fade = Math.min(duration / 2, getFadeSecondsForDuration(duration));
-                const level = getBastardLoopKOutputGain(getBastardLoopKLevelValue({ applyLayerToggle: false }));
+                const level = getBastardLoopKOutputGain(getBastardLoopKLevelValue({ applyLayerToggle: false })) * (window.mygrainKMultitrack?.tracks[window.mygrainKMultitrack.selected].level ?? 1);
                 source.buffer = buffer;
                 source.loop = false;
                 source.playbackRate.value = rate;
@@ -26124,16 +26140,20 @@
                 gain.gain.setValueAtTime(level, now + duration - fade);
                 gain.gain.linearRampToValueAtTime(0, now + duration);
                 source.connect(gain);
-                gain.connect(masterGain || audioContext.destination);
+                const track = window.mygrainKMultitrack?.tracks[window.mygrainKMultitrack.selected];
+                const pan = track ? audioContext.createStereoPanner() : null;
+                const graph = track ? window.MygrainKTrackDsp.create(audioContext, gain, pan, track.processing, getSharedBpmClockValue(), preFilterGainNode || masterGain || audioContext.destination) : null;
+                if (pan) { pan.pan.value = track.pan; graph.start(now, duration); } else gain.connect(masterGain || audioContext.destination);
                 source.onended = () => {
                     source.disconnect();
                     gain.disconnect();
+                    graph?.dispose(); pan?.disconnect();
                     source.buffer = null;
                     auditionSources = auditionSources.filter(node => node.source !== source);
                     if (!auditionSources.length && activeSourceCardAuditionKind === 'bastardk') activeSourceCardAuditionKind = 'none';
                     syncSourceCardAuditionButtons();
                 };
-                auditionSources = [{ source, gain, kind: 'bastardk' }];
+                auditionSources = [{ source, gain, kind: 'bastardk', dispose: () => { graph?.dispose(); pan?.disconnect(); } }];
                 activeSourceCardAuditionKind = 'bastardk';
                 source.start(now, 0, buffer.duration);
                 setStatus('Auditioning K recording.');
@@ -33487,6 +33507,20 @@
             }
         }
 
+        function getKeyboardDecaySeconds() {
+            return Math.max(0, Math.min(8000, Number(keyboardDecayMilliseconds) || 0)) / 1000;
+        }
+
+        function setKeyboardDecay(value, options = {}) {
+            keyboardDecayMilliseconds = Math.max(0, Math.min(8000, Number(value) || 0));
+            const input = document.getElementById('performanceKeyboardDecay');
+            if (input) input.value = String(keyboardDecayMilliseconds);
+            const label = document.getElementById('performanceKeyboardDecayValue');
+            if (label) label.textContent = keyboardDecayMilliseconds ? `${keyboardDecayMilliseconds} ms` : 'Off';
+            if (!options.skipSave) saveState();
+        }
+        document.getElementById('performanceKeyboardDecay')?.addEventListener('input', event => setKeyboardDecay(event.target.value));
+
         function playKeyboardSound(note, scheduledTime = null, velocity = 1, options = {}) {
             const role = options.role || 'keyboard';
             if (role === 'keyboard' && arpEnabled) return;
@@ -33502,7 +33536,7 @@
             const token = keyboardSoundSelectionToken;
             const startSample = () => player.noteOn(makePerformanceStreamId(role, note), pitch, {
                 instrument: keyboardSoundSource, velocity: Math.max(1, Math.round(velocity * 127)),
-                startTime: scheduledTime ?? audioContext.currentTime
+                startTime: scheduledTime ?? audioContext.currentTime, decaySeconds: getKeyboardDecaySeconds()
             }).catch(error => {
                 if (token === keyboardSoundSelectionToken && error.name !== 'AbortError') setStatus(`Keyboard sound: ${error.message}`, 'error');
             });
@@ -39219,6 +39253,12 @@
             if (isKeyboardSoundRole(options.role || 'keyboard') && keyboardGrainCaptureGain) {
                 outputGain.connect(keyboardGrainCaptureGain);
             }
+            const keyboardDecayEnd = options.keyboardDecaySeconds > 0 ? options.keyboardDecayStart + options.keyboardDecaySeconds : Infinity;
+            if (Number.isFinite(keyboardDecayEnd)) {
+                const remaining = Math.max(0, Math.min(1, (keyboardDecayEnd - now) / options.keyboardDecaySeconds));
+                outputGain.gain.setValueAtTime(grainAmpMultiplier * remaining, now);
+                outputGain.gain.linearRampToValueAtTime(0, Math.max(now + .001, keyboardDecayEnd));
+            }
 
             let sourcesRemaining = 0;
             let cleanupCompleted = false;
@@ -39303,7 +39343,7 @@
 
                 maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, bodyDuration + releaseSeconds);
                 startTransportSource(source, now, sampleWindow.playOffset, sampleWindow.sourceDuration);
-                scheduleTransportSourceStop(source, now + voiceDuration);
+                scheduleTransportSourceStop(source, Math.min(now + voiceDuration, keyboardDecayEnd + .003));
                 const trackedVoice = { source, gain: sampleGain, role: options.role || 'keyboard', isGrainVoice: true };
                 scheduledGrainVoices.add(trackedVoice);
                 source.onended = () => {
@@ -39358,7 +39398,7 @@
                 sourcesRemaining += 1;
                 maxVoiceTotalDuration = Math.max(maxVoiceTotalDuration, longestLayer + primaryLayer.releaseSeconds);
                 startTransportSource(noiseSource, now);
-                scheduleTransportSourceStop(noiseSource, now + longestLayer + primaryLayer.releaseSeconds + 0.04);
+                scheduleTransportSourceStop(noiseSource, Math.min(now + longestLayer + primaryLayer.releaseSeconds + 0.04, keyboardDecayEnd + .003));
                 const trackedNoise = { source: noiseSource, gain: noiseGain, role: options.role || 'keyboard', isGrainVoice: true };
                 scheduledGrainVoices.add(trackedNoise);
                 noiseSource.onended = () => {
@@ -39453,6 +39493,7 @@
                 startTime: grainState.startTime,
                 loopOriginTime: grainState.loopOriginTime,
                 positionState: null,
+                keyboardDecaySeconds: isKeyboardSoundRole(role) ? getKeyboardDecaySeconds() : 0,
                 filterEnvRelease: 0,
                 releasing: false,
                 releaseStartTime: null,
@@ -39577,6 +39618,9 @@
                 const intervalSeconds = getGranularLayerScheduleIntervalSeconds(layerSettings);
                 grainInfo.nextTime += countMissedAudioSteps(grainInfo.nextTime, intervalSeconds) * intervalSeconds;
                 while (grainInfo.nextTime < scheduleUntil) {
+                    if (grainInfo.keyboardDecaySeconds > 0 && grainInfo.nextTime >= grainInfo.startTime + grainInfo.keyboardDecaySeconds) {
+                        streamsToDelete.push(streamId); break;
+                    }
                     if (grainInfo.releasing) {
                         const releaseEndTime = Number(grainInfo.releaseEndTime);
                         if (!Number.isFinite(releaseEndTime) || grainInfo.nextTime >= releaseEndTime) {
@@ -39611,6 +39655,7 @@
                         playGrain(grainInfo.note, grainInfo.nextTime, grainVelocity, {
                             role: grainInfo.role,
                             voiceOutputs: grainInfo.voiceOutputs,
+                            keyboardDecaySeconds: grainInfo.keyboardDecaySeconds, keyboardDecayStart: grainInfo.startTime,
                             streamStartTime: grainInfo.loopOriginTime ?? grainInfo.startTime,
                             continuousLoop: grainInfo.continuousLoop,
                             grainMode: 'synth',
@@ -40791,7 +40836,7 @@
             }
 
             // Store voice
-            activeOscVoices.set(voiceId, {
+            const voice = {
                 note,
                 role,
                 voiceOutputs: options.voiceOutputs,
@@ -40806,7 +40851,23 @@
                 nodes: voiceNodes,
                 envelopes,
                 startTime
-            });
+            };
+            activeOscVoices.set(voiceId, voice);
+            const keyboardDecay = isKeyboardSoundRole(role) ? getKeyboardDecaySeconds() : 0;
+            if (keyboardDecay > 0) {
+                const end = startTime + keyboardDecay;
+                voice.decayEndTime = end;
+                oscMixer.gain.setValueAtTime(1, startTime);
+                oscMixer.gain.linearRampToValueAtTime(0, end);
+                for (const source of [osc1, osc2, osc3, noiseSource]) if (source) scheduleTransportSourceStop(source, end + .003);
+                osc1.onended = () => {
+                    if (activeOscVoices.get(voiceId) === voice) activeOscVoices.delete(voiceId);
+                    retiringOscillatorVoices.delete(voice);
+                    if (voice.cleanupTimer) clearTimeout(voice.cleanupTimer);
+                    voice.voiceOutputs?.delete(oscMixer);
+                    for (const node of voice.nodes || []) try { node.disconnect(); } catch {}
+                };
+            }
         }
 
         function stopOscillatorNote(note, scheduledTime = null, options = {}) {
@@ -40853,7 +40914,7 @@
                         gain.gain.setValueAtTime(level, stopTime);
                     }
                     gain.gain.linearRampToValueAtTime(0, stopTime + release);
-                    scheduleTransportSourceStop(source, stopTime + release);
+                    scheduleTransportSourceStop(source, Math.min(stopTime + release, voice.decayEndTime !== undefined ? voice.decayEndTime + .003 : Infinity));
                 } catch (error) {}
             }
             if (voice.role?.startsWith('bastardloopl')) touchBastardLoopLReverb(stopTime + maxRelease, voice.role !== 'bastardloopl');
@@ -41966,7 +42027,7 @@
 
         const sliders = document.querySelectorAll('input[type="range"]');
         sliders.forEach(slider => {
-            if (slider.closest('#drumSendEffects')) return;
+            if (slider.closest('#drumSendEffects, #kTrackControlSection')) return;
             if (slider.closest('#radiolabTrimPanel')) return;
             if (slider.id === 'filterLfo1Depth' || slider.id === 'filterLfo2Depth') {
                 slider.addEventListener('input', (e) => {
@@ -46690,6 +46751,7 @@
             // Reset octave offset
             octaveOffset = 0;
             keyboardLegacyBackingOctave = 0;
+            setKeyboardDecay(0, { skipSave: true });
             updateOctaveDisplay();
 
             // Update waveform display if audio buffer exists
@@ -46966,7 +47028,7 @@
 
             // Gather all slider values
             document.querySelectorAll('input[type="range"]').forEach(slider => {
-                if (slider.closest('#drumSendEffects, #kMultitrackTracks')) return;
+                if (slider.closest('#drumSendEffects, #kMultitrackTracks, #kTrackControlSection')) return;
                 if (slider.closest('#radiolabTrimPanel')) return;
                 preset.sliders[slider.id] = slider.value;
             });
@@ -47044,6 +47106,7 @@
             }) : { preset, warnings: [] };
             const safePreset = validated.preset;
             keyboardLegacyBackingOctave = resolveKeyboardLegacyBackingOctave(preset);
+            setKeyboardDecay(preset.sliders?.performanceKeyboardDecay ?? 0, { skipSave: true });
             clearDisabledLoopStartLfoRoutes();
             const normalizedSliders = normalizeStoredLfoSliderValues(safePreset.sliders, {
                 bpmOnlyLfos: safePreset.bpmOnlyLfos === true,
@@ -47064,7 +47127,7 @@
                     if (sequencerSlider && Number(sequencerSlider[1]) > presetPatternLength) return;
                     const slider = document.getElementById(id);
                     if (slider) {
-                        if (slider.closest('#drumSendEffects')) return;
+                        if (slider.closest('#drumSendEffects, #kTrackControlSection')) return;
                         slider.value = normalizedSliders[id];
                         slider.dispatchEvent(new Event('input'));
                     }
@@ -48255,14 +48318,14 @@
 
             // Save all slider values
             document.querySelectorAll('input[type="range"]').forEach(slider => {
-                if (slider.closest('#drumSendEffects, #kMultitrackTracks')) return;
+                if (slider.closest('#drumSendEffects, #kMultitrackTracks, #kTrackControlSection')) return;
                 if (slider.closest('#radiolabTrimPanel')) return;
                 state.sliders[slider.id] = slider.value;
             });
 
             // Save all select/dropdown values
             document.querySelectorAll('select').forEach(select => {
-                if (select.closest('#drumSendEffects')) return;
+                if (select.closest('#drumSendEffects, #kTrackControlSection')) return;
                 if (select.closest('[data-mygrain-workspace]') || select.id === 'performanceKeyboardKTrack') return;
                 state.selects[select.id] = select.value;
             });
@@ -48316,6 +48379,7 @@
                 const state = options.state ?? readStoredStateSnapshot();
                 if (!state) return false;
                 keyboardLegacyBackingOctave = resolveKeyboardLegacyBackingOctave(state);
+                setKeyboardDecay(state.sliders?.performanceKeyboardDecay ?? 0, { skipSave: true });
                 restoreOsc3SequencerSources(state.modes);
                 setBastardLoopMPlusPanPercent(state.sliders?.performanceBastardLoopMPlusPan ?? ((Number(state.modes?.bastardLoopMPlusPan) || 0) * 100), { skipSave: true });
                 restoreDrumMachineToneDefaults(state.sliders);
@@ -48340,7 +48404,7 @@
                         if (sequencerSlider && Number(sequencerSlider[1]) > restoredPatternLength) return;
                         const slider = document.getElementById(id);
                         if (slider) {
-                            if (slider.closest('#drumSendEffects')) return;
+                            if (slider.closest('#drumSendEffects, #kTrackControlSection')) return;
                             slider.value = normalizedStateSliders[id];
                             slider.dispatchEvent(new Event('input'));
                         }
@@ -48353,7 +48417,7 @@
                 if (state.selects) {
                     Object.keys(state.selects).forEach(id => {
                         const select = document.getElementById(id);
-                        if (!select) return;
+                        if (!select || select.closest('#kTrackControlSection')) return;
                         if (id === 'grainMainSource') {
                             select.value = normalizeGranularLayerSourceMode(state.selects[id], { layer: 'main' });
                             return;
@@ -62666,17 +62730,18 @@
     <script>window.mygrainAccounts?.loadScript('l-reverb.js?v=20261022-l-reverb-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261022-chord-hold-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261023-keys-1');</script>
-    <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-k-vu-1');</script>
-    <script>window.mygrainAccounts?.loadScript('k-multitrack.js?v=20261023-k-five-1');</script>
-    <script>window.mygrainAccounts?.loadScript('k-track-meters.js?v=20261023-k-vu-1');</script>
-    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-k-vu-1');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-multitrack.js?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-track-meters.js?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-track-dsp.js?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-amend-memory-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-amend-memory-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-keys-view-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>

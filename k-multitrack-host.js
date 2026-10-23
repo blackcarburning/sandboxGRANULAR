@@ -6,16 +6,15 @@
     const recorder = theory.create({
         context: () => audioContext, bpm: getSharedBpmClockValue,
         memoryBudget: () => (window.matchMedia?.('(pointer: coarse)').matches ? 96 : 192) * 1048576,
-        pitchRate: () => bastardLoopKPreserveDuration ? 1 : getBastardLoopKPitchRatio(),
+        pitchRate: track => track.processing.preserveDuration ? 1 : 2 ** ((track.processing.semitone + track.processing.fine / 100) / 12),
         masterGain: () => getBastardLoopKOutputGain(), boundary: () => transportSync.handoffBoundary,
         timing: time => resolveTransportLaneStart(time, 'K'), startSource: startTransportSource,
-        route(gain, pan) {
-            const filters = createBastardLoopConfigurableFilters(getBastardLoopKFilterCutoff(), getBastardLoopKFilterMode());
-            gain.connect(pan); connectBastardLoopFilterChain(pan, filters, preFilterGainNode || masterGain || audioContext.destination);
-            return filters;
+        prepare: track => prepareTrack(track),
+        route(gain, pan, track) {
+            return window.MygrainKTrackDsp.create(audioContext, gain, pan, track.processing, getSharedBpmClockValue(),
+                preFilterGainNode || masterGain || audioContext.destination);
         },
-        disconnectFilters: disconnectBastardLoopFilterChain, envelope: applyBastardLoopKFilterEnvelope,
-        filters(filters) { smoothBastardLoopFilterCutoff(filters, getBastardLoopKFilterCutoff()); attachBastardLoopKFilterLfo(filters); },
+        idle(track) { track.rendered = track.padded = track.paddedSource = null; track.renderKey = null; },
         published(voices) {
             const first = voices.values().next().value;
             bastardLoopKSource = first?.source || null; bastardLoopKGainNode = first?.gain || null;
@@ -28,18 +27,60 @@
         if (restoring || selecting) return;
         const track = recorder.tracks[recorder.selected];
         if (track.raw !== bastardLoopKRawBuffer || track.rendered !== bastardLoopKBuffer) track.padded = track.paddedSource = null;
-        Object.assign(track, { raw: bastardLoopKRawBuffer, rendered: bastardLoopKBuffer, metadata: bastardLoopKMetadata,
+        Object.assign(track, { raw: bastardLoopKRawBuffer, rendered: bastardLoopKBuffer === bastardLoopKRawBuffer ? track.rendered : bastardLoopKBuffer, metadata: bastardLoopKMetadata,
             sourceBpm: bastardLoopKSourceBpm, steps: bastardLoopKRecordingSteps });
     }
     function aliases() {
         const track = recorder.tracks[recorder.selected];
-        bastardLoopKRawBuffer = track.raw; bastardLoopKBuffer = track.rendered;
+        bastardLoopKRawBuffer = track.raw; bastardLoopKBuffer = track.rendered || track.raw;
+        const p = track.processing;
+        bastardLoopKPitchSemitones = p.semitone; bastardLoopKFineCents = p.fine;
+        bastardLoopKPreserveDuration = p.preserveDuration; bastardLoopKReverse = p.reverse;
+        bastardLoopKFilterCutoff = p.cutoff; bastardLoopKFilterMode = p.filterMode;
+        bastardLoopKFilterEnvelopeAmount = p.envelope; bastardLoopKFilterLfoWaveform = p.lfoWave;
+        bastardLoopKFilterLfoRate = p.lfoDivision; bastardLoopKFilterLfoAmount = p.lfoAmount; bastardLoopKFilterLfoInvert = p.lfoInvert;
+        const values = { Semitone: p.semitone, FineTune: p.fine, FilterCutoff: p.cutoff, FilterMode: p.filterMode,
+            FilterEnvelope: p.envelope * 100, FilterLfoWaveform: p.lfoWave, FilterLfoRate: p.lfoDivision, FilterLfoAmount: p.lfoAmount * 100 };
+        for (const [name, value] of Object.entries(values)) { const element = document.getElementById(`performanceBastardLoopK${name}`); if (element) element.value = String(value); }
         bastardLoopKMetadata = track.metadata; bastardLoopKSourceBpm = track.sourceBpm; bastardLoopKRecordingSteps = track.steps;
+    }
+    const renderKey = track => JSON.stringify([track.processing.semitone, track.processing.fine, track.processing.preserveDuration, track.processing.reverse]);
+    function prepareTrack(track) {
+        if (!track.raw || !audioContext) return track.raw;
+        const key = renderKey(track);
+        if (track.rendered && track.renderKey === key) return track.rendered;
+        const needsCopy = track.processing.reverse || (track.processing.preserveDuration && (track.processing.semitone || track.processing.fine));
+        if (needsCopy) {
+            const bytes = recorder.tracks.reduce((sum, t) => sum + (t.raw?.length || 0) * (t.raw?.numberOfChannels || 0) * 4
+                + (t.rendered && t.rendered !== t.raw ? t.rendered.length * t.rendered.numberOfChannels * 4 : 0)
+                + (t.padded?.length || 0) * (t.padded?.numberOfChannels || 0) * 4, 0);
+            const budget = (window.matchMedia?.('(pointer: coarse)').matches ? 96 : 192) * 1048576;
+            if (bytes + track.raw.length * track.raw.numberOfChannels * 4 * 3 > budget) throw new Error('This K track tuning needs too much audio memory. Shorten the take or use sampler pitch mode.');
+        }
+        // Own just this track's current render. The general synth pitch cache can
+        // retain 48 variants per source, which is unsuitable for five long takes.
+        let rendered = track.raw;
+        const cents = track.processing.semitone * 100 + track.processing.fine;
+        if (track.processing.preserveDuration && Math.abs(cents) >= .174) {
+            const quantizedCents = Math.max(-4800, Math.min(4800, Math.round(cents / 25) * 25));
+            rendered = pitchShiftBufferByRatioKeepDuration(track.raw, 2 ** (quantizedCents / 1200), audioContext);
+        }
+        if (track.processing.reverse) {
+            const reversed = audioContext.createBuffer(rendered.numberOfChannels, rendered.length, rendered.sampleRate);
+            for (let channel = 0; channel < rendered.numberOfChannels; channel++) {
+                const input = rendered.getChannelData(channel), output = reversed.getChannelData(channel);
+                for (let frame = 0; frame < input.length; frame++) output[frame] = input[input.length - frame - 1];
+            }
+            rendered = reversed;
+        }
+        track.rendered = rendered;
+        track.renderKey = key; track.padded = track.paddedSource = null;
+        if (recorder.tracks[recorder.selected] === track) aliases();
+        return track.rendered;
     }
     function rebuild(preserveRendered = false) {
         for (const track of recorder.tracks) {
-            if (!preserveRendered || !track.rendered) track.rendered = track.raw && audioContext ? getBastardLoopPlaybackBufferForMode(track.raw, getBastardLoopKPitchRatio(),
-                { preserveDuration: bastardLoopKPreserveDuration, reversed: bastardLoopKReverse }) : null;
+            if (!preserveRendered || track.renderKey !== renderKey(track)) { track.rendered = null; track.renderKey = null; }
             track.padded = track.paddedSource = null;
         }
         aliases();
@@ -50,6 +91,8 @@
         if (destination) { destination.value = String(recorder.selected); destination.disabled = disabled; }
         for (const row of document.querySelectorAll('[data-k-track]')) {
             const index = Number(row.dataset.kTrack), track = recorder.tracks[index];
+            row.querySelector('[data-k-enabled]').checked = track.enabled !== false;
+            row.querySelector('[data-k-enabled]').disabled = disabled;
             row.classList.toggle('k-track-selected', recorder.selected === index);
             const record = row.querySelector('[data-k-record-select]');
             record.checked = index === recorder.selected; record.disabled = disabled;
@@ -64,6 +107,7 @@
             row.querySelector('[data-k-pan-value]').textContent = track.pan === 0 ? 'C' : `${Math.round(Math.abs(track.pan) * 100)}${track.pan < 0 ? 'L' : 'R'}`;
             row.querySelector('[data-k-track-status]').textContent = track.raw ? `${track.raw.duration.toFixed(2)}s recorded` : 'Empty';
         }
+        syncEditor(disabled);
         const solo = document.getElementById('performanceKeyboardKSolo');
         if (solo) { const on = hasLoopLayerSolo('bastardk'); solo.classList.toggle('active', on); solo.setAttribute('aria-pressed', String(on)); }
     }
@@ -79,13 +123,13 @@
     function select(index) {
         if (busy()) throw new Error('Finish or cancel the current K take before changing its recording destination.');
         stash(); selecting = true;
-        try { recorder.select(Number(index)); aliases(); }
+        try { if (activeSourceCardAuditionKind === 'bastardk') stopSourceCardAudition(); recorder.select(Number(index)); aliases(); }
         finally { selecting = false; }
         drawBastardLoopKWaveform(); syncBastardLoopKUi(); saveState();
     }
     function change(index, setting, value) {
-        if (!Number.isInteger(index) || index < 0 || index > 4 || !['steps', 'level', 'mute', 'pan'].includes(setting)) throw new Error('Invalid K track control.');
-        if (setting !== 'mute' && !Number.isFinite(Number(value))) throw new Error('Enter a valid K track value.');
+        if (!Number.isInteger(index) || index < 0 || index > 4 || !['steps', 'level', 'mute', 'pan', 'enabled'].includes(setting)) throw new Error('Invalid K track control.');
+        if (!['mute', 'enabled'].includes(setting) && !Number.isFinite(Number(value))) throw new Error('Enter a valid K track value.');
         if (busy()) throw new Error('Finish or cancel the current K take before editing its tracks.');
         if (window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
         const apply = () => {
@@ -95,11 +139,12 @@
                 const previous = track.steps;
                 track.steps = value; track.padded = track.paddedSource = null;
                 // Preflight a longer, silence-padded period before touching playback.
-                try { recorder.bufferFor(track); } catch (error) { track.steps = previous; throw error; }
-                aliases(); if (bastardLoopPlaying) recorder.start();
-            } else if (setting === 'mute') track.mute = Boolean(value);
+                try { if (recorder.audible(track)) recorder.bufferFor(track); } catch (error) { track.steps = previous; throw error; }
+                aliases(); if (bastardLoopPlaying) recorder.restart(index);
+            } else if (setting === 'mute' || setting === 'enabled') track[setting] = Boolean(value);
             else track[setting] = Math.max(setting === 'pan' ? -1 : 0, Math.min(1, Number(value)));
-            recorder.mix(); syncBastardLoopKUi(); saveState();
+            if (bastardLoopPlaying && !recorder.voices.size) recorder.start(); else recorder.mix();
+            aliases(); syncBastardLoopKUi(); saveState();
         };
         return window.mygrainCardHistory ? window.mygrainCardHistory.run(`K${index + 1} ${setting}`, apply, false, false, true) : apply();
     }
@@ -114,11 +159,15 @@
     updateBastardLoopKMix = function () {
         if (bastardLoopPlaying && recorder.hasAudio() && !recorder.voices.size && getBastardLoopKLevelValue() > 0) recorder.start();
         else if (!bastardLoopPlaying) recorder.stop();
-        recorder.mix(); syncBastardLoopKUi();
+        recorder.mix(); aliases(); syncBastardLoopKUi();
     };
     rerenderBastardLoopKFromRaw = function (options = {}) {
         if (restoring) return bastardLoopKBuffer;
-        stash(); rebuild(); if (bastardLoopPlaying && recorder.hasAudio()) recorder.start();
+        stash(); const track = recorder.tracks[recorder.selected];
+        track.processing = theory.processing({ ...track.processing, semitone: bastardLoopKPitchSemitones, fine: bastardLoopKFineCents,
+            preserveDuration: bastardLoopKPreserveDuration, reverse: bastardLoopKReverse });
+        track.rendered = track.renderKey = track.padded = track.paddedSource = null;
+        if (bastardLoopPlaying) recorder.restart(recorder.selected); aliases();
         drawBastardLoopKWaveform(); if (!options.skipUi) syncBastardLoopKUi(); return bastardLoopKBuffer;
     };
     setBastardLoopKRecordingSteps = function (value, options = {}) {
@@ -126,7 +175,7 @@
         if (restoring) return result;
         recorder.tracks[recorder.selected].steps = bastardLoopKRecordingSteps;
         recorder.tracks[recorder.selected].padded = recorder.tracks[recorder.selected].paddedSource = null;
-        if (bastardLoopPlaying && !restoring) recorder.start(); sync(); if (!options.skipSave) saveState(); return result;
+        if (bastardLoopPlaying && !restoring) recorder.restart(recorder.selected); sync(); if (!options.skipSave) saveState(); return result;
     };
     clearBastardLoopK = async function (options = {}) {
         if (preparingRecord || bastardLoopKRecordingState === 'processing') return false;
@@ -134,7 +183,7 @@
         if (activeSourceCardAuditionKind === 'bastardk') stopSourceCardAudition();
         recorder.setBuffer(recorder.selected, null); recorder.setBuffer(recorder.selected, null, true);
         recorder.tracks[recorder.selected].metadata = null; aliases();
-        await persistSelected(); if (bastardLoopPlaying) recorder.start();
+        await persistSelected(); if (bastardLoopPlaying) recorder.restart(recorder.selected);
         drawBastardLoopKWaveform(); syncBastardLoopKUi(); syncPerformanceControlState();
         if (!options.skipSave) saveState(); if (!options.silent) setStatus(`K${recorder.selected + 1} cleared. Other K tracks are unchanged.`);
     };
@@ -158,7 +207,7 @@
         try { result = original.restore(options); }
         finally { restoring = false; }
         if (result) {
-            restoreSettings({ ...state?.modes, bastardLoopKRecordingSteps }, options.songSnapshot === true);
+            restoreSettings({ ...state?.modes, sliders: state?.sliders, selects: state?.selects, bastardLoopKRecordingSteps }, options.songSnapshot === true);
             if (bastardLoopPlaying && !options.songSnapshot) recorder.start();
         }
         return result;
@@ -168,13 +217,14 @@
         if (modes.kMultitrack) theory.normalize(modes.kMultitrack);
         stash(); restoring = true; let result;
         try { result = original.preset(preset, ...args); } finally { restoring = false; }
-        restoreSettings(modes.kMultitrack ? modes : { ...modes, kMultitrack: recorder.settings() }, false);
+        restoreSettings({ ...modes, sliders: preset.sliders, selects: preset.selects }, false);
         if (bastardLoopPlaying) recorder.start();
         saveState(); return result;
     };
     const api = {
         tracks: recorder.tracks, get selected() { return recorder.selected; }, get voices() { return recorder.voices; },
-        hasAudio: () => recorder.hasAudio(), select, change, sync, persistSelected,
+        hasAudio: () => recorder.hasAudio(), select, change, changeProcessing, sync, persistSelected,
+        prepareSelected() { stash(); const buffer = prepareTrack(recorder.tracks[recorder.selected]); aliases(); return buffer; },
         captureSettings() { stash(); return recorder.settings(); }, restoreSettings,
         getBuffer(index, rendered = false) { return recorder.tracks[index][rendered ? 'rendered' : 'raw']; },
         setBuffer(index, buffer, rendered = false) { recorder.setBuffer(index, buffer, rendered); },
@@ -186,18 +236,20 @@
                 durationSeconds: Number(state.modes?.bastardLoopKDurationSeconds) || buffers[0].duration,
                 bpm: Number(state.modes?.bastardLoopKSourceBpm) || 120, sourceLabel: 'KEYBOARD'
             };
-            restoreSettings({ ...state.modes, bastardLoopKRecordingSteps });
+            restoreSettings({ ...state.modes, sliders: state.sliders, selects: state.selects, bastardLoopKRecordingSteps });
             drawBastardLoopKWaveform(); syncBastardLoopKUi();
         }
     };
     window.mygrainKMultitrack = api;
+    const colours = ['75,211,182', '115,177,255', '213,146,255', '255,189,94', '255,126,157'];
     const form = document.getElementById('kMultitrackTracks');
     if (form) {
         for (let index = 0; index < 5; index++) {
             const row = document.createElement('section'); row.dataset.kTrack = index; row.className = 'k-recorder-track';
-            row.setAttribute('aria-label', `K track ${index + 1}`);
+            row.setAttribute('aria-label', `K track ${index + 1}`); row.style.setProperty('--k-track-rgb', colours[index]);
             row.innerHTML = `<div class="k-track-heading"><strong>K${index + 1}</strong><span data-k-track-status>Empty</span></div>
                 <label><input type="radio" name="kRecordTrack" data-k-record-select aria-label="Record select K${index + 1}"> Record select</label>
+                <label><input type="checkbox" data-k-enabled checked aria-label="Enable K${index + 1}"> On</label>
                 <label><input type="checkbox" data-k-mute aria-label="Mute K${index + 1}"> Mute</label>
                 <label>Level <output data-k-level-value>100%</output><input type="range" min="0" max="100" value="100" data-k-level aria-label="K${index + 1} level"></label>
                 <div class="k-track-vu" data-k-track-meter="${index}" role="meter" aria-label="K${index + 1} output level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60" aria-valuetext="Silent">
@@ -207,14 +259,79 @@
                 <label>Pan <output data-k-pan-value>C</output><input type="range" min="-100" max="100" value="0" data-k-pan aria-label="K${index + 1} pan"></label>
                 <label>Loop steps<input type="number" min="1" step="1" inputmode="numeric" data-k-steps aria-label="K${index + 1} loop length in steps"></label>`;
             row.querySelector('[data-k-record-select]').addEventListener('change', () => safe(() => select(index)));
-            for (const [selector, key] of [['[data-k-mute]', 'mute'], ['[data-k-level]', 'level'], ['[data-k-pan]', 'pan'], ['[data-k-steps]', 'steps']]) {
-                const update = event => safe(() => change(index, key, key === 'mute' ? event.target.checked : Number(event.target.value) / (key === 'level' || key === 'pan' ? 100 : 1)));
+            for (const [selector, key] of [['[data-k-enabled]', 'enabled'], ['[data-k-mute]', 'mute'], ['[data-k-level]', 'level'], ['[data-k-pan]', 'pan'], ['[data-k-steps]', 'steps']]) {
+                const update = event => safe(() => change(index, key, ['mute', 'enabled'].includes(key) ? event.target.checked : Number(event.target.value) / (key === 'level' || key === 'pan' ? 100 : 1)));
                 row.querySelector(selector).addEventListener('change', update);
                 if (key === 'level' || key === 'pan') row.querySelector(selector).addEventListener('input', update);
             }
             form.append(row);
         }
         for (const event of ['keydown', 'keyup']) form.addEventListener(event, event => event.stopPropagation());
+    }
+    const editor = document.getElementById('kTrackControlSection');
+    const definitions = [
+        ['Tuning'], ['semitone', 'Semitone', -24, 24, 1, 1, 'st'], ['fine', 'Fine tune', -100, 100, 1, 1, 'c'],
+        ['preserveDuration', 'Preserve duration', true], ['reverse', 'Reverse', true],
+        ['Filter'], ['filterMode', 'Filter type', theory.filterModes], ['cutoff', 'Cutoff', 50, 18000, 10, 1, 'Hz'],
+        ['resonance', 'Resonance', .1, 8, .1, 1, 'Q'], ['envelope', 'Envelope depth', 0, 100, 1, 100, '%'],
+        ['envelopeDecay', 'Envelope decay', 60, 4000, 10, 1000, 'ms'], ['lfoWave', 'LFO waveform', ['sine', 'triangle', 'sawtooth', 'ramp', 'square']],
+        ['lfoDivision', 'LFO beats/cycle', theory.divisions], ['lfoAmount', 'LFO depth', 0, 100, 1, 100, '%'], ['lfoInvert', 'Invert LFO', true],
+        ['Effects'], ['drive', 'Drive', 0, 12, .1, 1, 'dB'], ['delayMix', 'Delay mix', 0, 60, 1, 100, '%'],
+        ['delayDivision', 'Delay beats', theory.divisions], ['delayFeedback', 'Delay feedback', 0, 70, 1, 100, '%'],
+        ['delayCutoff', 'Delay tone', 200, 18000, 10, 1, 'Hz'], ['reverbMix', 'Reverb mix', 0, 60, 1, 100, '%'],
+        ['reverbDecay', 'Reverb decay', 200, 4000, 10, 1000, 'ms']
+    ];
+    function changeProcessing(key, value) {
+        if (!Object.hasOwn(theory.processing(), key)) throw new Error('Unknown K track setting.');
+        if (busy()) throw new Error('Finish the K take before editing its sound.');
+        if (window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
+        const apply = () => {
+            stash(); const index = recorder.selected, track = recorder.tracks[index];
+            const previous = { processing: track.processing, rendered: track.rendered, renderKey: track.renderKey, padded: track.padded, paddedSource: track.paddedSource };
+            track.processing = theory.processing({ ...track.processing, [key]: value });
+            if (['semitone', 'fine', 'preserveDuration', 'reverse'].includes(key)) track.rendered = track.renderKey = track.padded = track.paddedSource = null;
+            try { if (bastardLoopPlaying) recorder.restart(index); }
+            catch (error) { Object.assign(track, previous); aliases(); throw error; }
+            aliases(); syncBastardLoopKUi(); saveState();
+        };
+        return window.mygrainCardHistory ? window.mygrainCardHistory.runDraftEdit(`K${recorder.selected + 1} ${key}`, apply) : apply();
+    }
+    function syncEditor(disabled) {
+        if (!editor) return;
+        const colour = colours[recorder.selected], p = recorder.tracks[recorder.selected].processing;
+        editor.style.setProperty('--k-track-rgb', colour);
+        editor.querySelector('[data-k-editor-title]').textContent = `K${recorder.selected + 1} · Filter, tuning & effects`;
+        document.querySelector('#bastardLoopKCard .source-waveform-panel')?.style.setProperty('--k-track-rgb', colour);
+        document.querySelector('.k-keyboard-destination')?.style.setProperty('--k-track-rgb', colour);
+        for (const spec of definitions) {
+            const [key, , type, , , factor = 1, unit = ''] = spec;
+            if (spec.length < 3) continue;
+            const input = editor.querySelector(`[data-k-processing="${key}"]`); input.disabled = disabled;
+            if (document.activeElement !== input) {
+                if (type === true) input.checked = p[key];
+                else input.value = String(Array.isArray(type) ? p[key] : p[key] === null ? 400 : p[key] * factor);
+            }
+            const label = editor.querySelector(`[data-k-processing-value="${key}"]`);
+            if (label) label.textContent = p[key] === null ? 'Auto (legacy)' : `${Number((p[key] * factor).toFixed(2))} ${unit}`;
+        }
+    }
+    if (editor) {
+        editor.innerHTML = '<h4 data-k-editor-title></h4><p>These settings affect only the selected K track.</p>';
+        for (const spec of definitions) {
+            const [key, label, type, max, step, factor = 1, unit = ''] = spec;
+            if (spec.length < 3) { const title = document.createElement('h5'); title.textContent = key; editor.append(title); continue; }
+            const wrapper = document.createElement('label'); wrapper.className = 'k-track-setting'; wrapper.textContent = label;
+            const input = document.createElement(Array.isArray(type) ? 'select' : 'input'); input.dataset.kProcessing = key; input.id = `kTrack_${key}`;
+            input.setAttribute('aria-label', `Selected K track ${label.toLowerCase()}`);
+            if (Array.isArray(type)) for (const value of type) { const option = document.createElement('option'); option.value = value; option.textContent = value; input.append(option); }
+            else if (type === true) input.type = 'checkbox';
+            else { input.type = 'range'; input.min = type; input.max = max; input.step = step; const value = document.createElement('output'); value.dataset.kProcessingValue = key; wrapper.append(value); }
+            input.addEventListener('change', () => safe(() => changeProcessing(key, type === true ? input.checked : Array.isArray(type) ? input.value : Number(input.value) / factor)));
+            // Sliders audition on input, using the same history guard as all draft edits.
+            if (input.type === 'range') input.addEventListener('input', () => safe(() => changeProcessing(key, Number(input.value) / factor)));
+            wrapper.append(input); editor.append(wrapper);
+        }
+        for (const type of ['keydown', 'keyup']) editor.addEventListener(type, event => event.stopPropagation());
     }
     meters = window.MygrainKTrackMeters?.create({ context: () => audioContext });
     window.mygrainKTrackMeters = meters;

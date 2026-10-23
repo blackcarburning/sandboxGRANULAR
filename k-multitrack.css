@@ -18,3 +18,22 @@
 .k-keyboard-destination { display:flex; align-items:center; gap:8px; font-size:12px; padding:6px; }
 .k-keyboard-destination select { min-height:36px; padding:6px 12px; border-radius:6px; color:inherit; background:#171c25; border:1px solid #4f5363; }
 @media(max-width:420px) { .k-multitrack-tracks { grid-template-columns:1fr; } }
+.k-recorder-track { border-color:rgba(var(--k-track-rgb,187,140,255),.5); background:linear-gradient(rgba(var(--k-track-rgb,187,140,255),.08),rgba(var(--k-track-rgb,187,140,255),.08)),#151b24; }
+.k-recorder-track.k-track-selected { border-color:rgb(var(--k-track-rgb,187,140,255)); box-shadow:inset 0 0 0 1px rgb(var(--k-track-rgb,187,140,255)); }
+.k-recorder-track .k-track-heading strong { color:rgb(var(--k-track-rgb,187,140,255)); }
+.k-recorder-track input { accent-color:rgb(var(--k-track-rgb,187,140,255)); }
+.k-track-editor { min-width:0; padding:16px; margin-top:14px; border:2px solid rgb(var(--k-track-rgb,75,211,182)); border-radius:12px; background:linear-gradient(rgba(var(--k-track-rgb,75,211,182),.12),rgba(var(--k-track-rgb,75,211,182),.12)),#151b24; }
+.k-track-editor h4,.k-track-editor h5 { color:rgb(var(--k-track-rgb,75,211,182)); margin:0 0 12px; }
+.k-track-editor h5 { border-top:1px solid rgba(var(--k-track-rgb,75,211,182),.4); padding-top:12px; margin-top:16px; text-transform:uppercase; }
+.k-track-editor p { font-size:12px; margin-bottom:12px; }
+.k-track-setting { display:block; font-size:12px; margin:12px 0; }
+.k-track-setting output { float:right; font-variant-numeric:tabular-nums; }
+.k-track-setting input[type=range],.k-track-setting select { display:block; box-sizing:border-box; width:100%; min-width:0; margin-top:8px; accent-color:rgb(var(--k-track-rgb,75,211,182)); }
+.k-track-setting select { min-height:40px; padding:8px; color:inherit; background:#171c25; border:1px solid rgba(var(--k-track-rgb,75,211,182),.6); border-radius:6px; }
+.k-track-setting input[type=checkbox] { width:18px; height:18px; margin-left:10px; vertical-align:middle; accent-color:rgb(var(--k-track-rgb,75,211,182)); }
+#bastardLoopKCard .source-waveform-panel { border-color:rgba(var(--k-track-rgb,75,211,182),.6); }
+.k-keyboard-destination { border-left:3px solid rgb(var(--k-track-rgb,75,211,182)); }
+
+.k-track-editor output { color:rgb(var(--k-track-rgb,75,211,182)); }
+.k-track-editor input[type=range]::-webkit-slider-thumb, .k-recorder-track input[type=range]::-webkit-slider-thumb { background:rgb(var(--k-track-rgb,75,211,182)); }
+.k-track-editor input[type=range]::-moz-range-thumb, .k-recorder-track input[type=range]::-moz-range-thumb { background:rgb(var(--k-track-rgb,75,211,182)); }

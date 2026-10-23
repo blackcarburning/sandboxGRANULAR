@@ -1102,7 +1102,7 @@
             await this.ensureEditing();
             const pending = await this.upgradeSongParts(this.generation);
             if (pending) throw new Error('K conversion is incomplete: editing access was lost. Refresh Songs and try again.');
-            this.status('K conversion complete: legacy takes map to K1, with K2–K5 empty. Existing multitrack takes and all recorded audio are preserved. Arm Cache remains manual.');
+            this.status('K conversion complete: single-track takes map to K1; existing multitrack takes keep all five tracks. Previous shared filter and tuning settings are preserved per track. All recorded audio is unchanged. Arm Cache remains manual.');
         }
 
         async arm() {

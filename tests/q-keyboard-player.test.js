@@ -619,3 +619,14 @@ for (const sampleRate of [44100, 48000]) {
         assert.equal(player.pending.size, 0);
     });
 }
+
+test('keyboard decay adds a bounded fade for Piano, Strings and Sample and key-up cannot restore the peak',async()=>{
+ for(const instrument of ['piano','strings','sample']) {
+  const f=fixture();f.host.sample=()=>({duration:10,sampleRate:48000,length:480000,numberOfChannels:1});
+  const voice=await f.player.noteOn(instrument,60,{instrument,decaySeconds:.4});
+  assert.equal(voice.decaySeconds,.4);assert(voice.end<=voice.start+.413);assert.equal(voice.releaseStart,voice.attackEnd);
+  const ramp=voice.gain.gain.calls.filter(c=>c[0]==='ramp');assert.equal(ramp.at(-1)[1],0);assert.equal(ramp.at(-1)[2],voice.end);
+  f.context.currentTime=voice.start+.2;f.player.noteOff(instrument);const held=voice.gain.gain.calls.filter(c=>c[0]==='set').at(-1);assert(held[1]>0&&held[1]<voice.peak*.6);
+  f.player.stop();assert.equal(f.player.activeVoices.size,0);
+ }
+});

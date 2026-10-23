@@ -59,7 +59,7 @@
             const enabled = !doc.hidden && !pageHidden && context?.state === 'running';
             for (const entry of entries) {
                 const voice = enabled && entry.visible && voices.get(entry.index);
-                const source = voice && (voice.filters?.at(-1) || voice.pan || voice.gain);
+                const source = voice && (voice.output || voice.filters?.at(-1) || voice.pan || voice.gain);
                 if (entry.tap && entry.tap.source !== source) disconnect(entry);
                 if (source && !entry.tap) {
                     // Separate channels avoid stereo cancellation and preserve constant-power pan readings.

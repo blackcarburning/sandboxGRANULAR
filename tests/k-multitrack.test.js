@@ -21,12 +21,15 @@ test('legacy conversion is idempotent, preserves audio and maps only old K setti
     assert.equal(K.convertSnapshot(converted.snapshot).changed,false);
     assert.throws(()=>K.normalize({version:2,tracks:[]}),/Unsupported/);
 });
-test('five sources use their own lengths, tempo and common-origin modulo; level, mute and pan stay per-track',()=>{
+test('independent loops skip muted tracks entirely and rejoin without replacing other voices',()=>{
     const f=fixture(),k=f.k;
     [3,5,7,8,11].forEach((steps,i)=>{Object.assign(k.tracks[i],{steps,sourceBpm:120,level:(i+1)/5,pan:(i-2)/2,mute:i===2});k.setBuffer(i,buffer(steps*125))});
-    assert.equal(k.start(),true);assert.equal(k.voices.size,5);
-    f.sources.forEach((source,i)=>{const track=k.tracks[i];assert.equal(source.loopEnd,track.steps/8);assert.equal(source.started.time,2);assert.equal(source.started.offset,1%(track.steps/8));assert.equal(k.voices.get(i).gain.gain.value,i===2?0:.4*track.level);assert.equal(k.voices.get(i).pan.pan.value,track.pan)});
-    const source=k.voices.get(0).source;k.tracks[0].mute=true;k.tracks[1].pan=-.5;k.mix();assert.equal(k.voices.get(0).source,source);assert.equal(k.voices.get(0).gain.gain.value,0);assert.equal(k.voices.get(1).pan.pan.value,-.5);
+    assert.equal(k.start(),true);assert.equal(k.voices.size,4);assert.equal(k.voices.has(2),false);
+    for(const [i,voice] of k.voices){const source=voice.source,track=k.tracks[i];assert.equal(source.loopEnd,track.steps/8);assert.equal(source.started.time,2);assert.equal(source.started.offset,1%(track.steps/8));assert.equal(voice.gain.gain.value,.4*track.level);assert.equal(voice.pan.pan.value,track.pan)}
+    const source=k.voices.get(1).source,retired=k.voices.get(0);
+    k.tracks[0].mute=true;k.tracks[1].pan=-.5;k.tracks[2].mute=false;k.mix();
+    assert.equal(k.voices.has(0),false);assert(k.voices.has(2));assert.equal(k.voices.get(1).source,source);assert.equal(k.voices.get(1).pan.pan.value,-.5);
+    retired.source.onended();assert.equal(retired.source.buffer,null);
     f.setBpm(180);k.tempo();assert.equal(source.playbackRate.value,1.5);
     const old=[...k.voices.values()];k.stop();assert.equal(k.voices.size,0);old.forEach(v=>v.source.onended());assert(old.every(v=>v.source.buffer===null&&v.source.disconnected));
 });
@@ -50,4 +53,27 @@ test('explicit Song conversion verifies editing and never arms or recalls the li
  controller.playing=true;await assert.rejects(Controller.prototype.convertKTracks.call(controller),/Stop Song/);assert.equal(calls.length,4);
  controller.playing=false;controller.editing={id:'one'};await assert.rejects(Controller.prototype.convertKTracks.call(controller),/finish the current amendment/);
  controller.editing=null;controller.upgradeSongParts=async()=>1;await assert.rejects(Controller.prototype.convertKTracks.call(controller),/editing access was lost/);
+});
+
+test('version-one multitrack conversion copies former shared processing without changing any take',()=>{
+ const tracks=Array.from({length:5},(_,i)=>({level:(i+1)/5,pan:i/5,steps:i+3,sourceBpm:123,metadata:{take:i}}));
+ const old={state:{sliders:{performanceBastardLoopKSemitone:'7',performanceBastardLoopKFineTune:'-13',performanceBastardLoopKFilterCutoff:'1400',performanceBastardLoopKFilterEnvelope:'70',performanceBastardLoopKFilterLfoAmount:'30'},selects:{performanceBastardLoopKFilterMode:'highpass-24',performanceBastardLoopKFilterLfoWaveform:'ramp',performanceBastardLoopKFilterLfoRate:'0.5'},modes:{kMultitrack:{version:1,selected:3,tracks},bastardLoopKPreserveDuration:false,bastardLoopKReverse:true,bastardLoopKFilterLfoInvert:true}},assets:tracks.map((_,i)=>({key:K.rawKey(i),path:`audio/${i}.wav`}))};
+ const original=JSON.stringify(old),result=K.convertSnapshot(old);assert(result.changed);assert.equal(JSON.stringify(old),original);assert.deepEqual(result.snapshot.assets,old.assets);
+ const config=result.snapshot.state.modes.kMultitrack;assert.equal(config.version,2);assert.equal(config.selected,3);
+ config.tracks.forEach((track,i)=>{assert.equal(track.level,tracks[i].level);assert.equal(track.steps,tracks[i].steps);assert.deepEqual(track.metadata,tracks[i].metadata);assert.equal(track.processing.semitone,7);assert.equal(track.processing.fine,-13);assert.equal(track.processing.cutoff,1400);assert.equal(track.processing.envelope,.7);assert.equal(track.processing.envelopeDecay,null);assert.equal(track.processing.filterMode,'highpass-24');assert.equal(track.processing.preserveDuration,false);assert.equal(track.processing.reverse,true);assert.equal(track.processing.lfoWave,'square');assert.equal(track.processing.lfoInvert,true);assert.equal(track.processing.lfoAmount,.3);assert.equal(track.processing.delayMix,0);assert.equal(track.processing.reverbMix,0)});
+ assert.equal(K.convertSnapshot(result.snapshot).changed,false);
+ config.tracks[1].processing.cutoff=800;assert.equal(K.normalize(config).tracks[0].processing.cutoff,1400);assert.equal(K.normalize(config).tracks[1].processing.cutoff,800);
+});
+test('disabled, zero-level and muted tracks allocate no voices or huge padding, and one-track edits preserve peers',()=>{
+ const f=fixture(),k=f.k;k.tracks.forEach((t,i)=>{k.setBuffer(i,buffer(200));t.steps=i?1e9:1});
+ k.tracks[1].enabled=false;k.tracks[2].mute=true;k.tracks[3].level=0;k.tracks[4].enabled=false;
+ assert(k.start());assert.equal(f.sources.length,1);assert.equal(k.voices.size,1);assert(k.tracks.slice(1).every(t=>!t.padded));
+ k.tracks[1].steps=2;k.tracks[1].enabled=true;k.mix();const peer=k.voices.get(0).source;
+ k.tracks[1].steps=3;k.restart(1);assert.equal(k.voices.get(0).source,peer);assert.equal(k.voices.get(1).source.loopEnd,.375);
+});
+test('processing normalization is bounded, serializable and independently round-trips every track',()=>{
+ const p=K.processing({resonance:100,delayFeedback:2,delayMix:9,reverbMix:9,reverbDecay:99,semitone:99,filterMode:'bad'});
+ assert.equal(p.resonance,8);assert.equal(p.delayFeedback,.7);assert.equal(p.delayMix,.6);assert.equal(p.reverbMix,.6);assert.equal(p.reverbDecay,4);assert.equal(p.semitone,24);assert.equal(p.filterMode,'lowpass-48');
+ const config=K.normalize();config.tracks[4].processing=K.processing({cutoff:420,semitone:-7,delayMix:.4});config.tracks[4].enabled=false;
+ assert.deepEqual(K.normalize(JSON.parse(JSON.stringify(config))),config);assert.equal(config.tracks[0].processing.cutoff,18000);
 });

@@ -31,7 +31,7 @@ function fixture() {
         disconnect() { this.disconnected++; this.connected.length = 0; },
         start(...args) { this.starts.push(args); }, stop() { this.stops++; }
     }; }
-    const context = vm.createContext({ console, Math,
+    const context = vm.createContext({ console, Math, window: {},
         document: { getElementById: id => id === 'performanceBastardLoopKAuditionBtn' ? button : null, querySelectorAll: () => [] },
         bastardLoopKBuffer: { duration: 2 }, bastardLoopKRecordingState: 'idle',
         bastardLoopKAuditionToken: 0, bastardLoopKAuditionPreparing: false,

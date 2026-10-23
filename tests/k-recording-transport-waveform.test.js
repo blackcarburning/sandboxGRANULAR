@@ -52,6 +52,7 @@ function recordingFixture(overrides = {}) {
     const calls = { capture: [], restart: [], held: [], monitor: [], applied: [], statuses: [], stops: 0, arpStops: 0, prepared: [], history: [] };
     const buffer = audioBuffer([[0, .2, -.2, 0]]);
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         AbortController, MediaRecorder: class {},
         console: { error() {} },
         document: { getElementById: () => ({ value: '300' }) },
@@ -393,6 +394,7 @@ test('missing keyboard capture bus fails closed rather than recording the final 
 function transportFixture(overrides = {}) {
     const calls = { starts: 0, stops: 0, ready: 0, songStops: 0 };
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         window: {}, bastardLoopPlaying: false, bastardLoopKBuffer: {}, bastardLoopKSource: null,
         ensureAudioReadyForKeyInteraction: async () => true,
         setBastardLoopPlaying: enabled => { context.bastardLoopPlaying = enabled; calls.stops += 1; },
@@ -431,6 +433,7 @@ test('K UI reflects shared transport rather than the existence of a K source or 
     const button = { classList: { toggle() {} }, setAttribute(name, value) { this[name] = value; } };
     const source = extractFunction('syncBastardLoopKUi');
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         window: {}, document: { getElementById: id => id === 'performanceBastardLoopKStartBtn' ? button : null },
         bastardLoopPlaying: true, bastardLoopKRawBuffer: null, bastardLoopKBuffer: null,
         bastardLoopKSource: null, bastardLoopKRecordingState: 'idle', bastardLoopKRecordingStartsFullLoop: false
@@ -459,6 +462,7 @@ test('recordLiveOutputBuffer records only the selected bus and disconnects only 
     let stopRecorder;
     const rendered = audioBuffer([[.1, -.1, .2, -.2]]);
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         audioContext: { state: 'running', currentTime: 5, createMediaStreamDestination: () => destination, decodeAudioData: async () => rendered },
         finalAmplifierNode: { connect: () => assert.fail('Backing mix must not enter keyboard capture') },
         chooseRecordingMimeType: () => '', Blob, DOMException,
@@ -486,6 +490,7 @@ test('cancelled capture stops its recorder immediately and removes the capture c
     let cleared = 0;
     const sourceNode = { connect() { connections += 1; }, disconnect() { disconnects += 1; } };
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         audioContext: { state: 'running', currentTime: 5, createMediaStreamDestination: () => ({ stream: {} }) },
         finalAmplifierNode: null, chooseRecordingMimeType: () => '', DOMException,
         MediaRecorder: class {
@@ -514,6 +519,7 @@ test('only keyboard and keyboard-arp grains feed the capture bus, while every ro
     for (const role of [undefined, 'keyboard', 'arp', 'sequencer', 'bastardloopl', 'bastardloopl-preview']) {
         const targets = [];
         const context = {
+        getKeyboardDecaySeconds: () => 0,
             isKeyboardSoundRole: role => role === 'keyboard' || role === 'arp',
             options: { role }, mixer: { connect() {} }, outputGain: { connect: target => targets.push(target) },
             granularOutputGain: { name: 'audible' }, keyboardGrainCaptureGain: { name: 'capture' }
@@ -542,6 +548,7 @@ test('real grain streams schedule keyboard capture sends and release every voice
     const sourceInfo = { buffer: { duration: 1 } };
     const layer = { key: 'main', intervalSeconds: .1, decaySeconds: .02, smoothing: .1, blend: .2, width: 0, panBias: 0, volume: 1 };
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         audioContext: {
             currentTime: 1, sampleRate: 48000, createGain: node, createStereoPanner: node,
             createBufferSource() { const source = node(); sources.push(source); return source; }
@@ -601,6 +608,7 @@ test('real grain streams schedule keyboard capture sends and release every voice
 test('restart-all recognizes a K-only arrangement as playable backing', () => {
     let starts = 0;
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         isAudioGraphReady: () => true, audioContext: { currentTime: 1 }, window: {},
         sequencerPlaying: false, arpEnabled: false, holdEnabled: false, bastardLoopPlaying: false, drumMachinePlaying: false,
         bastardLoopBuffer: null, bastardLoop2Buffer: null, bastardLoop3Buffer: null,
@@ -675,6 +683,7 @@ test('recorded K joins backing loops but must not start live loops over a cached
     for (const playingSong of [false, true]) {
         let joined = 0;
         const context = {
+        getKeyboardDecaySeconds: () => 0,
             window: { mygrainSongBeta: { playing: playingSong } },
             document: { getElementById: () => ({ value: '120' }) }, MAX_SAMPLE_DURATION_SECONDS: 120,
             clampBpmValue: Number, sequencerBPM: 120, BASTARD_LOOP_K_AUDIO_BUFFER_KEY: 'K',
@@ -705,6 +714,7 @@ function waveformFixture() {
     };
     const status = {};
     const context = {
+        getKeyboardDecaySeconds: () => 0,
         document: { getElementById: id => id === 'performanceBastardLoopKWaveform' ? canvas : status },
         window: { devicePixelRatio: 2 }, bastardLoopKBuffer: null, bastardLoopKRawBuffer: null
     };

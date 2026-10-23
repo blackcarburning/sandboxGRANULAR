@@ -493,12 +493,15 @@
             const looped = options.instrument === 'strings';
             const release = looped ? .25 : .16;
             const rate = 2 ** ((midi - selected.sample.midi) / 12);
-            const end = looped ? start + duration + release : start + Math.min(duration + release, selected.duration / rate);
+            const decay = Number.isFinite(Number(options.decaySeconds)) ? Math.max(0, Math.min(8, Number(options.decaySeconds))) : 0;
+            const nativeEnd = looped ? start + duration + release : start + Math.min(duration + release, selected.duration / rate);
+            const attack = looped ? .012 : .004;
+            const end = decay > 0 ? Math.min(nativeEnd, start + attack + decay) : nativeEnd;
             const peak = (looped ? options.velocity / 127 : Math.sqrt(options.velocity / 127)) * instrumentCalibrationGain[options.instrument] * theory.clamp(options.volume, 0, 4, 1);
             const source = context.createBufferSource();
             const gain = context.createGain();
             const mixGain = this.host.volume ? context.createGain() : null;
-            const voice = { key, source, gain, mixGain, context, instrument: options.instrument, midi, velocity: options.velocity, start, end, release, peak, attackEnd: start + Math.min(looped ? .012 : .004, (end - start) / 2), releaseStart: Number.isFinite(end) ? Math.max(start, end - release) : Infinity, released: false };
+            const voice = { key, source, gain, mixGain, context, instrument: options.instrument, midi, velocity: options.velocity, start, end, release, peak, attackEnd: start + Math.min(looped ? .012 : .004, (end - start) / 2), releaseStart: Number.isFinite(end) ? Math.max(start, end - release) : Infinity, released: false, decaySeconds: decay };
             try {
                 source.buffer = selected.buffer;
                 source.playbackRate.value = rate;
@@ -519,7 +522,7 @@
                 gain.gain.setValueAtTime(0, start);
                 gain.gain.linearRampToValueAtTime(peak, voice.attackEnd);
                 if (Number.isFinite(end)) {
-                    voice.releaseStart = Math.max(voice.attackEnd, voice.releaseStart);
+                    voice.releaseStart = decay > 0 ? voice.attackEnd : Math.max(voice.attackEnd, voice.releaseStart);
                     gain.gain.setValueAtTime(peak, voice.releaseStart);
                     gain.gain.linearRampToValueAtTime(0, end);
                 }
