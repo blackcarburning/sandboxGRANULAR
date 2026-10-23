@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-grain-sustain-1';
+            const cacheBuster = '2026-10-23-grain-controls-2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6282,7 +6282,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.GRAIN.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.GRAIN.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6369,7 +6369,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.GRAIN.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.GRAIN.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -15173,6 +15173,9 @@
         const SOURCE_GRAIN_CONTROL_BY_KIND = Object.fromEntries(
             SOURCE_GRAIN_CONTROL_DEFINITIONS.map((definition) => [definition.kind, definition.controls])
         );
+        // Each A/B card has one persisted control bank shared by Sample and Mic.
+        SOURCE_GRAIN_CONTROL_BY_KIND.grainASample = SOURCE_GRAIN_CONTROL_BY_KIND.grainAMic;
+        SOURCE_GRAIN_CONTROL_BY_KIND.grainBSample = SOURCE_GRAIN_CONTROL_BY_KIND.grainBMic;
         const SOURCE_GRAIN_CONTROL_IDS = SOURCE_GRAIN_CONTROL_DEFINITIONS.flatMap((definition) => Object.values(definition.controls).map((control) => control.id));
         const SOURCE_GRAIN_LEVEL_CONTROL_IDS = new Set(
             SOURCE_GRAIN_CONTROL_DEFINITIONS.flatMap((definition) => definition.controls.level ? [definition.controls.level.id] : [])
@@ -19479,7 +19482,22 @@
             const blend = Math.max(0, Math.min(1, Number(blendAmount) || 0));
             const smoothing = Math.max(0, Math.min(1, Number(smoothingAmount) || 0));
             const overlapScale = Math.max(0.18, 0.92 - (blend * 0.52) - (smoothing * 0.24));
-            return Math.max(0.018, Math.min(0.18, Math.max(0.01, Number(sizeSeconds) || 0.01) * overlapScale));
+            return Math.max(0.006, Math.min(0.18, Math.max(0.001, Number(sizeSeconds) || 0.01) * overlapScale));
+        }
+
+        function getGranularLayerPlaybackSizeSeconds(layer) {
+            const sources = getAvailableGranularSources({ mode: layer.sourceMode, layer: layer.key });
+            return sources.reduce((shortest, source) => {
+                const shape = getSourceGrainShape(source, { positionPct: layer.startPct, sizeSeconds: layer.sizeSeconds }, {
+                    attack: layer.attackSeconds, release: layer.releaseSeconds,
+                    minimumFadeSeconds: getFadeSecondsForDuration(layer.sizeSeconds)
+                });
+                const range = getLoopRange(source.startId, source.endId, { modulated: true });
+                const rate = Math.max(0.0625, Math.min(16, layer.pitchRatio * Math.pow(2, (Number(source.tuneSemitones) || 0) / 12)));
+                const sourceDuration = Math.min(Math.max(0.001, source.buffer.duration * (range.endPct - range.startPct)),
+                    shape.sizeSeconds * (layer.preserveDuration !== false ? rate : 1));
+                return Math.min(shortest, sourceDuration / rate);
+            }, sources.length ? Infinity : layer.sizeSeconds);
         }
 
         function getGranularLayerJitterSeconds(sizeSeconds, blendAmount = 0, smoothingAmount = 0) {
@@ -19513,7 +19531,7 @@
                 const pitchRatio = Math.max(0.0625, Math.min(16, (noteFreq / baseFrequency) * Math.pow(2, pitchSemitones / 12)));
                 const sizeSeconds = Math.max(0.01, Math.min(0.5, sizeMs / 1000));
                 const minimumFadeSeconds = getFadeSecondsForDuration(sizeSeconds) * (1 + (smoothing * 0.9));
-                return {
+                const layer = {
                     ...definition,
                     sourceMode: normalizeGranularLayerSourceMode(document.getElementById(definition.sourceId)?.value, { layer: definition.key }),
                     startPct,
@@ -19530,6 +19548,11 @@
                     intervalSeconds: getGranularLayerIntervalSeconds(sizeSeconds, blend, smoothing),
                     jitterSeconds: getGranularLayerJitterSeconds(sizeSeconds, blend, smoothing)
                 };
+                // Density follows the actual sounding duration, not the unscaled slider.
+                const playbackSize = getGranularLayerPlaybackSizeSeconds(layer);
+                layer.intervalSeconds = getGranularLayerIntervalSeconds(playbackSize, blend, smoothing);
+                layer.jitterSeconds = getGranularLayerJitterSeconds(playbackSize, blend, smoothing);
+                return layer;
             }).filter((definition) => definition.volume > 0.0005);
         }
 
@@ -19635,7 +19658,9 @@
                 positionPct: wrapUnitInterval((Number(voice.positionPct) || 0) + positionOffset),
                 sizeSeconds: Math.max(0.01, Math.min(maxSourceSizeSeconds, (Number(voice.sizeSeconds) || 0.1) * scale * cloudSizeScale)),
                 sourceAttack,
-                sourceRelease
+                sourceRelease,
+                attackScale,
+                releaseScale
             };
         }
 
@@ -38420,7 +38445,7 @@
                 const note = getNextArpeggiatorNote(notes);
                 const when = arpNextStepTime;
                 if (arpCurrentNote) stopKeyboardSound(arpCurrentNote, Math.max(now, when - getClickGuardSeconds()), { role: 'arp', streamId: getArpGrainStreamId(arpCurrentNote) });
-                playKeyboardSound(note, when, 1, { role: 'arp', streamId: getArpGrainStreamId(note), streamStartTime: when, continuousLoop: false });
+                playKeyboardSound(note, when, 1, { role: 'arp', streamId: getArpGrainStreamId(note), streamStartTime: getTransportLoopOriginTime() ?? when, continuousLoop: false });
                 arpCurrentNote = note;
                 arpNextStepTime = window.mygrainPatternSection?.next(arpNextStepTime, stepSeconds) ?? arpNextStepTime + stepSeconds;
             }
@@ -39176,10 +39201,12 @@
             const jitterOffset = maxOffsetSpan > 0
                 ? (Math.random() * 2 - 1) * Math.min(maxOffsetSpan * 0.5, Math.max(0, layer.jitterSeconds) * playbackRate)
                 : 0;
-            const rawPlayOffset = Math.max(
-                loopStart,
-                Math.min(loopStart + maxOffsetSpan, loopStart + baseOffset + scanOffset + jitterOffset)
-            );
+            // Wrap the combined scan position. Clamping pinned positive offsets at
+            // the final grain for most of each scan cycle.
+            const scanPosition = maxOffsetSpan > 0
+                ? ((baseOffset + scanOffset) % maxOffsetSpan + maxOffsetSpan) % maxOffsetSpan
+                : 0;
+            const rawPlayOffset = loopStart + Math.max(0, Math.min(maxOffsetSpan, scanPosition + jitterOffset));
             const playOffset = findNearestZeroCrossingOffset(sourceInfo.buffer, rawPlayOffset, {
                 minSeconds: loopStart,
                 maxSeconds: loopStart + maxOffsetSpan,
@@ -39195,7 +39222,9 @@
                 sourceDuration: adjustedSourceDuration,
                 grainDuration: adjustedGrainDuration,
                 attackSeconds: sourceShape.sourceAttack,
-                releaseSeconds: sourceShape.sourceRelease
+                releaseSeconds: sourceShape.sourceRelease,
+                attackScale: sourceShape.attackScale,
+                releaseScale: sourceShape.releaseScale
             };
         }
 
@@ -39297,15 +39326,24 @@
                     0,
                     Math.min(sourcePeakGain, sourcePeakGain * (0.58 + (layer.blend * 0.22) + (smoothing * 0.18)))
                 );
-                const attackSeconds = Math.max(getFadeSecondsForDuration(sampleWindow.grainDuration), sampleWindow.attackSeconds);
                 const voiceDuration = Math.min(sampleWindow.sourceDuration, sourceInfo.buffer.duration - sampleWindow.playOffset) / sampleWindow.playbackRate;
                 if (voiceDuration <= 0) return;
-                const releaseSeconds = Math.min(
-                    voiceDuration * 0.45,
-                    Math.max(getFadeSecondsForDuration(voiceDuration), sampleWindow.releaseSeconds * (1 + (smoothing * 0.25)))
-                );
+                const fade = getFadeSecondsForDuration(voiceDuration);
+                const attackScale = sampleWindow.attackScale ?? 1;
+                const releaseScale = sampleWindow.releaseScale ?? 1;
+                // Fit the base envelope first, then apply the source controls. Applying
+                // multipliers before the fit made 25–250% release identical on short grains.
+                const baseRelease = Math.min(voiceDuration * 0.45,
+                    Math.max(fade, sampleWindow.releaseSeconds / releaseScale * (1 + smoothing * 0.25)));
+                const baseAttack = Math.min((voiceDuration - baseRelease) * 0.7,
+                    Math.max(fade, sampleWindow.attackSeconds / attackScale));
+                let attackSeconds = Math.max(Math.min(fade, voiceDuration * 0.1), baseAttack * attackScale);
+                let releaseSeconds = Math.max(Math.min(fade, voiceDuration * 0.1), baseRelease * releaseScale);
+                const envelopeFit = Math.min(1, voiceDuration * 0.95 / (attackSeconds + releaseSeconds));
+                attackSeconds *= envelopeFit;
+                releaseSeconds *= envelopeFit;
                 const bodyDuration = voiceDuration - releaseSeconds;
-                const attackEnd = now + Math.min(bodyDuration * 0.7, attackSeconds);
+                const attackEnd = now + attackSeconds;
                 const bodyEnd = now + bodyDuration;
                 const availableDecay = Math.max(0.001, bodyEnd - attackEnd);
                 const decaySeconds = Math.min(Math.max(0.001, layer.decaySeconds), availableDecay);
@@ -39451,10 +39489,10 @@
 
         function getGranularLayerScheduleIntervalSeconds(layerSettings) {
             return Math.max(
-                0.012,
+                0.006,
                 Math.min(
                     0.14,
-                    ...layerSettings.map((layer) => Math.max(0.012, Number(layer.intervalSeconds) || 0.012))
+                    ...layerSettings.map((layer) => Math.max(0.006, Number(layer.intervalSeconds) || 0.006))
                 )
             );
         }
@@ -39596,10 +39634,16 @@
             }
 
             stopGrainScheduler();
-            const scheduleUntil = Math.min(getTransportScheduleHorizon(audioContext.currentTime), audioContext.currentTime + GRAIN_SCHEDULER_LOOKAHEAD);
+            const transportHorizon = getTransportScheduleHorizon(audioContext.currentTime);
             const streamsToDelete = [];
 
             activeGrains.forEach((grainInfo, streamId) => {
+                // Sequencer/Arp submit note changes against the shared transport queue.
+                // Their grains must be queued before the next submitted note replaces
+                // the stream; a shorter horizon silently discarded those notes.
+                const scheduleUntil = grainInfo.role === 'sequencer' || grainInfo.role === 'arp'
+                    ? transportHorizon
+                    : Math.min(transportHorizon, audioContext.currentTime + GRAIN_SCHEDULER_LOOKAHEAD);
                 const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note, grainInfo.role);
                 if (!noteFreq || !isFinite(noteFreq)) return;
                 const layerSettings = withModulationEvaluationTime(
@@ -41474,6 +41518,7 @@
                             // Pass the exact scheduled time to keep grains in sync with oscillators
                             startGrainStream(step.pitch, scheduledTime, stepVelocity, {
                                 role: 'sequencer',
+                                streamStartTime: transportLoopStartTime ?? scheduledTime,
                                 continuousLoop: false
                             });
                         } catch (e) {
@@ -62761,7 +62806,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-amend-memory-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-grain-sustain-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-grain-controls-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>

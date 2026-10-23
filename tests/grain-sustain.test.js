@@ -33,3 +33,12 @@ test('overload never exceeds the source budget and late ended callbacks are idem
     callbacks.forEach(done => { done(); done(); });
     assert.equal(f.state.activeGrainNodes, 0); assert.equal(f.state.getConcurrentGrainSourceCount(), 0);
 });
+
+for (const role of ['sequencer', 'arp']) test(`${role} grains honour the transport queue before the next note replaces the stream`, () => {
+    const f = fixture({ ...production, notes: 1 });
+    const stream = [...f.state.activeGrains.values()][0];
+    stream.role = role; stream.startTime = .25; stream.nextTime = .25;
+    f.run(evaluate, .001);
+    assert.ok(f.starts.length > 0, 'A note inside the transport horizon must not be discarded by the shorter keyboard queue');
+    assert.ok(f.starts.every(source => source.t >= .25 && source.t < .35));
+});

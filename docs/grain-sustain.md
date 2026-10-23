@@ -68,3 +68,68 @@ non-silent PCM, unchanged source SHA/revision, warm reuse and zero memory
 reservations. Exhausted-pool recovery and backing-role isolation remain covered.
 Tests use disposable accounts only, never a user's original Songs. Phone tests
 are emulation, not measurements on a physical iPhone.
+
+## GRAIN.2 — source controls and transport scan repair
+
+GRAIN.1's DC / sine-from-zero tests proved continuity only. They did **not**
+exercise the real source-window function or controls with a silent-leading sample.
+The new actual-app PCM test reproduces the following on the exact GRAIN.1 backup:
+
+- A/B Sample bypassed the visible card's persisted `grainAMicGrain*` /
+  `grainBMicGrain*` controls. Position, Size, Attack and Release produced identical
+  PCM at opposite slider settings. A/B Mic did read the bank.
+- Release multipliers were applied before a hard 45%-of-grain limit. Typical
+  1250 ms layer release on a 150 ms grain made 25–250% source Release identical,
+  even in Mic mode.
+- The 120 ms grain horizon was shorter than the sequencer/Arp note submission
+  queue (350 ms). A future stream could be replaced before its first grain was
+  admitted. A constant-note sequencer produced zero sources in the baseline test.
+- Per-note scan origins kept returning to the sample's opening fragment on the
+  sequencer/Arp. A positive position offset plus scan was clamped at the final
+  grain rather than wrapping through the selected region.
+
+GRAIN.2 changes:
+
+- Sample and Mic on each A/B card share the existing persisted control IDs,
+  without duplicate controls or a saved-state migration. A and B remain independent.
+- The base grain envelope is fitted before applying source envelope multipliers;
+  overlapping attack/release are then proportionally fitted within 95% of the
+  valid source duration. Native envelopes still start/end at zero. Default 100%
+  shaping is retained. Layer release also remains the held-note release time.
+- Grain cadence uses the actual scaled/pitched/cropped sounding duration; it no
+  longer leaves old-size gaps after reducing source Size. Minimum cadence is 6 ms;
+  the hard 96-real-source guard remains enforced, including overloads.
+- Sequencer/Arp grain streams use their shared transport horizon. Held-key streams
+  retain the 120 ms queue. Independent A/B clocks and source accounting remain.
+- Sequencer/Arp scan position is anchored to transport origin, not each note.
+  Combined base position + scan wraps within valid source starts; jitter is
+  clamped afterwards so negative jitter at zero cannot jump to the sample's tail.
+- Manual Arm refreshes enabled-grain playback to `grainVersion: 3`.
+  Backend accepts legacy 1/2 and current 3, advertises `grainControlRenders: 3`.
+  Source archives, WAVs, Song revisions and recorded/frozen audio are not rewritten.
+
+Run the additional regression using the disposable server described above:
+
+```sh
+MYGRAIN_TEST_URL=http://127.0.0.1:18930/mygrain/ node tests/grain-controls-browser.cjs
+```
+
+It uses the **actual full-app source resolver, layer controls, playback and native
+Web Audio**, including low/mid/high offline PCM comparisons, silent-leading
+changing-tone real-time captures of held / sequencer / Arp, and live slider input
+without restarting a held note. It also checks Sample/Mic banks for both A/B,
+saved settings recall and bounded Start/End windows at five playback rates with
+both Preserve Duration settings. The saved-Song regression now checks all eight
+A/B position/size/envelope settings on recall and upgrades stale playback to v3.
+
+For a reproducible baseline, set `MYGRAIN_CONTROL_BASELINE` to a backed-up
+GRAIN.1 `index.html`; only the disposable test page's HTML response is replaced.
+Assertions for the expected repaired behaviour are disabled in baseline mode,
+and the baseline PCM measurements are reported separately. Never replace live
+files just to run a baseline.
+
+Use `MYGRAIN_GRAIN_SERVER=1 node tests/grain-sustain-song-browser.cjs` to additionally
+run the real isolated backend worker (Chromium) and verify the returned v3 render,
+original SHA/revision, playback PCM and saved control recall. `MYGRAIN_CONTROLS_ONLY=1`
+runs only control PCM / source-boundary / settings-recall checks without repeating
+real-time transport captures.
