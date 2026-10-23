@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-keyboard-widget-1';
+            const cacheBuster = '2026-10-23-synth-preset-step-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -5962,6 +5962,16 @@
             letter-spacing: 0.04em;
         }
 
+        #performanceKeyboardSoundSwitch { align-items: start; }
+        .keyboard-synth-controls { display: grid; gap: 4px; min-width: 0; }
+        .synth-preset-step-controls { display: flex; gap: 6px; min-width: 0; }
+        #performanceKeyboardSoundSwitch .synth-preset-step-controls .performance-btn,
+        #synthPresetPreviousBtn, #synthPresetNextBtn {
+            flex: 1; min-width: 44px; min-height: 44px;
+            padding: 6px 12px; font-size: 20px; line-height: 1; color: #06212b;
+        }
+        #keyboardSynthPresetValue { overflow-wrap: anywhere; }
+
         #performanceKeyboardSoundSwitch .performance-btn[aria-pressed="true"],
         #performanceBastardLoopKSoundSwitch .performance-btn[aria-pressed="true"] {
             background: #70408e;
@@ -6283,7 +6293,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.SYNTH.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6370,7 +6380,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.SYNTH.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8895,9 +8905,15 @@
                     </div>
                 </div>
                 <div class="keyboard-sound-switch" id="performanceKeyboardSoundSwitch" role="group" aria-label="Keyboard sound">
-                    <div class="keyboard-sound-split">
-                        <button class="performance-btn" type="button" data-keyboard-sound="osc" aria-pressed="false">Osc</button>
-                        <button class="performance-btn performance-layer-jump-btn" id="performanceKeyboardSynthJumpBtn" type="button" data-jump-target=".synth-container" aria-label="Jump to OSC3 synth">Jump</button>
+                    <div class="keyboard-synth-controls">
+                        <div class="keyboard-sound-split">
+                            <button class="performance-btn" type="button" data-keyboard-sound="osc" aria-pressed="false">Osc</button>
+                            <button class="performance-btn performance-layer-jump-btn" id="performanceKeyboardSynthJumpBtn" type="button" data-jump-target=".synth-container" aria-label="Jump to OSC3 synth">Jump</button>
+                        </div>
+                        <div class="synth-preset-step-controls" role="group" aria-label="Keyboard synth preset navigation">
+                            <button class="performance-btn primary" id="keyboardSynthPresetPreviousBtn" type="button" data-synth-preset-step="-1" aria-label="Previous synth preset">−</button>
+                            <button class="performance-btn primary" id="keyboardSynthPresetNextBtn" type="button" data-synth-preset-step="1" aria-label="Next synth preset">+</button>
+                        </div>
                     </div>
                     <div class="keyboard-sound-split">
                         <button class="performance-btn active" id="performanceKeyboardGrainOnBtn" type="button" data-keyboard-sound="grain" data-granular-keyboard-ready="true" aria-pressed="true" title="Enable and repair the granular keyboard path">Grain On</button>
@@ -8907,6 +8923,7 @@
                     <button class="performance-btn" type="button" data-keyboard-sound="strings" aria-pressed="false">Q Strings</button>
                     <button class="performance-btn" type="button" data-keyboard-sound="sample" aria-pressed="false">Sample</button>
                 </div>
+                <p class="keyboard-sound-status">Synth preset: <span id="keyboardSynthPresetValue" aria-live="polite">Custom</span></p>
                 <div class="keyboard-sound-status" data-keyboard-sound-status role="status" aria-live="polite">Grain ready.</div>
                 <div class="performance-sound-card" id="keyboardSampleCard">
                     <div class="performance-actions">
@@ -10450,6 +10467,10 @@
                             <select id="synthPresetSelect">
                                 <option value="custom" selected>Custom</option>
                             </select>
+                            <div class="synth-preset-step-controls" role="group" aria-label="Synth preset navigation">
+                                <button class="performance-btn primary" id="synthPresetPreviousBtn" type="button" data-synth-preset-step="-1" aria-label="Previous synth preset">−</button>
+                                <button class="performance-btn primary" id="synthPresetNextBtn" type="button" data-synth-preset-step="1" aria-label="Next synth preset">+</button>
+                            </div>
                         </div>
                         <section class="synth-custom-patches" id="synthCustomPatchBrowser" aria-label="Saved custom synth patches" data-mygrain-workspace="synth-custom-patches">
                             <div>
@@ -40546,19 +40567,12 @@
         }
 
         function syncSynthPresetLabel(value = document.getElementById('synthPresetSelect')?.value || 'custom') {
-            const label = document.getElementById('synthPresetValue');
-            if (!label) return;
+            const labels = ['synthPresetValue', 'keyboardSynthPresetValue'].map(id => document.getElementById(id)).filter(Boolean);
             const saved = value === 'custom' && synthCustomPatches.find((patch) => patch.id === loadedSynthCustomPatchId);
-            if (saved) {
-                label.textContent = `Saved: ${saved.name}`;
-                return;
-            }
             const preset = SYNTH_POPUP_PRESET_MAP.get(value);
-            if (preset) {
-                label.textContent = preset.name;
-            } else {
-                label.textContent = value === 'custom' ? 'Custom' : `${SYNTH_POPUP_PRESETS.length} presets`;
-            }
+            const text = saved ? `Saved: ${saved.name}` : preset ? preset.name
+                : value === 'custom' ? 'Custom' : `${SYNTH_POPUP_PRESETS.length} presets`;
+            labels.forEach(label => { label.textContent = text; });
         }
 
         function setSynthPresetSelectValue(value = 'custom') {
@@ -40572,6 +40586,20 @@
         function markSynthPopupPresetCustom() {
             if (applyingSynthPopupPreset) return;
             setSynthPresetSelectValue('custom');
+        }
+
+        function stepSynthPreset(direction) {
+            if (direction !== -1 && direction !== 1) throw new Error('Invalid synth preset direction.');
+            if (window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
+            const action = () => {
+                const current = document.getElementById('synthPresetSelect')?.value;
+                const index = SYNTH_POPUP_PRESETS.findIndex(preset => preset.id === current);
+                if (!SYNTH_POPUP_PRESETS.length) return;
+                const next = index < 0 ? (direction > 0 ? 0 : SYNTH_POPUP_PRESETS.length - 1)
+                    : (index + direction + SYNTH_POPUP_PRESETS.length) % SYNTH_POPUP_PRESETS.length;
+                applySynthPopupPreset(SYNTH_POPUP_PRESETS[next].id);
+            };
+            return window.mygrainCardHistory ? window.mygrainCardHistory.runDraftEdit('synth preset', action) : action();
         }
 
         function populateSynthPresetSelect() {
@@ -42808,6 +42836,12 @@
         });
 
         // --- OSC Tab Controls ---
+        document.querySelectorAll('[data-synth-preset-step]').forEach(button => {
+            button.addEventListener('click', async () => {
+                try { await stepSynthPreset(Number(button.dataset.synthPresetStep)); }
+                catch (error) { setStatus(`Synth preset change failed: ${error.message}`, 'error'); }
+            });
+        });
         document.getElementById('synthPresetSelect').addEventListener('change', (e) => {
             const presetId = e.target.value;
             loadedSynthCustomPatchId = '';
@@ -49395,6 +49429,9 @@
                     }
                 }
 
+                // Synthetic restore events can mark the synth Custom; retain
+                // the already-saved factory identity without reapplying its sound.
+                setSynthPresetSelectValue(state.selects?.synthPresetSelect || 'custom');
                 syncFinalPanControlDisplays();
                 updateFinalOutputPanning();
                 window.mygrainQ?.restore(state.q);
