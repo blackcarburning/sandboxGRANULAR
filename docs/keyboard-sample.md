@@ -1,8 +1,12 @@
-# Sample keyboard — SAMPLE.1
+# Sample keyboard — SAMPLE.2
 
 ## Play and record
 
 Select **Sample** in the keyboard or K sound switch. With no sample loaded, this opens the shared browser; otherwise use **Choose Keyboard Sample** above the keybed to replace it. The folder selector offers all 13 configured `SAMPLES_*` libraries and the existing Sampledrop / Splice sources. Preview and choose **Load into Keyboard**.
+
+**Random Sample** above the keybed loads a new keyboard sample and selects Sample playback. Grain A and Grain B each have their own **Random Sample** button beside their source controls, reachable in both Mic and Sample modes. Each button replaces only its own source; grain size/envelope settings and the other two samples stay unchanged.
+
+These three random buttons only use `SAMPLES_VOCAL`, `SAMPLES_PIANO`, `SAMPLES_ORCH`, `SAMPLEDROP`, `SAMPLEDROP_2` and `SPLICE_CLAW`. Drum/bass subfolders are excluded too; manual browser choices and the existing loop/drum randomizers are unchanged. The `sampledrop2` API key represents `SAMPLEDROP_2`. Empty/unavailable folders are skipped within this fixed allowlist; exhaustion fails without replacing the current sample. The current file is excluded from its own next selection. There is no broader-library fallback.
 
 - C4 (middle C / MIDI 60) plays the sample at its original rate, regardless of its filename.
 - Semitone playback rates are `2 ** ((MIDI - 60) / 12)`; C5 is twice the rate, C3 half. Pitch shifting changes duration.
@@ -24,3 +28,5 @@ The saved-part start action explicitly authorizes its held/Arp keyboard notes. T
 `tests/q-keyboard-player.test.js` exercises middle-C rates, sample release/replacement, isolated capture routing and silent empty/suspended states alongside the existing Q instruments. `tests/song-beta-compatibility.test.js` covers absent-slot migration and strict failures.
 
 `tests/keyboard-sample-browser.cjs` only accepts a localhost test server with disposable accounts. It serves actual PCM WAV bytes through the existing source API path, decodes them with Web Audio, checks all folders, C4/C5/C3 rates, a physical-pointer Hold note and a non-silent exact-length K worklet take. It checks failed/late-load preservation, actual Song amendment/save/recall, source Undo/Redo, a non-silent frozen Song render, reload without re-fetch, Arp to K, and phone layout. Chromium and WebKit desktop / 390px phone emulation are supported. This is not a physical-phone test.
+
+`tests/random-performance-samples.test.js` verifies the six-root allowlist, path/subfolder filtering, empty/offline fallback, current-file exclusion, and context/authentication cancellation. `tests/random-performance-samples-browser.cjs` uses disposable localhost accounts, real decoded PCM, native phone taps in Chromium/WebKit, all six libraries for all three targets, protected grain settings, Undo/Redo, failures and delayed-load cancellation, Song amendment/save/recall, and reload without downloading audio again.

@@ -30,7 +30,7 @@ PUBLIC_FILES = {
     'assets/brand/mygrain-rainbow-brain.png', 'assets/brand/mygrain-rainbow-brain.webp',
     'assets/brand/mygrain-icon.png',
     'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js', 'drum-roll.js',
-    'mygrain-utils.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
+    'mygrain-utils.js', 'random-performance-samples.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
     'navigation-palette.js', 'navigation-palette.css',
     'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
     'k-multitrack.js', 'k-multitrack-host.js', 'k-multitrack.css', 'k-track-meters.js', 'k-track-dsp.js',

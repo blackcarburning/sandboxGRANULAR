@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-grain-edges-3';
+            const cacheBuster = '2026-10-23-random-samples-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -290,6 +290,7 @@
     </script>
     <script>window.mygrainAccounts?.loadScript('https://www.dropbox.com/static/api/2/dropins.js', { defer: '', type: 'text/javascript', id: 'dropboxjs', 'data-app-key': 't3fqkzcnvmjuwfn' });</script>
     <script>window.mygrainAccounts?.loadScript('mygrain-utils.js?v=20261023-keys-1');</script>
+    <script>window.mygrainAccounts?.loadScript('random-performance-samples.js?v=20261023-random-samples-1');</script>
     <script>window.mygrainAccounts?.loadScript('audio-diagnostics.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('audio-debug-storage.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261020-vcut-random-history-1');</script>
@@ -6282,7 +6283,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.GRAIN.3</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6369,7 +6370,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.GRAIN.3</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8910,6 +8911,7 @@
                 <div class="performance-sound-card" id="keyboardSampleCard">
                     <div class="performance-actions">
                         <button class="performance-btn primary" id="performanceKeyboardSampleBrowseBtn" type="button">Choose Keyboard Sample</button>
+                        <button class="performance-btn primary" id="performanceKeyboardSampleRandomBtn" type="button" data-random-sample-target="keyboardSample">Random Sample</button>
                     </div>
                     <p class="performance-feature-note" id="performanceKeyboardSampleName">No keyboard sample chosen.</p>
                     <label for="performanceKeyboardSampleVolume"><span>Sample Volume</span><span class="value" id="performanceKeyboardSampleVolumeValue">100%</span></label>
@@ -9436,6 +9438,7 @@
                             </div>
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-grain-layer-audition="A" aria-pressed="false" disabled>Audition</button>
                         </div>
+                        <button type="button" class="grain-layer-browser-btn" id="grainASampleRandomBtn" data-random-sample-target="grainA">Random Sample</button>
                         <div class="grain-source-mode-block" data-grain-source-panel="A" data-grain-source-kind="grainAMic" hidden>
                             <canvas id="grainAMicWaveformCanvas" class="source-waveform-canvas" data-source="grainAMic"></canvas>
                             <div class="source-grain-mode-control" aria-label="Grain A granular engine mode">
@@ -9497,6 +9500,7 @@
                             </div>
                             <button type="button" class="source-waveform-solo-btn source-card-audition-btn" data-grain-layer-audition="B" aria-pressed="false" disabled>Audition</button>
                         </div>
+                        <button type="button" class="grain-layer-browser-btn" id="grainBSampleRandomBtn" data-random-sample-target="grainB">Random Sample</button>
                         <div class="grain-source-mode-block" data-grain-source-panel="B" data-grain-source-kind="grainBMic" hidden>
                             <canvas id="grainBMicWaveformCanvas" class="source-waveform-canvas" data-source="grainBMic"></canvas>
                             <div class="source-grain-mode-control" aria-label="Grain B granular engine mode">
@@ -14173,6 +14177,7 @@
         let keyboardSampleBuffer = null;
         let keyboardSampleMetadata = null;
         let keyboardSampleSourceKey = 'samples_piano';
+        let randomPerformanceSampleLoadController = null;
         let keyboardSampleLoadController = null;
         let keyboardSamplePlayer = null;
         let keyboardSamplePlayerContext = null;
@@ -33258,7 +33263,61 @@
             return Object.hasOwn(BASTARD_LOOP_SOURCE_LABELS, value) ? value : 'samples_piano';
         }
 
-        async function loadKeyboardSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
+        async function loadRandomPerformanceSample(target) {
+            const keyboard = target === SAMPLE_BROWSER_TARGETS.keyboardSample;
+            if (!keyboard && ![SAMPLE_BROWSER_TARGETS.grainA, SAMPLE_BROWSER_TARGETS.grainB].includes(target)) throw new Error('Unknown random sample target.');
+            if (randomPerformanceSampleLoadController || window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
+            if (!await ensureAudioReadyForKeyInteraction()) throw new Error('Start MYGRAIN before loading a random sample.');
+            // Recheck after audio startup, which can yield to another tap.
+            if (randomPerformanceSampleLoadController || window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
+            const controller = randomPerformanceSampleLoadController = new AbortController();
+            const context = audioContext, serial = sourceMutationSerial, selection = keyboardSoundSelectionToken;
+            const account = window.mygrainAccounts?.user?.username, song = window.mygrainSongBeta;
+            const editing = song?.editing, songId = song?.song?.id;
+            const label = keyboard ? 'Keyboard' : GRAIN_SAMPLE_BROWSER_TARGET_DETAILS[target].layerLabel;
+            let ownsHistory = false;
+            const guard = () => {
+                if (controller.signal.aborted || context !== audioContext || serial !== sourceMutationSerial || selection !== keyboardSoundSelectionToken
+                    || !window.mygrainAccounts?.authenticated || account !== window.mygrainAccounts.user?.username
+                    || isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopKRecordingState !== 'idle'
+                    || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle'
+                    || song?.playing || song?.busy || song?.editing !== editing || song?.song?.id !== songId
+                    || (editing && !song.canEditSong()) || (!ownsHistory && window.mygrainCardHistory?.busy)) {
+                    throw new Error('Random sample load cancelled because the sound, recording, account or Song changed.');
+                }
+            };
+            const buttons = Array.from(document.querySelectorAll('[data-random-sample-target]'));
+            buttons.forEach(button => { button.disabled = true; button.setAttribute('aria-busy', String(button.dataset.randomSampleTarget === target)); });
+            const timeout = setTimeout(() => controller.abort(), 60000);
+            try {
+                guard();
+                setStatus(`Choosing a random sample for ${label} from the six allowed folders…`);
+                const current = keyboard ? keyboardSampleMetadata : getGrainSampleMetadata(GRAIN_SAMPLE_BROWSER_TARGET_DETAILS[target].slotKind);
+                const sample = await window.MygrainRandomSamples.chooseSample({ catalogUrl: DROPBOX_SAMPLE_SOURCE_FILES_API_URL, signal: controller.signal, guard, current });
+                guard();
+                const options = { guard, signal: controller.signal, maxBytes: 32 * 1024 * 1024, checkResponse: response => {
+                    guard();
+                    const key = response.headers.get('X-Mygrain-Source-Key');
+                    const path = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path'));
+                    if ((key && key !== sample.sourceKey) || (path && path !== sample.relativePath)) throw new Error('Random sample identity did not match the allowed selection.');
+                } };
+                // The existing keyboard loader owns its transaction. Grain loads
+                // acquire the same draft-edit boundary here, after catalog lookup.
+                ownsHistory = true;
+                if (keyboard) await loadKeyboardSampleFromSourceRelativePath(sample.sourceKey, sample.relativePath, sample.fileName, options);
+                else {
+                    const action = () => loadGranularBrowserSampleFromSourceRelativePath(target, sample.sourceKey, sample.relativePath, sample.fileName, options);
+                    if (window.mygrainCardHistory) await window.mygrainCardHistory.runDraftEdit(`${label} random sample`, action);
+                    else await action();
+                }
+            } finally {
+                clearTimeout(timeout);
+                if (randomPerformanceSampleLoadController === controller) randomPerformanceSampleLoadController = null;
+                buttons.forEach(button => { button.disabled = false; button.setAttribute('aria-busy', 'false'); });
+            }
+        }
+
+        async function loadKeyboardSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '', options = {}) {
             // Reuse the card history boundary: sample changes are editable in Amend,
             // but must not join an unrelated asynchronous history operation.
             if (window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
@@ -33267,11 +33326,15 @@
                 if (bastardLoopKRecordingState !== 'idle') throw new Error('Finish Record to K before changing the sample.');
                 keyboardSampleLoadController?.abort();
                 const controller = keyboardSampleLoadController = new AbortController();
+                const cancel = () => controller.abort();
+                options.signal?.addEventListener('abort', cancel, { once: true });
+                if (options.signal?.aborted) controller.abort();
                 const context = audioContext, selection = keyboardSoundSelectionToken, serial = sourceMutationSerial;
                 const account = window.mygrainAccounts?.user?.username;
                 const song = window.mygrainSongBeta;
                 const editing = song?.editing, songId = song?.song?.id;
                 const guard = () => {
+                    options.guard?.();
                     if (controller.signal.aborted || context !== audioContext || selection !== keyboardSoundSelectionToken || serial !== sourceMutationSerial
                         || !window.mygrainAccounts?.authenticated || account !== window.mygrainAccounts.user?.username
                         || bastardLoopKRecordingState !== 'idle' || song?.playing || song?.busy || song?.editing !== editing || song?.song?.id !== songId
@@ -33281,6 +33344,7 @@
                     sourceKey = normalizeKeyboardSampleSourceKey(sourceKey);
                     const response = await fetch(buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath), { cache: 'no-store', signal: controller.signal });
                     if (!response.ok) throw new Error(`Sample download failed (${response.status}).`);
+                    options.checkResponse?.(response);
                     if (Number(response.headers.get('Content-Length')) > 32 * 1024 * 1024) throw new Error('Keyboard sample exceeds 32 MB.');
                     const bytes = await response.arrayBuffer();
                     if (bytes.byteLength > 32 * 1024 * 1024) throw new Error('Keyboard sample exceeds 32 MB.');
@@ -33298,7 +33362,10 @@
                     saveState();
                     await saveAudioBufferToDB(buffer, KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY);
                     setStatus(`Keyboard sample: ${keyboardSampleMetadata?.fileName || fileName}. C4 is original pitch.`);
-                } finally { if (keyboardSampleLoadController === controller) keyboardSampleLoadController = null; }
+                } finally {
+                    options.signal?.removeEventListener('abort', cancel);
+                    if (keyboardSampleLoadController === controller) keyboardSampleLoadController = null;
+                }
             };
             return window.mygrainCardHistory ? window.mygrainCardHistory.runDraftEdit('keyboard sample', action) : action();
         }
@@ -51924,7 +51991,9 @@
                 config.sourceKey
             );
             const responseSourceLabel = fallback.sourceLabel || getGrainSampleBrowserSourceLabel(responseSourceKey);
+            if (fallback.maxBytes && Number(response.headers.get('Content-Length')) > fallback.maxBytes) throw new Error('Random sample exceeds 32 MB.');
             const arrayBuffer = await response.arrayBuffer();
+            if (fallback.maxBytes && arrayBuffer.byteLength > fallback.maxBytes) throw new Error('Random sample exceeds 32 MB.');
             const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
 
             fallback.guard?.();
@@ -51951,18 +52020,23 @@
             setStatus(`${sourceName} ready in ${config.layerLabel} from ${responseSourceLabel}.`);
         }
 
-        async function loadGranularBrowserSampleFromSourceRelativePath(target, sourceKey, relativePath, fileName = '') {
+        async function loadGranularBrowserSampleFromSourceRelativePath(target, sourceKey, relativePath, fileName = '', options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a grain sample.');
             }
             const config = getSampleBrowserTargetConfig(target);
             const sourceLabel = getGrainSampleBrowserSourceLabel(sourceKey);
             setStatus(`Loading ${fileName || 'sample'} into ${config.layerLabel} from ${sourceLabel}…`);
+            options.guard?.();
             const response = await fetch(buildDropboxSampleSourcePreviewUrl(sourceKey, relativePath), {
                 mode: 'cors',
-                cache: 'no-store'
+                cache: 'no-store',
+                signal: options.signal
             });
+            options.checkResponse?.(response);
             await loadGranularBrowserSampleFromResponse(response, target, {
+                guard: options.guard,
+                maxBytes: options.maxBytes,
                 sourceKey,
                 sourceLabel,
                 fileName,
@@ -60599,6 +60673,14 @@
             await handleBastardLoopKRecordButtonPress({ startFullLoop: true });
         });
         document.getElementById('performanceKeyboardSampleBrowseBtn')?.addEventListener('click', () => openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.keyboardSample));
+        document.querySelectorAll('[data-random-sample-target]').forEach(button => {
+            button.addEventListener('click', async () => {
+                try { await loadRandomPerformanceSample(button.dataset.randomSampleTarget); }
+                catch (error) { setStatus(`Random sample load failed: ${error.message}`, 'error'); }
+            });
+        });
+        window.addEventListener('mygrain-account-lock', () => randomPerformanceSampleLoadController?.abort());
+        window.addEventListener('pagehide', () => randomPerformanceSampleLoadController?.abort());
         document.getElementById('performanceKeyboardSampleVolume')?.addEventListener('input', () => { syncKeyboardSampleMixControls(); saveState(); });
         window.addEventListener('mygrain-account-lock', () => { keyboardSampleLoadController?.abort(); keyboardSamplePlayer?.stop(); });
         document.querySelectorAll('[data-keyboard-sound]').forEach(button => {
