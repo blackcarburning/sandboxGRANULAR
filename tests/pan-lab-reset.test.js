@@ -38,6 +38,7 @@ function resetFixture(overrides = {}) {
         ...overrides
     };
     vm.createContext(context);
+    vm.runInContext(extractFunction('resetFinalPanMotion'), context);
     vm.runInContext(extractFunction('resetFinalPanLab'), context);
     return { context, elements, calls };
 }
@@ -94,6 +95,23 @@ test('reset does not race an in-progress engine restore', () => {
     assert.equal(context.resetFinalPanLab(), false);
     assert.equal(elements.get('finalPanCenter').value, '87');
     assert.deepEqual(calls.map(call => call[0]), ['status']);
+});
+
+test('shared randomizer reset changes DSP and labels without saving an intermediate patch or emitting status', () => {
+    const { context, elements, calls } = resetFixture();
+    assert.deepEqual(Array.from(context.resetFinalPanMotion()), controls);
+    assert.ok(controls.every(id => elements.get(id).value === '0' && elements.get(`${id}Value`).textContent === '0%'));
+    assert.equal(elements.get('finalPanLfoRate').value, '180');
+    assert.deepEqual(calls.map(call => call[0]), ['panning']);
+});
+
+test('the shared patch randomizer clears Pan Lab and never randomizes its rate, shape or tracking preferences', () => {
+    const randomizer = extractFunction('randomizeFullPatchPerformanceState');
+    assert.match(randomizer, /resetFinalPanMotion\(\)/);
+    assert.doesNotMatch(randomizer, /set(?:Slider|Select)Value\('finalPan/);
+    assert.match(extractFunction('runPatchRandomization'), /randomizeFullPatchPerformanceState\(/);
+    assert.match(extractFunction('runMegaRandomization'), /await runPatchRandomization\(\)/);
+    assert.match(html, /await runMegaRandomization\(\{ sparseMode: true \}\)/);
 });
 
 function jumpFixture() {
