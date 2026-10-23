@@ -474,7 +474,7 @@
                     audioSlots: Object.fromEntries(audioBindings.map(([key, getBuffer]) => [key, Boolean(getBuffer())])),
                     sequencerSteps: cloneJson(sequencerSteps),
                     seqGrainsEnabled,
-                    heldNotes: getArpeggiatorNotes().filter(note => noteNames.includes(note)),
+                    heldNotes: getArpeggiatorNotes().filter(isValidKeyboardNote),
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
@@ -761,7 +761,7 @@
                 sequencerSteps.forEach((step, index) => updateSequencerStepUI(index + 1));
                 seqGrainsEnabled = snapshot.extra.seqGrainsEnabled !== false;
                 document.getElementById('seqGrainsEnabled').checked = seqGrainsEnabled;
-                heldNotes = new Set((snapshot.extra.heldNotes || []).filter(note => noteNames.includes(note)));
+                heldNotes = new Set(normalizeKeyboardHeldNotes(snapshot.extra.heldNotes, snapshot.state));
                 document.querySelectorAll('.key[data-note]').forEach(key => key.classList.toggle('active', heldNotes.has(key.dataset.note)));
                 performanceSourceLayerSolo = snapshot.extra.performanceSourceLayerSolo || [];
                 performanceSourceLayerSoloSnapshot = snapshot.extra.performanceSourceLayerSoloSnapshot || null;
@@ -1021,7 +1021,7 @@
                 sequencerSteps.forEach((step, i) => updateSequencerStepUI(i + 1));
                 seqGrainsEnabled = target.seqGrainsEnabled;
                 document.getElementById('seqGrainsEnabled').checked = seqGrainsEnabled;
-                heldNotes = new Set(target.heldNotes);
+                heldNotes = new Set(normalizeKeyboardHeldNotes(target.heldNotes, target.state));
                 document.querySelectorAll('.key[data-note]').forEach(key => key.classList.toggle('active', heldNotes.has(key.dataset.note)));
                 performanceSourceLayerSolo = copy(target.performanceSourceLayerSolo);
                 performanceSourceLayerSoloSnapshot = copy(target.performanceSourceLayerSoloSnapshot);

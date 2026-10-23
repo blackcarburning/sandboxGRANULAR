@@ -10,18 +10,18 @@ const functionBody = name => {
     return html.slice(start, end);
 };
 const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const context = { octaveOffset: 0, noteSemitoneOffsets: Object.fromEntries(names.map((name, i) => [name, i])), noteFrequencies: {} };
+const context = { octaveOffset: 0, keyboardLegacyBackingOctave: 0, noteSemitoneOffsets: Object.fromEntries(names.map((name, i) => [name, i])), noteFrequencies: {} };
 vm.createContext(context);
-vm.runInContext(['parseNoteName', 'transposeNoteName', 'noteNameToMidi', 'getNoteFrequency', 'getKeyboardNoteMidi', 'getKeyboardNoteFrequency', 'getGranularKeyboardNoteFrequency'].map(functionBody).join('\n'), context);
+vm.runInContext(['parseNoteName', 'transposeNoteName', 'noteNameToMidi', 'getNoteFrequency', 'getKeyboardNoteMidi', 'getKeyboardNoteFrequency', 'getGranularKeyboardNoteFrequency', 'isKeyboardSoundRole', 'getPerformanceNoteFrequency', 'resolveKeyboardLegacyBackingOctave', 'isValidKeyboardNote', 'normalizeKeyboardHeldNotes'].map(functionBody).join('\n'), context);
 
-test('all 336 displayed-base-note / octave combinations have exact chromatic MIDI and equal-temperament frequency', () => {
+test('all 120 absolute keys keep their exact pitches across seven keyboard view positions', () => {
     for (let shift = -3; shift <= 3; shift++) {
         context.octaveOffset = shift;
-        for (let octave = 1; octave <= 4; octave++) for (let pitch = 0; pitch < 12; pitch++) {
-            const note = names[pitch] + octave, midi = (octave + shift + 1) * 12 + pitch;
+        for (let octave = -2; octave <= 7; octave++) for (let pitch = 0; pitch < 12; pitch++) {
+            const note = names[pitch] + octave, midi = (octave + 1) * 12 + pitch;
             assert.equal(context.getKeyboardNoteMidi(note), midi);
             assert.equal(context.getKeyboardNoteFrequency(note), 440 * 2 ** ((midi - 69) / 12));
-            assert.equal(context.transposeNoteName(note, shift), names[pitch] + (octave + shift));
+            assert.equal(context.isValidKeyboardNote(note), true);
             assert.ok(Math.abs(context.getGranularKeyboardNoteFrequency(note) - context.getKeyboardNoteFrequency(note)) < 1e-8);
         }
     }
@@ -35,4 +35,32 @@ test('C4 is MIDI 60, A4 is 440 Hz; sharp, E/F and B/C intervals never change ord
         assert.equal(context.getKeyboardNoteMidi(next) - context.getKeyboardNoteMidi(first), 1);
         assert.ok(Math.abs(context.getKeyboardNoteFrequency(next) / context.getKeyboardNoteFrequency(first) - 2 ** (1 / 12)) < 1e-12);
     }
+});
+
+
+test('legacy held notes gain their saved playback shift exactly once, while absolute selections ignore the view', () => {
+    const normalize = (notes, state) => Array.from(context.normalizeKeyboardHeldNotes(notes, state));
+    assert.deepEqual(normalize(['C2', 'F#4', 'B4'], { octave: 1 }), ['C3', 'F#5', 'B5']);
+    assert.deepEqual(normalize(['C1', 'C#1'], { octave: -3 }), ['C-2', 'C#-2']);
+    assert.deepEqual(normalize(['C2', 'G5'], { octave: 3, keyboardNotesVersion: 2 }), ['C2', 'G5']);
+    const original = ['C2', 'F#4'];
+    const migrated = normalize(original, { octave: 1 });
+    assert.deepEqual(normalize(migrated, { octave: 1, keyboardNotesVersion: 2 }), migrated);
+    assert.deepEqual(original, ['C2', 'F#4']);
+    assert.deepEqual(normalize(['C2', 'C2', 'invalid', 'B#4', 'C8', 'B-3'], { keyboardNotesVersion: 2 }), ['C2']);
+});
+
+
+test('legacy backing tuning is preserved separately and never follows the view buttons', () => {
+    context.keyboardLegacyBackingOctave = context.resolveKeyboardLegacyBackingOctave({ octave: 1 });
+    for (const view of [-3, 0, 3]) {
+        context.octaveOffset = view;
+        assert.equal(context.getPerformanceNoteFrequency('C2', 'keyboard'), context.getNoteFrequency('C2'));
+        assert.equal(context.getPerformanceNoteFrequency('C2', 'arp'), context.getNoteFrequency('C2'));
+        assert.equal(context.getPerformanceNoteFrequency('C2', 'bastardLoopX'), context.getNoteFrequency('C3'));
+        assert.equal(context.getGranularKeyboardNoteFrequency('C2', 'sequencer'), context.getNoteFrequency('C3'));
+    }
+    assert.equal(context.resolveKeyboardLegacyBackingOctave({ octave: 3, keyboardNotesVersion: 2, keyboardLegacyBackingOctave: 1 }), 1);
+    assert.equal(context.resolveKeyboardLegacyBackingOctave({ octave: 3, keyboardNotesVersion: 2 }), 0);
+    context.keyboardLegacyBackingOctave = 0;
 });

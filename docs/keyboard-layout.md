@@ -1,25 +1,31 @@
-# Keyboard layout and pitch mapping — KEYS.1
+# Keyboard layout and pitch mapping — KEYS.2
 
-The keybed uses the same absolute coordinate system for white and black keys, including border-box sizing. Each sharp is centred on the corresponding white-key boundary: C/D, D/E, F/G, G/A and A/B. There is no black key between E/F or B/C. No flex shrinking or hard-coded per-note CSS positions may independently move one colour of keys.
+The keybed uses one absolute border-box coordinate system for white and black keys. Sharps sit on the C/D, D/E, F/G, G/A and A/B boundaries; there is no black key between E/F or B/C. Key labels, hit targets and sounding notes all use the same absolute note name.
 
-Responsive display uses the **keybed's actual content width**, not the containing card or window width:
+## View and selection
 
-- Below 430 px: C3–C4 (one octave plus the upper C, eight white keys).
-- 430–899 px: C2–C4 (two octaves plus the upper C).
-- 900 px and above: the original C1–B4 range.
+Responsive geometry uses the keybed's actual content width:
 
-Octave buttons transpose the original base-note identities by −3…+3 octaves, as before. Hidden key nodes are retained, including their saved held-note identities and event handlers; resizing does not erase a chord. A ResizeObserver refreshes geometry after account startup, card width changes and rotation. Accessible labels and titles follow the **sounding** octave for black as well as white notes.
+- Below 900 px, including iPhone portrait: **two octaves plus upper C**, 25 keys / 15 white keys. Default C2–C4.
+- At least 900 px: four octaves, default C1–B4.
 
-`getKeyboardNoteMidi()` is the shared note-to-pitch boundary: `(octave + 1) * 12 + pitchClass + 12 * octaveOffset`. A4 is MIDI 69 / 440 Hz and C4 is MIDI 60. Sample selection/preparation and note-on use this integer mapping directly. Piano, Strings and Sample accept the complete original keyboard range at every octave setting, including C1 shifted down three octaves (C−2 / mathematical MIDI −12). The former MIDI-0 clamp collapsed these lowest twelve notes onto one pitch. This extends audio pitch calculation only; hardware MIDI and Q sequencer data limits are unchanged.
+Octave buttons move only this visible window by −3…+3 octaves. They do not transpose notes, restart sounding voices or change the held/Arp note pool. Hold selections retain their absolute names when hidden, and their highlights return on navigating back. An overlapping note in adjacent windows is the same selectable note. All 120 fixed nodes C−2–B7 retain their handlers and selection state; rotation only recalculates geometry. A ResizeObserver refreshes layout after startup and card-width changes.
 
-Sample remains rooted at C4, which plays its **original recorded pitch**; arbitrary imported audio is not automatically pitch-detected or retuned. The sampled acoustic piano retains its original instrument tuning/stretch. No sample files, Song schemas, stored note names, K routing or recorded takes are rewritten.
+`getKeyboardNoteMidi()` maps an absolute name directly to MIDI: `(octave + 1) * 12 + pitchClass`. A4 is MIDI 69 / 440 Hz; C4 is MIDI 60. Sample preparation, note-on, Piano, Strings, oscillator and granular keyboard paths use those pitches independently of the view. Mathematical MIDI −12 supports C−2 without collapsing the lowest notes onto MIDI 0. Hardware MIDI and sequencer limits are unchanged.
+
+Sample remains rooted at C4, playing its original recorded pitch. Imported audio is not automatically pitch-detected or retuned; the acoustic piano retains its instrument tuning/stretch.
+
+## Persistence and older Songs
+
+New state/presets include `keyboardNotesVersion: 2`; selected note names are absolute. The persisted `octave` value now describes only the view. Song capture accepts all keyboard notes, including selections outside the sequencer's C1–C5 note list. Save Amendment/recall and card Undo/Redo use the same normalization boundary.
+
+Older snapshots stored base note names plus a playback octave shift. Recall converts selected notes to their original sounding names **once in memory**, without rewriting saved ZIP originals. Recapturing marks those notes as version 2, avoiding a second shift. Older global octave settings also affected non-keyboard synth/grain backing: `keyboardLegacyBackingOctave` retains that original tuning separately on recall and subsequent saves. New view navigation never changes it; new parts default to zero. Reset clears the compatibility setting. Recorded K audio and unrelated sequencing/routing are unchanged.
 
 ## Verification
 
-- `tests/keyboard-note-mapping.test.cjs`: all 336 base-note/octave combinations, chromatic E/F and B/C boundaries, tuning references and agreement with the granular pitch path.
-- `tests/q-keyboard-player.test.js`: all three sampled instruments, all 336 mappings, both 44.1/48 kHz context rates; exact sampler ratios and voice cleanup.
-- `tests/mygrain-utils.test.js`: four-octave black/white geometry, including widths below the former hidden minimum.
-- `tests/keyboard-mapping-browser.cjs`: localhost/disposable accounts only. Both Chromium/WebKit, desktop and touch phone contexts; actual fetched piano/strings assets; 1,008 host mappings per run; physical targets and repeated notes in low/default/high octaves; 320/390 px portrait and 844 px landscape layouts. FFT checks rendered sample audio down to C−2 and up to B7 and every piano semitone over C3–B3 plus a C4/E4/G4/B4 progression, using both 44.1 and 48 kHz offline rendering. Numerical render checks retain each actual keyboard voice's native-rate source and playback rate.
-- `tests/keyboard-sample-browser.cjs`: real K worklet recording, held/Arp notes, Save Amendment/recall, Undo/Redo, frozen Song rendering and account reload without library refetch.
+- `tests/keyboard-note-mapping.test.cjs`: 120 absolute keys across seven view positions; tuning and chromatic boundaries; one-time legacy conversion; independent backing compatibility.
+- Focused regression slice: keyboard mapping, keyboard/K readiness, geometry utilities, Q keyboard player, piano startup, K multitrack and Q Song source-memory tests.
+- `tests/keyboard-mapping-browser.cjs`: disposable localhost accounts; Chromium/WebKit desktop and phone; 2,520 host pitch mappings, 162 physical key presses and 38 rendered-audio FFT pitch checks per context. Includes Piano/Strings/Sample, C−2–B7, 44.1/48 kHz renders, narrow portrait and landscape hit geometry.
+- `tests/keyboard-octave-view-browser.cjs`: two-octave 320/390 px portrait and 844 px landscape geometry; native touch/click selection across windows for Sample/Piano/Strings; exact sounding-voice identity; overlapping-key deselection; absolute Arp pool/playback; Undo/Redo; real Song Save Amendment/recall, old snapshot conversion and unchanged source JSON; non-silent Song rendering.
 
-Phone checks are browser emulation, not measurements on a physical iPhone.
+Phone checks use browser emulation, not a physical iPhone.

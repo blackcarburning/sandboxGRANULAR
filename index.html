@@ -6282,7 +6282,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.KEYS.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.KEYS.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6369,7 +6369,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.KEYS.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.KEYS.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8915,9 +8915,9 @@
                 </div>
                 <div class="keyboard-section">
                     <div class="octave-controls">
-                        <button class="octave-btn" id="octaveUpBtn">+</button>
+                        <button class="octave-btn" id="octaveUpBtn" title="Show the next higher octave; selected notes keep their pitches" aria-label="Show higher keyboard octave">+</button>
                         <div class="octave-display" id="octaveDisplay">Oct: 0</div>
-                        <button class="octave-btn" id="octaveDownBtn">-</button>
+                        <button class="octave-btn" id="octaveDownBtn" title="Show the next lower octave; selected notes keep their pitches" aria-label="Show lower keyboard octave">-</button>
                     </div>
                     <div class="volume-bias-container">
                         <label>Vol Bias</label>
@@ -9312,10 +9312,10 @@
                 </div>
                 <div class="performance-sound-card performance-octave-card">
                     <label>
-                        <span>Octave</span>
+                        <span>Keyboard View</span>
                         <span class="value" id="performanceOctaveValue">0</span>
                     </label>
-                    <div class="performance-octave-row" role="group" aria-label="Keyboard octave">
+                    <div class="performance-octave-row" role="group" aria-label="Keyboard view octave">
                         <button class="performance-octave-btn" id="performanceOctaveDownBtn">-</button>
                         <button class="performance-octave-btn" id="performanceOctaveUpBtn">+</button>
                     </div>
@@ -13191,7 +13191,8 @@
         const mygrainUtils = window.MYGRAIN_UTILS || {};
         const reversedAudioBufferCache = new WeakMap();
         let currentGrainNote = null; // Last keyboard grain note, retained for legacy UI state
-        let octaveOffset = 0;
+        let octaveOffset = 0; // Keyboard VIEW only; selected notes have absolute pitches.
+        let keyboardLegacyBackingOctave = 0; // Preserve pre-KEYS.2 non-keyboard synth/grain tuning on recall.
         let keyboardVolumeBias = 0; // -1 (bass loud) to +1 (treble loud)
         let holdEnabled = false;
         let arpEnabled = false;
@@ -15672,15 +15673,17 @@
             const availableWidth = keyboard.clientWidth;
             if (!availableWidth) return;
             const keys = Array.from(keyboard.querySelectorAll('.key'));
-            // Keep phone keys playable; the octave buttons transpose the same
-            // saved base notes. Do not rebuild nodes or discard hidden held notes.
-            const firstMidi = availableWidth < 430 ? 48 : availableWidth < 900 ? 36 : 24;
-            const lastMidi = availableWidth < 900 ? 60 : 71;
+            // Two octaves on portrait phones too. Browse fixed-pitch key nodes;
+            // hiding a key must never transpose it or erase its held selection.
+            const firstMidi = (availableWidth < 900 ? 36 : 24) + 12 * octaveOffset;
+            const lastMidi = (availableWidth < 900 ? 60 : 71) + 12 * octaveOffset;
             keys.forEach((key) => {
                 const midi = noteNameToMidi(key.dataset.note);
                 key.hidden = midi < firstMidi || midi > lastMidi;
             });
             const notes = keys.filter(key => !key.hidden).map(key => key.dataset.note);
+            const display = document.getElementById('octaveDisplay');
+            if (display && notes.length) display.textContent = `${notes[0]} – ${notes[notes.length - 1]}`;
             const whiteKeyCount = notes.filter((note) => !note.includes('#')).length || 1;
             const whiteWidth = availableWidth / whiteKeyCount;
             const blackWidth = whiteWidth * 0.64;
@@ -33148,15 +33151,38 @@
         }
 
         function getKeyboardNoteMidi(note) {
-            return noteNameToMidi(note) + 12 * (octaveOffset || 0);
+            return noteNameToMidi(note);
         }
 
         function getKeyboardNoteFrequency(note) {
             return 440 * 2 ** ((getKeyboardNoteMidi(note) - 69) / 12);
         }
 
-        function getGranularKeyboardNoteFrequency(note) {
-            return getNoteFrequency(note, octaveOffset || 0);
+        function getGranularKeyboardNoteFrequency(note, role = 'keyboard') {
+            return getPerformanceNoteFrequency(note, role);
+        }
+
+        function getPerformanceNoteFrequency(note, role = 'keyboard') {
+            return getNoteFrequency(note, isKeyboardSoundRole(role) ? 0 : keyboardLegacyBackingOctave);
+        }
+
+        function resolveKeyboardLegacyBackingOctave(state = {}) {
+            const value = state.keyboardNotesVersion === 2 ? state.keyboardLegacyBackingOctave : state.octave;
+            return Math.max(-3, Math.min(3, Math.trunc(Number(value) || 0)));
+        }
+
+        function isValidKeyboardNote(note) {
+            return Boolean(parseNoteName(note)) && noteNameToMidi(note) >= -12 && noteNameToMidi(note) <= 107;
+        }
+
+        function normalizeKeyboardHeldNotes(notes, state = {}) {
+            // Old Songs/history stored base names plus a playback octave shift.
+            // Convert in memory once; new snapshots explicitly store actual notes.
+            const shift = state.keyboardNotesVersion === 2 ? 0 : Math.trunc(Number(state.octave) || 0);
+            return [...new Set((Array.isArray(notes) ? notes : [])
+                .filter(note => Boolean(parseNoteName(note)))
+                .map(note => transposeNoteName(note, shift))
+                .filter(isValidKeyboardNote))];
         }
 
         function normalizeKeyboardSoundSource(source) {
@@ -37149,7 +37175,7 @@
             if (!voice) return false;
             if (step.slide && nextStep?.note && !nextStep.rest && !options.stepWindow) {
                 const nextNote = midiToNoteName(noteNameToMidi(nextStep.note) + getBastardLoopXPitchSemitones());
-                const frequencies = getOscillatorVoiceFrequencies(nextNote, voice.synthModContext);
+                const frequencies = getOscillatorVoiceFrequencies(nextNote, voice.synthModContext, voice.role);
                 for (const [osc, frequency] of [[voice.osc1, frequencies.osc1Frequency], [voice.osc2, frequencies.osc2MasterFrequency || frequencies.osc2Frequency], [voice.osc3, frequencies.osc3MasterFrequency || frequencies.osc3Frequency]]) {
                     osc.frequency.setValueAtTime(osc.frequency.value, start);
                     osc.frequency.linearRampToValueAtTime(frequency, start + windowSeconds);
@@ -38082,7 +38108,7 @@
 
         function updateKeyboardNoteLabels() {
             document.querySelectorAll('#keyboardContainer .key').forEach((key) => {
-                const note = transposeNoteName(key.dataset.note, octaveOffset || 0);
+                const note = key.dataset.note;
                 if (key.classList.contains('white')) key.textContent = note;
                 key.setAttribute('aria-label', `Play ${note}`);
                 key.title = note;
@@ -38097,7 +38123,7 @@
                 ['C', true], ['C#', false], ['D', true], ['D#', false], ['E', true], ['F', true],
                 ['F#', false], ['G', true], ['G#', false], ['A', true], ['A#', false], ['B', true]
             ];
-            const octaves = [1, 2, 3, 4];
+            const octaves = Array.from({ length: 10 }, (_, index) => index - 2);
 
             keyboard.innerHTML = octaves.map((octave) => {
                 return octaveNotes.map(([pitchClass, isWhite]) => {
@@ -39156,7 +39182,7 @@
             if (activeGrainNodes >= MAX_GRAIN_NODES || getConcurrentGrainSourceCount() >= MAX_GRAIN_NODES) return;
             activeGrainNodes++;
 
-            const noteFreq = getGranularKeyboardNoteFrequency(note);
+            const noteFreq = getGranularKeyboardNoteFrequency(note, options.role || 'keyboard');
             if (!noteFreq || !isFinite(noteFreq)) {
                 console.warn('Invalid note frequency for:', note);
                 activeGrainNodes = Math.max(0, activeGrainNodes - 1);
@@ -39374,7 +39400,7 @@
         // --- Scheduler ---
         function getGranularStreamReleaseSeconds(grainInfo) {
             if (!grainInfo) return 0;
-            const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
+            const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note, grainInfo.role);
             if (!noteFreq || !isFinite(noteFreq)) return 0;
             const layerSettings = withModulationEvaluationTime(audioContext?.currentTime ?? null, () => getGranularLayerSettings(noteFreq, 1));
             if (!layerSettings.length) return 0;
@@ -39533,7 +39559,7 @@
             const streamsToDelete = [];
 
             activeGrains.forEach((grainInfo, streamId) => {
-                const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note);
+                const noteFreq = getGranularKeyboardNoteFrequency(grainInfo.note, grainInfo.role);
                 if (!noteFreq || !isFinite(noteFreq)) return;
                 const layerSettings = withModulationEvaluationTime(
                     grainInfo.nextTime,
@@ -39768,8 +39794,8 @@
             oscillator.frequency.value = ownFrequency;
         }
 
-        function getOscillatorVoiceFrequencies(note, context = {}) {
-            const baseFreq = getKeyboardNoteFrequency(note);
+        function getOscillatorVoiceFrequencies(note, context = {}, role = 'keyboard') {
+            const baseFreq = getPerformanceNoteFrequency(note, role);
             const osc1Detune = getSynthModulatedValue('osc1Detune', osc1Config.detune, context);
             const osc2Detune = getSynthModulatedValue('osc2Detune', osc2Config.detune, context);
             const osc3Detune = getSynthModulatedValue('osc3Detune', osc3Config.detune, context);
@@ -39795,7 +39821,7 @@
             if (applyingSynthPopupPreset) return;
             withModulationEvaluationTime(getModulationEvaluationTime(), () => {
                 activeOscVoices.forEach((voice) => {
-                    const frequencies = getOscillatorVoiceFrequencies(voice.note, voice.synthModContext);
+                    const frequencies = getOscillatorVoiceFrequencies(voice.note, voice.synthModContext, voice.role);
                     configureOscillatorWaveAndPitch(voice.osc1, osc1Config, frequencies.osc1Frequency, null, voice.synthModContext);
                     configureOscillatorWaveAndPitch(voice.osc2, osc2Config, frequencies.osc2Frequency, frequencies.osc2MasterFrequency, voice.synthModContext);
                     configureOscillatorWaveAndPitch(voice.osc3, osc3Config, frequencies.osc3Frequency, frequencies.osc3MasterFrequency, voice.synthModContext);
@@ -40593,7 +40619,7 @@
 
             // Use scheduled time if provided, otherwise use current time
             const startTime = scheduledTime !== null ? scheduledTime : audioContext.currentTime;
-            const baseFreq = getKeyboardNoteFrequency(note);
+            const baseFreq = getPerformanceNoteFrequency(note, role);
             const rawVelocity = Number(velocity);
             const noteVelocity = Number.isFinite(rawVelocity) ? Math.max(0, Math.min(1, rawVelocity)) : 1;
             const routeMode = resolveOscRouteModeForVoice();
@@ -40602,7 +40628,7 @@
                 velocity: noteVelocity,
                 randomValue: Math.random()
             };
-            const frequencies = getOscillatorVoiceFrequencies(note, synthModContext);
+            const frequencies = getOscillatorVoiceFrequencies(note, synthModContext, role);
             const stereoWidth = Math.max(0, Math.min(1, getSynthModulatedValue('synthStereoWidth', synthStereoWidth, synthModContext) / 100));
             const fmAmount = Math.max(0, Math.min(1, getSynthModulatedValue('synthFmAmount', synthFmAmount, synthModContext) / 100));
             const osc1Level = Math.max(0, getSynthModulatedValue('osc1Level', osc1Config.level * 100, synthModContext) / 100);
@@ -42464,6 +42490,7 @@
 
         // --- Octave Controls ---
         function updateOctaveDisplay() {
+            octaveOffset = Math.max(-3, Math.min(3, Math.trunc(Number(octaveOffset) || 0)));
             const sign = octaveOffset > 0 ? '+' : '';
             document.getElementById('octaveDisplay').textContent = `Oct: ${sign}${octaveOffset}`;
             const performanceOctaveValue = document.getElementById('performanceOctaveValue');
@@ -42471,6 +42498,7 @@
                 performanceOctaveValue.textContent = `${sign}${octaveOffset}`;
             }
             updateKeyboardNoteLabels();
+            updateKeyboardGeometry();
             warmKeyboardSound();
         }
 
@@ -46661,6 +46689,7 @@
 
             // Reset octave offset
             octaveOffset = 0;
+            keyboardLegacyBackingOctave = 0;
             updateOctaveDisplay();
 
             // Update waveform display if audio buffer exists
@@ -46741,6 +46770,8 @@
         function gatherPreset() {
             const preset = {
                 version: '3.1',
+                keyboardNotesVersion: 2,
+                keyboardLegacyBackingOctave,
                 keyboardSoundSource,
                 keyboardSampleSourceKey,
                 q: window.mygrainQ?.getState() || null,
@@ -47012,6 +47043,7 @@
                 toggleParams: presetToggleParams
             }) : { preset, warnings: [] };
             const safePreset = validated.preset;
+            keyboardLegacyBackingOctave = resolveKeyboardLegacyBackingOctave(preset);
             clearDisabledLoopStartLfoRoutes();
             const normalizedSliders = normalizeStoredLfoSliderValues(safePreset.sliders, {
                 bpmOnlyLfos: safePreset.bpmOnlyLfos === true,
@@ -47932,6 +47964,8 @@
             }
             const state = {
                 version: '1.5',
+                keyboardNotesVersion: 2,
+                keyboardLegacyBackingOctave,
                 bpmOnlyLfos: true,
                 globalBpm: document.getElementById('globalBpmSlider')?.value ?? document.getElementById('delayBpm')?.value ?? '120',
                 patternLength: getPatternLengthSteps(),
@@ -48281,6 +48315,7 @@
             try {
                 const state = options.state ?? readStoredStateSnapshot();
                 if (!state) return false;
+                keyboardLegacyBackingOctave = resolveKeyboardLegacyBackingOctave(state);
                 restoreOsc3SequencerSources(state.modes);
                 setBastardLoopMPlusPanPercent(state.sliders?.performanceBastardLoopMPlusPan ?? ((Number(state.modes?.bastardLoopMPlusPan) || 0) * 100), { skipSave: true });
                 restoreDrumMachineToneDefaults(state.sliders);
@@ -62641,7 +62676,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-amend-memory-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-amend-memory-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-keys-view-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>

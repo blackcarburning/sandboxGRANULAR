@@ -65,8 +65,8 @@ fs.mkdirSync(evidence, { recursive: true });
                         };
                     });
                     assert.deepEqual(layout.bad, []); assert.equal(layout.overflow, false);
-                    assert.ok(Math.min(...layout.whiteWidths) >= 24, JSON.stringify(layout));
-                    if (width === 320 || width === 390) assert.equal(layout.visible.length, 13);
+                    assert.ok(Math.min(...layout.whiteWidths) >= 12, JSON.stringify(layout));
+                    if (width === 320 || width === 390) assert.equal(layout.visible.length, 25);
                     layouts.push(layout);
                     await page.screenshot({ path: `${evidence}/${engine}-${width}x${height}.png` });
                 }
@@ -79,13 +79,13 @@ fs.mkdirSync(evidence, { recursive: true });
                         for (let shift = -3; shift <= 3; shift++) {
                             octaveOffset = shift; updateOctaveDisplay();
                             for (const key of document.querySelectorAll('#keyboardContainer .key')) {
-                                const note = key.dataset.note, expected = noteNameToMidi(note) + shift * 12;
+                                const note = key.dataset.note, expected = noteNameToMidi(note);
                                 const player = getKeyboardSamplePlayer();
                                 if (instrument !== 'sample') await player.prepare(instrument, expected, 127);
                                 playKeyboardSound(note); await Promise.resolve();
                                 const voice = player.voices.get(makePerformanceStreamId('keyboard', note));
                                 if (!voice || voice.midi !== expected) throw new Error(`${instrument} ${note}/${shift}: ${voice?.midi} != ${expected}`);
-                                if (key.getAttribute('aria-label') !== `Play ${transposeNoteName(note, shift)}`) throw new Error(`Stale accessible label ${note}`);
+                                if (key.getAttribute('aria-label') !== `Play ${note}`) throw new Error(`Stale accessible label ${note}`);
                                 stopKeyboardSound(note, null, { immediate: true }); checked++;
                             }
                         }
@@ -93,7 +93,7 @@ fs.mkdirSync(evidence, { recursive: true });
                     octaveOffset = 0; updateOctaveDisplay();
                     return { checked, active: getKeyboardSamplePlayer().activeVoices.size };
                 });
-                assert.equal(mapping.checked, 1008); assert.equal(mapping.active, 0);
+                assert.equal(mapping.checked, 2520); assert.equal(mapping.active, 0);
                 // Physical black/white targets, repeated notes and shifted octaves.
                 let touches = 0;
                 for (const instrument of ['sample', 'piano']) {

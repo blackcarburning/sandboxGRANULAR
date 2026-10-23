@@ -8,6 +8,8 @@ const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const restoreStart = html.indexOf('        function restoreState(');
 const restoreEnd = html.indexOf('        function setupStateSaving(', restoreStart);
 const restoreSource = html.slice(restoreStart, restoreEnd);
+const backingStart = html.indexOf('        function resolveKeyboardLegacyBackingOctave(');
+const backingSource = html.slice(backingStart, html.indexOf('\n        }', backingStart) + '\n        }'.length);
 
 test('unavailable browser storage cannot abort startup before Song Access can be opened', () => {
     const start = html.indexOf('        let dropboxEnabled = false;');
@@ -30,7 +32,7 @@ function restoreFixture(state, failure) {
         console: { error: (...args) => logged.push(args) }
     };
     vm.createContext(context);
-    vm.runInContext(restoreSource, context);
+    vm.runInContext(`${backingSource}\n${restoreSource}`, context);
     return { context, logged };
 }
 
@@ -71,7 +73,7 @@ test('restoration prepares the saved pattern length before dispatching sequencer
             Event: class Event {}
         };
         vm.createContext(context);
-        vm.runInContext(slidersSource, context);
+        vm.runInContext(`${backingSource}\n${slidersSource}`, context);
         assert.equal(context.restoreState(), true);
         assert.equal(steps.length, savedLength);
         assert.equal(steps[savedLength - 1].pitch, 'C4');
