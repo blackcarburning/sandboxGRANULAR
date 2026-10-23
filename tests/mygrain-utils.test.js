@@ -235,3 +235,23 @@ test('generateDrumLoopBlueprint honors requested pattern length', () => {
     assert.ok(blueprint.events.some((event) => event.step >= 16));
     assert.ok(blueprint.events.every((event) => event.step >= 0 && event.step < 32));
 });
+
+test('all four octaves place sharps on the correct white-key boundaries, even below the former width clamp', () => {
+    const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const notes = [1, 2, 3, 4].flatMap(octave => names.map(name => `${name}${octave}`));
+    for (const width of [9.5, 18, 24, 38.25, 50]) {
+        const blackWidth = width * .64;
+        const layout = buildKeyboardGeometry(notes, width, blackWidth);
+        const whites = layout.filter(key => !key.isBlack);
+        whites.forEach((key, index) => { assert.equal(key.left, index * width); assert.equal(key.width, width); });
+        layout.filter(key => key.isBlack).forEach(key => {
+            const index = notes.indexOf(key.note), preceding = layout[index - 1], following = layout[index + 1];
+            assert.equal(preceding.isBlack, false); assert.equal(following.isBlack, false);
+            assert.ok(Math.abs(key.left + key.width / 2 - following.left) < 1e-9);
+            assert.equal(following.left, preceding.left + preceding.width);
+        });
+        for (const octave of [1, 2, 3, 4]) {
+            assert.deepEqual(layout.filter(key => key.isBlack && key.note.endsWith(String(octave))).map(key => key.note), ['C#', 'D#', 'F#', 'G#', 'A#'].map(name => name + octave));
+        }
+    }
+});

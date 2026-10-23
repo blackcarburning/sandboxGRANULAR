@@ -60,6 +60,7 @@ function fixture(names = []) {
         getKeyboardSamplePlayer: () => player,
         hasAnyPerformanceLayerSoloSelection: () => false,
         getKeyboardNoteFrequency: () => 440 * 2 ** ((72 - 69) / 12),
+        getKeyboardNoteMidi: note => 69 + 12 * Math.log2(context.getKeyboardNoteFrequency(note) / 440),
         makePerformanceStreamId: (role, note) => `${role}:${note}`,
         ensureAudioReadyForKeyInteraction: async () => true,
         prepareKeyboardSound: async source => calls.ready.push(source),

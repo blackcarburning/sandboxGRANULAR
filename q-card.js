@@ -401,7 +401,7 @@
                 const selected = { buffer, offset: 0, duration: buffer.duration, sample: { midi: 60 } };
                 if (preparing) return selected;
                 if (context.state && context.state !== 'running') return null;
-                return this.startVoice({ context, key, midi: theory.clamp(midi, 0, 127, 60), options: { ...options, instrument, velocity: theory.clamp(options.velocity, 1, 127, 100) } }, selected);
+                return this.startVoice({ context, key, midi: theory.clamp(midi, -12, 127, 60), options: { ...options, instrument, velocity: theory.clamp(options.velocity, 1, 127, 100) } }, selected);
             }
             if (!this.samplers.has(instrument)) throw new Error('Unknown Q keyboard instrument.');
             if (!Number.isFinite(Number(midi))) return null;
@@ -409,7 +409,9 @@
             if (!context || context.state === 'closed') return null;
             this.noteOff(key, { immediate: true });
             const entry = this.samplers.get(instrument);
-            const pitch = theory.clamp(midi, 0, 127, 60);
+            // C1 at the keyboard's -3 octave setting is C-2 (MIDI -12).
+            // These are valid audio pitches, even though hardware MIDI starts at 0.
+            const pitch = theory.clamp(midi, -12, 127, 60);
             const settings = { ...options, instrument, velocity: theory.clamp(options.velocity, 1, 127, 100) };
             const selected = this.cachedSource(entry, pitch, settings.velocity);
             if (selected && (!context.state || context.state === 'running')) {

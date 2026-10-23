@@ -257,8 +257,8 @@
 
     function buildKeyboardGeometry(noteNames, whiteKeyWidth, blackKeyWidth) {
         const notes = Array.isArray(noteNames) ? noteNames : [];
-        const safeWhiteWidth = clampNumber(whiteKeyWidth, { min: 24, max: 240, fallback: 48 });
-        const safeBlackWidth = clampNumber(blackKeyWidth, { min: 12, max: safeWhiteWidth, fallback: safeWhiteWidth * 0.62 });
+        const safeWhiteWidth = clampNumber(whiteKeyWidth, { min: 1, max: 240, fallback: 48 });
+        const safeBlackWidth = clampNumber(blackKeyWidth, { min: 0.5, max: safeWhiteWidth, fallback: safeWhiteWidth * 0.62 });
         const layout = [];
         let whiteIndex = 0;
 

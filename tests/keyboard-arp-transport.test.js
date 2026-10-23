@@ -112,6 +112,7 @@ function fixture(source = 'osc') {
         syncArpModeControls() {}, normalizeArpMode: value => value,
         ensureSynthVoicePathAudible() {}, warmKeyboardSound() {},
         getKeyboardNoteFrequency: note => ({ C4: 261.626, E4: 329.628, G4: 391.995 })[note],
+        getKeyboardNoteMidi: note => 69 + 12 * Math.log2(context.getKeyboardNoteFrequency(note) / 440),
         makePerformanceStreamId: (role, note) => `${role}:${note}`,
         getArpGrainStreamId: note => `arp:${note}`,
         getBufferedTransportStartTime: () => context.audioContext.currentTime,

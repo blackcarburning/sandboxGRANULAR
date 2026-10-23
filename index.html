@@ -289,7 +289,7 @@
         })();
     </script>
     <script>window.mygrainAccounts?.loadScript('https://www.dropbox.com/static/api/2/dropins.js', { defer: '', type: 'text/javascript', id: 'dropboxjs', 'data-app-key': 't3fqkzcnvmjuwfn' });</script>
-    <script>window.mygrainAccounts?.loadScript('mygrain-utils.js');</script>
+    <script>window.mygrainAccounts?.loadScript('mygrain-utils.js?v=20261023-keys-1');</script>
     <script>window.mygrainAccounts?.loadScript('audio-diagnostics.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('audio-debug-storage.js?v=20261015-persistent-debug-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-loop-cut.js?v=20261020-vcut-random-history-1');</script>
@@ -2551,7 +2551,9 @@
         }
 
         .key {
-            position: relative;
+            position: absolute;
+            top: 0;
+            box-sizing: border-box;
             cursor: pointer;
             border-radius: 0 0 3px 3px;
             user-select: none;
@@ -2562,8 +2564,10 @@
             font-size: 8px;
             font-weight: bold;
             touch-action: manipulation; /* Prevent double-tap zoom */
-            flex-shrink: 1;
+            flex-shrink: 0;
         }
+
+        #keyboardContainer .key[hidden] { display: none; }
 
         .key.white {
             width: 52px;
@@ -2593,18 +2597,6 @@
             transform: translateY(2px);
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
-
-        /* Black key positions - adjusted for wider keys */
-        .key.black[data-note="C#1"] { left: 37px; }
-        .key.black[data-note="D#1"] { left: 91px; }
-        .key.black[data-note="F#1"] { left: 199px; }
-        .key.black[data-note="G#1"] { left: 253px; }
-        .key.black[data-note="A#1"] { left: 307px; }
-        .key.black[data-note="C#2"] { left: 52px; }
-        .key.black[data-note="D#2"] { left: 126px; }
-        .key.black[data-note="F#2"] { left: 274px; }
-        .key.black[data-note="G#2"] { left: 348px; }
-        .key.black[data-note="A#2"] { left: 422px; }
 
         /* Octave Controls */
         .octave-controls {
@@ -3013,18 +3005,6 @@
                 width: 18px;
                 min-width: 10px;
             }
-
-            /* Adjust black key positions for smaller keys */
-            .key.black[data-note="C#1"] { left: 20px; }
-            .key.black[data-note="D#1"] { left: 50px; }
-            .key.black[data-note="F#1"] { left: 110px; }
-            .key.black[data-note="G#1"] { left: 140px; }
-            .key.black[data-note="A#1"] { left: 170px; }
-            .key.black[data-note="C#2"] { left: 230px; }
-            .key.black[data-note="D#2"] { left: 260px; }
-            .key.black[data-note="F#2"] { left: 320px; }
-            .key.black[data-note="G#2"] { left: 350px; }
-            .key.black[data-note="A#2"] { left: 380px; }
 
             .recording-section .section-title {
                 font-size: 9px;
@@ -6302,7 +6282,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.K5.4</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.KEYS.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6389,7 +6369,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.K5.4</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.KEYS.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -15686,16 +15666,24 @@
             const keyboard = document.getElementById('keyboardContainer');
             if (!keyboard) return;
 
-            const notes = Array.from(keyboard.querySelectorAll('.key')).map((key) => key.dataset.note);
+            // One coordinate system for BOTH key colours. Flex centring/shrinking
+            // white keys independently displaced the absolute black-key hit areas.
+            keyboard.style.minWidth = '0';
+            const availableWidth = keyboard.clientWidth;
+            if (!availableWidth) return;
+            const keys = Array.from(keyboard.querySelectorAll('.key'));
+            // Keep phone keys playable; the octave buttons transpose the same
+            // saved base notes. Do not rebuild nodes or discard hidden held notes.
+            const firstMidi = availableWidth < 430 ? 48 : availableWidth < 900 ? 36 : 24;
+            const lastMidi = availableWidth < 900 ? 60 : 71;
+            keys.forEach((key) => {
+                const midi = noteNameToMidi(key.dataset.note);
+                key.hidden = midi < firstMidi || midi > lastMidi;
+            });
+            const notes = keys.filter(key => !key.hidden).map(key => key.dataset.note);
             const whiteKeyCount = notes.filter((note) => !note.includes('#')).length || 1;
-            const narrowPhone = window.innerWidth < 640;
-            const reservedWidth = narrowPhone ? 32 : 160;
-            const minimumWhiteWidth = narrowPhone ? 18 : 26;
-            const minimumBlackWidth = narrowPhone ? 11 : 16;
-            const containerWidth = keyboard.parentElement?.clientWidth || keyboard.clientWidth || (window.innerWidth - reservedWidth);
-            const availableWidth = Math.max(whiteKeyCount * minimumWhiteWidth, containerWidth || (window.innerWidth - reservedWidth));
-            const whiteWidth = Math.max(minimumWhiteWidth, Math.min(68, availableWidth / whiteKeyCount));
-            const blackWidth = Math.max(minimumBlackWidth, Math.min(whiteWidth * 0.64, 42));
+            const whiteWidth = availableWidth / whiteKeyCount;
+            const blackWidth = whiteWidth * 0.64;
 
             keyboard.style.setProperty('--white-key-width', `${whiteWidth}px`);
             keyboard.style.setProperty('--black-key-width', `${blackWidth}px`);
@@ -15705,21 +15693,13 @@
             }
 
             const layout = mygrainUtils.buildKeyboardGeometry(notes, whiteWidth, blackWidth);
-            layout.forEach(({ note, left, width, isBlack }) => {
+            layout.forEach(({ note, left, width }) => {
                 const key = keyboard.querySelector(`.key[data-note="${note}"]`);
                 if (!key) return;
-                if (isBlack) {
-                    key.style.left = `${left}px`;
-                    key.style.width = `${width}px`;
-                    key.style.minWidth = `${width}px`;
-                } else {
-                    key.style.left = '';
-                    key.style.width = `${width}px`;
-                    key.style.minWidth = `${width}px`;
-                }
+                key.style.left = `${left / availableWidth * 100}%`;
+                key.style.width = `${width / availableWidth * 100}%`;
+                key.style.minWidth = '0';
             });
-
-            keyboard.style.minWidth = `${whiteWidth * whiteKeyCount}px`;
         }
 
         const GLOBAL_BPM_MIN = 1;
@@ -33167,8 +33147,12 @@
             return 440 * Math.pow(2, (midi - 69) / 12);
         }
 
+        function getKeyboardNoteMidi(note) {
+            return noteNameToMidi(note) + 12 * (octaveOffset || 0);
+        }
+
         function getKeyboardNoteFrequency(note) {
-            return getNoteFrequency(note, octaveOffset || 0);
+            return 440 * 2 ** ((getKeyboardNoteMidi(note) - 69) / 12);
         }
 
         function getGranularKeyboardNoteFrequency(note) {
@@ -33390,7 +33374,7 @@
                 const right = Math.min(window.innerWidth || bounds.right, bounds.right, parent?.right ?? bounds.right);
                 return rectangle.width > 0 && rectangle.height > 0 && rectangle.right > left && rectangle.left < right;
             });
-            const pitches = keys.map(key => 69 + 12 * Math.log2(getKeyboardNoteFrequency(key.dataset.note) / 440));
+            const pitches = keys.map(key => getKeyboardNoteMidi(key.dataset.note));
             return [...new Set(pitches.length ? pitches : [60])];
         }
 
@@ -33488,7 +33472,7 @@
             if (!['piano', 'strings', 'sample'].includes(keyboardSoundSource)) return;
             const player = getKeyboardSamplePlayer();
             if (!player) return;
-            const pitch = 69 + 12 * Math.log2(getKeyboardNoteFrequency(note) / 440);
+            const pitch = getKeyboardNoteMidi(note);
             const token = keyboardSoundSelectionToken;
             const startSample = () => player.noteOn(makePerformanceStreamId(role, note), pitch, {
                 instrument: keyboardSoundSource, velocity: Math.max(1, Math.round(velocity * 127)),
@@ -38098,8 +38082,10 @@
 
         function updateKeyboardNoteLabels() {
             document.querySelectorAll('#keyboardContainer .key').forEach((key) => {
-                if (!key.classList.contains('white')) return;
-                key.textContent = transposeNoteName(key.dataset.note, octaveOffset || 0);
+                const note = transposeNoteName(key.dataset.note, octaveOffset || 0);
+                if (key.classList.contains('white')) key.textContent = note;
+                key.setAttribute('aria-label', `Play ${note}`);
+                key.title = note;
             });
         }
 
@@ -44597,6 +44583,12 @@
         });
         updateKeyboardGeometry();
         updateKeyboardNoteLabels();
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => {
+                updateKeyboardGeometry();
+                warmKeyboardSound();
+            }).observe(document.getElementById('keyboardContainer'));
+        }
 
         // --- Utility Functions ---
 
@@ -62639,7 +62631,7 @@
     <script>window.mygrainAccounts?.loadScript('l-reverb.js?v=20261022-l-reverb-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261022-chord-hold-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
-    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261023-amend-memory-2');</script>
+    <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261023-keys-1');</script>
     <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-k-vu-1');</script>
     <script>window.mygrainAccounts?.loadScript('k-multitrack.js?v=20261023-k-five-1');</script>
     <script>window.mygrainAccounts?.loadScript('k-track-meters.js?v=20261023-k-vu-1');</script>

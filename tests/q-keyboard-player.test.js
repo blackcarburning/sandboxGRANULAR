@@ -600,3 +600,22 @@ test('empty or suspended single-sample keyboard never loads a Q bank or plays la
     const voice = await player.noteOn('sample', 60, {instrument: 'sample'});
     assert.equal(voice.source.playbackRate.value, 1); player.stop();
 });
+
+for (const sampleRate of [44100, 48000]) {
+    test(`every keyboard semitone in all seven octave shifts retains its pitch at ${sampleRate} Hz`, async () => {
+        const { player, host } = fixture({ sampleRate });
+        host.sample = () => ({ duration: 4, length: 192000, numberOfChannels: 2, sampleRate: 48000 });
+        for (const instrument of ['piano', 'strings', 'sample']) {
+            for (let shift = -3; shift <= 3; shift++) for (let base = 24; base <= 71; base++) {
+                const midi = base + shift * 12;
+                const voice = await player.noteOn('chromatic', midi, { instrument, velocity: 127 });
+                assert.equal(voice.midi, midi, `${instrument}: ${base}, octave ${shift}`);
+                const root = instrument === 'sample' ? 60 : theory.sampleMidi(midi, instrument);
+                assert.equal(voice.source.playbackRate.value, 2 ** ((midi - root) / 12));
+                player.noteOff('chromatic', { immediate: true });
+            }
+        }
+        assert.equal(player.activeVoices.size, 0);
+        assert.equal(player.pending.size, 0);
+    });
+}
