@@ -6302,7 +6302,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.PASTE.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.BUS.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6389,7 +6389,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.PASTE.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.BUS.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -9198,7 +9198,7 @@
                         <span>Bus Comp</span>
                         <span class="value" id="finalCompressorAmountValue">30%</span>
                     </label>
-                    <input type="range" id="finalCompressorAmount" min="0" max="100" value="30" step="1">
+                    <input type="range" id="finalCompressorAmount" min="0" max="100" value="30" step="1" title="Shared final-bus compression for music, drums and their FX returns.">
                 </div>
                 <div class="performance-sound-card">
                     <label for="finalCompressorRelease">
@@ -17153,15 +17153,17 @@
             finalPanAudioOscillator.connect(finalPanAudioDepthGain);
             finalPanAudioDepthGain.connect(finalOutputPanner.pan);
             finalPanAudioDepthGain.connect(finalKickBypassPanner.pan);
-            finalOutputPanner.connect(finalCompressorDriveGain);
+            // Sidechain ducks the processed music path, not the independent dry drums/kick.
+            // Bus Comp follows the sum so its drive and native makeup affect the whole mix.
+            finalOutputPanner.connect(finalSidechainGain);
+            finalSidechainGain.connect(finalCompressorDriveGain);
             finalCompressorDriveGain.connect(finalCompressorNode);
-            finalCompressorNode.connect(finalSidechainGain);
-            finalSidechainGain.connect(finalAmplifierNode);
+            finalCompressorNode.connect(finalAmplifierNode);
             finalKickBypassDelay = audioContext.createDelay(0.25);
             finalKickBypassMasterGain.connect(finalKickBypassDelay);
             finalKickBypassDelay.connect(finalKickBypassPanner);
             finalKickBypassPanner.connect(finalPanAnalyser);
-            finalKickBypassPanner.connect(finalAmplifierNode);
+            finalKickBypassPanner.connect(finalCompressorDriveGain);
             finalAmplifierNode.connect(audioContext.destination);
             finalPanBaseOffsetSource.start();
             finalPanAudioOscillator.start();
@@ -18063,12 +18065,15 @@
                 return Math.max(0, getLFOValue1Raw());
             }
             if (source === 'kick') {
-                return getFinalKickSidechainDetector(now);
+                // Detector events are stamped at audible output time; duck before shared lookahead.
+                return getFinalKickSidechainDetector(now + getTransportCompressorLatencySeconds());
             }
             return 0;
         }
 
         function shouldRouteKickAroundFinalCompressor() {
+            // Legacy routing name: the kick avoids music-side ducking/processing,
+            // but now rejoins the other stems before the shared final Bus Comp.
             return normalizeFinalCompressorSidechainSource(finalCompressorSidechainSource) === 'kick';
         }
 
@@ -18588,7 +18593,7 @@
             const compressorIdleBypass = shouldIdleBypassFinalBusCompressor();
             const compressorAmount = fxMuted || compressorIdleBypass ? 0 : getFinalCompressorAmount();
             const compressorSettings = getFinalCompressorSettings(compressorAmount);
-            smoothRamp(finalCompressorDriveGain?.gain, compressorIdleBypass ? 0 : compressorSettings.drive);
+            smoothRamp(finalCompressorDriveGain?.gain, compressorSettings.drive);
             smoothRamp(finalCompressorNode?.threshold, compressorSettings.threshold);
             smoothRamp(finalCompressorNode?.knee, compressorSettings.knee);
             smoothRamp(finalCompressorNode?.ratio, compressorSettings.ratio);
@@ -18600,7 +18605,8 @@
             const duckGain = detector > 0.001
                 ? Math.max(0, 1 - (Math.pow(detector, 0.62) * sidechainAmount * 1.32))
                 : 1;
-            smoothRamp(finalSidechainGain?.gain, duckGain);
+            // Keep idle processing silence local; do not cut independent drum FX tails.
+            smoothRamp(finalSidechainGain?.gain, compressorIdleBypass ? 0 : duckGain);
         }
 
         function updateAudioModulationTick() {
@@ -20415,6 +20421,18 @@
             updateDrumSendReturnLatency();
         }
 
+        function getTransportCompressorLatencySeconds() {
+            const timing = transportSync.latency;
+            return timing.status === 'measured' && timing.sampleRate > 0
+                ? Math.max(0, Number(timing.baseOutputFrames) || 0) / timing.sampleRate : 0;
+        }
+
+        function getTransportPreCompressorLatencySeconds() {
+            // Direct drums and wet returns now enter before the common compressor.
+            // Align only the processing they bypass, not that shared lookahead twice.
+            return Math.max(0, Math.min(0.15, getTransportOutputLatencySeconds() - getTransportCompressorLatencySeconds()));
+        }
+
         function flushTransportBypassDelay() {
             if (!audioContext || !finalKickBypassMasterGain || !finalKickBypassPanner) return;
             if (finalKickBypassDelay) {
@@ -20422,7 +20440,7 @@
                 try { finalKickBypassDelay.disconnect(); } catch (error) {}
             }
             finalKickBypassDelay = audioContext.createDelay(0.25);
-            finalKickBypassDelay.delayTime.value = getTransportOutputLatencySeconds();
+            finalKickBypassDelay.delayTime.value = getTransportPreCompressorLatencySeconds();
             finalKickBypassMasterGain.connect(finalKickBypassDelay);
             finalKickBypassDelay.connect(finalKickBypassPanner);
         }
@@ -20544,7 +20562,7 @@
                 seconds: (timing.baseOutputFrames + postFrames) / timing.sampleRate,
                 taps: { pre: { frames: preFrames, seconds: preFrames / timing.sampleRate },
                     post: { frames: postFrames, seconds: postFrames / timing.sampleRate } } };
-            finalKickBypassDelay?.delayTime.setValueAtTime(transportSync.latency.seconds, audioContext.currentTime);
+            finalKickBypassDelay?.delayTime.setValueAtTime(getTransportPreCompressorLatencySeconds(), audioContext.currentTime);
             updateTransportSendLatency();
             updateDrumSendReturnLatency();
         }
@@ -20571,7 +20589,7 @@
                 setAudioStatus('Audio timing calibration unavailable: DIRECT/BYPASS is not aligned.', 'error');
                 console.warn('Transport latency calibration unavailable:', timing.reason);
             }
-            if (finalKickBypassDelay) finalKickBypassDelay.delayTime.setValueAtTime(Math.max(0, Math.min(0.15, transportSync.latency.seconds)), context.currentTime);
+            if (finalKickBypassDelay) finalKickBypassDelay.delayTime.setValueAtTime(getTransportPreCompressorLatencySeconds(), context.currentTime);
             updateTransportSendLatency();
             return timing.status === 'measured';
         }
@@ -29938,10 +29956,10 @@
         }
 
         function ensureDrumSendFxGraph() {
-            if (!audioContext || !finalAmplifierNode) return null;
+            if (!audioContext || !finalCompressorDriveGain) return null;
             if (drumSendFxGraph?.context !== audioContext) disposeDrumSendFxGraph();
             if (!drumSendFxGraph) {
-                drumSendFxGraph = createDrumSendFxGraph(audioContext, finalAmplifierNode);
+                drumSendFxGraph = createDrumSendFxGraph(audioContext, finalCompressorDriveGain);
                 drumSendFxGraph.returnPanSources = [finalPanBaseOffsetSource, finalPanAudioDepthGain].filter(Boolean);
                 for (const source of drumSendFxGraph.returnPanSources) source.connect(drumSendFxGraph.returnPanner.pan);
                 if (finalPanAnalyser) drumSendFxGraph.returnPanner.connect(finalPanAnalyser);
@@ -29953,7 +29971,7 @@
             if (!drumSendFxGraph || !audioContext) return;
             const timing = transportSync.latency;
             const tapSeconds = timing.status === 'measured' ? timing.taps?.[finalFxPlacement]?.seconds || 0 : 0;
-            const remaining = Math.max(0, Math.min(0.15, getTransportOutputLatencySeconds() - tapSeconds));
+            const remaining = Math.max(0, Math.min(0.15, getTransportPreCompressorLatencySeconds() - tapSeconds));
             if (drumSendFxGraph.returnLatency.transportLatencySeconds !== remaining) {
                 drumSendFxGraph.returnLatency.delayTime.setValueAtTime(remaining, audioContext.currentTime);
                 drumSendFxGraph.returnLatency.transportLatencySeconds = remaining;
@@ -30700,8 +30718,8 @@
                 button.textContent = drumMachineDirectOutput ? 'Direct Out On' : 'Direct Out Off';
                 button.setAttribute('aria-pressed', String(drumMachineDirectOutput));
                 button.title = drumMachineDirectOutput
-                    ? 'Drum machine bypasses MYGRAIN filters, compressor, and effects.'
-                    : 'Drum machine routes through MYGRAIN filters, compressor, and effects.';
+                    ? 'Drum machine bypasses synth filters, effects and sidechain ducking; shares final Bus Comp.'
+                    : 'Drum machine routes through synth filters, effects and sidechain ducking, then final Bus Comp.';
             });
 
             browserButtons.forEach((button) => {
@@ -49509,12 +49527,12 @@
             compressorDriveGain.connect(compressorNode);
             compressorNode.connect(finalDestination);
 
-            input.drumSendFxGraph = createDrumSendFxGraph(ctx, finalDestination, drumSendFxState, bpm);
+            input.drumSendFxGraph = createDrumSendFxGraph(ctx, compressorDriveGain, drumSendFxState, bpm);
             input.drumDelaySendInput = input.drumSendFxGraph.delayInput;
             input.drumReverbSendInput = input.drumSendFxGraph.reverbInput;
             input.drumSendFxGraph.returnTrim.gain.value = Math.min(1, (Number(document.getElementById('volume')?.value ?? 100) / 100) * dbToLinear(getMasterTrimDb()))
                 * (drumMachineEnabled ? getLoopLayerSoloGain('drums') : 0);
-            input.drumSendFxGraph.returnLatency.delayTime.value = Math.max(0, Math.min(0.15, getTransportOutputLatencySeconds()));
+            input.drumSendFxGraph.returnLatency.delayTime.value = getTransportPreCompressorLatencySeconds();
             return input;
         }
 
