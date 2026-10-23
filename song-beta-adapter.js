@@ -827,9 +827,11 @@
             return MygrainSongExport.filename(name, song.parts);
         },
         async exportSong(parts, renders, filename, signal) {
+            const paired = confirm('Include an editable patch ZIP with this Song WAV?\n\nKeep every part’s original sounds, settings and mutes, plus the arrangement order. The matching ZIP appears in the WAV browser; Restore Patch lets you choose a part.\n\nCancel exports the WAV only.');
+            const pattern = paired ? await buildSongRenderPatchZip(parts, signal) : {};
             const result = await MygrainSongExport.wav(parts, renders, audioContext.sampleRate, signal);
             if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-            const uploaded = await uploadWavToRepository(result.blob, filename, { signal });
+            const uploaded = await uploadWavToRepository(result.blob, filename, { signal, ...pattern });
             return { ...uploaded, peak: result.peak };
         },
         scheduleSong(parts, renders, onEnded, destination = audioContext.destination) {

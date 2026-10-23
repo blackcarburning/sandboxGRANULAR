@@ -56,6 +56,41 @@ class WavPatternTests(unittest.TestCase):
         status, body, headers = self.admin.request('HEAD', details['url'])
         self.assertEqual((status, body, headers['Content-Length']), (200, b'', str(len(PATTERN_BYTES))))
         self.assertEqual(self.admin.request('GET', '/mygrain-wavs/api/pattern?filename=legacy.wav')[0], 404)
+        self.assertEqual(details['filename'], 'paired.zip')
+        self.assertEqual(headers['Content-Disposition'], "attachment; filename*=UTF-8''paired.zip")
+
+    def test_new_pair_never_rewrites_old_wavs_comments_hearts_or_order(self):
+        for name in ('first.wav', 'second.wav'):
+            self.upload(self.admin, name)
+            self.success(self.admin, 'POST', '/mygrain-wavs/api/file-feedback', data={'filename': name, 'comment': 'Keep my note ♥ ' + name, 'reaction': 'love'})
+        before = self.listing()
+        bodies = {row['name']: self.success(self.admin, 'GET', row['url']) for row in before}
+        self.save()
+        self.assertEqual([row for row in self.listing() if row['name'] != 'paired.wav'], before)
+        for name, body in bodies.items():
+            self.assertEqual(self.success(self.admin, 'GET', '/mygrain-wavs/' + quote(name)), body)
+
+    def test_song_render_archive_keeps_distinct_patches_and_arrangement(self):
+        manifest = {'format': 'mygrain-render-patches', 'version': 1,
+                    'patches': [{'id': 'verse', 'name': 'Verse', 'path': 'patches/1.zip'}, {'id': 'chorus', 'name': 'Chorus', 'path': 'patches/2.zip'}],
+                    'arrangement': [{'patch': 'verse', 'repeats': 1}, {'patch': 'chorus', 'repeats': 2}, {'patch': 'verse', 'repeats': 3}]}
+        output = BytesIO()
+        with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
+            archive.writestr('render-patches.json', json.dumps(manifest))
+            archive.writestr('patches/1.zip', PATTERN_BYTES)
+            archive.writestr('patches/2.zip', PATTERN_BYTES)
+        saved = self.save(name='song.wav', body=bundle(pattern=output.getvalue()))
+        self.assertEqual(self.success(self.admin, 'GET', saved['patternExport']['url']), output.getvalue())
+        self.assertEqual(saved['patternExport']['filename'], 'song.zip')
+
+    def test_invalid_nested_song_patch_cannot_save_a_render(self):
+        for path, data in [('patches/1.zip', b'invalid patch'), ('../outside.zip', PATTERN_BYTES)]:
+            output = BytesIO()
+            with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
+                archive.writestr('render-patches.json', json.dumps({'format': 'mygrain-render-patches', 'version': 1, 'patches': [{'id': 'a', 'name': 'A', 'path': path}], 'arrangement': [{'patch': 'a'}]}))
+                archive.writestr(path, data)
+            self.assertEqual(self.admin.request('POST', '/mygrain-wavs/api/render-with-pattern?filename=bad.wav', body=bundle(pattern=output.getvalue()))[0], 400)
+        self.assertEqual(self.listing(), [])
 
     def test_same_filename_account_isolation_auth_pin_and_origin(self):
         own = self.save()

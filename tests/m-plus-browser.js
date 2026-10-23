@@ -181,7 +181,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
             const blob = await buildPatchZipBlob('mplus-isolated.zip');
             const bytes = await blob.arrayBuffer();
             const entries = parseStoredZipEntries(bytes);
-            const manifest = JSON.parse(getZipText(entries, 'manifest.json'));
+            const manifest = JSON.parse(getZipText(entries, 'song-part.json') || getZipText(entries, 'manifest.json'));
             await clearBastardLoopMPlus();
             setBastardLoopMPlusEnabled(true, { silent: true });
             setBastardLoopMPlusPreserveDuration(true, { silent: true });

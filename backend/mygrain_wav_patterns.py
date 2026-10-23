@@ -45,7 +45,7 @@ def info(root, filename):
         if not isinstance(saved.get('sha256'), str) or len(saved['sha256']) != 64:
             return None
         return {'url': '/mygrain-wavs/api/pattern?filename=' + quote(filename, safe=''),
-                'filename': pathlib.PurePosixPath(filename).stem + '.pattern.zip',
+                'filename': pathlib.PurePosixPath(filename).stem + '.zip',
                 'size': archive.stat().st_size, 'sha256': saved['sha256']}
     except (ValueError, OSError, TypeError, AttributeError):
         return None
@@ -87,8 +87,42 @@ def validate_bundle(body, validate_pattern):
             raise ValueError('Render must contain PCM WAV audio.')
         if len(wav.readframes(wav.getnframes())) != wav.getnframes() * wav.getnchannels() * wav.getsampwidth():
             raise ValueError('Rendered WAV is truncated.')
-    validate_pattern(pattern)
+    validate_render_pattern(pattern, validate_pattern)
     return wav_body, pattern
+
+
+def validate_render_pattern(body, validate_pattern):
+    """A new render may pair one patch or all distinct patches of a Song."""
+    with zipfile.ZipFile(BytesIO(body)) as archive:
+        if 'render-patches.json' not in archive.namelist():
+            validate_pattern(body)
+            return
+        manifest_entry = archive.getinfo('render-patches.json')
+        if manifest_entry.file_size > 256 * 1024:
+            raise ValueError('Song patch manifest is too large.')
+        manifest = json.loads(archive.read(manifest_entry))
+        if not isinstance(manifest, dict):
+            raise ValueError('Invalid Song patch manifest.')
+        patches, arrangement = manifest.get('patches'), manifest.get('arrangement')
+        if manifest.get('format') != 'mygrain-render-patches' or manifest.get('version') != 1 or not isinstance(patches, list) or not 1 <= len(patches) <= 256 or not isinstance(arrangement, list) or not 1 <= len(arrangement) <= 256:
+            raise ValueError('Invalid Song patch ZIP.')
+        expected = {'render-patches.json'}
+        ids = set()
+        for index, patch in enumerate(patches, 1):
+            path = f'patches/{index}.zip'
+            if not isinstance(patch, dict) or patch.get('path') != path or not isinstance(patch.get('id'), str) or patch['id'] in ids or not isinstance(patch.get('name'), str):
+                raise ValueError('Invalid Song patch entry.')
+            ids.add(patch['id'])
+            expected.add(path)
+        entries = archive.infolist()
+        if len(entries) != len(expected) or {entry.filename for entry in entries} != expected:
+            raise ValueError('Unexpected or missing Song patch files.')
+        if any(entry.compress_type != zipfile.ZIP_STORED or entry.flag_bits & 1 or entry.file_size != entry.compress_size for entry in entries):
+            raise ValueError('Song patches must use stored ZIP entries.')
+        if any(not isinstance(part, dict) or part.get('patch') not in ids for part in arrangement):
+            raise ValueError('Invalid Song patch order.')
+        for patch in patches:
+            validate_pattern(archive.read(patch['path']))
 
 
 def save_bundle(root, filename, body, unique_name, validate_pattern, wav_created):
@@ -162,7 +196,16 @@ def handle_request(handler, method, path, *, root, unique_name, validate_pattern
             handler.send_json(result, status=201, extra_headers={'Cache-Control': 'no-store'})
         elif path == '/api/pattern' and method in ('GET', 'HEAD'):
             body = read_pattern(root, filename)
-            handler.send_mygrain_bytes(body, 'application/zip')
+            download_name = pathlib.PurePosixPath(filename).stem + '.zip'
+            handler.send_response(200)
+            handler.send_header('Content-Type', 'application/zip')
+            handler.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(download_name, safe=''))
+            handler.send_header('Cache-Control', 'private, no-store')
+            handler.send_header('X-Content-Type-Options', 'nosniff')
+            handler.send_header('Content-Length', str(len(body)))
+            handler.end_headers()
+            if method != 'HEAD':
+                handler.wfile.write(body)
         else:
             handler.send_json({'ok': False, 'error': 'Method not allowed.'}, status=405)
     except FileNotFoundError as error:

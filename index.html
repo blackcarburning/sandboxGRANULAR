@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-grain-loop-4';
+            const cacheBuster = '2026-10-23-wav-zip-2';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -449,6 +449,10 @@
             justify-content: space-between;
             min-width: 0;
         }
+
+        .wav-pattern-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; min-width: 0; }
+        .wav-pattern-download { color: #a7c6d1; font-size: .78rem; padding: 8px 2px; text-underline-offset: 3px; }
+        #wavRepositoryBrowserList .wav-pattern-actions .wav-pattern-import { flex: 0 1 auto; min-height: 36px; padding: 7px 10px; font-size: .76rem; color: #cde7ee; background: rgba(126, 246, 255, .04); border-color: rgba(126, 246, 255, .2); }
 
         .sample-browser-head {
             align-items: flex-start;
@@ -6293,7 +6297,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.PAN.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.ZIP.2</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6380,7 +6384,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.PAN.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.ZIP.2</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -8868,8 +8872,7 @@
                         <input type="number" id="performanceExportBars" min="1" max="64" value="4" step="1" inputmode="numeric">
                     </div>
                     <div class="performance-sound-card">
-                        <label for="performanceExportPattern"><span>Save editable pattern with WAV</span><input id="performanceExportPattern" type="checkbox"></label>
-                        <p class="performance-feature-note">Include the notes, settings and original sounds. Repository renders gain Import Pattern in the WAV browser; local exports include a pattern ZIP.</p>
+                        <p class="performance-feature-note">Each new render asks whether to include an editable patch ZIP. It shares the WAV name and keeps sounds, notes, active layers and mutes. Restore it from the WAV browser.</p>
                     </div>
                 </div>
             </div>
@@ -50573,7 +50576,7 @@
         }
 
         async function renderPatternWithOptionalSnapshot() {
-            if (!document.getElementById('performanceExportPattern')?.checked) return renderDawReadyBarsExport();
+            if (!confirm('Include an editable patch ZIP with this WAV?\n\nSave all sounds, notes, settings, active layers and mutes under the same name. Repository renders get ZIP and Restore Patch controls in the WAV browser.\n\nCancel renders the WAV only.')) return renderDawReadyBarsExport();
             if (!window.mygrainSongBetaAdapter || window.mygrainCardHistory?.busy || window.mygrainAiPatch?.busy || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing) throw new Error('Finish Undo/Redo, AI or Song operations before saving an editable render.');
             const owner = window.mygrainAccounts?.user?.username;
             await window.mygrainSongBetaAdapter.ready();
@@ -50588,7 +50591,58 @@
         }
 
         let editablePatternImportInFlight = false;
+        async function buildSongRenderPatchZip(parts, signal) {
+            const controller = window.mygrainSongBeta;
+            const owner = window.mygrainAccounts?.user?.username;
+            const generation = controller.generation;
+            const bySource = new Map();
+            for (const part of parts) if (!bySource.has(part.sourcePartId || part.id)) bySource.set(part.sourcePartId || part.id, part);
+            const unique = [...bySource.values()];
+            if (unique.reduce((bytes, part) => bytes + (Number(part.bytes) || 128 * 1024 * 1024), 0) > 127 * 1024 * 1024) throw new Error('This Song’s editable ZIP exceeds 128 MB. Export its parts individually instead.');
+            const entries = [], patches = [];
+            let total = 0;
+            for (const part of unique) {
+                signal?.throwIfAborted();
+                const source = await controller.readPart(part, generation);
+                try {
+                    if (owner !== window.mygrainAccounts?.user?.username || generation !== controller.generation) throw new Error('Account or Song changed. Export again.');
+                    const path = `patches/${patches.length + 1}.zip`;
+                    total += source.body.byteLength;
+                    if (total > 127 * 1024 * 1024) throw new Error('This Song’s editable ZIP exceeds 128 MB. Export its parts individually instead.');
+                    entries.push({ path, data: source.body });
+                    patches.push({ id: part.sourcePartId || part.id, name: part.name, path });
+                } finally { source.releaseDownload(); }
+            }
+            signal?.throwIfAborted();
+            const manifest = { format: 'mygrain-render-patches', version: 1, patches, arrangement: parts.map(part => ({ patch: part.sourcePartId || part.id, name: part.name, bpm: part.bpm, patternSteps: part.patternSteps, playbackSteps: part.playbackSteps, patternCycleMultiplier: part.patternCycleMultiplier, repeats: part.repeats })) };
+            entries.unshift({ path: 'render-patches.json', data: JSON.stringify(manifest) });
+            return { patternBlob: await createStoredZip(entries), patternOwner: owner };
+        }
+
+        async function fetchEditablePatternBytes(file, signal) {
+            const blob = await fetchWavRepositoryBrowserData(file.patternExport.url, { responseType: 'blob', label: 'Load editable patch', signal });
+            const bytes = await blob.arrayBuffer();
+            signal?.throwIfAborted();
+            const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
+            if (digest !== file.patternExport.sha256) throw new Error('The editable patch failed its integrity check. Refresh the WAV browser.');
+            return bytes;
+        }
+
         async function importEditablePattern(arrayBuffer, sourceName = 'pattern.zip', options = {}) {
+            const entries = parseStoredZipEntries(arrayBuffer);
+            if (entries.has('render-patches.json')) {
+                const manifest = JSON.parse(getZipText(entries, 'render-patches.json'));
+                if (manifest.format !== 'mygrain-render-patches' || manifest.version !== 1 || !Array.isArray(manifest.patches) || !manifest.patches.length) throw new Error('Invalid Song patch ZIP.');
+                const choice = manifest.patches.length === 1 ? '1' : prompt(`Restore which patch from ${sourceName}?\n\n${manifest.patches.map((patch, index) => `${index + 1}. ${patch.name}`).join('\n')}\n\nEnter a number. The saved Song is not changed.`, '1');
+                if (choice === null) return false;
+                const index = Number(choice) - 1;
+                if (!Number.isInteger(index) || index < 0 || index >= manifest.patches.length) throw new Error('Choose a patch number from this ZIP.');
+                const patch = manifest.patches[index], bytes = entries.get(patch.path);
+                if (!bytes || !/^patches\/\d+\.zip$/.test(patch.path)) throw new Error('The Song ZIP is missing that patch.');
+                // Song archives contain ordinary complete patch ZIPs, never another bundle.
+                if (!parseStoredZipEntries(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)).has('song-part.json')) throw new Error('Invalid patch inside the Song ZIP.');
+                return importEditablePattern(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), `${sourceName} — ${patch.name}`, options);
+            }
             const owner = window.mygrainAccounts?.user?.username;
             const adapter = window.mygrainSongBetaAdapter;
             if (!adapter || !window.mygrainCardHistory || window.mygrainCardHistory.busy || editablePatternImportInFlight) throw new Error('Wait for the editable pattern and Undo/Redo tools to finish loading.');
@@ -50618,9 +50672,23 @@
             try {
                 const exportData = await renderPatternWithOptionalSnapshot();
                 const files = [{ filename: exportData.filename, blob: exportData.blob }];
-                if (exportData.patternBlob) files.push({ filename: exportData.filename.replace(/\.wav$/i, '.pattern.zip'), blob: exportData.patternBlob });
+                let repositoryError = null;
+                if (exportData.patternBlob) {
+                    // Keep locally downloaded renders discoverable/restorable too.
+                    // The account-private pair is saved before opening the share sheet.
+                    try {
+                        const result = await uploadWavToRepository(exportData.blob, exportData.filename, { patternBlob: exportData.patternBlob, patternOwner: exportData.patternOwner });
+                        exportData.filename = result.savedName || exportData.filename;
+                    } catch (error) {
+                        if (exportData.patternOwner !== window.mygrainAccounts?.user?.username) throw error;
+                        repositoryError = error;
+                    }
+                    files[0].filename = exportData.filename;
+                    files.push({ filename: exportData.filename.replace(/\.wav$/i, '.zip'), blob: exportData.patternBlob });
+                    if (!document.getElementById('wavRepositoryBrowserOverlay')?.hidden) await refreshWavRepositoryBrowser({ forceRefresh: true });
+                }
                 await saveAudioFiles(files, `MYGRAIN ${exportData.bpm} BPM ${exportData.bars} bar export`);
-                setStatus(exportData.patternBlob ? 'Exported WAV and its complete editable pattern ZIP.' : 'Exported one WAV file from the live final output.');
+                setStatus(repositoryError ? `Exported WAV and ZIP locally, but the WAV browser copy could not be saved: ${repositoryError.message}` : exportData.patternBlob ? 'Exported WAV and its matching editable ZIP; Restore Patch is available in the WAV browser.' : 'Exported one WAV file from the live final output.', repositoryError ? 'error' : undefined);
             } finally {
                 if (performanceExportBtn) {
                     performanceExportBtn.disabled = false;
@@ -51119,56 +51187,17 @@
         }
 
         async function buildPatchZipBlob(filename) {
-            const preset = gatherPreset();
-            const entries = [];
-            const assets = [];
-
-            for (const definition of PATCH_REPOSITORY_AUDIO_ENTRIES) {
-                const buffer = definition.getBuffer();
-                if (!buffer) continue;
-                const wav = audioBufferToWav(buffer);
-                entries.push({ path: definition.path, data: wav });
-                assets.push({
-                    path: definition.path,
-                    key: definition.key,
-                    label: definition.label,
-                    role: definition.role,
-                    layer: definition.layer || '',
-                    channels: buffer.numberOfChannels,
-                    sampleRate: buffer.sampleRate,
-                    durationSeconds: Number(buffer.duration.toFixed(4)),
-                    metadata: typeof definition.getMetadata === 'function'
-                        ? snapshotBastardLoopMetadata(definition.getMetadata(), definition.label)
-                        : null
-                });
-            }
-
-            const manifest = {
-                app: 'MYGRAIN',
-                format: 'mygrain-patch-zip',
-                formatVersion: PATCH_REPOSITORY_FORMAT_VERSION,
-                createdAt: new Date().toISOString(),
-                filename,
-                presetPath: 'preset.json',
-                statePath: 'state.json',
-                debugPath: 'debug.txt',
-                assets,
-                bastardLoopReferences: getPatchBastardLoopReferences(),
-                lfoAndEffects: buildPatchEffectsSnapshot(),
-                notes: [
-                    'This ZIP is created with stored entries so MYGRAIN can read it without an external ZIP library.',
-                    'Browser security allows direct repo upload only through the MYGRAIN server API; otherwise the ZIP is downloaded locally.'
-                ]
-            };
-
-            entries.unshift(
-                { path: 'manifest.json', data: JSON.stringify(manifest, null, 2) },
-                { path: 'preset.json', data: JSON.stringify(preset, null, 2) },
-                { path: 'state.json', data: JSON.stringify(readStoredStateSnapshot() || {}, null, 2) },
-                { path: 'debug.txt', data: buildDebugConsoleText() }
-            );
-
-            return createStoredZip(entries);
+            const owner = window.mygrainAccounts?.user?.username;
+            const adapter = window.mygrainSongBetaAdapter;
+            if (!adapter || window.mygrainCardHistory?.busy || window.mygrainAiPatch?.busy || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || window.mygrainSongBeta?.editing) throw new Error('Finish Undo/Redo, AI or Song operations before exporting a patch.');
+            await adapter.ready();
+            if (owner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Export the patch again.');
+            // The same complete codec as WAV sidecars: current (not stale stored)
+            // state, every audio slot, notes, grain/drum/K mutes and solo state.
+            const blob = await adapter.capture();
+            if (blob.size > 128 * 1024 * 1024) throw new Error('Editable patch exceeds the 128 MB snapshot limit.');
+            if (owner !== window.mygrainAccounts?.user?.username) throw new Error('The active account changed. Export the patch again.');
+            return blob;
         }
 
         async function uploadPatchZipToRepository(blob, filename) {
@@ -51707,8 +51736,8 @@
             }
             const defaultBase = buildPatchDefaultBaseName();
             const typedName = String(performancePatchZipName?.value || '').trim();
-            const requested = typedName || prompt('Enter patch ZIP filename:', defaultBase);
-            if (!requested) {
+            const requested = prompt('Enter patch ZIP filename:', typedName || defaultBase);
+            if (!requested?.trim()) {
                 setStatus('Patch ZIP export cancelled.');
                 if (performanceExportPatchZipBtn) {
                     performanceExportPatchZipBtn.disabled = false;
@@ -53473,7 +53502,7 @@
                 setStatus(`Uploading ${filename} to the WAV repository…`);
 
                 const result = await uploadWavToRepository(exportData.blob, filename, { patternBlob: exportData.patternBlob, patternOwner: exportData.patternOwner });
-                setStatus(`Uploaded ${result.savedName || filename}${result.patternExport ? ' with its editable pattern (Import Pattern in WAV Browser)' : ''} to the WAV repository.`);
+                setStatus(`Uploaded ${result.savedName || filename}${result.patternExport ? ' with its matching ZIP (Restore Patch in WAV Browser)' : ''} to the WAV repository.`);
                 if (!document.getElementById('wavRepositoryBrowserOverlay')?.hidden) await refreshWavRepositoryBrowser({ forceRefresh: true });
             } finally {
                 if (performanceRepoExportBtn) {
@@ -53507,7 +53536,7 @@
             syncPerformanceControlState();
             setStatus(`Capturing Take ${slotIndex + 1}...`);
             try {
-                const exportData = await renderDawReadyBarsExport();
+                const exportData = await renderPatternWithOptionalSnapshot();
                 const previousSlot = performanceTakeSlots[slotIndex];
                 const previousDraftName = previousSlot?.draftName || '';
                 const previousSelection = previousSlot?.selectedForUpload;
@@ -53518,6 +53547,8 @@
                 }
                 performanceTakeSlots[slotIndex] = {
                     blob: exportData.blob,
+                    patternBlob: exportData.patternBlob,
+                    patternOwner: exportData.patternOwner,
                     filename: exportData.filename,
                     bpm: exportData.bpm,
                     bars: exportData.bars,
@@ -53552,7 +53583,7 @@
                 setStatus(`Uploading ${populatedSlots.length} take${populatedSlots.length === 1 ? '' : 's'} to the WAV repository...`);
                 for (const { slot, index } of populatedSlots) {
                     const filename = sanitizeWavRepositoryFilename(slot.draftName || buildTakeUploadFilename(index, slot), `mygrain-take-${index + 1}`);
-                    await uploadWavToRepository(slot.blob, filename);
+                    await uploadWavToRepository(slot.blob, filename, { patternBlob: slot.patternBlob, patternOwner: slot.patternOwner });
                 }
                 setStatus(`Uploaded ${populatedSlots.length} take${populatedSlots.length === 1 ? '' : 's'} to the WAV repository.`);
                 await refreshWavRepositoryBrowser({ forceRefresh: true });
@@ -55078,7 +55109,7 @@
 
         async function openPatchZipFromArrayBuffer(arrayBuffer, sourceName = 'patch.zip') {
             const entries = parseStoredZipEntries(arrayBuffer);
-            if (entries.has('song-part.json')) return importEditablePattern(arrayBuffer, sourceName);
+            if (entries.has('song-part.json') || entries.has('render-patches.json')) return importEditablePattern(arrayBuffer, sourceName);
             const manifestText = getZipText(entries, 'manifest.json');
             const presetText = getZipText(entries, 'preset.json');
             if (!presetText) {
@@ -55765,10 +55796,32 @@
                 favourites.decorate('wav', favouriteKey(file), file.name, head);
                 actions.append(repositoryHint, downloadButton, shareButton, renameButton, deleteButton);
                 if (file.patternExport?.url) {
+                    const patchActions = document.createElement('div');
+                    patchActions.className = 'wav-pattern-actions';
+                    const zipLink = document.createElement('a');
+                    zipLink.className = 'wav-pattern-download';
+                    zipLink.textContent = 'ZIP';
+                    zipLink.href = file.patternExport.url;
+                    zipLink.download = file.patternExport.filename || file.name.replace(/\.wav$/i, '.zip');
+                    zipLink.title = `Download ${zipLink.download} — complete editable patch`;
+                    zipLink.addEventListener('click', async event => {
+                        event.preventDefault();
+                        const controller = new AbortController();
+                        wavRepositoryBrowserDownloadControllers.add(controller);
+                        try {
+                            const bytes = await fetchEditablePatternBytes(file, controller.signal);
+                            controller.signal.throwIfAborted();
+                            await downloadBlob(new Blob([bytes], { type: 'application/zip' }), zipLink.download);
+                        } catch (error) {
+                            if (!controller.signal.aborted) setWavRepositoryBrowserStatus(`ZIP download failed: ${error.message}`);
+                        } finally {
+                            wavRepositoryBrowserDownloadControllers.delete(controller);
+                        }
+                    });
                     const importButton = document.createElement('button');
                     importButton.type = 'button';
-                    importButton.className = 'performance-btn primary wav-pattern-import';
-                    importButton.textContent = 'Import Pattern';
+                    importButton.className = 'performance-btn wav-pattern-import';
+                    importButton.textContent = 'Restore Patch';
                     importButton.title = 'Restore this render’s complete editable pattern, notes, settings and original sounds. Undo restores the current pattern.';
                     importButton.addEventListener('click', async () => {
                         const controller = new AbortController();
@@ -55777,13 +55830,9 @@
                         importButton.textContent = 'Importing…';
                         try {
                             setWavRepositoryBrowserStatus(`Loading editable pattern for ${file.name}…`);
-                            const blob = await fetchWavRepositoryBrowserData(file.patternExport.url, { responseType: 'blob', label: 'Load editable pattern', signal: controller.signal });
-                            const bytes = await blob.arrayBuffer();
-                            controller.signal.throwIfAborted();
-                            const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
-                            if (digest !== file.patternExport.sha256) throw new Error('The editable pattern failed its integrity check. Refresh the WAV browser.');
-                            await importEditablePattern(bytes, file.name, { signal: controller.signal });
-                            closeWavRepositoryBrowser();
+                            const bytes = await fetchEditablePatternBytes(file, controller.signal);
+                            const restored = await importEditablePattern(bytes, file.name, { signal: controller.signal });
+                            if (restored !== false) closeWavRepositoryBrowser();
                         } catch (error) {
                             if (!controller.signal.aborted) {
                                 setWavRepositoryBrowserStatus(`Pattern import failed: ${error.message}`);
@@ -55792,10 +55841,11 @@
                         } finally {
                             wavRepositoryBrowserDownloadControllers.delete(controller);
                             importButton.disabled = false;
-                            importButton.textContent = 'Import Pattern';
+                            importButton.textContent = 'Restore Patch';
                         }
                     });
-                    actions.append(importButton);
+                    patchActions.append(zipLink, importButton);
+                    actions.append(patchActions);
                 }
                 card.append(head, meta, audio, actions, feedback);
                 list.appendChild(card);
@@ -62986,7 +63036,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-grain-loop-4');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-wav-zip-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>
