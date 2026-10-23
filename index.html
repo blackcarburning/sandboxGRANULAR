@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-wav-zip-2';
+            const cacheBuster = '2026-10-23-k-hall-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6297,7 +6297,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.ZIP.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.KREV.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6384,7 +6384,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.ZIP.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.KREV.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -17831,13 +17831,14 @@
 
 
 
-        function createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'smallRoom') {
+        function createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'smallRoom', durationSeconds = null) {
             const presetKey = normalizeFinalReverbRoomPreset(roomPreset);
             const preset = FINAL_REVERB_ROOM_PRESETS[presetKey] || FINAL_REVERB_ROOM_PRESETS.smallRoom;
             const sampleRate = ctx.sampleRate;
             const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
             const decay = Math.max(0, Math.min(1, Number(decayAmount) || 0));
-            const seconds = Math.max(0.18, Math.min(9.5, (preset.seconds || 1.5) * (0.72 + size * 0.56) * (0.72 + decay * 0.56)));
+            // K supplies its existing seconds-based Decay; L/master keep preset timing.
+            const seconds = Math.max(0.18, Math.min(9.5, durationSeconds ?? ((preset.seconds || 1.5) * (0.72 + size * 0.56) * (0.72 + decay * 0.56))));
             const length = Math.max(1, Math.round(sampleRate * seconds));
             const impulse = ctx.createBuffer(2, length, sampleRate);
             const decayPower = Math.max(0.9, preset.damping - decay * 0.82);
@@ -17877,10 +17878,10 @@
             return impulse;
         }
 
-        function createFinalReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'cloud') {
+        function createFinalReverbImpulseForContext(ctx, sizeAmount, decayAmount, roomPreset = 'cloud', durationSeconds = null) {
             const presetKey = normalizeFinalReverbRoomPreset(roomPreset);
             if (presetKey !== 'cloud') {
-                return createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, presetKey);
+                return createFinalRoomReverbImpulseForContext(ctx, sizeAmount, decayAmount, presetKey, durationSeconds);
             }
             const sampleRate = ctx.sampleRate;
             const size = Math.max(0, Math.min(1, Number(sizeAmount) || 0));
@@ -20694,6 +20695,7 @@
             if (bastardLoopVBuffer) getBastardLoopVPlaybackBuffer();
             if (bastardLoopPBuffer) getBastardLoopPPlaybackBuffer();
             if (bastardLoopOBuffer) getBastardLoopOPlaybackBuffer();
+            window.mygrainKMultitrack?.prewarm?.();
             if (bastardLoopMBuffer) ensureBastardLoopMFxBus(getBastardLoopMPlaybackDestination());
             if (bastardLoopMPlusBuffer) ensureBastardLoopMPlusFxBus(getBastardLoopMPlusPlaybackDestination());
             if (drumMachineEnabled) {
@@ -26211,7 +26213,8 @@
                 source.connect(gain);
                 const track = window.mygrainKMultitrack?.tracks[window.mygrainKMultitrack.selected];
                 const pan = track ? audioContext.createStereoPanner() : null;
-                const graph = track ? window.MygrainKTrackDsp.create(audioContext, gain, pan, track.processing, getSharedBpmClockValue(), preFilterGainNode || masterGain || audioContext.destination) : null;
+                const graph = track ? window.MygrainKTrackDsp.create(audioContext, gain, pan, track.processing, getSharedBpmClockValue(), preFilterGainNode || masterGain || audioContext.destination,
+                    undefined, window.mygrainKMultitrack.takePreparedReverb()) : null;
                 if (pan) { pan.pan.value = track.pan; graph.start(now, duration); } else gain.connect(masterGain || audioContext.destination);
                 source.onended = () => {
                     source.disconnect();
@@ -32646,6 +32649,11 @@
                 return false;
             }
 
+            // A manual start has no externally fixed deadline. Let the existing
+            // planner replan if five cold Hall convolvers take longer to prepare.
+            if (transportSync.depth === 0 && !Number.isFinite(options.startTime)) {
+                return withBufferedTransportStart(null, deadline => setBastardLoopPlaying(true, { ...options, startTime: deadline }));
+            }
             const startTime = Number.isFinite(options.startTime)
                 ? options.startTime
                 : (Number.isFinite(getSharedLoopTransportOriginTime()) ? getSharedLoopTransportOriginTime() : getBufferedTransportStartTime());
@@ -63029,12 +63037,12 @@
     <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadScript('k-multitrack.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadScript('k-track-meters.js?v=20261023-k-dsp-1');</script>
-    <script>window.mygrainAccounts?.loadScript('k-track-dsp.js?v=20261023-k-dsp-1');</script>
-    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-k-dsp-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-track-dsp.js?v=20261023-k-hall-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-k-hall-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-amend-memory-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-grain-loop-4');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-k-hall-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-wav-zip-2');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>

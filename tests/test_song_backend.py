@@ -186,6 +186,19 @@ class SongBackendTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'dimensions'):
             SONGS.validate_part_zip(invalid)
 
+    def test_k_hall_render_marker_preserves_original_patch_and_rejects_unknown_versions(self):
+        self.assertEqual(self.request('GET').response['features']['kHallReverbRenders'], 1)
+        song = self.upload(self.create())
+        part = song['parts'][0]
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}'
+        result = self.request('POST', f'{path}&kreverb=1', body=render_wav(part))
+        self.assertEqual(result.status, 200)
+        saved = result.response['song']
+        self.assertEqual(saved['parts'][0]['render']['kReverbVersion'], 1)
+        self.assertEqual(saved['parts'][0]['sha256'], part['sha256'])
+        self.assertEqual(saved['revision'], song['revision'])
+        self.assertEqual(self.request('POST', f'{path}&kreverb=2', body=render_wav(part)).status, 400)
+
     def test_portable_render_marker_preserves_snapshot_and_rejects_unknown_versions(self):
         self.assertEqual(self.request('GET').response['features']['portableFreezeRenders'], 1)
         song = self.upload(self.create())

@@ -1,10 +1,36 @@
 (function (root) {
     'use strict';
+    // Reuse Loop L's Hall texture, never its whole master/room routing. Buffer-only
+    // sharing keeps every track's convolver private and bounds idle cache storage.
+    const rooms = new WeakMap();
+    const MAX_ROOM_BYTES = 8 * 1024 * 1024;
+    function roomImpulse(context, seconds, impulseFor) {
+        let cache = rooms.get(context);
+        if (!cache) { cache = new Map(); rooms.set(context, cache); }
+        const key = Math.round(Math.max(.2, Math.min(4, Number(seconds) || 1.2)) * 100) / 100;
+        if (cache.has(key)) { const buffer = cache.get(key); cache.delete(key); cache.set(key, buffer); return buffer; }
+        if (typeof impulseFor !== 'function') throw new Error('K Hall reverb is not ready. Reload MYGRAIN.');
+        const buffer = impulseFor(context, .45, (key - .2) / 3.8, 'hall', key);
+        cache.set(key, buffer);
+        let bytes = [...cache.values()].reduce((sum, item) => sum + item.length * item.numberOfChannels * 4, 0);
+        // Keep enough for five distinct maximum tails even at high sample rates.
+        const budget = Math.max(MAX_ROOM_BYTES, (context.sampleRate || 48000) * 20 * 2 * 4);
+        while (cache.size > 8 || bytes > budget) {
+            const oldest = cache.keys().next().value, item = cache.get(oldest);
+            bytes -= item.length * item.numberOfChannels * 4; cache.delete(oldest);
+        }
+        return buffer;
+    }
+    function prepare(context, settings, impulseFor = root.createFinalReverbImpulseForContext) {
+        return settings.reverbMix > 0 ? roomImpulse(context, settings.reverbDecay, impulseFor) : null;
+    }
     // Each graph belongs to one audible K voice. No global FX bus or UI timers.
-    function create(context, input, output, settings, bpm, destination) {
+    function create(context, input, output, settings, bpm, destination, impulseFor = root.createFinalReverbImpulseForContext, preparedRoom = null) {
         const nodes = [], filters = [], oscillators = [];
         const own = node => (nodes.push(node), node);
         const gain = value => { const node = own(context.createGain()); node.gain.value = value; return node; };
+        // Own a preflighted room immediately, including failures before its branch.
+        if (preparedRoom) own(preparedRoom);
         let tail = input, disposed = false, lfo = null, delay = null, delayCapacity = 0;
         const append = node => { tail.connect(node); tail = node; return node; };
         try {
@@ -36,14 +62,13 @@
                 lowpass.connect(wet); wet.connect(mix);
             }
             if (settings.reverbMix > 0) {
-                // Short bounded combs avoid five large IR buffers/convolution engines.
-                for (const seconds of [.067, .079, .101, .127]) {
-                    const comb = own(context.createDelay(.15)); comb.delayTime.value = seconds;
-                    const lowpass = own(context.createBiquadFilter()); lowpass.type = 'lowpass'; lowpass.frequency.value = 6500; lowpass.Q.value = .707;
-                    const feedback = gain(Math.min(.94, .001 ** (seconds / settings.reverbDecay))), wet = gain(settings.reverbMix / 4);
-                    tail.connect(comb); comb.connect(lowpass); lowpass.connect(feedback); feedback.connect(comb);
-                    lowpass.connect(wet); wet.connect(mix);
-                }
+                // Same feed-forward room branch as Loop L: no reverb feedback loop.
+                const predelay = own(context.createDelay(.05)); predelay.delayTime.value = .018;
+                const room = preparedRoom || own(context.createConvolver());
+                if (!preparedRoom) room.buffer = prepare(context, settings, impulseFor);
+                const tone = own(context.createBiquadFilter()); tone.type = 'lowpass'; tone.frequency.value = 6400; tone.Q.value = .707;
+                const wet = gain(settings.reverbMix * (.68 + .45 * .18));
+                tail.connect(predelay); predelay.connect(room); room.connect(tone); tone.connect(wet); wet.connect(mix);
             }
             mix.connect(output); output.connect(destination);
             if (filters.length && settings.lfoAmount > 0) {
@@ -75,15 +100,15 @@
                 dispose() {
                     if (disposed) return; disposed = true;
                     for (const oscillator of oscillators) try { oscillator.stop(); } catch {}
-                    for (const node of nodes) { try { node.disconnect(); } catch {} if (node.curve) node.curve = null; }
+                    for (const node of nodes) { try { node.disconnect(); } catch {} if (node.curve) node.curve = null; if ('buffer' in node) node.buffer = null; }
                 }
             };
         } catch (error) {
             for (const oscillator of oscillators) try { oscillator.stop(); } catch {}
-            for (const node of nodes) try { node.disconnect(); } catch {}
+            for (const node of nodes) { try { node.disconnect(); } catch {} if (node.curve) node.curve = null; if ('buffer' in node) node.buffer = null; }
             throw error;
         }
     }
-    if (typeof module === 'object' && module.exports) module.exports = { create };
-    else root.MygrainKTrackDsp = Object.freeze({ create });
+    if (typeof module === 'object' && module.exports) module.exports = { create, prepare };
+    else root.MygrainKTrackDsp = Object.freeze({ create, prepare });
 })(typeof window === 'undefined' ? globalThis : window);

@@ -3,6 +3,26 @@
     const theory = window.MygrainKMultitrack;
     if (!theory) throw new Error('K multitrack recorder could not load. Reload MYGRAIN.');
     let selecting = false, preparingRecord = false, restoring = false, meters = null;
+    // Native convolver setup can be slow in WebKit. Prepare each audible room
+    // before a transport/capture deadline; consume it exactly once in its voice.
+    const preparedRooms = new Map();
+    function clearPreparedRoom(track) {
+        const entry = preparedRooms.get(track); if (!entry) return;
+        preparedRooms.delete(track); try { entry.room.disconnect(); } catch {} entry.room.buffer = null;
+    }
+    function prepareRoom(track) {
+        const entry = preparedRooms.get(track), decay = track.processing.reverbDecay;
+        // Render decks use a context facade; room.context is its native parent.
+        if (entry && entry.context === audioContext && entry.decay === decay && track.processing.reverbMix > 0) return entry.room;
+        clearPreparedRoom(track);
+        if (!(track.processing.reverbMix > 0)) return null;
+        const room = audioContext.createConvolver();
+        try { room.buffer = window.MygrainKTrackDsp.prepare(audioContext, track.processing); }
+        catch (error) { room.disconnect(); room.buffer = null; throw error; }
+        preparedRooms.set(track, { room, decay, context: audioContext }); return room;
+    }
+    function clearPreparedRooms() { for (const track of preparedRooms.keys()) clearPreparedRoom(track); }
+    function takePreparedRoom(track) { const room = prepareRoom(track); preparedRooms.delete(track); return room; }
     const recorder = theory.create({
         context: () => audioContext, bpm: getSharedBpmClockValue,
         memoryBudget: () => (window.matchMedia?.('(pointer: coarse)').matches ? 96 : 192) * 1048576,
@@ -11,8 +31,9 @@
         timing: time => resolveTransportLaneStart(time, 'K'), startSource: startTransportSource,
         prepare: track => prepareTrack(track),
         route(gain, pan, track) {
+            const room = takePreparedRoom(track);
             return window.MygrainKTrackDsp.create(audioContext, gain, pan, track.processing, getSharedBpmClockValue(),
-                preFilterGainNode || masterGain || audioContext.destination);
+                preFilterGainNode || masterGain || audioContext.destination, undefined, room);
         },
         idle(track) { track.rendered = track.padded = track.paddedSource = null; track.renderKey = null; },
         published(voices) {
@@ -47,6 +68,7 @@
     const renderKey = track => JSON.stringify([track.processing.semitone, track.processing.fine, track.processing.preserveDuration, track.processing.reverse]);
     function prepareTrack(track) {
         if (!track.raw || !audioContext) return track.raw;
+        prepareRoom(track);
         const key = renderKey(track);
         if (track.rendered && track.renderKey === key) return track.rendered;
         const needsCopy = track.processing.reverse || (track.processing.preserveDuration && (track.processing.semitone || track.processing.fine));
@@ -86,6 +108,7 @@
         aliases();
     }
     function sync() {
+        for (const track of preparedRooms.keys()) if (!recorder.audible(track) || preparedRooms.get(track).context !== audioContext) clearPreparedRoom(track);
         const disabled = busy();
         const destination = document.getElementById('performanceKeyboardKTrack');
         if (destination) { destination.value = String(recorder.selected); destination.disabled = disabled; }
@@ -115,6 +138,7 @@
         ? saveAudioBufferToDB(recorder.tracks[recorder.selected].raw, theory.dbKey(recorder.selected))
         : clearAudioBufferFromDB(theory.dbKey(recorder.selected)); }
     function restoreSettings(modes = {}, preserveRendered = true) {
+        clearPreparedRooms();
         restoring = true;
         try { recorder.restore(modes.kMultitrack, modes, recorder.tracks[0].metadata || bastardLoopKMetadata); rebuild(preserveRendered); }
         finally { restoring = false; }
@@ -154,7 +178,7 @@
     syncBastardLoopKUi = function () { original.sync(); sync(); };
     syncLoopLayerSoloButtons = function () { original.solos(); sync(); };
     startBastardLoopK = function (time = null, options = {}) { stash(); const result = recorder.start(time); if (!options.skipUi) syncBastardLoopKUi(); return result; };
-    stopBastardLoopK = function (options = {}) { recorder.stop(options); if (!options.skipUi) syncBastardLoopKUi(); };
+    stopBastardLoopK = function (options = {}) { if (!transportSync.depth) clearPreparedRooms(); recorder.stop(options); if (!options.skipUi) syncBastardLoopKUi(); };
     syncBastardLoopKTempo = function () { syncBastardLoopKInfo(); recorder.tempo(); };
     updateBastardLoopKMix = function () {
         if (bastardLoopPlaying && recorder.hasAudio() && !recorder.voices.size && getBastardLoopKLevelValue() > 0) recorder.start();
@@ -224,6 +248,9 @@
     const api = {
         tracks: recorder.tracks, get selected() { return recorder.selected; }, get voices() { return recorder.voices; },
         hasAudio: () => recorder.hasAudio(), select, change, changeProcessing, sync, persistSelected,
+        prewarm() { for (const track of recorder.tracks) if (recorder.audible(track)) prepareTrack(track); else clearPreparedRoom(track); },
+        get preparedReverbCount() { return preparedRooms.size; },
+        takePreparedReverb() { return takePreparedRoom(recorder.tracks[recorder.selected]); },
         prepareSelected() { stash(); const buffer = prepareTrack(recorder.tracks[recorder.selected]); aliases(); return buffer; },
         captureSettings() { stash(); return recorder.settings(); }, restoreSettings,
         getBuffer(index, rendered = false) { return recorder.tracks[index][rendered ? 'rendered' : 'raw']; },

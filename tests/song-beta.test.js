@@ -2359,7 +2359,7 @@ test('legacy keyboard renders are regenerated and marked without double-counting
     controller.renderSources.set(part.id, part.sha256);
     controller.renderBytes = 16000;
     controller.request = async (path, options) => {
-        assert.match(path, /render\?sha256=snapshot&keyboard=1$/);
+        assert.match(path, /render\?sha256=snapshot&kreverb=1&keyboard=1$/);
         assert.equal(options.method, 'POST');
         return { song: { ...controller.song, parts: [{ ...part, render: { ...part.render, keyboardVersion: 1 } }] } };
     };
@@ -2621,7 +2621,7 @@ test('Q effects render refuses an old server rather than reusing distorted rever
 
 test('arming inspects legacy Q sources even when portable freeze metadata looks compatible', async () => {
     const { controller } = makeController();
-    const part = { ...first, sha256: 'snapshot', qVersion: 1, render: { version: 1, sourceSha256: 'snapshot', qVersion: 1, keyboardVersion: 1, grainVersion: 5, portableVersion: 1 } };
+    const part = { ...first, sha256: 'snapshot', qVersion: 1, render: { version: 1, sourceSha256: 'snapshot', qVersion: 1, kReverbVersion: 1, keyboardVersion: 1, grainVersion: 5, portableVersion: 1 } };
     controller.song = { id: 'song', parts: [part] };
     let reads = 0;
     const readPart = controller.readPart;
@@ -3153,4 +3153,14 @@ test('a failed rollback retains its temporary Float32 checkpoint for recovery', 
     await assert.rejects(c.recall(part, { start: false, amend: true }), /remain in browser checkpoint/);
     assert.ok(!trace.includes('dispose-checkpoint'));
     assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.editing, null);
+});
+
+test('old K reverb freezes refresh only for audible wet K tracks, without changing the patch',()=>{
+ const {controller}=makeController();const part={...first,render:{version:1,sourceSha256:first.sha256,keyboardVersion:1,grainVersion:5,portableVersion:1}};
+ const decoded={snapshot:{state:{modes:{bastardLoopKEnabled:true,kMultitrack:{version:2,tracks:[{enabled:true,mute:false,level:1,processing:{reverbMix:.4,reverbDecay:4}}]}}}}};
+ const original=JSON.stringify(decoded);assert.equal(controller.isRenderCompatible(part,decoded),false);
+ assert.equal(controller.isRenderCompatible({...part,render:{...part.render,kReverbVersion:1}},decoded),true);assert.equal(JSON.stringify(decoded),original);
+ for(const key of ['mute','enabled','level']){const copy=JSON.parse(original);copy.snapshot.state.modes.kMultitrack.tracks[0][key]=key==='mute'?true:key==='enabled'?false:0;assert.equal(controller.isRenderCompatible(part,copy),true)}
+ assert.equal(controller.isRenderCompatible(part),false,'metadata is inspected before trusting unknown old renders');
+ assert.equal(controller.isRenderCompatible({...part,render:{...part.render,kReverbVersion:1}}),true);
 });

@@ -64,7 +64,20 @@ by deploying this update.
   No new UI animation loop was introduced. VUs retain viewport/document gating
   and now tap post-FX/pan output.
 - Delay storage is sized for its current division, capped at 12 seconds. Reverb
-  uses four short bounded feedback combs rather than five large convolution IRs.
+  now uses Loop L's feed-forward Hall impulse (KREV.1), 18 ms predelay and
+  6400 Hz tone filter: no recirculating reverb path. Each audible wet track owns
+  one convolver, while identical Decay settings share only immutable IR buffers.
+  The per-AudioContext LRU holds at most eight buffers / max(8 MiB, 20 seconds of stereo context-rate PCM), plus buffers still
+  owned by active voices. Audible K impulses and native convolver setup are
+  preflighted before transport reserves its start/capture deadline. Each prepared
+  convolver is consumed once by its own voice; stop, state restore and inaudible
+  tracks clear any unconsumed preflight. No long IR/native room build happens
+  inside the start window.
+  Manual starts use the existing adaptive planner, which can replan a cold
+  five-convolver allocation without weakening explicit scheduled deadlines. Decay remains 200–4000 ms; Mix and saved state are
+  unchanged. Stopping/disposal clears each convolver's buffer, also on failures.
+  Existing Song sources remain untouched. Arm refreshes an old playback freeze
+  only if it contains audible K reverb; new renders carry kReverbVersion=1.
   Drive/LFO/delay/reverb nodes are absent at zero/bypass settings.
 - Tuning renders lazily for audible tracks or explicit audition. Only the current
   processed take is retained per track. K bypasses the general 48-variant pitch
@@ -98,3 +111,12 @@ conversion; desktop/320/390 portrait/844 landscape layouts. The original recorde
 regression covers five real takes with unequal loop lengths, saved audio reload,
 Amend recording and single-K archive conversion. Browser phone runs are emulated,
 not physical iPhone measurements.
+
+### KREV.1 regression
+
+`node tests/k-reverb-browser.cjs` exercises real Chromium/WebKit audio at phone
+and desktop sizes: maximum reverb, sustained tones, silence after the finite tail,
+all five live tracks, peer continuity, mute/off/stop cleanup, complete patch ZIP
+recall and a real saved-Song render. Accounts and storage are disposable localhost
+fixtures only. `node --test tests/k-track-dsp.test.js tests/song-beta.test.js`
+checks topology, bounded cache, failure cleanup and old-render compatibility.

@@ -105,6 +105,13 @@
             || Object.values(modes.drumMachineExtraTracks || {}).some(track => track?.pattern?.some(Boolean)));
     }
 
+    function needsKReverbRender(decoded) {
+        const modes = decoded?.snapshot?.state?.modes;
+        return modes?.bastardLoopKEnabled === true && Number(modes.bastardLoopKLevel ?? .5) > 0
+            && modes.kMultitrack?.tracks?.some(track => track.enabled !== false && track.mute !== true
+                && Number(track.level ?? 1) > 0 && Number(track.processing?.reverbMix) > 0);
+    }
+
     function qRenderVersion(decoded) {
         if (!needsQRender(decoded)) return 0;
         const state = decoded.snapshot.state.q;
@@ -863,13 +870,13 @@
         isRenderCompatible(part, decoded = this.snapshots.get(sourceId(part)) || this.cache.get(sourceId(part))) {
             const pianoVersion = Number(part.qVersion) >= 2 ? Math.max(3, Number(part.qVersion)) : Number(part.qVersion) || 0;
             if (!decoded) return (!pianoVersion || Number(part.render?.qVersion) >= pianoVersion) && ((this.renderSources.has(sourceId(part)) && this.renderSources.get(sourceId(part)) === contentKey(part))
-                || (part.render?.keyboardVersion === 1 && Number(part.render?.grainVersion) >= 5 && part.render?.portableVersion === 1));
+                || (part.render?.keyboardVersion === 1 && Number(part.render?.grainVersion) >= 5 && part.render?.portableVersion === 1 && part.render?.kReverbVersion === 1));
             const keyboard = Boolean(decoded?.snapshot?.extra?.heldNotes?.length);
             const grains = decoded?.snapshot?.state?.modes?.granularLayersEnabled === true;
             const vocalCut = decoded?.snapshot?.state?.modes?.bastardLoopVCut?.enabled === true;
             const vocalRepeat = vocalCut && decoded.snapshot.state.modes.bastardLoopVCut.repeat === true;
             const drumLanes = Object.values(decoded?.snapshot?.state?.modes?.drumMachineExtraTracks || {}).some(track => track?.pattern?.some(Boolean));
-            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || Number(part.render?.grainVersion) >= 5) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded));
+            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || Number(part.render?.grainVersion) >= 5) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded)) && (!needsKReverbRender(decoded) || part.render?.kReverbVersion === 1);
         }
 
         isPartReady(part) {
@@ -920,12 +927,13 @@
                 const body = this.adapter.encodeRender(buffer);
                 bytes = body;
                 this.armStage(generation, 'Saving playback render to server', part);
-                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=5' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
+                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}&kreverb=1${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=5' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
                     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body, signal: this.abort?.signal
                 });
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 const saved = result.song.parts.find(entry => entry.id === part.id && entry.sha256 === part.sha256);
                 if (!saved?.render) throw new Error(`The song changed while rendering ${part.name}. Refresh Songs and arm again.`);
+                if (needsKReverbRender(decoded) && saved.render.kReverbVersion !== 1) throw new Error('The song server needs K Hall reverb render support. Reload MYGRAIN and arm again.');
                 if (keyboard && saved.render.keyboardVersion !== 1) throw new Error('The song server needs keyboard-render support. Reload MYGRAIN and arm again.');
                 if (grains && !(Number(saved.render.grainVersion) >= 5)) throw new Error('The song server needs current smooth-grain render support. Reload MYGRAIN and arm again.');
                 if (vocalCut && saved.render.vocalCutVersion !== 1) throw new Error('The song server needs vocal-cut render support. Reload MYGRAIN and arm again.');
@@ -1111,7 +1119,7 @@
                     if (renderBytes && !this.hasSavedRender(saved)) {
                         const renderExpected = { ...expected, revision: this.song.revision, sha256: digest };
                         const flags = [['keyboard', 'keyboardVersion'], ['grain', 'grainVersion'], ['vocalcut', 'vocalCutVersion'],
-                            ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['drumroll', 'drumRollVersion'], ['portable', 'portableVersion'], ['q', 'qVersion']]
+                            ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['drumroll', 'drumRollVersion'], ['portable', 'portableVersion'], ['q', 'qVersion'], ['kreverb', 'kReverbVersion']]
                             .filter(([, field]) => part.render[field]).map(([flag, field]) => `&${flag}=${part.render[field]}`).join('');
                         this.armStage(generation, 'Saving retained playback render', part);
                         result = await this.request(`/${encodeURIComponent(songId)}/parts/${saved.id}/render?sha256=${saved.sha256}${flags}`, {
@@ -1205,7 +1213,7 @@
                             // Older render metadata cannot tell whether full-decay
                             // sampled drums are present. Inspect the editable source
                             // before trusting a legacy freeze's fast reuse path.
-                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
+                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || part.render?.kReverbVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
                             if (this.hasSavedRender(part)) {
                                 const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 this.armStage(generation, 'Waiting for playback memory', part);
