@@ -51,6 +51,43 @@
     color: #edf6ff;
 }
 
+.song-beta-copy-choice {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 44px;
+    min-width: 0;
+    padding: 7px 10px;
+    box-sizing: border-box;
+    border: 1px solid #566276;
+    border-radius: 6px;
+    background: #222c38;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.song-beta-copy-choice:has(input:checked) {
+    border-color: #70e8ff;
+    background: #17384a;
+}
+
+.song-beta-copy-choice input[type="checkbox"] {
+    appearance: auto;
+    width: 19px;
+    height: 19px;
+    min-width: 19px;
+    margin: 0;
+    accent-color: #70e8ff;
+}
+
+.song-beta-copy-choice span { overflow-wrap: anywhere; }
+.song-beta-copy-drums { margin: 0 0 16px; padding: 12px; min-width: 0; border: 1px solid #566276; border-radius: 8px; }
+.song-beta-copy-drums legend { padding: 0 6px; }
+.song-beta-copy-drums .song-beta-copy-layers { margin: 10px 0; }
+.song-beta-copy-drums p { margin-bottom: 0; }
+.song-beta-copy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.song-beta-copy-dialog .performance-btn.primary { color: #071619; }
+
 #songBetaCard .song-beta-row {
     display: flex;
     flex-wrap: wrap;

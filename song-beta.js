@@ -67,6 +67,21 @@
     }
 
     const loopLayers = ['A', 'B', 'C', 'V', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+'];
+    const drumCopyLanes = [
+        ['drumKick', 'Kick'], ['drumSnare', 'Snare'], ['drumHat', 'Hat'], ['drumPerc', 'Perc'],
+        ['drumClap', 'Clap'], ['drumCymbals', 'Cymbals'], ['drumEtc', 'ETC'], ['drumRoll', 'Snare Roll']
+    ];
+    const copyLabels = new Map([...loopLayers.map(layer => [layer, `Bastardloop ${layer}`]), ['drums', 'Drum machine (all)'], ...drumCopyLanes.map(([id, label]) => [id, `${label} drum lane`])]);
+
+    function copySelection(value) {
+        const values = Array.isArray(value) ? value : [value];
+        if (!values.length || values.length > copyLabels.size || values.some(item => !copyLabels.has(item))) return [];
+        return [...copyLabels.keys()].filter(item => values.includes(item) && !(values.includes('drums') && drumCopyLanes.some(([id]) => id === item)));
+    }
+
+    function copiedLabel(copied) {
+        return copySelection(copied.layers || copied.layer).map(item => copyLabels.get(item)).join(', ');
+    }
 
     function needsPortableFreeze(decoded) {
         return decoded?.snapshot?.extra?.freezeStateVersion === 1 || Boolean(decoded?.snapshot?.state?.sliders?.performanceDrumMachineLevel);
@@ -1128,14 +1143,15 @@
             this.status(options.amend ? `Amending ${part.name}. Edit the live pattern/settings/sounds, then Save Amendment to commit to every use of this part. The server copy is unchanged until saved.` : options.start === false ? `${part.name} loaded for editing. New Part saves a separate copy; Amend + Save Amendment updates every use of the existing part.` : `${part.name} recalled and playing live. It loops until stopped or another part is chosen.`);
         }
 
-        copyLoop(part, layer) {
+        copyLoop(part, selection) {
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before copying a saved loop.');
-            if (!loopLayers.includes(layer) || !this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Choose a current saved part and Bastardloop.');
+            const layers = copySelection(selection);
+            if (!layers.length || !this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Choose a current saved part and one or more loops or drum lanes.');
             this.loopClipboard = {
                 sourceSongId: this.song.id, sourcePartId: sourceId(part), sourceSha256: part.sha256,
-                layer, name: part.name, library: this.key
+                layers, ...(layers.length === 1 ? { layer: layers[0] } : {}), name: part.name, library: this.key
             };
-            this.status(`Copied Bastardloop ${layer} from ${part.name}. Use Paste Part on the destination. Nothing has changed yet.`);
+            this.status(`Copied ${copiedLabel(this.loopClipboard)} from ${part.name}. Use Paste Part on the destination. Nothing has changed yet.`);
         }
 
         openLoopCopyPicker(part, opener) {
@@ -1149,27 +1165,71 @@
             heading.textContent = `Copy from ${part.name}`;
             const help = this.document.createElement('p');
             help.id = 'songBetaCopyHelp';
-            help.textContent = '1. Choose a Bastardloop below. 2. Open the destination part and press Paste Part. Only that Bastardloop is replaced, not the whole Song part. The copy comes from the saved part, not unsaved live edits.';
+            help.textContent = 'Tick one or more items, then Copy selected. On the destination part, press Paste Part. Only the selected saved sounds, patterns and settings are replaced; unsaved live edits are not copied.';
             const buttons = this.document.createElement('div');
             buttons.className = 'song-beta-copy-layers';
+            const inputs = new Map();
+            const addChoice = (parent, id, text) => {
+                const label = this.document.createElement('label');
+                label.className = 'song-beta-copy-choice';
+                const input = this.document.createElement('input');
+                input.type = 'checkbox';
+                input.dataset.layer = id;
+                const caption = this.document.createElement('span');
+                caption.textContent = text;
+                label.append(input, caption);
+                parent.append(label);
+                inputs.set(id, input);
+                return input;
+            };
             for (const layer of loopLayers) {
-                const button = this.document.createElement('button');
-                button.type = 'button';
-                button.className = 'performance-btn';
-                button.textContent = `Bastardloop ${layer}`;
-                button.dataset.layer = layer;
-                button.addEventListener('click', () => {
-                    dialog.close();
-                    this.run(() => this.copyLoop(part, layer));
-                });
-                buttons.append(button);
+                addChoice(buttons, layer, copyLabels.get(layer));
             }
+            const drums = this.document.createElement('fieldset');
+            drums.className = 'song-beta-copy-drums';
+            const legend = this.document.createElement('legend');
+            legend.textContent = 'Drum machine';
+            drums.append(legend);
+            const all = addChoice(drums, 'drums', 'Drum machine (all)');
+            const lanes = this.document.createElement('div');
+            lanes.className = 'song-beta-copy-layers';
+            for (const [id, label] of drumCopyLanes) addChoice(lanes, id, label);
+            const drumHelp = this.document.createElement('p');
+            drumHelp.textContent = 'All includes the shared drum mix/FX. Individual lanes keep the destination’s drum mix. Snare and Roll share their sound; Roll alone copies its pattern.';
+            drums.append(lanes, drumHelp);
+            const copy = this.document.createElement('button');
+            copy.type = 'button';
+            copy.className = 'performance-btn primary song-beta-copy-selected';
+            copy.textContent = 'Copy selected';
+            copy.disabled = true;
+            const selection = () => copySelection([...inputs].filter(([, input]) => input.checked).map(([id]) => id));
+            const sync = () => {
+                const selectedDrums = drumCopyLanes.filter(([id]) => inputs.get(id).checked).length;
+                all.checked = selectedDrums === drumCopyLanes.length;
+                all.indeterminate = selectedDrums > 0 && !all.checked;
+                const count = selection().length;
+                copy.disabled = !count;
+                copy.textContent = count ? `Copy selected (${count})` : 'Copy selected';
+            };
+            for (const [id, input] of inputs) input.addEventListener('change', () => {
+                if (id === 'drums') for (const [lane] of drumCopyLanes) inputs.get(lane).checked = all.checked;
+                sync();
+            });
+            copy.addEventListener('click', () => {
+                const selected = selection();
+                if (!selected.length) return;
+                dialog.close();
+                this.run(() => this.copyLoop(part, selected));
+            });
             const cancel = this.document.createElement('button');
             cancel.type = 'button';
             cancel.className = 'performance-btn';
             cancel.textContent = 'Cancel';
             cancel.addEventListener('click', () => dialog.close());
-            dialog.append(heading, help, buttons, cancel);
+            const actions = this.document.createElement('div');
+            actions.className = 'song-beta-copy-actions';
+            actions.append(copy, cancel);
+            dialog.append(heading, help, buttons, drums, actions);
             dialog.addEventListener('keydown', event => event.stopPropagation());
             dialog.addEventListener('keyup', event => event.stopPropagation());
             dialog.addEventListener('close', () => {
@@ -1185,22 +1245,24 @@
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before pasting a loop.');
             this.adapter.assertNotRecording?.();
             const copied = this.loopClipboard;
-            if (!copied || copied.library !== this.key) throw new Error('Use Copy From Part and choose a Bastardloop first.');
+            if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('Use Copy From Part and choose loops or drum lanes first.');
+            const label = copiedLabel(copied);
+            const layers = copySelection(copied.layers || copied.layer);
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Refresh Songs before pasting into a changed part.');
             const uses = this.song.parts.filter(entry => sourceId(entry) === sourceId(part)).length;
-            if (!root.confirm(`Replace Bastardloop ${copied.layer} in ${part.name} completely with the saved copy from ${copied.name}?${uses > 1 ? ` This shared part is used ${uses} times; every use changes.` : ''} Other loops, tempo, pattern length and repeats stay unchanged.${!this.canEditSong() ? ' Editing access will be requested automatically; another device’s lock cannot be overridden.' : ''}`)) return;
+            if (!root.confirm(`Replace ${label} in ${part.name} completely with the saved copy from ${copied.name}?${uses > 1 ? ` This shared part is used ${uses} times; every use changes.` : ''} Unselected sounds, tempo, grid length and repeats stay unchanged.${!this.canEditSong() ? ' Editing access will be requested automatically; another device’s lock cannot be overridden.' : ''}`)) return;
             await this.ensureEditing();
             this.adapter.assertNotRecording?.();
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('The destination changed while requesting editing. Refresh Songs before pasting.');
             const wasArmed = this.armed;
-            this.status(`Pasting Bastardloop ${copied.layer} into ${part.name} on the server…`);
+            this.status(`Pasting ${label} into ${part.name} on the server…`);
             const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/paste-loop?sha256=${part.sha256}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sourceSongId: copied.sourceSongId, sourcePartId: copied.sourcePartId, sourceSha256: copied.sourceSha256, layer: copied.layer })
+                body: JSON.stringify({ sourceSongId: copied.sourceSongId, sourcePartId: copied.sourcePartId, sourceSha256: copied.sourceSha256, ...(layers.length === 1 ? { layer: layers[0] } : { layers }) })
             });
             this.cancel(true, { hardCut: true });
             this.acceptSong(result.song);
-            const message = `Pasted Bastardloop ${copied.layer} from ${copied.name} into every use of ${part.name}. Other loops and arrangement settings are unchanged.`;
+            const message = `Pasted ${label} from ${copied.name} into every use of ${part.name}. Unselected sounds and arrangement settings are unchanged.`;
             if (wasArmed) {
                 try {
                     await this.arm();
@@ -1495,7 +1557,7 @@
             const list = this.element('songBetaParts');
             const clipboard = this.element('songBetaClipboard');
             if (clipboard) {
-                clipboard.textContent = this.loopClipboard ? `Copied: Bastardloop ${this.loopClipboard.layer} from ${this.loopClipboard.name}. Use Paste Part on the destination.` : '';
+                clipboard.textContent = this.loopClipboard ? `Copied: ${copiedLabel(this.loopClipboard)} from ${this.loopClipboard.name}. Use Paste Part on the destination.` : '';
                 clipboard.hidden = !this.loopClipboard;
             }
             list.replaceChildren();
@@ -1678,7 +1740,7 @@
                     if (className === 'song-beta-reuse') actionButton.title = 'Add this existing part again at the end, without copying sounds or renders. Amendments affect every use; order and repeats are independent.';
                     if (className === 'song-beta-full-copy') actionButton.title = 'Append a full independent copy of this saved part, including all sounds and settings. Its name ends in _full_copy; editing it does not change the original.';
                     if (className === 'song-beta-amend') actionButton.title = 'Amend the shared pattern and sounds for every use of this part.';
-                    if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy a Bastardloop from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace Bastardloop ${this.loopClipboard.layer} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
+                    if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy loops or drum lanes from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace ${copiedLabel(this.loopClipboard)} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
                     actionButton.disabled = (!['song-beta-load', 'song-beta-copy'].includes(className) && changesBlocked) || this.busy || this.playing || Boolean(this.editing) || (className === 'song-beta-paste' && !this.loopClipboard);
                     actionButton.addEventListener('click', () => className === 'song-beta-copy' ? this.openLoopCopyPicker(part, actionButton) : this.run(action));
                     controls.append(actionButton);

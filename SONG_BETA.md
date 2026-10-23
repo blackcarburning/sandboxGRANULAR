@@ -39,6 +39,43 @@ choice within that library, not device identity: Undo/Redo remains scoped to
 the original exact account/device ID, never to the shared display name.
 No Song Access, song-part, audio, history or export schema changes are required.
 
+## Multi-item saved-part copy — 23 October 2026
+
+**Copy From Part** now opens tick boxes for the existing eleven Bastardloops,
+**Drum machine (all)** and the individual **Kick, Snare, Hat, Perc, Clap,
+Cymbals, ETC and Snare Roll** lanes. Select any combination, then **Copy selected**;
+checking an item no longer closes the picker. The drum-machine checkbox selects
+all drum lanes; clearing one lane leaves the others selected. Cancel/Escape do
+not change the clipboard. Use the destination's existing **Paste Part** button.
+
+For example, V + M + Kick copies those three saved items together. A single
+server operation replaces all selected assets, metadata, patterns, level/tuning,
+modulation and captured settings, with one confirmation, revision and recovery
+history entry. No partial result is published if validation, integrity or
+editing access fails. Single-loop payloads and existing version-one archives
+remain supported. Source revisions stay pinned and sources are never modified.
+
+Individual drum lanes retain the destination's shared drum enable/routing,
+bus level and send FX. **Drum machine (all)** copies those shared settings too.
+Snare and Snare Roll use the same snare sound: copying Snare changes that shared
+sample/tone, while Roll alone copies only its independent pattern and ratchets.
+Clap/Cymbals/ETC copy only their own nested track settings, never their neighbours.
+Empty selected source audio clears the corresponding saved sound and inventory.
+
+The destination keeps tempo, base grid, unselected sounds, name, colour,
+repeats/order and solo context. When copying Roll or a slow L/X/Q sequencer,
+the full saved cycle is recalculated for the resulting patterns, matching normal
+Song capture; occurrence Steps follow the existing full-length/cut rules.
+The original Song locks, exact revision checks, same-library boundary,
+recording/amendment guards and changed-part-only re-arming remain in place.
+
+`tests/song-multi-copy-browser.cjs` checks the checkbox workflow, cancel, keyboard,
+responsive layout, V/M/Kick and subset/all-drums pastes, original PCM hashes,
+editable recall, audible changed-part-only renders and reload persistence in
+Chromium/WebKit desktop and phone emulation. `test_song_loop_copy.py` covers
+per-lane isolation, full drums, mixed selections, empty audio, Roll cycles,
+legacy copies and atomic shared-part publication. Physical phones are separate.
+
 ## Familiar Song workflow with copy/paste — 15 October 2026
 
 Build `v2026.10.15.COPY.4` keeps the existing Song controls and adds only

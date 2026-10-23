@@ -71,6 +71,141 @@ def unpack(body):
         return snapshot, {asset['key']: archive.read(asset['path']) for asset in snapshot['assets']}
 
 
+def drum_part(tag, steps=16, empty=()):
+    """Distinct saved sounds and controls for all seven sound lanes plus Roll."""
+    with zipfile.ZipFile(BytesIO(complete_part(tag, steps))) as archive:
+        entries = {name: archive.read(name) for name in archive.namelist()}
+    snapshot = json.loads(entries.pop('song-part.json'))
+    modes = snapshot['state']['modes']
+    modes.update(drumMachineEnabled=True, drumMachineDirectOutput=bool(tag % 2), drumSendFx={'version': 1, 'delay': {'send': tag}}, drumMachineExtraTracks={})
+    for lane in SONGS.DRUM_LANES:
+        name = lane[4:]
+        if lane == 'drumRoll':
+            modes['drumMachineRoll'] = {'version': 1, 'length': steps, 'pattern': [bool(tag % 2)] * steps, 'ratchets': [tag] * steps}
+            continue
+        modes[f'drumMachine{name}Pattern'] = [tag % 2 == 1 and lane not in empty] * steps
+        modes[f'drumMachine{name}Decay'] = tag / 4
+        modes[f'drumMachine{name}RatchetPattern'] = [tag] * steps
+        snapshot['state']['sliders'][f'drumMachine{name}Level'] = str(tag * 20)
+        snapshot['extra']['controls'].append({'id': f'drumMachine{name}Flag', 'type': 'checkbox', 'checked': bool(tag % 2)})
+        if name in ('Clap', 'Cymbals', 'Etc'):
+            modes['drumMachineExtraTracks'][name.lower()] = {'pattern': [bool(tag % 2)] * steps, 'ratchets': [tag] * steps, 'accents': [bool(tag % 2)] * steps, 'pitch': tag, 'level': tag / 4, 'metadata': {'sentinel': tag}}
+        if lane not in empty:
+            audio = entries['audio/bastardA.wav']
+            asset_path = f'audio/{lane}.wav'
+            entries[asset_path] = audio
+            snapshot['assets'].append({'key': lane, 'path': asset_path, 'channels': 1, 'frames': 128, 'sampleRate': 44100})
+            snapshot['extra']['metadata'][lane] = {'sentinel': tag}
+        snapshot['extra']['audioSlots'][lane] = lane not in empty
+    snapshot['state']['sliders']['performanceDrumMachineLevel'] = str(tag * 10)
+    snapshot['state']['selects']['drumSendDelayDivision'] = str(tag)
+    entries['song-part.json'] = json.dumps(snapshot).encode()
+    output = BytesIO()
+    with zipfile.ZipFile(output, 'w') as archive:
+        for name, data in entries.items():
+            archive.writestr(name, data)
+    return output.getvalue()
+
+
+class MultiCopyMergeTests(unittest.TestCase):
+    def test_each_lane_copies_only_its_audio_metadata_controls_and_nested_settings(self):
+        source_body, target_body = drum_part(1), drum_part(2)
+        source, source_audio = unpack(source_body)
+        target, target_audio = unpack(target_body)
+        for lane in SONGS.DRUM_LANES:
+            with self.subTest(lane=lane):
+                result = SONGS.paste_loop_archive(target_body, source_body, [lane])
+                SONGS.validate_part_zip(result)
+                snapshot, audio = unpack(result)
+                for other in SONGS.DRUM_LANES:
+                    key = 'drumMachine' + other[4:] + ('Pattern' if other != 'drumRoll' else '')
+                    expected = source if other == lane else target
+                    self.assertEqual(snapshot['state']['modes'][key], expected['state']['modes'][key])
+                    if other == 'drumRoll':
+                        continue
+                    self.assertEqual(audio[other], (source_audio if other == lane else target_audio)[other])
+                    self.assertEqual(snapshot['extra']['metadata'][other], expected['extra']['metadata'][other])
+                    self.assertEqual(snapshot['state']['sliders']['drumMachine' + other[4:] + 'Level'], expected['state']['sliders']['drumMachine' + other[4:] + 'Level'])
+                for kind in ('clap', 'cymbals', 'etc'):
+                    expected = source if lane == 'drum' + kind.capitalize() else target
+                    self.assertEqual(snapshot['state']['modes']['drumMachineExtraTracks'][kind], expected['state']['modes']['drumMachineExtraTracks'][kind])
+                for key in ('drumMachineEnabled', 'drumMachineDirectOutput', 'drumSendFx'):
+                    self.assertEqual(snapshot['state']['modes'][key], target['state']['modes'][key])
+                self.assertEqual(snapshot['state']['sliders']['performanceDrumMachineLevel'], target['state']['sliders']['performanceDrumMachineLevel'])
+                self.assertEqual(snapshot['state']['selects']['drumSendDelayDivision'], target['state']['selects']['drumSendDelayDivision'])
+                for key in SONGS.LOOP_ASSETS:
+                    for asset in SONGS.LOOP_ASSETS[key]:
+                        self.assertEqual(audio[asset], target_audio[asset])
+
+    def test_v_m_and_kick_copy_together_and_leave_everything_else_intact(self):
+        source_body, target_body = drum_part(1, 32), drum_part(2, 16)
+        source, source_audio = unpack(source_body)
+        target, target_audio = unpack(target_body)
+        result = SONGS.paste_loop_archive(target_body, source_body, ['V', 'M', 'drumKick', 'V'])
+        SONGS.validate_part_zip(result)
+        snapshot, audio = unpack(result)
+        for key in audio:
+            self.assertEqual(audio[key], (source_audio if key in {'bastardV', 'bastardM', 'bastardMRender', 'drumKick'} else target_audio)[key])
+        self.assertEqual(snapshot['state']['modes']['drumMachineKickPattern'], source['state']['modes']['drumMachineKickPattern'])
+        self.assertEqual(snapshot['state']['modes']['drumMachineExtraTracks'], target['state']['modes']['drumMachineExtraTracks'])
+        for key in ('globalBpm', 'patternLength'):
+            self.assertEqual(snapshot['state'][key], target['state'][key])
+        self.assertEqual(snapshot['extra']['sequencerSteps'], target['extra']['sequencerSteps'])
+        self.assertEqual(unpack(source_body)[0], source)
+        self.assertEqual(unpack(target_body)[0], target)
+
+    def test_all_drums_includes_bus_fx_and_roll_but_not_other_loops(self):
+        source_body, target_body = drum_part(1), drum_part(2)
+        source, source_audio = unpack(source_body)
+        target, target_audio = unpack(target_body)
+        snapshot, audio = unpack(SONGS.paste_loop_archive(target_body, source_body, ['drums', 'drumKick']))
+        for key, value in snapshot['state']['modes'].items():
+            self.assertEqual(value, (source if SONGS.setting_drum_layer(key) else target)['state']['modes'][key])
+        self.assertEqual(snapshot['state']['sliders']['performanceDrumMachineLevel'], source['state']['sliders']['performanceDrumMachineLevel'])
+        self.assertEqual(snapshot['state']['selects']['drumSendDelayDivision'], source['state']['selects']['drumSendDelayDivision'])
+        for key in audio:
+            self.assertEqual(audio[key], (source_audio if key in SONGS.DRUM_LANES else target_audio)[key])
+
+    def test_empty_source_drums_remove_audio_metadata_and_inventory(self):
+        source = drum_part(1, empty=SONGS.DRUM_LANES)
+        for selection in [['drums'], ['drumKick', 'drumClap', 'drumEtc']]:
+            result = SONGS.paste_loop_archive(drum_part(2), source, selection)
+            SONGS.validate_part_zip(result)
+            snapshot, audio = unpack(result)
+            for lane in SONGS.DRUM_LANES[:-1] if selection == ['drums'] else selection:
+                self.assertNotIn(lane, audio)
+                self.assertNotIn(lane, snapshot['extra']['metadata'])
+                self.assertIs(snapshot['extra']['audioSlots'][lane], False)
+
+    def test_roll_only_keeps_snare_sound_and_recomputes_complete_cycle(self):
+        def change(snapshot):
+            snapshot['state']['modes']['drumMachineRoll'] = {'version': 1, 'length': 24, 'pattern': [True] * 24, 'ratchets': [2] * 24}
+            snapshot['extra']['patternCycleMultiplier'] = 3
+        source = backend.rewrite_part(drum_part(1, 8), change)
+        target = drum_part(2, 16)
+        result = SONGS.paste_loop_archive(target, source, ['drumRoll'])
+        self.assertEqual(SONGS.validate_part_zip(result)['patternCycleMultiplier'], 3)
+        snapshot, audio = unpack(result)
+        self.assertEqual(audio['drumSnare'], unpack(target)[1]['drumSnare'])
+        self.assertEqual(snapshot['state']['modes']['drumMachineSnarePattern'], unpack(target)[0]['state']['modes']['drumMachineSnarePattern'])
+
+    def test_legacy_archive_without_drum_lanes_clears_selected_patterns_and_audio(self):
+        for selection in [['drumKick'], ['drums']]:
+            result = SONGS.paste_loop_archive(drum_part(2), complete_part(1), selection)
+            SONGS.validate_part_zip(result)
+            snapshot, audio = unpack(result)
+            self.assertEqual(snapshot['state']['modes']['drumMachineKickPattern'], [False] * 16)
+            self.assertNotIn('drumKick', audio)
+            self.assertIs(snapshot['extra']['audioSlots']['drumKick'], False)
+            if selection == ['drums']:
+                self.assertIs(snapshot['state']['modes']['drumMachineEnabled'], False)
+
+    def test_invalid_or_empty_multiselections_fail_before_merging(self):
+        for selection in [[], {}, None, True, [None], ['V', 'unknown'], ['drums'] * 21]:
+            with self.subTest(selection=selection), self.assertRaises(ValueError):
+                SONGS.paste_loop_archive(drum_part(2), drum_part(1), selection)
+
+
 class LoopMergeTests(unittest.TestCase):
     def test_every_loop_replaces_only_its_complete_settings_original_audio_and_metadata(self):
         source_body, target_body = complete_part(1, 32), complete_part(2, 16)
@@ -167,6 +302,29 @@ class LoopEndpointTests(unittest.TestCase):
 
     def paste(self, song, target, copied, **kwargs):
         return self.request('POST', f'/api/songs/{song["id"]}/parts/{target["id"]}/paste-loop?sha256={target["sha256"]}', payload=copied, **kwargs)
+
+    def test_multi_paste_is_one_revision_and_one_history_entry_for_all_shared_uses(self):
+        song = self.create()
+        for name, tag in [('Source', 1), ('Target', 2)]:
+            song = self.request('POST', f'/api/songs/{song["id"]}/parts?name={name}&repeats=2', body=drum_part(tag)).response['song']
+        song = self.reuse(song, 1)
+        source, target = song['parts'][:2]
+        copied = {'sourceSongId': song['id'], 'sourcePartId': source['id'], 'sourceSha256': source['sha256'], 'layers': ['V', 'M', 'drumKick']}
+        folder = SONGS.SONGS_ROOT / song['id']
+        before = (folder / 'song.json').read_bytes()
+        self.assertEqual(self.paste(song, target, {**copied, 'layers': ['V', 'bad', 'drumKick']}).status, 400)
+        self.assertEqual((folder / 'song.json').read_bytes(), before)
+        response = self.paste(song, target, copied)
+        self.assertEqual(response.status, 200)
+        changed = response.response['song']
+        self.assertEqual(changed['revision'], song['revision'] + 1)
+        self.assertEqual(changed['parts'][0], source)
+        self.assertEqual(changed['parts'][1]['sha256'], changed['parts'][2]['sha256'])
+        self.assertEqual(len(json.loads((folder / 'song.json').read_text())['history']), 1)
+        _, audio = unpack((folder / 'parts' / changed['parts'][1]['archive']).read_bytes())
+        source_audio, target_audio = unpack(drum_part(1))[1], unpack(drum_part(2))[1]
+        for key, value in audio.items():
+            self.assertEqual(value, (source_audio if key in {'bastardV', 'bastardM', 'bastardMRender', 'drumKick'} else target_audio)[key])
 
     def test_paste_revisions_history_repeat_counts_and_shared_occurrences(self):
         song, source, target, copied = self.fixture()

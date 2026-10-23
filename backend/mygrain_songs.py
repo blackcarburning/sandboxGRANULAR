@@ -611,6 +611,52 @@ LOOP_LAYERS = ('A', 'B', 'C', 'V', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
 LOOP_ASSETS = {layer: {f'bastard{layer}'} for layer in LOOP_LAYERS}
 LOOP_ASSETS['M'] = {'bastardM', 'bastardMRender'}
 LOOP_ASSETS['M+'] = {'bastardMPlus', 'bastardMPlusRender'}
+DRUM_LANES = ('drumKick', 'drumSnare', 'drumHat', 'drumPerc', 'drumClap', 'drumCymbals', 'drumEtc', 'drumRoll')
+COPY_LAYERS = (*LOOP_LAYERS, 'drums', *DRUM_LANES)
+
+
+def copy_layers(value):
+    """Accept legacy single-loop payloads and a bounded multi-selection."""
+    values = [value] if isinstance(value, str) else value
+    if not isinstance(values, list) or not values or len(values) > len(COPY_LAYERS) or any(not isinstance(item, str) or item not in COPY_LAYERS for item in values):
+        raise ValueError('Choose one or more supported loops or drum lanes.')
+    return tuple(item for item in COPY_LAYERS if item in values and not (item in DRUM_LANES and 'drums' in values))
+
+
+def setting_drum_layer(key):
+    for prefix in ('drumMachine', 'performanceDrumMachine'):
+        if key.startswith(prefix):
+            suffix = key[len(prefix):]
+            for lane in DRUM_LANES:
+                name = lane[4:]
+                if suffix.startswith(name) and (len(suffix) == len(name) or not suffix[len(name)].islower()):
+                    return lane
+            return 'drums'
+    return 'drums' if key.startswith('drumSend') else None
+
+
+def merged_pattern_cycle(snapshot):
+    """Same full-cycle calculation as the live Song capture adapter."""
+    state = snapshot['state']
+    modes = state['modes']
+    steps = int(state['patternLength'])
+    multiplier = 1
+    for lane in ('L', 'X'):
+        prefix = f'bastardLoop{lane}'
+        sequence = modes.get(prefix + 'Sequence') or []
+        if modes.get(prefix + 'Enabled') is True and any(step and step.get('note') and not step.get('rest') for step in sequence[:steps]):
+            index = modes.get(prefix + 'TimingIndex', 3)
+            timing = (.125, .25, .5, 1, 2, 4, 8)[index] if type(index) is int and 0 <= index <= 6 else 1
+            multiplier = max(multiplier, timing)
+    piano = state.get('q') or {}
+    if piano.get('enabled') is True and any(step and step.get('notes') and not step.get('rest') for step in piano.get('sequence', [])[:steps]):
+        rate = piano.get('rate', 1)
+        if rate in (.25, .5, 1, 2, 4):
+            multiplier = max(multiplier, 1 / rate)
+    roll = modes.get('drumMachineRoll')
+    if modes.get('drumMachineEnabled') is True and roll and any(roll['pattern']):
+        multiplier = math.lcm(steps * int(multiplier), roll['length']) // steps
+    return int(multiplier)
 
 
 def setting_loop_layer(key):
@@ -633,30 +679,63 @@ def replace_loop_settings(destination, source, layer):
 
 
 def paste_loop_archive(destination_body, source_body, layer):
-    if layer not in LOOP_LAYERS:
-        raise ValueError('Choose a supported Bastardloop.')
+    layers = copy_layers(layer)
     validate_part_zip(source_body)
     validate_part_zip(destination_body)
-    asset_keys = LOOP_ASSETS[layer]
+    asset_keys = set().union(*(LOOP_ASSETS.get(item, {item} if item in DRUM_LANES and item != 'drumRoll' else set()) for item in layers))
+    if 'drums' in layers:
+        asset_keys.update(item for item in DRUM_LANES if item != 'drumRoll')
+
+    def selected(key):
+        loop = setting_loop_layer(key)
+        drum = setting_drum_layer(key)
+        return loop in layers or drum in layers or ('drums' in layers and drum is not None)
+
+    def replace_selected(destination, source):
+        destination, source = json_object(destination), json_object(source)
+        result = {key: value for key, value in destination.items() if not selected(key)}
+        result.update({key: copy.deepcopy(value) for key, value in source.items() if selected(key)})
+        return result
+
     with zipfile.ZipFile(BytesIO(source_body)) as source_zip, zipfile.ZipFile(BytesIO(destination_body)) as destination_zip:
         source = json.loads(source_zip.read('song-part.json'))
         destination = json.loads(destination_zip.read('song-part.json'))
         for section in ('modes', 'sliders', 'selects'):
-            destination['state'][section] = replace_loop_settings(destination['state'].get(section, {}), source['state'].get(section, {}), layer)
+            destination['state'][section] = replace_selected(destination['state'].get(section, {}), source['state'].get(section, {}))
+        # Old archives may predate some drum lanes. An absent selected pattern
+        # means empty, not "leave whichever pattern is currently live" on recall.
+        for item in ('drumKick', 'drumSnare', 'drumHat', 'drumPerc'):
+            key = 'drumMachine' + item[4:] + 'Pattern'
+            if ('drums' in layers or item in layers) and key not in source['state']['modes']:
+                destination['state']['modes'][key] = [False] * int(destination['state']['patternLength'])
+        if 'drums' in layers and 'drumMachineEnabled' not in source['state']['modes']:
+            destination['state']['modes']['drumMachineEnabled'] = False
+        if 'drums' not in layers:
+            extra_lanes = [item[4:].lower() for item in layers if item in ('drumClap', 'drumCymbals', 'drumEtc')]
+            if extra_lanes:
+                tracks = json_object(destination['state']['modes'].setdefault('drumMachineExtraTracks', {}))
+                source_tracks = json_object(source['state']['modes'].get('drumMachineExtraTracks', {}))
+                for kind in extra_lanes:
+                    tracks.pop(kind, None)
+                    if kind in source_tracks:
+                        tracks[kind] = copy.deepcopy(source_tracks[kind])
         destination_toggles = json_object(destination['state'].get('toggles', {}))
         source_toggles = json_object(source['state'].get('toggles', {}))
         for modulation in set(destination_toggles) | set(source_toggles):
-            destination['state'].setdefault('toggles', {})[modulation] = replace_loop_settings(
-                destination['state']['toggles'].get(modulation, {}), source['state'].get('toggles', {}).get(modulation, {}), layer)
-        if layer == 'Q':
+            destination['state'].setdefault('toggles', {})[modulation] = replace_selected(
+                destination['state']['toggles'].get(modulation, {}), source['state'].get('toggles', {}).get(modulation, {}))
+        if 'Q' in layers:
             destination['state']['q'] = copy.deepcopy(source['state'].get('q'))
         source_trace = json_object(source['state'].get('bastardLoopTrace', {}))
         trace = json_object(destination['state'].get('bastardLoopTrace', {}))
-        trace.pop(layer, None)
-        if layer in source_trace:
-            destination['state'].setdefault('bastardLoopTrace', {})[layer] = copy.deepcopy(source_trace[layer])
-        destination['extra']['controls'] = [control for control in destination['extra'].get('controls', []) if setting_loop_layer(control['id']) != layer]
-        destination['extra']['controls'].extend(copy.deepcopy(control) for control in source['extra'].get('controls', []) if setting_loop_layer(control['id']) == layer)
+        for item in layers:
+            if item not in LOOP_LAYERS:
+                continue
+            trace.pop(item, None)
+            if item in source_trace:
+                destination['state'].setdefault('bastardLoopTrace', {})[item] = copy.deepcopy(source_trace[item])
+        destination['extra']['controls'] = [control for control in destination['extra'].get('controls', []) if not selected(control['id'])]
+        destination['extra']['controls'].extend(copy.deepcopy(control) for control in source['extra'].get('controls', []) if selected(control['id']))
         metadata = json_object(destination['extra'].setdefault('metadata', {}))
         for key in asset_keys:
             metadata.pop(key, None)
@@ -667,6 +746,8 @@ def paste_loop_archive(destination_body, source_body, layer):
         if destination['extra'].get('freezeStateVersion') == 1:
             present = {asset['key'] for asset in destination['assets']}
             destination['extra']['audioSlots'].update({key: key in present for key in asset_keys})
+        if any(item in layers for item in ('drums', 'drumRoll', 'L', 'X', 'Q')):
+            destination['extra']['patternCycleMultiplier'] = merged_pattern_cycle(destination)
         destination['createdAt'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
         output = BytesIO()
         with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as result:
@@ -684,9 +765,7 @@ def paste_loop_archive(destination_body, source_body, layer):
 
 def copied_loop_body(payload, owner):
     payload = json_object(payload)
-    layer = payload.get('layer')
-    if layer not in LOOP_LAYERS:
-        raise ValueError('Choose a supported Bastardloop.')
+    layers = copy_layers(payload.get('layers', payload.get('layer')))
     source_id = payload.get('sourcePartId', '')
     digest = payload.get('sourceSha256', '')
     if not isinstance(source_id, str) or not re.fullmatch(r'[a-f0-9]{32}', source_id) or not isinstance(digest, str) or not re.fullmatch(r'[a-f0-9]{64}', digest):
@@ -703,7 +782,7 @@ def copied_loop_body(payload, owner):
     body = path.read_bytes()
     if hashlib.sha256(body).hexdigest() != digest:
         raise ValueError('Copied part integrity check failed. No part was changed.')
-    return body, layer
+    return body, list(layers)
 
 
 def handle_song_request(handler, method, inner_path):

@@ -602,6 +602,68 @@ test('loop paste sends only the pinned source and accepts a complete destination
     assert.match(calls.at(-1)[1], /Use Arm Cache/);
 });
 
+test('multi-copy pins one saved revision and normalizes loop/drum selections without live changes', () => {
+    const { controller, calls } = makeController();
+    const part = { ...first, sha256: 'source-hash' };
+    controller.song = { id: 'song', parts: [part] };
+    const selection = ['drumKick', 'M', 'V', 'V'];
+    controller.copyLoop(part, selection);
+    selection.push('drumSnare');
+    assert.deepEqual(Array.from(controller.loopClipboard.layers), ['V', 'M', 'drumKick']);
+    assert.equal(controller.loopClipboard.sourceSha256, 'source-hash');
+    assert.equal(controller.loopClipboard.layer, undefined);
+    assert.match(calls.at(-1)[1], /Bastardloop V, Bastardloop M, Kick drum lane/);
+    assert.equal(calls.some(call => call[0] === 'recall'), false);
+    const copied = controller.loopClipboard;
+    for (const invalid of [[], ['V', 'bad'], null, ['drums', {}]]) {
+        assert.throws(() => controller.copyLoop(part, invalid), /current saved part/);
+        assert.equal(controller.loopClipboard, copied);
+    }
+});
+
+test('all-drums selection collapses redundant lanes while keeping selected loops', () => {
+    const { controller } = makeController();
+    controller.song = { id: 'song', parts: [first] };
+    controller.copyLoop(first, ['V', 'drums', 'drumKick', 'drumRoll']);
+    assert.deepEqual(Array.from(controller.loopClipboard.layers), ['V', 'drums']);
+});
+
+test('multi-paste publishes once with all selected items and one confirmation', async () => {
+    const { controller, context } = makeController();
+    const part = { ...first, sha256: 'old' };
+    controller.song = { id: 'song', revision: 2, parts: [part] };
+    controller.copyLoop(part, ['V', 'M', 'drumKick']);
+    let confirmations = 0, requests = 0;
+    context.confirm = text => { confirmations++; assert.match(text, /Bastardloop V, Bastardloop M, Kick drum lane/); return true; };
+    controller.request = async (url, options) => {
+        requests++;
+        assert.match(url, /\/paste-loop\?sha256=old$/);
+        assert.deepEqual(JSON.parse(options.body), { sourceSongId: 'song', sourcePartId: part.id, sourceSha256: 'old', layers: ['V', 'M', 'drumKick'] });
+        return { song: { ...controller.song, revision: 3, parts: [{ ...part, sha256: 'new' }] } };
+    };
+    await controller.pasteLoop(part);
+    assert.equal(requests, 1);
+    assert.equal(confirmations, 1);
+    assert.equal(controller.song.revision, 3);
+    assert.deepEqual(Array.from(controller.loopClipboard.layers), ['V', 'M', 'drumKick']);
+});
+
+test('cancelled or failed multi-paste keeps the complete clipboard and saved destination', async () => {
+    const { controller, context } = makeController();
+    const part = { ...first, sha256: 'old' };
+    controller.song = { id: 'song', parts: [part] };
+    controller.copyLoop(part, ['V', 'drumHat', 'drumClap']);
+    const copied = controller.loopClipboard;
+    context.confirm = () => false;
+    controller.request = async () => { throw new Error('No partial writes'); };
+    await controller.pasteLoop(part);
+    assert.equal(controller.loopClipboard, copied);
+    context.confirm = () => true;
+    await assert.rejects(controller.pasteLoop(part), /No partial writes/);
+    assert.equal(controller.loopClipboard, copied);
+    assert.equal(controller.song.parts[0], part);
+});
+
 test('previously armed songs re-arm after successful loop paste and retain the clipboard', async () => {
     const { controller, calls, context } = makeController();
     const part = { ...first, sha256: 'old' };

@@ -11,6 +11,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
         const results = [];
         for (const sampleRate of [44100, 48000]) {
             const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+            assert.equal((await context.request.post(base + 'api/auth/register', { data: { username: `copy_single_${sampleRate}_${Date.now()}`, password: 'isolated-single-copy' } })).status(), 200);
             await context.addInitScript(rate => {
                 const Original = window.AudioContext || window.webkitAudioContext;
                 window.AudioContext = class extends Original {
@@ -91,7 +92,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
                 await sourceRow.locator('.song-beta-copy').click();
                 const dialog = page.locator('.song-beta-copy-dialog');
                 await dialog.waitFor({ state: 'visible' });
-                assert.equal(await dialog.locator('[data-layer]').count(), 11);
+                assert.equal(await dialog.locator('[data-layer]').count(), 20);
                 const geometry = await dialog.evaluate(element => {
                     const bounds = element.getBoundingClientRect();
                     return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: innerWidth, height: innerHeight, overflowing: element.scrollWidth > element.clientWidth + 1, inBody: element.parentElement === document.body };
@@ -113,6 +114,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
             const writesBeforeCopy = writes.length;
             await sourceRow.locator('.song-beta-copy').click();
             await page.locator('.song-beta-copy-dialog [data-layer="A"]').click();
+            await page.locator('.song-beta-copy-selected').click();
             await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.loopClipboard?.layer === 'A');
             assert.equal(writes.length, writesBeforeCopy);
             assert.match(await page.locator('#songBetaClipboard').textContent(), /Bastardloop A from Source/);
@@ -162,6 +164,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
             assert.equal(Number(recalled.bpm), 240);
             await sourceRow.locator('.song-beta-copy').click();
             await page.locator('.song-beta-copy-dialog [data-layer="M+"]').click();
+            await page.locator('.song-beta-copy-selected').click();
             await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.loopClipboard?.layer === 'M+');
             page.once('dialog', dialog => dialog.dismiss());
             const cancelledRevision = await page.evaluate(() => mygrainSongBeta.song.revision);
@@ -193,6 +196,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
             assert.equal(await sourceRow.locator('.song-beta-copy').isEnabled(), true);
             await sourceRow.locator('.song-beta-copy').click();
             await page.locator('.song-beta-copy-dialog [data-layer="L"]').click();
+            await page.locator('.song-beta-copy-selected').click();
             await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.loopClipboard?.layer === 'L');
             assert.equal(await targetRow.locator('.song-beta-paste').isEnabled(), true);
             const acquireCount = () => writes.filter(path => path.endsWith('/lock/acquire')).length;
