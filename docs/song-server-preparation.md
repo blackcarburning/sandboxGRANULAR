@@ -62,11 +62,10 @@ python3 -m unittest discover -s tests -p test_song_server_arm.py
 Song copy on a loopback server. It tests Chromium/WebKit phone emulation, the
 96 MiB branch, cold server preparation, warm reuse, 44.1/48 kHz playback, zero
 phone source-ZIP downloads during Arm, unchanged source hashes/revision, and no
-remaining preparation reservations. `SERVER_ARM_CONVERT=1` first converts only
-that test copy using a server-sized 512 MiB test preparation allowance, verifies
-all twelve snapshots, then restores the 96 MiB phone allowance before Arm. It
-does not relax the shipping phone conversion budget or establish that on-phone
-conversion can rewrite arbitrary large archives. This is not a physical iPhone
+remaining preparation reservations. `SERVER_ARM_CONVERT=1` first calls the
+server-only Convert K endpoint for that test copy at the unchanged phone memory
+allowance, then verifies all twelve snapshots before Arm. See
+[Server-only K conversion](server-k-conversion.md). This is not a physical iPhone
 memory measurement.
 
 When investigating real Songs, make and checksum a protected full backup first,

@@ -46,13 +46,15 @@ test('legacy next-take setting cannot crop the already recorded take during conv
  assert.equal(converted.snapshot.state.modes.bastardLoopKRecordingSteps,1);
 });
 const {Controller}=require('../song-beta');
-test('explicit Song conversion verifies editing and never arms or recalls the live pattern',async()=>{
- const calls=[];const controller={song:{parts:[{id:'one'}]},generation:7,playing:false,editing:null,
-  adapter:{assertNotRecording(){calls.push('recording guard')}},async ensureEditing(){calls.push('editing lease')},async upgradeSongParts(g){assert.equal(g,7);calls.push('convert originals');return 0},status(message){calls.push(message)},arm(){throw new Error('Must not arm')},recall(){throw new Error('Must not recall')}};
- await Controller.prototype.convertKTracks.call(controller);assert.deepEqual(calls.slice(0,3),['recording guard','editing lease','convert originals']);assert.match(calls[3],/Arm Cache remains manual/);
- controller.playing=true;await assert.rejects(Controller.prototype.convertKTracks.call(controller),/Stop Song/);assert.equal(calls.length,4);
+test('explicit Song conversion uses only the server, verifies editing and never arms or recalls',async()=>{
+ const calls=[];const controller={song:{id:'fixture-12345678',revision:4,parts:[{id:'one'}]},generation:7,playing:false,editing:null,
+  adapter:{assertNotRecording(){calls.push('recording guard')}},async ensureEditing(){calls.push('editing lease')},
+  async request(path,options){assert.match(path,/\/convert-k$/);assert.equal(options.method,'POST');calls.push('server conversion');return{ok:true,converted:1,song:{...this.song,revision:5}}},
+  acceptSong(song){this.song=song},invalidate(){},status(message){calls.push(message)},
+  upgradeSongParts(){throw Error('Must not convert on device')},arm(){throw Error('Must not arm')},recall(){throw Error('Must not recall')}};
+ await Controller.prototype.convertKTracks.call(controller);assert.deepEqual(calls.filter(s=>!s.startsWith('Converting')&&!s.startsWith('Server K')),['recording guard','editing lease','server conversion']);assert.match(calls.at(-1),/Arm Cache remains manual/);
+ controller.playing=true;await assert.rejects(Controller.prototype.convertKTracks.call(controller),/Stop Song/);
  controller.playing=false;controller.editing={id:'one'};await assert.rejects(Controller.prototype.convertKTracks.call(controller),/finish the current amendment/);
- controller.editing=null;controller.upgradeSongParts=async()=>1;await assert.rejects(Controller.prototype.convertKTracks.call(controller),/editing access was lost/);
 });
 
 test('version-one multitrack conversion copies former shared processing without changing any take',()=>{

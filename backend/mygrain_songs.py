@@ -7,6 +7,8 @@ import os
 import pathlib
 import re
 import secrets
+import shutil
+import subprocess
 import threading
 import time
 import wave
@@ -28,6 +30,8 @@ PART_MANIFEST_CACHE_LOCK = threading.Lock()
 PART_MANIFEST_CACHE_BYTES = 8 * 1024 * 1024
 SERVER_ARM_MODULE = None
 SERVER_ARM_MODULE_LOCK = threading.Lock()
+K_CONVERSION_LOCK = threading.Lock()
+K_CONVERSION_SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'convert-k-snapshot.cjs'
 
 
 def server_arm_module():
@@ -43,6 +47,95 @@ def server_arm_module():
                 spec.loader.exec_module(module)
                 SERVER_ARM_MODULE = module
     return SERVER_ARM_MODULE
+
+
+def convert_song_k(folder, original, edit_headers):
+    """Stage metadata-only K conversions; commit the whole Song in one revision.
+
+    The canonical JS migration runs on the server. WAV entries are streamed
+    unchanged, old archives remain in history, and no browser/source decode is
+    involved. The account/storage lock is already held by the route.
+    """
+    if not shutil.which('node') or not K_CONVERSION_SCRIPT.is_file():
+        raise ValueError('Server K conversion is unavailable. No saved part was changed.')
+    with K_CONVERSION_LOCK:
+        song = copy.deepcopy(original)
+        used = {part.get('sourcePartId', part['id']) for part in song['parts']}
+        sources = [part for part in song['parts'] + song.get('sharedParts', [])
+                   if 'sourcePartId' not in part and part['id'] in used]
+        staged, published = [], []
+        committed = False
+        try:
+            for part in sources:
+                record = read_part_manifest_record(folder, part)
+                snapshot = record['snapshot']
+                expected_audio = {asset['path']: asset['sha256'] for asset in record['audioAssets']}
+                try:
+                    result = subprocess.run(['node', '--max-old-space-size=128', str(K_CONVERSION_SCRIPT)],
+                        input=json.dumps(snapshot), text=True, capture_output=True, timeout=15)
+                except subprocess.TimeoutExpired:
+                    raise ValueError('Server K conversion timed out. No saved part was changed.') from None
+                if result.returncode:
+                    raise ValueError('Server K conversion failed: ' + result.stderr.strip()[:500])
+                converted = json_object(json.loads(result.stdout))
+                if converted.get('changed') is not True:
+                    continue
+                updated_snapshot = json_object(converted.get('snapshot'))
+                if updated_snapshot.get('assets') != snapshot['assets']:
+                    raise ValueError('K conversion attempted to change recorded audio. Nothing was saved.')
+                filename = f'{part["id"]}-{secrets.token_hex(16)}.zip'
+                temporary = folder / 'parts' / f'.convert-k-{secrets.token_hex(16)}.tmp'
+                staged.append((temporary, folder / 'parts' / filename))
+                with zipfile.ZipFile(folder / 'parts' / part.get('archive', f'{part["id"]}.zip')) as source, \
+                     zipfile.ZipFile(temporary, 'w', compression=zipfile.ZIP_STORED) as target:
+                    for entry in source.infolist():
+                        if entry.filename == 'song-part.json':
+                            target.writestr(copy.copy(entry), json.dumps(updated_snapshot, separators=(',', ':')).encode())
+                        else:
+                            with source.open(entry) as incoming, target.open(copy.copy(entry), 'w') as outgoing:
+                                audio_hash = hashlib.sha256()
+                                for chunk in iter(lambda: incoming.read(1024 * 1024), b''):
+                                    audio_hash.update(chunk)
+                                    outgoing.write(chunk)
+                                if audio_hash.hexdigest() != expected_audio.get(entry.filename):
+                                    raise ValueError('Recorded audio changed during conversion. No saved part was changed.')
+                with temporary.open('rb') as saved:
+                    os.fsync(saved.fileno())
+                body = temporary.read_bytes()
+                if len(body) > MAX_UPLOAD:
+                    raise ValueError('Converted part exceeds the 128 MB saved-part limit. No saved part was changed.')
+                details = validate_part_zip(body)
+                digest, length = hashlib.sha256(body).hexdigest(), len(body)
+                del body
+                song.setdefault('history', []).append(copy.deepcopy(part))
+                old_digest = part['sha256']
+                part.update(details, sha256=digest, bytes=length, archive=filename,
+                            revision=part.get('revision', 1) + 1, updatedAt=time.time())
+                if 'qVersion' not in details:
+                    part.pop('qVersion', None)
+                # This migration is exclusively metadata: all source WAVs and
+                # the old mix still sound the same; retain their exact PCM.
+                if part.get('render', {}).get('sourceSha256') == old_digest:
+                    part['render'] = {**part['render'], 'sourceSha256': digest}
+                else:
+                    part.pop('render', None)
+            if not staged:
+                return original, 0
+            require_song_editor(folder, original, edit_headers)
+            for temporary, destination in staged:
+                # Never replace an existing source or cache file, even on failure.
+                os.link(temporary, destination)
+                published.append(destination)
+                temporary.unlink()
+            write_song(folder, song, edit_headers=edit_headers)
+            committed = True
+            return song, len(staged)
+        finally:
+            for temporary, _ in staged:
+                temporary.unlink(missing_ok=True)
+            if not committed:
+                for destination in published:
+                    destination.unlink(missing_ok=True)
 
 
 class PartConflictError(ValueError):
@@ -849,7 +942,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -871,6 +964,9 @@ def handle_song_request(handler, method, inner_path):
                     handler.send_json(handle_edit_lock(handler, folder, song, segments[2]), extra_headers=headers)
                 elif len(segments) == 1 and method == 'GET':
                     handler.send_json({'ok': True, 'song': public_song(song)}, extra_headers=headers)
+                elif segments[1:] == ['convert-k'] and method == 'POST':
+                    song, converted = convert_song_k(folder, song, handler.headers)
+                    handler.send_json({'ok': True, 'song': public_song(song), 'converted': converted}, extra_headers=headers)
                 elif segments[1:] == ['rename'] and method == 'POST':
                     song['name'] = clean_name(json_object(handler.read_json()).get('name'))
                     write_song(folder, song, edit_headers=handler.headers)

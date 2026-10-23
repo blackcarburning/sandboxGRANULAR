@@ -226,7 +226,7 @@ test('metadata only fast-paths advertised servers and rejects mismatched hashes,
     assert.equal(controller.snapshots.size, 0); assert.equal(sources, 1);
 });
 
-test('a genuine metadata-discovered upgrade still downloads the full archive and uses normal guarded save', async () => {
+test('explicit legacy compatibility persistence uses normal guarded save; subsequent Arm is read-only', async () => {
     const {controller, snapshot, history} = compatibilityController();
     controller.partManifests = true;
     controller.adapter.inspectSnapshot = () => ({snapshot, decodedBytes: 0, upgrade: {lanes: ['K']}});
@@ -240,13 +240,15 @@ test('a genuine metadata-discovered upgrade still downloads the full archive and
         }
         return request(endpoint, options);
     };
+    await controller.upgradeSongParts(controller.generation);
     await controller.arm();
     assert.equal(controller.armed, true); assert.equal(manifests, 1); assert.equal(sources, 1); assert.equal(history.length, 1);
 });
 
-test('arming upgrades each shared source once through editing and exact save hashes, retaining the original render bytes', async () => {
+test('legacy programmatic persistence upgrades each shared source once and Arm retains exact renders', async () => {
     const { controller, calls, part, reference, requests, history, renderBytes } = compatibilityController();
     const order = controller.song.parts.map(entry => [entry.id, entry.repeats, entry.colour]);
+    await controller.upgradeSongParts(controller.generation);
     await controller.arm();
     assert.equal(controller.armed, true);
     assert.equal(calls.filter(call => call[0] === 'acquire').length, 1);
@@ -268,7 +270,7 @@ test('arming upgrades each shared source once through editing and exact save has
     assert.equal(controller.song.revision, 5);
 });
 
-test('another editor leaves arming read-only with an honest pending status, then a later arm persists once', async () => {
+test('another editor leaves arming read-only with an honest pending status, then explicit compatibility persistence saves once', async () => {
     const { controller, requests, calls, history } = compatibilityController();
     const acquire = controller.beginEditing;
     controller.beginEditing = async () => { throw Object.assign(new Error('Another phone is editing'), { code: 'SONG_LOCKED' }); };
@@ -277,13 +279,14 @@ test('another editor leaves arming read-only with an honest pending status, then
     assert.equal(controller.song.revision, 4);
     assert.equal(requests.length, 0);
     assert.equal(history.length, 0);
-    assert.match(calls.filter(call => call[0] === 'status').at(-1)[1], /compatibility upgrade pending.*read-only playback.*Edit Song/);
+    assert.match(calls.filter(call => call[0] === 'status').at(-1)[1], /legacy parts use compatible in-memory defaults/);
     controller.beginEditing = acquire;
+    await controller.upgradeSongParts(controller.generation);
     await controller.arm();
     assert.equal(controller.armed, true);
     assert.equal(history.length, 1);
     assert.equal(controller.song.revision, 5);
-    assert.doesNotMatch(calls.filter(call => call[0] === 'status').at(-1)[1], /upgrade pending/);
+    assert.doesNotMatch(calls.filter(call => call[0] === 'status').at(-1)[1], /legacy parts use compatible in-memory defaults/);
 });
 
 test('an outstanding amendment allows read-only compatibility arming without acquiring or saving', async () => {
@@ -300,7 +303,7 @@ test('a revision change during automatic editing acquisition never saves a compa
     const { controller, requests } = compatibilityController();
     const acquire = controller.beginEditing;
     controller.beginEditing = async () => { await acquire(); controller.song.revision += 1; };
-    await assert.rejects(controller.arm(), /changed while requesting editing/);
+    await assert.rejects(controller.upgradeSongParts(controller.generation), /changed while requesting editing/);
     assert.equal(requests.length, 0);
     assert.equal(controller.armed, false);
 });
@@ -308,7 +311,7 @@ test('a revision change during automatic editing acquisition never saves a compa
 test('a save conflict is never downgraded into a read-only compatibility success', async () => {
     const { controller, history } = compatibilityController();
     controller.request = async () => { throw Object.assign(new Error('Refresh the changed song'), { code: 'SONG_REVISION_CONFLICT' }); };
-    await assert.rejects(controller.arm(), /Refresh the changed song/);
+    await assert.rejects(controller.upgradeSongParts(controller.generation), /Refresh the changed song/);
     assert.equal(history.length, 0);
     assert.equal(controller.armed, false);
 });
@@ -316,11 +319,12 @@ test('a save conflict is never downgraded into a read-only compatibility success
 test('losing the editor lock at save time leaves compatible playback available without a mutation', async () => {
     const { controller, history, calls } = compatibilityController();
     controller.request = async () => { throw Object.assign(new Error('Editing lock expired'), { code: 'SONG_LOCK_LOST' }); };
+    await controller.upgradeSongParts(controller.generation);
     await controller.arm();
     assert.equal(controller.armed, true);
     assert.equal(controller.song.revision, 4);
     assert.equal(history.length, 0);
-    assert.match(calls.filter(call => call[0] === 'status').at(-1)[1], /upgrade pending/);
+    assert.match(calls.filter(call => call[0] === 'status').at(-1)[1], /legacy parts use compatible in-memory defaults/);
 });
 
 function compatibilityGate() {
@@ -372,7 +376,7 @@ test('a cancelled committed save is reconciled by Refresh Songs, not by applying
         await resume.promise;
         return result;
     };
-    const operation = controller.arm();
+    const operation = controller.upgradeSongParts(controller.generation);
     const committed = await entered.promise;
     controller.cancel();
     const current = controller.song;
@@ -478,7 +482,7 @@ test('an existing but unverified editor token has a distinct code and keeps comp
     assert.equal(controller.song.revision, 4);
     assert.equal(requests.length, 0);
     assert.equal(calls.filter(call => call[0] === 'acquire').length, 0);
-    assert.match(calls.filter(call => call[0] === 'status').at(-1)[1], /compatibility upgrade pending.*read-only playback/);
+    assert.match(calls.filter(call => call[0] === 'status').at(-1)[1], /legacy parts use compatible in-memory defaults/);
 });
 
 test('Amend requests editing automatically without recalling over the current live edits', async () => {
@@ -2950,6 +2954,21 @@ test('phone Arm never rewrites a large ZIP for optional K-only conversion; warm 
     assert.equal(JSON.stringify(controller.song), before);
 });
 
+test('197 MB mixed legacy compatibility preparation is metadata-only during phone Arm, without edits or source ZIPs', async () => {
+    const {controller,calls,history,requests,snapshot} = optionalKConversionController();
+    controller.song.parts = controller.song.parts.map(p => ({...p,bytes:61628266}));
+    controller.adapter.inspectSnapshot = () => ({snapshot,decodedBytes:120*1048576,
+        upgrade:{lanes:['Keyboard Sample','Q','K five-track recorder'],explicitOnly:false}});
+    const before=JSON.stringify(controller.song);
+    controller.readPart=async()=>assert.fail('Arm must not download a source ZIP for compatibility');
+    controller.adapter.upgradePart=async()=>assert.fail('Arm must not rewrite a compatibility ZIP');
+    await controller.arm(); await controller.arm();
+    assert.equal(controller.armed,true);assert.equal(JSON.stringify(controller.song),before);
+    assert.equal(history.length,0);assert.equal(requests.length,0);
+    assert.equal(calls.filter(c=>c[0]==='acquire').length,0);
+    assert.equal(controller.memoryBudget.bytes,0);assert.equal(controller.downloadBudget.bytes,0);
+});
+
 test('skipping optional K persistence cannot bypass the source-rendering memory limit when no compatible mix exists', async () => {
     const { controller, history } = optionalKConversionController();
     controller.song.parts = controller.song.parts.map(part => ({ ...part, render: undefined }));
@@ -2960,27 +2979,25 @@ test('skipping optional K persistence cannot bypass the source-rendering memory 
     assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
 });
 
-test('explicit K conversion retains its existing memory guard rather than silently skipping an oversized original', async () => {
-    const { controller, history, requests } = optionalKConversionController();
-    await controller.arm();
-    controller.readPart = async () => assert.fail('Oversized explicit conversion must be rejected before original download');
-    await assert.rejects(controller.convertKTracks(), /123 MB.*96 MB safety budget/);
-    assert.equal(history.length, 0); assert.equal(requests.length, 0);
-    assert.equal(controller.song.revision, 4);
-    assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
+test('large and fitting explicit K conversions always send one server request and no source ZIPs', async () => {
+    for (const bytes of [35454452, 1024]) {
+        const { controller, history } = optionalKConversionController();
+        controller.song.parts = controller.song.parts.map(p => ({ ...p, bytes }));
+        controller.readPart = async () => assert.fail('Conversion must not download originals');
+        controller.adapter.upgradePart = async () => assert.fail('Conversion must not rewrite archives locally');
+        const requests = [];
+        controller.request = async (endpoint, options) => {
+            requests.push({endpoint,options});
+            return {ok:true,converted:1,song:{...controller.song,revision:controller.song.revision+1}};
+        };
+        await controller.convertKTracks();
+        assert.equal(controller.song.revision,5);
+        assert.equal(requests.length,1); assert.match(requests[0].endpoint,/\/convert-k$/);
+        assert.equal(requests[0].options.method,'POST');assert.equal(requests[0].options.body,undefined);
+        assert.equal(history.length,0);assert.equal(controller.memoryBudget.bytes,0);assert.equal(controller.downloadBudget.bytes,0);
+    }
 });
 
-test('a fitting explicit K conversion still persists once and retains the exact saved render after Arm defers it', async () => {
-    const { controller, history, requests, renderBytes } = optionalKConversionController();
-    controller.song.parts = controller.song.parts.map(part => ({ ...part, bytes: 1024, render: { ...part.render, bytes: 64 } }));
-    await controller.arm();
-    assert.equal(history.length, 0); assert.equal(requests.length, 0);
-    await controller.convertKTracks();
-    assert.equal(history.length, 1); assert.equal(controller.song.revision, 5);
-    assert.equal(requests.length, 2); assert.match(requests[0].endpoint, /\/save\?/);
-    assert.match(requests[1].endpoint, /\/render\?/); assert.equal(requests[1].options.body, renderBytes);
-    assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
-});
 
 function boundedEditFixture(overrides = {}) {
     const trace = [], live = { snapshot: { old: true }, buffers: new Map() }, fresh = { snapshot: { fresh: true }, buffers: new Map() };

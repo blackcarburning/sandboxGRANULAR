@@ -1030,17 +1030,23 @@
             for (const part of this.uniqueParts()) {
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 const known = this.snapshots.get(sourceId(part));
-                if (known && (!known.upgradePending || (options.automatic && known.upgradeExplicitOnly))) continue;
+                if (known && (!known.upgradePending || options.automatic)) {
+                    if (options.automatic && known.upgradePending) pending += 1;
+                    continue;
+                }
                 let info;
                 let releaseRender;
                 try {
                     this.armStage(generation, 'Checking saved-part compatibility', part);
                     info = await this.readPartMetadata(part, generation);
                     if (!info.upgrade) continue;
-                    // K1 playback is already normalized in memory. Persist its
-                    // optional five-track metadata only through explicit Convert
-                    // K, not during Arm (which may only need a small saved mix).
-                    if (options.automatic && info.upgrade.explicitOnly) continue;
+                    // Inspection normalizes all legacy empty lanes and K metadata
+                    // in memory. Arm must never rewrite editable source ZIPs:
+                    // that work precedes rendering and can exceed phone RAM.
+                    if (options.automatic) { pending += 1; continue; }
+                    if (info.upgrade.lanes.includes('K five-track recorder')) {
+                        throw new Error('Device-side K conversion is disabled. Use Convert K to run it on the server.');
+                    }
                     if (writable) {
                         this.armStage(generation, 'Checking editing access for upgrade', part);
                         try { await this.ensureEditing(part); }
@@ -1135,9 +1141,23 @@
             if (this.playing || this.editing) throw new Error('Stop Song playback and finish the current amendment before converting K.');
             this.adapter.assertNotRecording?.();
             await this.ensureEditing();
-            const pending = await this.upgradeSongParts(this.generation);
-            if (pending) throw new Error('K conversion is incomplete: editing access was lost. Refresh Songs and try again.');
-            this.status('K conversion complete: single-track takes map to K1; existing multitrack takes keep all five tracks. Previous shared filter and tuning settings are preserved per track. All recorded audio is unchanged. Arm Cache remains manual.');
+            const generation = this.generation, songId = this.song.id, library = this.key, revision = this.song.revision;
+            const sources = JSON.stringify(this.song.parts.map(part => [part.id, part.sha256]));
+            this.status('Converting K to five tracks on the server. Recorded audio stays on the server…');
+            const result = await this.request(`/${encodeURIComponent(songId)}/convert-k`, { method: 'POST' });
+            if (generation !== this.generation || library !== this.key || this.song?.id !== songId || this.song.revision !== revision
+                || JSON.stringify(this.song.parts.map(part => [part.id, part.sha256])) !== sources) {
+                if (this.song?.id === songId && library === this.key) this.revisionConflict = true;
+                throw new DOMException('K conversion completed or was interrupted on the server. Refresh Songs to reconcile the saved result.', 'AbortError');
+            }
+            if (result.song?.id !== songId || !Number.isInteger(result.converted) || result.converted < 0 || result.converted > 64
+                || result.song.revision !== revision + (result.converted ? 1 : 0)) {
+                this.revisionConflict = true;
+                throw new Error('Unexpected server K conversion response. Refresh Songs before saving.');
+            }
+            this.acceptSong(result.song);
+            this.invalidate(true);
+            this.status(`Server K conversion complete: ${result.converted} unique parts converted; single-track takes map to K1 and existing multitrack takes keep all five tracks. All recorded audio and existing playback files are unchanged. Arm Cache remains manual.`);
         }
 
         async arm() {
@@ -1224,7 +1244,7 @@
                 }
                 this.armed = true;
                 this.finishArmFeedback(generation, 'success', 'Song cache armed');
-                this.status(`Armed ${this.song.parts.length} parts (${Math.round(this.renderBytes / 1048576)} MB playback memory): ${parts.length} prepared, ${reused} unchanged reused. Original samples stay on the server; renders use browser storage and bounded playback memory. ${this.renderStore.warning}${pendingUpgrades ? ` Saved-song compatibility upgrade pending for ${pendingUpgrades} shared parts: read-only playback uses empty, muted defaults. Finish the amendment or obtain Edit Song access, then Arm Cache to persist the upgrade.` : ''}`);
+                this.status(`Armed ${this.song.parts.length} parts (${Math.round(this.renderBytes / 1048576)} MB playback memory): ${parts.length} prepared, ${reused} unchanged reused. Original samples stay on the server; renders use browser storage and bounded playback memory. ${this.renderStore.warning}${pendingUpgrades ? ` ${pendingUpgrades} legacy parts use compatible in-memory defaults; saved source archives are unchanged. Convert K runs separately on the server.` : ''}`);
             } catch (error) {
                 const failed = generation === this.generation;
                 if (failed) {
