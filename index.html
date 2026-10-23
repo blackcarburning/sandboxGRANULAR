@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-random-samples-1';
+            const cacheBuster = '2026-10-23-keyboard-widget-1';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6283,7 +6283,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.3</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6370,7 +6370,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.SAMPLE.3</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -52158,6 +52158,7 @@
                 SAMPLE_BROWSER_TARGETS.drumMachineKick, SAMPLE_BROWSER_TARGETS.drumMachineSnare,
                 SAMPLE_BROWSER_TARGETS.drumMachineHat, SAMPLE_BROWSER_TARGETS.drumMachinePerc
             ].includes(config.target);
+            const nativeSamplePlayer = nativeDrumPlayer || config.target === SAMPLE_BROWSER_TARGETS.keyboardSample;
             const favourites = window.mygrainFavourites;
             favourites.ensureToolbar('samples', list, renderDropboxSampleBrowserFiles);
             const favouriteKey = file => MygrainFavourites.itemKey(`sample:${config.sourceKey}`, file.relativePath || file.name);
@@ -52210,27 +52211,29 @@
                 audio.controls = true;
                 audio.preload = 'none';
                 const originalAiff = file.sourceKey === 'samples_altbass' && /\.aiff?$/i.test(file.name);
-                audio.hidden = originalAiff && !nativeDrumPlayer;
-                const preview = nativeDrumPlayer ? createDrumSampleBrowserPlayer(audio, file)
+                audio.hidden = originalAiff && !nativeSamplePlayer;
+                const previewButton = nativeSamplePlayer ? null : document.createElement('button');
+                const preview = nativeSamplePlayer ? createDrumSampleBrowserPlayer(audio, file)
                     : originalAiff ? createOriginalAltBassPreview(audio, file.previewUrl, playing => { previewButton.textContent = playing ? 'Stop preview' : 'Preview sample'; }) : window.mygrainAccounts?.createMediaPreview(audio, file.previewUrl);
                 audio.__mygrainPreview = preview;
 
-                const previewButton = document.createElement('button');
-                previewButton.type = 'button';
-                previewButton.className = 'performance-btn';
-                previewButton.textContent = 'Preview sample';
-                previewButton.dataset.mygrainPreview = file.name;
-                previewButton.addEventListener('click', async () => {
-                    if (!preview) return;
-                    previewButton.disabled = true;
-                    setDropboxSampleBrowserStatus(`Loading preview: ${file.name}…`);
-                    try {
-                        if (await preview.play()) setDropboxSampleBrowserStatus(!originalAiff && audio.paused
-                            ? `Preview loaded: ${file.name}. Press Play on its audio controls.` : `Previewing ${file.name}.`);
-                    } catch (error) {
-                        setDropboxSampleBrowserStatus(`Preview failed: ${error.message}. Try Preview sample again.`);
-                    } finally { previewButton.disabled = false; }
-                });
+                if (previewButton) {
+                    previewButton.type = 'button';
+                    previewButton.className = 'performance-btn';
+                    previewButton.textContent = 'Preview sample';
+                    previewButton.dataset.mygrainPreview = file.name;
+                    previewButton.addEventListener('click', async () => {
+                        if (!preview) return;
+                        previewButton.disabled = true;
+                        setDropboxSampleBrowserStatus(`Loading preview: ${file.name}…`);
+                        try {
+                            if (await preview.play()) setDropboxSampleBrowserStatus(!originalAiff && audio.paused
+                                ? `Preview loaded: ${file.name}. Press Play on its audio controls.` : `Previewing ${file.name}.`);
+                        } catch (error) {
+                            setDropboxSampleBrowserStatus(`Preview failed: ${error.message}. Try Preview sample again.`);
+                        } finally { previewButton.disabled = false; }
+                    });
+                }
 
                 const actions = document.createElement('div');
                 actions.className = 'sample-browser-card-actions';
@@ -52238,7 +52241,7 @@
                 const previewHint = document.createElement('div');
                 previewHint.className = 'sample-browser-path';
                 previewHint.textContent = file.sourceLabel || config.sourceLabel;
-                if (!nativeDrumPlayer) actions.append(previewButton);
+                if (previewButton) actions.append(previewButton);
 
                 loadButton.addEventListener('click', async () => {
                     if (dropboxSampleLayerLoadInFlight || drumMachineLoadInFlight) return;

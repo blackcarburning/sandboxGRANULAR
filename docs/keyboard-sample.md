@@ -1,8 +1,10 @@
-# Sample keyboard — SAMPLE.2
+# Sample keyboard — SAMPLE.3
 
 ## Play and record
 
 Select **Sample** in the keyboard or K sound switch. With no sample loaded, this opens the shared browser; otherwise use **Choose Keyboard Sample** above the keybed to replace it. The folder selector offers all 13 configured `SAMPLES_*` libraries and the existing Sampledrop / Splice sources. Preview and choose **Load into Keyboard**.
+
+The keyboard browser uses the audio widget's own Play/Pause, seek and replay controls directly; there is no separate Preview button. WAV sources load on playback rather than downloading every listed file. Previews are authenticated and account-pinned, only one plays at a time, and closing/filtering the browser, loading a sample or locking the account releases them. AIFF previews use the existing temporary native-compatible WAV preparation, respecting sampler regions without changing source files. Previewing does not replace the keyboard instrument; **Load into Keyboard** still does that.
 
 **Random Sample** above the keybed loads a new keyboard sample and selects Sample playback. Grain A and Grain B each have their own **Random Sample** button beside their source controls, reachable in both Mic and Sample modes. Each button replaces only its own source; grain size/envelope settings and the other two samples stay unchanged.
 
@@ -30,3 +32,5 @@ The saved-part start action explicitly authorizes its held/Arp keyboard notes. T
 `tests/keyboard-sample-browser.cjs` only accepts a localhost test server with disposable accounts. It serves actual PCM WAV bytes through the existing source API path, decodes them with Web Audio, checks all folders, C4/C5/C3 rates, a physical-pointer Hold note and a non-silent exact-length K worklet take. It checks failed/late-load preservation, actual Song amendment/save/recall, source Undo/Redo, a non-silent frozen Song render, reload without re-fetch, Arp to K, and phone layout. Chromium and WebKit desktop / 390px phone emulation are supported. This is not a physical-phone test.
 
 `tests/random-performance-samples.test.js` verifies the six-root allowlist, path/subfolder filtering, empty/offline fallback, current-file exclusion, and context/authentication cancellation. `tests/random-performance-samples-browser.cjs` uses disposable localhost accounts, real decoded PCM, native phone taps in Chromium/WebKit, all six libraries for all three targets, protected grain settings, Undo/Redo, failures and delayed-load cancellation, Song amendment/save/recall, and reload without downloading audio again.
+
+`tests/keyboard-browser-widget-browser.cjs` checks the widget without a Preview button in Chromium/WebKit desktop and phone emulation: actual native Play/Pause/replay, non-silent Web Audio output, single-preview playback, on-demand WAV requests, preview isolation from instrument/history, error/Refresh recovery, sample loading, close/account-lock cleanup, and AIFF region playback. The existing drum-widget test verifies that path and the other browser controls stay unchanged.
