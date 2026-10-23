@@ -863,13 +863,13 @@
         isRenderCompatible(part, decoded = this.snapshots.get(sourceId(part)) || this.cache.get(sourceId(part))) {
             const pianoVersion = Number(part.qVersion) >= 2 ? Math.max(3, Number(part.qVersion)) : Number(part.qVersion) || 0;
             if (!decoded) return (!pianoVersion || Number(part.render?.qVersion) >= pianoVersion) && ((this.renderSources.has(sourceId(part)) && this.renderSources.get(sourceId(part)) === contentKey(part))
-                || (part.render?.keyboardVersion === 1 && Number(part.render?.grainVersion) >= 3 && part.render?.portableVersion === 1));
+                || (part.render?.keyboardVersion === 1 && Number(part.render?.grainVersion) >= 4 && part.render?.portableVersion === 1));
             const keyboard = Boolean(decoded?.snapshot?.extra?.heldNotes?.length);
             const grains = decoded?.snapshot?.state?.modes?.granularLayersEnabled === true;
             const vocalCut = decoded?.snapshot?.state?.modes?.bastardLoopVCut?.enabled === true;
             const vocalRepeat = vocalCut && decoded.snapshot.state.modes.bastardLoopVCut.repeat === true;
             const drumLanes = Object.values(decoded?.snapshot?.state?.modes?.drumMachineExtraTracks || {}).some(track => track?.pattern?.some(Boolean));
-            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || Number(part.render?.grainVersion) >= 3) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded));
+            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || Number(part.render?.grainVersion) >= 4) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded));
         }
 
         isPartReady(part) {
@@ -920,14 +920,14 @@
                 const body = this.adapter.encodeRender(buffer);
                 bytes = body;
                 this.armStage(generation, 'Saving playback render to server', part);
-                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=3' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
+                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=4' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
                     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body, signal: this.abort?.signal
                 });
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 const saved = result.song.parts.find(entry => entry.id === part.id && entry.sha256 === part.sha256);
                 if (!saved?.render) throw new Error(`The song changed while rendering ${part.name}. Refresh Songs and arm again.`);
                 if (keyboard && saved.render.keyboardVersion !== 1) throw new Error('The song server needs keyboard-render support. Reload MYGRAIN and arm again.');
-                if (grains && !(Number(saved.render.grainVersion) >= 3)) throw new Error('The song server needs current grain-control render support. Reload MYGRAIN and arm again.');
+                if (grains && !(Number(saved.render.grainVersion) >= 4)) throw new Error('The song server needs current smooth-grain render support. Reload MYGRAIN and arm again.');
                 if (vocalCut && saved.render.vocalCutVersion !== 1) throw new Error('The song server needs vocal-cut render support. Reload MYGRAIN and arm again.');
                 if (vocalRepeat && saved.render.vocalRepeatVersion !== 1) throw new Error('The song server needs vocal section-repeat render support. Reload MYGRAIN and arm again.');
                 if (drumLanes && saved.render.drumLanesVersion !== 1) throw new Error('The song server needs Clap/Cymbals render support. Reload MYGRAIN and arm again.');

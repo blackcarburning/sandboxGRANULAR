@@ -136,7 +136,7 @@ function compatibilityController() {
     const { controller, calls } = fixture;
     const part = { ...first, id: '1'.repeat(32), sha256: 'a'.repeat(64), contentSha256: 'b'.repeat(64), revision: 1, colour: '#123456' };
     part.render = { version: 1, sourceSha256: part.sha256, sha256: 'c'.repeat(64), bytes: 64,
-        keyboardVersion: 1, grainVersion: 3, portableVersion: 1 };
+        keyboardVersion: 1, grainVersion: 4, portableVersion: 1 };
     const reference = { ...part, id: '2'.repeat(32), sourcePartId: part.id, repeats: 5 };
     controller.song = { id: 'compatibility-12345678', revision: 4, parts: [reference, part] };
     controller.songs = [controller.song];
@@ -263,7 +263,7 @@ test('legacy programmatic persistence upgrades each shared source once and Arm r
     assert.equal(requests[0].revision, 4);
     assert.equal(requests[1].revision, 5);
     assert.equal(requests[1].options.body, renderBytes);
-    assert.match(requests[1].endpoint, /&keyboard=1&grain=3&portable=1$/);
+    assert.match(requests[1].endpoint, /&keyboard=1&grain=4&portable=1$/);
     await controller.arm();
     assert.equal(requests.length, 2);
     assert.equal(history.length, 1);
@@ -946,7 +946,7 @@ test('part transport stays grouped with move arrows rather than the part name', 
 
 test('portable freezes and legacy drum-volume snapshots cannot reuse pre-audit rendered audio', () => {
     const { controller } = makeController();
-    const part = { ...first, render: { version: 1, keyboardVersion: 1, grainVersion: 3 } };
+    const part = { ...first, render: { version: 1, keyboardVersion: 1, grainVersion: 4 } };
     for (const snapshot of [
         { state: { sliders: {} }, extra: { freezeStateVersion: 1 } },
         { state: { sliders: { performanceDrumMachineLevel: '29' } }, extra: {} }
@@ -1730,7 +1730,7 @@ test('reusing an armed part appends a reference without capturing or duplicating
 test('a full copy appends an independent ready part without recalling or capturing the live pattern', async () => {
     const { controller } = cachedSongFixture();
     const part = controller.song.parts[0];
-    part.render = { version: 1, sourceSha256: part.sha256, sha256: 'render-hash', keyboardVersion: 1, grainVersion: 3, portableVersion: 1 };
+    part.render = { version: 1, sourceSha256: part.sha256, sha256: 'render-hash', keyboardVersion: 1, grainVersion: 4, portableVersion: 1 };
     const copied = { ...part, id: 'independent', name: 'Intro_full_copy', archive: 'independent.zip', render: { ...part.render, file: 'independent.wav' } };
     controller.armed = true;
     controller.adapter.capture = async () => assert.fail('Copy must not capture live sounds');
@@ -2437,7 +2437,7 @@ test('unarmed song export prepares the cache first and blocks incomplete amendme
     await assert.rejects(controller.exportSong(), /finish the amendment/);
 });
 
-test('pre-control-fix grain renders refresh on manual Arm but non-grain frozen recordings remain compatible', () => {
+test('pre-smoothing grain renders refresh on manual Arm but non-grain frozen recordings remain compatible', () => {
     const { controller } = makeController();
     const part = { ...first, render: { version: 1, sourceSha256: first.sha256, grainVersion: 1 } };
     assert.equal(controller.isRenderCompatible(part, { snapshot: { state: { modes: { granularLayersEnabled: true } } } }), false);
@@ -2445,10 +2445,12 @@ test('pre-control-fix grain renders refresh on manual Arm but non-grain frozen r
     part.render.grainVersion = 2;
     assert.equal(controller.isRenderCompatible(part, { snapshot: { state: { modes: { granularLayersEnabled: true } } } }), false);
     part.render.grainVersion = 3;
+    assert.equal(controller.isRenderCompatible(part, { snapshot: { state: { modes: { granularLayersEnabled: true } } } }), false);
+    part.render.grainVersion = 4;
     assert.equal(controller.isRenderCompatible(part, { snapshot: { state: { modes: { granularLayersEnabled: true } } } }), true);
 });
 
-test('old granular renders regenerate with a current control marker and unchanged snapshot', async () => {
+test('old granular renders regenerate with a current smoothing marker and unchanged snapshot', async () => {
     const buffer = { duration: 2, length: 2000, sampleRate: 1000, numberOfChannels: 2 };
     let rendered = 0;
     const { controller } = makeController({ renderPart: async () => { rendered += 1; return buffer; }, encodeRender: () => new ArrayBuffer(8), decodeRender: async () => buffer });
@@ -2456,13 +2458,13 @@ test('old granular renders regenerate with a current control marker and unchange
     controller.song = { id: 'song', parts: [part] };
     controller.prepareRender = Object.getPrototypeOf(controller).prepareRender;
     controller.request = async path => {
-        assert.match(path, /&grain=3$/);
-        return { song: { ...controller.song, parts: [{ ...part, render: { ...part.render, grainVersion: 3 } }] } };
+        assert.match(path, /&grain=4$/);
+        return { song: { ...controller.song, parts: [{ ...part, render: { ...part.render, grainVersion: 4 } }] } };
     };
     await controller.prepareRender(part, { snapshot: { state: { modes: { granularLayersEnabled: true } } } }, controller.generation);
     assert.equal(rendered, 1);
     assert.equal(controller.song.parts[0].sha256, 'snapshot');
-    assert.equal(controller.song.parts[0].render.grainVersion, 3);
+    assert.equal(controller.song.parts[0].render.grainVersion, 4);
 });
 
 test('vocal-cut snapshots reject incompatible cached audio and regenerate with a version marker', async () => {
@@ -2617,7 +2619,7 @@ test('Q effects render refuses an old server rather than reusing distorted rever
 
 test('arming inspects legacy Q sources even when portable freeze metadata looks compatible', async () => {
     const { controller } = makeController();
-    const part = { ...first, sha256: 'snapshot', qVersion: 1, render: { version: 1, sourceSha256: 'snapshot', qVersion: 1, keyboardVersion: 1, grainVersion: 3, portableVersion: 1 } };
+    const part = { ...first, sha256: 'snapshot', qVersion: 1, render: { version: 1, sourceSha256: 'snapshot', qVersion: 1, keyboardVersion: 1, grainVersion: 4, portableVersion: 1 } };
     controller.song = { id: 'song', parts: [part] };
     let reads = 0;
     const readPart = controller.readPart;
@@ -2757,7 +2759,7 @@ test('active sampled drums refresh old fades, including hot cached PCM, without 
 
 test('full-decay drum renders reject an old server and inspect unversioned legacy sources before reuse', async () => {
     const { controller } = makeController({ renderPart: async () => ({ duration: 2, length: 2000, sampleRate: 1000, numberOfChannels: 2 }), encodeRender: () => new ArrayBuffer(8) });
-    const part = { ...first, sha256: 'snapshot', render: { version: 1, sourceSha256: 'snapshot', keyboardVersion: 1, grainVersion: 3, portableVersion: 1 } };
+    const part = { ...first, sha256: 'snapshot', render: { version: 1, sourceSha256: 'snapshot', keyboardVersion: 1, grainVersion: 4, portableVersion: 1 } };
     controller.song = { id: 'song', parts: [part] };
     controller.prepareRender = Object.getPrototypeOf(controller).prepareRender;
     controller.request = async () => ({ song: { parts: [part] } });

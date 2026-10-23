@@ -277,7 +277,7 @@
     <script>window.mygrainAccounts?.loadScript('runtime-diagnostics.js?v=20261015-crash-debug-1');</script>
     <script>
         (function cacheBustMygrain() {
-            const cacheBuster = '2026-10-23-grain-controls-2';
+            const cacheBuster = '2026-10-23-grain-edges-3';
             if (!/^https?:$/.test(location.protocol)) return;
             const url = new URL(location.href);
             if (url.searchParams.get('v') === cacheBuster) return;
@@ -6282,7 +6282,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.GRAIN.2</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.GRAIN.3</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6369,7 +6369,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.GRAIN.2</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.GRAIN.3</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -12137,6 +12137,8 @@
                 ['main', micStream], ['M', bastardLoopMMicStream], ['MPlus', bastardLoopMPlusMicStream]
             ]);
             captured.synth = { oscillatorsEnabled, granularLayersEnabled, lSourceMode: bastardLoopLSourceMode, xSourceMode: bastardLoopXSourceMode,
+                grainPreserveDuration: { A: getGranularLayerPreserveDuration('A'), B: getGranularLayerPreserveDuration('B') },
+                grainStreams: Array.from(activeGrains.values()).slice(0, 12).map(stream => ({ note: stream.note, role: stream.role, releasing: stream.releasing })),
                 waveforms: [osc1Config.waveform, osc2Config.waveform, osc3Config.waveform],
                 sync: [osc1Config.sync, osc2Config.sync, osc3Config.sync],
                 configs: [{ ...osc1Config }, { ...osc2Config }, { ...osc3Config }],
@@ -12144,6 +12146,10 @@
                 lfoRoutes: [lfoEnabled, lfo2Enabled, lfo3Enabled].map(routes => Object.keys(routes).filter(key => routes[key])),
                 controlValues: Object.fromEntries(['performanceModAmount', 'lfoRate', 'lfoDepth', 'lfo2Rate', 'lfo2Depth', 'lfo3Rate', 'lfo3Depth',
                     'grainSynthASize', 'grainSynthAMix', 'grainSynthASmoothing', 'grainSynthBSize', 'grainSynthBMix', 'grainSynthBSmoothing',
+                    ...['A', 'B'].flatMap(key => ['Source', 'Start', 'Tune', 'FineTune', 'Attack', 'Decay', 'Release'].map(suffix => `grainSynth${key}${suffix}`)),
+                    ...SOURCE_GRAIN_CONTROL_IDS.filter(id => /^grain[AB]/.test(id)),
+                    ...SOURCE_LOOP_CONTROL_IDS.filter(id => /^grain[AB]/.test(id)),
+                    'performanceClickGuard',
                     'performanceBastardLoopLLength', 'performanceBastardLoopLDecay', 'performanceBastardLoopXLength', 'performanceBastardLoopXDecay',
                     'performanceBastardLoopXFilterLfoAmount', 'performanceBastardLoopXFilterCutoff'
                 ].map(id => [id, document.getElementById(id)?.value ?? null])) };
@@ -39362,17 +39368,20 @@
                 voicePanner.connect(mixer);
                 sourcesRemaining += 1;
 
-                const envelope = new Float32Array(Math.max(64, Math.min(4096, Math.ceil(voiceDuration * audioContext.sampleRate / 16))));
+                const envelope = new Float32Array(Math.max(128, Math.min(4096, Math.ceil(voiceDuration * audioContext.sampleRate / 4))));
+                // Raised-cosine joins have zero slope at both ends. Quarter-sine
+                // attacks/releases introduced sharp corners on every short grain,
+                // even when the source itself contained no transient.
                 for (let index = 0; index < envelope.length; index += 1) {
                     const time = voiceDuration * index / (envelope.length - 1);
                     if (time < attackEnd - now) {
-                        envelope[index] = sourcePeakGain * Math.sin(time / (attackEnd - now) * Math.PI * 0.5);
+                        envelope[index] = sourcePeakGain * (0.5 - 0.5 * Math.cos(time / (attackEnd - now) * Math.PI));
                     } else if (time < decayEnd - now) {
-                        envelope[index] = sustainGain + (sourcePeakGain - sustainGain) * (1 - Math.sin((time - (attackEnd - now)) / (decayEnd - attackEnd) * Math.PI * 0.5));
+                        envelope[index] = sustainGain + (sourcePeakGain - sustainGain) * (0.5 + 0.5 * Math.cos((time - (attackEnd - now)) / (decayEnd - attackEnd) * Math.PI));
                     } else if (time < bodyDuration) {
                         envelope[index] = sustainGain;
                     } else {
-                        envelope[index] = sustainGain * (1 - Math.sin((time - bodyDuration) / releaseSeconds * Math.PI * 0.5));
+                        envelope[index] = sustainGain * (0.5 + 0.5 * Math.cos((time - bodyDuration) / releaseSeconds * Math.PI));
                     }
                 }
                 envelope[0] = 0;
@@ -62806,7 +62815,7 @@
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-amend-memory-2');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-grain-controls-2');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-grain-edges-3');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-k-dsp-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
