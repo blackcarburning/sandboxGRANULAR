@@ -706,7 +706,7 @@
                 const info = this.adapter.inspectPart(body);
                 if (!cached) await this.sourceStore.put(cacheKey, body);
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
-                this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
+                this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
                 return { body, ...info, releaseDownload };
             } catch (error) { releaseDownload(); throw error; }
         }
@@ -721,7 +721,7 @@
                 throw new Error(`Saved metadata integrity check failed for ${part.name}. Refresh Songs and arm again.`);
             }
             const info = this.adapter.inspectSnapshot(payload.snapshot);
-            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
+            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
             return info;
         }
 
@@ -957,19 +957,23 @@
             }
         }
 
-        async upgradeSongParts(generation) {
+        async upgradeSongParts(generation, options = {}) {
             let pending = 0;
             let writable = !this.editing;
             for (const part of this.uniqueParts()) {
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 const known = this.snapshots.get(sourceId(part));
-                if (known && !known.upgradePending) continue;
+                if (known && (!known.upgradePending || (options.automatic && known.upgradeExplicitOnly))) continue;
                 let info;
                 let releaseRender;
                 try {
                     this.armStage(generation, 'Checking saved-part compatibility', part);
                     info = await this.readPartMetadata(part, generation);
                     if (!info.upgrade) continue;
+                    // K1 playback is already normalized in memory. Persist its
+                    // optional five-track metadata only through explicit Convert
+                    // K, not during Arm (which may only need a small saved mix).
+                    if (options.automatic && info.upgrade.explicitOnly) continue;
                     if (writable) {
                         this.armStage(generation, 'Checking editing access for upgrade', part);
                         try { await this.ensureEditing(part); }
@@ -1090,7 +1094,7 @@
                 if (generation !== this.generation) return;
                 this.song.parts.forEach(partDurationSeconds);
                 this.armStage(generation, 'Checking saved-part compatibility');
-                const pendingUpgrades = this.adapter.upgradePart ? await this.upgradeSongParts(generation) : 0;
+                const pendingUpgrades = this.adapter.upgradePart ? await this.upgradeSongParts(generation, { automatic: true }) : 0;
                 if (generation !== this.generation) return;
                 uniqueParts = this.uniqueParts();
                 const parts = uniqueParts.filter(part => !this.isPartReady(part));

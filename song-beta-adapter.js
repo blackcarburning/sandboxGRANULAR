@@ -519,7 +519,11 @@
             validateSongAudioInventory(snapshot);
             const decodedBytes = snapshot.assets.reduce((bytes, asset) => bytes + Number(asset.frames) * Number(asset.channels) * 4 * Math.max(1, audioContext.sampleRate / Number(asset.sampleRate)), 0);
             if (!Number.isFinite(decodedBytes) || decodedBytes < 0) throw new Error('Invalid saved song audio dimensions.');
-            return { snapshot, decodedBytes, upgrade: lanes.length ? { lanes } : null };
+            // K-only conversion is optional persistence, not an audio/playback
+            // repair. Arm can use this normalized snapshot and existing renders
+            // without copying an entire source ZIP just to add four empty slots.
+            const explicitOnly = lanes.length === 1 && lanes[0] === 'K five-track recorder';
+            return { snapshot, decodedBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 
         upgradePart(info) {

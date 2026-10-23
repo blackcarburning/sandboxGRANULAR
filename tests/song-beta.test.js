@@ -2906,3 +2906,78 @@ test('main-card paste stops at the first failed destination, reports acknowledge
     assert.equal(controller.song.parts[3], parts[3]);
     assert.equal(controller.loopClipboard, clipboard);
 });
+
+function optionalKConversionController() {
+    const fixture = compatibilityController();
+    const { controller, context, snapshot } = fixture;
+    controller.phonePreparation = true;
+    controller.armConcurrency = 1;
+    controller.memoryBudget = new context.MygrainSongStorage.MemoryBudget(96 * 1048576, true);
+    controller.song = { ...controller.song, parts: controller.song.parts.map(part => ({ ...part, bytes: 35454452,
+        render: { ...part.render, bytes: 1706712 } })) };
+    controller.partManifests = true;
+    controller.adapter.inspectSnapshot = () => ({ snapshot, decodedBytes: 67 * 1048576,
+        upgrade: { lanes: ['K five-track recorder'], explicitOnly: true } });
+    let manifests = 0;
+    const request = controller.request;
+    controller.request = async (endpoint, options) => {
+        if (endpoint.includes('/manifest?')) {
+            manifests++;
+            return { format: 'mygrain-song-part-manifest', version: 1,
+                sourceSha256: controller.song.parts[0].sha256, snapshot };
+        }
+        return request(endpoint, options);
+    };
+    return { ...fixture, manifests: () => manifests };
+}
+
+test('phone Arm never rewrites a large ZIP for optional K-only conversion; warm Arm reuses normalized metadata', async () => {
+    const { controller, calls, requests, history, manifests } = optionalKConversionController();
+    const before = JSON.stringify(controller.song);
+    controller.readPart = async () => assert.fail('Arm must not download editable originals for a compatible saved mix');
+    await controller.arm();
+    assert.equal(controller.armed, true);
+    assert.equal(JSON.stringify(controller.song), before);
+    assert.equal(controller.memoryBudget.limitBytes, 96 * 1048576);
+    assert.equal(controller.memoryBudget.bytes, 0);
+    assert.equal(controller.downloadBudget.bytes, 0);
+    assert.equal(controller.cache.size, 0);
+    assert.equal(requests.length, 0); assert.equal(history.length, 0);
+    assert.equal(calls.filter(call => call[0] === 'acquire').length, 0);
+    assert.equal(manifests(), 1);
+    await controller.arm();
+    assert.equal(controller.armed, true); assert.equal(manifests(), 1);
+    assert.equal(JSON.stringify(controller.song), before);
+});
+
+test('skipping optional K persistence cannot bypass the source-rendering memory limit when no compatible mix exists', async () => {
+    const { controller, history } = optionalKConversionController();
+    controller.song.parts = controller.song.parts.map(part => ({ ...part, render: undefined }));
+    delete controller.loadPart; // Use the real admission path, not the compatibility fixture's render stub.
+    controller.readPart = async () => assert.fail('Unsafe originals must still be rejected before download');
+    await assert.rejects(controller.arm(), /96 MB safety budget/);
+    assert.equal(controller.armed, false); assert.equal(history.length, 0);
+    assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
+});
+
+test('explicit K conversion retains its existing memory guard rather than silently skipping an oversized original', async () => {
+    const { controller, history, requests } = optionalKConversionController();
+    await controller.arm();
+    controller.readPart = async () => assert.fail('Oversized explicit conversion must be rejected before original download');
+    await assert.rejects(controller.convertKTracks(), /123 MB.*96 MB safety budget/);
+    assert.equal(history.length, 0); assert.equal(requests.length, 0);
+    assert.equal(controller.song.revision, 4);
+    assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
+});
+
+test('a fitting explicit K conversion still persists once and retains the exact saved render after Arm defers it', async () => {
+    const { controller, history, requests, renderBytes } = optionalKConversionController();
+    controller.song.parts = controller.song.parts.map(part => ({ ...part, bytes: 1024, render: { ...part.render, bytes: 64 } }));
+    await controller.arm();
+    assert.equal(history.length, 0); assert.equal(requests.length, 0);
+    await controller.convertKTracks();
+    assert.equal(history.length, 1); assert.equal(controller.song.revision, 5);
+    assert.equal(requests.length, 2); assert.match(requests[0].endpoint, /\/save\?/);
+    assert.match(requests[1].endpoint, /\/render\?/); assert.equal(requests[1].options.body, renderBytes);
+    assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
+});
