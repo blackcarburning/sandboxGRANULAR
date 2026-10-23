@@ -33,6 +33,7 @@ PUBLIC_FILES = {
     'mygrain-utils.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
     'navigation-palette.js', 'navigation-palette.css',
     'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
+    'k-multitrack.js', 'k-multitrack-host.js', 'k-multitrack.css',
     'l-reverb.js', 'q-arp-builder.js', 'q-card.css', 'q-card.js', 'q-theory.js',
     'radiolab.js', 'radiolab.css', 'radiolab-worklet.js',
     'randomise-commentary.js', 'runtime-diagnostics.js', 'sample-favourites.css', 'sample-favourites.js',

@@ -533,7 +533,7 @@ def validate_part_zip(body):
     with zipfile.ZipFile(BytesIO(body)) as archive:
         entries = archive.infolist()
         names = [entry.filename for entry in entries]
-        if len(entries) > 40 or len(set(names)) != len(names):
+        if len(entries) > 41 or len(set(names)) != len(names):
             raise ValueError('Invalid part archive entries.')
         if sum(entry.file_size for entry in entries) > MAX_UPLOAD:
             raise ValueError('Part archive is too large.')
@@ -562,7 +562,8 @@ def validate_part_zip(body):
         if not isinstance(sequence, list) or len(sequence) != steps:
             raise ValueError('Part is missing its sequencer pattern.')
         assets = snapshot.get('assets')
-        if not isinstance(assets, list) or len(assets) > 32:
+        # Five K recorder takes add four raw WAVs to a fully loaded part.
+        if not isinstance(assets, list) or len(assets) > 40:
             raise ValueError('Invalid part audio manifest.')
         keys = set()
         paths = set()

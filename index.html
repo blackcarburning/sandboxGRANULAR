@@ -6302,7 +6302,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.23.BUS.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.23.K5.1</strong></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
 
@@ -6389,7 +6389,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.23.BUS.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.23.K5.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -7874,9 +7874,9 @@
             <div class="performance-feature-card performance-vocal-card" id="bastardLoopKCard" aria-label="Bastardloop K controls">
                 <div class="performance-feature-head">
                     <div class="performance-feature-copy">
-                        <div class="performance-chip">Keyboard Capture Loop</div>
+                        <div class="performance-chip">Five-track Keyboard Recorder</div>
                         <h3 class="performance-feature-title">BASTARDLOOP K</h3>
-                        <p class="performance-feature-note">Choose Osc, Grain, Q Piano or Q Strings for the keyboard. Record that sound after a one-bar count-in while the backing loop plays.</p>
+                        <p class="performance-feature-note">Choose a recording track and keyboard sound. Each K track loops independently at its own step length. Record after a one-bar count-in while the backing loop plays.</p>
                     </div>
                     <div class="performance-feature-actions">
                         <button class="performance-btn primary" id="performanceBastardLoopKRecordBtn" type="button">Record Keyboard</button>
@@ -7885,6 +7885,8 @@
                         <button class="performance-btn" id="performanceBastardLoopKStartBtn" type="button">Start Bastardloops</button>
                     </div>
                 </div>
+                <div id="kMultitrackTracks" class="k-multitrack-tracks" aria-label="Five K recorder tracks"></div>
+                <p class="performance-feature-note">Record select and the keyboard destination choose the same track. Waveform, audition, clear and normalise apply to that track; K master volume, pitch and filter apply to all five.</p>
                 <div class="keyboard-sound-switch" id="performanceBastardLoopKSoundSwitch" role="group" aria-label="K keyboard sound">
                     <button class="performance-btn" type="button" data-keyboard-sound="osc" aria-pressed="false">Osc</button>
                     <button class="performance-btn active" type="button" data-keyboard-sound="grain" aria-pressed="true">Grain</button>
@@ -8816,6 +8818,7 @@
                     <label class="song-beta-repeat-label">Pattern repeats<input id="songBetaRepeats" type="number" min="1" max="64" step="1" value="1"></label>
                     <button class="performance-btn primary" id="songBetaNewPart" type="button" disabled>New Part</button>
                     <button class="performance-btn" id="songBetaPasteParts" type="button" disabled>Paste Part</button>
+                    <button class="performance-btn" id="songBetaConvertK" type="button" disabled title="Convert existing saved K takes to K1; keep all recorded audio and other sounds unchanged">Convert K to 5 Tracks</button>
                     <button class="performance-btn primary" id="songBetaSavePart" type="button" disabled>Save Amendment</button>
                     <button class="performance-btn" id="songBetaCancelEdit" type="button" disabled>Cancel Amendment</button>
                 </div>
@@ -8948,6 +8951,8 @@
                     <button class="hold-btn" id="arpBtn">Arp</button>
                     <button class="arp-clock-btn" id="arpClockMultiplierBtn" title="Arpeggiator clock multiplier">Mul 1x</button>
                     <button class="arp-clock-btn" id="arpModeBtn" title="Arpeggiator direction mode">Arp Up</button>
+                    <label class="k-keyboard-destination" for="performanceKeyboardKTrack">K destination <select id="performanceKeyboardKTrack" aria-label="Keyboard K recording destination"><option value="0">K1</option><option value="1">K2</option><option value="2">K3</option><option value="3">K4</option><option value="4">K5</option></select></label>
+                    <button class="arp-clock-btn" id="performanceKeyboardKSolo" type="button" aria-pressed="false">K Solo</button>
                     <button class="arp-clock-btn" id="performanceKeyboardToKRecordSurfaceBtn" title="Stop, count in and record the selected keyboard sound into Bastardloop K">Record to K</button>
                     <button class="arp-clock-btn" id="performanceKeyboardClearKBtn" type="button" title="Clear K recording (Undo/Redo available)" disabled>Clear K</button>
                     <button class="arp-clock-btn performance-layer-jump-btn" id="performanceKeyboardJumpToKBtn" type="button" data-jump-target="#bastardLoopKCard">Jump to K</button>
@@ -16761,7 +16766,8 @@
                             restoredDrumMachineHatBuffer,
                             restoredDrumMachinePercBuffer,
                             restoredDrumMachineExtraBuffers,
-                            restoredKeyboardSampleBuffer
+                            restoredKeyboardSampleBuffer,
+                            restoredKExtraBuffers
                         ] = await Promise.all([
                             loadAudioBufferFromDB(GENERATED_AUDIO_BUFFER_KEY).then((buffer) => buffer || loadAudioBufferFromDB(AUDIO_BUFFER_KEY)),
                             loadAudioBufferFromDB(MIC_AUDIO_BUFFER_KEY),
@@ -16787,7 +16793,8 @@
                             loadAudioBufferFromDB(DRUM_MACHINE_HAT_AUDIO_BUFFER_KEY),
                             loadAudioBufferFromDB(DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY),
                             Promise.all(Object.values(drumMachineExtraTracks).map(track => loadAudioBufferFromDB(`${track.id}Buffer`))),
-                            loadAudioBufferFromDB(KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY)
+                            loadAudioBufferFromDB(KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY),
+                            Promise.all([2, 3, 4, 5].map(index => loadAudioBufferFromDB(`bastardLoopKTrack${index}Buffer`)))
                         ]);
                         const restoreStillCurrent = sourceMutationSerial === restoreSourceSerial && lastSourceWriteAt <= restoreStartedAt;
                         if (restoreStillCurrent) setKeyboardSampleBuffer(restoredKeyboardSampleBuffer || null);
@@ -16965,7 +16972,9 @@
                             };
                             rerenderBastardLoopMPlusFromRaw({ skipUi: true });
                         }
-                        if (shouldRestoreBastardLoopK) {
+                        if (restoreStillCurrent && window.mygrainKMultitrack) {
+                            window.mygrainKMultitrack.restoreBuffers([restoredBastardLoopKBuffer, ...restoredKExtraBuffers], state);
+                        } else if (shouldRestoreBastardLoopK) {
                             bastardLoopKRawBuffer = restoredBastardLoopKBuffer;
                             bastardLoopKMetadata = {
                                 summary: state.modes?.bastardLoopKSummary || `${restoredBastardLoopKBuffer.duration.toFixed(2)}s grain loop · restored`,
@@ -24161,7 +24170,7 @@
                 syncBastardLoopKUi();
                 return false;
             }
-            await saveAudioBufferToDB(bastardLoopKRawBuffer, BASTARD_LOOP_K_AUDIO_BUFFER_KEY);
+            await (typeof window !== 'undefined' && window.mygrainKMultitrack ? window.mygrainKMultitrack.persistSelected() : saveAudioBufferToDB(bastardLoopKRawBuffer, BASTARD_LOOP_K_AUDIO_BUFFER_KEY));
             syncBastardLoopKUi();
             syncPerformanceControlState();
             saveState();
@@ -26647,7 +26656,7 @@
                 recordingSteps: options.recordingSteps
             };
             rerenderBastardLoopKFromRaw({ skipUi: true });
-            await saveAudioBufferToDB(bastardLoopKRawBuffer, BASTARD_LOOP_K_AUDIO_BUFFER_KEY);
+            await (typeof window !== 'undefined' && window.mygrainKMultitrack ? window.mygrainKMultitrack.persistSelected() : saveAudioBufferToDB(bastardLoopKRawBuffer, BASTARD_LOOP_K_AUDIO_BUFFER_KEY));
             let joinedSharedTransport = false;
             if (options.joinSharedTransport && !window.mygrainSongBeta?.playing) {
                 const sharedOrigin = getSharedLoopTransportOriginTime();
@@ -26981,10 +26990,10 @@
                 return;
             }
             setLoopLayerSolo('none', { silent: true, skipSave: true });
-            if (bastardLoopKBuffer) ensureBastardLoopKReadyForTransport();
+            if (window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer) ensureBastardLoopKReadyForTransport();
             const started = await startAllBastardLoopsFromUi({ silent: true });
             setStatus(started
-                ? (bastardLoopKBuffer ? 'Bastardloops started with Bastardloop K.' : 'Bastardloops started.')
+                ? ((window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer) ? 'Bastardloops started with Bastardloop K.' : 'Bastardloops started.')
                 : 'Bastardloop K could not start the Bastardloops transport.');
             syncBastardLoopKUi();
         }
@@ -32546,7 +32555,7 @@
                 !hasPlayableBastardLoopLTransportSource() &&
                 !window.mygrainQ?.playable() &&
                 !hasPlayableBastardLoopXTransportSource() &&
-                (!bastardLoopMBuffer && !bastardLoopMPlusBuffer && !bastardLoopKBuffer) &&
+                (!bastardLoopMBuffer && !bastardLoopMPlusBuffer && !(window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer)) &&
                 !dropboxSampleLayerBuffer &&
                 !(drumMachineEnabled && hasPlayableDrumMachinePattern())
             ) {
@@ -41123,7 +41132,7 @@
                 window.mygrainQ?.playable() ||
                 hasPlayableBastardLoopXTransportSource() ||
                 (bastardLoopMBuffer || bastardLoopMPlusBuffer) ||
-                bastardLoopKBuffer ||
+                (window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer) ||
                 dropboxSampleLayerBuffer
             );
             const shouldStartDrumMachine = Boolean(
@@ -46825,6 +46834,7 @@
                 bastardLoopMPlusReverse,
                 bastardLoopMPlusFilterMode: getBastardLoopMPlusFilterMode(),
                 bastardLoopMPlusDelayDivision: getBastardLoopMPlusDelayDivision(),
+                kMultitrack: window.mygrainKMultitrack?.captureSettings(),
                 dropboxSampleLayerEnabled: dropboxSampleLayerEnabled,
                 dropboxSampleLayerStretchToLoop: dropboxSampleLayerStretchToLoop,
                 dropboxSampleLayerPitchSemitones: dropboxSampleLayerPitchSemitones,
@@ -46933,7 +46943,7 @@
 
             // Gather all slider values
             document.querySelectorAll('input[type="range"]').forEach(slider => {
-                if (slider.closest('#drumSendEffects')) return;
+                if (slider.closest('#drumSendEffects, #kMultitrackTracks')) return;
                 if (slider.closest('#radiolabTrimPanel')) return;
                 preset.sliders[slider.id] = slider.value;
             });
@@ -47959,6 +47969,7 @@
                     keyboardSampleMetadata: keyboardSampleMetadata ? { ...keyboardSampleMetadata } : null,
                     keyboardRecordingLevels: { ...keyboardRecordingLevels },
                     bastardLoopKRecordingSteps,
+                    kMultitrack: window.mygrainKMultitrack?.captureSettings(),
                     lfoMode: lfoMode,
                     lfo2Mode: lfo2Mode,
                     lfo3Mode: 'bpm',
@@ -48221,7 +48232,7 @@
 
             // Save all slider values
             document.querySelectorAll('input[type="range"]').forEach(slider => {
-                if (slider.closest('#drumSendEffects')) return;
+                if (slider.closest('#drumSendEffects, #kMultitrackTracks')) return;
                 if (slider.closest('#radiolabTrimPanel')) return;
                 state.sliders[slider.id] = slider.value;
             });
@@ -48229,7 +48240,7 @@
             // Save all select/dropdown values
             document.querySelectorAll('select').forEach(select => {
                 if (select.closest('#drumSendEffects')) return;
-                if (select.closest('[data-mygrain-workspace]')) return;
+                if (select.closest('[data-mygrain-workspace]') || select.id === 'performanceKeyboardKTrack') return;
                 state.selects[select.id] = select.value;
             });
 
@@ -50057,7 +50068,7 @@
                 !bastardLoopOBuffer &&
                 !hasPlayableBastardLoopLTransportSource() &&
                 !hasPlayableBastardLoopXTransportSource() &&
-                (!bastardLoopMBuffer && !bastardLoopMPlusBuffer && !bastardLoopKBuffer) &&
+                (!bastardLoopMBuffer && !bastardLoopMPlusBuffer && !(window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer)) &&
                 !dropboxSampleLayerBuffer &&
                 !forcedRender
             ) {
@@ -50098,7 +50109,7 @@
             if (canStartBastardLoopQ) await window.mygrainQ.preparePlayback();
             const canStartBastardLoopM = bastardLoopMEnabled && Boolean(bastardLoopMBuffer);
             const canStartBastardLoopMPlus = bastardLoopMPlusEnabled && Boolean(bastardLoopMPlusBuffer);
-            const canStartBastardLoopK = bastardLoopKEnabled && Boolean(bastardLoopKBuffer);
+            const canStartBastardLoopK = bastardLoopKEnabled && Boolean(window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer);
             const canStartDropboxSampleLayer = dropboxSampleLayerEnabled && Boolean(dropboxSampleLayerRawBuffer);
             const startStoppedTransport = !forcedRender && !wasSequencerPlaying && !wasArpPlaying && !wasBastardLoopPlaying && !wasBastardLoopQLive && !wasDrumMachinePlaying;
             const forceSequencer = Boolean(options.forceSequencer) || (startStoppedTransport && generatedLoopTransportEnabled && !arpEnabled);
@@ -50376,7 +50387,8 @@
             { key: 'bastardO', label: 'Bastardloop O rendered buffer', role: 'bastardloop-render', layer: 'O', path: 'bastardloops/bastardloop-o.wav', getBuffer: () => bastardLoopOBuffer, getMetadata: () => bastardLoopOMetadata, apply: applyLoadedBastardLoopOBuffer },
             { key: 'bastardM', label: 'Bastardloop M raw vocal take', role: 'recorded-vocal-loop', path: 'bastardloops/bastardloop-m.wav', getBuffer: () => bastardLoopMRawBuffer, getMetadata: () => bastardLoopMMetadata },
             { key: 'bastardMPlus', label: 'Bastardloop M+ raw vocal take', role: 'recorded-vocal-loop', path: 'bastardloops/bastardloop-mplus.wav', getBuffer: () => bastardLoopMPlusRawBuffer, getMetadata: () => bastardLoopMPlusMetadata },
-            { key: 'bastardK', label: 'Bastardloop K raw grain take', role: 'recorded-grain-loop', path: 'bastardloops/bastardloop-k.wav', getBuffer: () => bastardLoopKRawBuffer, getMetadata: () => bastardLoopKMetadata },
+            { key: 'bastardK', label: 'K track 1 raw take', role: 'recorded-grain-loop', path: 'bastardloops/bastardloop-k.wav', getBuffer: () => window.mygrainKMultitrack?.getBuffer(0) || null, getMetadata: () => window.mygrainKMultitrack?.tracks[0].metadata },
+            ...[1, 2, 3, 4].map(index => ({ key: `bastardKTrack${index + 1}`, label: `K track ${index + 1} raw take`, role: 'recorded-grain-loop', path: `bastardloops/bastardloop-k${index + 1}.wav`, getBuffer: () => window.mygrainKMultitrack?.getBuffer(index) || null, getMetadata: () => window.mygrainKMultitrack?.tracks[index].metadata })),
             { key: 'dropboxSample', label: 'Dropbox sample layer source', role: 'source', path: 'audio/dropbox-sample-layer.wav', getBuffer: () => dropboxSampleLayerRawBuffer },
             { key: 'drumKick', label: 'Drum machine kick sample', role: 'drum-sample', path: 'drums/kick.wav', getBuffer: () => drumMachineKickBuffer },
             { key: 'drumSnare', label: 'Drum machine snare sample', role: 'drum-sample', path: 'drums/snare.wav', getBuffer: () => drumMachineSnareBuffer },
@@ -54675,6 +54687,14 @@
             const definition = PATCH_REPOSITORY_AUDIO_ENTRIES.find((entry) => entry.key === asset.key || entry.path === asset.path);
             if (!definition) return false;
             const metadata = asset.metadata || {};
+            if (definition.role === 'recorded-grain-loop' && window.mygrainKMultitrack) {
+                const index = definition.key === 'bastardK' ? 0 : Number(definition.key.slice(-1)) - 1;
+                window.mygrainKMultitrack.setBuffer(index, decoded);
+                window.mygrainKMultitrack.tracks[index].metadata = metadata;
+                window.mygrainKMultitrack.refreshBuffers();
+                await saveAudioBufferToDB(decoded, window.MygrainKMultitrack.dbKey(index));
+                return true;
+            }
             if (definition.key === 'keyboardSample') {
                 setKeyboardSampleBuffer(decoded);
                 keyboardSampleMetadata = { ...metadata, rootMidi: 60 };
@@ -60356,7 +60376,7 @@
         });
         performanceBastardLoopKFilterMode?.addEventListener('change', (event) => {
             bastardLoopKFilterMode = normalizeBastardLoopFilterMode(event.target.value);
-            if (bastardLoopPlaying && bastardLoopKBuffer) {
+            if (bastardLoopPlaying && (window.mygrainKMultitrack?.hasAudio() || bastardLoopKBuffer)) {
                 startBastardLoopK(null, { skipUi: true });
             }
             syncBastardLoopKUi();
@@ -62623,12 +62643,15 @@
     <script>window.mygrainAccounts?.loadScript('q-theory.js?v=20261022-chord-hold-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-arp-builder.js?v=20261015-q-custom-arp-2');</script>
     <script>window.mygrainAccounts?.loadScript('q-card.js?v=20261022-keyboard-sample-1');</script>
+    <script>window.mygrainAccounts?.loadStyle('k-multitrack.css?v=20261023-k-five-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-multitrack.js?v=20261023-k-five-1');</script>
+    <script>window.mygrainAccounts?.loadScript('k-multitrack-host.js?v=20261023-k-five-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-export.js?v=20261021-part-steps-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-storage.js?v=20261023-batch-arm-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-locks.js?v=20261021-same-name-lock-recovery-2');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-paste-picker-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta.js?v=20261023-k-five-1');</script>
     <script>window.mygrainAccounts?.loadScript('song-beta-clock.js?v=20261023-batch-arm-1');</script>
-    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261022-keyboard-sample-1');</script>
+    <script>window.mygrainAccounts?.loadScript('song-beta-adapter.js?v=20261023-k-five-1');</script>
     <script>window.mygrainAccounts?.loadStyle('vocal-takes.css?v=20261014-vocal-workspace-1');</script>
     <script>window.mygrainAccounts?.loadScript('vocal-takes.js?v=20261016-accounts-media-k20');</script>
     <script>window.mygrainAccounts?.loadScript('ai-patch-direction.js?v=20261021-ai-history-1');</script>

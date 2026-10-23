@@ -82,8 +82,8 @@
         ['bastardMRender', () => bastardLoopMBuffer, buffer => { bastardLoopMBuffer = buffer; }],
         ['bastardMPlus', () => bastardLoopMPlusRawBuffer, buffer => { bastardLoopMPlusRawBuffer = buffer; }, BASTARD_LOOP_M_PLUS_AUDIO_BUFFER_KEY],
         ['bastardMPlusRender', () => bastardLoopMPlusBuffer, buffer => { bastardLoopMPlusBuffer = buffer; }],
-        ['bastardK', () => bastardLoopKRawBuffer, buffer => { bastardLoopKRawBuffer = buffer; }, BASTARD_LOOP_K_AUDIO_BUFFER_KEY],
-        ['bastardKRender', () => bastardLoopKBuffer, buffer => { bastardLoopKBuffer = buffer; }],
+        ['bastardK', () => window.mygrainKMultitrack ? window.mygrainKMultitrack.getBuffer(0) : bastardLoopKRawBuffer, buffer => { if (window.mygrainKMultitrack) window.mygrainKMultitrack.setBuffer(0, buffer); else bastardLoopKRawBuffer = buffer; }, BASTARD_LOOP_K_AUDIO_BUFFER_KEY],
+        ['bastardKRender', () => window.mygrainKMultitrack ? window.mygrainKMultitrack.getBuffer(0, true) : bastardLoopKBuffer, buffer => { if (window.mygrainKMultitrack) window.mygrainKMultitrack.setBuffer(0, buffer, true); else bastardLoopKBuffer = buffer; }],
         ['dropboxSample', () => dropboxSampleLayerRawBuffer, buffer => { dropboxSampleLayerRawBuffer = buffer; }, DROPBOX_SAMPLE_LAYER_AUDIO_BUFFER_KEY],
         ['dropboxRender', () => dropboxSampleLayerBuffer, buffer => { dropboxSampleLayerBuffer = buffer; }],
         ['drumKick', () => drumMachineKickBuffer, buffer => { drumMachineKickBuffer = buffer; }, DRUM_MACHINE_KICK_AUDIO_BUFFER_KEY],
@@ -92,7 +92,8 @@
         ['drumPerc', () => drumMachinePercBuffer, buffer => { drumMachinePercBuffer = buffer; }, DRUM_MACHINE_PERC_AUDIO_BUFFER_KEY],
         ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.buffer, buffer => { track.buffer = buffer; }, `${track.id}Buffer`]),
         // Append only: persisted Undo/Redo journals address these slots by index.
-        ['keyboardSample', () => keyboardSampleBuffer, buffer => setKeyboardSampleBuffer(buffer), KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY]
+        ['keyboardSample', () => keyboardSampleBuffer, buffer => setKeyboardSampleBuffer(buffer), KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY],
+        ...(window.mygrainKMultitrack ? [1, 2, 3, 4].map(index => [window.MygrainKMultitrack.rawKey(index), () => window.mygrainKMultitrack.getBuffer(index), buffer => window.mygrainKMultitrack.setBuffer(index, buffer), window.MygrainKMultitrack.dbKey(index)]) : [])
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
@@ -105,7 +106,7 @@
         ['bastardX', () => bastardLoopXSampleMetadata, metadata => { bastardLoopXSampleMetadata = metadata; }],
         ['bastardM', () => bastardLoopMMetadata, metadata => { bastardLoopMMetadata = metadata; }],
         ['bastardMPlus', () => bastardLoopMPlusMetadata, metadata => { bastardLoopMPlusMetadata = metadata; }],
-        ['bastardK', () => bastardLoopKMetadata, metadata => { bastardLoopKMetadata = metadata; }],
+        ['bastardK', () => window.mygrainKMultitrack ? window.mygrainKMultitrack.tracks[0].metadata : bastardLoopKMetadata, metadata => { if (window.mygrainKMultitrack) window.mygrainKMultitrack.tracks[0].metadata = metadata; else bastardLoopKMetadata = metadata; }],
         ['dropboxSample', () => dropboxSampleLayerMetadata, metadata => { dropboxSampleLayerMetadata = metadata; }],
         ['mic', () => micSampleMetadata, metadata => { micSampleMetadata = metadata; }],
         ['keyboardSample', () => keyboardSampleMetadata, metadata => { keyboardSampleMetadata = metadata; }],
@@ -140,7 +141,7 @@
             || hasSongLaneEvidence(entry, lane, reference || ['keyboardSoundSource', 'loopLayerSolo', 'performanceSourceLayerSolo', 'performanceSourceLayerSoloSnapshot'].includes(key)));
     }
 
-    function normalizeSongAudioInventory(original) {
+    function normalizeLegacySongAudioInventory(original) {
         const inventory = original.extra.audioSlots;
         if (original.extra.freezeStateVersion !== 1 || !inventory || typeof inventory !== 'object' || Array.isArray(inventory)) return { snapshot: original, lanes: [] };
         const absent = [];
@@ -173,6 +174,13 @@
             }
         }
         return { snapshot, lanes: absent.map(lane => lane.name) };
+    }
+
+    function normalizeSongAudioInventory(original) {
+        const legacy = normalizeLegacySongAudioInventory(original);
+        if (!window.MygrainKMultitrack) return legacy;
+        const converted = window.MygrainKMultitrack.convertSnapshot(legacy.snapshot);
+        return { snapshot: converted.snapshot, lanes: [...legacy.lanes, ...(converted.changed ? ['K five-track recorder'] : [])] };
     }
 
     function validateSongArchiveEntries(arrayBuffer, entries) {
@@ -624,7 +632,8 @@
                 }
                 if (bastardLoopMRawBuffer && !bastardLoopMBuffer) rerenderBastardLoopMFromRaw({ skipUi: true });
                 if (bastardLoopMPlusRawBuffer && !bastardLoopMPlusBuffer) rerenderBastardLoopMPlusFromRaw({ skipUi: true });
-                if (bastardLoopKRawBuffer && !bastardLoopKBuffer) rerenderBastardLoopKFromRaw({ skipUi: true });
+                if (window.mygrainKMultitrack) window.mygrainKMultitrack.restoreSettings(snapshot.state.modes);
+                else if (bastardLoopKRawBuffer && !bastardLoopKBuffer) rerenderBastardLoopKFromRaw({ skipUi: true });
                 if (dropboxSampleLayerRawBuffer && !dropboxSampleLayerBuffer) rerenderDropboxSampleLayerFromRaw({ skipUi: true });
                 syncLegacyAudioBuffer();
                 batchedRestore.applyEffects();
@@ -879,6 +888,7 @@
                 // Settings restoration may rerender buffers. Return the exact saved sounds.
                 audioBindings.forEach(([key, , set], i) => { if (key !== 'bastardQ') set(buffers[i]); });
                 metadataBindings.forEach(([key, , set]) => set(copy(target.metadata[key])));
+                window.mygrainKMultitrack?.restoreSettings(target.state.modes);
                 if (piano && window.mygrainQ) Object.assign(window.mygrainQ.piano, piano, { cache: new Map(piano.cache) });
                 syncLegacyAudioBuffer(); batched.applyEffects();
             } finally { stateSaveSuspended = suspended; batched.restore(); }

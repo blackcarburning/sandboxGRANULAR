@@ -1,0 +1,13 @@
+.k-multitrack-tracks { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,135px),1fr)); gap:10px; margin:14px 0; }
+.k-recorder-track { min-width:0; padding:12px; border:1px solid var(--border-color,#484453); border-radius:10px; background:rgba(0,0,0,.15); }
+.k-recorder-track.k-track-selected { border-color:#bb8cff; box-shadow:inset 0 0 0 1px #bb8cff; }
+.k-track-heading { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; margin-bottom:10px; }
+.k-track-heading span { font-size:11px; opacity:.7; }
+.k-recorder-track label { display:block; margin:8px 0; font-size:12px; }
+.k-recorder-track input[type=range] { display:block; width:100%; margin-top:8px; }
+.k-recorder-track input[type=number] { display:block; box-sizing:border-box; width:100%; max-width:100%; padding:8px; margin-top:6px; color:inherit; background:#171c25; border:1px solid #4f5363; border-radius:6px; }
+.k-recorder-track input[type=radio],.k-recorder-track input[type=checkbox] { width:18px; height:18px; vertical-align:middle; margin-right:6px; }
+.k-recorder-track output { float:right; }
+.k-keyboard-destination { display:flex; align-items:center; gap:8px; font-size:12px; padding:6px; }
+.k-keyboard-destination select { min-height:36px; padding:6px 12px; border-radius:6px; color:inherit; background:#171c25; border:1px solid #4f5363; }
+@media(max-width:420px) { .k-multitrack-tracks { grid-template-columns:1fr; } }

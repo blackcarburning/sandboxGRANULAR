@@ -413,6 +413,7 @@
         }
 
         bind() {
+            this.element('songBetaConvertK')?.addEventListener('click', () => this.run(() => this.convertKTracks()));
             this.element('songBetaEditSong')?.addEventListener('click', () => this.run(() => this.beginEditing()));
             this.element('songBetaRecoverLock')?.addEventListener('click', () => this.run(() => this.recoverEditingLock()));
             this.element('songBetaDeviceName')?.addEventListener('input', () => this.renderLockUi());
@@ -1004,7 +1005,7 @@
                     }
                     this.assertUpgradeCurrent(generation, expected);
                     if (!this.canEditSong()) { writable = false; pending += 1; continue; }
-                    this.status(`Upgrading ${part.name}: adding empty, muted ${info.upgrade.lanes.join(', ')} lanes to its saved snapshot…`);
+                    this.status(`Upgrading ${part.name}: ${info.upgrade.lanes.join(', ')} compatibility metadata; recorded audio is unchanged…`);
                     let result;
                     try {
                         this.armStage(generation, 'Saving upgraded part to server', part);
@@ -1056,6 +1057,16 @@
                 }
             }
             return pending;
+        }
+
+        async convertKTracks() {
+            if (!this.song?.parts.length) throw new Error('Choose a saved Song with parts first.');
+            if (this.playing || this.editing) throw new Error('Stop Song playback and finish the current amendment before converting K.');
+            this.adapter.assertNotRecording?.();
+            await this.ensureEditing();
+            const pending = await this.upgradeSongParts(this.generation);
+            if (pending) throw new Error('K conversion is incomplete: editing access was lost. Refresh Songs and try again.');
+            this.status('K conversion complete: legacy takes map to K1, with K2–K5 empty. Existing multitrack takes and all recorded audio are preserved. Arm Cache remains manual.');
         }
 
         async arm() {
@@ -1654,6 +1665,8 @@
                 pasteParts.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing) || !this.song?.parts.length || !this.loopClipboard || this.loopClipboard.library !== this.key;
                 pasteParts.title = this.loopClipboard ? `Paste ${copiedLabel(this.loopClipboard)} from ${this.loopClipboard.name} into selected saved song parts. Arm Cache stays manual.` : 'Use Copy From Part to fill the copy buffer first.';
             }
+            const convertK = this.element('songBetaConvertK');
+            if (convertK) convertK.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing) || !this.song?.parts.length;
             this.element('songBetaArm').disabled = this.busy || this.playing || !this.song?.parts.length || Boolean(this.editing);
             const pending = this.renderCacheSummary();
             this.element('songBetaArm').textContent = this.armed ? 'Cache Armed ✓' : `Arm Cache${pending ? ` (${pending})` : ''}`;
