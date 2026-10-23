@@ -753,7 +753,7 @@ test('capture includes velocity layers from tied steps so later section edits st
     const piano = new Piano({ context: () => context });
     let requested;
     piano.ensure = async events => { requested = events; };
-    piano.source = (midi, velocity) => ({ sample: { id: `${midi}-${velocity}`, midi, velocity }, duration: .01, offset: 0, buffer: { getChannelData: () => new Float32Array(10) } });
+    piano.source = (midi, velocity) => ({ sample: { id: `${midi}-${velocity}`, midi, velocity }, duration: .01, offset: 0, buffer: { sampleRate: 1000, getChannelData: () => new Float32Array(10) } });
     await piano.capture(state);
     assert.deepEqual(requested.map(event => event.velocity), [32, 96]);
     assert.equal(piano.bank.samples.length, 6);

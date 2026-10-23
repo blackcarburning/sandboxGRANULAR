@@ -257,7 +257,7 @@ def publish_asset(folder, song, filename, body, edit_headers=None, advance_revis
         temporary.unlink(missing_ok=True)
 
 
-def read_part_manifest(folder, part):
+def read_part_manifest_record(folder, part):
     # Cache only small JSON, never original/decoded audio. File identity and the
     # exact source hash prevent reuse across amendments, accounts or file edits.
     filename = part.get('archive', f'{part["id"]}.zip')
@@ -284,7 +284,16 @@ def read_part_manifest(folder, part):
     # to trust metadata in place of downloading and inspecting the entire ZIP.
     validate_part_zip(body)
     with zipfile.ZipFile(BytesIO(body)) as archive:
-        snapshot = archive.read('song-part.json')
+        snapshot = json.loads(archive.read('song-part.json'))
+        audio_assets = []
+        for asset in snapshot['assets']:
+            audio = archive.read(asset['path'])
+            audio_assets.append({'key': asset['key'], 'path': asset['path'],
+                                 'bytes': len(audio), 'sha256': hashlib.sha256(audio).hexdigest(),
+                                 'pcm16': (audio[12:20] == b'fmt \x10\0\0\0' and audio[20:22] == b'\x01\0'
+                                           and audio[34:38] == b'\x10\0da' and audio[36:40] == b'data'
+                                           and len(audio) == 44 + int.from_bytes(audio[40:44], 'little'))})
+        snapshot = json.dumps({'snapshot': snapshot, 'audioAssets': audio_assets}, separators=(',', ':')).encode('utf-8')
     after = path.stat()
     if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns) != identity[2:]:
         raise PartConflictError('The saved part changed during inspection. Refresh Songs and arm again.')
@@ -295,6 +304,24 @@ def read_part_manifest(folder, part):
                 or sum(map(len, PART_MANIFEST_CACHE.values())) > PART_MANIFEST_CACHE_BYTES):
             PART_MANIFEST_CACHE.popitem(last=False)
     return json.loads(snapshot)
+
+
+def read_part_manifest(folder, part):
+    return read_part_manifest_record(folder, part)['snapshot']
+
+
+def read_part_audio(folder, part, key):
+    # Resolve only a validated manifest key, never a caller-supplied ZIP path.
+    record = read_part_manifest_record(folder, part)
+    asset = next((asset for asset in record['audioAssets'] if asset['key'] == key), None)
+    if asset is None:
+        raise FileNotFoundError('Saved sound not found.')
+    filename = part.get('archive', f'{part["id"]}.zip')
+    with zipfile.ZipFile(folder / 'parts' / filename) as archive:
+        body = archive.read(asset['path'])
+    if len(body) != asset['bytes'] or hashlib.sha256(body).hexdigest() != asset['sha256']:
+        raise ValueError('Saved sound integrity check failed. No audio was prepared.')
+    return body
 
 
 def send_asset(handler, folder, filename, content_type):
@@ -805,7 +832,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -916,9 +943,19 @@ def handle_song_request(handler, method, inner_path):
                     elif method == 'GET' and action == 'manifest':
                         if (query.get('sha256') or [''])[0] != part['sha256']:
                             raise PartConflictError('This part changed on the server. Refresh Songs and arm again.')
-                        snapshot = read_part_manifest(folder, part)
+                        record = read_part_manifest_record(folder, part)
                         handler.send_json({'ok': True, 'format': 'mygrain-song-part-manifest', 'version': 1,
-                                           'sourceSha256': part['sha256'], 'snapshot': snapshot}, extra_headers=headers)
+                                           'sourceSha256': part['sha256'], **record}, extra_headers=headers)
+                    elif method == 'GET' and action == 'audio':
+                        if (query.get('sha256') or [''])[0] != part['sha256']:
+                            raise PartConflictError('This part changed on the server. Refresh Songs and recall it again.')
+                        body = read_part_audio(folder, part, (query.get('key') or [''])[0])
+                        handler.send_response(200)
+                        handler.send_header('Content-Type', 'audio/wav')
+                        handler.send_header('Content-Length', str(len(body)))
+                        handler.send_header('Cache-Control', 'no-store')
+                        handler.end_headers()
+                        handler.wfile.write(body)
                     elif method == 'GET' and action == 'render':
                         render = part.get('render')
                         if not render or render.get('sourceSha256') != part['sha256']:

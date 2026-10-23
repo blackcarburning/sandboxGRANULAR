@@ -107,7 +107,7 @@ test('captured strings preserve relative sustain points at the audio-context rat
     sampler.manifest = manifest;
     sampler.ensure = async () => {};
     sampler.source = midi => ({ sample: { id: `viola${midi}v96`, midi, velocity: 96 }, offset: 0, duration: .01,
-        loopStart: .002, loopEnd: .01, buffer: { getChannelData: () => new Float32Array(480) } });
+        loopStart: .002, loopEnd: .01, buffer: { sampleRate: 48000, getChannelData: () => new Float32Array(480) } });
     await sampler.capture(state);
     assert.equal(sampler.bank.instrument, manifest.id);
     assert.equal(sampler.bank.license, 'CC0 1.0');

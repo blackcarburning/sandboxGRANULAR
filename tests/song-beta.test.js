@@ -2981,3 +2981,144 @@ test('a fitting explicit K conversion still persists once and retains the exact 
     assert.match(requests[1].endpoint, /\/render\?/); assert.equal(requests[1].options.body, renderBytes);
     assert.equal(controller.memoryBudget.bytes, 0); assert.equal(controller.downloadBudget.bytes, 0);
 });
+
+function boundedEditFixture(overrides = {}) {
+    const trace = [], live = { snapshot: { old: true }, buffers: new Map() }, fresh = { snapshot: { fresh: true }, buffers: new Map() };
+    const f = makeController({
+        editingResidency: () => ({ bytes: 1048576, scratch: 1024 }),
+        planEditing: async (info, check) => { trace.push('plan'); check(); return { bytes: 40 * 1048576, verify: check }; },
+        decodeEditing: async (info, plan) => { trace.push('decode'); plan.verify(); return fresh; },
+        capture: async () => live,
+        whenPersisted: async () => { trace.push('persist'); },
+        recall: (part, options) => { trace.push(['restore', part, options]); },
+        ...overrides
+    }, {}, { userAgent: 'iPhone' });
+    const part = { id: 'edit-source', name: 'Editable', repeats: 1, sha256: 'a'.repeat(64), bytes: 34 * 1048576 };
+    f.controller.song = { id: 'bounded-edit', revision: 1, parts: [part] };
+    f.controller.partAudioAssets = true;
+    f.controller.readPartMetadata = async () => ({ snapshot: {}, audioAssets: [], decodedBytes: 68 * 1048576 });
+    f.controller.readPart = async () => assert.fail('Bounded editing must never fetch the full source ZIP');
+    return { ...f, trace, live, fresh, part };
+}
+
+test('bounded Amend transfers a fresh deck without clones or retained source cache and waits for persistence', async () => {
+    const { controller: c, trace, part, fresh } = boundedEditFixture();
+    c.renders.set('old', { length: 100, numberOfChannels: 2 }); c.renderBytes = 800;
+    await c.recall(part, { start: false, amend: true });
+    const restore = trace.find(item => Array.isArray(item));
+    assert.equal(restore[1], fresh);
+    assert.equal(restore[2].takeOwnership, true);
+    assert.equal(restore[2].start, false);
+    assert.equal(trace.at(-1), 'persist');
+    assert.equal(c.cache.size, 0); assert.equal(c.audioCache.bytes, 0);
+    assert.equal(c.renderBytes, 0); assert.equal(c.memoryBudget.bytes, 0);
+    assert.equal(c.active, part.id); assert.equal(c.editing.id, part.id);
+});
+
+test('bounded Amend rejects an oversized editing plan before any sound fetch or live restore', async () => {
+    const { controller: c, trace, part } = boundedEditFixture({ planEditing: async () => ({ bytes: 97 * 1048576, verify() {} }) });
+    await assert.rejects(c.recall(part, { start: false, amend: true }), /safety budget/);
+    assert.ok(!trace.includes('decode')); assert.ok(!trace.some(Array.isArray));
+    assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.editing, null);
+});
+
+test('bounded Amend includes the current editor during hashing and refuses unsafe residency', async () => {
+    const { controller: c, trace, part } = boundedEditFixture({ editingResidency: () => ({ bytes: 90 * 1048576, scratch: 1 }) });
+    await assert.rejects(c.recall(part, { start: false, amend: true }), /safety budget/);
+    assert.ok(!trace.includes('plan')); assert.equal(c.memoryBudget.bytes, 0);
+});
+
+test('cancel or lease loss during sequential source loading cannot replace live audio', async () => {
+    for (const mode of ['cancel', 'lease']) {
+        let loading, resolve;
+        const gate = new Promise(done => { resolve = done; });
+        const fixture = boundedEditFixture({ decodeEditing: async () => { loading = true; await gate; return {}; } });
+        const { controller: c, trace, part } = fixture;
+        const pending = c.recall(part, { start: false, amend: true });
+        while (!loading) await new Promise(done => setImmediate(done));
+        if (mode === 'cancel') c.cancel(true); else c.canEditSong = () => false;
+        resolve(); await assert.rejects(pending, mode === 'cancel' ? { name: 'AbortError' } : /read-only/);
+        assert.ok(!trace.some(Array.isArray)); assert.equal(c.editing, null); assert.equal(c.memoryBudget.bytes, 0);
+    }
+});
+
+test('failed editing restore rolls back exact prior state and buffer references and releases memory', async () => {
+    const restored = [];
+    const fixture = boundedEditFixture({ recall: (part, options) => { restored.push([part, options]); if (restored.length === 1) throw new Error('Control restore failed'); } });
+    const { controller: c, part, live, fresh } = fixture;
+    await assert.rejects(c.recall(part, { start: false, amend: true }), /Control restore failed/);
+    assert.equal(restored[0][0], fresh); assert.equal(restored[1][0], live);
+    assert.equal(restored[1][1].prepared, live); assert.equal(restored[1][1].start, false);
+    assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.editing, null);
+});
+
+test('bounded binary requests enforce the source WAV size before or during response reading', async () => {
+    const { controller: c } = makeController();
+    for (const headers of [{ 'Content-Length': '9' }, {}]) {
+        let pulled = 0;
+        c.fetch = async () => new Response(new ReadableStream({ pull(stream) { pulled++; stream.enqueue(new Uint8Array(5)); if (pulled === 2) stream.close(); } }), { headers });
+        await assert.rejects(c.request('/sound', { binary: true, maxBinaryBytes: 4 }), /declared size/);
+    }
+    c.fetch = async () => new Response(new Uint8Array([1, 2, 3, 4]), { headers: { 'Content-Length': '4' } });
+    assert.deepEqual([...new Uint8Array(await c.request('/sound', { binary: true, maxBinaryBytes: 4 }))], [1, 2, 3, 4]);
+});
+
+function checkpointEditFixture({ failure, rollbackFailure, saveFailure, emptyBytes = 40 * 1048576 } = {}) {
+    const fixture = boundedEditFixture();
+    const { controller: c, context, live, fresh, trace } = fixture;
+    let detached = false;
+    c.adapter.detachEditingSources = () => { detached = true; trace.push('detach'); };
+    c.adapter.releaseEditorHistory = async () => { trace.push('history-to-disk'); };
+    c.adapter.context = () => ({});
+    c.adapter.planEditing = async (info, check) => ({ bytes: detached ? 40 * 1048576 : 120 * 1048576, emptyBytes, verify: check });
+    c.adapter.decodeEditing = async () => { if (failure) await failure(c); return fresh; };
+    context.MygrainSongStorage.EditCheckpoint = class {
+        async save(part, check) { assert.equal(part, live); trace.push('checkpoint'); if (saveFailure) throw saveFailure; check(); return { bytes: 1048576, largest: 1024 }; }
+        async restore() { trace.push('rollback-from-disk'); if (rollbackFailure) throw rollbackFailure; return live; }
+        async dispose() { trace.push('dispose-checkpoint'); }
+    };
+    return fixture;
+}
+
+test('a populated large editor is checkpointed before detachment; successful restore deletes only the temporary checkpoint', async () => {
+    const { controller: c, part, trace } = checkpointEditFixture();
+    await c.recall(part, { start: false, amend: true });
+    assert.ok(trace.indexOf('checkpoint') < trace.indexOf('detach'));
+    assert.ok(trace.indexOf('history-to-disk') < trace.indexOf('detach'));
+    assert.equal(trace.at(-1), 'dispose-checkpoint');
+    assert.ok(!trace.includes('rollback-from-disk'));
+    assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.cache.size, 0);
+});
+
+test('an oversized fresh deck or failed checkpoint never detaches the current editor', async () => {
+    for (const options of [{ emptyBytes: 97 * 1048576 }, { saveFailure: new Error('Disk quota exceeded') }]) {
+        const { controller: c, part, trace } = checkpointEditFixture(options);
+        await assert.rejects(c.recall(part, { start: false, amend: true }), /safety budget|Disk quota/);
+        assert.ok(!trace.includes('detach')); assert.ok(!trace.includes('rollback-from-disk'));
+        assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.editing, null);
+    }
+});
+
+test('network failure, cancellation and lease loss after parking restore exact checkpointed audio without writing a Song', async () => {
+    for (const mode of ['network', 'cancel', 'lease']) {
+        const { controller: c, part, trace, live } = checkpointEditFixture({ failure: async c => {
+            if (mode === 'cancel') c.cancel(true);
+            else if (mode === 'lease') c.canEditSong = () => false;
+            else throw new Error('Network failed');
+        } });
+        await assert.rejects(c.recall(part, { start: false, amend: true }));
+        assert.ok(trace.includes('rollback-from-disk'), mode);
+        const restores = trace.filter(Array.isArray);
+        assert.equal(restores.at(-1)[1], live);
+        assert.equal(restores.at(-1)[2].prepared, live);
+        assert.equal(trace.at(-1), 'dispose-checkpoint');
+        assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.editing, null);
+    }
+});
+
+test('a failed rollback retains its temporary Float32 checkpoint for recovery', async () => {
+    const { controller: c, part, trace } = checkpointEditFixture({ failure: async () => { throw new Error('Network failed'); }, rollbackFailure: new Error('Temporary storage read failed') });
+    await assert.rejects(c.recall(part, { start: false, amend: true }), /remain in browser checkpoint/);
+    assert.ok(!trace.includes('dispose-checkpoint'));
+    assert.equal(c.memoryBudget.bytes, 0); assert.equal(c.editing, null);
+});

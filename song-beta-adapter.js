@@ -18,9 +18,9 @@
         }
     }
 
-    function encodeSongSource(buffer) {
+    function encodeSongSource(buffer, canonicalPcm16 = false) {
         const body = audioBufferToWav(buffer);
-        if (!songPcm16Sources.has(buffer)) return body;
+        if (!canonicalPcm16 && !songPcm16Sources.has(buffer)) return body;
         // decodeAudioData maps signed PCM16 to sample / 32768. The general
         // exporter uses 32767 for positive samples and truncates, losing one
         // LSB on every recall/save. Invert the decoder for these sources so an
@@ -460,7 +460,7 @@
             if (!isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its current sounds finish loading before saving a part.');
             adapter.assertNotRecording();
             flushPendingSliderUpdates();
-            await window.mygrainQ?.prepareCapture();
+            if (!liveOnly) await window.mygrainQ?.prepareCapture();
             const state = saveState({ force: true, snapshotOnly: true });
             if (!state) throw new Error('Could not capture current settings.');
             const snapshot = {
@@ -484,7 +484,7 @@
                 },
                 assets: []
             };
-            if (liveOnly) return { snapshot, buffers: new Map(audioBindings.map(([key, getBuffer]) => [key, getBuffer()])) };
+            if (liveOnly) return { snapshot, buffers: new Map(audioBindings.map(([key, getBuffer]) => [key, getBuffer()])), pcm16Keys: audioBindings.filter(([, get]) => songPcm16Sources.has(get())).map(([key]) => key) };
             const entries = [];
             for (const [key, getBuffer] of audioBindings) {
                 const buffer = getBuffer();
@@ -508,7 +508,8 @@
         },
 
         // Metadata-only inspection is for the authenticated, hash-bound server
-        // manifest endpoint. Rendering/recall still validate the full archive.
+        // manifest endpoint. Rendering validates the full archive; bounded
+        // editing recall checks each source WAV against its hash and dimensions.
         inspectSnapshot(original) {
             if (!original || original.format !== 'mygrain-song-part' || original.version !== 1 || !original.state?.modes || !original.extra || !Array.isArray(original.assets)) {
                 throw new Error('This is not a supported complete song-part snapshot.');
@@ -576,12 +577,143 @@
             return { snapshot, buffers };
         },
 
-        prepare(part) {
+        // Sources are replacement-based throughout the editor/Undo system.
+        // A freshly decoded editing deck can therefore be moved, not cloned.
+        // It must never remain in the immutable Song render/source cache.
+        async releaseEditorHistory() {
+            return await window.mygrainCardHistory?.releaseAudioMemory() !== false;
+        },
+
+        detachEditingSources() {
+            adapter.assertNotRecording();
+            stopSongAudio({ hardCut: true });
+            for (const [, , set] of audioBindings) set(null);
+            window.mygrainKMultitrack?.refreshBuffers();
+            syncLegacyAudioBuffer();
+            sourceMutationSerial += 1;
+        },
+
+        editingResidency() {
+            const buffers = new Set(audioBindings.map(([, get]) => get()).filter(Boolean));
+            const bytes = [...buffers].reduce((sum, buffer) => sum + buffer.length * buffer.numberOfChannels * 4, 0);
+            const scratch = Math.max(0, ...[...buffers].map(buffer => (44 + buffer.length * buffer.numberOfChannels * 2) * 2));
+            return { bytes, scratch };
+        },
+
+        async planEditing(info, check) {
+            const assets = info.audioAssets;
+            if (!Array.isArray(assets) || assets.length !== info.snapshot.assets.length) throw new Error('Saved sound inventory is incomplete. Reload MYGRAIN.');
+            const records = new Map();
+            const groups = new Map();
+            for (const asset of info.snapshot.assets) {
+                const matches = assets.filter(record => record.key === asset.key);
+                const record = matches[0];
+                if (matches.length !== 1 || record.path !== asset.path || !/^[a-f0-9]{64}$/.test(record.sha256)
+                    || !Number.isSafeInteger(record.bytes) || record.bytes < 44 || record.bytes > 128 * 1048576) throw new Error('Invalid saved sound inventory.');
+                const bytes = (Math.ceil(asset.frames * Math.max(1, audioContext.sampleRate / asset.sampleRate)) + 1) * asset.channels * 4;
+                const previous = groups.get(record.sha256);
+                if (previous && (previous.asset.frames !== asset.frames || previous.asset.channels !== asset.channels || previous.asset.sampleRate !== asset.sampleRate || previous.record.bytes !== record.bytes)) throw new Error('Mismatched shared saved sound.');
+                const entry = previous || { asset, record, bytes, nativePcm16: record.pcm16 === true && asset.sampleRate >= 8000 && asset.sampleRate <= 96000 };
+                records.set(asset.key, entry); groups.set(record.sha256, entry);
+            }
+            const serial = sourceMutationSerial;
+            const live = audioBindings.map(([, get]) => get());
+            const verify = () => {
+                check(); adapter.assertNotRecording();
+                if (serial !== sourceMutationSerial || audioBindings.some(([, get], index) => get() !== live[index])) throw new Error('The live sounds changed while loading. Recall the part again.');
+            };
+            // Hash one current sound at a time. No long-lived encoded copies or
+            // digest cache: a later edit must be checked against its actual PCM.
+            for (const buffer of new Set(live.filter(Boolean))) {
+                verify();
+                const candidates = [...groups.values()].filter(entry => !entry.buffer && entry.asset.sampleRate === buffer.sampleRate
+                    && entry.asset.frames === buffer.length && entry.asset.channels === buffer.numberOfChannels);
+                if (!candidates.length) continue;
+                // Only exact decoded PCM16 can stand in for saved WAV bytes.
+                // Rounding arbitrary unsaved Float32 audio to a matching hash
+                // would silently treat a nearby-but-different sound as saved.
+                let exact = true;
+                for (let channel = 0; channel < buffer.numberOfChannels && exact; channel++) {
+                    for (const sample of buffer.getChannelData(channel)) {
+                        const pcm = sample * 32768;
+                        if (!Number.isInteger(pcm) || pcm < -32768 || pcm > 32767) { exact = false; break; }
+                    }
+                }
+                if (!exact) continue;
+                const body = encodeSongSource(buffer, true);
+                const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', body)), value => value.toString(16).padStart(2, '0')).join('');
+                verify();
+                const entry = groups.get(digest);
+                if (entry && candidates.includes(entry)) { entry.buffer = buffer; songPcm16Sources.add(buffer); }
+            }
+            const residency = adapter.editingResidency();
+            const fresh = [...groups.values()].filter(entry => !entry.buffer);
+            const finalBytes = [...groups.values()].reduce((sum, entry) => sum + entry.bytes, 0);
+            const newBytes = fresh.reduce((sum, entry) => sum + entry.bytes, 0);
+            // Existing editor stays available for cancellation/rollback. Include
+            // decoder scratch (two encoded + any resampler PCM copies), and
+            // one IndexedDB structured-clone copy after ownership has been transferred.
+            const decodeScratch = Math.max(0, ...fresh.map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
+            const persistScratch = Math.max(0, ...[...groups.values()].map(entry => entry.bytes));
+            const bytes = 16 * 1048576 + Math.max(residency.bytes + newBytes + decodeScratch, finalBytes + persistScratch);
+            const emptyDecodeScratch = Math.max(0, ...[...groups.values()].map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
+            const emptyBytes = 16 * 1048576 + finalBytes + Math.max(emptyDecodeScratch, persistScratch);
+            return { records, groups, verify, bytes, emptyBytes };
+        },
+
+        async decodeEditing(info, plan, readSound) {
+            const buffers = new Map();
+            for (const asset of info.snapshot.assets) {
+                plan.verify();
+                const entry = plan.records.get(asset.key);
+                if (!entry.buffer) {
+                    let body = await readSound(entry.record);
+                    plan.verify();
+                    if (body.byteLength !== entry.record.bytes) throw new Error(`Saved sound size mismatch for ${asset.key}.`);
+                    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', body)), value => value.toString(16).padStart(2, '0')).join('');
+                    if (digest !== entry.record.sha256) throw new Error(`Saved sound integrity check failed for ${asset.key}.`);
+                    plan.verify();
+                    // Reuse the complete WAV/dimension validator for this one
+                    // asset. Metadata and per-WAV hashes were bound to source SHA.
+                    validateSongAudioEntries({ assets: [asset] }, new Map([['song-part.json', new Uint8Array()], [asset.path, new Uint8Array(body)]]));
+                    // decodeAudioData may detach its argument. Tag canonical
+                    // source encoding before handing over ownership of the bytes.
+                    const marker = { length: asset.frames, numberOfChannels: asset.channels, sampleRate: asset.sampleRate };
+                    markSongPcm16Source(new Uint8Array(body), marker);
+                    let decoded;
+                    if (entry.nativePcm16) {
+                        if (!songPcm16Sources.has(marker)) throw new Error('Saved sound PCM descriptor mismatch.');
+                        // Keep canonical PCM16 at its saved rate. AudioBufferSource
+                        // handles output-rate conversion during playback, as it
+                        // does for any imported buffer. This preserves the exact
+                        // source and avoids hidden decode/resample PCM copies.
+                        decoded = audioContext.createBuffer(asset.channels, asset.frames, asset.sampleRate);
+                        const view = new DataView(body);
+                        for (let channel = 0; channel < asset.channels; channel++) {
+                            const data = decoded.getChannelData(channel);
+                            for (let frame = 0, offset = 44 + channel * 2; frame < data.length; frame++, offset += asset.channels * 2) data[frame] = view.getInt16(offset, true) / 32768;
+                        }
+                    } else decoded = await audioContext.decodeAudioData(body);
+                    body = null;
+                    plan.verify();
+                    const expectedFrames = Math.round(asset.frames * decoded.sampleRate / asset.sampleRate);
+                    if (decoded.numberOfChannels !== asset.channels || Math.abs(decoded.length - expectedFrames) > 1
+                        || decoded.length * decoded.numberOfChannels * 4 > entry.bytes) throw new Error(`Saved sound dimensions mismatch for ${asset.key}.`);
+                    if (songPcm16Sources.has(marker) && decoded.sampleRate === asset.sampleRate) songPcm16Sources.add(decoded);
+                    entry.buffer = decoded;
+                }
+                buffers.set(asset.key, entry.buffer);
+            }
+            plan.verify();
+            return { snapshot: info.snapshot, buffers };
+        },
+
+        prepare(part, { takeOwnership = false } = {}) {
             return {
                 snapshot: cloneJson(part.snapshot),
                 buffers: new Map(audioBindings.map(([key]) => {
                     const original = part.buffers.get(key);
-                    const buffer = original ? cloneAudioBufferForCurrentContext(original) : null;
+                    const buffer = original ? (takeOwnership ? original : cloneAudioBufferForCurrentContext(original)) : null;
                     if (buffer && songPcm16Sources.has(original)) songPcm16Sources.add(buffer);
                     return [key, buffer];
                 }))
@@ -590,7 +722,11 @@
 
         recall(part, options = {}) {
             if (!isAudioGraphReady() || audioContext.state !== 'running') throw new Error('Audio engine is not ready. Arm again.');
-            const prepared = options.prepared || adapter.prepare(part);
+            const prepared = options.prepared || adapter.prepare(part, { takeOwnership: options.takeOwnership === true });
+            for (const key of prepared.pcm16Keys || []) {
+                const buffer = prepared.buffers.get(key);
+                if (buffer) songPcm16Sources.add(buffer);
+            }
             const previousSaveSuspended = stateSaveSuspended;
             const batchedRestore = batchSongUiRestore();
             let startTime;
@@ -965,7 +1101,25 @@
         };
         for (const type of ['pointerdown', 'click', 'keydown']) document.addEventListener(type, guardBusyInput, true);
         window.addEventListener('mygrain-account-lock', () => { generation++; store.close(); undo.length = redo.length = 0; update(); });
-        window.mygrainCardHistory = { ready, flush: () => saving, get warning() { return storageWarning; }, run, recordK, recordAI, undo: () => travel('before'), redo: () => travel('after'),
+        async function releaseAudioMemory() {
+            await ready;
+            if (busy) throw new Error('Wait for the current Undo/Redo operation to finish.');
+            if (!undo.length && !redo.length) { store.decoded.clear(); return true; }
+            busy = true;
+            try {
+                await persist();
+                if (!durable || store.closed) throw new Error('Undo/Redo must be saved in browser storage before loading this large part. Current sounds are unchanged.');
+                const audio = buffer => !buffer || typeof buffer === 'string' ? buffer : store.ids.get(buffer);
+                const piano = value => value && ({ ...value, atlas: audio(value.atlas), cache: new Map([...value.cache].map(([key, buffer]) => [key, audio(buffer)])) });
+                for (const entry of [...undo, ...redo]) {
+                    entry.buffers = entry.buffers.map(change => ({ ...change, before: audio(change.before), after: audio(change.after) }));
+                    if (entry.piano) entry.piano = { before: piano(entry.piano.before), after: piano(entry.piano.after) };
+                }
+                store.decoded.clear();
+                return true;
+            } finally { busy = false; update(); }
+        }
+        window.mygrainCardHistory = { ready, releaseAudioMemory, flush: () => saving, get warning() { return storageWarning; }, run, recordK, recordAI, undo: () => travel('before'), redo: () => travel('after'),
             // Editing live patterns, cuts and sounds is the purpose of Song Amend. Journal it
             // without unlocking Undo/Redo or asynchronous recording/Song work.
             runPatternEdit: (label, action) => run(label, action, false, false, true),

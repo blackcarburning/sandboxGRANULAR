@@ -330,6 +330,98 @@
         }
     }
 
-    root.MygrainSongStorage = { MemoryBudget, RenderStore, SourceStore, HistoryStore };
+    // Temporary, account-scoped Float32 checkpoint. Unlike an exported WAV,
+    // this preserves every bit of unsaved live audio for failure/cancel rollback.
+    // Each transaction clones at most one sound; no full-deck RAM snapshot.
+    class EditCheckpoint {
+        constructor(indexedDB = root.indexedDB) {
+            this.indexedDB = indexedDB;
+            this.name = `mygrain-edit-checkpoint-${root.crypto.randomUUID()}`;
+            this.database = null;
+        }
+        async open() {
+            if (!this.indexedDB) throw new Error('Browser storage is needed to switch between these large parts. The current sounds are unchanged.');
+            this.database = await new Promise((resolve, reject) => {
+                const request = this.indexedDB.open(this.name, 1);
+                request.onupgradeneeded = () => request.result.createObjectStore('audio');
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+                request.onblocked = () => reject(new Error('Temporary editing storage is blocked.'));
+            });
+        }
+        async transaction(mode, action) {
+            return new Promise((resolve, reject) => {
+                const tx = this.database.transaction('audio', mode);
+                const request = action(tx.objectStore('audio'));
+                let value;
+                request.onsuccess = () => { value = request.result; };
+                tx.oncomplete = () => resolve(value);
+                tx.onabort = () => reject(tx.error || request.error || new Error('Editing checkpoint failed.'));
+                tx.onerror = () => {};
+            });
+        }
+        async save(part, check) {
+            await this.open(); check();
+            const known = new Map(), references = new Map(), buffers = new Map();
+            let bytes = 0, largest = 0;
+            for (const [key, buffer] of part.buffers) {
+                check();
+                if (!buffer) { buffers.set(key, null); continue; }
+                let id = references.get(buffer);
+                if (!id) {
+                    const hashes = [];
+                    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                        const hash = await root.crypto.subtle.digest('SHA-256', buffer.getChannelData(channel));
+                        hashes.push(Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join(''));
+                        check();
+                    }
+                    const digest = JSON.stringify([buffer.sampleRate, buffer.length, ...hashes]);
+                    id = known.get(digest);
+                    if (!id) {
+                        id = `sound-${known.size}`; known.set(digest, id);
+                        const size = buffer.length * buffer.numberOfChannels * 4;
+                        bytes += size; largest = Math.max(largest, size);
+                        await this.transaction('readwrite', store => store.put({ sampleRate: buffer.sampleRate, length: buffer.length,
+                            channels: buffer.numberOfChannels, data: Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel)) }, id));
+                        check();
+                    }
+                    references.set(buffer, id);
+                }
+                buffers.set(key, id);
+            }
+            const saved = { snapshot: part.snapshot, pcm16Keys: part.pcm16Keys, buffers: [...buffers], bytes, largest };
+            await this.transaction('readwrite', store => store.put(saved, 'snapshot'));
+            check();
+            return saved;
+        }
+        async restore(context) {
+            const saved = await this.transaction('readonly', store => store.get('snapshot'));
+            if (!saved) throw new Error('The temporary editing checkpoint is incomplete.');
+            const unique = new Map(), buffers = new Map();
+            for (const [key, id] of saved.buffers) {
+                if (!id) { buffers.set(key, null); continue; }
+                if (!unique.has(id)) {
+                    const data = await this.transaction('readonly', store => store.get(id));
+                    if (!data || !Number.isInteger(data.length) || data.length < 1 || ![1, 2].includes(data.channels)
+                        || data.data?.length !== data.channels || data.data.some(channel => !(channel instanceof Float32Array) || channel.length !== data.length)) throw new Error('Temporary editing audio is incomplete.');
+                    const buffer = context.createBuffer(data.channels, data.length, data.sampleRate);
+                    data.data.forEach((channel, index) => buffer.copyToChannel(channel, index));
+                    unique.set(id, buffer);
+                }
+                buffers.set(key, unique.get(id));
+            }
+            return { snapshot: saved.snapshot, pcm16Keys: saved.pcm16Keys, buffers };
+        }
+        async dispose() {
+            this.database?.close(); this.database = null;
+            if (!this.indexedDB) return;
+            await new Promise(resolve => {
+                const request = this.indexedDB.deleteDatabase(this.name);
+                request.onsuccess = request.onerror = request.onblocked = resolve;
+            });
+        }
+    }
+
+    root.MygrainSongStorage = { MemoryBudget, RenderStore, SourceStore, HistoryStore, EditCheckpoint };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.MygrainSongStorage;
 })(typeof window !== 'undefined' ? window : globalThis);

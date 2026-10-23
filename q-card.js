@@ -271,7 +271,24 @@
                 const source = this.source(midi, event.velocity);
                 sources.set(source.sample.id, source);
             }
+            // A complete portable bank is already the authoritative source.
+            // Repacking it on every Song capture allocates another atlas, may
+            // change sample bytes/rate, and invalidates a bounded editing plan.
+            if ([...sources.values()].every(source => source.buffer === this.atlas)) return;
             const context = this.host.context();
+            for (const source of sources.values()) {
+                if (source.buffer.sampleRate === context.sampleRate) continue;
+                // Saved banks can retain their original rate. If a later edit
+                // adds a repository note, resample that bank segment correctly
+                // before mixing rates in a newly packed atlas.
+                const offline = new root.OfflineAudioContext(2, Math.max(1, Math.round(source.duration * context.sampleRate)), context.sampleRate);
+                const voice = offline.createBufferSource();
+                voice.buffer = source.buffer; voice.connect(offline.destination);
+                voice.start(0, source.offset, source.duration);
+                const buffer = await offline.startRendering();
+                voice.disconnect(); voice.buffer = null;
+                source.buffer = buffer; source.offset = 0;
+            }
             const padding = Math.ceil(context.sampleRate * .02);
             const frames = [...sources.values()].reduce((total, source) => total + Math.round(source.duration * context.sampleRate) + padding, 0);
             if (frames * 8 > bankLimit) throw new Error('Q sample bank exceeds 96 MB of decoded audio. Use fewer pitches/velocity layers in this part.');

@@ -131,6 +131,7 @@
             this.cache = new Map();
             this.snapshots = new Map();
             this.partManifests = false;
+            this.partAudioAssets = false;
             this.renders = new Map();
             this.renderSources = new Map();
             this.renderLoads = new Map();
@@ -296,7 +297,35 @@
                 cache: 'no-store',
                 headers: { 'X-Mygrain-Song-Key': this.key, ...(mutation ? { ...this.lease.credentials(), 'If-Match': `"${this.song.revision}"` } : {}), ...options.headers }
             });
-            if (options.binary && response.ok) return response.arrayBuffer();
+            if (options.binary && response.ok) {
+                const limit = options.maxBinaryBytes;
+                if (limit !== undefined) {
+                    if (Number(response.headers?.get('Content-Length')) > limit) {
+                        await response.body?.cancel();
+                        throw new Error('Saved sound exceeds its declared size.');
+                    }
+                    if (response.body?.getReader) {
+                        const reader = response.body.getReader(), chunks = [];
+                        let length = 0;
+                        try {
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                length += value.byteLength;
+                                if (length > limit) throw new Error('Saved sound exceeds its declared size.');
+                                chunks.push(value);
+                            }
+                            const bytes = new Uint8Array(length);
+                            let offset = 0;
+                            for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+                            return bytes.buffer;
+                        } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+                    }
+                }
+                const bytes = await response.arrayBuffer();
+                if (limit !== undefined && bytes.byteLength > limit) throw new Error('Saved sound exceeds its declared size.');
+                return bytes;
+            }
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.ok) {
                 if (mutation && response.status === 423) this.lease.lost(payload);
@@ -537,6 +566,7 @@
             this.editing = null;
             this.songs = payload.songs;
             this.partManifests = payload.features?.partManifests === 1;
+            this.partAudioAssets = payload.features?.partAudioAssets === 1;
             const previous = this.song?.id;
             this.song = this.songs.find(song => song.id === selected) || null;
             this.revisionConflict = false;
@@ -567,6 +597,7 @@
             this.storage.setItem('mygrain-song-library-key-v1', this.key);
             this.songs = payload.songs;
             this.partManifests = payload.features?.partManifests === 1;
+            this.partAudioAssets = payload.features?.partAudioAssets === 1;
             this.song = this.songs.find(song => song.id === access.songId) || this.songs[0] || null;
             this.storage.setItem('mygrain-song-selected-v1', this.song?.id || '');
             this.editing = null;
@@ -721,7 +752,8 @@
                 throw new Error(`Saved metadata integrity check failed for ${part.name}. Refresh Songs and arm again.`);
             }
             const info = this.adapter.inspectSnapshot(payload.snapshot);
-            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
+            info.audioAssets = payload.audioAssets;
+            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, audioAssets: info.audioAssets, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
             return info;
         }
 
@@ -1171,6 +1203,105 @@
             }
         }
 
+        async recallEditable(part, generation, options) {
+            const check = () => {
+                if (generation !== this.generation || this.abort?.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+                if (options.amend) this.requireEditing();
+                this.adapter.assertNotRecording?.();
+            };
+            let release, decoded, previous, plan, checkpoint, parked;
+            let detached = false, committed = false, keepCheckpoint = false;
+            const account = root.mygrainAccountContext?.user?.username;
+            try {
+                check();
+                // Do not retain queued IndexedDB copies, another decoded Song
+                // deck, or hot playback renders alongside an editing restore.
+                await this.adapter.whenPersisted?.();
+                check();
+                for (const id of [...this.cache.keys()]) this.releasePart({ id });
+                this.trimRenderMemory(0);
+                let info = this.snapshots.get(sourceId(part));
+                if (!Array.isArray(info?.audioAssets)) info = await this.readPartMetadata(part, generation);
+                check();
+                const resident = this.adapter.editingResidency();
+                release = await this.reservePreparation(16 * 1048576 + resident.bytes + resident.scratch, this.abort?.signal);
+                plan = await this.adapter.planEditing(info, check);
+                check();
+                release(); release = null;
+                if (plan.bytes > this.memoryBudget.limitBytes && this.adapter.detachEditingSources && root.MygrainSongStorage.EditCheckpoint) {
+                    // If the new deck alone cannot fit, fail before creating a
+                    // checkpoint or changing a single live sound.
+                    if (plan.emptyBytes > this.memoryBudget.limitBytes) await this.reservePreparation(plan.emptyBytes, this.abort?.signal);
+                    this.status('Temporarily saving the current live sounds before loading this large part…');
+                    release = await this.reservePreparation(16 * 1048576 + resident.bytes + resident.scratch, this.abort?.signal);
+                    previous = await this.adapter.capture({ liveOnly: true });
+                    plan.verify(); check();
+                    checkpoint = new root.MygrainSongStorage.EditCheckpoint();
+                    parked = await checkpoint.save(previous, () => { plan.verify(); check(); });
+                    // Rollback also has to fit, including its sequential IDB
+                    // read/PCM copies. Keep the old deck untouched if it cannot.
+                    const rollbackBytes = 16 * 1048576 + parked.bytes + parked.largest;
+                    if (rollbackBytes > this.memoryBudget.limitBytes) throw new Error('The current live sounds are too large for a safe editing rollback. Save them before loading another part.');
+                    await this.adapter.releaseEditorHistory?.();
+                    plan.verify(); check();
+                    previous = null; plan = null;
+                    this.adapter.detachEditingSources(); detached = true;
+                    release(); release = null;
+                    plan = await this.adapter.planEditing(info, check);
+                    check();
+                }
+                release = await this.reservePreparation(plan.bytes, this.abort?.signal);
+                check();
+                this.status(`Loading ${part.name}, one sound at a time…`);
+                decoded = await this.adapter.decodeEditing(info, plan, record => this.request(
+                    `/${encodeURIComponent(this.song.id)}/parts/${part.id}/audio?sha256=${part.sha256}&key=${encodeURIComponent(record.key)}`,
+                    { binary: true, maxBinaryBytes: record.bytes, signal: this.abort?.signal }));
+                plan.verify(); check();
+                if (!detached) previous = await this.adapter.capture({ liveOnly: true });
+                plan.verify(); check();
+                try {
+                    this.adapter.recall(decoded, { start: options.start !== false, takeOwnership: true });
+                    committed = true;
+                } catch (error) {
+                    // Restoring settings is synchronous. If a control fails,
+                    // put back the exact pre-load buffers/state, without clones.
+                    if (previous) this.adapter.recall(previous, { start: false, prepared: previous });
+                    throw error;
+                }
+                previous = null;
+                // The editor is the sole owner; do not put these mutable sounds
+                // into cache/audioCache. Persistence runs one source at a time.
+                decoded = null; plan = null;
+                await this.adapter.whenPersisted?.();
+                check();
+            } catch (error) {
+                if (detached && !committed && account === root.mygrainAccountContext?.user?.username && root.mygrainAccounts?.authenticated !== false) {
+                    decoded = null; plan = null; previous = null;
+                    this.adapter.detachEditingSources();
+                    release?.(); release = null;
+                    release = await this.reservePreparation(16 * 1048576 + parked.bytes + parked.largest);
+                    try {
+                        previous = await checkpoint.restore(this.adapter.context());
+                        this.adapter.recall(previous, { start: false, prepared: previous });
+                        previous = null;
+                        await this.adapter.whenPersisted?.();
+                    } catch (rollbackError) {
+                        keepCheckpoint = true;
+                        throw new Error(`Editing restore failed (${error.message}); the original live sounds remain in browser checkpoint ${checkpoint.name}. ${rollbackError.message}`, { cause: rollbackError });
+                    }
+                }
+                throw error;
+            } finally {
+                previous = null; decoded = null; plan = null;
+                release?.();
+                if (keepCheckpoint) checkpoint.database?.close();
+                if (checkpoint && !keepCheckpoint) {
+                    try { await checkpoint.dispose(); }
+                    catch (error) { console.warn('Temporary editing checkpoint cleanup deferred:', error); }
+                }
+            }
+        }
+
         async recall(part, options = {}) {
             this.cancel(true);
             const generation = this.generation;
@@ -1178,16 +1309,20 @@
             this.status(`Loading ${part.name}…`);
             await this.adapter.ready();
             if (generation !== this.generation) return;
-            for (const id of [...this.cache.keys()]) if (id !== sourceId(part)) this.releasePart({ id });
-            const decoded = await this.loadPart(part, generation);
-            if (generation !== this.generation) return;
-            if (options.amend) {
-                this.requireEditing();
-                this.adapter.assertNotRecording?.();
+            if (this.partAudioAssets && this.adapter.planEditing && this.adapter.decodeEditing) {
+                await this.recallEditable(part, generation, options);
+            } else {
+                for (const id of [...this.cache.keys()]) if (id !== sourceId(part)) this.releasePart({ id });
+                const decoded = await this.loadPart(part, generation);
+                if (generation !== this.generation) return;
+                if (options.amend) {
+                    this.requireEditing();
+                    this.adapter.assertNotRecording?.();
+                }
+                this.armStage(generation, 'Restoring settings and sounds', part);
+                this.adapter.recall(decoded, { start: options.start !== false });
+                decoded.releaseMemory?.();
             }
-            this.armStage(generation, 'Restoring settings and sounds', part);
-            this.adapter.recall(decoded, { start: options.start !== false });
-            decoded.releaseMemory?.();
             this.active = part.id;
             this.editing = options.amend ? { id: part.id, sha256: part.sha256, songId: this.song.id } : null;
             this.element('songBetaPartName').value = part.name;
