@@ -81,10 +81,10 @@
 }
 
 .song-beta-copy-choice span { overflow-wrap: anywhere; }
-.song-beta-copy-drums { margin: 0 0 16px; padding: 12px; min-width: 0; border: 1px solid #566276; border-radius: 8px; }
-.song-beta-copy-drums legend { padding: 0 6px; }
-.song-beta-copy-drums .song-beta-copy-layers { margin: 10px 0; }
-.song-beta-copy-drums p { margin-bottom: 0; }
+.song-beta-copy-drums, .song-beta-copy-k-tracks { margin: 0 0 16px; padding: 12px; min-width: 0; border: 1px solid #566276; border-radius: 8px; }
+.song-beta-copy-drums legend, .song-beta-copy-k-tracks legend { padding: 0 6px; }
+.song-beta-copy-drums .song-beta-copy-layers, .song-beta-copy-k-tracks .song-beta-copy-layers { margin: 10px 0; }
+.song-beta-copy-drums p, .song-beta-copy-k-tracks p { margin-bottom: 0; }
 .song-beta-copy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .song-beta-copy-dialog .performance-btn.primary { color: #071619; }
 .song-beta-paste-parts { display: grid; gap: 8px; margin: 12px 0 16px; }

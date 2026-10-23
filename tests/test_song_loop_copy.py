@@ -201,7 +201,7 @@ class MultiCopyMergeTests(unittest.TestCase):
                 self.assertIs(snapshot['state']['modes']['drumMachineEnabled'], False)
 
     def test_invalid_or_empty_multiselections_fail_before_merging(self):
-        for selection in [[], {}, None, True, [None], ['V', 'unknown'], ['drums'] * 21]:
+        for selection in [[], {}, None, True, [None], ['V', 'unknown'], ['drums'] * (len(SONGS.COPY_LAYERS) + 1)]:
             with self.subTest(selection=selection), self.assertRaises(ValueError):
                 SONGS.paste_loop_archive(drum_part(2), drum_part(1), selection)
 

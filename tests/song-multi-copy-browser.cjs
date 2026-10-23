@@ -56,6 +56,14 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                         document.getElementById('performanceDrumMachineLevel').value = String(tag * 20);
                         drumSendFxState.delay.send = tag;
                         drumMachineRoll = MygrainDrumRoll.normalize({ length: 24, pattern: [] });
+                        const k = mygrainKMultitrack;
+                        for (let i = 0; i < 5; i++) k.setBuffer(i, tone(180 + tag * 100 + i * 30));
+                        k.restoreSettings({ kMultitrack: { version: 2, selected: 2, tracks: Array.from({ length: 5 }, (_, i) => ({
+                            enabled: true, level: .15 * tag, mute: i === 4, pan: (i - 2) / 2, steps: 8 + i * 4, sourceBpm: 240,
+                            processing: { filterMode: 'bypass', semitone: tag + i, preserveDuration: false, delayMix: .02 * tag, drive: tag },
+                            metadata: { summary: `K ${i + 1} source ${tag}`, durationSeconds: .25 }
+                        })) } });
+                        setBastardLoopKEnabled(true, { silent: true, skipSave: true });
                         await c.newPart({ name: tag === 1 ? 'Source' : 'Target', repeats: tag + 1 });
                     }
                     window.readMultiCopy = async part => {
@@ -74,7 +82,7 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 const open = async () => { if (mobile) await source.locator('.song-beta-copy').tap(); else await source.locator('.song-beta-copy').click(); await page.locator('.song-beta-copy-dialog').waitFor(); };
                 const choose = id => page.locator(`.song-beta-copy-dialog input[data-layer="${id}"]`);
                 await open();
-                assert.equal(await page.locator('.song-beta-copy-dialog input[type="checkbox"]').count(), 20);
+                assert.equal(await page.locator('.song-beta-copy-dialog input[type="checkbox"]').count(), 25);
                 assert.equal(await page.locator('.song-beta-copy-selected').isDisabled(), true);
                 await choose('drums').check();
                 assert.equal(await page.locator('.song-beta-copy-drums input:checked').count(), 9);
@@ -87,9 +95,9 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 await open();
                 await choose('V').focus(); await page.keyboard.press('Space');
                 assert.equal(await choose('V').isChecked(), true);
-                await choose('M').check(); await choose('drumKick').check();
+                await choose('M').check(); await choose('K2').check(); await choose('K4').check(); await choose('drumKick').check();
                 assert.equal(await page.locator('.song-beta-copy-dialog').isVisible(), true);
-                assert.equal(await page.locator('.song-beta-copy-selected').textContent(), 'Copy selected (3)');
+                assert.equal(await page.locator('.song-beta-copy-selected').textContent(), 'Copy selected (5)');
                 for (const viewport of mobile ? [{ width: 390, height: 844 }, { width: 320, height: 640 }, { width: 844, height: 390 }] : [{ width: 1280, height: 900 }]) {
                     await page.setViewportSize(viewport);
                     assert.equal(await page.locator('.song-beta-copy-dialog').evaluate(element => { const b = element.getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth + 1 && b.top >= 0 && b.bottom <= innerHeight + 1 && element.scrollWidth <= element.clientWidth + 1; }), true);
@@ -98,9 +106,9 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 await page.screenshot({ path: `/tmp/song-multi-copy-${engine}-${mobile ? 'phone' : 'desktop'}.png` });
                 const countBeforeCopy = writes.length;
                 await press('.song-beta-copy-selected');
-                await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.loopClipboard?.layers?.length === 3);
+                await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.loopClipboard?.layers?.length === 5);
                 assert.equal(writes.length, countBeforeCopy);
-                assert.match(await page.locator('#songBetaClipboard').textContent(), /Bastardloop V, Bastardloop M, Kick drum lane/);
+                assert.match(await page.locator('#songBetaClipboard').textContent(), /Bastardloop V, Bastardloop M, K track 2, K track 4, Kick drum lane/);
                 const beforePaste = await page.evaluate(() => ({ revision: mygrainSongBeta.song.revision, parts: mygrainSongBeta.song.parts }));
                 page.once('dialog', dialog => dialog.dismiss()); await target.locator('.song-beta-paste').click();
                 await page.waitForFunction(() => !mygrainSongBeta.busy);
@@ -109,7 +117,7 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 const picker = page.locator('.song-beta-paste-dialog');
                 const destination = index => picker.locator(`input[data-part-id="${beforePaste.parts[index].id}"]`);
                 await press('#songBetaPasteParts');
-                assert.match(await picker.textContent(), /Bastardloop V, Bastardloop M, Kick drum lane/);
+                assert.match(await picker.textContent(), /Bastardloop V, Bastardloop M, K track 2, K track 4, Kick drum lane/);
                 assert.equal(await picker.locator('input[data-part-id]').count(), 3);
                 assert.equal(await picker.locator('.song-beta-paste-selected').isDisabled(), true);
                 await picker.locator('input[data-select-all]').check();
@@ -155,13 +163,17 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 assert.equal(mixed.parts[0].sha256, beforePaste.parts[0].sha256);
                 assert.equal(mixed.revision, beforePaste.revision + 2);
                 assert.ok(mixed.peak > .001);
-                for (const [key, hash] of Object.entries(mixed.saved[1].audio)) assert.equal(hash, mixed.before[['bastardV', 'bastardM', 'bastardMRender', 'drumKick'].includes(key) ? 0 : 1].audio[key], key);
+                for (const [key, hash] of Object.entries(mixed.saved[1].audio)) assert.equal(hash, mixed.before[['bastardV', 'bastardM', 'bastardMRender', 'bastardKTrack2', 'bastardKTrack4', 'drumKick'].includes(key) ? 0 : 1].audio[key], key);
+                for (let i = 0; i < 5; i++) assert.deepEqual(mixed.saved[1].snapshot.state.modes.kMultitrack.tracks[i], mixed.before[[1, 3].includes(i) ? 0 : 1].snapshot.state.modes.kMultitrack.tracks[i]);
+                assert.equal(mixed.saved[1].snapshot.state.modes.kMultitrack.selected, mixed.before[1].snapshot.state.modes.kMultitrack.selected);
                 assert.deepEqual(mixed.saved[1].snapshot.state.modes.drumMachineKickPattern, mixed.before[0].snapshot.state.modes.drumMachineKickPattern);
                 assert.deepEqual(mixed.saved[1].snapshot.state.modes.drumMachineExtraTracks, mixed.before[1].snapshot.state.modes.drumMachineExtraTracks);
                 assert.equal(mixed.saved[1].snapshot.state.globalBpm, mixed.before[1].snapshot.state.globalBpm);
                 assert.equal(mixed.parts[1].repeats, beforePaste.parts[1].repeats);
                 await page.evaluate(async () => { const c = mygrainSongBeta; await c.recall(c.song.parts[1], { start: false }); c.cancel(true); c.render(); });
                 assert.deepEqual(await page.evaluate(() => drumMachineKickPattern), mixed.before[0].snapshot.state.modes.drumMachineKickPattern);
+                const recalledK = await page.evaluate(() => mygrainKMultitrack.captureSettings());
+                assert.deepEqual(recalledK, mixed.saved[1].snapshot.state.modes.kMultitrack);
                 // Copy a subset of nested extra lanes; ETC must remain untouched.
                 await open(); await choose('drumClap').check(); await choose('drumHat').check(); await press('.song-beta-copy-selected');
                 await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.loopClipboard?.layers?.includes('drumClap'));
@@ -221,7 +233,7 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 await page.reload(); await page.waitForFunction(() => window.mygrainSongBeta?.song && !mygrainSongBeta.busy);
                 assert.deepEqual(await page.evaluate(() => mygrainSongBeta.song), savedSong);
                 assert.deepEqual(errors, []);
-                results.push({ engine, mobile, checkboxSelection: true, mixedV_M_Kick: true, oneAtomicPaste: true, mainCardMultiDestinationPicker: true, sharedSelectionAndDeduplication: true, stalePickerBlocked: true, automaticEditLease: true, batchTwoDestinationsOneArm: true, onlyChangedPartsRendered: true, audibleRender: true, subsetDrums: true, wholeDrumMachine: true, sourceAndUnselectedPreserved: true, editableRecall: true, persistsReload: true });
+                results.push({ engine, mobile, checkboxSelection: true, mixedV_M_K2_K4_Kick: true, unselectedKPreserved: true, kSettingsRecall: true, oneAtomicPaste: true, mainCardMultiDestinationPicker: true, sharedSelectionAndDeduplication: true, stalePickerBlocked: true, automaticEditLease: true, batchTwoDestinationsOneArm: true, onlyChangedPartsRendered: true, audibleRender: true, subsetDrums: true, wholeDrumMachine: true, sourceAndUnselectedPreserved: true, editableRecall: true, persistsReload: true });
                 console.log('PASS', engine, mobile ? 'phone' : 'desktop');
                 await context.close();
             }

@@ -67,11 +67,12 @@
     }
 
     const loopLayers = ['A', 'B', 'C', 'V', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+'];
+    const kCopyTracks = ['K1', 'K2', 'K3', 'K4', 'K5'];
     const drumCopyLanes = [
         ['drumKick', 'Kick'], ['drumSnare', 'Snare'], ['drumHat', 'Hat'], ['drumPerc', 'Perc'],
         ['drumClap', 'Clap'], ['drumCymbals', 'Cymbals'], ['drumEtc', 'ETC'], ['drumRoll', 'Snare Roll']
     ];
-    const copyLabels = new Map([...loopLayers.map(layer => [layer, `Bastardloop ${layer}`]), ['drums', 'Drum machine (all)'], ...drumCopyLanes.map(([id, label]) => [id, `${label} drum lane`])]);
+    const copyLabels = new Map([...loopLayers.map(layer => [layer, `Bastardloop ${layer}`]), ...kCopyTracks.map((id, index) => [id, `K track ${index + 1}`]), ['drums', 'Drum machine (all)'], ...drumCopyLanes.map(([id, label]) => [id, `${label} drum lane`])]);
 
     function copySelection(value) {
         const values = Array.isArray(value) ? value : [value];
@@ -1395,7 +1396,7 @@
         copyLoop(part, selection) {
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before copying a saved loop.');
             const layers = copySelection(selection);
-            if (!layers.length || !this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Choose a current saved part and one or more loops or drum lanes.');
+            if (!layers.length || !this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Choose a current saved part and one or more loops, K tracks or drum lanes.');
             this.loopClipboard = {
                 sourceSongId: this.song.id, sourcePartId: sourceId(part), sourceSha256: part.sha256,
                 layers, ...(layers.length === 1 ? { layer: layers[0] } : {}), name: part.name, library: this.key
@@ -1434,6 +1435,16 @@
             for (const layer of loopLayers) {
                 addChoice(buttons, layer, copyLabels.get(layer));
             }
+            const kTracks = this.document.createElement('fieldset');
+            kTracks.className = 'song-beta-copy-k-tracks';
+            const kLegend = this.document.createElement('legend');
+            kLegend.textContent = 'K recorder';
+            const kChoices = this.document.createElement('div');
+            kChoices.className = 'song-beta-copy-layers';
+            for (const track of kCopyTracks) addChoice(kChoices, track, copyLabels.get(track));
+            const kHelp = this.document.createElement('p');
+            kHelp.textContent = 'Each track includes its recording, length, level, mute, pan, tuning, filter and effects. Other tracks and the destination’s K master on/off and level stay unchanged. Old K recordings are track 1.';
+            kTracks.append(kLegend, kChoices, kHelp);
             const drums = this.document.createElement('fieldset');
             drums.className = 'song-beta-copy-drums';
             const legend = this.document.createElement('legend');
@@ -1478,7 +1489,7 @@
             const actions = this.document.createElement('div');
             actions.className = 'song-beta-copy-actions';
             actions.append(copy, cancel);
-            dialog.append(heading, help, buttons, drums, actions);
+            dialog.append(heading, help, buttons, kTracks, drums, actions);
             dialog.addEventListener('keydown', event => event.stopPropagation());
             dialog.addEventListener('keyup', event => event.stopPropagation());
             dialog.addEventListener('close', () => {
@@ -1493,7 +1504,7 @@
             if (this.busy || this.playing || this.editing || !this.song?.parts.length || this.document.querySelector('.song-beta-copy-dialog, .song-beta-paste-dialog')) return;
             const copied = this.loopClipboard;
             if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) {
-                this.status('Use Copy From Part and choose loops or drum lanes first.', true);
+                this.status('Use Copy From Part and choose loops, K tracks or drum lanes first.', true);
                 return;
             }
             try { this.adapter.assertNotRecording?.(); }
@@ -1585,7 +1596,7 @@
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before pasting a loop.');
             this.adapter.assertNotRecording?.();
             const copied = options.copied || this.loopClipboard;
-            if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('Use Copy From Part and choose loops or drum lanes first.');
+            if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('Use Copy From Part and choose loops, K tracks or drum lanes first.');
             const label = copiedLabel(copied);
             const layers = copySelection(copied.layers || copied.layer);
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Refresh Songs before pasting into a changed part.');
@@ -2079,7 +2090,7 @@
                     if (className === 'song-beta-reuse') actionButton.title = 'Add this existing part again at the end, without copying sounds or renders. Amendments affect every use; order and repeats are independent.';
                     if (className === 'song-beta-full-copy') actionButton.title = 'Append a full independent copy of this saved part, including all sounds and settings. Its name ends in _full_copy; editing it does not change the original.';
                     if (className === 'song-beta-amend') actionButton.title = 'Amend the shared pattern and sounds for every use of this part.';
-                    if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy loops or drum lanes from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace ${copiedLabel(this.loopClipboard)} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
+                    if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy loops, K tracks or drum lanes from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace ${copiedLabel(this.loopClipboard)} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
                     actionButton.disabled = (!['song-beta-load', 'song-beta-copy'].includes(className) && changesBlocked) || this.busy || this.playing || Boolean(this.editing) || (className === 'song-beta-paste' && !this.loopClipboard);
                     actionButton.addEventListener('click', () => className === 'song-beta-copy' ? this.openLoopCopyPicker(part, actionButton) : this.run(action));
                     controls.append(actionButton);

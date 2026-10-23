@@ -49,6 +49,23 @@ def server_arm_module():
     return SERVER_ARM_MODULE
 
 
+def convert_k_snapshot(snapshot):
+    """Use the canonical, bounded server migration without decoding any audio."""
+    if not shutil.which('node') or not K_CONVERSION_SCRIPT.is_file():
+        raise ValueError('Server K conversion is unavailable. No saved part was changed.')
+    try:
+        result = subprocess.run(['node', '--max-old-space-size=128', str(K_CONVERSION_SCRIPT)],
+            input=json.dumps(snapshot), text=True, capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        raise ValueError('Server K conversion timed out. No saved part was changed.') from None
+    if result.returncode:
+        raise ValueError('Server K conversion failed: ' + result.stderr.strip()[:500])
+    converted = json_object(json.loads(result.stdout))
+    if json_object(converted.get('snapshot')).get('assets') != snapshot['assets']:
+        raise ValueError('K conversion attempted to change recorded audio. Nothing was saved.')
+    return converted
+
+
 def convert_song_k(folder, original, edit_headers):
     """Stage metadata-only K conversions; commit the whole Song in one revision.
 
@@ -70,14 +87,7 @@ def convert_song_k(folder, original, edit_headers):
                 record = read_part_manifest_record(folder, part)
                 snapshot = record['snapshot']
                 expected_audio = {asset['path']: asset['sha256'] for asset in record['audioAssets']}
-                try:
-                    result = subprocess.run(['node', '--max-old-space-size=128', str(K_CONVERSION_SCRIPT)],
-                        input=json.dumps(snapshot), text=True, capture_output=True, timeout=15)
-                except subprocess.TimeoutExpired:
-                    raise ValueError('Server K conversion timed out. No saved part was changed.') from None
-                if result.returncode:
-                    raise ValueError('Server K conversion failed: ' + result.stderr.strip()[:500])
-                converted = json_object(json.loads(result.stdout))
+                converted = convert_k_snapshot(snapshot)
                 if converted.get('changed') is not True:
                     continue
                 updated_snapshot = json_object(converted.get('snapshot'))
@@ -750,14 +760,17 @@ LOOP_ASSETS = {layer: {f'bastard{layer}'} for layer in LOOP_LAYERS}
 LOOP_ASSETS['M'] = {'bastardM', 'bastardMRender'}
 LOOP_ASSETS['M+'] = {'bastardMPlus', 'bastardMPlusRender'}
 DRUM_LANES = ('drumKick', 'drumSnare', 'drumHat', 'drumPerc', 'drumClap', 'drumCymbals', 'drumEtc', 'drumRoll')
-COPY_LAYERS = (*LOOP_LAYERS, 'drums', *DRUM_LANES)
+K_TRACKS = ('K1', 'K2', 'K3', 'K4', 'K5')
+K_ASSETS = {track: {'bastardK', 'bastardKRender'} if index == 0 else {f'bastardKTrack{index + 1}'}
+            for index, track in enumerate(K_TRACKS)}
+COPY_LAYERS = (*LOOP_LAYERS, *K_TRACKS, 'drums', *DRUM_LANES)
 
 
 def copy_layers(value):
     """Accept legacy single-loop payloads and a bounded multi-selection."""
     values = [value] if isinstance(value, str) else value
     if not isinstance(values, list) or not values or len(values) > len(COPY_LAYERS) or any(not isinstance(item, str) or item not in COPY_LAYERS for item in values):
-        raise ValueError('Choose one or more supported loops or drum lanes.')
+        raise ValueError('Choose one or more supported loops, K tracks or drum lanes.')
     return tuple(item for item in COPY_LAYERS if item in values and not (item in DRUM_LANES and 'drums' in values))
 
 
@@ -802,6 +815,9 @@ def setting_loop_layer(key):
     if not match:
         return None
     suffix = match[1]
+    # K's shared master/legacy controls are not part of loop A or a K track.
+    if suffix.startswith('K') and (len(suffix) == 1 or not suffix[1].islower()):
+        return None
     for prefix, layer in [('MPlus', 'M+'), ('2', 'B'), ('3', 'C'), *[(layer, layer) for layer in ('V', 'P', 'O', 'L', 'X', 'Q', 'M')]]:
         if suffix.startswith(prefix) and (len(suffix) == len(prefix) or not suffix[len(prefix)].islower()):
             return layer
@@ -820,7 +836,7 @@ def paste_loop_archive(destination_body, source_body, layer):
     layers = copy_layers(layer)
     validate_part_zip(source_body)
     validate_part_zip(destination_body)
-    asset_keys = set().union(*(LOOP_ASSETS.get(item, {item} if item in DRUM_LANES and item != 'drumRoll' else set()) for item in layers))
+    asset_keys = set().union(*(LOOP_ASSETS.get(item, K_ASSETS.get(item, {item} if item in DRUM_LANES and item != 'drumRoll' else set())) for item in layers))
     if 'drums' in layers:
         asset_keys.update(item for item in DRUM_LANES if item != 'drumRoll')
 
@@ -838,6 +854,16 @@ def paste_loop_archive(destination_body, source_body, layer):
     with zipfile.ZipFile(BytesIO(source_body)) as source_zip, zipfile.ZipFile(BytesIO(destination_body)) as destination_zip:
         source = json.loads(source_zip.read('song-part.json'))
         destination = json.loads(destination_zip.read('song-part.json'))
+        if any(item in K_TRACKS for item in layers):
+            # Legacy shared processing becomes per-track processing on the
+            # server. Keep destination selection/master and every unchosen take.
+            with K_CONVERSION_LOCK:
+                source = convert_k_snapshot(source)['snapshot']
+                destination = convert_k_snapshot(destination)['snapshot']
+            for index, track in enumerate(K_TRACKS):
+                if track in layers:
+                    destination['state']['modes']['kMultitrack']['tracks'][index] = copy.deepcopy(
+                        source['state']['modes']['kMultitrack']['tracks'][index])
         for section in ('modes', 'sliders', 'selects'):
             destination['state'][section] = replace_selected(destination['state'].get(section, {}), source['state'].get(section, {}))
         # Old archives may predate some drum lanes. An absent selected pattern
@@ -907,7 +933,7 @@ def copied_loop_body(payload, owner):
     source_id = payload.get('sourcePartId', '')
     digest = payload.get('sourceSha256', '')
     if not isinstance(source_id, str) or not re.fullmatch(r'[a-f0-9]{32}', source_id) or not isinstance(digest, str) or not re.fullmatch(r'[a-f0-9]{64}', digest):
-        raise ValueError('Copy a saved loop first.')
+        raise ValueError('Copy items from a saved part first.')
     folder, song = read_song(payload.get('sourceSongId', ''), owner)
     candidates = [part for section in ('parts', 'sharedParts', 'history', 'deletedParts') for part in song.get(section, [])]
     saved = next((part for part in candidates if part['id'] == source_id and part.get('sha256') == digest), None)
