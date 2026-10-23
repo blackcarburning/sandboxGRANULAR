@@ -29,3 +29,11 @@ Older snapshots stored base note names plus a playback octave shift. Recall conv
 - `tests/keyboard-octave-view-browser.cjs`: two-octave 320/390 px portrait and 844 px landscape geometry; native touch/click selection across windows for Sample/Piano/Strings; exact sounding-voice identity; overlapping-key deselection; absolute Arp pool/playback; Undo/Redo; real Song Save Amendment/recall, old snapshot conversion and unchanged source JSON; non-silent Song rendering.
 
 Phone checks use browser emulation, not a physical iPhone.
+
+## iPhone card containment — KEYFIT.1
+
+The outer keyboard card and its nested sound-card grids explicitly use `minmax(0, 1fr)` and zero minimum inline sizes. Direct children cannot exceed the card; sound/record controls cap at 760 px. This prevents intrinsic content widths from expanding a single card while the page shell still fits. Scoped text-size adjustment avoids Safari text inflation without disabling user pinch zoom. Number/select fields use at least 16 px on coarse pointers to avoid iOS focus magnification.
+
+K destination and K Solo occupy separate two-column cells on row six. The original one-column auto placement let the destination label/select overflow underneath Solo on 320–430 px phones. The destination wraps within its own cell. No audio, saved notes, Song state or K recording logic changes.
+
+`tests/keyboard-card-fit-browser.cjs` uses isolated localhost accounts and real startup/keyboard handlers in Chromium and WebKit. It checks 320/390/430 portrait, 844 landscape and rotation back; nested card scroll widths; all 25 keys; destination/select/Solo separation; 16 px focus fields; repeated Hold key taps; and recording-length/destination persistence through reload. Browser emulation cannot prove the exact Safari UI zoom behavior of a physical iPhone.
