@@ -4,7 +4,10 @@
 
 The keyboard has one **Keyboard Decay · All Sounds** control: Off, or 10–5000 ms (5 seconds at full travel, as of DECAY.1).
 It fades each new Osc / Grain / Piano / Strings / Sample note toward silence,
-including Arp notes and the signal recorded into K. Existing sound attacks,
+including Arp notes and the signal recorded into K. As of GRAIN.4, **Grain Sustain**
+defaults On and holds granular notes until key release; turn it Off to apply this
+timed fade to grains. Osc/Piano/Strings/Sample retain the normal decay behaviour.
+Existing sound attacks,
 source lengths and key-release envelopes still apply; a short source is not
 extended. Off retains the previous native envelopes. Already-recorded K audio
 is not re-enveloped. Old Songs and presets missing this field default to Off.

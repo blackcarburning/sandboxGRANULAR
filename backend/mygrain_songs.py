@@ -968,7 +968,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'grainSustainRenders': 2, 'grainControlRenders': 3, 'grainEdgeRenders': 4, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'grainSustainRenders': 2, 'grainControlRenders': 3, 'grainEdgeRenders': 4, 'grainLoopRenders': 5, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -1118,7 +1118,7 @@ def handle_song_request(handler, method, inner_path):
                         if keyboard not in ('', '1'):
                             raise ValueError('Unsupported keyboard render version.')
                         grain = (query.get('grain') or [''])[0]
-                        if grain not in ('', '1', '2', '3', '4'):
+                        if grain not in ('', '1', '2', '3', '4', '5'):
                             raise ValueError('Unsupported grain render version.')
                         vocal_cut = (query.get('vocalcut') or [''])[0]
                         if vocal_cut not in ('', '1'):

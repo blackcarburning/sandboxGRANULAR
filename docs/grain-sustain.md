@@ -21,7 +21,8 @@ The ceiling is still an overload guard, not unlimited polyphony or a physical
 phone CPU guarantee. Very large chords/settings can reach it; normal sustained
 notes, four-note maximum-smoothing chords, six-note default chords and mixed
 20/500 ms layers are covered by continuity tests. Existing intentional keyboard
-Decay, Arp note length and short/cropped source limits still apply.
+Decay (when Grain Sustain is Off) and Arp note length still apply. Source regions
+wrap in GRAIN.4 rather than truncating each grain to the remaining region.
 
 ## Saved Songs
 
@@ -133,3 +134,41 @@ run the real isolated backend worker (Chromium) and verify the returned v3 rende
 original SHA/revision, playback PCM and saved control recall. `MYGRAIN_CONTROLS_ONLY=1`
 runs only control PCM / source-boundary / settings-recall checks without repeating
 real-time transport captures.
+
+## GRAIN.4 — region loops, held sustain and audible LFO depth
+
+- Each actual granular BufferSource loops inside its selected source Start–End
+  region, including grains longer than that region. The scan traverses the full
+  region and wraps; grain Size no longer truncates to the available tail. Pitch
+  and Preserve Duration still determine read rate/duration. No source WAV is edited
+  or copied; the 96-real-source ceiling and existing lookahead remain unchanged.
+- The existing raised-cosine grain envelope now also smooths internal loop joins
+  with short (up to 3 ms) zero-slope splice dips. Overlapping grains retain their
+  existing blend/smoothing/cadence; full source gain and recording routes remain.
+- **Grain Sustain: On** is next to Keyboard Decay. It sustains held granular notes
+  until key-up/Release; it does not turn Sample/Piano/Strings into looped instruments.
+  Off restores the shared Keyboard Decay fade for new grains. Turning On recovers a
+  still-held grain note whose timed fade has ended. Arp/Seq note gates and Panic
+  still end notes. Toggling does not restart source scan phase.
+- The existing `performanceGrainModAmount` control is moved into the grain LFO
+  group and labelled **Grain LFO Depth** (0–100%, existing value retained). It is
+  not a second independent depth. Global Mod Amount and LFO 1/2/3 Depth remain
+  multipliers. Zero depth stops modulation, not sound. Start, End, grain Size and
+  source Size scales now allow 65% of their full slider range per full-depth LFO,
+  with INV and normal bounds/valid-region guards. At defaults (global 55%, grain
+  75%, LFO 50%), a centred Start/End sweeps 26.8125 percentage points peak-to-peak
+  rather than 2.475. No routes are implicitly enabled or deliberately-zero depths
+  raised. Start/End routes are also admitted by preset validation.
+- Browser state uses `state.modes.grainSustainEnabled`; exported presets use
+  `grainSustainEnabled`. Absent values default On, explicit false remains Off.
+  Existing source paths, recorded K audio and original Song ZIPs are unchanged.
+  Manual Arm refreshes old enabled-grain playback to `grainVersion: 5`; backend
+  accepts versions 1–5 and advertises `grainLoopRenders: 5`. No automatic Arm.
+
+`tests/grain-loop-browser.cjs` runs the real app with disposable localhost accounts
+using Chromium/WebKit portrait phone emulation. It compares the exact pre-change
+HTML via `MYGRAIN_LOOP_BASELINE`, tests native looped grain PCM after the sample
+end, held sustain beyond keyboard decay, release and timed decay, depth/INV and
+all three LFOs, actual BufferSource start/end/duration changes, Undo/Redo, preset
+validation, old-state defaults and real Song amendment/recall/reload. Existing
+control, scheduler/cap, native continuity and client/server Arm tests remain.

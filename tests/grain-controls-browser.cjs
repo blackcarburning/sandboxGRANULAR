@@ -136,7 +136,7 @@ fs.mkdirSync(evidence, { recursive: true });
                     for (const rate of [.0625, .5, 1, 4, 16]) for (const preserveDuration of [false, true]) for (const elapsed of [0, .2, 3, 30]) {
                         const layer = { startPct: .8, sizeSeconds: .2, pitchRatio: rate, preserveDuration, smoothing: .5, jitterSeconds: .01, attackSeconds: .04, releaseSeconds: 1.25 };
                         const win = resolveGranularLayerSampleWindow(source, layer, elapsed, 0);
-                        if (win.playOffset < .4 - 1e-6 || win.playOffset + win.sourceDuration > 1.2 + 1e-6) throw Error('Grain escaped source Start/End selection');
+                        if (win.playOffset < .4 - 1e-6 || win.playOffset >= 1.2 + 1e-6 || win.loopStart < .4 - 1e-6 || win.loopEnd > 1.2 + 1e-6) throw Error('Grain escaped source Start/End selection');
                         if (!(win.sourceDuration > 0 && win.grainDuration > 0)) throw Error('Invalid grain duration');
                         checked++;
                     }

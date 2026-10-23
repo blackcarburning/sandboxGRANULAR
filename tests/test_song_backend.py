@@ -656,6 +656,18 @@ class SongBackendTests(unittest.TestCase):
         self.assertEqual(self.request('GET', path).wfile.getvalue(), part_zip())
         self.assertEqual(self.request('GET', '/api/songs').response['features']['keyboardRenders'], 1)
 
+    def test_grain_loop_render_marker_preserves_original_and_is_advertised(self):
+        song = self.upload(self.create())
+        part = song['parts'][0]
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}'
+        result = self.request('POST', f'{path}/render?sha256={part["sha256"]}&grain=5', body=render_wav(part))
+        self.assertEqual(result.status, 200)
+        saved = result.response['song']['parts'][0]
+        self.assertEqual(saved['sha256'], part['sha256'])
+        self.assertEqual(saved['render']['grainVersion'], 5)
+        self.assertEqual(self.request('GET', path).wfile.getvalue(), part_zip())
+        self.assertEqual(self.request('GET', '/api/songs').response['features']['grainLoopRenders'], 5)
+
     def test_grain_fade_render_marker_preserves_snapshot_and_is_advertised(self):
         song = self.upload(self.create())
         part = song['parts'][0]
@@ -692,7 +704,7 @@ class SongBackendTests(unittest.TestCase):
     def test_unknown_grain_fade_version_is_rejected_without_changing_the_song(self):
         song = self.upload(self.create())
         part = song['parts'][0]
-        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&grain=5'
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&grain=6'
         result = self.request('POST', path, body=render_wav(part))
         self.assertEqual(result.status, 400)
         self.assertNotIn('render', self.request('GET', f'/api/songs/{song["id"]}').response['song']['parts'][0])
