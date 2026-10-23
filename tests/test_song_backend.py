@@ -668,10 +668,21 @@ class SongBackendTests(unittest.TestCase):
         self.assertEqual(saved['render']['keyboardVersion'], 1)
         self.assertEqual(self.request('GET', '/api/songs').response['features']['grainFadeRenders'], 1)
 
+    def test_sustained_grain_render_marker_preserves_original_and_reused_sources(self):
+        song = self.upload(self.create())
+        part = song['parts'][0]
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}'
+        self.request('POST', f'{path}/reuse?sha256={part["sha256"]}', body=b'')
+        result = self.request('POST', f'{path}/render?sha256={part["sha256"]}&grain=2', body=render_wav(part))
+        self.assertEqual(result.status, 200)
+        for saved in result.response['song']['parts']:
+            self.assertEqual(saved['sha256'], part['sha256'])
+            self.assertEqual(saved['render']['grainVersion'], 2)
+
     def test_unknown_grain_fade_version_is_rejected_without_changing_the_song(self):
         song = self.upload(self.create())
         part = song['parts'][0]
-        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&grain=2'
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&grain=3'
         result = self.request('POST', path, body=render_wav(part))
         self.assertEqual(result.status, 400)
         self.assertNotIn('render', self.request('GET', f'/api/songs/{song["id"]}').response['song']['parts'][0])

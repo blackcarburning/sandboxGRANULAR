@@ -75,7 +75,8 @@ async function peakAudio(page) {
                     setGranularLayerPreserveDuration('A', false, { skipSave: true, silent: true });
                 });
                 await tapKey(page);
-                await page.waitForFunction(() => getConcurrentGrainSourceCount() === 6);
+                await page.evaluate(() => { for (let n = 0; n < MAX_GRAIN_NODES + 1; n++) playGrain('C4', null, 1, { role: 'keyboard', voiceOutputs: keyboardVoiceOutputs }); });
+                await page.waitForFunction(() => getConcurrentGrainSourceCount() === MAX_GRAIN_NODES);
                 const before = await page.evaluate(() => ({ pool: getConcurrentGrainSourceCount(), osc: oscillatorsEnabled }));
                 assert.equal(before.osc, false);
                 assert.ok(await peakAudio(page) > .0001, 'Real grain output, not an OSC fallback');
@@ -85,7 +86,7 @@ async function peakAudio(page) {
                     heldNotes.clear();
                     document.querySelectorAll('.key.active').forEach(key => key.classList.remove('active'));
                 });
-                assert.deepEqual(await page.evaluate(() => [getConcurrentGrainSourceCount(), activeGrainNodes, keyboardVoiceOutputs.size]), [0, 0, 0], 'Stopped voices free all six slots immediately');
+                assert.deepEqual(await page.evaluate(() => [getConcurrentGrainSourceCount(), activeGrainNodes, keyboardVoiceOutputs.size]), [0, 0, 0], 'Stopped voices free all bounded source slots immediately');
                 await page.locator('#performanceKeyboardGrainOnBtn').tap();
                 await page.waitForFunction(() => !document.getElementById('performanceKeyboardGrainOnBtn').disabled);
                 assert.equal(await page.evaluate(() => grainReadyCalls), 2);
@@ -99,7 +100,7 @@ async function peakAudio(page) {
                     return { before: count, after: activeGrainNodes, pool: getConcurrentGrainSourceCount() };
                 });
                 assert.equal(idempotence.after, idempotence.before, 'Late ended events cannot corrupt newly allocated voice counts');
-                assert.ok(idempotence.pool > 0 && idempotence.pool <= 6);
+                assert.ok(idempotence.pool > 0 && idempotence.pool <= 96);
                 const rms = await peakAudio(page);
                 assert.ok(rms > .0001, 'Stopped/exhausted keyboard must sound again');
                 // Repeated recovery also reschedules currently held streams.
@@ -137,7 +138,7 @@ async function peakAudio(page) {
                 await page.locator('#performanceKeyboardSoundSwitch').evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
                 await page.screenshot({ path: path.join(evidence, `${name}-${viewport.width}-keyboard.png`) });
                 results.push({ engine: name, viewport, initialPool: before.pool, restoredGrainRms: rms, idempotence, layout });
-                console.log('PASS grain cleanup, real output, six-voice cap, Ready copy, role isolation, paired jumps', name, viewport.width, rms);
+                console.log('PASS grain cleanup, real output, bounded source cap, Ready copy, role isolation, paired jumps', name, viewport.width, rms);
                 await context.close();
             }
         } finally { await browser.close(); }
