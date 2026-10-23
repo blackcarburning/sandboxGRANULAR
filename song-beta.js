@@ -131,6 +131,7 @@
             this.cache = new Map();
             this.snapshots = new Map();
             this.partManifests = false;
+            this.serverPreparation = false;
             this.partAudioAssets = false;
             this.renders = new Map();
             this.renderSources = new Map();
@@ -290,7 +291,7 @@
         }
 
         async request(path = '', options = {}) {
-            const mutation = options.method === 'POST' && path && !/^\/[^/]+\/lock\//.test(path) && !/\/parts\/[a-f0-9]{32}\/render(?:\?|$)/.test(path);
+            const mutation = options.method === 'POST' && path && !/^\/[^/]+\/lock\//.test(path) && !/\/parts\/[a-f0-9]{32}\/(?:render|server-arm)(?:\?|$)/.test(path);
             if (mutation) this.requireEditing();
             const response = await this.fetch(`${this.api}${path}`, {
                 ...options,
@@ -567,6 +568,7 @@
             this.songs = payload.songs;
             this.partManifests = payload.features?.partManifests === 1;
             this.partAudioAssets = payload.features?.partAudioAssets === 1;
+            this.serverPreparation = payload.features?.serverPreparation === 1;
             const previous = this.song?.id;
             this.song = this.songs.find(song => song.id === selected) || null;
             this.revisionConflict = false;
@@ -598,6 +600,7 @@
             this.songs = payload.songs;
             this.partManifests = payload.features?.partManifests === 1;
             this.partAudioAssets = payload.features?.partAudioAssets === 1;
+            this.serverPreparation = payload.features?.serverPreparation === 1;
             this.song = this.songs.find(song => song.id === access.songId) || this.songs[0] || null;
             this.storage.setItem('mygrain-song-selected-v1', this.song?.id || '');
             this.editing = null;
@@ -755,6 +758,38 @@
             info.audioAssets = payload.audioAssets;
             this.snapshots.set(sourceId(part), { snapshot: info.snapshot, audioAssets: info.audioAssets, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
             return info;
+        }
+
+        async prepareOnServer(part, generation) {
+            const songId = this.song.id, revision = this.song.revision;
+            const path = `/${encodeURIComponent(songId)}/parts/${part.id}/server-arm?sha256=${part.sha256}`;
+            const signal = this.abort?.signal;
+            let reply = await this.request(path, { method: 'POST', signal });
+            const deadline = Date.now() + 12 * 60 * 1000;
+            while (reply.job?.state !== 'done') {
+                if (signal?.aborted || generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+                if (['failed', 'missing'].includes(reply.job?.state)) throw new Error(reply.job.message);
+                if (!['queued', 'running'].includes(reply.job?.state)) throw new Error('Unexpected server preparation response.');
+                if (Date.now() > deadline) throw new Error('Server preparation is taking too long. Arm Cache can check again; source audio is unchanged.');
+                this.armStage(generation, 'Preparing audio on server', part);
+                this.status(`Preparing ${part.name} on the server to stay within this device’s audio memory limit…`);
+                await new Promise((resolve, reject) => {
+                    const abort = () => { clearTimeout(timer); reject(new DOMException('Cancelled', 'AbortError')); };
+                    const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve(); }, 1000);
+                    signal?.addEventListener('abort', abort, { once: true });
+                    if (signal?.aborted) { signal.removeEventListener('abort', abort); abort(); }
+                });
+                reply = await this.request(path, { signal });
+            }
+            if (signal?.aborted || generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+            const saved = reply.song?.parts.find(entry => entry.id === part.id && entry.sha256 === part.sha256);
+            if (reply.song?.id !== songId || reply.song.revision !== revision || !saved?.render || saved.render.sourceSha256 !== part.sha256) {
+                throw new Error('The Song changed during server preparation. Refresh Songs before arming again.');
+            }
+            this.song = { ...this.song, parts: this.song.parts.map(entry => sourceId(entry) === sourceId(part) ? { ...entry, render: saved.render } : entry) };
+            this.songs = this.songs.map(song => song.id === songId ? this.song : song);
+            if (!this.hasSavedRender(saved)) throw new Error('The server returned an incompatible playback render. Refresh Songs and try Arm Cache again.');
+            return saved;
         }
 
         preparationBytes(part, info, rendering = true) {
@@ -1155,6 +1190,13 @@
                                 this.armStage(generation, 'Waiting for playback memory', part);
                                 releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
                                 await this.prepareRender(part, info || {}, generation);
+                            } else if (this.serverPreparation && this.preparationBytes(part, info, true) > this.memoryBudget.limitBytes) {
+                                // Keep oversized original audio off the phone. The server
+                                // renders the identical app engine, then we fetch only PCM16.
+                                const saved = await this.prepareOnServer(part, generation);
+                                const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+                                releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
+                                await this.prepareRender(saved, info || {}, generation);
                             } else {
                                 decoded = await this.loadPart(part, generation, info?.body ? info : null, { rendering: true });
                                 await this.prepareRender(part, decoded, generation);

@@ -26,6 +26,23 @@ ACCOUNT_IDENTITY = lambda: None
 PART_MANIFEST_CACHE = OrderedDict()
 PART_MANIFEST_CACHE_LOCK = threading.Lock()
 PART_MANIFEST_CACHE_BYTES = 8 * 1024 * 1024
+SERVER_ARM_MODULE = None
+SERVER_ARM_MODULE_LOCK = threading.Lock()
+
+
+def server_arm_module():
+    global SERVER_ARM_MODULE
+    if SERVER_ARM_MODULE is None:
+        # Song locks are account-scoped; simultaneous accounts must still share
+        # one queue/executor, including the very first capability request.
+        with SERVER_ARM_MODULE_LOCK:
+            if SERVER_ARM_MODULE is None:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location('mygrain_server_arm', pathlib.Path(__file__).with_name('mygrain_server_arm.py'))
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                SERVER_ARM_MODULE = module
+    return SERVER_ARM_MODULE
 
 
 class PartConflictError(ValueError):
@@ -832,7 +849,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -845,7 +862,7 @@ def handle_song_request(handler, method, inner_path):
                 handler.send_json({'ok': True, 'song': public_song(song)}, status=201, extra_headers=headers)
             elif segments:
                 folder, song = read_song(segments[0], owner)
-                is_render = len(segments) == 4 and segments[1] == 'parts' and segments[3] == 'render'
+                is_render = len(segments) == 4 and segments[1] == 'parts' and segments[3] in ('render', 'server-arm')
                 if method == 'POST' and segments[1:2] != ['lock'] and not is_render:
                     require_song_editor(folder, song, handler.headers)
                 if segments[1:] == ['lock'] and method == 'GET':
@@ -956,6 +973,19 @@ def handle_song_request(handler, method, inner_path):
                         handler.send_header('Cache-Control', 'no-store')
                         handler.end_headers()
                         handler.wfile.write(body)
+                    elif action == 'server-arm' and method in ('POST', 'GET'):
+                        if ACCOUNT_IDENTITY() is None:
+                            raise PermissionError('Sign into MYGRAIN to prepare audio on the server.')
+                        if (query.get('sha256') or [''])[0] != part['sha256']:
+                            raise PartConflictError('This part changed on the server. Refresh Songs and arm again.')
+                        service = server_arm_module()
+                        scope = str(folder.parent.resolve())
+                        if method == 'POST':
+                            job = service.start(scope, song['id'], part,
+                                f'http://127.0.0.1:{handler.server.server_address[1]}/mygrain/', handler.headers.get('Cookie', ''), occurrence['id'])
+                        else:
+                            job = service.status(scope, song['id'], part['id'], part['sha256'])
+                        handler.send_json({'ok': True, 'job': job, **({'song': public_song(song)} if job['state'] == 'done' else {})}, extra_headers=headers)
                     elif method == 'GET' and action == 'render':
                         render = part.get('render')
                         if not render or render.get('sourceSha256') != part['sha256']:
