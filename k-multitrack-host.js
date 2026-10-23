@@ -2,7 +2,7 @@
     'use strict';
     const theory = window.MygrainKMultitrack;
     if (!theory) throw new Error('K multitrack recorder could not load. Reload MYGRAIN.');
-    let selecting = false, preparingRecord = false, restoring = false;
+    let selecting = false, preparingRecord = false, restoring = false, meters = null;
     const recorder = theory.create({
         context: () => audioContext, bpm: getSharedBpmClockValue,
         memoryBudget: () => (window.matchMedia?.('(pointer: coarse)').matches ? 96 : 192) * 1048576,
@@ -20,6 +20,7 @@
             const first = voices.values().next().value;
             bastardLoopKSource = first?.source || null; bastardLoopKGainNode = first?.gain || null;
             bastardLoopKFilterNodes = [...voices.values()].flatMap(voice => voice.filters);
+            meters?.sync(voices);
         }
     });
     function busy() { return preparingRecord || bastardLoopKRecordingState !== 'idle'; }
@@ -199,6 +200,10 @@
                 <label><input type="radio" name="kRecordTrack" data-k-record-select aria-label="Record select K${index + 1}"> Record select</label>
                 <label><input type="checkbox" data-k-mute aria-label="Mute K${index + 1}"> Mute</label>
                 <label>Level <output data-k-level-value>100%</output><input type="range" min="0" max="100" value="100" data-k-level aria-label="K${index + 1} level"></label>
+                <div class="k-track-vu" data-k-track-meter="${index}" role="meter" aria-label="K${index + 1} output level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60" aria-valuetext="Silent">
+                    <div class="k-track-vu-head"><span>VU</span><span data-k-vu-value>−∞</span></div>
+                    <div class="k-track-vu-bar" aria-hidden="true"><div class="k-track-vu-fill" data-k-vu-fill></div><div class="k-track-vu-peak" data-k-vu-peak></div></div>
+                </div>
                 <label>Pan <output data-k-pan-value>C</output><input type="range" min="-100" max="100" value="0" data-k-pan aria-label="K${index + 1} pan"></label>
                 <label>Loop steps<input type="number" min="1" step="1" inputmode="numeric" data-k-steps aria-label="K${index + 1} loop length in steps"></label>`;
             row.querySelector('[data-k-record-select]').addEventListener('change', () => safe(() => select(index)));
@@ -211,9 +216,12 @@
         }
         for (const event of ['keydown', 'keyup']) form.addEventListener(event, event => event.stopPropagation());
     }
+    meters = window.MygrainKTrackMeters?.create({ context: () => audioContext });
+    window.mygrainKTrackMeters = meters;
+    meters?.sync(recorder.voices);
     function safe(action) { try { const result = action(); result?.catch(error => { setStatus(error.message, 'error'); sync(); }); } catch (error) { setStatus(error.message, 'error'); sync(); } }
     document.getElementById('performanceKeyboardKTrack')?.addEventListener('change', event => safe(() => select(Number(event.target.value))));
     document.getElementById('performanceKeyboardKSolo')?.addEventListener('click', () => { setLoopLayerSolo('bastardk', { toggle: true }); sync(); });
-    window.addEventListener('mygrain-account-lock', () => { recorder.release(); aliases(); });
+    window.addEventListener('mygrain-account-lock', () => { meters?.destroy(); recorder.release(); aliases(); });
     sync();
 })();

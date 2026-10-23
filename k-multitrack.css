@@ -8,6 +8,13 @@
 .k-recorder-track input[type=number] { display:block; box-sizing:border-box; width:100%; max-width:100%; padding:8px; margin-top:6px; color:inherit; background:#171c25; border:1px solid #4f5363; border-radius:6px; }
 .k-recorder-track input[type=radio],.k-recorder-track input[type=checkbox] { width:18px; height:18px; vertical-align:middle; margin-right:6px; }
 .k-recorder-track output { float:right; }
+.k-track-vu { margin:10px 0; }
+.k-track-vu-head { display:flex; justify-content:space-between; font-size:10px; line-height:16px; font-variant-numeric:tabular-nums; color:#c5c9d2; }
+.k-track-vu-bar { position:relative; height:10px; overflow:hidden; background:linear-gradient(90deg,#57d7a2 0%,#57d7a2 65%,#f3d46d 86%,#ed7777 100%); border:1px solid #555968; border-radius:3px; }
+.k-track-vu-fill { height:100%; background:#10151c; transform:scaleX(1); transform-origin:right; }
+.k-track-vu-peak { position:absolute; top:0; bottom:0; left:0; width:2px; max-width:100%; background:#f1f5f9; transform:translateX(-100%); }
+.k-vu-clipped .k-track-vu-bar { border-color:#ff7474; }
+.k-vu-clipped .k-track-vu-peak { background:#ff7474; }
 .k-keyboard-destination { display:flex; align-items:center; gap:8px; font-size:12px; padding:6px; }
 .k-keyboard-destination select { min-height:36px; padding:6px 12px; border-radius:6px; color:inherit; background:#171c25; border:1px solid #4f5363; }
 @media(max-width:420px) { .k-multitrack-tracks { grid-template-columns:1fr; } }

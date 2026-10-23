@@ -31,3 +31,17 @@ node tests/k-multitrack-browser.cjs
 ```
 
 The browser runner accepts localhost only and creates disposable test accounts. It checks real five-track captures, analytical independent-period stereo PCM, level/mute/pan, selected-track clear/Undo, live crop/padding/memory rejection, amendment recording, saved Song recall, hidden-render output, IndexedDB reload, visible legacy conversion with exact WAV comparison, K5-only transport, final-track clear and phone portrait/landscape widths. It runs Chromium and WebKit on desktop and phone emulation; this is not physical iPhone verification.
+
+## Track output meters (K5.2)
+
+Each K track has a display-only stereo RMS meter (-60 to 0 dBFS), a 600 ms sample-peak hold and clipping indication. The tap is after that track's level, mute, pan and shared K filter, before downstream master/bus processing. Separate left/right analysers avoid antiphase cancellation and keep constant-power panning from changing the RMS reading. These are digital level indicators, not calibrated analogue VU or true-peak meters.
+
+`k-track-meters.js` uses one shared 20 Hz timer and reuses two 512-float arrays per visible, playing track. An IntersectionObserver watches each meter itself, not the whole K card. Offscreen meters disconnect their side-branch analysers and receive no sample reads or DOM writes; no timer remains when all meters are offscreen or playback stops. Hidden tabs, page lifecycle and suspended/replaced audio contexts release taps. Voice replacement disconnects only the meter branch, never the audible destination; account lock destroys observers/listeners/taps. Hidden Song-render decks never initialise the meter controller. No saved-state, Song or export fields changed.
+
+```
+node --test tests/k-track-meters.test.js
+python3 tests/song-beta-test-server.py 18919
+node tests/k-track-meters-browser.cjs
+```
+
+The meter browser runner checks actual five-track signal levels, a 6 dB fader reduction, mute/silence, zero offscreen analyser reads and DOM mutations, unchanged playing voices and audio energy across visibility changes, actual context suspension/resumption, synthetic visibility events, repeated playback replacement, account lock and 320 px/landscape layouts in Chromium and WebKit desktop/phone emulation.
