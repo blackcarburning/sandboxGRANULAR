@@ -63,7 +63,34 @@
             return (...args) => {
                 if (bridge.disposed && String(key).startsWith('create')) throw new DOMException('Cancelled', 'AbortError');
                 const result = value.apply(target, args);
-                if (String(key).startsWith('create') && result?.disconnect) bridge.nodes.add(result);
+                if (String(key).startsWith('create') && result?.disconnect) {
+                    bridge.nodes.add(result);
+                    const connect = result.connect;
+                    if (connect) result.connect = function (...args) {
+                        const value = connect.apply(this, args);
+                        bridge.nodes.add(result);
+                        return value;
+                    };
+                    const disconnect = result.disconnect;
+                    result.disconnect = function (...args) {
+                        const value = disconnect.apply(this, args);
+                        // Scheduled sources remain tracked until ended so
+                        // cancellation can stop even temporarily unrouted audio.
+                        if (!args.length && typeof result.start !== 'function') bridge.nodes.delete(result);
+                        return value;
+                    };
+                    if (typeof result.start === 'function' && typeof result.stop === 'function') {
+                        // Do not retain every finished grain/drum/oscillator for
+                        // the duration of a long part. Let its own ended handler
+                        // finish first, then release the parent-owned reference.
+                        result.addEventListener?.('ended', () => Promise.resolve().then(() => {
+                            bridge.nodes.delete(result);
+                            result.onended = null;
+                            try { result.disconnect(); } catch {}
+                            try { if ('buffer' in result) result.buffer = null; } catch {}
+                        }), { once: true });
+                    }
+                }
                 return result;
             };
         },

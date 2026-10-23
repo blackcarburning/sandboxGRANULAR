@@ -135,8 +135,11 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
             page.once('dialog', dialog => dialog.accept());
             await targetRow.locator('.song-beta-paste').click();
             await page.waitForFunction(() => !mygrainSongBeta.busy, null, { timeout: 60000 });
-            assert.equal(await page.evaluate(() => mygrainSongBeta.armed), true);
-            assert.match(await page.locator('#songBetaStatus').textContent(), /Pasted Bastardloop A.*Cache re-armed/);
+            assert.equal(await page.evaluate(() => mygrainSongBeta.armed), false);
+            assert.match(await page.locator('#songBetaStatus').textContent(), /Pasted Bastardloop A.*Arm Cache once/);
+            assert.equal(writes.filter(path => path.endsWith('/render')).length, rendersBefore);
+            await page.locator('#songBetaArm').click();
+            await page.waitForFunction(() => !mygrainSongBeta.busy && mygrainSongBeta.armed, null, { timeout: 60000 });
             assert.equal(writes.filter(path => path.endsWith('/render')).length - rendersBefore, 1);
             const checked = await page.evaluate(async () => {
                 const controller = mygrainSongBeta;
@@ -249,7 +252,7 @@ if (!base || !/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/.test(base)) t
             assert.equal(await page.evaluate(() => mygrainSongBeta.loopClipboard), null);
             assert.deepEqual(errors, []);
             results.push({ sampleRate, layouts, pinnedOriginal: true, completeAudioSettingsCopy: true, rawAndRenderedBackingVocal: true,
-                unchangedOtherLayersAndTiming: true, changedRenderAudible: checked.peak, automaticRearmOnlyChangedPart: true,
+                unchangedOtherLayersAndTiming: true, changedRenderAudible: checked.peak, manualArmOnlyChangedPart: true,
                 readonlyPasteAcquiresEditing: true, otherDeviceLockPreserved: true, cancelDoesNotAcquireEditing: true, cancelSafe: true, errors });
             await context.close();
         }

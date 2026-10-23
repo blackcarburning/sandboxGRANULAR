@@ -82,6 +82,55 @@ function makeController(overrides = {}, stored = {}, navigator = {}) {
 const first = { id: 'intro', name: 'Intro', bpm: 120, patternSteps: 16, repeats: 2 };
 const second = { id: 'verse', name: 'Verse', bpm: 60, patternSteps: 8, repeats: 1 };
 
+test('phone preparation budgets cover Android as well as iPhone/iPad and reject oversized sources before downloading or decoding', async () => {
+    for (const navigator of [{ userAgent: 'Android' }, { userAgent: 'iPhone' }, { platform: 'MacIntel', maxTouchPoints: 5 }]) {
+        const { controller } = makeController({ decode: () => assert.fail('Unsafe decode') }, {}, navigator);
+        assert.equal(controller.memoryBudget.limitBytes, 96 * 1048576);
+        assert.equal(controller.armConcurrency, 1);
+        assert.equal(controller.renderLimitBytes, 24 * 1048576);
+        controller.partManifests = true;
+        const part = { ...first, sha256: 'huge', bytes: 70 * 1048576 };
+        controller.song = { id: 'song', parts: [part] };
+        controller.snapshots.set(part.id, { snapshot: {}, decodedBytes: 140 * 1048576, contentSha256: 'huge' });
+        controller.readPart = async () => assert.fail('Unsafe archive download');
+        await assert.rejects(controller.loadPart(part), /safety budget/);
+        assert.equal(controller.memoryBudget.bytes, 0);
+        assert.equal(controller.cache.size, 0);
+        assert.equal(controller.song.parts[0], part);
+    }
+});
+
+test('active preparation evicts hot renders without forgetting reusable saved audio', async () => {
+    const { controller } = makeController();
+    const limit = controller.memoryBudget.limitBytes;
+    const buffer = { length: limit / 8, numberOfChannels: 1 };
+    controller.renders.set(first.id, buffer); controller.renderBytes = limit / 2;
+    controller.renderSources.set(first.id, 'unchanged');
+    const release = await controller.reservePreparation(limit * .75);
+    assert.equal(controller.renderBytes, 0);
+    assert.equal(controller.renders.size, 0);
+    assert.equal(controller.renderSources.get(first.id), 'unchanged');
+    release();
+    assert.equal(controller.memoryBudget.bytes, 0);
+});
+
+test('an individual oversized render is not retained beyond the hot-cache bound', () => {
+    const { controller } = makeController();
+    controller.renderLimitBytes = 1024;
+    const buffer = { duration: 2, sampleRate: 48000, length: 96000, numberOfChannels: 2 };
+    controller.retainRender(first, buffer);
+    assert.equal(controller.renderBytes, 0);
+    assert.equal(controller.renders.size, 0);
+});
+
+test('memory reservations include encoded source clones, source buffers, render capture/encoding and renderer headroom', () => {
+    const { controller } = makeController({ context: () => ({ sampleRate: 48000 }) });
+    const part = { ...first, bytes: 1000 };
+    const sourceOnly = controller.preparationBytes(part, { decodedBytes: 4000 }, false);
+    assert.equal(sourceOnly, 16 * 1048576 + 2000 + 8000);
+    assert.equal(controller.preparationBytes(part, { decodedBytes: 4000 }), sourceOnly + 2 * 48000 * 8 * 4);
+});
+
 function compatibilityController() {
     const fixture = makeController({ upgradePart: async () => new Blob(['normalized archive']) });
     const { controller, calls } = fixture;
@@ -128,6 +177,19 @@ function compatibilityController() {
     };
     return { ...fixture, part, reference, history, requests, renderBytes, snapshot };
 }
+
+test('legacy upgrades reject an oversized archive before original download or save', async () => {
+    const { controller, snapshot } = compatibilityController();
+    controller.song = { ...controller.song, parts: controller.song.parts.map(part => ({ ...part, bytes: 100 * 1048576 })) };
+    const original = controller.song;
+    controller.readPartMetadata = async () => ({ snapshot, decodedBytes: 0, upgrade: { lanes: ['K'] } });
+    controller.readPart = async () => assert.fail('Oversized upgrade must not download original WAVs');
+    controller.request = async () => assert.fail('Oversized upgrade must not save');
+    await assert.rejects(controller.upgradeSongParts(controller.generation), /safety budget/);
+    assert.equal(controller.song, original);
+    assert.equal(controller.memoryBudget.bytes, 0);
+    assert.equal(controller.downloadBudget.bytes, 0);
+});
 
 test('hash-bound metadata avoids source downloads for compatible cached parts and reuses warm checks', async () => {
     const {controller} = makeController({upgradePart: async () => {}, inspectSnapshot: snapshot => ({snapshot, decodedBytes: 0, upgrade: null})});
@@ -599,7 +661,7 @@ test('loop paste sends only the pinned source and accepts a complete destination
     assert.equal(controller.loopClipboard, copied);
     assert.equal(controller.armed, false);
     assert.equal(calls.some(call => call[0] === 'recall'), false);
-    assert.match(calls.at(-1)[1], /Use Arm Cache/);
+    assert.match(calls.at(-1)[1], /use Arm Cache/);
 });
 
 test('multi-copy pins one saved revision and normalizes loop/drum selections without live changes', () => {
@@ -664,7 +726,7 @@ test('cancelled or failed multi-paste keeps the complete clipboard and saved des
     assert.equal(controller.song.parts[0], part);
 });
 
-test('previously armed songs re-arm after successful loop paste and retain the clipboard', async () => {
+test('previously armed songs save pasted audio without auto-arming and retain the clipboard', async () => {
     const { controller, calls, context } = makeController();
     const part = { ...first, sha256: 'old' };
     controller.song = { id: 'song', parts: [part] };
@@ -675,13 +737,13 @@ test('previously armed songs re-arm after successful loop paste and retain the c
     controller.request = async () => { order.push('save'); return { song: { id: 'song', parts: [{ ...part, sha256: 'new' }] } }; };
     controller.arm = async () => { order.push('arm'); assert.equal(controller.song.parts[0].sha256, 'new'); controller.armed = true; };
     await controller.pasteLoop(part);
-    assert.deepEqual(order, ['save', 'arm']);
-    assert.equal(controller.armed, true);
+    assert.deepEqual(order, ['save']);
+    assert.equal(controller.armed, false);
     assert.equal(controller.loopClipboard.layer, 'Q');
-    assert.match(calls.at(-1)[1], /Cache re-armed/);
+    assert.match(calls.at(-1)[1], /Paste more parts.*Arm Cache once/);
 });
 
-test('cache preparation failure reports an already-saved paste instead of requesting another save', async () => {
+test('pasting never calls rendering even when automatic preparation would fail', async () => {
     const { controller, calls, context } = makeController();
     const part = { ...first, sha256: 'old' };
     controller.song = { id: 'song', parts: [part] };
@@ -694,7 +756,8 @@ test('cache preparation failure reports an already-saved paste instead of reques
     await controller.pasteLoop(part);
     assert.equal(writes, 1);
     assert.equal(controller.song.parts[0].sha256, 'saved');
-    assert.match(calls.at(-1)[1], /Paste is saved.*fixture render failure.*Arm Cache/);
+    assert.equal(controller.armed, false);
+    assert.match(calls.at(-1)[1], /Paste more parts.*Arm Cache once/);
 });
 
 test('loop paste cancellation and failed saves leave current parts and armed audio unchanged', async () => {

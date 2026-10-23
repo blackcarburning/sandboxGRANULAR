@@ -135,12 +135,12 @@
             this.renderSources = new Map();
             this.renderLoads = new Map();
             this.renderBytes = 0;
-            this.phonePreparation = /iPhone|iPad|iPod/i.test(root.navigator?.userAgent || '')
+            this.phonePreparation = /iPhone|iPad|iPod|Android/i.test(root.navigator?.userAgent || '')
                 || (root.navigator?.platform === 'MacIntel' && root.navigator?.maxTouchPoints > 1);
             this.renderLimitBytes = options.renderLimitBytes ?? (this.phonePreparation ? 24 : 96) * 1024 * 1024;
             this.renderStore = options.renderStore || new root.MygrainSongStorage.RenderStore();
             this.sourceStore = options.sourceStore || new root.MygrainSongStorage.SourceStore();
-            this.memoryBudget = new root.MygrainSongStorage.MemoryBudget(options.preparationLimitBytes);
+            this.memoryBudget = new root.MygrainSongStorage.MemoryBudget(options.preparationLimitBytes ?? (this.phonePreparation ? 96 : 192) * 1024 * 1024, true);
             this.downloadBudget = new root.MygrainSongStorage.MemoryBudget(64 * 1024 * 1024);
             this.armConcurrency = this.phonePreparation ? 1 : armConcurrency(this.storage.getItem('mygrain-song-arm-concurrency-v1'));
             this.playback = null;
@@ -704,7 +704,7 @@
                 const info = this.adapter.inspectPart(body);
                 if (!cached) await this.sourceStore.put(cacheKey, body);
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
-                this.snapshots.set(sourceId(part), { snapshot: info.snapshot, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
+                this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
                 return { body, ...info, releaseDownload };
             } catch (error) { releaseDownload(); throw error; }
         }
@@ -719,22 +719,51 @@
                 throw new Error(`Saved metadata integrity check failed for ${part.name}. Refresh Songs and arm again.`);
             }
             const info = this.adapter.inspectSnapshot(payload.snapshot);
-            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
+            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade) });
             return info;
         }
 
-        async loadPart(part, generation = this.generation, inspected = null) {
+        preparationBytes(part, info, rendering = true) {
+            const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+            // Include encoded originals, source/deck clones, capture/PCM/upload
+            // copies and headroom for the isolated renderer, not just decodes.
+            return 16 * 1048576 + (Number(part.bytes) || info?.body?.byteLength || 0) * 2
+                + (Number(info?.decodedBytes) || 0) * 2 + (rendering ? renderSize * 4 : 0);
+        }
+
+        trimRenderMemory(limit) {
+            while (this.renders.size && this.renderBytes > limit) {
+                const [id, buffer] = this.renders.entries().next().value;
+                this.renderBytes -= buffer.length * buffer.numberOfChannels * 4;
+                this.renders.delete(id);
+            }
+        }
+
+        async reservePreparation(bytes, signal) {
+            const release = await this.memoryBudget.acquire(bytes, signal);
+            // Hot playback buffers must not sit outside the preparation budget.
+            this.trimRenderMemory(Math.max(0, this.memoryBudget.limitBytes - this.memoryBudget.bytes));
+            return release;
+        }
+
+        async loadPart(part, generation = this.generation, inspected = null, options = {}) {
             if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
             const existing = this.cache.get(sourceId(part));
             if (existing && (existing.contentSha256 || existing.sourceSha256) === contentKey(part)) return existing;
-            const info = inspected || await this.readPart(part, generation);
-            const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+            let info = inspected;
             let release;
             try {
+                if (!info) {
+                    info = this.snapshots.get(sourceId(part));
+                    if (!Number.isFinite(info?.decodedBytes)) info = await this.readPartMetadata(part, generation);
+                }
                 this.armStage(generation, 'Waiting for preparation memory', part);
-                release = await this.memoryBudget.acquire(info.decodedBytes * 2 + renderSize * 3, this.abort?.signal);
+                const reserved = this.preparationBytes(part, info, options.rendering === true);
+                release = await this.reservePreparation(reserved, this.abort?.signal);
+                if (!info.body) info = await this.readPart(part, generation);
+                if (this.preparationBytes(part, info, options.rendering === true) > reserved) throw new Error('Saved audio exceeds its preparation estimate. Refresh Songs before trying again.');
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
-                const sourceCache = { buffers: new Map(), bytes: 0 };
+                const sourceCache = { buffers: new Map(), bytes: 0, limitBytes: this.memoryBudget.limitBytes };
                 this.armStage(generation, 'Decoding saved audio', part);
                 await this.paintBeforeArmWork(generation);
                 const decoded = await this.adapter.decode(info.body, sourceCache);
@@ -746,7 +775,7 @@
                 this.updateSourceMemory();
                 return decoded;
             } catch (error) { release?.(); throw error; }
-            finally { info.body = null; info.releaseDownload?.(); }
+            finally { if (info) info.body = null; info?.releaseDownload?.(); }
         }
 
         updateSourceMemory() {
@@ -840,6 +869,9 @@
                 this.songs = this.songs.map(song => song.id === this.song.id ? this.song : song);
                 this.armStage(generation, 'Decoding saved playback render', part);
                 await this.paintBeforeArmWork(generation);
+                // Release the full Float32 capture before allocating its decoded
+                // PCM16 replacement. The server/cache WAV remains authoritative.
+                buffer = null;
                 buffer = await this.adapter.decodeRender(body.slice(0));
             }
             if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
@@ -886,11 +918,11 @@
                 this.renderBytes -= previous.length * previous.numberOfChannels * 4;
                 this.renders.delete(sourceId(part));
             }
-            while (this.renders.size && this.renderBytes + size > this.renderLimitBytes) {
-                const [id, previous] = this.renders.entries().next().value;
-                this.renderBytes -= previous.length * previous.numberOfChannels * 4;
-                this.renders.delete(id);
-            }
+            const limit = Math.min(this.renderLimitBytes, Math.max(0, this.memoryBudget.limitBytes - this.memoryBudget.bytes));
+            this.trimRenderMemory(Math.max(0, limit - size));
+            // An oversized individual render stays on disk/server, not in the
+            // hot cache. Never exceed the cache bound to keep just one buffer.
+            if (size > limit) return;
             this.renderBytes += size;
             this.renders.set(sourceId(part), buffer);
         }
@@ -946,6 +978,11 @@
                     }
                     if (!writable) { pending += 1; continue; }
                     if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
+                    // Compatibility upgrades also build/hash/upload a ZIP. Admit
+                    // their full encoded working set before loading originals;
+                    // one reservation includes any retained old playback WAV.
+                    const archiveSize = Number(part.bytes) || info.body?.byteLength || 0;
+                    releaseRender = await this.reservePreparation(16 * 1048576 + archiveSize * 3 + (Number(part.render?.bytes) || 0) * 3, this.abort?.signal);
                     // Only genuine legacy upgrades need original WAV bytes.
                     // Normal/current snapshots and reusable renders use JSON.
                     if (!info.body) {
@@ -962,7 +999,6 @@
                     const digest = Array.from(new Uint8Array(await this.crypto.subtle.digest('SHA-256', await body.arrayBuffer())), value => value.toString(16).padStart(2, '0')).join('');
                     let renderBytes;
                     if (part.render?.version === 1 && part.render.sourceSha256 === part.sha256 && this.isRenderCompatible(part, info)) {
-                        releaseRender = await this.memoryBudget.acquire(Number(part.render.bytes) || sourcePartDurationSeconds(part) * 48000 * 8, this.abort?.signal);
                         renderBytes = await this.readRender(part, this.abort?.signal, generation);
                     }
                     this.assertUpgradeCurrent(generation, expected);
@@ -990,7 +1026,7 @@
                     this.song = result.song;
                     this.songs = this.songs.map(song => song.id === songId ? this.song : song);
                     this.invalidate(true);
-                    this.snapshots.set(sourceId(saved), { snapshot: info.snapshot, contentSha256: contentKey(saved), upgradePending: false });
+                    this.snapshots.set(sourceId(saved), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(saved), upgradePending: false });
                     if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                     if (renderBytes && !this.hasSavedRender(saved)) {
                         const renderExpected = { ...expected, revision: this.song.revision, sha256: digest };
@@ -1065,14 +1101,14 @@
                             // Older render metadata cannot tell whether full-decay
                             // sampled drums are present. Inspect the editable source
                             // before trusting a legacy freeze's fast reuse path.
-                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPart(part, generation);
+                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
                             if (this.hasSavedRender(part)) {
                                 const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 this.armStage(generation, 'Waiting for playback memory', part);
-                                releaseRender = await this.memoryBudget.acquire(renderSize * 3, abort.signal);
+                                releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
                                 await this.prepareRender(part, info || {}, generation);
                             } else {
-                                decoded = await this.loadPart(part, generation, info?.body ? info : null);
+                                decoded = await this.loadPart(part, generation, info?.body ? info : null, { rendering: true });
                                 await this.prepareRender(part, decoded, generation);
                             }
                         } finally {
@@ -1254,7 +1290,6 @@
             await this.ensureEditing();
             this.adapter.assertNotRecording?.();
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('The destination changed while requesting editing. Refresh Songs before pasting.');
-            const wasArmed = this.armed;
             this.status(`Pasting ${label} into ${part.name} on the server…`);
             const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/paste-loop?sha256=${part.sha256}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1263,14 +1298,7 @@
             this.cancel(true, { hardCut: true });
             this.acceptSong(result.song);
             const message = `Pasted ${label} from ${copied.name} into every use of ${part.name}. Unselected sounds and arrangement settings are unchanged.`;
-            if (wasArmed) {
-                try {
-                    await this.arm();
-                    this.status(`${message} Cache re-armed; unchanged audio was reused. Amend loads the pasted part for editing.`);
-                } catch (error) {
-                    this.status(`${message} Paste is saved, but cache preparation did not finish: ${error.message}. Use Arm Cache again.`, true);
-                }
-            } else this.status(`${message} Use Arm Cache before song playback. Your live pattern was not replaced; Amend loads the pasted part for editing.`);
+            this.status(`${message} Paste more parts, then use Arm Cache once when ready; unchanged audio will be reused. Your live pattern was not replaced; Amend loads the pasted part for editing.`);
         }
 
         async savePart() {
@@ -1539,8 +1567,8 @@
                 concurrency.disabled = this.busy || this.playing || this.phonePreparation;
                 if (this.phonePreparation) {
                     const sequential = concurrency.querySelector?.('option[value="1"]');
-                    if (sequential) sequential.textContent = 'One part at a time (iPhone/iPad memory protection)';
-                    concurrency.title = 'iPhone and iPad prepare one part at a time to reduce audio memory use.';
+                    if (sequential) sequential.textContent = 'One part at a time (phone/tablet memory protection)';
+                    concurrency.title = 'Phones and iPads prepare one part at a time to reduce audio memory use.';
                 }
             }
             this.element('songBetaPlay').disabled = this.busy || this.playing || !this.armed || Boolean(this.editing);

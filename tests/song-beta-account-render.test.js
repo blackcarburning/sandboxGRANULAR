@@ -8,6 +8,35 @@ const { renderDatabases } = require('../mygrain-accounts.js');
 const deckSource = fs.readFileSync(path.join(__dirname, '../song-beta-render-deck.js'), 'utf8');
 const clockSource = fs.readFileSync(path.join(__dirname, '../song-beta-clock.js'), 'utf8');
 
+test('finished render sources and disconnected envelopes are released during a long part, not only at frame teardown', async () => {
+    const node = scheduled => Object.assign(new EventTarget(), {
+        connect() {}, disconnect() {}, buffer: scheduled ? new Float32Array(128) : null,
+        ...(scheduled ? { start() {}, stop() {} } : {})
+    });
+    const bridge = { state: {}, nodes: new Set(), databases: new Set(), context: {
+        createBufferSource: () => node(true), createGain: () => node(false)
+    } };
+    const window = { name: 'lifetime', indexedDB: {} };
+    vm.runInNewContext(deckSource, { window, parent: { __mygrainSongRenderBridges: new Map([['lifetime', bridge]]) } });
+    const context = new window.AudioContext();
+    const bus = context.createGain();
+    for (let index = 0; index < 2000; index++) {
+        const source = context.createBufferSource(), envelope = context.createGain();
+        source.connect(envelope); envelope.connect(bus);
+        let handlerSawOriginalBuffer = false;
+        source.addEventListener('ended', () => { handlerSawOriginalBuffer = Boolean(source.buffer); source.disconnect(); envelope.disconnect(); });
+        source.dispatchEvent(new Event('ended'));
+        await Promise.resolve();
+        assert.equal(handlerSawOriginalBuffer, true);
+        assert.equal(source.buffer, null);
+        assert.equal(bridge.nodes.size, 1);
+    }
+    bus.disconnect();
+    assert.equal(bridge.nodes.size, 0);
+    bus.connect({});
+    assert.equal(bridge.nodes.size, 1, 'reconnected nodes must be tracked for final cleanup');
+});
+
 function renderFixture(username, lateSuccess = false) {
     const opened = [];
     const deleted = [];

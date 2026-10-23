@@ -31,6 +31,16 @@ test('a large individual snapshot runs exclusively rather than failing a song-si
     assert.equal(budget.bytes, 0);
 });
 
+test('strict preparation budgets reject oversized work instead of admitting it as a smaller exclusive job', async () => {
+    const budget = new MemoryBudget(100, true);
+    await assert.rejects(budget.acquire(1000), /safety budget.*Saved parts are unchanged/);
+    assert.equal(budget.bytes, 0);
+    assert.equal(budget.waiting.length, 0);
+    const release = await budget.acquire(100);
+    release();
+    assert.equal(budget.bytes, 0);
+});
+
 test('cancelled waiting workers release their queue entry without stranding later work', async () => {
     const budget = new MemoryBudget(100);
     const release = await budget.acquire(90);

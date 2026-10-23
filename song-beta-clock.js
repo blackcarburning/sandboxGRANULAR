@@ -214,7 +214,7 @@
         frame.title = 'Isolated song audio renderer';
         frame.setAttribute('aria-hidden', 'true');
         frame.style.cssText = 'position:fixed;width:1200px;height:900px;opacity:0;pointer-events:none;z-index:-1;top:0;left:0;border:0';
-        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261019-render-memory-1"><\/script>`);
+        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261023-batch-arm-1"><\/script>`);
         root.document.body.append(frame);
         let capture;
         try {
@@ -273,7 +273,7 @@
             return buffer;
         } finally {
             bridge.disposed = true;
-            if (capture) { capture.port.onmessage = null; capture.port.close(); capture.disconnect(); }
+            if (capture) { capture.port.onmessage = null; capture.port.postMessage({ type: 'cancel' }); capture.port.close(); capture.disconnect(); }
             try { frame.contentWindow?.mygrainSongBetaAdapter?.stop({ hardCut: true }); } catch (error) {}
             try { bridge.disposeContext?.(); } catch (error) {}
             bridge.disposeContext = null;

@@ -2,8 +2,9 @@
     'use strict';
 
     class MemoryBudget {
-        constructor(limitBytes = 192 * 1024 * 1024) {
+        constructor(limitBytes = 192 * 1024 * 1024, strict = false) {
             this.limitBytes = limitBytes;
+            this.strict = strict;
             this.bytes = 0;
             this.waiting = [];
         }
@@ -11,6 +12,7 @@
         acquire(bytes, signal) {
             if (!Number.isFinite(bytes) || bytes < 0) return Promise.reject(new Error('Invalid song preparation memory estimate.'));
             if (signal?.aborted) return Promise.reject(new DOMException('Cancelled', 'AbortError'));
+            if (this.strict && bytes > this.limitBytes) return Promise.reject(new Error(`This part needs about ${Math.ceil(bytes / 1048576)} MB of preparation memory, above this device's ${Math.floor(this.limitBytes / 1048576)} MB safety budget. Use shorter source samples or prepare it on a higher-memory desktop. Saved parts are unchanged.`));
             const weight = Math.min(this.limitBytes, Math.max(1, bytes));
             return new Promise((resolve, reject) => {
                 const entry = { weight, signal, resolve, reject };

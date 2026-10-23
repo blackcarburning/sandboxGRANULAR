@@ -1,3 +1,38 @@
+## Batch paste and Arm memory safeguards — ARM.3 (2026-10-23)
+
+- Paste Part never starts Arm automatically, including when the song was armed.
+  Paste into several saved parts, then click Arm Cache once. Each paste is still
+  one server-side atomic edit; ready unchanged sources remain reusable. The
+  clipboard, locking, recording guards and editable originals are unchanged.
+- Phone/tablet detection includes Android as well as iOS and desktop-mode iPad.
+  Phones prepare sequentially with a 96 MiB preparation admission limit;
+  desktops retain their worker setting with a 192 MiB limit. Reservations include
+  encoded archive copies, decoded originals and render-deck clones, capture /
+  encoding buffers and 16 MiB of renderer headroom. Metadata preflight rejects
+  a part that cannot fit before downloading/decoding its editable originals.
+  Saved snapshots, older revisions and stored playback WAVs are never deleted.
+- Preparation reservations and hot playback buffers share the managed-audio
+  limit. Hot-cache eviction keeps the readiness/source marker: evicted playback
+  WAVs load from browser storage or the saved server render without rendering
+  again. A single oversized render no longer bypasses the hot-cache bound.
+- Temporary render decks release ended sources, their buffers and disconnected
+  envelopes during a part rather than retaining every finished voice until the
+  whole frame is removed. Reconnecting a node registers it for final cleanup.
+  The main engine's handlers run before releasing ended sources. Cancellation
+  explicitly tells the capture worklet to release its channel arrays; final
+  frame/database/listener/node cleanup remains in place.
+- A fresh Float32 capture is dereferenced before decoding the authoritative
+  PCM16 render, reducing overlap without changing rendered audio or WAV bytes.
+  Audio algorithms, archive/Song schemas, source formats and persistence keys
+  are unchanged. These limits bound accounted Song audio, not total browser/OS
+  memory: DOM, Web Audio native allocations and the live editor add overhead.
+  A specific OS/browser crash cause cannot be confirmed without device logs.
+- Regression coverage: controller/memory admission and renderer lifetime unit
+  tests; two destination pastes then one manual Arm in Chromium/WebKit on desktop
+  and phone emulation; real dense sampled-drum rendering, cancellation/retry,
+  warm stored-render playback, oversized-source rejection and shared-context
+  teardown. All integration accounts and Songs are disposable localhost data.
+
 # Song beta
 
 ## Make a full independent copy — 21 October 2026
@@ -147,11 +182,11 @@ available to retry. After a lost network response, Refresh Songs before retrying
 the connection can fail after a save has reached the server. Revision checks
 prevent retrying an old destination over a newer saved part.
 
-If the song was armed before pasting, its cache is re-armed automatically;
-unchanged audio is reused and only changed parts need rendering. Otherwise
-choose **Arm Cache** before Song playback. A cache failure after a successful
-save explicitly says that the paste is already saved and only Arm Cache needs
-retrying. Microphone recording is not automatically armed or started.
+As of ARM.3, pasting never re-arms automatically. Paste into every destination,
+then choose **Arm Cache** once before Song playback. Unchanged audio is reused
+and only changed parts need rendering. Pasted changes are saved before Arm and
+remain saved even if preparation is cancelled or fails. Microphone recording
+is not automatically armed or started.
 
 `node tests/song-beta-copy-browser.js` with `SONG_BETA_TEST_URL` pointing at the
 isolated test server checks phone portrait/landscape, complete editable recall,
@@ -399,13 +434,16 @@ also works. Opening notes does not change playback, saved data or cache state.
    Sources are decoded only for an active renderer or the recalled editable
    part, and released after rendering. Memory-weighted admission automatically
    reduces concurrent heavy preparations below the selected 1–10 maximum.
-   Large individual snapshots run alone instead of failing a song-wide limit.
+   Heavy snapshots run alone when they fit the per-preparation safety budget;
+   oversized individual preparations stop safely before decoding. This is not
+   a whole-song size limit.
    Frozen WAV renders are cached in `mygrain-song-renders-v1` IndexedDB, keyed
    by browser library, song, part, content hash and render hash. The server
    remains authoritative; missing/corrupt browser copies are verified and
    retrieved from the server. Full/unavailable browser storage falls back to
    server reads with a status warning, without discarding saved parts.
-   Decoded playback renders use a 96 MB hot cache, not a song-size limit.
+   Decoded playback renders use a 24 MiB phone / 96 MiB desktop hot cache,
+   counted alongside active preparations, not a whole-song size limit.
    Stop cancels and cleans up all active renderers before another UI operation can run.
    Preparation failures retain complete, unchanged renders for a targeted retry.
 5. Select **Play Song** to play the displayed order and stop after the last part.
