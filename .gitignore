@@ -9,3 +9,7 @@
 
 # Generated diagnostic output, browser evidence and local test backups.
 /output/
+
+# Isolated optional CUDA runtime (reproducible requirements in backend).
+/.venv-gpu/
+/.gpu-phase.lock

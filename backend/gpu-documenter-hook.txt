@@ -1,0 +1,15 @@
+
+# MYGRAIN optional CUDA loop preparation; CPU is the original reference path.
+try:
+    _gpu_phase_spec = importlib.util.spec_from_file_location('mygrain_gpu_phase', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR/backend/mygrain_gpu_phase.py')
+    _gpu_phase = importlib.util.module_from_spec(_gpu_phase_spec)
+    _gpu_phase_spec.loader.exec_module(_gpu_phase)
+    _gpu_phase.warm()
+except Exception:
+    _gpu_phase = None
+
+
+def time_stretch_audio_preserve_pitch(samples, rate):
+    return (_gpu_phase.stretch(samples, rate, time_stretch_audio_preserve_pitch_cpu)
+            if _gpu_phase else time_stretch_audio_preserve_pitch_cpu(samples, rate))
+
