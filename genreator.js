@@ -26,7 +26,7 @@ async function generate(id){
 }
 cancel.addEventListener('click',()=>root.mygrainAiPatch?.cancel());
 undo.addEventListener('click',async()=>{if(!pending&&!root.mygrainAiPatch?.busy){await root.mygrainCardHistory?.undo();status.textContent='Undo finished.';sync()}});
-root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-card-history-update',sync);
+root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
 root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get genres(){return genres.map(g=>g.id)},get lastGenre(){return lastGenre}});
 (async()=>{try{
  const response=await fetch(new URL('genre-presets.json?v=20261029-genre-1',document.baseURI),{credentials:'same-origin'});if(!response.ok)throw Error('Genre list could not load. Reload to try again.');genres=await response.json();
