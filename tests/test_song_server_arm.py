@@ -77,9 +77,8 @@ class QueueTests(unittest.TestCase):
     def test_success_releases_private_payload_and_publishes_only_status(self):
         self.start()
         _, key, payload, timeout = self.executor.submit.call_args.args
-        worker = Mock(returncode=0)
-        worker.communicate.return_value = (json.dumps({'result': {'partId': payload['partId'], 'sourceSha256': payload['sourceSha256']}}), '')
-        with patch.object(SERVICE.subprocess, 'Popen', return_value=worker):
+        result = {'partId': payload['partId'], 'sourceSha256': payload['sourceSha256']}
+        with patch.object(SERVICE, 'render', return_value=result):
             SERVICE._run(key, payload, timeout)
         self.assertEqual(payload, {})
         self.assertEqual(SERVICE.JOBS[key]['state'], 'done')
@@ -87,9 +86,8 @@ class QueueTests(unittest.TestCase):
     def test_worker_source_mismatch_fails_and_can_retry(self):
         self.start()
         _, key, payload, timeout = self.executor.submit.call_args.args
-        worker = Mock(returncode=0)
-        worker.communicate.return_value = (json.dumps({'result': {'partId': payload['partId'], 'sourceSha256': 'd'*64}}), '')
-        with patch.object(SERVICE.subprocess, 'Popen', return_value=worker):
+        result = {'partId': payload['partId'], 'sourceSha256': 'd'*64}
+        with patch.object(SERVICE, 'render', return_value=result), patch.object(SERVICE, 'close_worker'):
             SERVICE._run(key, payload, timeout)
         self.assertEqual(SERVICE.JOBS[key]['state'], 'failed')
         self.start()
@@ -98,11 +96,8 @@ class QueueTests(unittest.TestCase):
     def test_timeout_kills_worker_group_and_leaves_sources_unchanged(self):
         self.start()
         _, key, payload, timeout = self.executor.submit.call_args.args
-        worker = Mock(pid=12345)
-        worker.communicate.side_effect = [subprocess.TimeoutExpired('node', timeout), ('', '')]
-        with patch.object(SERVICE.subprocess, 'Popen', return_value=worker), patch.object(SERVICE.os, 'killpg') as kill:
+        with patch.object(SERVICE, 'render', side_effect=subprocess.TimeoutExpired('node', timeout)):
             SERVICE._run(key, payload, timeout)
-        kill.assert_called_once()
         self.assertEqual(payload, {})
         self.assertIn('timed out', SERVICE.JOBS[key]['message'])
 

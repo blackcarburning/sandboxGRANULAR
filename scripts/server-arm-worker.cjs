@@ -1,14 +1,15 @@
 // Private backend worker: stdin-only job credentials, loopback app, existing audio engine.
 'use strict';
 const fs=require('node:fs'), {chromium}=require('playwright-core');
-const job=JSON.parse(fs.readFileSync(0,'utf8')),base=new URL(job.baseUrl);
-if(base.protocol!=='http:'||!['127.0.0.1','localhost'].includes(base.hostname)||base.pathname!=='/mygrain/')throw new Error('Server audio worker requires a loopback app.');
 const emit=value=>process.stdout.write(JSON.stringify(value)+'\n');
-(async()=>{
- let browser;
+let browser, jobs=0;
+async function render(job){
+ const base=new URL(job.baseUrl);
+ if(base.protocol!=='http:'||!['127.0.0.1','localhost'].includes(base.hostname)||base.pathname!=='/mygrain/')throw new Error('Server audio worker requires a loopback app.');
+ let context;
  try {
-  browser=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
-  const context=await browser.newContext({viewport:{width:1280,height:900},extraHTTPHeaders:job.cookie?{Cookie:job.cookie}:{}});
+  if(!browser?.isConnected())browser=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
+  context=await browser.newContext({viewport:{width:1280,height:900},extraHTTPHeaders:job.cookie?{Cookie:job.cookie}:{}});
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',route=>{
    const u=new URL(route.request().url()),method=route.request().method();
@@ -38,6 +39,24 @@ const emit=value=>process.stdout.write(JSON.stringify(value)+'\n');
    }finally{decoded=null;c.releasePart(part);c.adapter.stop?.()}
   },{songId:job.songId,partId:job.partId,sourceSha256:job.sourceSha256});
   if(errors.length)throw new Error(errors[0]);emit({result});
- }catch(error){emit({error:String(error.message||error).slice(0,700)});process.exitCode=1}
- finally{await browser?.close()}
+ }catch(error){emit({error:String(error.message||error).slice(0,700)})}
+ finally{
+  try{await context?.close()}catch{await browser?.close();browser=null}
+  if(++jobs>=8){await browser?.close();browser=null;jobs=0}
+ }
+}
+(async()=>{
+ try{
+  if(process.argv.includes('--persistent')){
+   const lines=require('node:readline').createInterface({input:process.stdin,crlfDelay:Infinity});
+   let idle;
+   for await(const line of lines){
+    clearTimeout(idle);
+    try{await render(JSON.parse(line))}catch(e){emit({error:String(e.message).slice(0,700)})}
+    emit({idle:true,contexts:browser?.contexts().length||0});
+    idle=setTimeout(async()=>{await browser?.close();process.exit(0)},60000);
+   }
+   clearTimeout(idle);
+  }else await render(JSON.parse(fs.readFileSync(0,'utf8')));
+ }finally{await browser?.close()}
 })();

@@ -7,6 +7,7 @@ store=tempfile.TemporaryDirectory();s.configure_mygrain_accounts(pathlib.Path(st
 s.MYGRAIN_BASTARDLOOPS_ROOT=pathlib.Path(store.name)/'generated'
 name='KSHMR_sok5_120_vocal_indigenous_loop_breath_fast_whispers.wav';path=s.MYGRAIN_BASTARDLOOP_LOCAL_SOURCE_ROOT/'SAMPLES_VOCAL'/name
 before=hashlib.sha256(path.read_bytes()).hexdigest();sr,raw=wavfile.read(path);samples=s.ensure_stereo(s.resample_audio_channels(s.audio_samples_to_float32(raw),sr,48000))
+os.environ['MYGRAIN_SOURCE_CACHE']='off'
 g=s._gpu_phase
 deadline=time.monotonic()+10
 while (not g.diagnostics()['running'] or g._lock.locked()) and time.monotonic()<deadline:
@@ -37,5 +38,15 @@ _,ca=wavfile.read(BytesIO(cpu['bytes']));_,ga=wavfile.read(BytesIO(gpu['bytes'])
 assert before==hashlib.sha256(path.read_bytes()).hexdigest()
 assert cpu['samplePaths']==gpu['samplePaths'] and ca.shape==ga.shape
 assert snr>85
-print(json.dumps(dict(device='RTX 3070',fullStretch=results,realVGeneration=full,vPcmSNR=snr,vMaxLsbError=float(np.max(abs(error))),shape=ca.shape,sourceUnchanged=True,diagnostics=g.diagnostics()),indent=2))
+cache=[]
+os.environ['MYGRAIN_SOURCE_CACHE']='on'
+for i in range(4):
+ t=time.perf_counter();cached=s.generate_bastardloop_file(**args);cache.append(time.perf_counter()-t)
+ assert cached['bytes']==gpu['bytes'], 'Cached cuts changed output audio'
+uncut_args=dict(args,divisions=['uncut'])
+os.environ['MYGRAIN_SOURCE_CACHE']='off';original_uncut=s.generate_bastardloop_file(**uncut_args)
+os.environ['MYGRAIN_SOURCE_CACHE']='on'
+for _ in range(2):
+ assert s.generate_bastardloop_file(**uncut_args)['bytes']==original_uncut['bytes'], 'Cached uncut changed output audio'
+print(json.dumps(dict(cachedOutputIdentical=True,cachedUncutOutputIdentical=True,cachedVGeneration=cache,cacheStats=s._source_cache.diagnostics(),device='RTX 3070',fullStretch=results,realVGeneration=full,vPcmSNR=snr,vMaxLsbError=float(np.max(abs(error))),shape=ca.shape,sourceUnchanged=True,diagnostics=g.diagnostics()),indent=2))
 g.close()

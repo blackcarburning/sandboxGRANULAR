@@ -5,7 +5,14 @@ phase vocoder** used to tempo-conform V vocal, P piano and O orchestral loop sou
 whose filenames contain a BPM. It does not move Safari scrolling, live instruments,
 V's in-browser Loop Cut WSOLA or the entire Song Web Audio graph onto the GPU.
 
-## Implementation and lifecycle
+## Full-pipeline update
+
+FFT and reconstruction now also run on NVIDIA, with bounded preparation caching
+and warm Song browser workers. See [backend-speedups.md](backend-speedups.md)
+for the current implementation, measurements and reproduction steps. The
+phase-only implementation and measurements below describe the initial version.
+
+## Initial implementation and lifecycle
 
 - `backend/mygrain_gpu_phase.py`: float64 phase accumulation on CUDA, complex64
   spectra. Existing SciPy FFT, Hann windows, frame placement, ISTFT, source selection,

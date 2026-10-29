@@ -1,11 +1,12 @@
 """Run CPU-path tests normally; MYGRAIN_TEST_CUDA=1 includes actual CUDA/audio benchmark."""
+import fcntl
 import importlib.util
 import os
 import pathlib
 import sys
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import numpy as np
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'backend'))
@@ -44,15 +45,38 @@ class GpuPhaseTests(unittest.TestCase):
             self.assertGreater(GPU._retry_at, time.monotonic())
         GPU._retry_at = 0
 
+    def test_busy_full_pipeline_uses_cpu_without_waiting(self):
+        marker = object()
+        with patch.object(GPU, '_process', Mock(poll=lambda: None)):
+            GPU._lock.acquire()
+            try:
+                self.assertIs(GPU.stretch(np.zeros((96000, 2), np.float32), .8, lambda *args: marker), marker)
+            finally:
+                GPU._lock.release()
+
     @unittest.skipUnless(os.environ.get('MYGRAIN_TEST_CUDA') == '1', 'optional CUDA runtime')
     def test_native_cuda_reconstruction_matches_reference(self):
         spec = importlib.util.spec_from_file_location('gpu_test_server', ROOT.parent / 'fs7300-documenter/server.py')
         server = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(server)
+        with patch.dict(os.environ, {'MYGRAIN_GPU': 'off'}):
+            spec.loader.exec_module(server)
         server._gpu_phase.close()
         rng = np.random.default_rng(8)
         samples = (rng.normal(size=(96000, 2)) * .06).astype(np.float32)
-        GPU.phase(np.zeros((1025, 96), np.complex64), .9, 512, 2048, _allow_start=True)
+        # Respect production's cross-process lease rather than accidentally
+        # measuring a CPU fallback when another server is still using CUDA.
+        deadline = time.monotonic() + 70
+        with open(GPU.ROOT / '.gpu-phase.lock', 'a') as lease:
+            while True:
+                try:
+                    fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(lease, fcntl.LOCK_UN)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        self.fail('CUDA lease busy; rerun when production GPU is idle')
+                    time.sleep(.2)
+        self.assertIsNotNone(GPU.phase(np.zeros((1025, 96), np.complex64), .9, 512, 2048, _allow_start=True), GPU.diagnostics())
         for rate in [.5, .83, 1.25, 2.]:
             original = server.time_stretch_audio_preserve_pitch_cpu(samples, rate)
             accelerated = GPU.stretch(samples, rate, server.time_stretch_audio_preserve_pitch_cpu)
@@ -61,7 +85,27 @@ class GpuPhaseTests(unittest.TestCase):
             self.assertGreater(snr, 90)
             self.assertLess(float(np.max(np.abs(original - accelerated))), 2e-5)
         self.assertGreaterEqual(GPU.diagnostics()['gpuJobs'], 9)
+        self.assertGreaterEqual(GPU.diagnostics()['fullStretchJobs'], 4)
+        for rate in [.25, 4.]:
+            mono = samples[:48001, :1]
+            original = server.time_stretch_audio_preserve_pitch_cpu(mono, rate)
+            accelerated = GPU.stretch(mono, rate, server.time_stretch_audio_preserve_pitch_cpu)
+            self.assertEqual(original.shape, accelerated.shape)
+            self.assertLess(float(np.max(np.abs(original - accelerated))), 2e-5)
         self.assertEqual(GPU.diagnostics()['lastError'], '')
+
+
+    @unittest.skipUnless(os.environ.get('MYGRAIN_TEST_CUDA') == '1', 'optional CUDA runtime')
+    def test_warm_compiles_full_pipeline_asynchronously(self):
+        before = GPU.diagnostics().get('fullStretchJobs', 0)
+        start = time.monotonic()
+        GPU.warm()
+        self.assertLess(time.monotonic() - start, .2)
+        deadline = time.monotonic() + 10
+        while (GPU.diagnostics().get('fullStretchJobs', 0) <= before or GPU._lock.locked()) and time.monotonic() < deadline:
+            time.sleep(.02)
+        self.assertGreater(GPU.diagnostics().get('fullStretchJobs', 0), before)
+        self.assertFalse(GPU._lock.locked())
 
 
 if __name__ == '__main__':

@@ -7,6 +7,10 @@ The device reads the small part manifest, waits for the server job, and download
 only the finished PCM16 playback WAV. Normal local preparation and saved-render
 reuse are unchanged. No source ZIP is downloaded to the phone for this fallback.
 
+See [backend-speedups.md](backend-speedups.md) for the warm-browser update:
+Chromium is reused across jobs, with a fresh closed account/audio context per job,
+eight-job recycling, idle shutdown and timeout/crash recovery.
+
 ## Same audio engine, bounded work
 
 `backend/mygrain_server_arm.py` queues at most four pending jobs and runs one
