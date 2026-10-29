@@ -140,7 +140,7 @@
         if ((!entries.length && !lanes.length && !recipe.drums) || entries.length > Object.keys(schema.controls).length) throw Error('Invalid control count.');
         for (const [key, value] of entries) {
             const spec = schema.controls[key];
-            if (!Object.hasOwn(schema.controls, key) || typeof value !== 'number' || !Number.isFinite(value) || value < spec.min || value > spec.max || (value - spec.min) % spec.step !== 0) throw Error('Unsupported or out-of-range AI control. Nothing was changed.');
+            if (!Object.hasOwn(schema.controls, key) || spec.readOnly || typeof value !== 'number' || !Number.isFinite(value) || value < spec.min || value > spec.max || (value - spec.min) % spec.step !== 0) throw Error('Unsupported or out-of-range AI control. Nothing was changed.');
         }
         let loads = 0;
         for (const [key, lane] of lanes) {
@@ -334,7 +334,7 @@
         }, true);
         update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261029-genre-1', document.baseURI), { credentials: 'same-origin' });
+            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261029-genre-4', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
             if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 13) throw Error();

@@ -1,14 +1,14 @@
 // Same one-shot contract as `openclaw infer model run`, retaining reported usage.
 // No agent context, tools, user-selectable model, or credentials cross this boundary.
-import { readFileSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
+import { readModelMessage } from './mygrain_model_input.mjs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 const sdk = pathToFileURL(join(dirname(realpathSync('/usr/bin/openclaw')), 'dist/plugin-sdk/gateway-runtime.js'));
 const { callGatewayFromCli } = await import(sdk.href);
-const message = readFileSync(0, 'utf8');
-if (!message || message.length > 250000) throw Error('Invalid recipe request.');
+const message = await readModelMessage();
 const response = await callGatewayFromCli('agent', { timeout: '75000', json: true, expectFinal: true }, {
     sessionId: 'model-run-' + randomUUID(), message,
     provider: 'openai', model: 'gpt-6.1-sol', thinking: 'low',

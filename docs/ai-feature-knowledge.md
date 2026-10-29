@@ -8,6 +8,10 @@ was changed. For an unsupported request, say briefly in the recipe description w
 requires manual adjustment; retain unrelated audio/settings. Do not substitute main
 granular filters for a requested loop filter or N filter and claim equivalence.
 
+Legacy loop `*FilterCutoff` IDs are read-only compatibility values, NOT writable
+recipe parameters. Shared loop effects own the real cutoff now; never output a
+retired filter ID or replace it with a main granular filter. Preserve shared FX.
+
 ## Cards and layers
 
 - Bastardloop A/B/C are sample-backed loop layers; V is vocal, P piano, O orchestral,

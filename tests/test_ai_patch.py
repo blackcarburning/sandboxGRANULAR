@@ -91,6 +91,14 @@ class AiPatchTests(unittest.TestCase):
             with self.subTest(loop=key), patch.object(ai, 'run_model', return_value={**RECIPE, 'loops': {key: lane}}):
                 with self.assertRaises(ValueError): ai.generate('new patch', CURRENT, LOOPS)
 
+    def test_retired_loop_filters_are_read_only_not_model_writable(self):
+        retired = [key for key, value in ai.CONTROLS.items() if value.get('readOnly')]
+        self.assertEqual(len(retired), 12)
+        for key in retired:
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                ai.validate_recipe({**RECIPE, 'parameters': {key: 1650}})
+        self.assertEqual(len(ai.validate_request({'prompt': 'warm bass', 'current': CURRENT, 'loops': LOOPS})[1]), 81)
+
     def test_filters_cannot_cancel_each_other(self):
         with patch.object(ai, 'run_model', return_value={**RECIPE, 'parameters': {'lpfCutoff': 500, 'hpfCutoff': 800}}):
             with self.assertRaises(ValueError): ai.generate('thin', CURRENT, LOOPS)

@@ -15,9 +15,9 @@ exact agreement. Canonical genre definitions live in `genre-presets.json`.
 G has its own header/icon and scoped CSS. The drawer-only jump link immediately
 follows AI on desktop and phone and use the existing jump handler. The existing AI
 progress/cancel/Undo mechanism is reused. Existing cards, render/viewport logic,
-FX graphs and DSP implementations are untouched. The new W level/transpose/
-legacy-cutoff contract uses existing live handlers; shared FX settings are not
-rewritten. Recorded M/M+/K audio is preserved but disabled in fresh genre recipes.
+FX graphs and DSP implementations are untouched. The W level/transpose contract uses existing live handlers; shared FX settings
+are not rewritten. Legacy loop cutoff IDs are retained as read-only inventory
+for client compatibility, not advertised as writable model controls. Recorded M/M+/K audio is preserved but disabled in fresh genre recipes.
 
 Experimental profiles require fresh W `samples_modular` and L `samples_terra`
 with notes, and explicitly disable P/O/Q. D&B excludes P/O/Q; house can choose
@@ -76,3 +76,23 @@ user override still passes. Actual fixed-model low-effort calls starting from
 90 BPM chose D&B 174 BPM (broken drums/X bass, no P/O/Q), house 124 BPM
 (four-on-floor/Q piano/X), experimental 123 BPM (W modular/L Terra).
 These are observed trials, not a guarantee of every patch's musical quality.
+
+## Large-prompt pipe regression (GENRE.3 follow-up)
+
+A real G request failed in `mygrain_model_run.mjs` before contacting the model:
+Node 24's synchronous `readFileSync(0)` encountered EAGAIN on the inherited pipe.
+The full catalogue + mandatory genre memory request was about 78 KB; small bridge
+probes and direct calls without the catalogue did not reproduce it. Read stdin
+with the async UTF-8 stream reader in `mygrain_model_input.mjs`, keeping the
+250,000-character admission limit. Do not trim or omit the musical reference as
+a workaround. `tests/test_model_input.py` sends large multi-byte prompts through
+an explicitly nonblocking pipe, verifies exact text preservation and checks empty/
+oversized rejection. No DSP, GUI or model/provider changes are involved. Future
+AI bridge checks must include an authenticated full HTTP recipe request, not just
+a tiny model ping or a mocked browser response.
+
+The full real-model G-button check also exposed retired loop cutoff sliders
+being overwritten by the actual shared-FX state during application. Contract v4
+marks these 12 values readOnly, keeps all 81 current inventory IDs for older
+clients, omits them from model writable controls and rejects proposals that try
+to write them before any audio transaction. Shared effects and DSP are unchanged.

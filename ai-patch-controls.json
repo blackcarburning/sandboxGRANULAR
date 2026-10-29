@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "controls": {
     "grainSize": {
       "label": "Main grain size",
@@ -174,7 +174,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoop2Level": {
       "label": "Loop B level",
@@ -195,7 +196,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoop3Level": {
       "label": "Loop C level",
@@ -216,7 +218,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopVLevel": {
       "label": "Loop V level",
@@ -237,7 +240,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopPLevel": {
       "label": "Loop P level",
@@ -258,7 +262,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopOLevel": {
       "label": "Loop O level",
@@ -279,7 +284,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopLLevel": {
       "label": "Loop L level",
@@ -300,7 +306,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopLLength": {
       "label": "Loop L note length",
@@ -349,7 +356,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopXLength": {
       "label": "Loop X note length",
@@ -405,7 +413,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopMPlusLevel": {
       "label": "Loop M+ level",
@@ -426,7 +435,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "performanceBastardLoopKLevel": {
       "label": "Loop K level",
@@ -447,7 +457,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     },
     "drumMachineKickLevel": {
       "label": "Kick level",
@@ -566,7 +577,8 @@
       "min": 300,
       "max": 12000,
       "step": 10,
-      "unit": "Hz"
+      "unit": "Hz",
+      "readOnly": true
     }
   },
   "loops": {
