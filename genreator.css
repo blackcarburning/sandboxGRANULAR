@@ -9,3 +9,8 @@
 #genreatorCard button{min-height:44px;white-space:normal;overflow-wrap:anywhere}
 #genreatorStatus{min-height:3em;overflow-wrap:anywhere}
 .genre-jump{background:#87e1c6!important;color:#122e26!important}
+#genreatorCard button{color:#edf8ff;background:linear-gradient(180deg,#263b49,#17242f);border:1px solid #52778a;border-radius:10px;padding:10px 12px;font-weight:700}
+#genreatorCard button:disabled{color:#adbac3;opacity:.55}
+#genreatorCard button:not(:disabled):hover{background:#315c69}
+#genreatorCard .instrument-splash{--splash-a:#87e1c6;--splash-b:#6361a4;--splash-paper:#e8fff1}
+@media(max-width:700px){#genreatorCard .instrument-splash-art{display:block;position:absolute;right:6px;bottom:6px;width:20px;height:20px;opacity:.85}}
