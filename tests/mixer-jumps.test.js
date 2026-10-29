@@ -79,22 +79,23 @@ test('Mix keeps its pointer target stable until release and still navigates on c
     const handle = { setAttribute() {}, addEventListener() {} };
     const target = { classList: classes, scrollIntoView: () => calls.push('scroll') };
     const context = vm.createContext({
-        document: { getElementById: id => ({ sectionJumpDrawer: drawer, sectionJumpHandle: handle })[id], querySelectorAll: () => [button], querySelector: () => target, addEventListener() {} },
+        document: { body:{classList:classes}, getElementById: id => ({ sectionJumpDrawer: drawer, sectionJumpHandle: handle })[id], querySelectorAll: () => [button], querySelector: () => target, addEventListener() {} },
         window: { clearTimeout() {}, setTimeout: () => 1, matchMedia: () => ({ matches: true }) }
     });
     vm.runInContext(extract('initSectionJumpDrawer'), context);
     context.initSectionJumpDrawer();
-    handlers.get('pointerdown')({ button: 0, preventDefault: () => calls.push('prevent') });
+    handlers.get('pointerdown')({ button: 0, pointerType:'mouse', preventDefault: () => calls.push('prevent') });
     handlers.get('pointerdown')({ button: 2, preventDefault: () => assert.fail('Secondary click must remain unchanged') });
     handlers.get('click')();
     assert.deepEqual(calls, ['prevent', 'blur', 'scroll']);
 });
 
 for (const reducedMotion of [false, true]) {
-    test(`shortcuts focus and centre the exact mixer slider without changing its value (${reducedMotion ? 'reduced motion' : 'smooth'})`, () => {
+    test(`shortcuts focus the slider and arrive at its card top without changing its value (${reducedMotion ? 'reduced motion' : 'smooth'})`, () => {
         const calls = [];
         class Element {
             constructor(type) { this.type = type; this.value = '50'; }
+            closest() { return null; }
             focus(options) { calls.push(['focus', { ...options }]); }
             scrollIntoView(options) { calls.push(['scroll', { ...options }]); }
         }
@@ -112,7 +113,7 @@ for (const reducedMotion of [false, true]) {
         context.jumpToPerformanceMixerSlider('outside');
         context.jumpToPerformanceMixerSlider('button');
         context.jumpToPerformanceMixerSlider('missing');
-        assert.deepEqual(calls, [['focus', { preventScroll: true }], ['scroll', { behavior: reducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'nearest' }]]);
+        assert.deepEqual(calls, [['focus', { preventScroll: true }], ['scroll', { behavior: reducedMotion ? 'auto' : 'smooth', block: 'start', inline: 'nearest' }]]);
         assert.equal(slider.value, '50');
     });
 }

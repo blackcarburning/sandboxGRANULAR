@@ -6,3 +6,6 @@
 # Original upstream sample archives; prepared runtime libraries are tracked.
 /SAMPLES_Q/originals/
 /SAMPLES_Q_STRINGS/originals/
+
+# Generated diagnostic output, browser evidence and local test backups.
+/output/

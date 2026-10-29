@@ -99,6 +99,7 @@ function loadSamples(player) {
 
 function fixture() {
     const audioContext = audioGraph();
+    let displayTime = 0;
     const controls = new Map();
     const solos = new Set();
     for (const instrument of instruments) {
@@ -126,11 +127,12 @@ function fixture() {
         keyboardSampleOutputBuses: new Map(), keyboardSoundPreparation: null, keyboardSoundReadiness: 'idle',
         preFilterGainNode: audioContext.createGain(), masterGain: audioContext.createGain(),
         keyboardGrainCaptureGain: audioContext.createGain(),
-        performanceMixerVuTapState: new Map(), performanceMixerVuTimerId: null,
+        performanceMixerVuTapState: new Map(), performanceMixerVuTimerId: null, performanceVuPaintState: new WeakMap(),
+        performance: {now:()=>displayTime}, performanceVuSubscriptions: [], performanceControlsReady: true,
         performanceVuLevel: 0, performanceVuPeakLevel: 0,
         performanceOutputVuShell: null, performanceOutputVuFill: null, performanceOutputVuPeak: null, performanceOutputVuValue: null,
         performanceMixerVuShell: null, performanceMixerVuFill: null, performanceMixerVuPeak: null, performanceMixerVuValue: null,
-        activeGrains: new Map(), activeOscVoices: new Map(),
+        activeGrains: new Map(), activeOscVoices: new Map(), stopScheduledGrainVoices(){}, stopRetiredTransportVoices(){},
         hasAnyPerformanceLayerSoloSelection: () => solos.size > 0,
         hasPerformanceSourceLayerSolo: instrument => solos.has(instrument),
         document: { getElementById: id => controls.get(id) || null },
@@ -149,7 +151,7 @@ function fixture() {
         .filter(channel => instruments.some(instrument => channel.controlId === controlId(instrument)));
     context.ensurePerformanceMixerVuCardsMounted();
     const player = loadSamples(context.getKeyboardSamplePlayer());
-    const update = () => channels.forEach(channel => context.updatePerformanceMixerVuChannel(channel));
+    const update = () => { displayTime += 500; channels.forEach(channel => context.updatePerformanceMixerVuChannel(channel)); };
     const state = instrument => context.performanceMixerVuTapState.get(controlId(instrument));
     const value = instrument => controls.get(`${controlId(instrument)}VuValue`).textContent;
     return { context, controls, solos, player, channels, update, state, value };

@@ -29,7 +29,7 @@ const results = [];
                     if (url.pathname.endsWith('/api/ai-patch-direction')) {
                         received++;
                         const data = route.request().postDataJSON();
-                        assert.equal(Object.keys(data.current).length, 77);
+                        assert.equal(Object.keys(data.current).length, 78);
                         assert.equal(data.model, undefined);
                         const responseMode = mode;
                         if (responseMode === 'hold') await new Promise(resolve => release = resolve);

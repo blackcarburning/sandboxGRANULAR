@@ -22,13 +22,11 @@ test('static/hidden controls do not call full FX updates, while routed LFOs reta
  state.document.hidden=true;state.updateAudioModulationTick();assert.equal(counts.effects,30);assert.equal(counts.synth,60);
 });
 
-for(const kind of ['M','MPlus'])test(`${kind} input meter reads only visible displays at 10Hz, and stops in background`,()=>{
- const pending=[];let reads=0,updates=0;const name='bastardLoop'+kind;
- const state=fixture(['startBastardLoop'+kind+'InputMeter'],{document:{hidden:false,getElementById:()=>({})},[name+'MicAnalyserNode']:{getFloatTimeDomainData(data){reads++;data.fill(.1)}},[name+'MicAnalyserData']:new Float32Array(32),[name+'InputVuAnimationFrameId']:null,
- ['stopBastardLoop'+kind+'InputMeter'](){},['updateBastardLoop'+kind+'InputVuMeter'](){updates++},isPerformanceElementVisible:()=>false,setTimeout(callback,delay){assert.equal(delay,100);pending.push(callback);return pending.length}});
- state['startBastardLoop'+kind+'InputMeter']();pending.shift()();assert.equal(reads,0);assert.equal(updates,0);
- state.isPerformanceElementVisible=()=>true;pending.shift()();assert.equal(reads,1);assert.equal(updates,1);
- state.document.hidden=true;pending.shift()();assert.equal(pending.length,0);assert.equal(state[name+'InputVuAnimationFrameId'],null);
+for(const kind of ['M','MPlus'])test(`${kind} input meter delegates to the visibility clock without its own timer`,()=>{
+ let read,reads=0,updates=0;const name='bastardLoop'+kind,shell={};
+ const state=fixture(['startBastardLoop'+kind+'InputMeter'],{window:{mygrainMeters:{watch(el,callback){assert.equal(el,shell);read=callback;return()=>{}}}},document:{getElementById:()=>shell},[name+'MicAnalyserNode']:{getFloatTimeDomainData(data){reads++;data.fill(.1)}},[name+'MicAnalyserData']:new Float32Array(32),
+ ['stopBastardLoop'+kind+'InputMeter'](){},['updateBastardLoop'+kind+'InputVuMeter'](){updates++}});
+ state['startBastardLoop'+kind+'InputMeter']();assert.equal(reads,0);read();assert.equal(reads,1);assert.equal(updates,1);
 });
 
 test('bypass-aware compensation follows live stages and never mutates cached calibration',()=>{

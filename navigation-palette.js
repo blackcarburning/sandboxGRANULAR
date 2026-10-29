@@ -15,6 +15,7 @@
         'loop-b': '#f3bc75',
         'loop-c': '#ece276',
         'loop-v': '#ff9dbb',
+        'loop-w': '#87e1c6',
         radiolab: '#78e0d0',
         videolab: '#bcc8ef',
         'loop-p': '#c2de80',
@@ -25,6 +26,7 @@
         'loop-m': '#f5acd8',
         'loop-m-plus': '#e6c0a0',
         'loop-k': '#b7d4bc',
+        'noise-n': '#91cbd4',
         drums: '#e9a28c',
         sample: '#9ed6d9',
         layers: '#a4e8cb',
@@ -35,6 +37,7 @@
         export: '#edc677',
         'wav-browser': '#8cbce3',
         'stem-export': '#e3d0a5',
+        daw: '#4c9ce6',
         grain: '#92c9bc',
         mix: '#e8b5a6',
         lfo: '#b5ca83',
@@ -46,10 +49,12 @@
         'source-wave': '#7ed9f0',
         'wave-a': '#c6dbb1',
         'wave-b': '#dec1e7',
+        wasp: 'repeating-linear-gradient(125deg, #ffdc38 0px, #ffdc38 16px, #e23c30 16px, #e23c30 28px)',
         pan: '#efc4cf'
     });
     const foreground = '#f2f6ff';
     const states = Object.freeze({
+        wasp: Object.freeze({ color: '#21170e', border: '#ffdc38' }),
         mega: Object.freeze({ color: '#dffcff', border: 'rgba(126, 246, 255, 0.4)' }),
         sparse: Object.freeze({ color: '#fff2cc', border: 'rgba(255, 212, 102, 0.42)' }),
         transport: Object.freeze({ color: '#ffe0e4', border: 'rgba(255, 116, 142, 0.42)' }),
@@ -79,6 +84,7 @@
         '[aria-label="Bastardloop B controls"]': 'loop-b',
         '[aria-label="Bastardloop C controls"]': 'loop-c',
         '[aria-label="Bastardloop V controls"]': 'loop-v',
+        '[aria-label="Bastardloop W controls"]': 'loop-w',
         '#radiolabCard': 'radiolab',
         '#performanceVideoLabCard': 'videolab',
         '[aria-label="Bastardloop P controls"]': 'loop-p',
@@ -89,6 +95,7 @@
         '[aria-label="Bastardloop M controls"]': 'loop-m',
         '[aria-label="Bastardloop M+ controls"]': 'loop-m-plus',
         '#bastardLoopKCard': 'loop-k',
+        '#noiseCard': 'noise-n',
         '[aria-label="Bastardloop K controls"]': 'loop-k',
         '[aria-label="Drum machine controls"]': 'drums',
         '[aria-label="Dropbox sample layer controls"]': 'sample',
@@ -103,6 +110,7 @@
         '.performance-export-card': 'export',
         '#performanceWavBrowserBtn': 'wav-browser',
         '#performanceStemExportCard': 'stem-export',
+        '#dawExportCard': 'daw',
         '#performanceGrainControlsCard': 'grain',
         '[aria-label="Mix controls"]': 'mix',
         '#performanceLfoCard': 'lfo',
@@ -115,6 +123,7 @@
         '#generatedWaveformEditor': 'source-wave',
         '#grainAWaveformEditor': 'wave-a',
         '#grainBWaveformEditor': 'wave-b',
+        '#waspCard': 'wasp',
         '#finalPanSection': 'pan',
         '#performancePanLabResetBtn': 'pan'
     });
@@ -228,15 +237,17 @@
         const curtain = root.document.getElementById('desktopJumpCurtain');
         if (curtain) { curtain.hidden = true; curtain.setAttribute('aria-hidden', 'true'); }
         delete root.document.documentElement.dataset.mygrainJumping;
+        root.dispatchEvent(new root.CustomEvent('mygrain-jump-change'));
     }
     function transitionJump(action) {
         const curtain = root.document.getElementById('desktopJumpCurtain');
-        if (!curtain || !root.matchMedia(desktopJumpQuery).matches) return false;
+        if (!curtain || root.__mygrainSongRenderDeck) return false;
         const serial = ++jumpSerial;
         const started = root.performance.now();
         curtain.hidden = false;
         curtain.setAttribute('aria-hidden', 'false');
         root.document.documentElement.dataset.mygrainJumping = 'true';
+        root.dispatchEvent(new root.CustomEvent('mygrain-jump-change'));
         void (async () => {
             try {
                 // Present the opaque curtain before scrolling or changing a panel.
@@ -244,14 +255,15 @@
                 if (serial !== jumpSerial) return;
                 const result = await action() || {};
                 await settleWithin(result.ready);
-                const target = result.target;
+                let target = result.resolveTarget?.() || result.target;
+                if (target?.matches?.('button, input, .control-group')) target = target.closest('.performance-sound-card, .performance-feature-card, .performance-export-card, .performance-actions-card') || target;
                 await Promise.all([
                     settleWithin(root.document.fonts?.ready),
                     ...[...(target?.querySelectorAll?.('img') || [])].map(image => settleWithin(image.decode?.()))
                 ]);
                 if (serial !== jumpSerial) return;
                 if (target?.isConnected && result.block) {
-                    target.scrollIntoView({ behavior: 'instant', block: result.block, inline: 'nearest' });
+                    target.scrollIntoView({ behavior: 'instant', block: 'start', inline: 'nearest' });
                 }
                 // Layout and canvas/resize observers get actual painted frames;
                 // never expose the intermediate smooth-scroll compositor tiles.
@@ -264,10 +276,11 @@
                     stable = next === previous ? stable + 1 : 0;
                     previous = next;
                 }
+                if (target?.isConnected && result.block) target.scrollIntoView({ behavior: 'instant', block: 'start', inline: 'nearest' });
                 await pause(Math.max(0, 180 - (root.performance.now() - started)));
                 await frame();
             } catch (error) {
-                root.console.warn('MYGRAIN desktop jump could not finish.', error);
+                root.console.warn('MYGRAIN jump could not finish.', error);
             } finally {
                 // A superseded jump must not reveal a newer destination early.
                 if (serial === jumpSerial) cancelDesktopJump();
@@ -322,13 +335,13 @@
         panel.before(tools);
         const search = tools.querySelector('input');
         const empty = tools.querySelector('p');
-        const links = [...panel.querySelectorAll('.section-jump-option')];
+        const links = () => [...panel.querySelectorAll('.section-jump-option')];
         const quickTargets = new Set([...drawer.querySelectorAll('.section-jump-quick[data-jump-target]')].map(button => button.dataset.jumpTarget));
         const duplicateActions = new Set(['sectionJumpMegaRandomPanelBtn', 'sectionJumpSparseRandomPanelBtn', 'sectionJumpTransportPanelBtn']);
         const filter = () => {
-            const query = desktop.matches ? search.value.trim().toLowerCase() : '';
+            const query = search.value.trim().toLowerCase();
             let matches = 0;
-            for (const link of links) {
+            for (const link of links()) {
                 const duplicate = desktop.matches && (quickTargets.has(link.dataset.jumpTarget) || duplicateActions.has(link.id));
                 link.hidden = duplicate || !link.textContent.toLowerCase().includes(query);
                 if (!link.hidden) matches += 1;
@@ -345,19 +358,24 @@
                 filter();
                 search.blur();
             } else if (event.key === 'Enter') {
-                links.find(link => !link.hidden)?.click();
+                search.blur();
+                links().find(link => !link.hidden)?.click();
             }
         });
         const updateMode = () => {
             // CSS keeps the desktop dock persistent; mobile retains its drawer.
-            if (desktop.matches) handle.setAttribute('aria-expanded', 'true');
+            if (desktop.matches) { panel.before(tools); handle.setAttribute('aria-expanded', 'true'); }
             else {
+                const grid = panel.querySelector('.section-jump-grid');
+                if (grid) grid.before(tools);
+                else panel.prepend(tools);
                 search.value = '';
                 handle.setAttribute('aria-expanded', String(drawer.classList.contains('is-open')));
             }
             filter();
         };
         desktop.addEventListener('change', updateMode);
+        new MutationObserver(filter).observe(panel, { childList: true, subtree: true });
         const observer = new MutationObserver(() => {
             if (desktop.matches && handle.getAttribute('aria-expanded') !== 'true') handle.setAttribute('aria-expanded', 'true');
         });

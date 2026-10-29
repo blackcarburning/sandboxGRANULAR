@@ -63,25 +63,28 @@
             return { origin, sequencer: sequencerPlaying, drums: drumMachinePlaying,
                 loops: bastardLoopPlaying, lead: bastardLoopLTransportActive, bass: bastardLoopXTransportActive,
                 q: Boolean(root.mygrainQ?.running), arp: isArpeggiatorPlaying(),
+                section: this.active?.owner === 'q-range' ? { index: this.active.index, steps: this.active.steps, rate: this.active.rate } : null,
                 lanes: this.lanes().map(([source]) => Boolean(source)) };
         },
         stop() { this.active = null; stopAllPerformancePlayback({ silent: true }); },
-        start(index, steps, rate) {
+        start(index, steps, rate, options = {}) {
             const step = 60 / sequencerBPM / 4 / rate;
             const deadline = getBufferedTransportStartTime();
-            this.active = new Section(deadline, index * step, steps * step);
+            this.active = options.full ? null : new Section(deadline, index * step, steps * step);
+            if (this.active) Object.assign(this.active, { owner: options.owner, index, steps, rate, bpm: sequencerBPM });
             try {
                 withBufferedTransportStart(deadline, time => {
-                    this.active.origin = time;
+                    if (this.active) this.active.origin = time;
                     if (arpEnabled && holdEnabled) { keyboardArpTransportPlaying = true; startArpeggiatorPlayback(time); }
                     else startSequencer(time);
                     startAllBastardLoopLayers(time, { skipUi: true });
                     syncPerformanceControlState();
                 }, { reset: true, origin: deadline - index * step, exactStart: true });
-                return this.active.origin;
+                return this.active?.origin ?? getSharedLoopTransportOriginTime();
             } catch (error) { this.stop(); throw error; }
         },
         restore(saved) {
+            if (saved?.section && root.mygrainQ?.playbackRange()) return root.mygrainQ.startSharedRange();
             if (!saved || (!saved.lanes.some(Boolean) && !Object.entries(saved).some(([key, value]) => key !== 'origin' && value === true))) return;
             withBufferedTransportStart(null, time => {
                 if (saved.sequencer) startSequencer(time);
@@ -106,6 +109,7 @@
     'use strict';
 
     const theory = root.MygrainQTheory || (typeof require === 'function' ? require('./q-theory.js') : null);
+    const modulo = (value, length) => ((value % length) + length) % length;
     const bankLimit = 96 * 1024 * 1024;
     const keyboardPianoRepository = 'SAMPLES_Q_KEYBOARD/';
     const keyboardPianoId = 'salamander-v3-k-mp3-44100-v1';
@@ -611,8 +615,8 @@
             overlay.hidden = true;
             overlay.setAttribute('aria-hidden', 'true');
             overlay.innerHTML = `<section class="q-chord-editor-shell" role="dialog" aria-modal="true" aria-labelledby="qChordEditorTitle">
-                <header class="sample-browser-head"><div><h3 id="qChordEditorTitle">Q · Individual chord</h3><div id="qChordEditorName" aria-live="polite"></div></div><button type="button" id="qChordEditorClose">Close</button></header>
-                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Solo Note isolates the selected note in this chord only; the rest of the loop keeps playing. Double-click / double-tap to mute or unmute. Close clears mutes and solo. Delete Note removes the note; the Undo / Redo buttons restore up to 10 chord edits.</p>
+                <header class="sample-browser-head"><div><h3 id="qChordEditorTitle">Q · Individual chord</h3><div id="qChordEditorName" aria-live="polite"></div></div><button type="button" id="qChordEditorSave">Save chord</button><button type="button" id="qChordEditorClose">Close</button></header>
+                <p class="q-chord-editor-help">Drag notes or use ↑ / ↓. Save chord updates one holding-area entry; closing does not add a copy. Solo Note isolates the selected note in this chord only; the rest of the loop keeps playing. Double-click / double-tap to mute or unmute. Close clears mutes and solo. Delete Note removes the note; the Undo / Redo buttons restore up to 10 chord edits.</p>
                 <div class="q-chord-editor-tools" aria-label="Note and whole-chord editing">
                     <button type="button" data-q-note-action="down">Note ↓</button><button type="button" data-q-note-action="up">Note ↑</button>
                     <button type="button" data-q-note-action="chord-down">Chord −</button><button type="button" data-q-note-action="chord-up">Chord +</button>
@@ -635,6 +639,7 @@
                 row.textContent = theory.noteName(pitch);
                 labels.append(row);
             }
+            overlay.querySelector('#qChordEditorSave').addEventListener('click', () => this.task(() => this.saveChord()));
             overlay.querySelector('#qChordEditorClose').addEventListener('click', () => this.close());
             overlay.querySelector('#qChordLoopToggle').addEventListener('click', () => this.preview?.running || this.loading ? this.stopLoop() : this.task(() => this.startLoop()));
             const length = overlay.querySelector('#qChordLoopSteps');
@@ -756,6 +761,9 @@
             if (root.mygrainSongBeta?.busy || root.mygrainSongBeta?.playing || root.mygrainSongBeta?.editing || root.mygrainCardHistory?.busy || root.mygrainAiPatch?.busy) throw new Error('Finish the current Song, AI or Undo/Redo operation before editing a chord.');
             if (this.opened) this.close({ resume: false });
             this.index = index;
+            const range = this.owner.playbackRange();
+            this.loopStart = range ? range[0] : 0;
+            this.loopSteps = range ? range[1] - range[0] + 1 : this.owner.length();
             this.mutedNotes = new Set();
             this.soloSelected = false;
             this.lastNoteTap = null;
@@ -834,7 +842,7 @@
                     // that cell), after ARP expansion so its rhythm is retained.
                     // Empty events retain the clock even with every note muted.
                     // Solo overrides temporary mutes without discarding them.
-                    filtered = muted.size || solo !== null ? events.map(event => event.index % owner.length() === 0
+                    filtered = muted.size || solo !== null ? events.map(event => event.index % owner.length() === modulo(this.index - (this.loopStart ?? this.index), owner.length())
                         ? { ...event, notes: event.notes.filter(pitch => solo !== null ? pitch - preview.state.transpose === solo : !muted.has(pitch - preview.state.transpose)) } : event) : events;
                 }
                 return filtered;
@@ -859,14 +867,19 @@
             try {
                 await this.owner.ready();
                 if (!this.opened || request !== this.request) return;
-                const state = theory.chordEditLoop(this.owner.state, this.owner.length(), this.index, this.loopSteps);
-                await this.owner.piano.ensure(theory.events(state, this.loopSteps));
+                const first = this.loopStart ?? this.index;
+                const state = theory.chordEditLoop(this.owner.state, this.owner.length(), first, this.loopSteps);
+                await this.owner.prepareSounds(theory.events(state, this.loopSteps));
                 if (!this.opened || request !== this.request) return;
                 this.preview ||= this.createPreview();
                 this.preview.state = state;
-                const origin = root.mygrainPatternSection ? root.mygrainPatternSection.start(this.index, this.loopSteps, state.rate) : this.owner.host.context().currentTime + .06;
+                let origin = this.owner.host.context().currentTime + .06;
+                if (!this.owner.playbackSolo) {
+                    if (this.owner.playbackRange() && root.mygrainPatternSection) origin = root.mygrainPatternSection.start(first, this.loopSteps, state.rate);
+                    else if (root.mygrainPatternSection) origin = root.mygrainPatternSection.start(0, this.owner.length(), state.rate, { full: true });
+                }
                 this.preview.start(origin);
-                this.status(`Looping the whole pattern from Q step ${this.index + 1} for ${this.loopSteps} steps. ${this.soloSelected ? `Solo Note: ${theory.noteName(this.step().notes[this.selected])} in this chord only; all other chords and instruments keep playing.` : 'Changes use this same sound and effects; Undo restores prior notes.'}`);
+                this.status(`Looping ${this.owner.playbackSolo ? 'Q only' : 'all enabled cards'} from Q step ${first + 1} for ${this.loopSteps} steps. ${this.soloSelected ? `Solo Note: ${theory.noteName(this.step().notes[this.selected])} in this chord only; other notes in this chord are muted for preview.` : 'Changes use this same sound and effects; Undo restores prior notes.'}`);
             } finally {
                 if (request === this.request) { this.loading = false; this.syncLoop(); }
             }
@@ -878,8 +891,9 @@
             button.textContent = playing || this.loading ? 'Stop loop' : 'Start loop';
             button.classList.toggle('q-chord-loop-playing', playing || this.loading);
             button.setAttribute('aria-pressed', String(playing));
-            const end = (this.index + this.loopSteps - 1) % this.owner.length();
-            this.overlay.querySelector('#qChordLoopPosition').textContent = `From ${this.index + 1} · ${this.loopSteps} steps · last ${end + 1}${Number.isInteger(position) && playing ? ` · Q step ${(this.index + position) % this.owner.length() + 1}` : ''}`;
+            const first = this.loopStart ?? this.index;
+            const end = (first + this.loopSteps - 1) % this.owner.length();
+            this.overlay.querySelector('#qChordLoopPosition').textContent = `From ${first + 1} · ${this.loopSteps} steps · last ${end + 1}${Number.isInteger(position) && playing ? ` · Q step ${(first + position) % this.owner.length() + 1}` : ''}`;
         }
         render() {
             if (!this.opened) return;
@@ -966,6 +980,7 @@
                 if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish before editing a note.');
                 const replacement = theory.editChordNotes(this.step(), pitches, this.owner.state.transpose);
                 if (this.step().notes.join(',') === replacement.notes.join(',')) { this.render(); return; }
+                replacement.customChord = true;
                 const focusNote = document.activeElement?.matches('[data-q-note-index]');
                 const muted = new Set(pitches.filter((_, index) => this.mutedNotes.has(this.step().notes[sourceIndices[index]])));
                 const edit = () => {
@@ -980,9 +995,20 @@
                 this.render();
                 if (focusNote) this.overlay.querySelector(`[data-q-note-index="${this.selected}"]`)?.focus({ preventScroll: true });
                 this.revealSelected();
-                this.status(`${theory.identifyChord(replacement.notes, replacement.root).name} · saved. Undo restores the previous voicing.`);
+                this.status(`${theory.identifyChord(replacement.notes, replacement.root).name} · sequence updated. Use Save chord to update the holding area.`);
                 if (this.preview?.running || this.loading) return this.startLoop();
             } catch (error) { this.render(); throw error; }
+        }
+        saveChord() {
+            if (!this.opened) return;
+            if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish.');
+            const step = this.step();
+            const identity = root.mygrainQCustomChords.saveInstance(step.notes, step.customChordId, step.customChordColour);
+            Object.assign(step, identity);
+            this.owner.state.selection = theory.copy(step);
+            this.owner.changed({ reschedule: false });
+            this.render();
+            this.status('Custom chord saved. Further edits and Save update this same entry.');
         }
         move(action) {
             if (!this.opened || this.drag) return;
@@ -1046,7 +1072,9 @@
                 const count = direction === 'undo' ? this.editorUndo.length : this.editorRedo.length;
                 const label = direction === 'undo' ? 'Undo' : 'Redo';
                 button.textContent = `${label} ${count}`;
-                button.disabled = !count || this.editorHistoryBusy || root.mygrainCardHistory?.busy;
+                const disabled = !count || this.editorHistoryBusy || root.mygrainCardHistory?.busy;
+                if (disabled && this.mobilePanel && document.activeElement === button) this.mobileControls.panels[this.mobilePanel].querySelector('header button').focus({ preventScroll: true });
+                button.disabled = disabled;
                 button.setAttribute('aria-label', `${label} Q chord edit: ${count} of 10 levels available`);
             }
         }
@@ -1106,8 +1134,110 @@
         }
 
         length() { return this.host.length(); }
-        getState() { return { ...theory.copy(this.state), bank: theory.copy(this.piano.bank) }; }
-        getAudioBuffer() { return this.piano.atlas; }
+        playbackRange() {
+            return this.loopRange && this.loopRange[0] < this.length()
+                ? [this.loopRange[0], Math.min(this.loopRange[1], this.length() - 1)] : null;
+        }
+        playbackLength() { const range = this.playbackRange(); return range ? range[1] - range[0] + 1 : this.length(); }
+        playbackIndex(position) { return (this.playbackRange()?.[0] || 0) + modulo(position, this.playbackLength()); }
+        playbackSequence(state = this.playbackState || this.state) {
+            const range = this.playbackRange();
+            if (!range) return state;
+            if (state !== this.playbackState) return theory.chordEditLoop(state, this.length(), range[0], this.playbackLength());
+            const key = `${this.length()}:${range}`;
+            if (this.windowState !== state || this.windowKey !== key) {
+                this.windowState = state; this.windowKey = key;
+                this.windowSequence = theory.chordEditLoop(state, this.length(), range[0], this.playbackLength());
+            }
+            return this.windowSequence;
+        }
+        syncSequenceLoop() {
+            if (typeof document === 'undefined') return;
+            const range = this.playbackRange(), start = document.getElementById('qSequenceLoopStart'), end = document.getElementById('qSequenceLoopEnd');
+            for (const input of [start, end]) if (input) input.max = String(this.length());
+            if (start && document.activeElement !== start) start.value = String(Math.min(this.loopStart || 0, this.length() - 1) + 1);
+            if (end && document.activeElement !== end) end.value = String(Math.min(this.loopEnd ?? (this.length() - 1), this.length() - 1) + 1);
+            for (const step of document.querySelectorAll('#bastardLoopQStepGrid [data-q-step]')) step.classList.toggle('in-loop', Boolean(range && Number(step.dataset.qStep) >= range[0] && Number(step.dataset.qStep) <= range[1]));
+            const button = document.getElementById('qSequenceLoopToggle');
+            if (button) { button.textContent = this.loopLoading ? 'Cancel' : range ? 'Loop Off' : 'Loop On'; button.setAttribute('aria-pressed', String(Boolean(range))); }
+            const mark = document.getElementById('qSequenceLoopSet');
+            if (mark) mark.setAttribute('aria-pressed', String(this.mark?.type === 'loop'));
+            for (const [id, active] of [['qEdgeCopyRange', (this.mark?.type === 'copy' || this.mark?.type === 'paste') && !this.mark.insert], ['qEdgeCopySection', (this.mark?.type === 'copy' || this.mark?.type === 'paste') && this.mark.insert], ['qEdgeMarkTrans', this.mark?.type === 'transpose' || Boolean(this.range)]]) document.getElementById(id)?.setAttribute('aria-pressed', String(Boolean(active)));
+            const label = document.getElementById('qSequenceLoopStatus');
+            if (label) label.textContent = this.loopLoading ? 'Please wait…' : this.mark?.type === 'loop' ? this.mark.start === null ? 'Tap first step' : 'Tap last step' : range ? `Q loops ${range[0] + 1}–${range[1] + 1}` : 'Full sequence';
+        }
+        startSharedRange() {
+            const range = this.playbackRange();
+            if (!range) return this.host.allPlay();
+            root.mygrainPatternSection.stop();
+            this.state.enabled = true;
+            return root.mygrainPatternSection.start(range[0], range[1] - range[0] + 1, this.state.rate, { owner: 'q-range' });
+        }
+        clearSequenceLoop(restart = true) {
+            const active = Boolean(this.loopRange), running = this.running, shared = root.mygrainPatternSection?.active?.owner === 'q-range';
+            this.loopRequest = (this.loopRequest || 0) + 1;
+            this.loopLoading = false;
+            this.loopRange = null;
+            if (this.mark?.type === 'loop') this.mark = null;
+            if (shared) {
+                root.mygrainPatternSection.stop();
+                if (running && restart) this.host.allPlay();
+            } else if (active && running && restart) this.start(this.host.context().currentTime + .04, { origin: this.host.transportOrigin?.() });
+            this.sync();
+        }
+        async setSequenceLoop(range) {
+            if (root.mygrainCardHistory?.busy || root.mygrainSongBeta?.playing || root.mygrainSongBeta?.busy) throw new Error('Finish Song playback or Undo/Redo before setting a Q test loop.');
+            if (!range || range.some(value => !Number.isInteger(value)) || range[0] < 0 || range[1] < range[0] || range[1] >= this.length()) throw new Error('Choose first and last steps within the Q sequence.');
+            const loop = theory.chordEditLoop(this.state, this.length(), range[0], range[1] - range[0] + 1);
+            if (!loop.sequence.some(step => step?.notes?.length && !step.rest) && !this.liveRecording()) throw new Error('This range has no chords. Insert a chord or arm Live recording first.');
+            const request = this.loopRequest = (this.loopRequest || 0) + 1;
+            this.loopLoading = true; this.syncSequenceLoop();
+            try {
+                await this.ready();
+                await this.prepareSounds(theory.events(loop, range[1] - range[0] + 1));
+                if (request !== this.loopRequest) return;
+                this.loopStart = range[0]; this.loopEnd = range[1]; this.loopRange = range.slice();
+                this.state.enabled = true;
+                if (this.running) {
+                    if (!this.playbackSolo && Number.isFinite(this.host.transportOrigin?.())) this.startSharedRange();
+                    else this.start(this.host.context().currentTime + .04);
+                }
+                this.host.save(); this.sync();
+                this.status(`Q loop set: steps ${range[0] + 1}–${range[1] + 1}. ${this.running ? 'Playback continues.' : 'Press Start to play.'} All Loops repeats this same section across all enabled cards. Q Solo plays Q only.`);
+            } finally { if (request === this.loopRequest) { this.loopLoading = false; this.syncSequenceLoop(); } }
+        }
+        async toggleSequenceLoop() {
+            if (this.loopRange || this.loopLoading) { this.clearSequenceLoop(); this.status('Q test loop off. Full sequence restored.'); return; }
+            const start = Number(document.getElementById('qSequenceLoopStart').value) - 1;
+            const end = Number(document.getElementById('qSequenceLoopEnd').value) - 1;
+            return this.setSequenceLoop([start, end]);
+        }
+        candidateShift(custom = false, state = this.state) { return custom ? 0 : (state.paletteTranspose || 0); }
+        shiftedCandidate(chord, amount = this.candidateShift()) {
+            return { ...chord, root: chord.root + amount, notes: theory.transposed(chord.notes, amount), id: `${chord.id || 'custom'}:${amount}` };
+        }
+        shiftPool(field, amount) {
+            if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish.');
+            const next = theory.copy(this.state);
+            if (field === 'tonic') {
+                next.tonic = modulo(next.tonic + amount, 12);
+                if (next.paletteBassRoots?.length) { next.paletteBassRoots = next.paletteBassRoots.map(pitch => modulo(pitch + amount, 12)); next.chordRoot = modulo(next.chordRoot + amount, 12); }
+                else next.chordRoot = next.tonic;
+            }
+            else {
+                next[field] = (next[field] || 0) + amount;
+                if (field === 'octave' && (next.octave < 0 || next.octave > 8)) throw new Error('Choose an octave from 0 to 8.');
+                if (field === 'paletteTranspose' && Math.abs(next.paletteTranspose) > 24) throw new Error('Candidate transpose is limited to −24…+24 semitones. Use Octave for larger shifts.');
+            }
+            const candidates = theory.chordPalette(next, this.scale());
+            for (const chord of candidates) theory.transposed(chord.notes, this.candidateShift(false, next));
+            if (!candidates.length && this.palette().length && field === 'octave') throw new Error('That octave leaves the chord pool outside A0–C8.');
+            const edit = () => { this.stopPreview(); this.state = next; this.state.selection = null; this.changed({ preserveSamples: true, reschedule: false }); };
+            if (root.mygrainCardHistory) root.mygrainCardHistory.run(`Q candidate ${field}`, edit); else edit();
+            this.status(field === 'tonic' ? `Scale tonic ${theory.notes[next.tonic]}. Recorded chords and custom originals unchanged.` : `Candidates: transpose ${next.paletteTranspose > 0 ? '+' : ''}${next.paletteTranspose || 0} semitones · octave ${next.octave}. Recorded chords and custom originals unchanged.`);
+        }
+        getState() { return { ...theory.copy(this.state), bank: this.externalSound() ? null : theory.copy(this.piano.bank) }; }
+        getAudioBuffer() { return this.externalSound() ? null : this.piano.atlas; }
         setAudioBuffer(buffer) { this.piano.restored(buffer, this.state.bank); }
         hasSequence() { return this.state.sequence.slice(0, this.length()).some(step => step?.notes?.length && !step.rest); }
         liveRecording() { return this.state.record && this.state.recordMode === 'live'; }
@@ -1124,8 +1254,9 @@
         }
 
         restore(state, options = {}) {
+            if (this === root.mygrainQ && root.mygrainPatternSection?.active?.owner === 'q-range') root.mygrainPatternSection.stop();
             this.chordEditor?.close({ resume: false });
-            this.stop();
+            this.stop({ clearLoop: true });
             this.state = theory.normalizeState(state);
             this.resetEditorHistory();
             this.piano.select(this.state.instrument);
@@ -1142,8 +1273,9 @@
 
         async setInstrument(instrument) {
             if (!Object.hasOwn(theory.instruments, instrument)) throw new Error('Unknown Q instrument.');
-            if (this.state.instrument === instrument) return;
-            const origin = this.running ? this.origin ?? this.host.context().currentTime : null;
+            if (this.state.instrument === instrument && !this.externalSound()) return;
+            this.state.soundSource = instrument;
+            const playing = this.running;
             const preview = this.preview?.chord;
             this.stop();
             const generation = this.generation;
@@ -1152,9 +1284,9 @@
             this.state.bank = null;
             this.changed({ preserveSamples: true, reschedule: false });
             this.status(`${theory.instruments[instrument].label} selected. Samples load on demand.`);
-            if (origin !== null) {
+            if (playing) {
                 await this.preparePlayback();
-                if (generation === this.generation) this.start(origin);
+                if (generation === this.generation) this.start(this.host.context().currentTime + .04);
             } else if (preview) await this.audition(preview);
         }
 
@@ -1193,7 +1325,7 @@
                 const generation = this.generation;
                 const state = theory.copy(this.state);
                 this.task(async () => {
-                    await this.piano.ensure(theory.events(state, this.length()));
+                    await this.prepareSounds(theory.events(state, this.length()));
                     if (generation !== this.generation || revision !== this.editRevision) return;
                     this.playbackState = state;
                     const now = this.host.context().currentTime;
@@ -1203,8 +1335,10 @@
                             if (!event) { this.removeVoice(voice, true); continue; }
                             const hold = state.chordHold && !state.arpEnabled;
                             voice.fullRelease = hold ? .006 : Math.min(state.instrument === 'strings' ? .25 : .16, state.arpEnabled && state.arpPattern === 'custom' ? event.gate * voice.stepSeconds / 4 : Infinity);
-                            const end = this.origin + (voice.eventCycle * this.length() + event.start + event.gate) * voice.stepSeconds + (hold ? 0 : voice.fullRelease);
-                            voice.fullDuration = Math.max(.001, Math.min(end - voice.start, voice.naturalDuration));
+                            const end = this.origin + (voice.eventCycle * this.playbackLength() + event.start + event.gate) * voice.stepSeconds + (hold ? 0 : voice.fullRelease);
+                            const boundary = this.loopRange ? this.origin + (voice.eventCycle + 1) * this.playbackLength() * voice.stepSeconds : Infinity;
+                            voice.fullDuration = Math.max(.001, Math.min(end, boundary) - voice.start);
+                            voice.fullDuration = Math.min(voice.fullDuration, voice.naturalDuration);
                         }
                         this.applyVoiceEnvelope(voice, state, Math.max(now, voice.start));
                     }
@@ -1222,7 +1356,28 @@
             return true;
         }
 
+        externalSound() { return ['osc','grain','sample'].includes(this.state.soundSource); }
+        async prepareSounds(events) {
+            if (this.externalSound()) {
+                if (!root.mygrainQSoundSources) throw new Error('Q sound sources are not ready. Reload MYGRAIN.');
+                return root.mygrainQSoundSources.prepare(this.state.soundSource);
+            }
+            return this.piano.ensure(events);
+        }
+        async setSoundSource(source) {
+            if (['piano','strings'].includes(source)) {
+                return this.setInstrument(source);
+            }
+            if (!['osc','grain','sample'].includes(source)) throw new Error('Unknown Q sound source.');
+            const playing = this.running;
+            this.stop(); this.state.soundSource = source; this.state.bank = null;
+            this.changed({preserveSamples:true,reschedule:false});
+            if (source === 'sample' && !root.mygrainQSoundSources?.sample()) { root.mygrainQSoundSources.browse(); return; }
+            await this.prepareSounds([]);
+            if (playing) this.start(this.host.context().currentTime + .04);
+        }
         async prepareCapture() {
+            if (this.externalSound()) { await this.prepareSounds([]); this.state.bank = null; return; }
             const serialized = JSON.stringify(this.state);
             await this.piano.capture(this.state);
             if (JSON.stringify(this.state) !== serialized) throw new Error('Q changed while its samples were being captured. Save the part again.');
@@ -1231,20 +1386,21 @@
 
         async preparePlayback() {
             await this.ready();
-            this.status(`Loading the ${theory.instruments[this.state.instrument].label} notes needed by this sequence…`);
+            this.status(`Preparing Q ${this.externalSound() ? this.state.soundSource.toUpperCase() : theory.instruments[this.state.instrument].label}…`);
             const events = theory.events(this.state, this.length());
             if (!events.length) {
                 const chord = this.selectedChord();
                 events.push({ notes: theory.transposed(chord.notes, this.state.transpose), velocity: this.state.velocity });
             }
-            await this.piano.ensure(events);
-            this.status(`Local multisample ${theory.instruments[this.state.instrument].label} ready.`);
+            await this.prepareSounds(events);
+            this.status(`Q ${this.externalSound() ? this.state.soundSource.toUpperCase() : theory.instruments[this.state.instrument].label} ready.`);
         }
 
         ensureGraph() {
             const context = this.host.context();
             const destination = this.host.destination();
             if (this.graph?.context === context && this.graph.destination === destination) return this.graph;
+            if (this.graph) clearTimeout(this.graph.reverbTimer);
             if (this.graph) for (const node of this.graph.nodes) { try { node.disconnect(); } catch (error) {} }
             const input = context.createGain();
             const highpass = context.createBiquadFilter();
@@ -1261,37 +1417,91 @@
             const roomWet = context.createGain();
             const level = context.createGain();
             const pan = context.createStereoPanner();
-            const impulse = context.createBuffer(2, Math.round(context.sampleRate * 1.1), context.sampleRate);
-            let random = 19800517;
-            for (let channel = 0; channel < 2; channel += 1) {
-                const samples = impulse.getChannelData(channel);
-                for (let index = 0; index < samples.length; index += 1) {
-                    random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
-                    samples[index] = (random / 2147483648 - 1) * Math.exp(-7 * index / samples.length) * .3;
-                }
-            }
-            convolver.normalize = true;
-            convolver.buffer = impulse;
-            input.connect(highpass).connect(lowpass);
+            // A/B convolution banks crossfade when size/decay changes, preserving the old tail.
+            const convolverB = context.createConvolver();
+            const reverbBanks = [convolver, convolverB].map(node => ({ node, gain: context.createGain() }));
+            const reverbPredelay = context.createDelay(.25);
+            const reverbLowcut = context.createBiquadFilter(); reverbLowcut.type = 'highpass'; reverbLowcut.Q.value = .707;
+            const reverbDamping = context.createBiquadFilter(); reverbDamping.type = 'lowpass'; reverbDamping.Q.value = .707;
+            const reverbSplit = context.createChannelSplitter(2), reverbMerge = context.createChannelMerger(2);
+            const widthGains = Array.from({ length: 4 }, () => context.createGain());
+            reverbPredelay.connect(reverbLowcut).connect(reverbDamping);
+            reverbBanks.forEach(bank => { bank.gain.gain.value = 0; reverbDamping.connect(bank.node).connect(bank.gain).connect(reverbSplit); });
+            [[0,0],[1,1],[0,1],[1,0]].forEach(([from,to], i) => { reverbSplit.connect(widthGains[i], from); widthGains[i].connect(reverbMerge, 0, to); });
+            reverbMerge.connect(roomWet).connect(level);
+            if (root.mygrainLoopFx && this === root.mygrainQ) input.connect(dry).connect(level);
+            else input.connect(highpass).connect(lowpass);
             lowpass.connect(dry).connect(level);
             lowpass.connect(delay);
             delay.connect(feedback).connect(delay);
             delay.connect(delayWet).connect(level);
-            lowpass.connect(convolver).connect(roomWet).connect(level);
-            level.connect(pan).connect(destination);
-            const nodes = [input, highpass, lowpass, dry, delay, feedback, delayWet, convolver, roomWet, level, pan];
-            this.graph = { context, destination, input, highpass, lowpass, dry, delay, feedback, delayWet, convolver, roomWet, level, pan, nodes };
+            lowpass.connect(reverbPredelay);
+            level.connect(pan);
+            const eqRoute = root.mygrainChannelEq?.connect(this.host.channelKey || 'Q', pan, destination);
+            if (!eqRoute) pan.connect(destination);
+            const nodes = [input, highpass, lowpass, dry, delay, feedback, delayWet, convolver, convolverB, ...reverbBanks.map(bank => bank.gain), reverbPredelay, reverbLowcut, reverbDamping, reverbSplit, reverbMerge, ...widthGains, roomWet, level, pan, ...(eqRoute ? [eqRoute] : [])];
+            this.graph = { context, destination, input, highpass, lowpass, dry, delay, feedback, delayWet, convolver, reverbBanks, reverbPredelay, reverbLowcut, reverbDamping, widthGains, roomWet, level, pan, nodes };
             this.updateEffects();
             return this.graph;
+        }
+
+        rebuildReverb(graph, immediate = false) {
+            const key = `${this.state.reverbDecay}:${this.state.reverbSize}`;
+            if (graph.reverbKey === key || graph.reverbPendingKey === key) return;
+            clearTimeout(graph.reverbTimer);
+            graph.reverbPendingKey = key;
+            const build = () => {
+                if (this.graph !== graph || graph.context.state === 'closed') return;
+                const context = graph.context, decay = this.state.reverbDecay, size = this.state.reverbSize;
+                const impulse = context.createBuffer(2, Math.ceil(context.sampleRate * decay), context.sampleRate);
+                // Independent dense stereo tails, diffused onset and size-dependent early reflections.
+                let random = 19800517;
+                for (let channel = 0; channel < 2; channel += 1) {
+                    const samples = impulse.getChannelData(channel);
+                    for (let i = 0; i < samples.length; i += 1) {
+                        random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+                        const time = i / context.sampleRate;
+                        const bloom = 1 - Math.exp(-time / (.008 + size * .065));
+                        const fade = Math.min(1, (samples.length - 1 - i) / (context.sampleRate * .02));
+                        samples[i] = (random / 2147483648 - 1) * bloom * Math.exp(-6.9078 * time / decay) * fade;
+                    }
+                    for (let tap = 0; tap < 12; tap += 1) {
+                        const at = Math.round((.009 + (tap + 1) * (.003 + size * .009) + channel * .0017) * context.sampleRate);
+                        if (at < samples.length) samples[at] += (tap % 2 ? -1 : 1) * .7 * Math.exp(-tap / 4);
+                    }
+                }
+                const next = graph.reverbKey ? 1 - graph.reverbActive : 0;
+                graph.reverbBanks[next].node.buffer = impulse;
+                const now = context.currentTime;
+                graph.reverbBanks.forEach((bank, i) => {
+                    bank.gain.gain.cancelScheduledValues(now);
+                    bank.gain.gain.setValueAtTime(bank.gain.gain.value, now);
+                    bank.gain.gain.linearRampToValueAtTime(i === next ? 1 : 0, now + .12);
+                });
+                graph.reverbActive = next; graph.reverbKey = `${decay}:${size}`; graph.reverbPendingKey = null;
+            };
+            if (immediate || !graph.reverbKey) build(); else graph.reverbTimer = setTimeout(build, 180);
         }
 
         updateEffects() {
             const graph = this.graph;
             if (!graph || graph.context.state === 'closed') return;
+            const common = root.mygrainLoopFx && this === root.mygrainQ;
+            const delayOn=!common&&this.state.delay>0,roomOn=!common&&this.state.room>0;
+            const fxKey=`${delayOn}:${roomOn}`;
+            if(graph.idleFxKey!==fxKey){
+                for(const [from,to,on] of [[graph.lowpass,graph.delay,delayOn],[graph.feedback,graph.delay,delayOn],[graph.delayWet,graph.level,delayOn],[graph.lowpass,graph.reverbPredelay,roomOn],[graph.roomWet,graph.level,roomOn]]){try{from.disconnect(to)}catch{};if(on)from.connect(to);}
+                if(!roomOn){clearTimeout(graph.reverbTimer);graph.reverbPendingKey=null;graph.reverbKey=null;for(const bank of graph.reverbBanks)bank.node.buffer=null;}
+                graph.idleFxKey=fxKey;
+            }
+            if(roomOn)this.rebuildReverb(graph);
             const now = graph.context.currentTime;
             const targets = [[graph.highpass.frequency, this.state.highpass], [graph.lowpass.frequency, Math.min(this.state.lowpass, graph.context.sampleRate * .45)],
                 [graph.delay.delayTime, Math.min(11, 60 / this.host.bpm() * this.state.delayBeats)], [graph.feedback.gain, this.state.feedback],
-                [graph.delayWet.gain, this.state.delay * .65], [graph.roomWet.gain, this.state.room * .8],
+                [graph.delayWet.gain, common ? 0 : this.state.delay * .65], [graph.roomWet.gain, common ? 0 : this.state.room * .8],
+                [graph.reverbPredelay.delayTime, this.state.reverbPredelay / 1000],
+                [graph.reverbLowcut.frequency, this.state.reverbLowcut], [graph.reverbDamping.frequency, Math.min(this.state.reverbDamping, graph.context.sampleRate * .45)],
+                ...graph.widthGains.map((gain, i) => [gain.gain, .5 * (1 + (i < 2 ? 1 : -1) * this.state.reverbWidth)]),
                 [graph.level.gain, this.state.enabled || (this.auditioning && this.hasAudio()) ? this.state.level * this.host.soloGain() : 0], [graph.pan.pan, this.state.pan]];
             for (const [parameter, value] of targets) {
                 parameter.cancelScheduledValues(now);
@@ -1302,31 +1512,45 @@
         voice(pitch, velocity, start, duration, options = {}) {
             const context = this.host.context();
             const graph = this.ensureGraph();
-            const selected = this.piano.source(pitch, velocity);
+            const external = this.externalSound();
+            const selected = external ? root.mygrainQSoundSources.selected(this.state.soundSource, pitch) : this.piano.source(pitch, velocity);
             const rate = 2 ** ((pitch - selected.sample.midi) / 12);
             const when = Math.max(context.currentTime + .001, start);
-            const looped = this.state.instrument === 'strings';
+            const looped = external ? this.state.soundSource !== 'sample' : this.state.instrument === 'strings';
+            const range = this.playbackRange();
+            if (range && options.grid && !options.preview && Number.isFinite(this.origin)) {
+                const seconds = 60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate;
+                const cycle = Math.floor((start - this.origin) / (seconds * this.playbackLength()) + .000001);
+                const remaining = this.origin + (cycle + 1) * this.playbackLength() * seconds - when;
+                if (remaining <= .004) return;
+                const release = Math.min(options.releaseSeconds ?? (looped ? .25 : .16), remaining / 4);
+                duration = Math.min(duration, Math.max(.001, remaining - release));
+                options = { ...options, hold: false, releaseSeconds: release };
+            }
             const release = Math.min(looped ? .25 : .16, options.releaseSeconds ?? Infinity);
             const window = options.sustain && !looped ? selected.duration / rate - .001 : duration + (options.hold ? 0 : release);
             const end = when + (looped ? window : Math.min(window, selected.duration / rate - .001));
             if (end <= when + .004) return;
             while (this.voices.size >= 64) this.removeVoice(this.voices.values().next().value, true);
-            const source = context.createBufferSource();
             const gain = context.createGain();
-            source.buffer = selected.buffer;
+            const live = external && this.state.soundSource !== 'sample';
+            const source = live ? root.mygrainQSoundSources.createSource(this.state.soundSource, pitch, velocity, gain) : context.createBufferSource();
+            if (!live) source.buffer = selected.buffer;
             source.playbackRate.value = rate;
-            if (looped) {
+            if (looped && !live) {
                 source.loop = true;
                 source.loopStart = selected.offset + selected.loopStart;
                 source.loopEnd = selected.offset + selected.loopEnd;
             }
             const baseVelocity = options.baseVelocity ?? velocity;
-            const peak = (looped ? baseVelocity / 127 : Math.sqrt(baseVelocity / 127)) * instrumentCalibrationGain[this.state.instrument];
-            source.connect(gain).connect(graph.input);
+            const peak = (looped ? baseVelocity / 127 : Math.sqrt(baseVelocity / 127)) * (external ? 1 : instrumentCalibrationGain[this.state.instrument]);
+            if (!live) source.connect(gain);
+            gain.connect(graph.input);
             const voice = { source, gain, start: when, end, fullDuration: end - when, fullRelease: release, pitch, velocity, peak, release, looped, sustain: options.sustain === true, grid: options.grid === true, stepSeconds: options.stepSeconds, eventStart: options.eventStart, eventCycle: options.eventCycle, naturalDuration: looped ? Infinity : selected.duration / rate - .001, accentBoost: options.accentBoost ?? 1, preview: options.preview === true };
             this.applyVoiceEnvelope(voice, voice.preview ? this.state : this.playbackState || this.state);
             this.voices.add(voice);
-            const tail = Math.max(this.state.room > 0 ? 1.1 : 0, this.state.delay > 0 ? Math.min(8, 60 / this.host.bpm() * this.state.delayBeats * Math.log(.001) / Math.log(Math.max(.01, this.state.feedback))) : 0);
+            const effects = root.mygrainLoopFx && this === root.mygrainQ ? root.mygrainLoopFx.channel('Q') : this.state;
+            const tail = Math.max(effects.room > 0 ? effects.reverbDecay + effects.reverbPredelay / 1000 : 0, effects.delay > 0 ? Math.min(8, 60 / this.host.bpm() * effects.delayBeats * Math.log(.001) / Math.log(Math.max(.01, effects.feedback))) : 0);
             this.tailUntil = Math.max(this.tailUntil || 0, (Number.isFinite(voice.end) ? voice.end : when) + tail);
             if (this.voices.size === 1 && !this.running) this.host.activity?.();
             source.onended = () => this.removeVoice(voice);
@@ -1368,15 +1592,16 @@
             const baseAt = time => time < start + attack ? peak * Math.max(0, (time - start) / attack)
                 : shape.fading ? peak * Math.max(0, (end - time) / (end - start - attack))
                     : time > releaseStart ? peak * Math.max(0, (end - time) / (end - releaseStart)) : peak;
+            const accentState = this.playbackSequence(state);
             const cellAt = time => (time - this.origin) / voice.stepSeconds;
-            const multiplierAt = time => voice.grid ? theory.accentGain(state, cellAt(time), this.length()) : voice.accentBoost ?? 1;
+            const multiplierAt = time => voice.grid ? theory.accentGain(accentState, cellAt(time), this.playbackLength()) : voice.accentBoost ?? 1;
             const points = new Map([[start + attack, null], [releaseStart, null], [end, 0]]);
             if (voice.grid) {
                 for (let cell = Math.floor(cellAt(start)) + 1; this.origin + cell * voice.stepSeconds < end; cell += 1) {
                     const boundary = this.origin + cell * voice.stepSeconds;
                     const before = Math.max(start + attack, boundary - Math.min(.003, voice.stepSeconds / 4));
-                    if (before < boundary) points.set(before, baseAt(before) * theory.accentGain(state, cell - 1, this.length()));
-                    points.set(boundary, baseAt(boundary) * theory.accentGain(state, cell, this.length()));
+                    if (before < boundary) points.set(before, baseAt(before) * theory.accentGain(accentState, cell - 1, this.playbackLength()));
+                    points.set(boundary, baseAt(boundary) * theory.accentGain(accentState, cell, this.playbackLength()));
                 }
             }
             const parameter = voice.gain.gain;
@@ -1426,7 +1651,10 @@
             if (this.preview) this.preview.held = false;
         }
 
-        stop() {
+        stop(options = {}) {
+            if (options.clearLoop && this === root.mygrainQ && root.mygrainPatternSection?.active?.owner === 'q-range') root.mygrainPatternSection.stop();
+            if (!options.keepLoop) { this.loopRequest = (this.loopRequest || 0) + 1; this.loopLoading = false; }
+            if (options.clearLoop) { this.loopRange = null; if (this.mark?.type === 'loop') this.mark = null; }
             this.chordEditor?.onOwnerStop();
             this.generation += 1;
             this.running = false;
@@ -1437,6 +1665,7 @@
             this.timer = null;
             for (const voice of [...this.voices]) this.removeVoice(voice, true);
             if (this.graph) {
+                clearTimeout(this.graph.reverbTimer);
                 for (const node of this.graph.nodes) { try { node.disconnect(); } catch (error) {} }
                 this.graph = null;
             }
@@ -1447,14 +1676,15 @@
 
         start(startTime, options = {}) {
             if (!this.playable()) return false;
-            this.stop();
+            this.stop({ keepLoop: true });
             const generation = this.generation;
             this.running = true;
             this.host.activity?.();
             const begin = () => {
                 if (generation !== this.generation || !this.running) return;
                 this.ensureGraph();
-                this.origin = Number.isFinite(options.origin) ? options.origin : startTime;
+                this.origin = this === root.mygrainQ && root.mygrainPatternSection?.active?.owner === 'q-range'
+                    ? root.mygrainPatternSection.active.origin : Number.isFinite(options.origin) ? options.origin : startTime;
                 this.playbackState = theory.copy(this.state);
                 this.nextCycle = 0;
                 this.nextEvent = 0;
@@ -1464,9 +1694,9 @@
                 // A cold sample load may finish inside a chord. Join its remaining gate on the shared clock.
                 if (!this.state.arpEnabled && readyTime > startTime + .02) {
                     const position = (readyTime - this.origin) / stepSeconds;
-                    const cycle = Math.floor(position / this.length());
+                    const cycle = Math.floor(position / this.playbackLength());
                     for (const event of this.timeline()) for (const eventCycle of [cycle - 1, cycle]) {
-                        const onset = eventCycle * this.length() + event.start;
+                        const onset = eventCycle * this.playbackLength() + event.start;
                         if (eventCycle < 0 || onset >= position || onset + event.gate <= position) continue;
                         for (const pitch of event.notes) this.voice(pitch, event.sampleVelocity ?? event.velocity, readyTime, (onset + event.gate - position) * stepSeconds, { grid: true, stepSeconds, eventStart: event.start, eventCycle, baseVelocity: this.state.sequence[event.index].velocity, hold: this.state.chordHold, releaseSeconds: this.state.chordHold ? .006 : undefined });
                     }
@@ -1478,13 +1708,13 @@
                 }, 25);
                 this.syncTransport();
             };
-            const sequence = theory.events(this.state, this.length());
-            if (sequence.every(event => event.notes.every(pitch => {
-                try { this.piano.source(pitch, event.sampleVelocity ?? event.velocity); return true; } catch (error) { return false; }
-            }))) begin();
+            const sequence = theory.events(this.playbackSequence(this.state), this.playbackLength());
+            if ((this.externalSound() && root.mygrainQSoundSources?.ready(this.state.soundSource)) || (!this.externalSound() && sequence.every(event => event.notes.every(pitch => {
+                try { if (this.externalSound()) root.mygrainQSoundSources.selected(this.state.soundSource,pitch); else this.piano.source(pitch, event.sampleVelocity ?? event.velocity); return true; } catch (error) { return false; }
+            })))) begin();
             else this.task(async () => {
                 this.status(`Preparing Q ${theory.instruments[this.state.instrument].label}…`);
-                try { await this.piano.ensure(sequence); begin(); }
+                try { await this.prepareSounds(sequence); begin(); }
                 catch (error) { if (generation === this.generation) this.stop(); throw error; }
             });
             return true;
@@ -1494,30 +1724,33 @@
             if (!this.running) return;
             const context = this.host.context();
             if (!context || context.state !== 'running') { this.stop(); return; }
+            const section = root.mygrainPatternSection?.active;
+            if (this === root.mygrainQ && section?.owner === 'q-range' && (section.bpm !== this.host.bpm() || section.rate !== this.state.rate)) { this.startSharedRange(); return; }
             const state = this.playbackState || this.state;
             const sequence = this.timeline();
             const stepSeconds = 60 / this.host.bpm() / 4 / state.rate;
             if (this.lastStepSeconds && this.lastStepSeconds !== stepSeconds) this.seek(context.currentTime + .12);
             this.lastStepSeconds = stepSeconds;
-            const horizon = context.currentTime + .12;
+            // Queue the buffered first onset now, before other render decks can block timers.
+            const horizon = Math.max(context.currentTime + .12, this.origin + .12);
             let count = 0;
             while (sequence.length && count++ < 512) {
                 if (this.nextEvent >= sequence.length) { this.nextCycle += 1; this.nextEvent = 0; }
                 const event = sequence[this.nextEvent];
-                const when = this.origin + (this.nextCycle * this.length() + event.start) * stepSeconds;
+                const when = this.origin + (this.nextCycle * this.playbackLength() + event.start) * stepSeconds;
                 if (when > horizon) break;
                 this.nextEvent += 1;
                 if (when < context.currentTime - .02) continue;
                 const hold = state.chordHold && !state.arpEnabled;
                 for (const pitch of event.notes) this.voice(pitch, event.sampleVelocity ?? event.velocity, when, event.gate * stepSeconds, { grid: true, stepSeconds, eventStart: event.start, eventCycle: this.nextCycle, baseVelocity: state.sequence[event.index].velocity, hold, releaseSeconds: hold ? .006 : state.arpEnabled && state.arpPattern === 'custom' ? event.gate * stepSeconds / 4 : undefined });
             }
-            const position = Math.floor(Math.max(0, context.currentTime - this.origin) / stepSeconds) % this.length();
-            this.updatePlayhead(position);
-            if (this.liveRecording() && !document.hidden && document.getElementById('bastardLoopQOverlay')?.hidden === false && this.livePlayheadPosition !== position) {
-                this.livePlayheadPosition = position;
+            const position = Math.floor(Math.max(0, context.currentTime - this.origin) / stepSeconds) % this.playbackLength();
+            this.updatePlayhead(this.playbackIndex(position));
+            if (this.liveRecording() && !document.hidden && document.getElementById('bastardLoopQOverlay')?.hidden === false && this.livePlayheadPosition !== this.playbackIndex(position)) {
+                this.livePlayheadPosition = this.playbackIndex(position);
                 const label = document.getElementById('bastardLoopQStepCursor');
-                if (label) label.textContent = `Live playhead ${position + 1} / ${this.length()} · Selected ${this.cursor + 1} · Rate ×${this.state.rate}`;
-                this.revealCursor(position);
+                if (label) label.textContent = `Live playhead ${this.playbackIndex(position) + 1} / ${this.length()} · Selected ${this.cursor + 1} · Rate ×${this.state.rate}`;
+                this.revealCursor(this.playbackIndex(position));
             }
             this.reflectPlaying(context.currentTime);
             this.updateEffects();
@@ -1525,10 +1758,11 @@
 
         timeline() {
             const state = this.playbackState || this.state;
-            if (this.timelineState !== state || this.timelineLength !== this.length()) {
-                this.timelineState = state;
-                this.timelineLength = this.length();
-                this.scheduledEvents = theory.playbackEvents(state, this.length());
+            const signature = JSON.stringify([this.length(), this.playbackRange()]);
+            if (this.timelineState !== state || this.timelineLength !== signature) {
+                this.timelineState = state; this.timelineLength = signature;
+                const start = this.playbackRange()?.[0] || 0;
+                this.scheduledEvents = theory.playbackEvents(this.playbackSequence(state), this.playbackLength()).map(event => ({ ...event, index: event.index + start, ...(this.playbackRange() ? { gate: Math.min(event.gate, this.playbackLength() - event.start) } : {}) }));
             }
             return this.scheduledEvents;
         }
@@ -1537,8 +1771,8 @@
             const state = this.playbackState || this.state;
             const stepSeconds = 60 / this.host.bpm() / 4 / state.rate;
             const position = Math.max(0, (time - this.origin) / stepSeconds);
-            this.nextCycle = Math.floor(position / this.length());
-            const phase = position % this.length();
+            this.nextCycle = Math.floor(position / this.playbackLength());
+            const phase = position % this.playbackLength();
             this.nextEvent = this.timeline().findIndex(event => event.start >= phase);
             if (this.nextEvent < 0) { this.nextCycle += 1; this.nextEvent = 0; }
         }
@@ -1557,7 +1791,7 @@
             const generation = this.generation;
             const pitches = theory.transposed(chord.notes, this.state.transpose);
             const event = { notes: pitches, velocity: chord.velocity || this.state.velocity };
-            await this.piano.ensure([event]);
+            await this.prepareSounds([event]);
             if (generation !== this.generation || request !== this.previewToken) return;
             clearInterval(this.previewTimer);
             if (this.preview?.held) this.releaseHeldPreview(this.host.context().currentTime + .06);
@@ -1568,11 +1802,11 @@
             let endPosition = options.endPosition;
             if (held && this.running && !Number.isFinite(endPosition)) {
                 const position = (this.host.context().currentTime + .06 - this.origin) / (60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate);
-                const cycle = Math.floor(position / this.length());
-                const boundaries = [...this.timeline().map(event => event.start), ...this.state.sequence.slice(0, this.length()).flatMap((step, index) => step?.rest ? [index] : [])];
-                if (boundaries.length) endPosition = Math.min(...boundaries.flatMap(cell => [cycle * this.length() + cell, (cycle + 1) * this.length() + cell]).filter(cell => cell > position));
+                const cycle = Math.floor(position / this.playbackLength());
+                const boundaries = [...this.timeline().map(event => event.start), ...this.playbackSequence(this.state).sequence.slice(0, this.playbackLength()).flatMap((step, index) => step?.rest ? [index] : [])];
+                if (boundaries.length) endPosition = Math.min(...boundaries.flatMap(cell => [cycle * this.playbackLength() + cell, (cycle + 1) * this.playbackLength() + cell]).filter(cell => cell > position));
             }
-            this.preview = { chord: theory.copy(chord), pitches, velocity: event.velocity, order: theory.arpOrder(pitches, this.state.arpPattern, this.state.arpSteps), next: 0, nextTime: this.host.context().currentTime + .06, arp: this.state.arpEnabled, held, repeat: this.state.arpRepeat === 'until-next', done: false, endPosition };
+            this.preview = { chord: theory.copy(chord), pitches, velocity: event.velocity, order: theory.arpOrder(pitches, this.state.arpPattern, this.state.arpSteps), next: 0, nextTime: this.host.context().currentTime + .06, arp: this.state.arpEnabled, held, repeat: false, done: false, endPosition };
             this.tickPreview();
             if (!this.preview) return;
             this.previewTimer = setInterval(() => {
@@ -1622,7 +1856,11 @@
             }
         }
 
-        palette() { return theory.chordPalette(this.state, this.scale()); }
+        palette() {
+            return theory.chordPalette(this.state, this.scale()).flatMap(chord => {
+                try { return [this.shiftedCandidate(chord)]; } catch { return []; }
+            });
+        }
 
         setPaletteFromBass(fromBass) {
             if (root.mygrainCardHistory?.busy) throw new Error('Wait for Undo/Redo to finish before changing the chord pool.');
@@ -1645,7 +1883,7 @@
             if (position === undefined) {
                 const state = this.playbackState || this.state;
                 const stepSeconds = 60 / this.host.bpm() / 4 / state.rate;
-                position = this.running ? Math.floor(Math.max(0, this.host.context().currentTime - this.origin) / stepSeconds) % this.length() : -1;
+                position = this.running ? this.playbackIndex(Math.floor(Math.max(0, this.host.context().currentTime - this.origin) / stepSeconds)) : -1;
             }
             const previous = grid.querySelector('.playing');
             const current = grid.children[position];
@@ -1664,13 +1902,13 @@
             const voices = [...this.voices].filter(voice => voice.start <= now && voice.end > now);
             let chord = voices.some(voice => voice.preview) ? this.preview?.chord : null;
             if (!chord && this.running && voices.length) {
-                const state = this.playbackState || this.state;
+                const state = this.playbackSequence();
                 const elapsed = Math.max(0, (now - this.origin) / (60 / this.host.bpm() / 4 / state.rate));
-                const position = elapsed % this.length();
+                const position = elapsed % this.playbackLength();
                 let index = Math.floor(position);
                 while (index >= 0 && (!state.sequence[index] || state.sequence[index].kind === 'accent')) index -= 1;
-                if (index < 0 && elapsed >= this.length()) {
-                    index = this.length() - 1;
+                if (index < 0 && elapsed >= this.playbackLength()) {
+                    index = this.playbackLength() - 1;
                     while (index >= 0 && (!state.sequence[index] || state.sequence[index].kind === 'accent')) index -= 1;
                 }
                 if (index >= 0 && !state.sequence[index].rest) chord = state.sequence[index];
@@ -1711,7 +1949,7 @@
             if (!step) throw new Error('That chord is outside the piano range A0–C8.');
             theory.transposed(step.notes, this.state.transpose);
             const stepSeconds = 60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate;
-            this.cursor = Math.floor((now - this.origin) / stepSeconds) % this.length();
+            this.cursor = this.playbackIndex(Math.floor((now - this.origin) / stepSeconds));
             step.accent = step.accent || this.state.sequence[this.cursor]?.accent === true;
             this.state.sequence[this.cursor] = step;
             this.state.enabled = true;
@@ -1731,10 +1969,11 @@
             let endPosition;
             if (recorded && this.liveRecording()) {
                 const stepSeconds = 60 / this.host.bpm() / 4 / (this.playbackState || this.state).rate;
-                const cycle = Math.floor((this.host.context().currentTime - this.origin) / stepSeconds / this.length());
-                let end = this.cursor + 1;
-                while (end < this.length() && (!this.state.sequence[end] || this.state.sequence[end].kind === 'accent' || (this.state.arpEnabled && this.state.arpRepeat === 'once' && !this.state.sequence[end].rest))) end += 1;
-                endPosition = cycle * this.length() + end;
+                const cycle = Math.floor((this.host.context().currentTime - this.origin) / stepSeconds / this.playbackLength());
+                const sequence = this.playbackSequence(this.state).sequence;
+                let end = this.cursor - (this.playbackRange()?.[0] || 0) + 1;
+                while (end < this.playbackLength() && (!sequence[end] || sequence[end].kind === 'accent' || (this.state.arpEnabled && this.state.arpRepeat === 'once' && !sequence[end].rest))) end += 1;
+                endPosition = cycle * this.playbackLength() + end;
             }
             await this.audition(step, { endPosition, recorded });
             if (this.liveRecording() && !recorded) this.status('Live is armed. Press green All Play; this chord was auditioned only.');
@@ -1752,13 +1991,16 @@
             if (this.mark) {
                 if (this.mark.start === null) {
                     this.mark.start = index;
-                    this.status('Now choose the last step of the section.');
+                    this.status(this.mark.type === 'loop' ? 'Now tap the last step of the loop range.' : 'Now choose the last step of the section.');
                 } else {
                     const range = [Math.min(index, this.mark.start), Math.max(index, this.mark.start)];
                     if (this.mark.type === 'copy') {
                         this.clipboard = theory.copy(this.state.sequence.slice(range[0], range[1] + 1));
                         this.mark = { type: 'paste', start: null, insert: this.mark.insert };
                         this.status('Section copied. Tap its destination step to paste.');
+                    } else if (this.mark.type === 'loop') {
+                        this.mark = null; this.loopStart = range[0]; this.loopEnd = range[1];
+                        this.task(() => this.setSequenceLoop(range));
                     } else if (this.mark.type === 'transpose') {
                         this.range = range;
                         this.mark = null;
@@ -1777,9 +2019,9 @@
         paste(index) {
             if (!this.clipboard) return;
             if (this.mark?.insert) {
-                for (let target = index; target < this.length(); target += 1) this.state.sequence[target] = theory.copy(this.clipboard[(target - index) % this.clipboard.length]);
+                for (let target = index; target < this.length(); target += 1) this.state.sequence[target] = theory.independentChord(this.clipboard[(target - index) % this.clipboard.length]);
             }
-            else this.clipboard.forEach((step, offset) => { if (index + offset < this.length()) this.state.sequence[index + offset] = theory.copy(step); });
+            else this.clipboard.forEach((step, offset) => { if (index + offset < this.length()) this.state.sequence[index + offset] = theory.independentChord(step); });
             this.state.sequence.length = 64;
             this.mark = null;
             this.changed();
@@ -1843,6 +2085,17 @@
         }
 
         async action(action) {
+            if (action.startsWith('reverb-')) {
+                const presets = {
+                    piano: { room: .32, reverbDecay: 3.8, reverbSize: .75, reverbPredelay: 28, reverbDamping: 7000, reverbLowcut: 180, reverbWidth: 1 },
+                    strings: { room: .45, reverbDecay: 6.5, reverbSize: .95, reverbPredelay: 40, reverbDamping: 5500, reverbLowcut: 220, reverbWidth: 1 },
+                    cathedral: { room: .55, reverbDecay: 10, reverbSize: 1, reverbPredelay: 65, reverbDamping: 4800, reverbLowcut: 250, reverbWidth: 1 },
+                    off: { room: 0 }
+                };
+                const preset = presets[action.slice(7)];
+                if (preset) { Object.assign(this.state, preset); this.changed({ preserveSamples: true }); }
+                return;
+            }
             if (action === 'copy-chord') {
                 const chord = this.state.sequence[this.cursor];
                 if (!chord?.notes?.length || chord.rest) throw new Error('Select a grid chord to copy.');
@@ -1857,7 +2110,7 @@
                 const edit = () => {
                     if (action === 'chord-hold') this.state.chordHold = !this.state.chordHold;
                     else {
-                        const chord = theory.normalizeStep(theory.copy(this.chordClipboard));
+                        const chord = theory.normalizeStep(theory.independentChord(this.chordClipboard));
                         this.state.sequence[this.cursor] = chord;
                         this.state.selection = theory.copy(chord);
                         this.state.velocity = chord.velocity;
@@ -1877,6 +2130,13 @@
                 return;
             }
             if (action === 'pool-from-bass' || action === 'pool-from-scale') return this.setPaletteFromBass(action === 'pool-from-bass');
+            if (action === 'loop-toggle') return this.toggleSequenceLoop();
+            if (action === 'loop-set') {
+                this.mark = this.mark?.type === 'loop' ? null : { type: 'loop', start: null };
+                this.sync(); this.status(this.mark ? 'Tap the first step of the loop range.' : 'Loop selection cancelled.'); return;
+            }
+            const quick = { 'pool-down': ['paletteTranspose', -1], 'pool-up': ['paletteTranspose', 1], 'tonic-down': ['tonic', -1], 'tonic-up': ['tonic', 1], 'octave-down': ['octave', -1], 'octave-up': ['octave', 1] }[action];
+            if (quick) return this.shiftPool(...quick);
             if (action === 'copy-arp') return this.copyArp();
             if (action === 'arp-builder') return this.arpBuilder.open();
             if (action === 'edit') return this.open();
@@ -1891,13 +2151,22 @@
             if (action === 'insert') return this.insert();
             if (action === 'stop') { this.stop(); this.status('Q stopped.'); return; }
             if (action === 'stop-all') { this.host.stopAll(); return; }
+            if (action === 'play-mode') {
+                this.playbackSolo = !this.playbackSolo;
+                if (this.running && this.playbackRange()) {
+                    if (this.playbackSolo) { this.host.stopAll(); this.start(this.host.context().currentTime + .04); }
+                    else this.startSharedRange();
+                }
+                this.syncTransport(); return;
+            }
             if (action === 'play-all') {
+                if (this.playbackSolo) return this.action('play');
                 const generation = this.generation;
                 await this.ready();
                 if (this.hasSequence() || this.liveRecording()) await this.preparePlayback();
                 if (generation !== this.generation) return;
                 if (this.hasSequence() || this.liveRecording()) this.setEnabled(true);
-                this.host.allPlay();
+                if (this.playbackRange()) this.startSharedRange(); else this.host.allPlay();
                 this.status(this.liveRecording() ? 'Whole pattern playing. Live taps record at the playhead.' : 'Whole pattern playing.');
                 return;
             }
@@ -1926,7 +2195,7 @@
             if (action === 'back') this.cursor = (this.cursor + this.length() - 1) % this.length();
             if (action === 'forward') this.cursor = (this.cursor + 1) % this.length();
             if (action === 'clear-step') { this.state.sequence[this.cursor] = null; this.stopPreview(); }
-            if (action === 'clear-all') { this.state.sequence.fill(null); this.range = null; this.mark = null; }
+            if (action === 'clear-all') { this.stop({ clearLoop: true }); this.state.sequence.fill(null); this.state.selection = null; this.cursor = 0; this.range = null; this.mark = null; }
             if (action === 'transpose-down') return this.transpose(-1);
             if (action === 'transpose-up') return this.transpose(1);
             if (action === 'transpose-step-down') return this.transposeStep(-1);
@@ -2006,9 +2275,88 @@
             document.getElementById('bastardLoopQCloseBtn').focus({ preventScroll: true });
         }
 
+        mountMobilePanels(overlay) {
+            const shell = overlay.querySelector('.q-shell');
+            const nav = document.createElement('div');
+            nav.className = 'q-mobile-nav';
+            nav.hidden = true;
+            nav.innerHTML = `<div class="q-edge-rail q-edge-left"><button type="button" id="qMobileLeftTab" aria-expanded="false" aria-controls="qMobileLeftPanel">Pitch / Undo</button><div id="qEdgeLeftActions" class="q-edge-actions" role="toolbar" aria-label="Direct chord and range editing"></div></div><div class="q-edge-rail q-edge-right"><div class="q-edge-fixed"><button type="button" id="qMobileRightTab" aria-expanded="false" aria-controls="qMobileRightPanel">Tools</button><div class="q-mobile-transport" aria-label="Playback transport"></div></div><div id="qEdgeRightActions" class="q-edge-actions" role="toolbar" aria-label="Direct loop and recording controls"></div><div class="q-edge-close"></div></div>`;
+            shell.querySelector('.q-head').after(nav);
+            const shade = document.createElement('button');
+            shade.type = 'button'; shade.className = 'q-mobile-shade'; shade.hidden = true;
+            shade.setAttribute('aria-label', 'Close Q control panel');
+            shell.append(shade);
+            const panels = {};
+            for (const [side, title] of [['Left', 'Pitch & Undo'], ['Right', 'Q tools']]) {
+                const panel = document.createElement('section');
+                panel.id = `qMobile${side}Panel`; panel.className = `q-mobile-panel q-mobile-${side.toLowerCase()}`; panel.hidden = true;
+                panel.setAttribute('aria-label', title);
+                panel.innerHTML = `<header><strong>${title}</strong><button type="button" aria-label="Close ${title}">Done</button></header><div class="q-mobile-panel-content"></div>`;
+                panel.querySelector('header button').addEventListener('click', () => this.setMobilePanel(null));
+                shell.append(panel); panels[side.toLowerCase()] = panel;
+                nav.querySelector(`#qMobile${side}Tab`).addEventListener('click', () => this.setMobilePanel(this.mobilePanel === side.toLowerCase() ? null : side.toLowerCase()));
+            }
+            shade.addEventListener('click', () => this.setMobilePanel(null));
+            const moves = [];
+            const remember = (selector, destination) => {
+                const node = overlay.querySelector(selector);
+                const anchor = document.createComment('Q desktop control position');
+                node.before(anchor); moves.push({ node, anchor, destination });
+            };
+            for (const selector of ['.q-pool-pitch', '.q-editor-history', '#bastardLoopQTonalSettings']) remember(selector, panels.left.lastElementChild);
+            // Remember transport anchors before moving their containing toolbar.
+            for (const selector of ['#bastardLoopQAllPlayBtn', '#bastardLoopQAllStopBtn']) remember(selector, nav.querySelector('.q-mobile-transport'));
+            const left = nav.querySelector('#qEdgeLeftActions'), right = nav.querySelector('#qEdgeRightActions');
+            for (const [selector, id, label] of [
+                ['#bastardLoopQCopyChordBtn', null, 'Copy Chord'], ['#bastardLoopQPasteChordBtn', null, 'Paste Chord'],
+                ['[data-q-action="copy"]', 'qEdgeCopyRange', 'Copy Range'], ['[data-q-action="copy-range"]', 'qEdgeCopySection', 'Copy Section'],
+                ['[data-q-action="paste"]', 'qEdgePasteRange', 'Paste Range'], ['[data-q-action="transpose-range"]', 'qEdgeMarkTrans', 'Mark Trans'],
+                ['[data-q-action="transpose-down"]', 'qEdgeTransposeDown', 'Seq −'], ['[data-q-action="transpose-up"]', 'qEdgeTransposeUp', 'Seq +'],
+                ['[data-q-action="clear-range"]', 'qEdgeClearMark', 'Clear Mark'], ['#bastardLoopQDeleteStepBtn', null, 'Delete'], ['#qSequenceClearAll', null, 'Clear All']
+            ]) { const node = overlay.querySelector(selector); if (id) node.id = id; node.textContent = label; if (!node.title) node.title = label; remember(selector, left); }
+            for (const selector of ['#qSequenceLoopToggle', '#qPlaybackMode', '#bastardLoopQPracticeBtn', '#bastardLoopQRecordBtn', '#bastardLoopQRestBtn', '#bastardLoopQChordUpBtn', '#bastardLoopQChordDownBtn']) remember(selector, right);
+            remember('#bastardLoopQCloseBtn', nav.querySelector('.q-edge-close'));
+            for (const selector of ['.q-pool-controls', '.q-session-controls', '.q-record-help', '#bastardLoopQPlaybackSettings', '#bastardLoopQEditTools']) remember(selector, panels.right.lastElementChild);
+            this.mobileControls = { shell, nav, shade, panels, moves, media: root.matchMedia('(min-width: 0px)') };
+            this.mobileControls.media.addEventListener('change', () => this.syncMobilePanels());
+            // Range tools must uncover the grid before asking for first/last steps.
+            overlay.addEventListener('click', event => {
+                const action = event.target.closest('[data-q-action]')?.dataset.qAction;
+                if (this.mobilePanel && (event.target.closest('.q-edge-actions, .q-mobile-transport') || ['copy', 'loop-set', 'transpose-range', 'copy-range', 'paste', 'pool-from-bass', 'pool-from-scale', 'practice', 'record'].includes(action))) this.setMobilePanel(null);
+            });
+            this.syncMobilePanels();
+        }
+
+        syncMobilePanels() {
+            const controls = this.mobileControls;
+            if (!controls || controls.active === controls.media.matches) return;
+            this.setMobilePanel(null);
+            controls.active = controls.media.matches;
+            controls.shell.classList.toggle('q-mobile-layout', controls.active);
+            controls.nav.hidden = !controls.active;
+            if (controls.active) for (const { node, destination } of controls.moves) destination.append(node);
+            else for (const { node, anchor } of controls.moves) anchor.after(node);
+        }
+
+        setMobilePanel(side) {
+            const controls = this.mobileControls;
+            if (!controls) return;
+            const previous = this.mobilePanel;
+            this.mobilePanel = side;
+            controls.shade.hidden = !side;
+            for (const name of ['left', 'right']) {
+                controls.panels[name].hidden = side !== name;
+                document.getElementById(`qMobile${name === 'left' ? 'Left' : 'Right'}Tab`).setAttribute('aria-expanded', String(side === name));
+            }
+            controls.shell.querySelector('.q-workbench').inert = Boolean(side);
+            if (side) controls.panels[side].querySelector('header button').focus({ preventScroll: true });
+            else if (previous) document.getElementById(`qMobile${previous === 'left' ? 'Left' : 'Right'}Tab`).focus({ preventScroll: true });
+        }
+
         syncViewport() {
             const overlay = document.getElementById('bastardLoopQOverlay');
             if (!overlay || overlay.hidden) return;
+            this.syncMobilePanels();
             const viewport = root.visualViewport;
             overlay.style.setProperty('--q-viewport-height', `${viewport?.height || root.innerHeight}px`);
             overlay.style.setProperty('--q-viewport-width', `${viewport?.width || root.innerWidth}px`);
@@ -2018,6 +2366,8 @@
         }
 
         close() {
+            this.setMobilePanel(null);
+            if (this.loopRange || this.loopLoading) this.clearSequenceLoop();
             this.chordEditor?.close({ resume: false });
             if (this.preview?.held || this.state.chordHold) this.stopPreview();
             const overlay = document.getElementById('bastardLoopQOverlay');
@@ -2029,12 +2379,17 @@
         }
 
         syncTransport() {
+            this.syncSequenceLoop();
             if (typeof document === 'undefined') return;
+            const mode = document.getElementById('qPlaybackMode');
+            if (mode) { mode.textContent = this.playbackSolo ? 'Q solo' : 'All loops'; mode.setAttribute('aria-pressed', String(Boolean(this.playbackSolo))); }
+            const play = document.getElementById('bastardLoopQAllPlayBtn');
+            if (play) { play.title = this.playbackSolo ? 'Start Q only, using the selected loop range' : 'Start all enabled loops using the selected Q section'; play.setAttribute('aria-label', play.title); }
             for (const button of document.querySelectorAll('[data-q-action="play"]')) button.setAttribute('aria-pressed', String(this.running));
             for (const button of document.querySelectorAll('[data-q-action="play-all"]')) button.setAttribute('aria-pressed', String(this.running || Number.isFinite(this.host.transportOrigin?.())));
             for (const button of document.querySelectorAll('[data-q-action="toggle"]')) {
                 button.classList.toggle('layer-muted', !this.state.enabled);
-                button.textContent = `Bastardloop Q ${this.state.enabled ? 'On' : 'Off'}`;
+                button.textContent = button.id === 'performanceBastardLoopQToggleBtn' ? (this.state.enabled ? 'Enabled' : 'Disabled') : `Bastardloop Q ${this.state.enabled ? 'On' : 'Off'}`;
                 button.setAttribute('aria-pressed', String(this.state.enabled));
             }
             root.syncBastardLoopXQRootButton?.();
@@ -2053,6 +2408,7 @@
         }
 
         sync() {
+            this.syncSequenceLoop();
             this.syncEditorHistory();
             if (typeof document === 'undefined' || !document.getElementById('bastardLoopQCard')) return;
             for (const button of document.querySelectorAll('[data-q-action="copy-arp"]')) {
@@ -2063,7 +2419,7 @@
                 const key = input.dataset.qField;
                 if (document.activeElement !== input) input.value = String(this.state[key]);
                 const output = document.getElementById(`${input.id}Value`);
-                if (output) output.textContent = key === 'accentAmount' ? `+${(20 * Math.log10(1 + 2 * this.state[key])).toFixed(1)} dB` : ['level', 'room', 'delay', 'feedback', 'sampleLength', 'sampleDecay'].includes(key) ? `${Math.round(this.state[key] * 100)}%` : String(this.state[key]);
+                if (output) output.textContent = key === 'accentAmount' ? `+${(20 * Math.log10(1 + 2 * this.state[key])).toFixed(1)} dB` : ['level', 'room', 'reverbSize', 'reverbWidth', 'delay', 'feedback', 'sampleLength', 'sampleDecay'].includes(key) ? `${Math.round(this.state[key] * 100)}%` : key === 'reverbDecay' ? `${this.state[key].toFixed(1)} s` : key === 'reverbPredelay' ? `${this.state[key]} ms` : ['reverbDamping', 'reverbLowcut'].includes(key) ? `${this.state[key]} Hz` : String(this.state[key]);
             }
             const record = document.querySelector('[data-q-action="record"]');
             record.textContent = `● ${this.state.recordMode === 'live' ? 'Live' : 'Step'}`;
@@ -2090,6 +2446,15 @@
                 button.setAttribute('aria-pressed', String(Boolean(current?.[key])));
             }
             document.getElementById('bastardLoopQStepCursor').textContent = `Editing step ${this.cursor + 1} / ${this.length()} · Rate ×${this.state.rate}${this.range ? ` · Section ${this.range[0] + 1}–${this.range[1] + 1}` : ''}`;
+            const shift = this.state.paletteTranspose || 0;
+            document.getElementById('qPoolTransposeValue').textContent = `${shift > 0 ? '+' : ''}${shift}`;
+            document.getElementById('qPoolTonicValue').textContent = theory.notes[this.state.tonic];
+            document.getElementById('qPoolOctaveValue').textContent = String(this.state.octave);
+            const poolShift = `${shift}:${this.state.octave}`;
+            if (poolShift !== this.customPoolShift) {
+                this.customPoolShift = poolShift;
+                root.dispatchEvent(new CustomEvent('mygrain-q-palette-change'));
+            }
             const selected = this.state.selection;
             document.getElementById('bastardLoopQSelected').textContent = selected ? `Selected chord: ${theory.noteName(selected.root)} ${selected.type} · ${selected.notes.map(theory.noteName).join(' – ')}` : 'Chord builder active. Choose a palette chord or use the controls below.';
             const grid = document.getElementById('bastardLoopQStepGrid');
@@ -2104,16 +2469,24 @@
                 button.className = 'performance-btn q-step';
                 button.dataset.qStep = String(index);
                 button.classList.toggle('selected', index === this.cursor);
+                button.classList.toggle('q-custom-step', step?.customChord === true);
+                button.style.setProperty('--q-custom-colour', theory.customColour(step?.customChordColour));
+                if (step?.customChordId) button.dataset.customId = step.customChordId; else delete button.dataset.customId;
                 button.classList.toggle('in-range', Boolean(this.range && index >= this.range[0] && index <= this.range[1]));
+                const loop = this.playbackRange();
+                button.classList.toggle('in-loop', Boolean(loop && index >= loop[0] && index <= loop[1]));
                 button.setAttribute('aria-pressed', String(index === this.cursor));
-                const shortType = step?.type?.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug').replace(/dominant/g, '');
-                button.textContent = `${index + 1}\n${!step || step.kind === 'accent' ? '—' : step.rest ? 'REST' : `${theory.noteName(step.root)} ${shortType}`}${step?.accent ? ' !' : ''}${step?.tie ? ' ~' : ''}${step?.ratchet > 1 ? ` ×${step.ratchet}` : ''}`;
+                const name = !step || step.kind === 'accent' ? '—' : step.rest ? 'Rest' : theory.identifyChord(step.notes, step.root).name.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug');
+                button.replaceChildren();
+                const number = document.createElement('span'); number.className = 'q-step-number'; number.textContent = String(index + 1);
+                const label = document.createElement('span'); label.className = 'q-step-name'; label.textContent = name.startsWith('Custom ·') ? 'Custom' : name;
+                button.append(number, label);
                 button.title = step?.kind === 'accent' ? 'Accent only: boosts notes and arpeggios sounding through this cell; does not retrigger a chord.' : step ? `${step.notes.map(theory.noteName).join(' – ')}${!step.rest ? ' · Double-click or press E to edit individual notes' : ''}` : 'Empty step';
                 if (rebuildGrid) grid.append(button);
             }
             this.gridFingerprint = gridFingerprint;
             const palette = document.getElementById('bastardLoopQPalette');
-            const fingerprint = JSON.stringify([this.state.tonic, this.scale(), this.state.octave, this.state.chordRoot, this.state.chordType, this.state.inversion, this.state.voicing, this.state.paletteFamilies, this.state.paletteBassRoots]);
+            const fingerprint = JSON.stringify([this.state.tonic, this.scale(), this.state.octave, this.state.chordRoot, this.state.chordType, this.state.inversion, this.state.voicing, this.state.paletteFamilies, this.state.paletteBassRoots, this.state.paletteTranspose]);
             if (fingerprint !== this.paletteFingerprint) {
                 this.paletteFingerprint = fingerprint;
                 this.playingFingerprint = null;
@@ -2129,16 +2502,8 @@
                     button.dataset.notes = chord.notes.join(',');
                     const title = document.createElement('span');
                     title.className = 'q-chord-name';
-                    title.textContent = `${theory.noteName(chord.root)} ${chord.type.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/dominant/g, '').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug')}`;
-                    const noteRow = document.createElement('span');
-                    noteRow.className = 'q-chord-notes';
-                    for (const pitch of chord.notes) {
-                        const note = document.createElement('span');
-                        note.dataset.note = String(pitch);
-                        note.textContent = theory.noteName(pitch);
-                        noteRow.append(note);
-                    }
-                    button.append(title, noteRow);
+                    title.textContent = theory.identifyChord(chord.notes, chord.root).name.replace(/major/g, 'maj').replace(/minor/g, 'min').replace(/dominant/g, '').replace(/diminished/g, 'dim').replace(/augmented/g, 'aug');
+                    button.append(title);
                     palette.append(button);
                 }
                 const roots = document.getElementById('bastardLoopQRoot');
@@ -2198,7 +2563,18 @@
                 ${slider('performanceBastardLoopQTranspose', 'Transpose', 'transpose', -24, 24, 1)}
                 ${slider('performanceBastardLoopQHighpass', 'Highpass cutoff (Hz)', 'highpass', 20, 10000, 10)}
                 ${slider('performanceBastardLoopQLowpass', 'Lowpass cutoff (Hz)', 'lowpass', 100, 20000, 10)}
-                ${slider('performanceBastardLoopQRoom', 'Room Reverb', 'room', 0, 1, .01)}
+                <details class="q-reverb-panel" open><summary>Stereo Hall Reverb</summary>
+                <p class="q-help">Lush stereo space for piano and strings. Mix is a parallel send: your dry attack stays intact. Size shapes the room’s bloom; Decay sets the tail. Pre-delay separates notes from the hall. Low cut keeps bass clear; damping softens the tail.</p>
+                <div class="q-controls">${button('reverb-piano', 'Piano Hall')}${button('reverb-strings', 'Lush Strings')}${button('reverb-cathedral', 'Cathedral')}${button('reverb-off', 'Reverb Off')}</div>
+                <div class="q-controls">
+                ${slider('performanceBastardLoopQRoom', 'Reverb Mix', 'room', 0, 1, .01)}
+                ${slider('qReverbDecay', 'Decay', 'reverbDecay', .5, 12, .1)}
+                ${slider('qReverbSize', 'Room Size / Bloom', 'reverbSize', 0, 1, .01)}
+                ${slider('qReverbPredelay', 'Pre-delay', 'reverbPredelay', 0, 200, 1)}
+                ${slider('qReverbDamping', 'High-frequency Damping', 'reverbDamping', 1000, 18000, 100)}
+                ${slider('qReverbLowcut', 'Reverb Low Cut', 'reverbLowcut', 20, 1500, 10)}
+                ${slider('qReverbWidth', 'Stereo Width', 'reverbWidth', 0, 1, .01)}
+                </div></details>
                 ${slider('performanceBastardLoopQDelay', 'Delay Mix', 'delay', 0, 1, .01)}
                 <div class="q-controls">${select('performanceBastardLoopQDelayDivision', 'Delay time', 'delayBeats')}${slider('performanceBastardLoopQFeedback', 'Delay Feedback', 'feedback', 0, .8, .01)}</div>
                 <div class="performance-feature-meta source-waveform-meta" id="performanceBastardLoopQMeta" role="status">Samples are stored locally. Audio loads on demand.</div>
@@ -2216,11 +2592,19 @@
                     <div id="bastardLoopQCustomScale" class="q-custom-pitches" hidden></div><p class="q-help">Key sets the scale pool. From Bass uses Bass X note roots and allows all chord qualities. Chord root puts that note first; inversion and voicing change its playable notes.</p></details>
                 <div class="q-toolbar q-session-controls" aria-label="Practice, Step or Live recording, delete, one-step nudge, transpose and whole-pattern transport">
                     ${button('practice', '<span class="q-control-full">Practice</span><span class="q-control-short" aria-hidden="true">Prac</span>', 'bastardLoopQPracticeBtn', 'Practice chords without recording')}${button('record', '● Step', 'bastardLoopQRecordBtn', 'Dual-function Record: tap to switch Step and Live')}${button('rest', 'Rest', 'bastardLoopQRestBtn', 'Record a Rest at the cursor or live playhead')}${button('clear-step', 'Delete', 'bastardLoopQDeleteStepBtn', 'Delete selected step without advancing')}${button('copy-chord', '<span class="q-control-full">Copy Chord</span><span class="q-control-short" aria-hidden="true">Copy</span>', 'bastardLoopQCopyChordBtn', 'Copy the selected grid chord exactly, including edited notes')}${button('paste-chord', '<span class="q-control-full">Paste Chord</span><span class="q-control-short" aria-hidden="true">Paste</span>', 'bastardLoopQPasteChordBtn', 'Paste the copied edited chord at the selected grid step')}${button('nudge-left', '<span class="q-nudge-full">Left 1</span><span class="q-nudge-short" aria-hidden="true">← 1</span>', 'bastardLoopQNudgeLeftBtn', 'Left 1: move selected chord left one grid step; occupied neighbours swap')}${button('nudge-right', '<span class="q-nudge-full">Right 1</span><span class="q-nudge-short" aria-hidden="true">1 →</span>', 'bastardLoopQNudgeRightBtn', 'Right 1: move selected chord right one grid step; occupied neighbours swap')}${button('transpose-step-down', '<span class="q-control-full">Chord −</span><span class="q-control-short" aria-hidden="true">Ch −</span>', 'bastardLoopQChordDownBtn', 'Transpose selected grid chord down one semitone')}${button('transpose-step-up', '<span class="q-control-full">Chord +</span><span class="q-control-short" aria-hidden="true">Ch +</span>', 'bastardLoopQChordUpBtn', 'Transpose selected grid chord up one semitone')}${button('play-all', '▶ All', 'bastardLoopQAllPlayBtn', 'Start the whole pattern and all enabled loops and drums')}${button('stop-all', '■ All', 'bastardLoopQAllStopBtn', 'Stop the whole pattern, every loop, drums and audition')}</div>
+                <div class="q-sequence-loop" aria-label="Clear Q sequence and audition a step range">
+                    ${button('clear-all', 'Clear All', 'qSequenceClearAll', 'Clear every Q sequence step; Undo restores them. Custom candidates are kept.')}${button('loop-set', 'Set loop range', 'qSequenceLoopSet', 'Tap first and last grid steps to set the range used by Start')}
+                    <label>From <input type="number" id="qSequenceLoopStart" min="1" max="64" value="1" step="1" inputmode="numeric" aria-label="First Q loop step"></label><label>To <input type="number" id="qSequenceLoopEnd" min="1" max="64" value="16" step="1" inputmode="numeric" aria-label="Last Q loop step"></label>${button('loop-toggle', 'Loop On', 'qSequenceLoopToggle')}${button('play-mode', 'All loops', 'qPlaybackMode', 'Choose Start playback: all loops or Q solo')}<span id="qSequenceLoopStatus" role="status">Full sequence</span>
+                </div>
                 <div class="q-toolbar q-editor-history" aria-label="10-level chord Undo and Redo"><button type="button" class="performance-btn" data-q-history="undo" id="bastardLoopQEditorUndo">Undo 0</button><button type="button" class="performance-btn" data-q-history="redo" id="bastardLoopQEditorRedo">Redo 0</button><span>10 chord edits · Undo / Redo</span></div><div class="q-record-help" id="bastardLoopQRecordHelp">Rec has two functions: tap Step / Live. Practice disarms recording.</div>
-                <div class="q-workbench"><div class="q-pool-controls" aria-label="Chord pick pool source">${button('pool-from-bass', 'From Bass', 'bastardLoopQPoolFromBassBtn', 'Fill the chord pick pool from distinct playable notes in the current Bass X sequence; tap again to refresh')}${button('pool-from-scale', 'Scale Pool', 'bastardLoopQPoolFromScaleBtn', 'Restore chords matched to the current key and scale')}<span id="bastardLoopQPoolHelp"></span></div><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
+                <div class="q-workbench"><div class="q-pool-controls" aria-label="Chord pick pool source">${button('pool-from-bass', 'From Bass', 'bastardLoopQPoolFromBassBtn', 'Fill the chord pick pool from distinct playable notes in the current Bass X sequence; tap again to refresh')}${button('pool-from-scale', 'Scale Pool', 'bastardLoopQPoolFromScaleBtn', 'Restore chords matched to the current key and scale')}<span id="bastardLoopQPoolHelp"></span></div><div class="q-pool-pitch" aria-label="Immediate candidate pitch controls">
+                    <div role="group" aria-label="Transpose chord candidates in semitones"><span>Chords</span>${button('pool-down', '−', 'qPoolTransposeDown', 'Transpose chord candidates down one semitone, literally; grid unchanged')}<output id="qPoolTransposeValue">0</output>${button('pool-up', '+', 'qPoolTransposeUp', 'Transpose chord candidates up one semitone, literally; grid unchanged')}</div>
+                    <div role="group" aria-label="Scale tonic"><span>Tonic</span>${button('tonic-down', '−', 'qPoolTonicDown', 'Scale tonic down one semitone')}<output id="qPoolTonicValue">C</output>${button('tonic-up', '+', 'qPoolTonicUp', 'Scale tonic up one semitone')}</div>
+                    <div role="group" aria-label="Candidate octave"><span>Octave</span>${button('octave-down', '−', 'qPoolOctaveDown', 'Candidate octave down')}<output id="qPoolOctaveValue">3</output>${button('octave-up', '+', 'qPoolOctaveUp', 'Candidate octave up')}</div>
+                </div><div class="q-palette-heading"><span id="bastardLoopQPaletteSummary"></span><span id="bastardLoopQPlaying" role="status">Tap a chord to play it.</span></div>
                     <div class="q-palette" id="bastardLoopQPalette" aria-label="Playable chords in the current scale"></div>
-                    <div class="q-grid-heading"><span id="bastardLoopQStepCursor"></span><span id="bastardLoopQSelected"></span></div>
-                    <div class="q-grid-scroll"><div class="lead-sequencer-step-grid" id="bastardLoopQStepGrid"></div></div></div>
+                    <div class="q-sequence-panel"><div class="q-grid-heading"><span id="bastardLoopQStepCursor"></span><span id="bastardLoopQSelected"></span></div>
+                    <div class="q-grid-scroll"><div class="lead-sequencer-step-grid" id="bastardLoopQStepGrid"></div></div></div></div>
                 <details class="q-settings q-playback-settings" id="bastardLoopQPlaybackSettings"><summary>Chord playback · <span id="bastardLoopQPlaybackSummary"></span></summary><div class="q-controls q-arp-controls" aria-label="Independent chord arpeggiator">
                     ${select('bastardLoopQArpEnabled', 'Chord playback', 'arpEnabled')}${select('bastardLoopQArpPattern', 'Arp order', 'arpPattern')}${select('bastardLoopQArpRepeat', 'Arp repeat', 'arpRepeat')}${select('bastardLoopQArpDivision', 'Arp time — separate from grid', 'arpDivision')}</div><div class="q-toolbar">${button('chord-hold', 'Chord Hold Off', 'bastardLoopQChordHoldBtn')}${button('arp-builder', 'Build / Load Custom Arp', 'bastardLoopQArpBuilderBtn')}${button('copy-arp', 'Copy Arp', 'bastardLoopQCopyArpBtn')}</div>
                     <div class="q-controls">${slider('bastardLoopQSampleLength', 'Sample Length', 'sampleLength', .05, 1, .01)}${slider('bastardLoopQSampleDecay', 'Sample Decay', 'sampleDecay', .05, 1, .01)}</div>
@@ -2232,7 +2616,13 @@
                     <div class="q-toolbar">${button('accent', 'Accent')}${button('tie', 'Tie (Slide)')}${button('clear-step', 'Clear Step')}${button('clear-all', 'Clear All')}${button('random', 'Random Pattern')}${button('transport', 'Start Bastardloops')}${button('stop-all', 'Stop Bastardloops')}</div>
                     <div class="q-toolbar" id="bastardLoopQRatchets">${Array.from({ length: 8 }, (_, index) => `<button type="button" class="performance-btn" data-q-ratchet="${index + 1}">×${index + 1}</button>`).join('')}</div></details>
                 <div id="bastardLoopQStatus" role="status" aria-live="polite">Practice plays without writing. Record writes each chord tap at the cursor and advances. Rest writes a silent cell.</div></div>`;
+            const sequencePanel = overlay.querySelector('.q-sequence-panel');
+            sequencePanel.prepend(overlay.querySelector('.q-sequence-loop'));
+            sequencePanel.querySelector('.q-sequence-loop').prepend(overlay.querySelector('#bastardLoopQDeleteStepBtn'));
             document.body.append(overlay);
+            this.mountMobilePanels(overlay);
+            document.getElementById('bastardLoopQAllPlayBtn').textContent = '▶ Start';
+            document.getElementById('bastardLoopQAllStopBtn').textContent = '■ Stop';
             root.addEventListener('mygrain-history-update', () => this.syncEditorHistory());
             root.addEventListener('resize', () => this.syncViewport());
             root.addEventListener('orientationchange', () => this.syncViewport());
@@ -2296,6 +2686,12 @@
                 const step = event.target.closest('[data-q-step]');
                 if (step) { event.preventDefault(); this.task(() => this.chordEditor.open(Number(step.dataset.qStep))); }
             });
+            for (const id of ['qSequenceLoopStart', 'qSequenceLoopEnd']) document.getElementById(id).addEventListener('change', () => {
+                const start = Number(document.getElementById('qSequenceLoopStart').value) - 1, end = Number(document.getElementById('qSequenceLoopEnd').value) - 1;
+                if (![start, end].every(Number.isInteger) || start < 0 || end < start || end >= this.length()) { this.status('Choose a valid Q range: first step must not exceed last step.', true); this.syncSequenceLoop(); return; }
+                this.loopStart = start; this.loopEnd = end;
+                if (this.loopRange) this.task(() => this.setSequenceLoop([start, end]));
+            });
             const handleClick = event => {
                 const target = event.target.closest('button');
                 if (!target) return;
@@ -2333,7 +2729,7 @@
                 if (['chordRoot', 'chordType', 'octave', 'inversion', 'voicing', 'tonic', 'scale', 'paletteFamilies'].includes(key)) this.state.selection = null;
                 if (['gate', 'velocity'].includes(key) && this.state.sequence[this.cursor]?.notes?.length) this.state.sequence[this.cursor][key] = this.state[key];
                 const previewChord = this.preview?.chord;
-                this.changed({ preserveSamples: ['level', 'pan', 'lowpass', 'highpass', 'room', 'delay', 'delayBeats', 'feedback', 'sampleLength', 'sampleDecay', 'gate', 'rate', 'arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision', 'paletteFamilies'].includes(key) });
+                this.changed({ preserveSamples: ['reverbDecay', 'reverbSize', 'reverbPredelay', 'reverbDamping', 'reverbLowcut', 'reverbWidth', 'level', 'pan', 'lowpass', 'highpass', 'room', 'delay', 'delayBeats', 'feedback', 'sampleLength', 'sampleDecay', 'gate', 'rate', 'arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision', 'paletteFamilies'].includes(key) });
                 if (previewChord && (['arpEnabled', 'arpPattern', 'arpRepeat', 'arpDivision'].includes(key) || (this.preview?.held && ['sampleLength', 'sampleDecay'].includes(key)))) this.task(() => this.audition(previewChord, { endPosition: this.preview?.endPosition }));
             };
             for (const container of [card, overlay, document.getElementById('performanceLayerSwitchesCard')].filter(Boolean)) {
@@ -2344,9 +2740,9 @@
             overlay.addEventListener('keydown', event => {
                 event.stopPropagation();
                 if (this.handleEditorHistoryKey(event)) return;
-                if (event.key === 'Escape') this.close();
+                if (event.key === 'Escape') { event.preventDefault(); if (this.mobilePanel) this.setMobilePanel(null); else this.close(); }
                 if (event.key === 'Tab') {
-                    const controls = [...overlay.querySelectorAll('button, select, input, a[href]')].filter(element => !element.disabled && element.getClientRects().length);
+                    const controls = [...overlay.querySelectorAll('button, select, input, a[href]')].filter(element => !element.disabled && !element.closest('[inert]') && element.getClientRects().length);
                     if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus(); }
                     if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus(); }
                 }

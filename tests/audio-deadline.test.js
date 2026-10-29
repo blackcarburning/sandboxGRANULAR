@@ -119,21 +119,22 @@ test('drums drop stale triggers and use a fixed scheduling window even when work
     assert.equal(context.audioSchedulingStats.skippedSteps, 80);
 });
 
-test('sequencer catches up phase without creating any overdue voices', () => {
+test('drum-loop clock catches up phase without triggering synth or grain voices', () => {
     const calls = [];
     const context = fixture({
         sequencerBPM: 120, sequencerNextStepTime: 90, sequencerCurrentStep: 3,
         sequencerSteps: Array.from({ length: 16 }, () => ({ enabled: true, pitch: 'C3', volume: 80 })),
-        sequencerPlaying: true, seqGrainsEnabled: false,
+        sequencerPlaying: true, seqGrainsEnabled: true, window: {},
+        queueSequencerPlayheadPaint() {},
         normalizeSequencerSteps: () => 16, getPatternLengthSteps: () => 16,
         getClickGuardSeconds: () => .005, stopOscillatorsByRole() {},
-        playOscillatorNote: (note, when) => calls.push(when), setTimeout: () => 1
+        playOscillatorNote: (note, when) => calls.push(when),
+        startGrainStream: (note, when) => calls.push(when), setTimeout: () => 1
     });
     vm.runInContext(functionSource('scheduleSequencer'), context);
     context.scheduleSequencer();
     const expectedTimes = futureStepTimes(100, .125);
-    assert.deepEqual(calls, expectedTimes);
-    assert.ok(calls.every(when => when >= 100 && when < 100 + scheduleAheadTime));
+    assert.deepEqual(calls, [], 'the drum clock must not create melodic voices');
     assert.equal(context.sequencerCurrentStep, (3 + expectedTimes.length) % 16);
     assert.equal(context.audioSchedulingStats.skippedSteps, 80);
 });

@@ -7,9 +7,9 @@ The fixed text model remains `openai/gpt-6.1-sol`.
 ## Retrieval and loading
 
 - Database: `../sample-catalogue/catalogues/TONAL/catalogue.sqlite` relative to this repository. Override with backend environment variable `MYGRAIN_SAMPLE_CATALOGUE_DB`.
-- Current inventory: 941 fully analysed WAVs: bass 239, leads 133, vocal 139, piano 200, orchestral 230.
+- Current inventory: 982 fully analysed WAVs: bass 239, leads 133, Terra 41, vocal 139, piano 200, orchestral 230.
 - The request is bound to the authenticated account's existing `source_mirrors` path. A different account only gets candidates for exact matching copies in its own library; same-name, different-content files never inherit the catalogue metadata.
-- Source mappings: X→remembered SAMPLES_BASS / SAMPLES_ALTBASS (see [Loop X repositories](loop-x-repositories.md)), L→SAMPLES_LEADS, V→SAMPLES_VOCAL, P→SAMPLES_PIANO, O→SAMPLES_ORCH. Q retains its existing piano/strings multisample instrument and MIDI chord generator. Drums and A/B/C retain their existing libraries; their samples have not been catalogued by this work.
+- Source mappings: X→remembered SAMPLES_BASS / SAMPLES_ALTBASS (see [Loop X repositories](loop-x-repositories.md)), L→remembered SAMPLES_LEADS / SAMPLES_TERRA, V→SAMPLES_VOCAL, P→SAMPLES_PIANO, O→SAMPLES_ORCH. Q retains its existing piano/strings multisample instrument and MIDI chord generator. Drums and A/B/C retain their existing libraries; their samples have not been catalogued by this work.
 - Up to eight eligible candidates per tonal lane are provided, not the whole database. Prompt words, filename key/mode/tempo, usable single-note roots and warning penalties rank candidates, with bounded variation. Explicit requested key/tempo are preferred for phrase lanes; the model chooses the final compatible sample and arrangement.
 - Each candidate exposes filename tags/claims, measured duration/RMS/brightness/harmonic share, conservative decoded size, tentative accepted note/key/tempo estimates, and relevant disagreement/range warnings. Raw chunks, raw pitch tracks, full host paths and arbitrary SQL are not exposed to the model.
 - Missing/stale files, mismatched account copies, percussion-named entries in tonal folders, and oversized sources are excluded. X/L additionally require a usable root and exclude labelled loops/phrases and note/filename disagreements. A filename root with explicit octave is used as an unverified claim; otherwise an accepted monophonic note may supply the root only if its pitch class agrees with the filename. Unknown octaves are not invented.
@@ -57,3 +57,18 @@ The opt-in real-model test is `tests/ai-catalogue-real-browser.js`; set `AI_CATA
 ## Rollback
 
 Pre-AI.5 repository revision: `e5e404a`. Exact live file backups and a full pre-edit shared-server snapshot are under `backups/ai-catalogue-20261020T084835Z/` on the host. Restore the five backed-up app files, remove only the new catalogue hook from the shared server, and restart the service. Do not replace an unrelated newer shared-server change with the entire old snapshot. Do not roll back account stores, recorded audio, songs or the offline catalogue database.
+
+## Terra library (2026-10-28)
+
+L has an independent remembered repository preference (`bastardLoopLRepository`), defaulting to Leads for legacy states. Choosing a repository does not replace loaded audio; Choose Sample, Load Random Sample and L randomisation use that repository. Presets, patches, AI Undo and Song snapshots preserve the preference. Keys exposes Terra through the existing source browser. Sources retain their original bytes.
+
+The offline TONAL database adds 41 full-duration Terra analyses (982 total), with the same source-hash, metadata, pitch, tempo and warning workflow. The AI shortlist respects L's repository and still requires a usable tentative root; not every analysed sample is suitable for a monophonic lead. Filename tags and pitch estimates are not instrument/chord recognition.
+
+Reproduce analysis from the workspace root (back up the finished database first):
+
+```sh
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 nice -n 15 sample-catalogue/.venv/bin/python sample-catalogue/catalogue.py --source /srv/sftp/mark_sftp/files/mygrain-source-mirrors/SAMPLES_TERRA --output sample-catalogue/catalogues/TONAL --workers 2
+sample-catalogue/.venv/bin/python sample-catalogue/finish_tonal.py --output sample-catalogue/catalogues/TONAL
+```
+
+Verification and exact pre-edit backups: `../output/mygrain-terra-sliders-20261028/`. No DSP or render-compatibility version change: library preference is metadata and selected audio uses existing persisted PCM/render loading paths.

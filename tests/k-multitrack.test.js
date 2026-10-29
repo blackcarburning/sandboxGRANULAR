@@ -35,7 +35,7 @@ test('independent loops skip muted tracks entirely and rejoin without replacing 
 });
 test('shorter periods crop, longer periods silence-pad once; memory is admitted before replacing playback',()=>{
     const {k,sources}=fixture();k.setBuffer(0,buffer(200));k.tracks[0].steps=1;assert.equal(k.bufferFor(k.tracks[0]).length,200);k.start();assert.equal(sources[0].loopEnd,.125);
-    k.tracks[0].steps=4;const padded=k.bufferFor(k.tracks[0]);assert.equal(padded.length,500);assert.equal(padded.getChannelData(0)[199],.25);assert.equal(padded.getChannelData(0)[200],0);assert.equal(k.bufferFor(k.tracks[0]),padded);
+    k.tracks[0].steps=4;const padded=k.bufferFor(k.tracks[0]);assert.equal(padded.length,500);assert.equal(padded.getChannelData(0)[199],0);assert.equal(padded.getChannelData(0)[190],.25);assert.equal(padded.getChannelData(0)[200],0);assert.equal(k.bufferFor(k.tracks[0]),padded);
     k.tracks[0].steps=1e9;assert.throws(()=>k.start(),/too much audio memory/);assert.equal(k.voices.size,1,'existing graph is not replaced on rejection');
     k.release();assert(k.tracks.every(t=>!t.raw&&!t.rendered&&!t.padded&&!t.paddedSource));
 });
@@ -78,4 +78,20 @@ test('processing normalization is bounded, serializable and independently round-
  assert.equal(p.resonance,8);assert.equal(p.delayFeedback,.7);assert.equal(p.delayMix,.6);assert.equal(p.reverbMix,.6);assert.equal(p.reverbDecay,4);assert.equal(p.semitone,24);assert.equal(p.filterMode,'lowpass-48');
  const config=K.normalize();config.tracks[4].processing=K.processing({cutoff:420,semitone:-7,delayMix:.4});config.tracks[4].enabled=false;
  assert.deepEqual(K.normalize(JSON.parse(JSON.stringify(config))),config);assert.equal(config.tracks[0].processing.cutoff,18000);
+});
+
+// Adversarial DC edges expose wrap clicks even when ordinary music hides them.
+test('K loop seam smoothing is cached, nondestructive and period-preserving for cropped and padded tracks',()=>{
+ const {k}=fixture(),raw=buffer(1000,48000),original=raw.getChannelData(0).slice();
+ k.setBuffer(0,raw);const track=k.tracks[0];track.steps=null;
+ const smooth=k.bufferFor(track),data=smooth.getChannelData(0);
+ assert.notEqual(smooth,raw);assert.deepEqual(raw.getChannelData(0),original);
+ assert.equal(smooth.length,raw.length);assert.equal(data[0],0);assert.equal(data[999],0);assert.equal(data[500],.25);
+ let maxStep=0;for(let i=1;i<data.length;i++)maxStep=Math.max(maxStep,Math.abs(data[i]-data[i-1]));
+ assert(maxStep<.003,`edge sample step ${maxStep}`);assert.equal(k.bufferFor(track),smooth);
+ track.steps=1;track.sourceBpm=300; // 2400 frames: original ends into silence.
+ const padded=k.bufferFor(track);assert.equal(padded.length,2400);assert.equal(padded.getChannelData(0)[999],0);assert.equal(padded.getChannelData(0)[1000],0);
+ track.sourceBpm=120;track.steps=null;track.metadata={durationSeconds:.01};
+ const cropped=k.bufferFor(track);assert.equal(cropped.getChannelData(0)[479],0);assert.equal(cropped.getChannelData(0)[0],0);
+ assert.deepEqual(raw.getChannelData(0),original);
 });

@@ -11,10 +11,11 @@
     }
 
     function connect(context, input, destination, options = {}) {
+        const finish = source => typeof options.connectOutput === 'function' ? options.connectOutput(source, destination) : source.connect(destination);
         const cutoff = Math.max(0, Math.min(100, Number(options.cutoff ?? 100)));
         const envelope = options.accent ? Math.max(0, Math.min(1, Number(options.envAmount) || 0)) : 0;
         if (cutoff >= 100 && envelope === 0) {
-            input.connect(destination);
+            finish(input);
             return [];
         }
         const maximum = Math.min(20000, context.sampleRate * .45);
@@ -25,10 +26,11 @@
         const end = start + Math.max(attack + .006, Number(options.duration) || .1);
         const filters = [];
         let previous = input;
-        for (let stage = 0; stage < 4; stage += 1) {
+        const stages = globalThis.mygrainPower?.isLive(context) ? 1 : 4;
+        for (let stage = 0; stage < stages; stage += 1) {
             const filter = context.createBiquadFilter();
             filter.type = 'lowpass';
-            filter.Q.value = 20 * Math.log10(1 / (2 * Math.cos((2 * stage + 1) * Math.PI / 16)));
+            filter.Q.value = 20 * Math.log10(1 / (2 * Math.cos((2 * stage + 1) * Math.PI / (4 * stages))));
             filter.frequency.setValueAtTime(base, start);
             if (peak > base) {
                 filter.frequency.exponentialRampToValueAtTime(peak, start + attack);
@@ -38,7 +40,7 @@
             previous = filter;
             filters.push(filter);
         }
-        previous.connect(destination);
+        finish(previous);
         return filters;
     }
 

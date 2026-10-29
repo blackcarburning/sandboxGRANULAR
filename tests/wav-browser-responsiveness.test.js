@@ -85,6 +85,7 @@ function harness(fetch = async () => ({ ok: true, json: async () => ({ ok: true,
     const byId = id => descendants(body).find(element => element.id === id);
     const context = {
         AbortController, URL, Promise, Date, Map, Set, performance,
+        navigator: { userAgent: 'Desktop regression fixture', maxTouchPoints: 0 },
         WAV_REPOSITORY_BROWSER_TIMEOUT_MS: 180000,
         WAV_REPOSITORY_BROWSER_PAGE_SIZE: 40,
         WAV_REPOSITORY_LIST_API_URL: 'https://example.test/mygrain-wavs/api/list',

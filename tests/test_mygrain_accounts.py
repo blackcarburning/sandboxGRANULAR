@@ -119,12 +119,87 @@ class AccountHTTPTests(unittest.TestCase):
             self.assertTrue(result.get('ok'), result)
         return result
 
+    def test_wav_native_ranges_and_account_isolation(self):
+        payload = wav_bytes(frames=4000)
+        (self.root / 'admin' / 'wavs').mkdir(parents=True, exist_ok=True)
+        (self.root / 'admin' / 'wavs' / 'native.wav').write_bytes(payload)
+        path = '/mygrain-wavs/native.wav?mygrainUser=admin'
+        for requested, start, end in [('bytes=0-1', 0, 1), ('bytes=44-', 44, len(payload)-1), ('bytes=-12', len(payload)-12, len(payload)-1)]:
+            status, body, headers = self.admin.request('GET', path, headers={'Range': requested}, identity=False)
+            self.assertEqual(status, 206)
+            self.assertEqual(body, payload[start:end+1])
+            self.assertEqual(headers['Content-Range'], f'bytes {start}-{end}/{len(payload)}')
+            self.assertEqual(headers['Accept-Ranges'], 'bytes')
+            self.assertEqual(headers['Cache-Control'], 'no-store')
+        status, body, headers = self.admin.request('GET', path, headers={'Range': 'bytes=999999-'})
+        self.assertEqual(status, 416)
+        self.assertEqual(headers['Content-Range'], f'bytes */{len(payload)}')
+        status, body, headers = self.admin.request('HEAD', path, headers={'Range': 'bytes=0-1'})
+        self.assertEqual(status, 206)
+        self.assertEqual(body, b'')
+        self.assertEqual(headers['Content-Length'], '2')
+        self.assertEqual(self.dan.request('GET', path, headers={'Range': 'bytes=0-1'})[0], 401)
+        self.assertEqual(self.anonymous.request('GET', path)[0], 401)
+        self.assertEqual(self.dan.request('GET', '/mygrain-wavs/native.wav?mygrainUser=dan')[0], 404)
+
+    def test_wav_preview_uses_account_binary_loader(self):
+        payload = wav_bytes(frames=4000)
+        (self.root / 'admin' / 'wavs').mkdir(parents=True, exist_ok=True)
+        (self.root / 'admin' / 'wavs' / 'loop.wav').write_bytes(payload)
+        path = '/mygrain/api/wav-preview?filename=loop.wav'
+        status, body, headers = self.admin.request('GET', path)
+        self.assertEqual(status, 200)
+        self.assertEqual(body, payload)
+        self.assertEqual(headers['Cache-Control'], 'no-store')
+        self.assertEqual(self.admin.request('GET', path, identity=False)[0], 401)
+        self.assertEqual(self.dan.request('GET', path)[0], 404)
+        self.assertEqual(self.anonymous.request('GET', path)[0], 401)
+        self.assertEqual(self.admin.request('GET', '/mygrain/api/wav-preview?filename=../loop.wav')[0], 400)
+
+    def test_slow_wav_download_does_not_lock_account(self):
+        (self.root / 'admin' / 'wavs').mkdir(parents=True, exist_ok=True)
+        (self.root / 'admin' / 'wavs' / 'slow.wav').write_bytes(b'RIFF' + bytes(8 * 1024 * 1024))
+        connection = http.client.HTTPConnection(*self.server.server_address, timeout=3)
+        try:
+            connection.request('GET', '/mygrain-wavs/slow.wav?mygrainUser=admin', headers={'Cookie': self.admin.cookie})
+            response = connection.getresponse()
+            self.assertEqual(response.status, 200)
+            with ThreadPoolExecutor(1) as pool:
+                future = pool.submit(self.admin.request, 'GET', '/mygrain-wavs/api/list')
+                self.assertEqual(future.result(timeout=2)[0], 200)
+        finally:
+            connection.close()
+
+    def test_public_static_assets_revalidate_but_account_context_and_html_do_not(self):
+        status, body, headers = self.anonymous.request('GET', '/mygrain/mygrain-accounts.css?v=startup-check')
+        self.assertEqual(status, 200)
+        self.assertIn('must-revalidate', headers['Cache-Control'])
+        etag = headers['ETag']
+        self.assertTrue(etag.startswith('W/"'))
+        status, cached, again = self.anonymous.request('GET', '/mygrain/mygrain-accounts.css?v=startup-check', headers={'If-None-Match': etag})
+        self.assertEqual(status, 304)
+        self.assertEqual(cached, b'')
+        self.assertEqual(again['ETag'], etag)
+        status, current, _ = self.anonymous.request('GET', '/mygrain/mygrain-accounts.css?v=startup-check', headers={'If-None-Match': '"obsolete"'})
+        self.assertEqual(status, 200)
+        self.assertEqual(current, body)
+        for client in (self.anonymous, self.admin):
+            for path in ('/mygrain/', '/mygrain/account-context.js', '/mygrain/api/auth/session'):
+                status, _, private = client.request('GET', path, headers={'If-None-Match': '*'})
+                self.assertEqual(status, 200)
+                self.assertEqual(private['Cache-Control'], 'no-store')
+                self.assertNotIn('ETag', private)
+
     def upload(self, client, filename, body=None, route='/mygrain-wavs'):
         return self.success(client, 'POST', route + '/api/upload', body=body or wav_bytes(), headers={'X-Filename': filename})['savedName']
 
     def third_user(self):
         client = Client(self.server.server_address)
-        self.success(client, 'POST', '/mygrain/api/auth/register', data={'username': 'third-user', 'password': 'third-user-passphrase'})
+        status, payload, _ = client.request('POST', '/mygrain/api/auth/register', data={'username': 'third-user', 'password': 'third-user-passphrase', 'email':'third-user@example.com'})
+        self.assertEqual(status,202)
+        pending=self.accounts.registration_request(payload['requestId'])
+        self.accounts.decide_registration(pending['id'],'approved',pending['approval_token'],'8645802908')
+        self.assertEqual(client.login('third-user','third-user-passphrase')[0],200)
         client.username = 'third-user'
         return client
 
@@ -156,7 +231,7 @@ class AccountHTTPTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(registered_root.stat().st_mode), 0o700)
         users = self.success(third, 'GET', '/mygrain/api/auth/users')['users']
         self.assertEqual(users, [{'username': 'admin'}, {'username': 'dan'}, {'username': 'third-user'}])
-        self.assertEqual(third.request('POST', '/mygrain/api/auth/register', data={'username': 'THIRD-user', 'password': 'another-passphrase'})[0], 409)
+        self.assertEqual(third.request('POST', '/mygrain/api/auth/register', data={'username': 'THIRD-user', 'password': 'another-passphrase','email':'third-user@example.com'})[0], 409)
         self.assertEqual(third.request('POST', '/mygrain/api/auth/register', data={'username': '../bad', 'password': 'another-passphrase'})[0], 400)
         self.assertEqual(self.anonymous.login('dan', 'incorrect')[0], 401)
 
@@ -237,7 +312,8 @@ class AccountHTTPTests(unittest.TestCase):
                     status, payload, headers = client.request('GET', '/mygrain/' + filename + '?v=20261017-navigation-r3')
                     self.assertEqual(status, 200)
                     self.assertEqual(payload, expected)
-                    self.assertEqual(headers.get('Cache-Control'), 'no-store')
+                    self.assertEqual(headers.get('Cache-Control'), 'public, max-age=0, must-revalidate')
+                    self.assertIn('ETag', headers)
         self.assertEqual(self.anonymous.request('GET', '/mygrain/backend/mygrain_accounts.py')[0], 401)
         self.assertEqual(self.admin.request('GET', '/mygrain/backend/mygrain_accounts.py')[0], 403)
 
@@ -617,6 +693,31 @@ class AccountHTTPTests(unittest.TestCase):
             self.assertEqual(self.admin.request('POST', '/mygrain-wavs/api/rename', data={'from': filename, 'to': 'moved-credits.wav'})[0], 400)
         self.assertEqual(self.wav_entry(self.admin, 'moved-credits.wav')['createdBy'], 'admin')
 
+    def test_admin_share_preserves_source_notes_and_isolates_recipient_comments(self):
+        filename = self.upload(self.admin, 'fresh-comments.wav')
+        for client in (self.admin, self.dan):
+            self.success(client, 'POST', '/mygrain-wavs/api/file-feedback', data={
+                'filename': filename, 'comment': 'Old note'})
+        shared = self.success(self.admin, 'POST', '/mygrain-wavs/api/share', data={
+            'filename': filename, 'username': 'dan'})['share']
+        feedback = self.success(self.admin, 'GET', '/mygrain-wavs/api/file-feedback?filename=' + filename)['feedback']
+        self.assertEqual((feedback['comment'], feedback['commentBy']), ('Old note', 'admin'))
+        feedback = self.success(self.dan, 'GET', '/mygrain-wavs/api/file-feedback?filename=' + shared['recipientFilename'])['feedback']
+        self.assertEqual((feedback['comment'], feedback['commentBy']), ('', None))
+        self.assertEqual((shared['comments'], shared['commentsBy']), ('', None))
+        self.success(self.dan, 'POST', '/mygrain-wavs/api/file-feedback', data={
+            'filename': shared['recipientFilename'], 'comment': 'New recipient feedback'})
+        outbound = self.success(self.admin, 'GET', '/mygrain-wavs/api/shares')['shares'][0]
+        self.assertEqual((outbound['comments'], outbound['commentsBy']), ('New recipient feedback', 'dan'))
+        self.success(self.admin, 'POST', '/mygrain-wavs/api/share', data={
+            'filename': filename, 'username': 'dan'})
+        previous = next(item for item in self.success(self.admin, 'GET', '/mygrain-wavs/api/shares')['shares'] if item['id'] == shared['id'])
+        self.assertEqual(previous['comments'], 'New recipient feedback')
+        feedback = self.success(self.admin, 'GET', '/mygrain-wavs/api/file-feedback?filename=' + filename)['feedback']
+        self.assertEqual((feedback['comment'], feedback['commentBy']), ('Old note', 'admin'))
+        for entry in self.success(self.dan, 'GET', '/mygrain-wavs/api/list')['files']:
+            self.assertNotEqual(entry['feedback']['comment'], 'Old note')
+
     def test_shared_copy_comments_rename_delete_and_filename_reuse(self):
         original = wav_bytes(value=123)
         name = self.upload(self.admin, 'shared.wav', original)
@@ -715,13 +816,19 @@ class AccountHTTPTests(unittest.TestCase):
                     SERVER.fetch_bastardloop_sample_bytes(source, unsafe)
             generated = []
             for client in (self.admin, self.dan):
-                result = self.success(client, 'POST', '/mygrain-bastardloops/api/bastardloop', data={'source': source, 'seed': 'isolation-fixture', 'patternLength': 8})
-                generated.append(result)
-                files = self.success(client, 'GET', '/mygrain-bastardloops/api/list')['files']
-                self.assertEqual(len(files), 1)
-                self.assertEqual(files[0]['name'], result['savedName'])
-                self.success(client, 'GET', result['url'])
-            self.assertNotEqual(self.success(self.admin, 'GET', generated[0]['url']), self.success(self.dan, 'GET', generated[1]['url']))
+                status, audio, headers = client.request('POST', '/mygrain-bastardloops/api/bastardloop', data={'source': source, 'seed': 'isolation-fixture', 'patternLength': 8, 'responseFormat': 'audio'})
+                self.assertEqual(status, 201)
+                self.assertTrue(headers['Content-Type'].startswith('audio/wav'))
+                self.assertEqual(audio[:4], b'RIFF')
+                self.assertGreater(len(audio), 44)
+                generated.append(audio)
+                self.assertEqual(self.success(client, 'GET', '/mygrain-bastardloops/api/list')['files'], [])
+                root = self.accounts.path_for('bastardloops', self.accounts.lookup_user(client.username))
+                self.assertEqual(list(root.glob('*.wav')), [])
+                status, error, _ = client.request('POST', '/mygrain-bastardloops/api/bastardloop', data={'source': source, 'responseFormat': 'json'})
+                self.assertEqual(status, 400)
+                self.assertIn('no longer archived', error['error'])
+            self.assertNotEqual(generated[0], generated[1])
 
     def test_real_concurrent_requests_do_not_mix_context_or_collide(self):
         def operation(index):

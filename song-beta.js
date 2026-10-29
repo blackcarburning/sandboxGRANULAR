@@ -66,13 +66,15 @@
         return part.sourcePartId || part.id;
     }
 
-    const loopLayers = ['A', 'B', 'C', 'V', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+'];
+    const loopLayers = ['A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+'];
     const kCopyTracks = ['K1', 'K2', 'K3', 'K4', 'K5'];
     const drumCopyLanes = [
         ['drumKick', 'Kick'], ['drumSnare', 'Snare'], ['drumHat', 'Hat'], ['drumPerc', 'Perc'],
         ['drumClap', 'Clap'], ['drumCymbals', 'Cymbals'], ['drumEtc', 'ETC'], ['drumRoll', 'Snare Roll']
     ];
-    const copyLabels = new Map([...loopLayers.map(layer => [layer, `Bastardloop ${layer}`]), ...kCopyTracks.map((id, index) => [id, `K track ${index + 1}`]), ['drums', 'Drum machine (all)'], ...drumCopyLanes.map(([id, label]) => [id, `${label} drum lane`])]);
+    const eqCopyChannels = [...loopLayers, 'generated', 'sample', ...kCopyTracks, ...drumCopyLanes.map(([id]) => id)];
+    const eqChannelLabel = key => key === 'generated' ? 'Generated Loop' : key === 'sample' ? 'Sample Layer' : kCopyTracks.includes(key) ? `K track ${key.slice(1)}` : drumCopyLanes.find(([id]) => id === key)?.[1] || `Loop ${key}`;
+    const copyLabels = new Map([...loopLayers.map(layer => [layer, `Bastardloop ${layer}`]), ...kCopyTracks.map((id, index) => [id, `K track ${index + 1}`]), ['drums', 'Drum machine (all)'], ...drumCopyLanes.map(([id, label]) => [id, `${label} drum lane`]), ...eqCopyChannels.map(key => ['eq:' + key, `${eqChannelLabel(key)} EQ only`])]);
 
     function copySelection(value) {
         const values = Array.isArray(value) ? value : [value];
@@ -84,6 +86,26 @@
         return copySelection(copied.layers || copied.layer).map(item => copyLabels.get(item)).join(', ');
     }
 
+    function pasteLabel(copied, chosen) {
+        const sounds = chosen.layers.filter(item => !item.startsWith('eq:')).map(item => copyLabels.get(item));
+        const eqs = chosen.eqMap ? Object.entries(chosen.eqMap).map(([target, source]) => `${eqChannelLabel(source)} EQ → ${eqChannelLabel(target)}`) : chosen.layers.filter(item => item.startsWith('eq:')).map(item => copyLabels.get(item));
+        return [...sounds, ...eqs].join(', ');
+    }
+
+    function pasteSelection(copied, selection) {
+        const original = copySelection(copied.layers || copied.layer);
+        const layers = selection ? copySelection(selection.layers) : original;
+        const allowed = new Set(original.flatMap(item => item === 'drums' ? ['drums', ...drumCopyLanes.map(([id]) => id)] : [item]));
+        if (!layers.length || layers.some(item => !allowed.has(item))) throw new Error('Choose destinations from the copied items.');
+        let eqMap;
+        if (selection) {
+            eqMap = selection.eqMap;
+            if (!eqMap || typeof eqMap !== 'object' || Array.isArray(eqMap) || Object.keys(eqMap).length > eqCopyChannels.length || Object.entries(eqMap).some(([target, source]) => !eqCopyChannels.includes(target) || !layers.includes('eq:' + source))) throw new Error('Choose valid EQ destination channels.');
+            if (layers.some(item => item.startsWith('eq:')) && !Object.keys(eqMap).length) throw new Error('Choose at least one EQ destination.');
+        }
+        return { layers, ...(selection ? { eqMap: { ...eqMap } } : {}) };
+    }
+
     function needsPortableFreeze(decoded) {
         return decoded?.snapshot?.extra?.freezeStateVersion === 1 || Boolean(decoded?.snapshot?.state?.sliders?.performanceDrumMachineLevel);
     }
@@ -91,6 +113,13 @@
     function needsQRender(decoded) {
         const state = decoded?.snapshot?.state?.q;
         return state?.enabled === true && state.sequence?.some(step => step?.notes?.length && !step.rest);
+    }
+
+    function needsDrumAccentRender(decoded) {
+        const m = decoded?.snapshot?.state?.modes;
+        if (m?.drumMachineEnabled !== true) return false;
+        return Boolean(['kick', 'snare', 'perc'].some(kind => m.drumMachineBaseAccents?.[kind]?.some((on, i) => on && m[`drumMachine${kind[0].toUpperCase()}${kind.slice(1)}Pattern`]?.[i]))
+            || m.drumMachineRoll?.accents?.some((on, i) => on && m.drumMachineRoll.pattern?.[i]));
     }
 
     function needsDrumRollRender(decoded) {
@@ -115,6 +144,7 @@
     function qRenderVersion(decoded) {
         if (!needsQRender(decoded)) return 0;
         const state = decoded.snapshot.state.q;
+        if (['osc','grain','sample'].includes(state.soundSource)) return 9;
         if (state.chordHold === true && state.arpEnabled !== true) return 8;
         if (Number(state.sampleLength ?? 1) < 1 || Number(state.sampleDecay ?? 1) < 1) return 7;
         if (state.performanceVersion === 6 || state.arpPattern === 'custom' || state.sequence?.some(step => step?.accent === true)) return 6;
@@ -256,7 +286,9 @@
             if (generation === this.generation && this.amendLoading && part?.id === this.amendLoading.id) {
                 this.amendLoading.stage = stage;
                 const progress = this.element('songBetaAmendProgress');
-                if (progress) progress.textContent = `${stage}… Editing will be available when preparation finishes.`;
+                if (progress) progress.textContent = `Please wait… ${stage}. Ready when this part turns orange.`;
+                const wait = this.element('songBetaAmendWait');
+                if (wait) wait.textContent = `Please wait — loading ${part.name} for Amend… ${stage}. Ready when the part turns orange.`;
             }
             const feedback = this.armFeedback;
             if (!feedback || feedback.state !== 'running' || feedback.generation !== generation || generation !== this.generation) return;
@@ -452,6 +484,8 @@
 
         bind() {
             this.element('songBetaConvertK')?.addEventListener('click', () => this.run(() => this.convertKTracks()));
+            this.element('songBetaConvertFx')?.addEventListener('click', () => this.run(() => this.convertLoopFx()));
+            this.element('songBetaConvertW')?.addEventListener('click', () => this.run(() => this.convertWLoop()));
             this.element('songBetaEditSong')?.addEventListener('click', () => this.run(() => this.beginEditing()));
             this.element('songBetaRecoverLock')?.addEventListener('click', () => this.run(() => this.recoverEditingLock()));
             this.element('songBetaDeviceName')?.addEventListener('input', () => this.renderLockUi());
@@ -748,7 +782,7 @@
                 const info = this.adapter.inspectPart(body);
                 if (!cached) await this.sourceStore.put(cacheKey, body);
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
-                this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
+                this.snapshots.set(sourceId(part), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, fxBytes: info.fxBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
                 return { body, ...info, releaseDownload };
             } catch (error) { releaseDownload(); throw error; }
         }
@@ -764,7 +798,7 @@
             }
             const info = this.adapter.inspectSnapshot(payload.snapshot);
             info.audioAssets = payload.audioAssets;
-            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, audioAssets: info.audioAssets, decodedBytes: info.decodedBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
+            this.snapshots.set(sourceId(part), { snapshot: info.snapshot, audioAssets: info.audioAssets, decodedBytes: info.decodedBytes, fxBytes: info.fxBytes, contentSha256: contentKey(part), upgradePending: Boolean(info.upgrade), upgradeExplicitOnly: Boolean(info.upgrade?.explicitOnly) });
             return info;
         }
 
@@ -804,7 +838,7 @@
             const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
             // Include encoded originals, source/deck clones, capture/PCM/upload
             // copies and headroom for the isolated renderer, not just decodes.
-            return 16 * 1048576 + (Number(part.bytes) || info?.body?.byteLength || 0) * 2
+            return 16 * 1048576 + (Number(info?.fxBytes) || 0) + (Number(part.bytes) || info?.body?.byteLength || 0) * 2
                 + (Number(info?.decodedBytes) || 0) * 2 + (rendering ? renderSize * 4 : 0);
         }
 
@@ -868,6 +902,10 @@
         }
 
         isRenderCompatible(part, decoded = this.snapshots.get(sourceId(part)) || this.cache.get(sourceId(part))) {
+            const fxRequired = part.loopFxVersion === 1 || decoded?.snapshot?.state?.modes?.loopFx?.version === 1;
+            if (fxRequired && part.render?.loopFxVersion !== 1) return false;
+            const eqRequired = part.eqVersion === 1 || Object.values(decoded?.snapshot?.state?.modes?.channelEq?.channels || {}).some(channel => channel?.enabled === true || (channel?.automation?.read === true && channel.automation.points?.some(point => point.enabled)));
+            if (eqRequired && !(Number(part.render?.channelEqVersion) >= 2)) return false;
             const pianoVersion = Number(part.qVersion) >= 2 ? Math.max(3, Number(part.qVersion)) : Number(part.qVersion) || 0;
             if (!decoded) return (!pianoVersion || Number(part.render?.qVersion) >= pianoVersion) && ((this.renderSources.has(sourceId(part)) && this.renderSources.get(sourceId(part)) === contentKey(part))
                 || (part.render?.keyboardVersion === 1 && Number(part.render?.grainVersion) >= 5 && part.render?.portableVersion === 1 && part.render?.kReverbVersion === 1));
@@ -876,7 +914,7 @@
             const vocalCut = decoded?.snapshot?.state?.modes?.bastardLoopVCut?.enabled === true;
             const vocalRepeat = vocalCut && decoded.snapshot.state.modes.bastardLoopVCut.repeat === true;
             const drumLanes = Object.values(decoded?.snapshot?.state?.modes?.drumMachineExtraTracks || {}).some(track => track?.pattern?.some(Boolean));
-            return (!keyboard || part.render?.keyboardVersion === 1) && (!grains || Number(part.render?.grainVersion) >= 5) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded)) && (!needsKReverbRender(decoded) || part.render?.kReverbVersion === 1);
+            return (!needsDrumAccentRender(decoded) || part.render?.drumAccentVersion === 1) && (!keyboard || part.render?.keyboardVersion === 1) && (!grains || Number(part.render?.grainVersion) >= 5) && (!vocalCut || part.render?.vocalCutVersion === 1) && (!vocalRepeat || part.render?.vocalRepeatVersion === 1) && (!drumLanes || part.render?.drumLanesVersion === 1) && (!needsDrumRollRender(decoded) || part.render?.drumRollVersion === 1) && (!needsDrumSampleRender(decoded) || part.render?.drumSampleVersion === 1) && (!needsPortableFreeze(decoded) || part.render?.portableVersion === 1) && (!qRenderVersion(decoded) || Number(part.render?.qVersion) >= qRenderVersion(decoded)) && (!needsKReverbRender(decoded) || part.render?.kReverbVersion === 1);
         }
 
         isPartReady(part) {
@@ -927,12 +965,14 @@
                 const body = this.adapter.encodeRender(buffer);
                 bytes = body;
                 this.armStage(generation, 'Saving playback render to server', part);
-                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}&kreverb=1${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=5' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
+                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}&kreverb=1&channeleq=2&loopfx=1&drumaccent=1${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=5' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
                     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body, signal: this.abort?.signal
                 });
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                 const saved = result.song.parts.find(entry => entry.id === part.id && entry.sha256 === part.sha256);
                 if (!saved?.render) throw new Error(`The song changed while rendering ${part.name}. Refresh Songs and arm again.`);
+                if ((part.loopFxVersion === 1 || decoded?.snapshot?.state?.modes?.loopFx?.version === 1) && saved.render.loopFxVersion !== 1) throw new Error('The song server needs standard loop FX support. Reload MYGRAIN and arm again.');
+                if (Object.values(decoded?.snapshot?.state?.modes?.channelEq?.channels || {}).some(channel => channel?.enabled === true || (channel?.automation?.read === true && channel.automation.points?.some(point => point.enabled))) && !(Number(saved.render.channelEqVersion) >= 2)) throw new Error('The song server needs channel EQ render support. Reload MYGRAIN and arm again.');
                 if (needsKReverbRender(decoded) && saved.render.kReverbVersion !== 1) throw new Error('The song server needs K Hall reverb render support. Reload MYGRAIN and arm again.');
                 if (keyboard && saved.render.keyboardVersion !== 1) throw new Error('The song server needs keyboard-render support. Reload MYGRAIN and arm again.');
                 if (grains && !(Number(saved.render.grainVersion) >= 5)) throw new Error('The song server needs current smooth-grain render support. Reload MYGRAIN and arm again.');
@@ -940,9 +980,10 @@
                 if (vocalRepeat && saved.render.vocalRepeatVersion !== 1) throw new Error('The song server needs vocal section-repeat render support. Reload MYGRAIN and arm again.');
                 if (drumLanes && saved.render.drumLanesVersion !== 1) throw new Error('The song server needs Clap/Cymbals render support. Reload MYGRAIN and arm again.');
                 if (drumRoll && saved.render.drumRollVersion !== 1) throw new Error('The song server needs snare Roll render support. Reload MYGRAIN and arm again.');
+                if (saved.render.drumAccentVersion !== 1) throw new Error('The song server needs drum accent render support. Reload MYGRAIN and arm again.');
                 if (drumSamples && saved.render.drumSampleVersion !== 1) throw new Error('The song server needs full-decay drum sample render support. Reload MYGRAIN and arm again.');
                 if (portable && saved.render.portableVersion !== 1) throw new Error('The song server needs portable-freeze support. Reload MYGRAIN and arm again.');
-                if (piano && !(Number(saved.render.qVersion) >= piano)) throw new Error(`The song server needs Q ${piano >= 8 ? 'chord hold' : piano >= 7 ? 'sample length / decay' : piano >= 6 ? 'accent / custom arpeggiator' : piano >= 5 ? 'strings' : piano >= 4 ? 'piano effects' : piano >= 2 ? 'piano arpeggiator' : 'piano'} render support. Reload MYGRAIN and arm again.`);
+                if (piano && !(Number(saved.render.qVersion) >= piano)) throw new Error(`The song server needs Q ${piano >= 9 ? 'OSC / grain / sample' : piano >= 8 ? 'chord hold' : piano >= 7 ? 'sample length / decay' : piano >= 6 ? 'accent / custom arpeggiator' : piano >= 5 ? 'strings' : piano >= 4 ? 'piano effects' : piano >= 2 ? 'piano arpeggiator' : 'piano'} render support. Reload MYGRAIN and arm again.`);
                 this.song = { ...this.song, parts: this.song.parts.map(entry => sourceId(entry) === sourceId(part) ? { ...entry, render: saved.render } : entry) };
                 this.songs = this.songs.map(song => song.id === this.song.id ? this.song : song);
                 this.armStage(generation, 'Decoding saved playback render', part);
@@ -1053,6 +1094,9 @@
                     // in memory. Arm must never rewrite editable source ZIPs:
                     // that work precedes rendering and can exceed phone RAM.
                     if (options.automatic) { pending += 1; continue; }
+                    if (info.upgrade.lanes.includes('W loop')) {
+                        throw new Error('Device-side W conversion is disabled. Use Convert W to run it on the server.');
+                    }
                     if (info.upgrade.lanes.includes('K five-track recorder')) {
                         throw new Error('Device-side K conversion is disabled. Use Convert K to run it on the server.');
                     }
@@ -1114,12 +1158,12 @@
                     this.song = result.song;
                     this.songs = this.songs.map(song => song.id === songId ? this.song : song);
                     this.invalidate(true);
-                    this.snapshots.set(sourceId(saved), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, contentSha256: contentKey(saved), upgradePending: false });
+                    this.snapshots.set(sourceId(saved), { snapshot: info.snapshot, decodedBytes: info.decodedBytes, fxBytes: info.fxBytes, contentSha256: contentKey(saved), upgradePending: false });
                     if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                     if (renderBytes && !this.hasSavedRender(saved)) {
                         const renderExpected = { ...expected, revision: this.song.revision, sha256: digest };
                         const flags = [['keyboard', 'keyboardVersion'], ['grain', 'grainVersion'], ['vocalcut', 'vocalCutVersion'],
-                            ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['drumroll', 'drumRollVersion'], ['portable', 'portableVersion'], ['q', 'qVersion'], ['kreverb', 'kReverbVersion']]
+                            ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['drumaccent', 'drumAccentVersion'], ['drumroll', 'drumRollVersion'], ['portable', 'portableVersion'], ['q', 'qVersion'], ['kreverb', 'kReverbVersion']]
                             .filter(([, field]) => part.render[field]).map(([flag, field]) => `&${flag}=${part.render[field]}`).join('');
                         this.armStage(generation, 'Saving retained playback render', part);
                         result = await this.request(`/${encodeURIComponent(songId)}/parts/${saved.id}/render?sha256=${saved.sha256}${flags}`, {
@@ -1169,6 +1213,54 @@
             this.status(`Server K conversion complete: ${result.converted} unique parts converted; single-track takes map to K1 and existing multitrack takes keep all five tracks. All recorded audio and existing playback files are unchanged. Arm Cache remains manual.`);
         }
 
+        async convertWLoop() {
+            if (!this.song?.parts.length) throw new Error('Choose a saved Song with parts first.');
+            if (this.playing || this.editing) throw new Error('Stop Song playback and finish the current amendment before converting W.');
+            this.adapter.assertNotRecording?.();
+            await this.ensureEditing();
+            const generation = this.generation, songId = this.song.id, library = this.key, revision = this.song.revision;
+            const sources = JSON.stringify(this.song.parts.map(part => [part.id, part.sha256]));
+            this.status('Adding W compatibility on the server. Recorded audio stays on the server…');
+            const result = await this.request(`/${encodeURIComponent(songId)}/convert-w`, { method: 'POST' });
+            if (generation !== this.generation || library !== this.key || this.song?.id !== songId || this.song.revision !== revision
+                || JSON.stringify(this.song.parts.map(part => [part.id, part.sha256])) !== sources) {
+                if (this.song?.id === songId && library === this.key) this.revisionConflict = true;
+                throw new DOMException('W conversion completed or was interrupted on the server. Refresh Songs to reconcile the saved result.', 'AbortError');
+            }
+            if (result.song?.id !== songId || !Number.isInteger(result.converted) || result.converted < 0 || result.converted > 64
+                || result.song.revision !== revision + (result.converted ? 1 : 0)) {
+                this.revisionConflict = true;
+                throw new Error('Unexpected server W conversion response. Refresh Songs before saving.');
+            }
+            this.acceptSong(result.song);
+            this.invalidate(true);
+            this.status(`Server W conversion complete: ${result.converted} unique parts converted; older parts get W empty and off; existing W audio and settings stay unchanged. All recorded audio and existing playback files are unchanged. Arm Cache remains manual.`);
+        }
+
+        async convertLoopFx() {
+            if (!this.song?.parts.length) throw new Error('Choose a saved Song with parts first.');
+            if (this.playing || this.editing) throw new Error('Stop Song playback and finish the current amendment before converting loop effects.');
+            this.adapter.assertNotRecording?.();
+            await this.ensureEditing();
+            const generation = this.generation, songId = this.song.id, library = this.key, revision = this.song.revision;
+            const sources = JSON.stringify(this.song.parts.map(part => [part.id, part.sha256]));
+            this.status('Converting loop filters, stereo halls and delays on the server. Recorded audio stays on the server…');
+            const result = await this.request(`/${encodeURIComponent(songId)}/convert-fx`, { method: 'POST' });
+            if (generation !== this.generation || library !== this.key || this.song?.id !== songId || this.song.revision !== revision
+                || JSON.stringify(this.song.parts.map(part => [part.id, part.sha256])) !== sources) {
+                if (this.song?.id === songId && library === this.key) this.revisionConflict = true;
+                throw new DOMException('FX conversion completed or was interrupted on the server. Refresh Songs to reconcile the saved result.', 'AbortError');
+            }
+            if (result.song?.id !== songId || !Number.isInteger(result.converted) || result.converted < 0 || result.converted > 64
+                || result.song.revision !== revision + (result.converted ? 1 : 0)) {
+                this.revisionConflict = true;
+                throw new Error('Unexpected server FX conversion response. Refresh Songs before saving.');
+            }
+            this.acceptSong(result.song);
+            this.invalidate(true);
+            this.status(`Server FX conversion complete: ${result.converted} unique parts converted. Recorded samples and original archives are unchanged. Arm Cache to rebuild playback using the standard loop effects.`);
+        }
+
         async arm() {
             if (!this.song?.parts.length) throw new Error('Save at least one part first.');
             this.cancel(true);
@@ -1213,15 +1305,16 @@
                             // Older render metadata cannot tell whether full-decay
                             // sampled drums are present. Inspect the editable source
                             // before trusting a legacy freeze's fast reuse path.
-                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || part.render?.kReverbVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
+                            if (!info && (!this.isRenderCompatible(part) || part.render?.drumAccentVersion !== 1 || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || part.render?.kReverbVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
                             if (this.hasSavedRender(part)) {
                                 const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 this.armStage(generation, 'Waiting for playback memory', part);
                                 releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
                                 await this.prepareRender(part, info || {}, generation);
-                            } else if (this.serverPreparation && this.preparationBytes(part, info, true) > this.memoryBudget.limitBytes) {
-                                // Keep oversized original audio off the phone. The server
-                                // renders the identical app engine, then we fetch only PCM16.
+                            } else if (this.serverPreparation && (this.phonePreparation || this.preparationBytes(part, info, true) > this.memoryBudget.limitBytes)) {
+                                // Phones offload every new/stale render, not just those
+                                // whose estimate already exceeds the safety budget.
+                                // The server uses the current app engine; fetch only PCM.
                                 const saved = await this.prepareOnServer(part, generation);
                                 const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
@@ -1280,7 +1373,7 @@
                 if (options.amend) this.requireEditing();
                 this.adapter.assertNotRecording?.();
             };
-            let release, decoded, previous, plan, checkpoint, parked;
+            let release, decoded, previous, plan, checkpoint, parked, finishPreparation, inheritedEditorBytes = 0;
             let detached = false, committed = false, keepCheckpoint = false;
             const account = root.mygrainAccountContext?.user?.username;
             try {
@@ -1289,14 +1382,27 @@
                 // deck, or hot playback renders alongside an editing restore.
                 await this.adapter.whenPersisted?.();
                 check();
+                finishPreparation = this.adapter.beginEditingPreparation?.();
                 for (const id of [...this.cache.keys()]) this.releasePart({ id });
                 this.trimRenderMemory(0);
                 let info = this.snapshots.get(sourceId(part));
                 if (!Array.isArray(info?.audioAssets)) info = await this.readPartMetadata(part, generation);
                 check();
                 const resident = this.adapter.editingResidency();
-                release = await this.reservePreparation(16 * 1048576 + resident.bytes + resident.scratch, this.abort?.signal);
-                plan = await this.adapter.planEditing(info, check);
+                // A large *current* sample may need no hashing at all. If a full
+                // WAV/hash scratch copy cannot fit, skip reuse and checkpoint in
+                // bounded Float32 chunks instead of rejecting before planning.
+                const skipReuse = 16 * 1048576 + resident.bytes + resident.scratch > this.memoryBudget.limitBytes
+                    && Number.isFinite(resident.checkpointScratch);
+                // An editor loaded before this operation can already exceed the
+                // preparation limit. Do not allocate another deck alongside it.
+                // Charge bounded checkpoint work separately, preserve the old
+                // residency as rollback-only credit, then detach before decode.
+                if (skipReuse) inheritedEditorBytes = resident.bytes;
+                release = await this.reservePreparation(skipReuse
+                    ? 4 * 1048576 + resident.checkpointScratch
+                    : 16 * 1048576 + resident.bytes + resident.scratch, this.abort?.signal);
+                plan = await this.adapter.planEditing(info, check, { skipReuse });
                 check();
                 release(); release = null;
                 if (plan.bytes > this.memoryBudget.limitBytes && this.adapter.detachEditingSources && root.MygrainSongStorage.EditCheckpoint) {
@@ -1304,14 +1410,18 @@
                     // checkpoint or changing a single live sound.
                     if (plan.emptyBytes > this.memoryBudget.limitBytes) await this.reservePreparation(plan.emptyBytes, this.abort?.signal);
                     this.status('Temporarily saving the current live sounds before loading this large part…');
-                    release = await this.reservePreparation(16 * 1048576 + resident.bytes + resident.scratch, this.abort?.signal);
+                    release = await this.reservePreparation(inheritedEditorBytes
+                        ? 4 * 1048576 + resident.checkpointScratch
+                        : 16 * 1048576 + resident.bytes + (resident.checkpointScratch ?? resident.scratch), this.abort?.signal);
                     previous = await this.adapter.capture({ liveOnly: true });
                     plan.verify(); check();
                     checkpoint = new root.MygrainSongStorage.EditCheckpoint();
                     parked = await checkpoint.save(previous, () => { plan.verify(); check(); });
                     // Rollback also has to fit, including its sequential IDB
                     // read/PCM copies. Keep the old deck untouched if it cannot.
-                    const rollbackBytes = 16 * 1048576 + parked.bytes + parked.largest;
+                    const rollbackBytes = inheritedEditorBytes
+                        ? 4 * 1048576 + Math.max(0, parked.bytes - inheritedEditorBytes) + parked.largest
+                        : 16 * 1048576 + parked.bytes + parked.largest;
                     if (rollbackBytes > this.memoryBudget.limitBytes) throw new Error('The current live sounds are too large for a safe editing rollback. Save them before loading another part.');
                     await this.adapter.releaseEditorHistory?.();
                     plan.verify(); check();
@@ -1350,7 +1460,9 @@
                     decoded = null; plan = null; previous = null;
                     this.adapter.detachEditingSources();
                     release?.(); release = null;
-                    release = await this.reservePreparation(16 * 1048576 + parked.bytes + parked.largest);
+                    release = await this.reservePreparation(inheritedEditorBytes
+                        ? 4 * 1048576 + Math.max(0, parked.bytes - inheritedEditorBytes) + parked.largest
+                        : 16 * 1048576 + parked.bytes + parked.largest);
                     try {
                         previous = await checkpoint.restore(this.adapter.context());
                         this.adapter.recall(previous, { start: false, prepared: previous });
@@ -1370,7 +1482,15 @@
                     try { await checkpoint.dispose(); }
                     catch (error) { console.warn('Temporary editing checkpoint cleanup deferred:', error); }
                 }
+                finishPreparation?.();
             }
+        }
+
+        async audition(part) {
+            // The phone's ready mix must not load the entire editable source
+            // deck merely to hear one part. Recall/Amend remain live editing.
+            if (this.phonePreparation) return this.loopPart(part.id);
+            return this.recall(part);
         }
 
         async recall(part, options = {}) {
@@ -1404,12 +1524,12 @@
         copyLoop(part, selection) {
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before copying a saved loop.');
             const layers = copySelection(selection);
-            if (!layers.length || !this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Choose a current saved part and one or more loops, K tracks or drum lanes.');
+            if (!layers.length || !this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Choose a current saved part and one or more loops, K tracks, drum lanes or EQs.');
             this.loopClipboard = {
                 sourceSongId: this.song.id, sourcePartId: sourceId(part), sourceSha256: part.sha256,
                 layers, ...(layers.length === 1 ? { layer: layers[0] } : {}), name: part.name, library: this.key
             };
-            this.status(`Copied ${copiedLabel(this.loopClipboard)} from ${part.name}. Use Paste Part on the destination. Nothing has changed yet.`);
+            this.status(`Copied ${copiedLabel(this.loopClipboard)} from ${part.name}. Use Global Paste on the Song card to choose destination channels and parts. Nothing has changed yet.`);
         }
 
         openLoopCopyPicker(part, opener) {
@@ -1423,7 +1543,7 @@
             heading.textContent = `Copy from ${part.name}`;
             const help = this.document.createElement('p');
             help.id = 'songBetaCopyHelp';
-            help.textContent = 'Tick one or more items, then Copy selected. On the destination part, press Paste Part. Only the selected saved sounds, patterns and settings are replaced; unsaved live edits are not copied.';
+            help.textContent = 'Tick one or more items, then Copy selected. Use Global Paste on the Song card to choose destination channels and song parts, or Paste Part on one part. Sound targets include their EQ; EQ-only targets never copy audio or patterns. Unsaved live edits are not copied.';
             const buttons = this.document.createElement('div');
             buttons.className = 'song-beta-copy-layers';
             const inputs = new Map();
@@ -1465,6 +1585,19 @@
             const drumHelp = this.document.createElement('p');
             drumHelp.textContent = 'All includes the shared drum mix/FX. Individual lanes keep the destination’s drum mix. Snare and Roll share their sound; Roll alone copies its pattern.';
             drums.append(lanes, drumHelp);
+            const eqs = this.document.createElement('fieldset'); eqs.className = 'song-beta-copy-eqs';
+            const eqLegend = this.document.createElement('legend'); eqLegend.textContent = 'Channel EQs only'; eqs.append(eqLegend);
+            const eqAll = this.document.createElement('label'); eqAll.className = 'song-beta-copy-choice';
+            const eqAllInput = this.document.createElement('input'); eqAllInput.type = 'checkbox'; eqAllInput.dataset.eqAll = 'true';
+            eqAll.append(eqAllInput, this.document.createTextNode('All channel EQs')); eqs.append(eqAll);
+            for (const [title, keys] of [['Loops', [...loopLayers, 'generated', 'sample']], ['K tracks', kCopyTracks], ['Drum lanes', drumCopyLanes.map(([id]) => id)]]) {
+                const section = this.document.createElement('details'); section.open = true;
+                const summary = this.document.createElement('summary'); summary.textContent = title;
+                const choices = this.document.createElement('div'); choices.className = 'song-beta-copy-layers';
+                for (const key of keys) addChoice(choices, 'eq:' + key, eqChannelLabel(key) + ' EQ');
+                section.append(summary, choices); eqs.append(section);
+            }
+            const eqHelp = this.document.createElement('p'); eqHelp.textContent = 'EQ On/bypass and all four bands only. No audio, notes, patterns, track mix or other effects. Old parts without EQ copy a bypassed EQ; conversion happens on the server.'; eqs.append(eqHelp);
             const copy = this.document.createElement('button');
             copy.type = 'button';
             copy.className = 'performance-btn primary song-beta-copy-selected';
@@ -1475,10 +1608,13 @@
                 const selectedDrums = drumCopyLanes.filter(([id]) => inputs.get(id).checked).length;
                 all.checked = selectedDrums === drumCopyLanes.length;
                 all.indeterminate = selectedDrums > 0 && !all.checked;
+                const eqCount = eqCopyChannels.filter(id => inputs.get('eq:' + id).checked).length;
+                eqAllInput.checked = eqCount === eqCopyChannels.length; eqAllInput.indeterminate = eqCount > 0 && !eqAllInput.checked;
                 const count = selection().length;
                 copy.disabled = !count;
                 copy.textContent = count ? `Copy selected (${count})` : 'Copy selected';
             };
+            eqAllInput.addEventListener('change', () => { for (const key of eqCopyChannels) inputs.get('eq:' + key).checked = eqAllInput.checked; sync(); });
             for (const [id, input] of inputs) input.addEventListener('change', () => {
                 if (id === 'drums') for (const [lane] of drumCopyLanes) inputs.get(lane).checked = all.checked;
                 sync();
@@ -1497,7 +1633,7 @@
             const actions = this.document.createElement('div');
             actions.className = 'song-beta-copy-actions';
             actions.append(copy, cancel);
-            dialog.append(heading, help, buttons, kTracks, drums, actions);
+            dialog.append(heading, help, buttons, kTracks, drums, eqs, actions);
             dialog.addEventListener('keydown', event => event.stopPropagation());
             dialog.addEventListener('keyup', event => event.stopPropagation());
             dialog.addEventListener('close', () => {
@@ -1512,7 +1648,7 @@
             if (this.busy || this.playing || this.editing || !this.song?.parts.length || this.document.querySelector('.song-beta-copy-dialog, .song-beta-paste-dialog')) return;
             const copied = this.loopClipboard;
             if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) {
-                this.status('Use Copy From Part and choose loops, K tracks or drum lanes first.', true);
+                this.status('Use Copy From Part and choose loops, K tracks, drum lanes or EQs first.', true);
                 return;
             }
             try { this.adapter.assertNotRecording?.(); }
@@ -1524,16 +1660,51 @@
             dialog.setAttribute('aria-labelledby', 'songBetaPasteTitle');
             dialog.setAttribute('aria-describedby', 'songBetaPasteHelp');
             const heading = this.document.createElement('h3');
-            heading.id = 'songBetaPasteTitle'; heading.textContent = 'Paste Part to selected song parts';
+            heading.id = 'songBetaPasteTitle'; heading.textContent = 'Global Paste — choose destinations';
             const help = this.document.createElement('p');
             help.id = 'songBetaPasteHelp';
             help.textContent = `Paste ${copiedLabel(copied)} from ${copied.name}. Tick the destinations, then Paste selected. Selected items will be replaced; unselected sounds, tempo and repeats stay unchanged. Shared uses are linked and change together. Arm Cache is not started.`;
+            const destinations = this.document.createElement('fieldset'); destinations.className = 'song-beta-paste-targets';
+            const targetLegend = this.document.createElement('legend'); targetLegend.textContent = 'Destination channels'; destinations.append(targetLegend);
+            const fullInputs = new Map(), eqInputs = new Map(), eqSources = new Map();
+            const copiedLayers = copySelection(copied.layers || copied.layer), copiedEqs = copiedLayers.filter(item => item.startsWith('eq:')).map(item => item.slice(3));
             const inputs = new Map();
             const choice = (parent, text) => {
                 const label = this.document.createElement('label'); label.className = 'song-beta-copy-choice';
                 const input = this.document.createElement('input'); input.type = 'checkbox';
                 const caption = this.document.createElement('span'); caption.textContent = text;
                 label.append(input, caption); parent.append(label); return input;
+            };
+            const fullLayers = copiedLayers.filter(item => !item.startsWith('eq:')).flatMap(item => item === 'drums' ? drumCopyLanes.map(([id]) => id) : [item]);
+            let allDrums = null;
+            if (copiedLayers.includes('drums')) { allDrums = choice(destinations, 'All drum lanes + shared drum mix/FX'); allDrums.checked = true; allDrums.dataset.pasteAllDrums = 'true'; }
+            const fullChoices = this.document.createElement('div'); fullChoices.className = 'song-beta-copy-layers';
+            for (const layer of fullLayers) { const input = choice(fullChoices, copyLabels.get(layer)); input.dataset.pasteLayer = layer; input.checked = true; fullInputs.set(layer, input); }
+            destinations.append(fullChoices);
+            if (copiedEqs.length) {
+                const note = this.document.createElement('p'); note.textContent = 'Tick the destination EQs. A single copied EQ can go to several channels. If several EQs were copied, choose the source beside each destination. Audio and other settings stay unchanged.'; destinations.append(note);
+                const allEq = choice(destinations, 'Select all destination EQs'); allEq.dataset.pasteAllEq = 'true';
+                for (const [title, keys] of [['Loop EQs', [...loopLayers, 'generated', 'sample']], ['K track EQs', kCopyTracks], ['Drum EQs', drumCopyLanes.map(([id]) => id)]]) {
+                    const group = this.document.createElement('details'); group.open = true;
+                    const summary = this.document.createElement('summary'); summary.textContent = title;
+                    const grid = this.document.createElement('div'); grid.className = 'song-beta-copy-layers';
+                    for (const target of keys) {
+                        const row = this.document.createElement('div'); row.className = 'song-beta-eq-destination';
+                        const input = choice(row, eqChannelLabel(target) + ' EQ'); input.dataset.pasteEq = target; input.checked = copiedEqs.includes(target); eqInputs.set(target, input);
+                        const select = this.document.createElement('select'); select.dataset.eqSourceFor = target; select.setAttribute('aria-label', 'Source EQ for ' + eqChannelLabel(target));
+                        for (const source of copiedEqs) { const option = this.document.createElement('option'); option.value = source; option.textContent = 'From ' + eqChannelLabel(source); select.append(option); }
+                        select.value = copiedEqs.includes(target) ? target : copiedEqs[0]; select.hidden = copiedEqs.length === 1; eqSources.set(target, select);
+                        row.append(select); grid.append(row);
+                    }
+                    group.append(summary, grid); destinations.append(group);
+                }
+                allEq.addEventListener('change', () => { for (const input of eqInputs.values()) input.checked = allEq.checked; sync(); });
+            }
+            const targetSelection = () => {
+                const full = [...fullInputs].filter(([, input]) => input.checked).map(([id]) => id);
+                if (allDrums?.checked) full.push('drums');
+                const eqMap = Object.fromEntries([...eqInputs].filter(([, input]) => input.checked).map(([target]) => [target, eqSources.get(target).value]));
+                return { layers: copySelection([...full, ...new Set(Object.values(eqMap).map(source => 'eq:' + source))]), eqMap };
             };
             const master = this.document.createElement('div');
             const all = choice(master, 'Select all song parts'); all.dataset.selectAll = 'true';
@@ -1551,9 +1722,20 @@
                 const selected = [...inputs.values()].filter(input => input.checked).length;
                 all.checked = selected === parts.length;
                 all.indeterminate = selected > 0 && !all.checked;
-                paste.disabled = !selected;
+                const targets = targetSelection();
+                paste.disabled = !selected || !targets.layers.length;
                 paste.textContent = selected ? `Paste selected (${selected})` : 'Paste selected';
+                const allEq = destinations.querySelector('[data-paste-all-eq]');
+                if (allEq) { const n = [...eqInputs.values()].filter(i => i.checked).length; allEq.checked = n === eqInputs.size; allEq.indeterminate = n > 0 && !allEq.checked; }
+                for (const [target, select] of eqSources) select.disabled = !eqInputs.get(target).checked;
             };
+            for (const [id, input] of fullInputs) input.addEventListener('change', () => {
+                if (allDrums && drumCopyLanes.some(([key]) => key === id)) { const n = drumCopyLanes.filter(([key]) => fullInputs.get(key).checked).length; allDrums.checked = n === drumCopyLanes.length; allDrums.indeterminate = n > 0 && !allDrums.checked; }
+                sync();
+            });
+            if (allDrums) allDrums.addEventListener('change', () => { for (const [key] of drumCopyLanes) fullInputs.get(key).checked = allDrums.checked; sync(); });
+            for (const input of eqInputs.values()) input.addEventListener('change', sync);
+            for (const select of eqSources.values()) select.addEventListener('change', sync);
             for (const part of parts) inputs.get(part.id).addEventListener('change', () => {
                 const checked = inputs.get(part.id).checked;
                 for (const entry of parts) if (sourceId(entry) === sourceId(part)) inputs.get(entry.id).checked = checked;
@@ -1564,39 +1746,43 @@
                 const selected = parts.filter(part => inputs.get(part.id).checked);
                 if (!selected.length) return;
                 dialog.close();
-                this.run(() => this.pasteParts(selected, expected, copied));
+                this.run(() => this.pasteParts(selected, expected, copied, targetSelection()));
             });
             const cancel = this.document.createElement('button'); cancel.type = 'button';
             cancel.className = 'performance-btn'; cancel.textContent = 'Cancel';
             cancel.addEventListener('click', () => dialog.close());
             const actions = this.document.createElement('div'); actions.className = 'song-beta-copy-actions';
-            actions.append(paste, cancel); dialog.append(heading, help, master, list, actions);
+            actions.append(paste, cancel); dialog.append(heading, help, destinations, master, list, actions);
             dialog.addEventListener('keydown', event => event.stopPropagation());
             dialog.addEventListener('keyup', event => event.stopPropagation());
             dialog.addEventListener('close', () => { dialog.remove(); if (opener?.isConnected) opener.focus(); }, { once: true });
             sync(); this.document.body.append(dialog); dialog.showModal();
         }
 
-        async pasteParts(parts, expected = { library: this.key, songId: this.song?.id, revision: this.song?.revision }, copied = this.loopClipboard) {
+        async pasteParts(parts, expected = { library: this.key, songId: this.song?.id, revision: this.song?.revision }, copied = this.loopClipboard, selection = null) {
             if (expected.library !== this.key || expected.songId !== this.song?.id || expected.revision !== this.song?.revision) throw new Error('The song changed while choosing destinations. Reopen Paste Part to select its current parts.');
             if (!copied || copied !== this.loopClipboard || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('The copy buffer changed. Reopen Paste Part before pasting.');
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before pasting parts.');
             this.adapter.assertNotRecording?.();
             if (!Array.isArray(parts) || !parts.length || parts.some(part => !this.song.parts.some(entry => entry.id === part?.id && entry.sha256 === part.sha256 && sourceId(entry) === sourceId(part)))) throw new Error('Choose current song parts before pasting.');
+            const chosen = pasteSelection(copied, selection);
             const targets = [...new Map(parts.map(part => [sourceId(part), part])).values()];
+            // Select all can include the copied source. Save it last so every
+            // other destination still reads the unchanged pinned source hash.
+            if (copied.sourceSongId === this.song.id) targets.sort((a, b) => Number(sourceId(a) === copied.sourcePartId) - Number(sourceId(b) === copied.sourcePartId));
             const positions = this.song.parts.filter(part => targets.some(target => sourceId(target) === sourceId(part))).length;
             let completed = 0;
             let revision = this.song.revision;
             for (const part of targets) {
                 try {
                     if (this.key !== expected.library || this.song?.id !== expected.songId || this.song.revision !== revision || this.loopClipboard !== copied) throw new Error('Song or copy buffer changed during pasting.');
-                    await this.pasteLoop(part, { confirmed: true, copied, batch: true, progress: `${completed + 1}/${targets.length}: ` });
+                    await this.pasteLoop(part, { confirmed: true, copied, selection: selection ? chosen : null, batch: true, progress: `${completed + 1}/${targets.length}: ` });
                     completed += 1; revision = this.song.revision;
                 } catch (error) {
                     throw new Error(`Saved ${completed}/${targets.length} selected saved parts; stopped at ${part.name}: ${error.message} Earlier successful pastes remain saved. No further destinations were attempted. Refresh Songs before retrying; a lost response may mean this destination was also saved.`, { cause: error });
                 }
             }
-            this.status(`Pasted ${copiedLabel(copied)} from ${copied.name} into ${completed} saved part${completed === 1 ? '' : 's'} (${positions} song position${positions === 1 ? '' : 's'}). Unselected sounds are unchanged. Use Arm Cache once when ready. Your live pattern and copy buffer are unchanged.`);
+            this.status(`Pasted ${pasteLabel(copied, chosen)} from ${copied.name} into ${completed} saved part${completed === 1 ? '' : 's'} (${positions} song position${positions === 1 ? '' : 's'}). Unselected sounds are unchanged. Use Arm Cache once when ready. Your live pattern and copy buffer are unchanged.`);
         }
 
         async pasteLoop(part, options = {}) {
@@ -1604,9 +1790,9 @@
             if (this.playing || this.editing) throw new Error('Stop the song and finish the amendment before pasting a loop.');
             this.adapter.assertNotRecording?.();
             const copied = options.copied || this.loopClipboard;
-            if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('Use Copy From Part and choose loops, K tracks or drum lanes first.');
-            const label = copiedLabel(copied);
-            const layers = copySelection(copied.layers || copied.layer);
+            if (!copied || copied.library !== this.key || !copySelection(copied.layers || copied.layer).length) throw new Error('Use Copy From Part and choose loops, K tracks, drum lanes or EQs first.');
+            const chosen = pasteSelection(copied, options.selection), layers = chosen.layers;
+            const label = pasteLabel(copied, chosen);
             if (!this.song?.parts.some(entry => entry.id === part.id && entry.sha256 === part.sha256)) throw new Error('Refresh Songs before pasting into a changed part.');
             const uses = this.song.parts.filter(entry => sourceId(entry) === sourceId(part)).length;
             if (!options.confirmed && !root.confirm(`Replace ${label} in ${part.name} completely with the saved copy from ${copied.name}?${uses > 1 ? ` This shared part is used ${uses} times; every use changes.` : ''} Unselected sounds, tempo, grid length and repeats stay unchanged.${!this.canEditSong() ? ' Editing access will be requested automatically; another device’s lock cannot be overridden.' : ''}`)) return;
@@ -1616,7 +1802,7 @@
             this.status(`${options.progress || ''}Pasting ${label} into ${part.name} on the server…`);
             const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/paste-loop?sha256=${part.sha256}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sourceSongId: copied.sourceSongId, sourcePartId: copied.sourcePartId, sourceSha256: copied.sourceSha256, ...(layers.length === 1 ? { layer: layers[0] } : { layers }) })
+                body: JSON.stringify({ sourceSongId: copied.sourceSongId, sourcePartId: copied.sourcePartId, sourceSha256: copied.sourceSha256, ...(layers.length === 1 ? { layer: layers[0] } : { layers }), ...(options.selection ? { eqMap: chosen.eqMap } : {}) })
             });
             this.cancel(true, { hardCut: true });
             this.acceptSong(result.song);
@@ -1672,6 +1858,11 @@
             const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/delete?sha256=${part.sha256}`, { method: 'POST' });
             this.acceptSong(result.song);
             this.status(`Removed this occurrence of ${part.name}. Other uses and server recovery files are retained.`);
+            const songId = result.song.id;
+            root.requestAnimationFrame?.(() => {
+                if (this.song?.id !== songId) return;
+                this.element('songBetaCard')?.scrollIntoView({ behavior: 'instant', block: 'start', inline: 'nearest' });
+            });
         }
 
         async exportSong() {
@@ -1887,6 +2078,10 @@
             }
             const convertK = this.element('songBetaConvertK');
             if (convertK) convertK.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing) || !this.song?.parts.length;
+            const convertFx = this.element('songBetaConvertFx');
+            if (convertFx) convertFx.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing) || !this.song?.parts.length;
+            const convertW = this.element('songBetaConvertW');
+            if (convertW) convertW.disabled = changesBlocked || this.busy || this.playing || Boolean(this.editing) || !this.song?.parts.length;
             this.element('songBetaArm').disabled = this.busy || this.playing || !this.song?.parts.length || Boolean(this.editing);
             const pending = this.renderCacheSummary();
             this.element('songBetaArm').textContent = this.armed ? 'Cache Armed ✓' : `Arm Cache${pending ? ` (${pending})` : ''}`;
@@ -1915,9 +2110,22 @@
             const list = this.element('songBetaParts');
             const clipboard = this.element('songBetaClipboard');
             if (clipboard) {
-                clipboard.textContent = this.loopClipboard ? `Copied: ${copiedLabel(this.loopClipboard)} from ${this.loopClipboard.name}. Use Paste Part on the destination.` : '';
+                clipboard.textContent = this.loopClipboard ? `Copied: ${copiedLabel(this.loopClipboard)} from ${this.loopClipboard.name}. Use Global Paste to choose destination channels and parts.` : '';
                 clipboard.hidden = !this.loopClipboard;
             }
+            let amendWait = this.element('songBetaAmendWait');
+            if (this.amendLoading) {
+                if (!amendWait) {
+                    amendWait = this.document.createElement('div');
+                    amendWait.id = 'songBetaAmendWait';
+                    amendWait.setAttribute('role', 'status');
+                    amendWait.setAttribute('aria-live', 'polite');
+                    amendWait.setAttribute('aria-atomic', 'true');
+                    this.document.body.append(amendWait);
+                }
+                const loadingPart = this.song?.parts.find(part => part.id === this.amendLoading.id);
+                amendWait.textContent = `Please wait — loading ${loadingPart?.name || 'part'} for Amend… ${this.amendLoading.stage}. Ready when the part turns orange.`;
+            } else if (amendWait) amendWait.remove();
             list.replaceChildren();
             for (const [index, part] of (this.song?.parts || []).entries()) {
                 const row = this.document.createElement('div');
@@ -1927,14 +2135,14 @@
                     row.style.setProperty('--song-beta-part-tint', `${part.colour}22`);
                 }
                 row.classList.toggle('song-beta-active', part.id === this.active);
-                row.classList.toggle('song-beta-amending', part.id === this.editing?.id);
+                row.classList.toggle('song-beta-amending', !this.amendLoading && part.id === this.editing?.id);
                 if (part.id === this.amendLoading?.id) {
                     row.setAttribute('aria-busy', 'true');
                     const progress = this.document.createElement('p');
                     progress.id = 'songBetaAmendProgress';
                     progress.className = 'song-beta-amend-progress';
                     progress.setAttribute('role', 'status');
-                    progress.textContent = `${this.amendLoading.stage}… Editing will be available when preparation finishes.`;
+                    progress.textContent = `Please wait… ${this.amendLoading.stage}. Ready when this part turns orange.`;
                     row.append(progress);
                 }
                 const header = this.document.createElement('div');
@@ -1989,7 +2197,8 @@
                 button.setAttribute('aria-label', `Audition ${part.name}`);
                 button.setAttribute('aria-pressed', String(part.id === this.active));
                 button.disabled = this.busy || Boolean(this.editing);
-                button.addEventListener('click', () => this.run(() => this.recall(part)));
+                button.title = this.phonePreparation ? 'Loop this part using prepared song audio. Recall loads editable instruments and original sounds.' : 'Load this part into the live instruments and audition it.';
+                button.addEventListener('click', () => this.run(() => this.audition(part)));
                 controls.append(button);
                 const playFrom = this.document.createElement('button');
                 playFrom.type = 'button';
@@ -2093,12 +2302,12 @@
                     actionButton.type = 'button';
                     actionButton.className = `performance-btn ${className}`;
                     actionButton.textContent = label;
-                    if (className === 'song-beta-amend' && part.id === this.amendLoading?.id) actionButton.textContent = 'Preparing amendment…';
+                    if (className === 'song-beta-amend' && part.id === this.amendLoading?.id) actionButton.textContent = 'Please wait…';
                     actionButton.setAttribute('aria-label', `${label} ${part.name}`);
                     if (className === 'song-beta-reuse') actionButton.title = 'Add this existing part again at the end, without copying sounds or renders. Amendments affect every use; order and repeats are independent.';
                     if (className === 'song-beta-full-copy') actionButton.title = 'Append a full independent copy of this saved part, including all sounds and settings. Its name ends in _full_copy; editing it does not change the original.';
                     if (className === 'song-beta-amend') actionButton.title = 'Amend the shared pattern and sounds for every use of this part.';
-                    if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy loops, K tracks or drum lanes from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace ${copiedLabel(this.loopClipboard)} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
+                    if (className === 'song-beta-paste') actionButton.title = !this.loopClipboard ? 'Copy loops, K tracks, drum lanes or EQs from a saved part first.' : this.busy ? 'Wait for the current Song operation to finish.' : this.playing ? 'Stop Song before pasting.' : this.editing ? 'Save or cancel the current amendment before pasting.' : `Replace ${copiedLabel(this.loopClipboard)} with the saved copy from ${this.loopClipboard.name}. Shared occurrences change together. Editing access is requested automatically.`;
                     actionButton.disabled = (!['song-beta-load', 'song-beta-copy'].includes(className) && changesBlocked) || this.busy || this.playing || Boolean(this.editing) || (className === 'song-beta-paste' && !this.loopClipboard);
                     actionButton.addEventListener('click', () => className === 'song-beta-copy' ? this.openLoopCopyPicker(part, actionButton) : this.run(action));
                     controls.append(actionButton);

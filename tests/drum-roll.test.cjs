@@ -121,7 +121,7 @@ test('active Roll invalidates old freezes even when the previous drum-decay vers
 });
 test('late join, re-alignment and fresh transport starts derive Roll from the shared absolute tick', () => {
     const {context}=fixture(16,128,0,{drumMachinePlaying:false,drumMachineTransportStartTime:null,preFilterGainNode:{},
-        resolveTransportLaneStart:()=>({origin:10,index:12,elapsedSteps:124,time:25.5}),updateDrumMachineMix(){},ensureSharedRhythmClockRunning(){},syncPerformanceControlState(){}});
+        resolveTransportLaneStart:()=>({origin:10,index:12,elapsedSteps:124,time:25.5}),updateDrumMachineMix(){},ensureSharedRhythmClockRunning(){},syncPerformanceControlState(){},cancelDrumMachineVisuals(){}});
     for(const name of ['startDrumMachine','alignDrumMachineToTransport'])vm.runInContext(extract(html,name),context);
     assert(context.startDrumMachine(10,{ensureAudible:false,silent:true,skipSave:true}));assert.equal(context.drumMachineCurrentStep,12);assert.equal(context.drumMachineRollStep,124);
     context.drumMachineRollStep=7;context.alignDrumMachineToTransport(10);assert.equal(context.drumMachineRollStep,124);

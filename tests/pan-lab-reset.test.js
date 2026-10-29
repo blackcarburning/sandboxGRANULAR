@@ -69,7 +69,7 @@ test('pre-start reset patches only persisted pan sliders and keeps the rest of t
     const saved = calls.find(call => call[0] === 'stored')[2];
     assert.equal(saved.sliders.cutoff, '4567');
     assert.deepEqual(saved.selects, stored.selects);
-    assert.deepEqual(saved.modes, stored.modes);
+    assert.deepEqual(saved.modes, { ...stored.modes, finalPanEnabled: false });
     for (const id of controls) assert.equal(saved.sliders[id], '0');
     assert.equal(stored.sliders.finalPanCenter, '-100');
 });
@@ -151,4 +151,21 @@ test('Actions and Jump expose a single shared reset action with the Pan Lab targ
     assert.match(html, /id="performancePanLabResetBtn"[^>]*>Reset Pan Lab<\/button>/);
     assert.match(html, /id="sectionJumpPanLabResetBtn"[^>]*data-jump-click="#performancePanLabResetBtn"[^>]*data-jump-target="#finalPanSection"/);
     assert.match(html, /getElementById\('performancePanLabResetBtn'\)\?\.addEventListener\('click', resetFinalPanLab\)/);
+});
+
+test('Pan power gate bypasses zero depths and preserves legacy render-only static pan', () => {
+    const values = {finalPanWidth:100,finalPanLfoDepth:0,finalPanAudioDepth:0,finalPanOrbit:0,finalPanCenter:60};
+    const context = vm.createContext({finalPanEnabled:false,finalPanLegacyRender:false,getSliderPercent:id=>(values[id]||0)/100,document:{getElementById:id=>({value:values[id]||0})}});
+    vm.runInContext(`${extractFunction('panLabHasMotion')}\n${extractFunction('panLabActive')}`, context);
+    assert.equal(vm.runInContext('panLabActive()',context),false);
+    context.finalPanEnabled=true;
+    assert.equal(vm.runInContext('panLabActive()',context),false);
+    values.finalPanAudioDepth=25;
+    assert.equal(vm.runInContext('panLabActive()',context),true);
+    values.finalPanWidth=0;
+    assert.equal(vm.runInContext('panLabActive()',context),false);
+    values.finalPanAudioDepth=0;context.finalPanLegacyRender=true;
+    assert.equal(vm.runInContext('panLabActive()',context),true);
+    context.finalPanEnabled=false;
+    assert.equal(vm.runInContext('panLabActive()',context),false);
 });

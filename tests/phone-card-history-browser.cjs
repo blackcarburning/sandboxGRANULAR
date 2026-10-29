@@ -82,14 +82,14 @@ try{
  await page.screenshot({path:`/tmp/mygrain-touch-${process.env.WEBKIT?'webkit':'chromium'}-portrait.png`});await page.setViewportSize({width:844,height:390});await page.waitForTimeout(150);const rail=await page.$eval('#sectionJumpUndoBtn',e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e}});assert.ok(rail.hit&&rail.h>=40&&rail.x<40,JSON.stringify(rail));await page.screenshot({path:`/tmp/mygrain-touch-${process.env.WEBKIT?'webkit':'chromium'}-landscape.png`});console.log('PASS phone portrait/landscape quick controls accessible',JSON.stringify(rail));
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.setViewportSize({width:1280,height:900});const desktopBefore=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').click();assert.notEqual(await seq(),desktopBefore);await page.locator('#sectionJumpUndoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),desktopBefore);console.log('PASS desktop mouse actions immediate and quick Undo usable');
- // Retain ten exact undo AND redo levels, discarding only the oldest changes.
+ // Retain two exact undo AND redo levels, discarding only the oldest changes.
  const snapshots=[await seq()];
  for(let i=0;i<12;i++){await page.locator('#performanceBastardLoopXRandomPatternBtn').click();snapshots.push(await seq());}
- assert.deepEqual(await count(),{undo:10,redo:0});
- for(let i=11;i>=2;i--){await page.locator('#sectionJumpUndoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
- assert.deepEqual(await count(),{undo:0,redo:10});
+ assert.deepEqual(await count(),{undo:2,redo:0});
+ for(let i=11;i>=10;i--){await page.locator('#sectionJumpUndoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
+ assert.deepEqual(await count(),{undo:0,redo:2});
  assert.equal(await page.locator('#sectionJumpUndoBtn').isDisabled(),true);
- for(let i=3;i<=12;i++){await page.locator('#sectionJumpRedoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
- assert.deepEqual(await count(),{undo:10,redo:0});console.log('PASS ten exact Undo and Redo levels; oldest changes discarded');
+ for(let i=11;i<=12;i++){await page.locator('#sectionJumpRedoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
+ assert.deepEqual(await count(),{undo:2,redo:0});console.log('PASS two exact Undo and Redo levels; oldest changes discarded');
  await page.evaluate(()=>window.dispatchEvent(new Event('mygrain-account-lock')));assert.deepEqual(await count(),{undo:0,redo:0});console.log('PASS account lock clears history');assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

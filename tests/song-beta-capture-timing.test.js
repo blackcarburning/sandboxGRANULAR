@@ -37,6 +37,18 @@ test('song capture remains compatible with older isolated engines without timing
     assert.equal(timing.latencyFrames, 0);
 });
 
+test('a render retry reserves one later origin for both source audio and capture', () => {
+    const context = { currentTime: 10, sampleRate: 48000 };
+    let requested;
+    const timing = renderCaptureTiming(context, {
+        getBufferedTransportStartTime(value) { requested = value; return value; },
+        getTransportOutputLatencySeconds: () => .026
+    }, 4.5);
+    assert.equal(requested, 14.5);
+    assert.equal(timing.sourceTime, requested);
+    assert.equal(timing.startFrame, 14.5 * 48000 + 1248);
+});
+
 test('song capture rejects expired starts instead of moving only the audio or capture window', () => {
     for (const value of [9, 10, NaN, Infinity, null]) {
         assert.throws(() => renderCaptureTiming({ currentTime: 10, sampleRate: 48000 }, { getBufferedTransportStartTime: () => value }), /buffered start/);

@@ -1,0 +1,61 @@
+.mygrain-ftp{color:#eaf4ff;background:#151b26;border:1px solid #46536c;border-radius:16px;padding:18px;margin:20px 0;overflow-wrap:anywhere}.mygrain-ftp h3{margin-top:0}.ftp-controls,.ftp-row-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.mygrain-ftp button,.mygrain-ftp a,.mygrain-ftp select{font:inherit;max-width:100%;padding:8px 12px;border:1px solid #72839c;border-radius:8px;background:#24344b;color:#fff;text-decoration:none;cursor:pointer}.mygrain-ftp input{max-width:100%;box-sizing:border-box;font:inherit;padding:8px}.mygrain-ftp input[type=checkbox]{width:20px;height:20px}.ftp-row{border-top:1px solid #43516a;padding:12px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center}.ftp-row-name{flex:1 1 200px;min-width:0;overflow-wrap:anywhere}.ftp-status{min-height:1.5em;color:#a9e8ff}.mygrain-ftp button:disabled{opacity:.5;cursor:wait}.ftp-note{font-size:.9em;line-height:1.5;color:#c3d0e2}.ftp-standalone{background:#0d121b;margin:auto;max-width:1050px;padding:16px;color:#fff;font:16px system-ui}.ftp-login label{display:block;margin:10px 0}
+#mygrainFtpCard select{background:#24344b!important;color:#fff!important;-webkit-appearance:none;appearance:none}
+
+.ftp-panes{display:grid;grid-template-columns:minmax(180px,1fr) minmax(200px,1fr);gap:16px}.ftp-tree{border:1px solid #43516a;background:#0c1420;border-radius:8px;padding:10px;max-height:420px;overflow:auto;min-width:0}.ftp-tree ul{list-style:none;margin:0 0 0 10px;padding:0 0 0 12px;border-left:1px solid #64748b}.ftp-tree li{position:relative;margin:3px 0}.ftp-tree li:before{content:'';position:absolute;left:-12px;top:20px;width:10px;border-top:1px solid #64748b}.mygrain-ftp .ftp-tree-item{display:block;border:0;background:transparent;text-align:left;border-radius:4px;width:100%;padding:9px 6px;overflow-wrap:anywhere;min-height:40px}.mygrain-ftp .ftp-tree-item:hover,.mygrain-ftp .ftp-tree-item[aria-pressed=true]{background:#294767}.ftp-tree-empty{color:#99aabe;font-size:12px}.ftp-detail{min-width:0}.ftp-detail h4{margin:0 0 12px;overflow-wrap:anywhere}.ftp-detail audio{width:100%;max-width:100%}.ftp-remote{font-size:13px;line-height:2}.mygrain-ftp .ftp-remote a{padding:2px 0;border:0;background:none;text-decoration:underline;overflow-wrap:anywhere}.ftp-simple .ftp-controls button{min-height:44px}.ftp-simple [hidden]{display:none!important}@media(max-width:650px){.ftp-panes{grid-template-columns:minmax(0,1fr)}.ftp-tree{max-height:300px}.ftp-detail .ftp-controls{display:grid;grid-template-columns:1fr 1fr}}
+
+.ftp-picker{color:#e4eef8;background:#101c2a;border:1px solid #6684a5;border-radius:12px;width:min(500px,calc(100vw - 40px));max-height:80dvh;box-sizing:border-box;z-index:100000}.ftp-picker::backdrop{background:#000a}.ftp-picker .ftp-tree{max-height:45dvh}.ftp-drag-handle{touch-action:none;cursor:grab;min-width:44px;min-height:44px;user-select:none;-webkit-user-select:none}.mygrain-ftp .ftp-drop-target{outline:3px solid #7effba;background:#254c42}.ftp-tree li>.ftp-tree-item[data-ftp-file]{display:inline-block;width:calc(100% - 115px);vertical-align:middle}.mygrain-ftp .ftp-move-button{padding:8px;font-size:12px}.mygrain-ftp [data-ftp-file]{cursor:grab}
+
+.ftp-tree li>.ftp-tree-item[data-ftp-file]{width:calc(100% - 175px)}.mygrain-ftp .ftp-delete-button{min-height:44px;padding:8px;color:#ffb1b1}.ftp-trash-row{border-bottom:1px solid #43516a;padding:8px;overflow-wrap:anywhere}.ftp-trash-row button{min-height:44px}
+
+/* Shared standalone and embedded directory browser. */
+.mygrain-ftp .ftp-row-name{font:inherit;text-align:left;min-height:44px;box-sizing:border-box}.mygrain-ftp button.ftp-row-name{background:transparent;border-color:transparent;cursor:pointer}.mygrain-ftp button.ftp-row-name:hover{background:#294767;text-decoration:underline}.mygrain-ftp [hidden]{display:none!important}.mygrain-ftp .ftp-row-actions{margin:0}.mygrain-ftp .ftp-detail{margin:12px 0}.mygrain-ftp .ftp-detail audio{max-width:520px;display:block}@media(max-width:650px){.mygrain-ftp .ftp-row{gap:8px}.mygrain-ftp .ftp-row-name{flex-basis:calc(100% - 40px)}.mygrain-ftp .ftp-controls>*{min-height:44px}.mygrain-ftp input[type=file]{width:100%}}
+
+/* Small printed line-art badges match the instrument sleeve artwork. */
+.section-title-icon{display:inline-flex;box-sizing:border-box;vertical-align:middle;align-items:center;justify-content:center;width:34px;height:34px;margin-right:7px;padding:4px;border:2px solid #211827;border-radius:4px;background:#fff0d2;color:#211827;box-shadow:2px 2px 0 #0004;transform:rotate(-4deg);flex-shrink:0}.section-title-icon svg{display:block;width:100%;height:100%}
+
+/* FTP-COMPACT.1: desktop keeps its native player; phones use a small transport. */
+.mygrain-ftp .ftp-preview-button{display:none}
+@media(max-width:900px){
+ .mygrain-ftp{padding:12px;margin:12px 0;border-radius:10px;font-size:13px;line-height:1.35}
+ .mygrain-ftp h3{font-size:16px;margin:0 0 8px}
+ .mygrain-ftp .section-title-icon{width:26px;height:26px;padding:3px;margin-right:5px}
+ .mygrain-ftp .ftp-identity,.mygrain-ftp .ftp-note{font-size:11px;line-height:1.4;margin:6px 0;color:#b4c3d7}
+ .mygrain-ftp .ftp-controls,.mygrain-ftp .ftp-row-actions{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;align-items:center}
+ .mygrain-ftp button,.mygrain-ftp a,.mygrain-ftp select{font-size:12px;line-height:1.2;padding:6px 9px;border-radius:5px;min-height:32px;box-sizing:border-box;letter-spacing:normal}
+ .mygrain-ftp .ftp-controls>*{min-height:32px;min-width:0;flex:0 1 auto}
+ .mygrain-ftp input[type=file]{width:100%;font-size:12px;padding:4px 0;min-height:32px}
+ .mygrain-ftp input[type=file]::file-selector-button{font:inherit;padding:6px 9px;border:1px solid #72839c;border-radius:5px;background:#24344b;color:#fff;margin-right:8px}
+ .mygrain-ftp input[type=checkbox]{width:18px;height:18px;margin:0;flex:none}
+ .mygrain-ftp .ftp-breadcrumb{font:12px ui-monospace,monospace;margin:8px 0;padding:6px 8px;background:#0c1420;border-radius:5px}
+ .mygrain-ftp .ftp-row{gap:5px;padding:8px 0;align-items:center}
+ .mygrain-ftp .ftp-row-name{flex:1 1 calc(100% - 30px);min-width:0;min-height:30px;padding:4px 5px;font-size:12px;text-align:left}
+ .mygrain-ftp .ftp-row>.ftp-drag-handle{min-width:32px;min-height:32px;padding:5px}
+ .mygrain-ftp .ftp-row>.ftp-move-button,.mygrain-ftp .ftp-row>.ftp-delete-button{min-height:32px;padding:6px 8px;font-size:11px}
+ .mygrain-ftp .ftp-row-actions{margin:0;gap:5px;flex:1 1 auto;justify-content:flex-end}
+ .mygrain-ftp .ftp-row-actions button{font-size:11px;padding:6px 8px}
+ .mygrain-ftp .ftp-detail{margin:8px 0;padding:8px;background:#0c1420;border:1px solid #43516a;border-radius:6px}
+ .mygrain-ftp .ftp-detail h4{font-size:12px;margin:0 0 6px}
+ .mygrain-ftp .ftp-detail audio{display:none}
+ .mygrain-ftp .ftp-preview-button{display:inline-flex;align-items:center;gap:4px;min-height:32px}
+ .mygrain-ftp .ftp-preview-button[aria-pressed=true]{background:#345e57;border-color:#88d7b0}
+ .mygrain-ftp .ftp-detail .ftp-controls{margin:6px 0 0}
+ .mygrain-ftp .ftp-import-controls{gap:5px}
+ .mygrain-ftp .ftp-import-controls button{flex:1 1 130px;text-align:center}
+ .mygrain-ftp .ftp-import-controls select{flex:0 0 75px}
+ .mygrain-ftp .ftp-status{font-size:11px;min-height:0;margin:7px 0}
+ .mygrain-ftp .ftp-status:empty{display:none}
+ .ftp-standalone{padding:10px}
+ .ftp-standalone>h1{font-size:20px;margin:8px 0}
+ .ftp-standalone>p{font-size:12px;margin:6px 0}
+ .mygrain-ftp.ftp-picker{padding:12px;width:min(500px,calc(100vw - 24px))}
+}
+@media(max-width:900px){
+ .mygrain-ftp:not(.ftp-picker)>.ftp-note{display:none}
+ .mygrain-ftp .ftp-detail .ftp-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+ .mygrain-ftp .ftp-detail .ftp-controls button{padding:6px 3px;font-size:11px;white-space:nowrap}
+}
+
+/* Short labels must also fit the instrument shell's uppercase button styles. */
+#mygrainFtpCard .ftp-detail .ftp-controls button{min-width:0;white-space:normal;overflow-wrap:normal;word-break:normal;line-height:1.25;height:auto;text-align:center}
+@media(max-width:900px){#mygrainFtpCard .ftp-detail .ftp-controls button{font-size:11px!important;letter-spacing:0!important;padding:6px 3px!important}}
+.ftp-picker .ftp-folder-create{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px}.ftp-picker .ftp-folder-create[hidden]{display:none}.ftp-picker .ftp-folder-create label{display:grid;gap:6px;flex:1 1 180px;min-width:0}.ftp-picker .ftp-folder-create input{width:100%;min-width:0;background:#182737;color:#fff;border:1px solid #72839c;border-radius:6px;min-height:44px}.ftp-picker .ftp-folder-create button{min-height:44px}.ftp-picker h3,.ftp-picker>p{overflow-wrap:anywhere}.ftp-picker .ftp-controls button{min-height:44px}

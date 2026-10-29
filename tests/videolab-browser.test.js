@@ -386,3 +386,42 @@ test('late dependencies wait explicitly without polling; account change during a
         assert.deepEqual(errors, []);
     } finally { await browser.close(); await app.close(); }
 });
+
+test('public Reel source, automatic selection, bookmark, soundtrack capture and login failure preserve PCM', { timeout: 45000 }, async () => {
+    const app = await fixture();
+    const browser = await launch();
+    try {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.goto(app.url); await ready(page); await start(page);
+        await page.locator('#videolabSource').selectOption('instagram');
+        assert.equal(await page.locator('#videolabURL').inputValue(), '');
+        assert.equal(await page.locator('#videolabFetch').isDisabled(), true);
+        await page.locator('#videolabURL').fill('https://www.instagram.com/reel/Chunk8-jurw/?igsh=share');
+        assert.equal(await page.locator('#videolabSource').inputValue(), 'instagram');
+        assert.match(await page.locator('#videolabURLHelp').textContent(), /mixed soundtrack/);
+        assert.equal(await page.locator('#videolabOpenURL').getAttribute('href'), 'https://www.instagram.com/reel/Chunk8-jurw/');
+        await page.locator('#videolabBookmarkName').fill('Public Reel');
+        await page.locator('#videolabSaveURL').click(); await ready(page);
+        assert.match(await page.locator('#videolabSavedURL').textContent(), /Public Reel · Reel/);
+        await page.locator('#videolabDuration').fill('2');
+        await page.locator('#videolabFetch').click();
+        await page.waitForFunction(() => mygrainVideolab.state.hasTake && !mygrainVideolab.state.capturing);
+        assert.deepEqual([...app.state.jobs.values()][0].settings, { url: 'https://www.instagram.com/reel/Chunk8-jurw/', startSeconds: 0, durationSeconds: 2 });
+        const prior = await page.evaluate(() => Array.from(testController.recorder.wav()));
+        await page.route('**/api/videolab/captures/*', route => {
+            if (route.request().method() === 'DELETE') return route.continue();
+            return route.fulfill({ json: { ok: true, capture: { id: '2', status: 'error', error: 'Instagram requires login or has limited anonymous access to this Reel. Instagram login is not connected yet.' } } });
+        });
+        await page.locator('#videolabFetch').click();
+        await page.waitForFunction(() => !mygrainVideolab.state.capturing && document.getElementById('videolabStatus').textContent.includes('login is not connected'));
+        assert.deepEqual(await page.evaluate(() => Array.from(testController.recorder.wav())), prior);
+        await page.locator('#videolabURL').fill('https://youtu.be/abcdefghijk');
+        assert.equal(await page.locator('#videolabSource').inputValue(), 'youtube');
+        await page.locator('#videolabSavedURL').selectOption('https://www.instagram.com/reel/Chunk8-jurw/');
+        assert.equal(await page.locator('#videolabSource').inputValue(), 'instagram');
+        for (const width of [320, 390, 844]) { await page.setViewportSize({width, height: width === 844 ? 390 : 844}); await noOverflow(page); }
+        assert.deepEqual(errors, []);
+    } finally { await browser.close(); await app.close(); }
+});

@@ -120,12 +120,24 @@
         return result;
     }
 
+    function customColour(value) {
+        return Number.isInteger(value) && value >= 0 && value < 3600 ? `hsl(${value / 10} 48% 27%)` : '#17613f';
+    }
+    function independentChord(step) {
+        const result = copy(step);
+        if (result) { delete result.customChordId; delete result.customChordColour; }
+        return result;
+    }
     function normalizeStep(step) {
         if (step?.kind === 'accent' && Array.isArray(step.notes) && !step.notes.length && step.accent === true && step.rest !== true) return { kind: 'accent', notes: [], accent: true };
         if (!step || !Array.isArray(step.notes) || !step.notes.length) return null;
         const pitches = [...new Set(step.notes.filter(Number.isInteger))].sort((first, second) => first - second);
         if (!pitches.length || pitches.length > 8 || pitches.some(pitch => pitch < 21 || pitch > 108)) return null;
         return {
+            ...(step.customChord === true ? { customChord: true,
+                ...(typeof step.customChordId === 'string' && /^[\w-]{1,80}$/.test(step.customChordId) ? { customChordId: step.customChordId } : {}),
+                ...(Number.isInteger(step.customChordColour) && step.customChordColour >= 0 && step.customChordColour < 3600 ? { customChordColour: step.customChordColour } : {})
+            } : {}),
             root: Math.round(clamp(step.root, 21, 108, pitches[0])), type: String(step.type || 'custom').slice(0, 40), notes: pitches,
             velocity: Math.round(clamp(step.velocity, 1, 127, 96)), gate: clamp(step.gate, .1, 64, 4),
             inversion: Math.round(clamp(step.inversion, 0, 6, 0)), rest: step.rest === true,
@@ -136,13 +148,13 @@
 
     function defaults() {
         return {
-            version: 1, performanceVersion: 6, instrument: 'piano', enabled: true, level: .5, pan: 0, tonic: 0, scale: 'major', customScale: [0, 2, 4, 5, 7, 9, 11],
+            version: 1, performanceVersion: 6, instrument: 'piano', soundSource: 'piano', enabled: true, level: .5, pan: 0, tonic: 0, scale: 'major', customScale: [0, 2, 4, 5, 7, 9, 11],
             octave: 3, chordRoot: 0, chordType: 'major', inversion: 0, voicing: 'close', paletteSize: 3,
-            transpose: 0, rate: 1, gate: 4, velocity: 96, accentAmount: .25, sampleLength: 1, sampleDecay: 1, record: false, recordMode: 'step',
+            transpose: 0, paletteTranspose: 0, rate: 1, gate: 4, velocity: 96, accentAmount: .25, sampleLength: 1, sampleDecay: 1, record: false, recordMode: 'step',
             selection: null, chordHold: false,
             paletteFamilies: 'all', paletteBassRoots: null, arpEnabled: false, arpPattern: 'up', arpRepeat: 'once', arpDivision: .25,
             arpSteps: [1, 2, 3, 0, 3, 2, 1, 0],
-            lowpass: 18000, highpass: 20, room: 0, delay: 0, delayBeats: .5, feedback: .32,
+            lowpass: 18000, highpass: 20, room: 0, reverbDecay: 4.5, reverbSize: .8, reverbPredelay: 25, reverbDamping: 6500, reverbLowcut: 160, reverbWidth: 1, delay: 0, delayBeats: .5, feedback: .32,
             sequence: Array(64).fill(null), bank: null
         };
     }
@@ -150,12 +162,13 @@
     function normalizeState(input) {
         const state = { ...defaults(), ...(input && typeof input === 'object' ? copy(input) : {}) };
         for (const [key, minimum, maximum] of [['level', 0, 1], ['pan', -1, 1], ['tonic', 0, 11], ['octave', 0, 8],
-            ['chordRoot', 0, 11], ['inversion', 0, 6], ['transpose', -24, 24], ['gate', .1, 64], ['velocity', 1, 127],
+            ['chordRoot', 0, 11], ['inversion', 0, 6], ['transpose', -24, 24], ['paletteTranspose', -24, 24], ['gate', .1, 64], ['velocity', 1, 127],
             ['accentAmount', 0, 1], ['sampleLength', .05, 1], ['sampleDecay', .05, 1], ['lowpass', 100, 20000], ['highpass', 20, 10000], ['room', 0, 1],
-            ['delay', 0, 1], ['feedback', 0, .8], ['delayBeats', 1 / 12, 6]]) state[key] = clamp(state[key], minimum, maximum, defaults()[key]);
-        for (const key of ['tonic', 'octave', 'chordRoot', 'inversion', 'transpose', 'velocity']) state[key] = Math.round(state[key]);
+            ['reverbDecay', .5, 12], ['reverbSize', 0, 1], ['reverbPredelay', 0, 200], ['reverbDamping', 1000, 18000], ['reverbLowcut', 20, 1500], ['reverbWidth', 0, 1], ['delay', 0, 1], ['feedback', 0, .8], ['delayBeats', 1 / 12, 6]]) state[key] = clamp(state[key], minimum, maximum, defaults()[key]);
+        for (const key of ['tonic', 'octave', 'chordRoot', 'inversion', 'transpose', 'paletteTranspose', 'velocity']) state[key] = Math.round(state[key]);
         state.enabled = input && typeof input === 'object' ? input.enabled === true : true;
         state.instrument = state.instrument === 'strings' ? 'strings' : 'piano';
+        state.soundSource = ['osc','grain','sample'].includes(state.soundSource) ? state.soundSource : state.instrument;
         state.record = state.record === true;
         state.recordMode = state.recordMode === 'live' ? 'live' : 'step';
         state.rate = [.25, .5, 1, 2, 4].includes(state.rate) ? state.rate : 1;
@@ -337,6 +350,11 @@
             if (step?.kind === 'accent' && step.accent === true && step.rest !== true && Array.isArray(step.notes) && step.notes.length === 0) continue;
             if (!step || !Array.isArray(step.notes) || !step.notes.length || step.notes.length > 8 || step.notes.some(pitch => !Number.isInteger(pitch) || pitch < 21 || pitch > 108) || !Number.isInteger(step.velocity) || step.velocity < 1 || step.velocity > 127 || !Number.isFinite(step.gate) || step.gate < .1 || step.gate > 64) throw new Error('Saved Q chord settings are invalid.');
         }
+        if (state.soundSource !== undefined && !['piano','strings','osc','grain','sample'].includes(state.soundSource)) throw new Error('Saved Q sound source is invalid.');
+        if (['osc','grain','sample'].includes(state.soundSource)) {
+            if (state.bank || asset) throw new Error('Q live sources must not contain a piano bank.');
+            return;
+        }
         const bank = state?.bank;
         const needed = state?.sequence?.some(step => step?.notes?.length && !step.rest);
         if (!needed && !bank && !asset) return;
@@ -381,7 +399,7 @@
         return new Uint8Array([77, 84, 104, 100, 0, 0, 0, 6, 0, 0, 0, 1, 1, 224, 77, 84, 114, 107, ...[24, 16, 8, 0].map(shift => (track.length >> shift) & 255), ...track]);
     }
 
-    const api = { notes, qualities, instruments, stringSections, clamp, copy, pitchClass, noteName, chord, identifyChord, editChordNotes, chordEditLoop, scaleChords, chordPalette, normalizeStep, defaults, normalizeState, sampleEnvelope, validArpSteps, accentGain, transposed, effectiveVelocity, events, arpOrder, arpPhrase, arpSequence, playbackEvents, sampleFor, sampleMidi, sampleVelocity, sampleIdentity, validateBank, midiFile };
+    const api = { customColour, independentChord, notes, qualities, instruments, stringSections, clamp, copy, pitchClass, noteName, chord, identifyChord, editChordNotes, chordEditLoop, scaleChords, chordPalette, normalizeStep, defaults, normalizeState, sampleEnvelope, validArpSteps, accentGain, transposed, effectiveVelocity, events, arpOrder, arpPhrase, arpSequence, playbackEvents, sampleFor, sampleMidi, sampleVelocity, sampleIdentity, validateBank, midiFile };
     if (typeof module === 'object' && module.exports) module.exports = api;
     root.MygrainQTheory = api;
 })(typeof window === 'object' ? window : globalThis);

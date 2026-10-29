@@ -105,15 +105,29 @@
                 const buffer = host.prepare ? host.prepare(track, tracks.indexOf(track)) : (track.rendered || track.raw), context = host.context();
                 if (!buffer) return null;
                 const frames = Math.max(1, Math.round(api.period(track) * buffer.sampleRate));
-                if (frames <= buffer.length) return buffer;
                 if (track.padded && track.paddedSource === buffer && track.paddedFrames === frames) return track.padded;
-                const bytes = frames * buffer.numberOfChannels * 4;
+                const allocationFrames = Math.max(frames, buffer.length);
+                const bytes = allocationFrames * buffer.numberOfChannels * 4;
                 const retained = tracks.reduce((total, track) => total + (track.raw?.length || 0) * (track.raw?.numberOfChannels || 0) * 4
                     + (track.rendered !== track.raw ? (track.rendered?.length || 0) * (track.rendered?.numberOfChannels || 0) * 4 : 0)
                     + (track.padded?.length || 0) * (track.padded?.numberOfChannels || 0) * 4, 0);
                 if (!Number.isSafeInteger(frames) || bytes + retained > host.memoryBudget()) throw new Error('This K loop length needs too much audio memory. Use a shorter track length.');
-                const padded = context.createBuffer(buffer.numberOfChannels, frames, buffer.sampleRate);
-                for (let channel = 0; channel < buffer.numberOfChannels; channel++) padded.copyToChannel(buffer.getChannelData(channel), channel);
+                const padded = context.createBuffer(buffer.numberOfChannels, allocationFrames, buffer.sampleRate);
+                // A short cosine edge envelope removes discontinuities without
+                // shortening the period, shifting transients, or editing raw PCM.
+                // Also soften the recorded end when the period includes silence.
+                const end = Math.min(frames, buffer.length);
+                const fade = Math.min(Math.round(buffer.sampleRate * .004), Math.floor(end / 2));
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    padded.copyToChannel(buffer.getChannelData(channel), channel);
+                    const data = padded.getChannelData(channel);
+                    if (end < allocationFrames) data[end] = 0; // fractional loop-end interpolation guard
+                    for (let i = 0; i < fade; i++) {
+                        const weight = fade > 1 ? .5 - .5 * Math.cos(Math.PI * i / (fade - 1)) : 0;
+                        data[i] *= weight;
+                        data[end - 1 - i] *= weight;
+                    }
+                }
                 track.padded = padded; track.paddedSource = buffer; track.paddedFrames = frames;
                 return padded;
             },

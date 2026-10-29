@@ -3,6 +3,7 @@
 
     let keyboardRecordingMonitorEnabled = false;
     let songOutputIsolation = null;
+    let editingPreparationDepth = 0;
     // Only tag unresampled, canonical PCM16 Song sources. Weak membership adds
     // no retained ZIP/PCM copy and follows the normal AudioBuffer lifetime.
     const songPcm16Sources = new WeakSet();
@@ -93,13 +94,16 @@
         ...Object.values(drumMachineExtraTracks).map(track => [track.kind === 'etc' ? 'drumEtc' : track.kind === 'clap' ? 'drumClap' : 'drumCymbals', () => track.buffer, buffer => { track.buffer = buffer; }, `${track.id}Buffer`]),
         // Append only: persisted Undo/Redo journals address these slots by index.
         ['keyboardSample', () => keyboardSampleBuffer, buffer => setKeyboardSampleBuffer(buffer), KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY],
-        ...(window.mygrainKMultitrack ? [1, 2, 3, 4].map(index => [window.MygrainKMultitrack.rawKey(index), () => window.mygrainKMultitrack.getBuffer(index), buffer => window.mygrainKMultitrack.setBuffer(index, buffer), window.MygrainKMultitrack.dbKey(index)]) : [])
+        ...(window.mygrainKMultitrack ? [1, 2, 3, 4].map(index => [window.MygrainKMultitrack.rawKey(index), () => window.mygrainKMultitrack.getBuffer(index), buffer => window.mygrainKMultitrack.setBuffer(index, buffer), window.MygrainKMultitrack.dbKey(index)]) : []),
+        ['qSourceSample', () => qSourceSampleBuffer, buffer => { qSourceSampleBuffer = buffer; window.mygrainQSoundSources?.sync(); }, 'qSourceSampleBuffer'],
+        ['bastardW', () => bastardLoopWBuffer, buffer => { bastardLoopWBuffer = buffer; }, BASTARD_LOOP_W_AUDIO_BUFFER_KEY]
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
         ['bastardB', () => bastardLoop2Metadata, metadata => { bastardLoop2Metadata = metadata; }],
         ['bastardC', () => bastardLoop3Metadata, metadata => { bastardLoop3Metadata = metadata; }],
         ['bastardV', () => bastardLoopVMetadata, metadata => { bastardLoopVMetadata = metadata; }],
+        ['bastardW', () => bastardLoopWMetadata, metadata => { bastardLoopWMetadata = metadata; }],
         ['bastardP', () => bastardLoopPMetadata, metadata => { bastardLoopPMetadata = metadata; }],
         ['bastardO', () => bastardLoopOMetadata, metadata => { bastardLoopOMetadata = metadata; }],
         ['bastardL', () => bastardLoopLSampleMetadata, metadata => { bastardLoopLSampleMetadata = metadata; }],
@@ -126,6 +130,7 @@
     }
 
     const additiveSongLanes = [
+        { name:'Q sample', slots:['qSourceSample'], settings:/^qSourceSample/, references:/^qsourcesample$/i, qSample:true },
         { name: 'Keyboard Sample', slots: ['keyboardSample'], settings: /^(?:keyboardSample|performanceKeyboardSample)/, references: /^keyboardsample$/i, keyboardSource: 'sample' },
         { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
         { name: 'K', slots: ['bastardK', 'bastardKRender'], settings: /bastard(?:Loop)?K/i, references: /^(?:k|bastard(?:loop)?k)$/i },
@@ -136,6 +141,7 @@
     function hasSongLaneEvidence(value, lane, reference = false) {
         if (!value || typeof value !== 'object') return reference && typeof value === 'string' && value.split(',').some(entry => lane.references.test(entry.trim()));
         return Object.entries(value).some(([key, entry]) => lane.settings.test(key)
+            || (lane.qSample && key === 'soundSource' && entry === 'sample')
             || (lane.keyboardSource && key === 'keyboardSoundSource' && typeof entry === 'string' && entry.toLowerCase() === lane.keyboardSource)
             || (key === 'id' && typeof entry === 'string' && lane.settings.test(entry))
             || hasSongLaneEvidence(entry, lane, reference || ['keyboardSoundSource', 'loopLayerSolo', 'performanceSourceLayerSolo', 'performanceSourceLayerSoloSnapshot'].includes(key)));
@@ -177,10 +183,14 @@
     }
 
     function normalizeSongAudioInventory(original) {
-        const legacy = normalizeLegacySongAudioInventory(original);
-        if (!window.MygrainKMultitrack) return legacy;
+        if (!window.MygrainWSongCompat) throw new Error('Reload MYGRAIN to enable W Song compatibility.');
+        const weird = window.MygrainWSongCompat.convertSnapshot(original);
+        const legacy = normalizeLegacySongAudioInventory(weird.snapshot);
+        const lanes = [...legacy.lanes, ...(weird.changed ? ['W loop'] : [])];
+        if (!window.MygrainKMultitrack) return { snapshot: legacy.snapshot, lanes };
         const converted = window.MygrainKMultitrack.convertSnapshot(legacy.snapshot);
-        return { snapshot: converted.snapshot, lanes: [...legacy.lanes, ...(converted.changed ? ['K five-track recorder'] : [])] };
+        const effects = window.MygrainLoopFx.convertSnapshot(converted.snapshot);
+        return { snapshot: effects.snapshot, lanes: [...lanes, ...(converted.changed ? ['K five-track recorder'] : []), ...(effects.changed ? ['Loop filters / space'] : [])] };
     }
 
     function validateSongArchiveEntries(arrayBuffer, entries) {
@@ -255,6 +265,7 @@
         if (snapshot.state?.q) {
             if (snapshot.state.q.version !== 1 || !window.MygrainQTheory) throw new Error('This part needs Q piano support. Reload MYGRAIN.');
             window.MygrainQTheory.validateBank(snapshot.state.q, snapshot.assets.find(asset => asset.key === 'bastardQ'));
+            if (snapshot.state.q.soundSource === 'sample' && !assets.has('qSourceSample') && snapshot.state.q.sequence?.some(step => step?.notes?.length && !step.rest)) throw new Error('Saved Q sample audio is missing. No phone sample will be substituted.');
         } else if (assets.has('bastardQ')) throw new Error('Saved Q piano audio has no settings.');
     }
 
@@ -292,7 +303,7 @@
     }
 
     function prepareSongState(state) {
-        const prepared = cloneJson(state);
+        const prepared = window.MygrainLoopFx ? window.MygrainLoopFx.convertState(state) : cloneJson(state);
         prepared.modes = {
             drumMachineRoll: window.MygrainDrumRoll.normalize(),
             keyboardSoundSource: 'grain',
@@ -320,6 +331,8 @@
             bastardLoopKDurationSeconds: 0, ...prepared.modes
         };
         const modes = prepared.modes;
+        if (window.MygrainChannelEq) modes.channelEq = window.MygrainChannelEq.normalize(modes.channelEq);
+        if (window.MygrainWasp) modes.wasp = window.MygrainWasp.normalize(modes.wasp);
         prepared.sliders = {
             performanceKeyboardSampleVolume: '100',
             performanceBastardLoopLReverbMix: '0',
@@ -441,6 +454,7 @@
                 await new Promise(resolve => setTimeout(resolve, 25));
             }
             await ensurePatchZipAudioReady();
+            await window.mygrainWasp?.whenReady();
             while (engineStarting || stateSaveSuspended) {
                 if (Date.now() > deadline) throw new Error('Wait for MYGRAIN to finish restoring its current state, then try again.');
                 await new Promise(resolve => setTimeout(resolve, 25));
@@ -457,6 +471,7 @@
         },
 
         async capture({ liveOnly = false } = {}) {
+            await window.mygrainWasp?.whenReady();
             if (!isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its current sounds finish loading before saving a part.');
             adapter.assertNotRecording();
             flushPendingSliderUpdates();
@@ -478,7 +493,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection'))
+                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -515,16 +530,19 @@
                 throw new Error('This is not a supported complete song-part snapshot.');
             }
             const { snapshot, lanes } = normalizeSongAudioInventory(original);
+            window.MygrainChannelEq?.normalize(snapshot.state.modes.channelEq);
+            window.MygrainWasp?.normalize(snapshot.state.modes.wasp);
             validateSongRollCycle(snapshot);
             if (!Array.isArray(snapshot.extra.sequencerSteps) || snapshot.extra.sequencerSteps.length !== Number(snapshot.state.patternLength)) throw new Error('Part sequencer pattern is incomplete.');
             validateSongAudioInventory(snapshot);
             const decodedBytes = snapshot.assets.reduce((bytes, asset) => bytes + Number(asset.frames) * Number(asset.channels) * 4 * Math.max(1, audioContext.sampleRate / Number(asset.sampleRate)), 0);
             if (!Number.isFinite(decodedBytes) || decodedBytes < 0) throw new Error('Invalid saved song audio dimensions.');
-            // K-only conversion is optional persistence, not an audio/playback
+            // Empty-lane K/W conversion is optional persistence, not an audio/playback
             // repair. Arm can use this normalized snapshot and existing renders
-            // without copying an entire source ZIP just to add four empty slots.
-            const explicitOnly = lanes.length === 1 && lanes[0] === 'K five-track recorder';
-            return { snapshot, decodedBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
+            // without copying an entire source ZIP just to add empty audio slots.
+            const explicitOnly = lanes.length > 0 && lanes.every(lane => ['K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
+            const fxBytes = (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 
         upgradePart(info) {
@@ -534,6 +552,7 @@
 
         async decode(arrayBuffer, cache) {
             const { snapshot } = adapter.inspectPart(arrayBuffer);
+            await window.mygrainWasp?.prepare(audioContext, snapshot.state.modes.wasp);
             const entries = parseStoredZipEntries(arrayBuffer);
             const allowed = new Set(audioBindings.map(([key]) => key));
             const buffers = new Map();
@@ -593,14 +612,56 @@
             sourceMutationSerial += 1;
         },
 
+        async clearCurrentPatchAudio() {
+            adapter.assertNotRecording();
+            await persistence;
+            sourceMutationSerial += 1;
+            lastSourceWriteAt = Date.now();
+            for (const [, , set] of audioBindings) set(null);
+            for (const [, , set] of metadataBindings) set(null);
+            if (window.mygrainKMultitrack) {
+                window.mygrainKMultitrack.restoreSettings({ kMultitrack: MygrainKMultitrack.normalize() });
+                for (const track of window.mygrainKMultitrack.tracks) { track.enabled = false; track.metadata = null; }
+                window.mygrainKMultitrack.refreshBuffers();
+            }
+            // Only current-patch audio slots, never the history or Song stores.
+            const keys = new Set([AUDIO_BUFFER_KEY, ...audioBindings.map(binding => binding[3]).filter(Boolean)]);
+            const db = await openAudioDB();
+            try {
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction([AUDIO_STORE_NAME], 'readwrite');
+                    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('Current-patch audio clear was aborted.'));
+                    for (const key of keys) tx.objectStore(AUDIO_STORE_NAME).delete(key);
+                });
+            } finally { db.close(); }
+            clearSourcePitchCache();
+            refreshSongAudioUi(); syncBastardLoopWUi();
+        },
+
+        beginEditingPreparation() {
+            adapter.assertNotRecording();
+            stopSongAudio({ hardCut: true });
+            const resume = window.mygrainLoopFx?.prepareEditing();
+            if (!resume) return () => {};
+            editingPreparationDepth++;
+            let done = false;
+            return () => {
+                if (done) return;
+                done = true;
+                editingPreparationDepth--;
+                resume?.();
+            };
+        },
+
         editingResidency() {
             const buffers = new Set(audioBindings.map(([, get]) => get()).filter(Boolean));
             const bytes = [...buffers].reduce((sum, buffer) => sum + buffer.length * buffer.numberOfChannels * 4, 0);
             const scratch = Math.max(0, ...[...buffers].map(buffer => (44 + buffer.length * buffer.numberOfChannels * 2) * 2));
-            return { bytes, scratch };
+            const checkpointScratch = Math.max(0, ...[...buffers].map(buffer => Math.min(262144, buffer.length) * 8));
+            return { bytes, scratch, checkpointScratch };
         },
 
-        async planEditing(info, check) {
+        async planEditing(info, check, options = {}) {
             const assets = info.audioAssets;
             if (!Array.isArray(assets) || assets.length !== info.snapshot.assets.length) throw new Error('Saved sound inventory is incomplete. Reload MYGRAIN.');
             const records = new Map();
@@ -624,7 +685,7 @@
             };
             // Hash one current sound at a time. No long-lived encoded copies or
             // digest cache: a later edit must be checked against its actual PCM.
-            for (const buffer of new Set(live.filter(Boolean))) {
+            for (const buffer of options.skipReuse ? [] : new Set(live.filter(Boolean))) {
                 verify();
                 const candidates = [...groups.values()].filter(entry => !entry.buffer && entry.asset.sampleRate === buffer.sampleRate
                     && entry.asset.frames === buffer.length && entry.asset.channels === buffer.numberOfChannels);
@@ -655,9 +716,17 @@
             // one IndexedDB structured-clone copy after ownership has been transferred.
             const decodeScratch = Math.max(0, ...fresh.map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
             const persistScratch = Math.max(0, ...[...groups.values()].map(entry => entry.bytes));
-            const bytes = 16 * 1048576 + Math.max(residency.bytes + newBytes + decodeScratch, finalBytes + persistScratch);
+            // During stopped editing, the host parks delay/IR banks and their
+            // cache. Do not charge the renderer's *future* dual-bank DSP budget
+            // against sequential source/IDB preparation. Retain the dry graph /
+            // predelay and noise allowance. Normal render admission is unchanged.
+            const fxBytes = (editingPreparationDepth
+                ? (window.MygrainLoopFx?.estimatedBytes(null, audioContext.sampleRate) || 0)
+                : (Number(info.fxBytes) || 0) + (window.MygrainLoopFx?.estimatedBytes(window.mygrainLoopFx?.settings(), audioContext.sampleRate) || 0))
+                + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            const bytes = 16 * 1048576 + fxBytes + Math.max(residency.bytes + newBytes + decodeScratch, finalBytes + persistScratch);
             const emptyDecodeScratch = Math.max(0, ...[...groups.values()].map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
-            const emptyBytes = 16 * 1048576 + finalBytes + Math.max(emptyDecodeScratch, persistScratch);
+            const emptyBytes = 16 * 1048576 + fxBytes + finalBytes + Math.max(emptyDecodeScratch, persistScratch);
             return { records, groups, verify, bytes, emptyBytes };
         },
 
@@ -746,7 +815,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopVCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection') || input.type !== control.type) continue;
+                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -861,13 +930,13 @@
         setKeyboardRecordingMonitor,
         refreshPlaybackUi: () => syncPerformanceControlState(),
         time: () => audioContext?.currentTime || 0,
-        running: () => Boolean(audioContext?.state === 'running' && (sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || isBastardLoopVCutPreviewRunning() || isBastardLoopLRunning() || isBastardLoopXRunning() || drumMachinePlaying))
+        running: () => Boolean(audioContext?.state === 'running' && (sequencerPlaying || isArpeggiatorPlaying() || bastardLoopPlaying || (isBastardLoopCutPreviewRunning() || isBastardLoop2CutPreviewRunning() || isBastardLoop3CutPreviewRunning() || isBastardLoopVCutPreviewRunning()) || isBastardLoopWCutPreviewRunning() || isBastardLoopPCutPreviewRunning() || isBastardLoopOCutPreviewRunning() || isBastardLoopLRunning() || isBastardLoopXRunning() || drumMachinePlaying))
     };
 
     // Card history is deliberately separate from Song and AI take history.
-    // Keep ten deltas; persist distinct PCM once and hydrate old sounds lazily.
+    // Keep two deltas; persist distinct PCM once and hydrate old sounds lazily.
     function installCardHistory() {
-        const undo = [], redo = [], historyLimit = 10;
+        const undo = [], redo = [], historyLimit = MygrainSongStorage.historyLimit;
         const historyIdentity = () => JSON.stringify([window.mygrainAccounts?.user?.username, window.mygrainSongBeta?.lease.device.id]);
         let busy = false, restoring = false, generation = 0, initializing = true;
         let storageWarning = '', saving = Promise.resolve(), durable = true, warningShown = false;
@@ -935,6 +1004,27 @@
             return { label, owner: historyIdentity(), json, buffers,
                 piano: pianoEqual(before.piano, after.piano) ? null : { before: before.piano, after: after.piano } };
         }
+        function memory(liveBuffers = []) {
+            const live = new Set(liveBuffers.filter(Boolean)), retained = new Set();
+            const add = buffer => {
+                if (buffer && typeof buffer !== 'string' && Number.isFinite(buffer.length) && Number.isFinite(buffer.numberOfChannels)) retained.add(buffer);
+            };
+            for (const entry of [...undo, ...redo]) {
+                for (const change of entry.buffers) { add(change.before); add(change.after); }
+                for (const value of [entry.piano?.before, entry.piano?.after]) {
+                    if (!value) continue;
+                    add(value.atlas); for (const buffer of value.cache.values()) add(buffer);
+                }
+            }
+            for (const buffer of store.decoded.values()) add(buffer);
+            const bytes = buffers => [...buffers].reduce((sum, buffer) => sum + buffer.length * buffer.numberOfChannels * 4, 0);
+            const exclusive = [...retained].filter(buffer => !live.has(buffer));
+            return { limit: historyLimit, undo: undo.length, redo: redo.length, busy: busy || initializing,
+                residentBuffers: retained.size, residentPCMBytes: bytes(retained),
+                additionalBuffers: exclusive.length, additionalPCMBytes: bytes(exclusive),
+                storedAudioReferences: store.references.size,
+                note: 'Deduplicated retained PCM; additional excludes supplied live buffers. Disk references are not RAM; excludes in-flight copies and native graph memory.' };
+        }
         function update() {
             for (const [id, entries, verb] of [['sectionJumpUndoBtn', undo, 'Undo'], ['sectionJumpRedoBtn', redo, 'Redo']]) {
                 const button = document.getElementById(id);
@@ -953,7 +1043,7 @@
             if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || !kReady
                 || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording && !draftEdit) || (window.mygrainAiPatch?.busy && !aiPatch) || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
             if (draftEdit && window.mygrainSongBeta?.editing && !window.mygrainSongBeta.canEditSong()) throw new Error(window.mygrainSongBeta.lease.message || 'Song editing access is no longer verified. Reconnect before changing this amendment.');
-            if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
+            if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopWGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
         }
         function run(label, action, completedKRecording = false, aiPatch = false, draftEdit = false) {
             if (restoring || window.__mygrainSongRenderDeck) return action();
@@ -1121,7 +1211,7 @@
                 return true;
             } finally { busy = false; update(); }
         }
-        window.mygrainCardHistory = { ready, releaseAudioMemory, flush: () => saving, get warning() { return storageWarning; }, run, recordK, recordAI, undo: () => travel('before'), redo: () => travel('after'),
+        window.mygrainCardHistory = { ready, memory, releaseAudioMemory, flush: () => saving, get warning() { return storageWarning; }, run, recordK, recordAI, undo: () => travel('before'), redo: () => travel('after'),
             // Editing live patterns, cuts and sounds is the purpose of Song Amend. Journal it
             // without unlocking Undo/Redo or asynchronous recording/Song work.
             runPatternEdit: (label, action) => run(label, action, false, false, true),
@@ -1132,21 +1222,21 @@
         document.getElementById('sectionJumpUndoBtn')?.addEventListener('click', window.mygrainCardHistory.undo);
         document.getElementById('sectionJumpRedoBtn')?.addEventListener('click', window.mygrainCardHistory.redo);
         const actions = {
-            randomizeBastardLoopVCut: 'Loop V cut',
+            randomizeBastardLoopVCut: 'Loop V cut', randomizeBastardLoopWCut: 'Loop W cut',
             randomizeDrumMachinePatterns: 'drum patterns', loadRandomDrumMachineSamples: 'drum sounds and patterns', loadRandomDrumMachineSamplesOnly: 'drum sounds',
             loadRandomSingleDrumMachineSample: 'drum sample', randomizeBastardLoopLPattern: 'Loop L pattern', randomizeBastardLoopXAroundNote: 'Loop X notes', randomizeBastardLoopXPattern: 'Loop X pattern',
             randomizeSynthPopupPatch: 'OSC3 sound', generateStandaloneSource: 'generated source', generatePerformanceLoop: 'generated loop', runPatchRandomization: 'random patch', runMegaRandomization: 'Mega / Sparse patch',
             loadBastardLoopLSampleFromSource: 'Loop L sound', loadBastardLoopXSampleFromSource: 'Loop X sound', loadDropboxSampleLayerFromSource: 'sample layer sound',
             generateBastardLoopWithPlaybackRestart: 'Loop A sound', generateBastardLoop2WithPlaybackRestart: 'Loop B sound', generateBastardLoop3WithPlaybackRestart: 'Loop C sound',
-            generateBastardLoopVWithPlaybackRestart: 'Loop V sound', generateBastardLoopPWithPlaybackRestart: 'Loop P sound', generateBastardLoopOWithPlaybackRestart: 'Loop O sound'
+            generateBastardLoopVWithPlaybackRestart: 'Loop V sound', generateBastardLoopWWithPlaybackRestart: 'Loop W sound', generateBastardLoopPWithPlaybackRestart: 'Loop P sound', generateBastardLoopOWithPlaybackRestart: 'Loop O sound'
         };
         const draftActions = new Set([
-            'randomizeBastardLoopVCut', 'randomizeDrumMachinePatterns',
+            'randomizeBastardLoopVCut', 'randomizeBastardLoopWCut', 'randomizeDrumMachinePatterns',
             'loadRandomDrumMachineSamples', 'loadRandomDrumMachineSamplesOnly', 'loadRandomSingleDrumMachineSample',
             'randomizeBastardLoopLPattern', 'randomizeBastardLoopXAroundNote', 'randomizeBastardLoopXPattern',
             'loadBastardLoopLSampleFromSource', 'loadBastardLoopXSampleFromSource', 'loadDropboxSampleLayerFromSource',
             'generateBastardLoopWithPlaybackRestart', 'generateBastardLoop2WithPlaybackRestart', 'generateBastardLoop3WithPlaybackRestart',
-            'generateBastardLoopVWithPlaybackRestart', 'generateBastardLoopPWithPlaybackRestart', 'generateBastardLoopOWithPlaybackRestart'
+            'generateBastardLoopVWithPlaybackRestart', 'generateBastardLoopWWithPlaybackRestart', 'generateBastardLoopPWithPlaybackRestart', 'generateBastardLoopOWithPlaybackRestart'
         ]);
         for (const [name, label] of Object.entries(actions)) {
             const original = window[name];

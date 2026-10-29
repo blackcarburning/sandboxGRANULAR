@@ -1,5 +1,25 @@
+## Current Undo/Redo limit
+
+`v2026.10.29.CRACKLE-LOG.1` limits the main account/device journal to **two levels**
+(including after reload), replacing historical ten-level descriptions below.
+Adds deduplicated undo-resident PCM and Loop Cut context to phone diagnostics;
+no audible engine or Song-render compatibility change.
+
 # sandboxGRANULAR
 Web based granular synth
+
+## Matching loop filters and space (LOOP-FX.1)
+
+All 13 loop cards now share matching LFO filters, collapsible stereo hall reverbs and tempo delays, with independent K-track settings, subtle patch randomisation and versioned Song conversion. See [the implementation and compatibility notes](docs/loop-card-fx.md).
+
+## Load tips and latest changes (LOADNOTES.3)
+
+The opening screen and performance header show a random tip above the latest
+change highlight on desktop and phone, including before login. Highlights
+cycle through the latest 10 improvements in shuffled order, with no repeats
+until all 10 have been shown when browser storage is available. Published history
+is retained in `mygrain-load-notes.js`, not browser-only storage. See
+[`docs/load-notes.md`](docs/load-notes.md) for the release update procedure.
 
 ## Q note audition muting and deletion (Q.12)
 
@@ -276,7 +296,7 @@ Checks: `tests/k-downbeat-capture.test.js` verifies every recorded frame at 44.1
 - Temporary Song-render databases use a parent-owned factory pinned to the verified account's namespace. Creation and normal, cancelled or late cleanup use that same factory, so removing the renderer iframe cannot orphan its databases. Cleanup after logout is limited to registered temporary databases; stale opens and ordinary workspace writes remain blocked.
 - The username and Log out controls are available both on the Start screen and in the main view. Account changes/logout broadcast to other tabs, immediately hide stale workspaces, stop audio and block subsequent storage/API writes. Refocus/back-forward restoration rechecks the server session. Authenticated same-origin API/repository fetches send `X-Mygrain-User`; the server must reject stale/forged identities before writes. Expired/changed sessions show the login form. API headers do not change external, blob or data fetches.
 - Source samples use **Preview sample** to fetch protected API audio with the verified identity before playing a local blob. Saved vocal-take auditions use the same guarded path, rather than assigning a protected API URL to native media (which cannot send the identity header). Close, rerender, logout, ended playback and failed playback cancel downloads/release blobs. Ordinary saved-WAV file URLs retain their direct cookie-authenticated native playback.
-- In WAV Repository Browser, **Share WAV** lets you choose another username and copies the saved WAV to that account. Received copies identify the sender and explicitly warn that their **Repo Notes** are visible to that sender. **Shared WAVs** in the account toolbar, or the same file's Share dialog, shows current recipient feedback; **Refresh comments** reloads it. Sharing does not rerender the library, discard drafts, eagerly download audio or change K.19's bounded paging/cancellation behavior. Explicit library Refresh resets only errored previews when the listing is unchanged; healthy playing controls and drafts stay in place. Repository requests use the current origin, never a hardcoded production host.
+- In WAV Repository Browser, **Share WAV** lets you choose another username and copies the saved WAV to that account. Received copies identify the sender and explicitly warn that their **Repo Notes** are visible to that sender. **Shared WAVs** in the account toolbar, or the same file's Share dialog, shows current recipient feedback; **Refresh comments** reloads it. Sharing does not rerender the library, discard drafts, eagerly download audio or change K.19's bounded paging/cancellation behavior. Explicit library Refresh resets only errored previews when the listing is unchanged; healthy playing controls and drafts stay in place. Repository requests use the current origin, never a hardcoded production host. Sender comments remain unchanged on the original WAV (including admin originals) and are never copied into the recipient’s notes. Re-sharing also preserves source notes and existing recipient feedback.
 - Stable UI selectors: `#mygrainLoginUsername`, `#mygrainLoginPassword`, `#mygrainLoginBtn`, `#mygrainCreateUserBtn`, `#mygrainLoginStatus`, `#mygrainLogoutBtn`, `#mygrainCurrentUser`, `#mygrainSharedWavsBtn`, `[data-mygrain-share]`, `#mygrainShareDialog`, `#mygrainShareRecipient`, `#mygrainShareSubmit`, `#mygrainShareStatus`, `#mygrainShareComments`, `#mygrainShareThread`, `#mygrainShareRefresh`, `#mygrainShareClose`. Usernames/comments are inserted with `textContent`, never HTML.
 - Frontend checks: `node --test tests/mygrain-accounts.test.js tests/wav-browser-responsiveness.test.js tests/wav-browser-recovery.test.js`. Full login/session/sharing acceptance must use an isolated server/profile, not production data.
 - Backend checks: `python3 -m unittest discover -s tests -p 'test_*.py'`. Run `tests/mygrain-accounts-browser.js` only against the loopback-only `tests/song-beta-test-server.py` disposable server. Account authentication protects the live app, not older exports already published in public repository history.

@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const BUILD = 'v2026.10.17.R.11';
+    const BUILD = 'v2026.10.27.RADIO-V.1';
     const TUNE_TIMEOUT_MS = 12000;
     const BUFFER_SECONDS = 15;
     const MAX_RECORD_SECONDS = 120;
@@ -491,6 +491,7 @@
 
         drawWaveform() {
             if (!this.recorder || !this.canvas) return;
+            if(this.root.mygrainDisplay&&!this.root.mygrainDisplay.canDraw(this.canvas,()=>this.drawWaveform()))return;
             const painter = this.canvas.getContext('2d');
             const bounds = this.canvas.getBoundingClientRect();
             if (!painter || !bounds.width || !bounds.height) return;
@@ -560,7 +561,12 @@
             this.dialog = environment.document.getElementById('radiolabSamplesDialog');
             this.bind();
             this.render();
-            if (!this.locked) this.run(() => this.refreshStations());
+            if (!this.locked) {
+                const startup = this.run(() => this.refreshStations());
+                this.stationStartup = this.actionOperation;
+                this.render();
+                startup.finally(() => { this.stationStartup = null; });
+            }
         }
 
         element(id) { return this.root.document.getElementById(id); }
@@ -622,6 +628,7 @@
             const abort = new AbortController();
             this.requests.add(abort);
             if (browserEpoch !== undefined) (this.browserRequests ||= new Set()).add(abort);
+            const timer = this.root.setTimeout(() => abort.abort(), 30000);
             try {
                 const response = await this.root.fetch(`/mygrain/api/radiolab/${path}`, { cache: 'no-store', credentials: 'same-origin', ...options, signal: abort.signal });
                 if (!response.ok) {
@@ -632,7 +639,10 @@
                 this.assertActive(epoch);
                 if (browserEpoch !== undefined) this.assertBrowser(browserEpoch);
                 return result;
-            } finally { this.requests.delete(abort); this.browserRequests?.delete(abort); }
+            } catch (error) {
+                if (abort.signal.aborted) throw new Error('Radio request cancelled or timed out after 30 seconds. Reopen the browser or press Refresh to retry.');
+                throw error;
+            } finally { this.root.clearTimeout(timer); this.requests.delete(abort); this.browserRequests?.delete(abort); }
         }
 
         bind() {
@@ -697,7 +707,6 @@
                 this.status('Station selected. Press Listen / Tune to start; the finished take is unchanged.');
                 this.render();
             });
-            this.element('performanceBastardLoopVUseRadiolabBtn')?.addEventListener('click', () => this.run(() => this.openBrowser('V'), true));
             this.root.addEventListener('mygrain-account-lock', () => this.dispose(true));
             this.root.addEventListener('pagehide', () => this.dispose(false));
             this.root.document.addEventListener('visibilitychange', () => {
@@ -814,6 +823,7 @@
             const recorder = this.recorder;
             const canvas = this.element('radiolabWaveform');
             if (this.locked || recorder?.state !== 'stopped' || !recorder.frames || !canvas?.getContext || !canvas.getBoundingClientRect) return;
+            if(this.root.mygrainDisplay&&!this.root.mygrainDisplay.canDraw(canvas,()=>this.drawWaveform()))return;
             const bounds = canvas.getBoundingClientRect();
             if (!bounds.width || !bounds.height) return;
             const ratio = this.root.devicePixelRatio || 1;
@@ -1487,11 +1497,19 @@
             const browserEpoch = this.browserEpoch;
             this.assertBrowser(browserEpoch);
             const target = this.element('radiolabLoadTarget').value;
-            const body = await this.sampleBody(sample, browserEpoch);
-            this.assertActive(epoch);
-            this.assertBrowser(browserEpoch);
-            this.stopPreview();
-            await this.adapter.load(body, sample, target, () => { this.assertActive(epoch); this.assertBrowser(browserEpoch); });
+            const started = Date.now();
+            let phase;
+            const progress = message => { phase = message; this.element('radiolabBrowserStatus').textContent = `${message}…`; };
+            progress(`Downloading “${sample.name || sample.filename}” for ${target === 'V' ? 'Loop V' : target}`);
+            const timer = this.root.setInterval(() => { if (this.dialog.open && browserEpoch === this.browserEpoch) this.element('radiolabBrowserStatus').textContent = `${phase}… ${Math.floor((Date.now() - started) / 1000)}s elapsed. Keep this browser open.`; }, 5000);
+            try {
+                const body = await this.sampleBody(sample, browserEpoch);
+                this.assertActive(epoch);
+                this.assertBrowser(browserEpoch);
+                this.stopPreview();
+                progress(`Decoding and loading audio into ${target === 'V' ? 'Loop V' : target}`);
+                await this.adapter.load(body, sample, target, () => { this.assertActive(epoch); this.assertBrowser(browserEpoch); }, progress);
+            } finally { this.root.clearInterval(timer); }
             this.assertActive(epoch);
             this.assertBrowser(browserEpoch);
             this.element('radiolabBrowserStatus').textContent = `Loaded complete “${sample.name || sample.filename}” into ${target === 'V' ? 'Loop V' : target}. Playback was not started.`;
@@ -1723,7 +1741,7 @@
             }
             this.element('radiolabRefreshSamples').disabled = blocked || capturing;
             this.savedEditor?.render(blocked || capturing);
-            this.element('performanceBastardLoopVUseRadiolabBtn')?.toggleAttribute('disabled', blocked || capturing);
+            this.element('performanceBastardLoopVUseRadiolabBtn')?.toggleAttribute('disabled', this.locked || capturing || (this.busy && this.actionOperation !== this.stationStartup));
         }
     }
 
@@ -1737,6 +1755,6 @@
     Object.defineProperty(root, 'mygrainRadiolab', { configurable: false, value: Object.freeze({
         get state() { return controller.state; },
         get diagnostics() { return controller.diagnostics; },
-        openBrowser: target => controller.run(() => controller.openBrowser(target), true)
+        openBrowser: target => { controller.assertActive(); if (controller.busy && controller.actionOperation === controller.stationStartup) { controller.actionOperation = null; controller.busy = false; } if (controller.busy || controller.pendingRecord || controller.recorder?.state === 'recording') throw new Error('RadioLab is busy. Finish or cancel its current action, then reopen the sample browser.'); return controller.run(() => controller.openBrowser(target), true); }
     }) });
 })(typeof window !== 'undefined' ? window : globalThis);

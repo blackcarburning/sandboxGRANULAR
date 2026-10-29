@@ -1,0 +1,11 @@
+# Render artwork — WAV-ART.1
+
+WAV Repository cards have Upload Art beside Download WAV and Share WAV. Once attached, Replace Art changes it in place without rerendering or losing note drafts/playback. A 56px-square title thumbnail uses object-fit contain, preserving arbitrary aspect ratios and transparency. Click opens a modal with a standard bounded display (maximum 768px image and 70vh), Close/Escape, and focus return. Phone layouts retain thumbnail to the right of title.
+
+The browser resizes PNG/JPEG/WebP/GIF to a maximum 768px edge before upload. Backend independently validates/reencodes first-frame raster data, strips original metadata, and writes WebP at max 768px/128KiB plus a 96px/8KiB thumbnail. No original image is retained. Oversized encodings reduce quality and then dimensions. Browser source limits: 20MiB and 25MP; backend input: 2MiB, 25MP. GIF artwork is static.
+
+Backend `mygrain_wav_art.py` stores three atomically replaced sidecars in account WAV-root `.artwork/`, keyed by SHA-256 of WAV filename. Metadata ties artwork to WAV stat identity, so replacement renders cannot inherit unrelated old images. Listing adds optional artwork metadata/URLs only; old WAVs need no migration. Thumbnails load lazily; large artwork loads only on click. Replacing art changes versioned URLs; Refresh compares artwork independently.
+
+`/mygrain-wavs/api/art?filename=…` POST/GET/HEAD sits behind existing account authentication, pinned identity and per-account lock. Native images use the pinned `mygrainUser` URL, like other account media; no original raster or artwork directories are served. Static `wav-art.js` alone is public. Rename moves artwork, delete removes it, new Share WAV copies validated artwork into recipient storage. Existing historical shares are not modified when source artwork changes.
+
+Tests: Python `test_wav_art.ArtworkTests.test_artwork_lifecycle_and_isolation`; isolated browser `wav-art-browser.cjs` (Chromium/WebKit), plus existing account HTTP and WAV responsiveness tests. Browser writes are allowed only to the disposable loopback server. Evidence: workspace output/mygrain-wav-art-20261025. Backup: backups/wav-art-20261025T182352Z (includes documenter server).

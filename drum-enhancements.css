@@ -1,5 +1,5 @@
 #drumMachineOverlay .drum-machine-shell { gap: 8px; padding: 12px; }
-#drumMachineOverlay .drum-machine-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+#drumMachineOverlay .drum-machine-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; align-items: stretch; }
 #drumMachineOverlay .drum-machine-status { grid-column: 1 / -1; max-height: 2.5em; overflow-y: auto; font-size: 11px; }
 #drumMachineOverlay .performance-btn { min-height: 30px; min-width: 0; width: auto; padding: 5px 7px; font-size: 10px; letter-spacing: .02em; border-radius: 8px; }
 #drumMachineOverlay .drum-machine-track-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
@@ -12,6 +12,13 @@
 #drumMachineOverlay .drum-machine-step-cell button { min-width: 0; padding: 4px 2px; }
 #drumMachineOverlay .drum-machine-accent-btn, #drumMachineOverlay .drum-machine-ratchet-btn { font-size: 9px; letter-spacing: .02em; }
 #drumMachineOverlay .drum-machine-step-btn.current { border-color: #ffac45; box-shadow: 0 0 0 2px #ffac45, 0 0 12px #ffac4544; transition: transform .08s ease; }
+/* The opaque editor does not need to continually blur the playing app below. */
+#drumMachineOverlay { background: #040a12; backdrop-filter: none; -webkit-backdrop-filter: none; overscroll-behavior: none; }
+#drumMachineOverlay .drum-machine-layout { overscroll-behavior: contain; }
+#drumMachineOverlay .drum-machine-track-card { contain: layout paint; }
+#drumMachineOverlay .drum-machine-step-cell button { transition: none; }
+#drumMachineOverlay .drum-machine-step-btn.current { transform: none; box-shadow: inset 0 0 0 2px #ffac45; }
+#drumMachineTitle .drum-ui-build { font: 600 10px/1 system-ui, sans-serif; color: #9bb4c9; white-space: nowrap; }
 .drum-machine-jumps { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; flex: 0 0 auto; }
 #drumMachineOverlay .drum-machine-jumps button { min-height: 32px; color: #b4efff; border: 1px solid #428da8; background: #163544; }
 #drumMachineOverlay .drum-machine-jumps button[aria-current="true"] { color: #18120a; border-color: #ffac45; background: #ffac45; }
@@ -21,3 +28,59 @@
 .drum-roll-controls input, .drum-roll-controls select { width: 100%; min-width: 0; min-height: 40px; box-sizing: border-box; color: #e3f5ff; background: #142635; border: 1px solid #428da8; border-radius: 6px; padding: 6px; font: inherit; }
 .drum-roll-controls output { grid-column: 1 / -1; font-size: 11px; color: #ffce84; }
 @media (max-width: 600px) { .drum-machine-jumps { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Compact header leaves the scrollable editor available on phones. */
+#drumMachineOverlay .drum-machine-head,
+#drumMachineOverlay .drum-machine-toolbar { flex: 0 0 auto; }
+#drumMachineOverlay .drum-machine-head { align-items: center; }
+#drumMachineOverlay .drum-machine-copy h3 { margin: 0; }
+#drumMachineOverlay .drum-machine-solo-note { flex: 0 0 auto; margin: 0; font-size: 10px; line-height: 1.2; color: #b4c9da; }
+#drumMachineOverlay .drum-machine-status { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+#drumMachineOverlay .drum-machine-jumps [data-drum-jump] { touch-action: manipulation; }
+#drumMachineOverlay .drum-machine-jumps [data-drum-jump][aria-pressed="true"] { color: #101c0a; background: #b1ef75; border-color: #b1ef75; box-shadow: inset 0 -3px #518b20; }
+#drumMachineOverlay .drum-machine-jumps [data-drum-jump][aria-pressed="true"]::after { content: ' · S'; font-size: 9px; }
+@media (max-width: 600px) {
+    #drumMachineOverlay .drum-machine-shell { padding: 8px; gap: 5px; }
+    #drumMachineOverlay .drum-machine-toolbar .performance-btn { padding: 4px; min-height: 34px; font-size: 10px; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+    #drumMachineOverlay .drum-machine-shell { padding: 8px; gap: 4px; }
+    #drumMachineOverlay .drum-machine-toolbar { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
+/* Roll has no sound-control card: do not stretch its rows to match its neighbour. */
+#drumMachineOverlay #drumMachineLane-roll { align-content: start; align-self: start; gap: 6px; }
+#drumMachineLane-roll [data-drum-copy-prompt] { margin: 0; font-size: 11px; }
+#drumMachineLane-roll [data-drum-copy-prompt]:empty { display: none; }
+#drumMachineLane-roll .drum-machine-track-meta { font-size: 10px; }
+#drumMachineLane-roll .drum-roll-controls { grid-template-columns: minmax(60px, 90px) minmax(65px, 90px) minmax(0, 1fr); gap: 6px 10px; align-items: end; }
+#drumMachineLane-roll .drum-roll-controls label { gap: 3px; font-size: 10px; }
+#drumMachineLane-roll .drum-roll-controls input:not([type="range"]),
+#drumMachineLane-roll .drum-roll-controls select { min-height: 30px; height: 30px; padding: 3px 5px; }
+#drumMachineLane-roll .drum-roll-controls label[for="drumMachineRollDip"] { grid-template-columns: 1fr auto; align-items: center; }
+#drumMachineLane-roll #drumMachineRollDipValue { grid-column: 2; font-size: 10px; }
+#drumMachineLane-roll #drumMachineRollDip { grid-column: 1 / -1; min-height: 24px; height: 24px; padding: 0; }
+#drumMachineLane-roll #drumMachineRollPosition { grid-column: 1 / -1; font-size: 10px; }
+@media (max-width: 640px) {
+    #drumMachineLane-roll .drum-roll-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    #drumMachineLane-roll .drum-roll-controls label[for="drumMachineRollDip"] { grid-column: 1 / -1; }
+}
+
+#drumMachineOverlay .drum-machine-toolbar .performance-btn:not(.primary),
+#drumMachineOverlay .drum-machine-close-btn { color: #e3f5ff; }
+
+/* Frequent lane editing action: alongside the final envelope, above the steps. */
+#drumMachineOverlay .drum-machine-controls-grid > [data-drum-copy-section],
+#drumMachineOverlay .drum-roll-controls > [data-drum-copy-section] {
+    align-self: end;
+    min-height: 34px;
+    touch-action: manipulation;
+}
+#drumMachineOverlay [data-drum-copy-prompt] { margin: 0; font-size: 11px; }
+#drumMachineOverlay [data-drum-copy-prompt]:empty { display: none; }
+
+/* One visible, authoritative accent control next to Copy Sec on every lane. */
+#drumMachineOverlay .drum-machine-accent-copy-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(74px, .45fr); gap: 6px; align-items: end; min-width: 0; }
+#drumMachineOverlay .drum-machine-accent-copy-row .performance-sound-card { min-width: 0; }
+#drumMachineOverlay .drum-machine-accent-copy-row input { width: 100%; min-width: 0; min-height: 30px; padding: 0; }
+#drumMachineOverlay .drum-machine-accent-copy-row > button { min-height: 34px; touch-action: manipulation; }

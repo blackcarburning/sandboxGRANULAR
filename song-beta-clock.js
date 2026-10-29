@@ -163,12 +163,12 @@
         return { stop, entries, startTime, endTime: looping ? Infinity : entries.at(-1).end, context };
     }
 
-    function renderCaptureTiming(context, deck) {
+    function renderCaptureTiming(context, deck, startLeadSeconds = 0) {
         const sampleRate = Number(context.sampleRate);
         if (!Number.isFinite(sampleRate) || sampleRate <= 0) throw new Error('Song capture requires a valid sample rate.');
         const requestedStart = typeof deck.getBufferedTransportStartTime === 'function'
-            ? deck.getBufferedTransportStartTime()
-            : context.currentTime + .3;
+            ? deck.getBufferedTransportStartTime(startLeadSeconds > 0 ? context.currentTime + startLeadSeconds : null)
+            : context.currentTime + Math.max(.3, startLeadSeconds);
         const outputLatency = typeof deck.getTransportOutputLatencySeconds === 'function'
             ? deck.getTransportOutputLatencySeconds()
             : 0;
@@ -182,13 +182,30 @@
     function prepareCapture(context) {
         if (!context.audioWorklet || !root.AudioWorkletNode) return Promise.reject(new Error('Exact recording requires AudioWorklet support. Use an up-to-date browser over HTTPS.'));
         if (!modules.has(context)) {
-            const url = new URL('song-beta-capture-worklet.js?v=20261021-k-2', root.document.baseURI);
+            const url = new URL('song-beta-capture-worklet.js?v=20261026-mobile-vocals-1', root.document.baseURI);
             modules.set(context, context.audioWorklet.addModule(url.href).catch(error => { modules.delete(context); throw error; }));
         }
         return modules.get(context);
     }
 
-    async function render(context, part, timing, signal) {
+    async function render(context, part, timing, signal, options = {}) {
+        // An isolated deck has no learned preparation cost on its first start.
+        // Retry only missed transport reservations, never capture/audio errors.
+        // Each attempt owns a new deck, capture and origin, so no partial take
+        // or old MIDI/start callbacks can leak into the successful export.
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            try {
+                return await renderAttempt(context, part, timing, signal, {
+                    ...options, startLeadSeconds: attempt ? Math.min(12, 1.5 * 3 ** (attempt - 1)) : 0
+                });
+            } catch (error) {
+                if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+                if (attempt === 3 || !/^Transport deadline expired;/.test(error.message || '')) throw error;
+            }
+        }
+    }
+
+    async function renderAttempt(context, part, timing, signal, options) {
         if (root.document.hidden) throw new Error('Keep MYGRAIN in the foreground while preparing song audio.');
         if (!context.audioWorklet || !root.AudioWorkletNode) throw new Error('Exact song rendering requires AudioWorklet support. Use an up-to-date browser over HTTPS.');
         if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
@@ -214,9 +231,9 @@
         frame.title = 'Isolated song audio renderer';
         frame.setAttribute('aria-hidden', 'true');
         frame.style.cssText = 'position:fixed;width:1200px;height:900px;opacity:0;pointer-events:none;z-index:-1;top:0;left:0;border:0';
-        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261023-batch-arm-1"><\/script>`);
+        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261025-wasp-1"><\/script>`);
         root.document.body.append(frame);
-        let capture;
+        let capture, cancelRecording;
         try {
             const deadline = Date.now() + 30000;
             while (!frame.contentWindow?.mygrainSongBetaAdapter) {
@@ -235,9 +252,19 @@
             if (root.document.hidden) throw new Error('Keep MYGRAIN in the foreground while preparing song audio.');
             deck.saveAudioBufferToDB = async () => {};
             deck.clearAudioBufferFromDB = async () => {};
+            await waitWithAbort(deck.mygrainWasp?.prepare(context, part.snapshot.state.modes.wasp), signal);
             deck.mygrainSongBetaAdapter.recall(part, { start: false });
-            const frames = Math.round(root.MygrainSongBeta.sourcePartDurationSeconds(timing) * context.sampleRate);
-            const captureTiming = renderCaptureTiming(context, deck);
+            // Load the current persistent EQ DSP before scheduling the first
+            // voice; asynchronous cold IIR-to-worklet swaps must not be baked in.
+            if (deck.mygrainChannelEq) await waitWithAbort(deck.mygrainChannelEq.prepareAutomation('X', context), signal);
+            await waitWithAbort(deck.mygrainWasp?.whenReady(), signal);
+            if (deck.mygrainQ?.playable()) {
+                await waitWithAbort(deck.mygrainQ.preparePlayback(), signal);
+                deck.mygrainQ.ensureGraph();
+            }
+            await options.prepareDeck?.(deck);
+            const frames = Math.round(((options.durationSeconds ?? root.MygrainSongBeta.sourcePartDurationSeconds(timing)) + (options.tailSeconds || 0)) * context.sampleRate);
+            const captureTiming = renderCaptureTiming(context, deck, options.startLeadSeconds);
             const startFrame = captureTiming.startFrame;
             capture = new root.AudioWorkletNode(context, 'mygrain-song-capture-v1', {
                 numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
@@ -259,6 +286,7 @@
                     capture.onprocessorerror = null;
                     if (error) reject(error); else resolve(channels);
                 };
+                cancelRecording = () => finish(new DOMException('Cancelled', 'AbortError'));
                 capture.port.onmessage = event => finish(null, event.data.channels);
                 capture.onprocessorerror = () => finish(new Error('Exact song audio capture failed.'));
                 signal?.addEventListener('abort', abort, { once: true });
@@ -266,12 +294,18 @@
                 root.document.addEventListener('visibilitychange', hidden);
                 if (signal?.aborted) abort();
             });
+            // startAt can throw before recorded is awaited. Consume that
+            // rejection and always detach the timer/listeners in finally.
+            recorded.catch(() => {});
+            options.beforeStart?.(deck, captureTiming.sourceTime);
             deck.mygrainSongBetaAdapter.startAt(captureTiming.sourceTime);
             const channels = await recorded;
+            options.afterCapture?.(deck);
             const buffer = context.createBuffer(2, frames, context.sampleRate);
             channels.forEach((channel, index) => buffer.copyToChannel(new Float32Array(channel), index));
             return buffer;
         } finally {
+            cancelRecording?.();
             bridge.disposed = true;
             if (capture) { capture.port.onmessage = null; capture.port.postMessage({ type: 'cancel' }); capture.port.close(); capture.disconnect(); }
             try { frame.contentWindow?.mygrainSongBetaAdapter?.stop({ hardCut: true }); } catch (error) {}

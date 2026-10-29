@@ -1,6 +1,8 @@
 (function (root) {
     'use strict';
 
+    const historyLimit = 2;
+
     class MemoryBudget {
         constructor(limitBytes = 192 * 1024 * 1024, strict = false) {
             this.limitBytes = limitBytes;
@@ -236,7 +238,13 @@
                 || [...journal.undo, ...journal.redo].some(entry => entry.owner !== this.owner || typeof entry.label !== 'string' || !Array.isArray(entry.json) || !entry.json.every(validPath) || !Array.isArray(entry.buffers) || entry.buffers.some(change => !Number.isInteger(change.index) || change.index < 0 || change.index > 100))) throw new Error('Saved history is damaged; current-session Undo/Redo remains available.');
             this.revision = journal.revision;
             this.references = new Set(journal.references);
-            return { undo: journal.undo, redo: journal.redo };
+            // Accept the former ten-level journal, keep the nearest two states,
+            // and atomically collect abandoned PCM without eager hydration.
+            const undo = journal.undo.slice(-historyLimit);
+            const remaining = historyLimit - undo.length;
+            const redo = remaining ? journal.redo.slice(-remaining) : [];
+            if (journal.undo.length + journal.redo.length > historyLimit && !this.readOnly) await this.save(undo, redo);
+            return { undo, redo };
         }
 
         read(store, key) {
@@ -260,6 +268,7 @@
         async save(undo, redo) {
             if (this.closed) throw new Error('History storage closed.');
             if (this.readOnly) throw this.conflict();
+            if (undo.length + redo.length > historyLimit) throw new Error('Undo/Redo is limited to two levels.');
             const references = new Set(), additions = new Map();
             const audio = buffer => {
                 if (!buffer) return null;
@@ -362,27 +371,40 @@
         }
         async save(part, check) {
             await this.open(); check();
-            const known = new Map(), references = new Map(), buffers = new Map();
+            const known = new Map(), references = new Map(), buffers = new Map(), chunkKeys = new Set();
             let bytes = 0, largest = 0;
             for (const [key, buffer] of part.buffers) {
                 check();
                 if (!buffer) { buffers.set(key, null); continue; }
                 let id = references.get(buffer);
                 if (!id) {
-                    const hashes = [];
+                    // Clone/hash only a bounded PCM chunk. Structured-cloning
+                    // a subarray view would copy its whole backing channel, so
+                    // slice explicitly and await each transaction before reuse.
+                    const chunks = [], chunkFrames = 262144;
                     for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-                        const hash = await root.crypto.subtle.digest('SHA-256', buffer.getChannelData(channel));
-                        hashes.push(Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join(''));
-                        check();
+                        const keys = [];
+                        for (let offset = 0; offset < buffer.length; offset += chunkFrames) {
+                            const data = buffer.getChannelData(channel).slice(offset, offset + chunkFrames);
+                            const hash = await root.crypto.subtle.digest('SHA-256', data);
+                            check();
+                            const key = 'pcm:' + Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join('');
+                            if (!chunkKeys.has(key)) {
+                                await this.transaction('readwrite', store => store.put(data, key));
+                                chunkKeys.add(key); check();
+                            }
+                            largest = Math.max(largest, data.byteLength * 2);
+                            keys.push(key);
+                        }
+                        chunks.push(keys);
                     }
-                    const digest = JSON.stringify([buffer.sampleRate, buffer.length, ...hashes]);
+                    const digest = JSON.stringify([buffer.sampleRate, buffer.length, ...chunks]);
                     id = known.get(digest);
                     if (!id) {
                         id = `sound-${known.size}`; known.set(digest, id);
-                        const size = buffer.length * buffer.numberOfChannels * 4;
-                        bytes += size; largest = Math.max(largest, size);
+                        bytes += buffer.length * buffer.numberOfChannels * 4;
                         await this.transaction('readwrite', store => store.put({ sampleRate: buffer.sampleRate, length: buffer.length,
-                            channels: buffer.numberOfChannels, data: Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel)) }, id));
+                            channels: buffer.numberOfChannels, chunkFrames, data: chunks }, id));
                         check();
                     }
                     references.set(buffer, id);
@@ -403,9 +425,27 @@
                 if (!unique.has(id)) {
                     const data = await this.transaction('readonly', store => store.get(id));
                     if (!data || !Number.isInteger(data.length) || data.length < 1 || ![1, 2].includes(data.channels)
-                        || data.data?.length !== data.channels || data.data.some(channel => !(channel instanceof Float32Array) || channel.length !== data.length)) throw new Error('Temporary editing audio is incomplete.');
+                        || data.data?.length !== data.channels) throw new Error('Temporary editing audio is incomplete.');
                     const buffer = context.createBuffer(data.channels, data.length, data.sampleRate);
-                    data.data.forEach((channel, index) => buffer.copyToChannel(channel, index));
+                    if (data.chunkFrames === 262144) {
+                        for (let channel = 0; channel < data.channels; channel++) {
+                            const keys = data.data[channel];
+                            if (!Array.isArray(keys) || keys.length !== Math.ceil(data.length / data.chunkFrames)) throw new Error('Temporary editing chunks are incomplete.');
+                            for (let index = 0; index < keys.length; index++) {
+                                if (typeof keys[index] !== 'string' || !/^pcm:[a-f0-9]{64}$/.test(keys[index])) throw new Error('Invalid temporary editing chunk.');
+                                const chunk = await this.transaction('readonly', store => store.get(keys[index]));
+                                const offset = index * data.chunkFrames;
+                                if (!(chunk instanceof Float32Array) || chunk.length !== Math.min(data.chunkFrames, data.length - offset)) throw new Error('Temporary editing chunk is incomplete.');
+                                const hash = await root.crypto.subtle.digest('SHA-256', chunk);
+                                const digest = 'pcm:' + Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2, '0')).join('');
+                                if (digest !== keys[index]) throw new Error('Temporary editing chunk failed its integrity check.');
+                                buffer.copyToChannel(chunk, channel, offset);
+                            }
+                        }
+                    } else {
+                        if (data.chunkFrames !== undefined || data.data.some(channel => !(channel instanceof Float32Array) || channel.length !== data.length)) throw new Error('Temporary editing audio is incomplete.');
+                        data.data.forEach((channel, index) => buffer.copyToChannel(channel, index));
+                    }
                     unique.set(id, buffer);
                 }
                 buffers.set(key, unique.get(id));
@@ -422,6 +462,6 @@
         }
     }
 
-    root.MygrainSongStorage = { MemoryBudget, RenderStore, SourceStore, HistoryStore, EditCheckpoint };
+    root.MygrainSongStorage = { historyLimit, MemoryBudget, RenderStore, SourceStore, HistoryStore, EditCheckpoint };
     if (typeof module !== 'undefined' && module.exports) module.exports = root.MygrainSongStorage;
 })(typeof window !== 'undefined' ? window : globalThis);

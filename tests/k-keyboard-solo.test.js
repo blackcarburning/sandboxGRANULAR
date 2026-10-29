@@ -72,7 +72,7 @@ function fixture() {
         }
     };
     const refreshNames = ['updateSourceMixGains', 'updateGeneratedDryLoopMix', 'updateBastardLoopMix',
-        'updateBastardLoop2Mix', 'updateBastardLoop3Mix', 'updateBastardLoopVMix', 'updateBastardLoopPMix',
+        'updateBastardLoop2Mix', 'updateBastardLoop3Mix', 'updateBastardLoopVMix', 'updateBastardLoopWMix', 'updateBastardLoopPMix',
         'updateBastardLoopOMix', 'updateBastardLoopLMix', 'updateBastardLoopXMix', 'updateBastardLoopMMix',
         'updateBastardLoopMPlusMix', 'updateBastardLoopKMix', 'updateDropboxSampleLayerMix', 'updateDrumMachineMix',
         'syncActiveOscillatorSoloIsolation', 'restoreSoloKeyboardVoices', 'rescheduleActiveGrainsFromNow'];
@@ -318,6 +318,8 @@ test('raw mixer levels retain existing persistence, reset and randomization guar
         assert.ok(skip.includes(`'${id}'`));
         assert.match(html, new RegExp(`${id}: 100`));
     }
-    assert.equal((html.match(/v2026\.10\.21\.V\.1/g) || []).length, 2);
-    assert.match(html, /q-card\.js\?v=20261021-v-1/);
+    const buildBadges = Array.from(html.matchAll(/Build <strong>([^<]+)<\/strong>/g), match => match[1]);
+    assert.equal(buildBadges.length, 2);
+    assert.equal(buildBadges[0], buildBadges[1]);
+    assert.match(html, /q-card\.js\?v=[^'"\s]+/);
 });

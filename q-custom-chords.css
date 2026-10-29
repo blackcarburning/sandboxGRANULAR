@@ -1,0 +1,56 @@
+/* Only the new custom-candidate area and MIDI capture dialog. */
+#bastardLoopQOverlay .q-candidate-pools { display:grid; grid-template-columns:minmax(0,3fr) minmax(130px,1fr); flex:5 1 0; min-height:46px; max-height:32dvh; gap:8px; overflow:hidden; }
+#bastardLoopQOverlay .q-candidate-pools #bastardLoopQPalette { max-height:none; min-width:0; min-height:0; }
+#qCustomChordPool { min-width:0; min-height:0; overflow-y:auto; overscroll-behavior:contain; border-left:1px solid #59bf8d; padding:3px 3px 3px 8px; color:#bbf5d7; background:#0e2921; border-radius:7px; }
+#qCustomChordPool h4 { font-size:12px; margin:0 0 5px; color:#9befc5; }
+#qCustomChordList { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:6px; }
+#qCustomChordPool .q-custom-chord-tile { min-width:0; display:grid; gap:3px; }
+#qCustomChordPool button { width:100%; min-width:0; box-sizing:border-box; min-height:30px; border:1px solid #66c794; border-radius:6px; padding:5px; color:#d8ffe9; background:#17613f; font-size:11px; line-height:1.3; cursor:pointer; touch-action:manipulation; overflow-wrap:anywhere; }
+#qCustomChordPool .q-custom-chord-play { display:flex; flex-direction:column; gap:3px; align-items:center; min-height:55px; }
+#qCustomChordPool .q-custom-chord-play span { font-size:9px; }
+#qCustomChordPool .q-custom-chord-delete { background:#143c2e; font-size:10px; min-height:30px; }
+#qCustomChordPool button:focus-visible,#qCustomChordDialog :focus-visible { outline:2px solid #d4ffe9; outline-offset:2px; }
+#qCustomChordPool .q-custom-help { font-size:10px; line-height:1.4; margin:5px 0; }
+#qCustomChordDialog { box-sizing:border-box; width:min(680px,calc(100vw - 20px)); max-height:calc(100dvh - 20px); overflow-y:auto; padding:18px; border:2px solid #69daa0; border-radius:14px; background:#112c22; color:#e0ffed; font:14px/1.5 system-ui,sans-serif; }
+#qCustomChordDialog::backdrop { background:#020a08cf; }
+#qCustomChordDialog header,#qCustomChordDialog footer { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+#qCustomChordDialog h3 { margin:0; font-size:18px; }
+#qCustomChordDialog h4 { margin:14px 0 8px; font-size:17px; }
+#qCustomChordDialog button,#qCustomChordDialog select { min-height:42px; padding:8px 12px; border:1px solid #69c996; border-radius:7px; background:#21543b; color:#e0ffed; font:inherit; cursor:pointer; max-width:100%; box-sizing:border-box; }
+#qCustomChordDialog button:disabled { opacity:.45; cursor:default; }
+#qCustomChordSave { background:#28794c!important; font-weight:750!important; }
+#qCustomChordDialog .q-custom-midi { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+#qCustomChordInput { flex:1 1 200px; min-width:0; }
+#qCustomMidiStatus { width:100%; font-size:12px; }
+#qCustomChordVisual { width:100%; padding:6px; box-sizing:border-box; border:1px solid #4a9e73; border-radius:8px; background:#091b15; }
+#qCustomChordVisual svg { display:block; width:100%; max-height:190px; }
+#qCustomChordNotes,#qCustomChordStatus { overflow-wrap:anywhere; }
+@media (max-width:480px) {
+ #bastardLoopQOverlay .q-candidate-pools { grid-template-columns:minmax(0,1fr) minmax(120px,.8fr); gap:4px; }
+ #bastardLoopQOverlay .q-candidate-pools #bastardLoopQPalette { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ #qCustomChordPool { padding-left:4px; }
+ #qCustomChordDialog { padding:12px; font-size:13px; }
+}
+
+#qCustomChordKeep { width:100%; min-height:32px; margin-bottom:6px; padding:4px; border:1px solid #66c794; border-radius:6px; color:#d8ffe9; background:#21543b; font-size:10px; cursor:pointer; touch-action:manipulation; }
+#qCustomChordPool.q-custom-drop-ready { outline:2px dashed #99ffbe; outline-offset:-3px; background:#1c5037; }
+.q-custom-drag-ghost { position:fixed; z-index:2147483540; transform:translate(-50%,-120%); max-width:200px; padding:8px; background:#16623f; border:1px solid #a0ffca; border-radius:8px; color:white; font:12px system-ui; pointer-events:none; }
+#bastardLoopQPalette [draggable="true"] { touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+#bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step { background:#17613f; border-color:#66c794; color:#d8ffe9; }
+#bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step.selected { background:#287c50; border-color:#b0ffd1; }
+
+/* Small fixed-note holding tiles: name + Custom, Delete stays beneath. */
+#qCustomChordPool .q-custom-chord-play { min-height:32px; padding:3px; gap:1px; }
+#qCustomChordPool .q-custom-chord-play strong { font-size:10px; }
+#qCustomChordPool .q-custom-chord-play span { font-size:8px; }
+#qCustomChordPool .q-custom-chord-delete { min-height:24px; padding:2px; font-size:9px; }
+#qCustomChordList { grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:4px; }
+
+/* Saved chord instances share the exact swatch on pool and sequence. */
+#qCustomChordPool .q-custom-chord-play,
+#bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step,
+#bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step.selected { background:var(--q-custom-colour,#17613f); color:#fff; border-color:#b9c5cc; }
+#bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step.selected { outline:2px solid white; outline-offset:-3px; }
+#qChordEditorSave { font-weight:750; }
+
+#qCustomChordPool .q-custom-chord-play { touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }

@@ -63,6 +63,7 @@ function fixture(hooks = {}) {
         document, location: { href: document.baseURI },
         mygrainAccounts: { authenticated: true, user: { username: 'fixture-user' } },
         fetch(url, options) { releases.push({ url: new URL(url, document.baseURI), options, source: audios[0]?.src }); return hooks.release?.() || Promise.resolve({ ok: true }); },
+        setInterval, clearInterval,
         setTimeout(handler) { const identifier = ++timerId; timers.set(identifier, handler); return identifier; },
         clearTimeout(identifier) { timers.delete(identifier); },
         Audio: class extends Events {

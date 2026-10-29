@@ -318,11 +318,12 @@
             shell.className = 'mygrain-account-shell';
             shell.setAttribute('aria-labelledby', 'mygrainLoginTitle');
             shell.innerHTML = `<div class="mygrain-account-panel"><button type="button" id="mygrainLoginBackBtn">Back</button><h1 id="mygrainLoginTitle">MYGRAIN</h1>
-                <p>Log in or create your own workspace. Your browser can remember your login securely.</p>
+                <p>Log in or request your own workspace. New accounts require approval before they can be used.</p>
                 <form id="mygrainLoginForm" action="/mygrain/api/auth/login" method="post">
                     <label for="mygrainLoginUsername">Username</label><input id="mygrainLoginUsername" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="64">
                     <label for="mygrainLoginPassword">Password</label><input id="mygrainLoginPassword" name="password" type="password" autocomplete="current-password" required maxlength="1024">
-                    <div class="mygrain-account-actions"><button id="mygrainLoginBtn" type="submit">Log in</button><button id="mygrainCreateUserBtn" type="submit" name="create" value="true">Create user</button></div>
+                    <label for="mygrainLoginEmail">Email (for new account requests)</label><input id="mygrainLoginEmail" name="email" type="email" autocomplete="email" maxlength="254"><p class="mygrain-account-hint">We will email you once approved. Your request IP and approximate location, when available, are recorded for owner review only.</p>
+                    <div class="mygrain-account-actions"><button id="mygrainLoginBtn" type="submit">Log in</button><button id="mygrainCreateUserBtn" type="submit" name="create" value="true">Request account</button></div>
                     <p id="mygrainLoginStatus" role="status" aria-live="polite"></p>
                 </form><p class="mygrain-account-hint">Passwords are never saved in app storage. Only your password manager and a persistent server session remember your login.</p>
                 <p class="mygrain-account-hint">Build v2026.10.21.V.1</p></div>`;
@@ -339,23 +340,32 @@
             const password = byId('mygrainLoginPassword');
             byId('mygrainCreateUserBtn').addEventListener('focus', () => password.autocomplete = 'new-password');
             byId('mygrainLoginBtn').addEventListener('focus', () => password.autocomplete = 'current-password');
+            byId('mygrainLoginForm').noValidate = true;
             byId('mygrainLoginForm').addEventListener('submit', async event => {
                 event.preventDefault();
                 const create = event.submitter?.id === 'mygrainCreateUserBtn';
                 const form = event.currentTarget;
+                const email = byId('mygrainLoginEmail'); email.required = create;
+                if (!byId('mygrainLoginUsername').reportValidity() || !password.reportValidity() || (create && !email.reportValidity())) return;
                 if (form.dataset.pending) return;
                 form.dataset.pending = 'true';
                 password.autocomplete = create ? 'new-password' : 'current-password';
                 byId('mygrainLoginBtn').disabled = true;
                 byId('mygrainCreateUserBtn').disabled = true;
-                byId('mygrainLoginStatus').textContent = create ? 'Creating your workspace…' : 'Logging in…';
+                byId('mygrainLoginStatus').textContent = create ? 'Submitting your account request…' : 'Logging in…';
                 try {
                     if (!/^https?:$/.test(root.location.protocol)) throw new Error('Open MYGRAIN from its server to log in. File previews cannot authenticate.');
                     const requested = byId('mygrainLoginUsername').value.trim();
                     const payload = await api(`/mygrain/api/auth/${create ? 'register' : 'login'}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: requested, password: password.value })
+                        body: JSON.stringify({ username: requested, password: password.value, ...(create ? {email:email.value.trim()} : {}) })
                     }, true);
+                    if (payload.pending) {
+                        password.value='';
+                        byId('mygrainLoginStatus').textContent=payload.message;
+                        byId('mygrainLoginBtn').disabled=false;byId('mygrainCreateUserBtn').disabled=false;delete form.dataset.pending;
+                        return;
+                    }
                     publish('login', payload.user?.username || requested);
                     password.value = '';
                     const next = new URL(root.location.href);
@@ -372,7 +382,7 @@
         }
         byId('mygrainLoginBackBtn').hidden = !byId('start-overlay')?.querySelector('[data-account-state="guest"]');
         if (mode === 'create') {
-            byId('mygrainLoginTitle').textContent = 'MYGRAIN · Create user';
+            byId('mygrainLoginTitle').textContent = 'MYGRAIN · Request account';
             byId('mygrainLoginPassword').autocomplete = 'new-password';
             const create = byId('mygrainCreateUserBtn');
             create.parentElement.prepend(create);
@@ -385,7 +395,7 @@
         account.className = 'mygrain-start-account';
         account.dataset.accountState = active ? 'signed-in' : 'guest';
         account.setAttribute('aria-label', 'Account');
-        account.innerHTML = '<strong>Account: <span id="mygrainStartCurrentUser"></span></strong><div class="mygrain-account-actions"><button type="button" data-mygrain-account-action="login"></button><button type="button" data-mygrain-account-action="create">Create user</button></div>';
+        account.innerHTML = '<strong>Account: <span id="mygrainStartCurrentUser"></span></strong><div class="mygrain-account-actions"><button type="button" data-mygrain-account-action="login"></button><button type="button" data-mygrain-account-action="create">Request account</button></div>';
         const label = account.querySelector('#mygrainStartCurrentUser');
         label.textContent = active ? username : 'Not signed in';
         label.title = label.textContent;

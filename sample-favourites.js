@@ -105,7 +105,7 @@
             for (const view of this.views.values()) {
                 view.status.textContent = message;
                 view.status.classList.toggle('favourite-error', error);
-                if (error) view.management.open = true;
+                if (error) { view.management.open = true; view.disclosure.open = true; }
             }
         }
 
@@ -147,11 +147,18 @@
             };
             options(view.filter, [['', 'All files'], ['*', '♥ All favourites'], ...this.groups.map(group => [group.id, `♥ ${group.name}`])], state.filter);
             options(view.collection, this.groups.map(group => [group.id, group.name]), state.collection);
+            view.heading.textContent = state.filter ? `♥ Favourites · ${state.filter === '*' ? 'favourites only' : this.groups.find(group => group.id === state.filter)?.name || 'filtered'}` : '♥ Favourites';
             for (const button of view.toolbar.querySelectorAll('button[data-requires-favourites]')) button.disabled = !this.loaded;
         }
 
         ensureToolbar(browser, list, render) {
             if (root.__mygrainSongRenderDeck || !list || this.views.has(browser)) return;
+            const disclosure = this.document.createElement('details');
+            disclosure.className = 'sample-favourites-disclosure';
+            disclosure.open = Boolean(this.state(browser).expanded);
+            const heading = this.document.createElement('summary');
+            heading.textContent = '♥ Favourites';
+            disclosure.append(heading);
             const toolbar = this.document.createElement('div');
             toolbar.className = 'sample-favourites-toolbar';
             toolbar.setAttribute('data-mygrain-workspace', 'favourites');
@@ -203,8 +210,13 @@
             status.textContent = 'Loading shared favourites…';
             management.append(summary, actions, status);
             toolbar.append(management);
-            list.before(toolbar);
-            const view = { toolbar, filter, collection, status, management, list, render };
+            disclosure.append(toolbar);
+            list.before(disclosure);
+            disclosure.addEventListener('toggle', () => {
+                this.state(browser).expanded = disclosure.open;
+                this.remember();
+            });
+            const view = { disclosure, heading, toolbar, filter, collection, status, management, list, render };
             this.views.set(browser, view);
             filter.addEventListener('change', () => {
                 const state = this.state(browser);

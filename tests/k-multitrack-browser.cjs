@@ -24,7 +24,7 @@ assert.match(base,/^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
     const k=MygrainKMultitrack.create({context:()=>ctx,bpm:()=>120,pitchRate:()=>1,masterGain:()=>1,memoryBudget:()=>8*1048576,timing:()=>({time:0,origin:0}),route(g,p){g.connect(p);p.connect(ctx.destination);return []},disconnectFilters(){},startSource(s,t,o){s.buffer=s.patternSectionBuffer;s.start(t,o)}});
     periods.forEach((period,i)=>{const b=ctx.createBuffer(1,Math.round(period*8000),8000);b.getChannelData(0).fill(1,0,40);k.setBuffer(i,b);Object.assign(k.tracks[i],{sourceBpm:120,steps:i+1,level:levels[i],pan:pans[i],mute:i===4})});
     k.start();const out=await ctx.startRendering(),left=out.getChannelData(0),right=out.getChannelData(1);let worst=0;
-    for(let frame=200;frame<16000;frame++){let l=0,r=0;periods.forEach((period,i)=>{if(i===4)return;if(frame%Math.round(period*8000)>=40)return;l+=levels[i]*Math.cos((pans[i]+1)*Math.PI/4);r+=levels[i]*Math.sin((pans[i]+1)*Math.PI/4)});worst=Math.max(worst,Math.abs(left[frame]-l),Math.abs(right[frame]-r));}
+    for(let frame=200;frame<16000;frame++){let l=0,r=0;periods.forEach((period,i)=>{if(i===4)return;if(frame%Math.round(period*8000)>=40)return;const phase=frame%Math.round(period*8000),edge=phase<32?.5-.5*Math.cos(Math.PI*phase/31):1;l+=edge*levels[i]*Math.cos((pans[i]+1)*Math.PI/4);r+=edge*levels[i]*Math.sin((pans[i]+1)*Math.PI/4)});worst=Math.max(worst,Math.abs(left[frame]-l),Math.abs(right[frame]-r));}
     return {worst,peak:Math.max(...left)};
    });
    assert(pcm.worst<.0001,JSON.stringify(pcm));assert(pcm.peak>.1);

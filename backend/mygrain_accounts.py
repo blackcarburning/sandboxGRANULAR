@@ -1,7 +1,9 @@
 import contextvars
 import functools
 import hashlib
+import json
 import hmac
+import ipaddress
 import os
 import pathlib
 import re
@@ -26,18 +28,27 @@ SEED_HASHES = {
 CURRENT_USER = contextvars.ContextVar('mygrain_account', default=None)
 USERNAME_PATTERN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
 PUBLIC_FILES = {
+    'ftp.html', 'private-ftp.js', 'private-ftp.css', 'daw-export.js', 'daw-export.css',
     'index.html', 'manual.html', 'q-scales.json',
+    'card-splashes.js', 'card-splashes.css',
+    'wasp-worklet-phone.js', 'demand-ui.js', 'wasp-filter-phone.js', 'wasp-filter-desktop.js', 'wasp-master-phone.js', 'wasp-master-desktop.js',
+    'wasp-dsp.js', 'wasp-worklet.js', 'wasp-host.js', 'wasp-ui.js', 'wasp.css',
+    'channel-eq.js', 'channel-eq-ui.js', 'channel-eq.css',
     'assets/brand/mygrain-rainbow-brain.png', 'assets/brand/mygrain-rainbow-brain.webp',
     'assets/brand/mygrain-icon.png',
     'background-audio.js', 'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js', 'drum-roll.js',
-    'mygrain-utils.js', 'random-performance-samples.js', 'mygrain-accounts.js', 'mygrain-accounts.css',
+    'drum-pattern-library.js', 'iphone-low-power.js',
+    'mygrain-utils.js', 'random-performance-samples.js', 'mygrain-accounts.js', 'mygrain-accounts.css', 'mygrain-load-notes.js',
     'navigation-palette.js', 'navigation-palette.css',
     'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
     'k-multitrack.js', 'k-multitrack-host.js', 'k-multitrack.css', 'k-track-meters.js', 'k-track-dsp.js',
+    'loop-card-fx.js', 'loop-card-fx-host.js', 'loop-card-fx.css', 'pan-centre-gesture.js', 'eq-automation.js', 'eq-automation-worklet.js',
+    'wav-art.js', 'noise-card-dsp.js', 'noise-card.js', 'noise-card.css', 'noise-envelope-worklet.js',
     'l-reverb.js', 'q-arp-builder.js', 'q-card.css', 'q-card.js', 'q-theory.js',
+    'q-custom-chords.js', 'q-custom-chords.css', 'q-sound-sources.js', 'weird-loop-fx.js', 'bastardloop-browser.html',
     'radiolab.js', 'radiolab.css', 'radiolab-worklet.js',
     'randomise-commentary.js', 'runtime-diagnostics.js', 'sample-favourites.css', 'sample-favourites.js',
-    'song-beta-adapter.js', 'song-beta-capture-worklet.js', 'song-beta-clock.js',
+    'song-beta-adapter.js', 'song-beta-capture-worklet.js', 'song-beta-clock.js', 'song-w-compat.js',
     'song-beta-export.js', 'song-beta-locks.js', 'song-beta-render-deck.js',
     'song-beta-storage.js', 'song-beta.css', 'song-beta.js',
     'vocal-loop-cut.css', 'vocal-loop-cut.js', 'vocal-takes.css', 'vocal-takes.js',
@@ -164,13 +175,14 @@ def verify_password(password, encoded):
 
 
 class Accounts:
-    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None):
+    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None):
         self.database = pathlib.Path(database)
         self.users_root = pathlib.Path(users_root)
         self.legacy_paths = {key: pathlib.Path(path) for key, path in legacy_paths.items()}
         self.storage_lock = threading.RLock()
         self.user_locks = {}
         self.wav_feedback_invalidated = wav_feedback_invalidated
+        self.wav_art_copy = wav_art_copy
 
     def user_lock(self, user):
         with self.storage_lock:
@@ -240,6 +252,26 @@ class Accounts:
                         PRIMARY KEY (user_id, filename)
                     );
                 ''')
+                user_columns = {row['name'] for row in connection.execute('PRAGMA table_info(users)')}
+                if 'approval_status' not in user_columns:
+                    connection.execute("ALTER TABLE users ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'active' CHECK(approval_status IN ('active','pending','declined'))")
+                connection.executescript('''
+                    CREATE TABLE IF NOT EXISTS registration_requests (
+                        id TEXT PRIMARY KEY REFERENCES users(id), email TEXT NOT NULL,
+                        request_ip TEXT NOT NULL, approximate_location TEXT,
+                        approval_token TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+                        created_at REAL NOT NULL, decided_at REAL, decided_by TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS registration_outbox (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, request_id TEXT NOT NULL REFERENCES registration_requests(id),
+                        kind TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_attempt REAL NOT NULL DEFAULT 0,
+                        sent_at REAL, last_error TEXT, UNIQUE(request_id,kind)
+                    );
+                    CREATE TABLE IF NOT EXISTS registration_audit (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, request_id TEXT NOT NULL,
+                        action TEXT NOT NULL, actor TEXT NOT NULL, created_at REAL NOT NULL
+                    );
+                ''')
                 share_columns = {row['name'] for row in connection.execute('PRAGMA table_info(shares)')}
                 for column in ('created_by_id', 'comments_by_id'):
                     if column not in share_columns:
@@ -249,9 +281,9 @@ class Accounts:
                 connection.execute("UPDATE shares SET comments_by_id=recipient_id WHERE comments<>'' AND comments_by_id IS NULL")
                 for username, encoded in seed_hashes.items():
                     if connection.execute('SELECT 1 FROM users WHERE username=?', (username,)).fetchone() is None:
-                        connection.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?)',
+                        connection.execute('INSERT INTO users (id,username,password_hash,is_admin,created_at) VALUES (?, ?, ?, ?, ?)',
                                            (secrets.token_hex(16), username, encoded, int(username == 'admin'), time.time()))
-                for row in connection.execute('SELECT id, username, is_admin FROM users WHERE is_admin=0'):
+                for row in connection.execute("SELECT id, username, is_admin FROM users WHERE is_admin=0 AND approval_status='active'"):
                     base = checked_path(self.users_root / row['id'], self.users_root)
                     base.mkdir(exist_ok=True, mode=0o700)
                     base.chmod(0o700)
@@ -272,22 +304,95 @@ class Accounts:
         boundary = (lambda: resolver().parent) if key.endswith('_feedback') else resolver
         return ScopedPath(resolver, boundary)
 
+    def delete_accounts(self, usernames, *, actor):
+        """Local maintenance only: remove non-admin accounts and revoke access.
+
+        Caller must authorize the exact usernames and back up storage first.
+        Files are retained by the maintenance caller for recoverable deletion.
+        """
+        names = sorted({normalize_username(name) for name in usernames})
+        if not actor or not names:
+            raise ValueError('An actor and exact usernames are required')
+        with self.connection() as connection:
+            connection.execute('BEGIN IMMEDIATE')
+            targets = []
+            for name in names:
+                row = connection.execute('SELECT id,username,is_admin FROM users WHERE username=?', (name,)).fetchone()
+                if row is None or row['is_admin'] or name in ('admin', 'dan'):
+                    raise ValueError('Missing or protected account: ' + name)
+                targets.append(dict(row))
+            for user in targets:
+                uid = user['id']
+                connection.execute('DELETE FROM sessions WHERE user_id=?', (uid,))
+                connection.execute('DELETE FROM shares WHERE owner_id=? OR recipient_id=?', (uid, uid))
+                connection.execute('UPDATE shares SET created_by_id=NULL WHERE created_by_id=?', (uid,))
+                connection.execute('UPDATE shares SET comments_by_id=NULL WHERE comments_by_id=?', (uid,))
+                connection.execute('DELETE FROM wav_provenance WHERE user_id=?', (uid,))
+                connection.execute('UPDATE wav_provenance SET created_by_id=NULL WHERE created_by_id=?', (uid,))
+                connection.execute('DELETE FROM registration_outbox WHERE request_id=?', (uid,))
+                connection.execute('DELETE FROM registration_audit WHERE request_id=?', (uid,))
+                connection.execute('DELETE FROM registration_requests WHERE id=?', (uid,))
+                connection.execute('DELETE FROM users WHERE id=?', (uid,))
+            if connection.execute('PRAGMA foreign_key_check').fetchone():
+                raise RuntimeError('Account deletion failed foreign-key validation')
+        return targets
+
     def lookup_user(self, username):
         with self.connection() as connection:
-            row = connection.execute('SELECT id, username, is_admin FROM users WHERE username=?', (normalize_username(username),)).fetchone()
+            row = connection.execute("SELECT id, username, is_admin FROM users WHERE username=? AND approval_status='active'", (normalize_username(username),)).fetchone()
         return dict(row) if row else None
 
-    def register(self, username, password):
+    def register(self, username, password, email=None, request_ip='unknown'):
         username = normalize_username(username)
         encoded = hash_password(password)
-        user = {'id': secrets.token_hex(16), 'username': username, 'is_admin': 0}
+        # An absent store remains an initialization error, not an email error.
+        with self.connection():
+            pass
+        email = normalize_registration_email(email)
+        try:
+            request_ip = str(ipaddress.ip_address(request_ip))
+        except ValueError:
+            request_ip = 'unknown'
+        user = {'id': secrets.token_hex(16), 'username': username, 'is_admin': 0, 'approval_status': 'pending'}
         with self.storage_lock, self.connection() as connection:
-            try:
-                connection.execute('INSERT INTO users VALUES (?, ?, ?, 0, ?)', (user['id'], username, encoded, time.time()))
-                checked_path(self.users_root / user['id'], self.users_root).mkdir(mode=0o700)
-            except sqlite3.IntegrityError:
-                raise AccountError('That username is already registered.', 409, 'USERNAME_TAKEN') from None
+            connection.execute('BEGIN IMMEDIATE')
+            if connection.execute('SELECT 1 FROM users WHERE username=?', (username,)).fetchone():
+                raise AccountError('That username is already registered or awaiting approval.', 409, 'USERNAME_TAKEN')
+            if request_ip != 'unknown' and connection.execute('SELECT count(*) FROM registration_requests WHERE request_ip=? AND created_at>?', (request_ip, time.time()-3600)).fetchone()[0] >= 10:
+                raise AccountError('Too many account requests. Please try again later.', 429, 'REGISTRATION_RATE_LIMIT')
+            connection.execute("INSERT INTO users (id,username,password_hash,is_admin,created_at,approval_status) VALUES (?,?,?,0,?,'pending')", (user['id'], username, encoded, time.time()))
+            connection.execute('INSERT INTO registration_requests (id,email,request_ip,approval_token,created_at) VALUES (?,?,?,?,?)', (user['id'], email, request_ip, secrets.token_hex(8), time.time()))
+            connection.execute("INSERT INTO registration_outbox (request_id,kind) VALUES (?,'owner_notification')", (user['id'],))
         return user
+
+    def registration_request(self, request_id):
+        with self.connection() as connection:
+            row = connection.execute('SELECT r.*,u.username FROM registration_requests r JOIN users u ON u.id=r.id WHERE r.id=?', (request_id,)).fetchone()
+        return dict(row) if row else None
+
+    def decide_registration(self, request_id, decision, token, actor):
+        if str(actor) != '8645802908':
+            raise AccountError('Only the account owner may decide account requests.', 403, 'OWNER_REQUIRED')
+        if decision not in ('approved','declined'):
+            raise AccountError('Invalid account decision.', 400)
+        with self.storage_lock, self.connection() as connection:
+            connection.execute('BEGIN IMMEDIATE')
+            row = connection.execute('SELECT * FROM registration_requests WHERE id=?', (request_id,)).fetchone()
+            if not row or not isinstance(token,str) or not secrets.compare_digest(row['approval_token'], token):
+                raise AccountError('Invalid approval request.', 403, 'INVALID_APPROVAL')
+            if row['status'] != 'pending':
+                if row['status'] != decision:
+                    raise AccountError('This request has already been decided.', 409, 'ALREADY_DECIDED')
+                return {'id':request_id,'status':decision,'already_decided':True}
+            if decision == 'approved':
+                checked_path(self.users_root / request_id, self.users_root).mkdir(mode=0o700,exist_ok=True)
+            connection.execute('UPDATE registration_requests SET status=?,decided_at=?,decided_by=? WHERE id=?', (decision,time.time(),str(actor),request_id))
+            connection.execute('UPDATE users SET approval_status=? WHERE id=?', ('active' if decision == 'approved' else 'declined',request_id))
+            connection.execute('DELETE FROM sessions WHERE user_id=?', (request_id,))
+            connection.execute('INSERT INTO registration_audit (request_id,action,actor,created_at) VALUES (?,?,?,?)', (request_id,decision,str(actor),time.time()))
+            if decision == 'approved':
+                connection.execute("INSERT OR IGNORE INTO registration_outbox (request_id,kind) VALUES (?,'approval_email')", (request_id,))
+        return {'id':request_id,'status':decision,'already_decided':False}
 
     def login(self, username, password):
         username = normalize_username(username)
@@ -296,6 +401,9 @@ class Accounts:
         encoded = row['password_hash'] if row else f'pbkdf2_sha256${PASSWORD_ITERATIONS}${"00" * 16}${"00" * 32}'
         if not verify_password(password, encoded) or row is None:
             raise AccountError('Invalid username or password.', 401, 'INVALID_CREDENTIALS')
+        if row['approval_status'] != 'active':
+            message = 'Your account is awaiting approval. We will email you when it is approved.' if row['approval_status'] == 'pending' else 'This account request was not approved. Please contact the owner.'
+            raise AccountError(message, 403, 'ACCOUNT_PENDING' if row['approval_status']=='pending' else 'ACCOUNT_DECLINED')
         return {key: row[key] for key in ('id', 'username', 'is_admin')}
 
     def session_user(self, token):
@@ -303,8 +411,8 @@ class Accounts:
             return None
         try:
             with self.connection() as connection:
-                row = connection.execute('''SELECT users.id, users.username, users.is_admin FROM sessions
-                    JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires_at>?''',
+                row = connection.execute("""SELECT users.id, users.username, users.is_admin FROM sessions
+                    JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires_at>? AND users.approval_status='active'""",
                                          (hashlib.sha256(token.encode()).hexdigest(), time.time())).fetchone()
             return dict(row) if row else None
         except AccountError as error:
@@ -315,6 +423,9 @@ class Accounts:
     def new_session(self, user, old_token=None):
         token = secrets.token_hex(32)
         with self.connection() as connection:
+            active = connection.execute("SELECT 1 FROM users WHERE id=? AND approval_status='active'",(user['id'],)).fetchone()
+            if not active:
+                raise AccountError('Account approval is required before login.',403,'ACCOUNT_PENDING')
             connection.execute('DELETE FROM sessions WHERE expires_at<=?', (time.time(),))
             if old_token:
                 connection.execute('DELETE FROM sessions WHERE token_hash=?', (hashlib.sha256(old_token.encode()).hexdigest(),))
@@ -329,7 +440,7 @@ class Accounts:
 
     def usernames(self):
         with self.connection() as connection:
-            return [{'username': row['username']} for row in connection.execute('SELECT username FROM users ORDER BY username')]
+            return [{'username': row['username']} for row in connection.execute("SELECT username FROM users WHERE approval_status='active' ORDER BY username")]
 
     @staticmethod
     def file_signature(path):
@@ -415,6 +526,22 @@ class Accounts:
                 result[filename] = {'createdBy': row['creator'], 'sharedBy': row['sharer']}
         return result
 
+    def clear_wav_comments(self, user, filename):
+        """Reset recipient-copy WAV notes, preserving reactions and unrelated feedback."""
+        path = checked_path(self.path_for('repository_feedback', user))
+        try:
+            store = json.loads(path.read_text(encoding='utf-8'))
+        except FileNotFoundError:
+            return
+        item = store.get('items', {}).get('/mygrain-wavs::' + filename)
+        if not isinstance(item, dict):
+            return
+        item['comment'] = ''
+        item['commentBy'] = None
+        temporary = path.with_suffix('.json.tmp')
+        temporary.write_text(json.dumps(store, indent=2, sort_keys=True), encoding='utf-8')
+        temporary.replace(path)
+
     def share(self, filename, recipient_username):
         owner = current_user()
         recipient = self.lookup_user(recipient_username)
@@ -451,6 +578,10 @@ class Accounts:
                 with destination.open('rb') as copied:
                     for chunk in iter(lambda: copied.read(1024 * 1024), b''):
                         digest.update(chunk)
+                if self.wav_art_copy:
+                    self.wav_art_copy(source.parent, source.name, root, destination.name)
+                self.clear_wav_comments(recipient, destination.name)
+                # Sender notes are private source metadata, not part of the copy.
                 now = time.time()
                 identifier = secrets.token_hex(16)
                 with self.connection() as connection:
@@ -577,6 +708,42 @@ def decoded_route_path(path):
     return decoded
 
 
+def guest_login_document(editor):
+    """Reuse the current opening UI without transferring/parsing the inert editor.
+
+    The caller must use the authenticated server session, not a query parameter,
+    to select this document. Login reloads the same URL into the full editor.
+    """
+    source = editor.decode('utf-8')
+
+    def required(pattern):
+        match = re.search(pattern, source, re.DOTALL)
+        if not match:
+            raise ValueError('MYGRAIN opening screen markers are missing.')
+        return match.group(0)
+
+    startup_style = required(r'<style id="mygrain-startup-style">.*?</style>')
+    startup_script = required(r'<script id="mygrain-startup-script">.*?</script>')
+    account_style = required(r'<link id="mygrainAccountStyles"[^>]*>')
+    notes_script = required(r'<script src="mygrain-load-notes\.js[^\"]*"></script>')
+    account_script = required(r'<script src="mygrain-accounts\.js[^\"]*"></script>')
+    opening = required(r'<!-- Start Overlay -->.*?<!-- Fullscreen Button -->')
+    brand = required(r'<link rel="apple-touch-icon"[^>]*>')
+    # Account code still owns the inert template, complete handlers, storage and
+    # reveal gate. No parallel login implementation or client-side identity hint.
+    return ('''<!DOCTYPE html>
+<html lang="en" data-mygrain-startup="loading" aria-busy="true" data-mygrain-guest-shell="20261028-login-fast-1">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MYGRAIN">
+<title>MYGRAIN</title><style>html,body{margin:0;background:#040a12;color:#fff;font-family:system-ui,sans-serif}</style>
+''' + startup_style + startup_script + brand + account_style + notes_script + '''</head>
+<body class="simplified-ui granular-sampler-mode">
+<script>window.mygrainAccountContext={user:null};</script>
+''' + account_script + '''<script>if(!window.mygrainAccounts){document.addEventListener('DOMContentLoaded',()=>window.mygrainStartup.fail('Account controls could not load. Reload MYGRAIN when connected; your saved workspace is unchanged.'),{once:true});}</script>
+''' + opening + '</template></body></html>').encode('utf-8')
+
+
 def public_asset(inner):
     filename = inner.lstrip('/') or 'index.html'
     parts = pathlib.PurePosixPath(filename).parts
@@ -595,7 +762,7 @@ def bind_media_urls(payload):
         return payload
     result = {}
     for key, value in payload.items():
-        if key in ('url', 'previewUrl', 'audioUrl', 'renderUrl', 'downloadUrl') and isinstance(value, str) and value.startswith('/mygrain'):
+        if key in ('url', 'previewUrl', 'audioUrl', 'renderUrl', 'downloadUrl', 'thumbnailUrl') and isinstance(value, str) and value.startswith('/mygrain'):
             address, fragment_separator, fragment = value.partition('#')
             separator = '&' if '?' in address else '?'
             result[key] = address + separator + 'mygrainUser=' + quote(user['username']) + (fragment_separator + fragment if fragment_separator else '')
@@ -613,3 +780,28 @@ def request_wrapper(method):
         finally:
             CURRENT_USER.reset(token)
     return guarded
+
+
+def normalize_registration_email(value):
+    if not isinstance(value,str) or len(value)>254 or any(ord(c)<33 or ord(c)==127 for c in value):
+        raise AccountError('Enter a valid email address for approval notification.',400,'INVALID_EMAIL')
+    try:
+        local,domain=value.rsplit('@',1)
+        domain=domain.encode('idna').decode('ascii').lower()
+    except (ValueError,UnicodeError):
+        raise AccountError('Enter a valid email address.',400,'INVALID_EMAIL') from None
+    if not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}",local) or local.startswith('.') or local.endswith('.') or '..' in local or len(domain)>253 or '.' not in domain or any(not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?',label) for label in domain.split('.')):
+        raise AccountError('Enter a valid email address.',400,'INVALID_EMAIL')
+    return local+'@'+domain
+
+
+def registration_client_ip(handler):
+    try:
+        peer=ipaddress.ip_address(handler.client_address[0])
+        # Only Caddy's loopback connection may attribute an original remote IP.
+        # Rightmost hop is appended by the local proxy; never trust arbitrary clients.
+        if peer.is_loopback and handler.headers.get('X-Forwarded-For'):
+            return str(ipaddress.ip_address(handler.headers['X-Forwarded-For'].split(',')[-1].strip()))
+        return str(peer)
+    except ValueError:
+        return 'unknown'

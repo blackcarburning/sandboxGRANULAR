@@ -151,6 +151,47 @@ test('main-thread lateness is measured separately from audio-clock progress', ()
     assert.equal(capture.events.at(-1).type, 'main-thread-delay');
 });
 
+test('gradually slow audio is detected even when JS is responsive and the clock never freezes', () => {
+    const setup = fixture();
+    setup.monitor.start();
+    for (let index = 0; index < 10; index += 1) setup.advance(1000, .7);
+    const capture = setup.monitor.snapshot();
+    assert.equal(capture.timing.maximumDelayMs, 0);
+    assert.equal(capture.timing.audioClockStallSamples, 0);
+    assert.equal(capture.timing.audioClockProgressRatio, .7);
+    assert.equal(capture.timing.audioClockProgressWindowMs, 5000);
+    assert.equal(capture.timing.audioClockSlowWindows, 2);
+    assert.equal(capture.events.filter(e => e.type === 'audio-clock-slow').length, 1);
+    assert.equal(setup.timers.size, 1);
+    for (let index = 0; index < 5; index += 1) setup.advance();
+    assert.equal(setup.monitor.snapshot().timing.audioClockProgressRatio, 1);
+    assert.equal(setup.monitor.snapshot().events.at(-1).type, 'audio-clock-recovered');
+});
+
+test('clock progress windows exclude hidden, suspended and replaced context boundaries', () => {
+    const setup = fixture();
+    setup.monitor.start();
+    for (let index = 0; index < 4; index += 1) setup.advance(1000, .1);
+    setup.host.document.visibilityState = 'hidden';
+    setup.host.document.emit('visibilitychange');
+    setup.advance(30000, 0);
+    setup.host.document.visibilityState = 'visible';
+    setup.host.document.emit('visibilitychange');
+    setup.advance();
+    for (let index = 0; index < 4; index += 1) setup.advance();
+    assert.equal(setup.monitor.snapshot().timing.audioClockProgressRatio, null);
+    setup.context.state = 'suspended';
+    setup.context.emit('statechange');
+    setup.advance(10000, 0);
+    setup.context = eventTarget({ state: 'running', currentTime: 0, sampleRate: 48000 });
+    setup.advance();
+    for (let index = 0; index < 5; index += 1) setup.advance();
+    const capture = setup.monitor.snapshot();
+    assert.equal(capture.timing.audioClockProgressRatio, 1);
+    assert.equal(capture.timing.audioClockSlowWindows, 0);
+    assert.ok(!capture.events.some(e => e.type === 'audio-clock-slow'));
+});
+
 test('a running but frozen audio clock records consecutive stalls without claiming hardware underruns', () => {
     const setup = fixture();
     setup.monitor.start();
@@ -330,4 +371,50 @@ test('device/rotation changes are recorded without enumerating devices or exposi
     assert.ok(capture.events.some(entry => entry.type === 'orientationchange'));
     setup.monitor.stop();
     assert.equal(setup.host.navigator.mediaDevices.listeners.get('devicechange').size, 0);
+});
+
+test('repeated error storms keep counts without evicting control breadcrumbs or adding timers', () => {
+    const setup = fixture(); setup.monitor.start();
+    setup.monitor.record('loop-cut-control', { control: 'bastardLoopVCutEnabled' });
+    for (let i = 0; i < 100; i++) setup.monitor.record('error', { message: 'Script error.' });
+    const snapshot = setup.monitor.snapshot();
+    assert.equal(snapshot.events.find(e => e.type === 'error').count, 100);
+    assert(snapshot.events.some(e => e.type === 'loop-cut-control'));
+    assert.equal(snapshot.events.filter(e => e.type === 'error').length, 1);
+    setup.advance(); setup.monitor.record('error', { message: 'Script error.' });
+    assert.equal(setup.monitor.snapshot().events.filter(e => e.type === 'error').length, 2);
+    assert.equal(setup.timers.size, 1);
+});
+
+test('history retains undo memory, VU timers and cut context alongside the clock', () => {
+    const setup = fixture({ monitor: { getState: () => ({ vuMeters: { active: 0, timer: false },
+        undoMemory: { additionalPCMBytes: 1234, limit: 2 }, loopCuts: { V: { enabled: true, start: .2 } } }) } });
+    setup.monitor.start();
+    const row = setup.monitor.snapshot().history.at(-1);
+    assert.equal(row.undoMemory.additionalPCMBytes, 1234);
+    assert.equal(row.vuMeters.timer, false);
+    assert.equal(row.loopCuts.V.start, .2);
+});
+
+test('bounded history retains sleep ownership and processing state at the time of a slowdown', () => {
+    let phase = 'playing';
+    const setup = fixture({ monitor: { getState: () => ({
+        idleAudio: { idleSuspended: phase === 'sleeping', playing: phase === 'playing' },
+        processing: { lowPower: false, modulation: { calls: 10, maximumMs: 2 },
+            loopFx: [{ key: 'W', sources: 1, hallOn: false }] },
+        effects: { values: { finalReverbMix: '0' } }
+    }) } });
+    setup.monitor.start();
+    setup.advance(10000);
+    phase = 'sleeping';
+    setup.context.state = 'suspended';
+    setup.advance(10000, 0);
+    const rows = setup.monitor.snapshot().history;
+    assert.equal(rows.at(-2).idleAudio.playing, true);
+    assert.equal(rows.at(-1).idleAudio.idleSuspended, true);
+    assert.equal(rows.at(-1).processing.loopFx[0].sources, 1);
+    assert.equal(rows.at(-1).effects.values.finalReverbMix, '0');
+    assert.equal(setup.timers.size, 1);
+    for (let n = 0; n < 190; n++) setup.advance(10000, 0);
+    assert.equal(setup.monitor.snapshot().history.length, 180);
 });

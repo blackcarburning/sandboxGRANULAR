@@ -515,7 +515,9 @@ also works. Opening notes does not change playback, saved data or cache state.
    If that part is already recalled, Amend keeps its current live edits rather
    than loading over them. Recall/edit/Amend/Save is therefore safe as well.
 9. **Delete** removes a part from the order after confirmation. Its files and
-   metadata are retained for server-side recovery, not erased.
+   metadata are retained for server-side recovery, not erased. After a successful
+   deletion, the view jumps to the top of Song after the parts list finishes
+   updating. Cancelled or failed deletions do not request this jump.
 10. Each song row has a **Repeats** box (1–64 whole patterns). Changes save to
    the server when you leave the box or press Enter; the displayed duration
    updates after saving. **Rename** changes names; **↑/↓** changes order. These

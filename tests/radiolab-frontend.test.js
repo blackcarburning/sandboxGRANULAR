@@ -388,8 +388,8 @@ test('HTML integration has stable controls, private folders, guarded full-file l
     assert.match(html, /GRAIN_SAMPLE_BROWSER_SOURCE_LABELS = \{\s+samples_radiolab: 'SAMPLES_RADIOLAB'/);
     assert.match(html, /BASTARD_LOOP_SOURCE_LABELS = \{\s+samples_radiolab: 'SAMPLES_RADIOLAB'/);
     assert.match(html, /id="performanceBastardLoopVSampleFolder"[^>]*><option value="samples_radiolab"/);
-    assert.equal(BUILD, 'v2026.10.17.R.11');
-    const buildMarkers = Array.from(html.matchAll(/Build <strong>(v\d{4}\.\d{2}\.\d{2}\.[A-Z]+\.\d+)<\/strong>/g), match => match[1]);
+    assert.equal(BUILD, 'v2026.10.27.RADIO-V.1');
+    const buildMarkers = Array.from(html.matchAll(/Build <strong>(v\d{4}\.\d{2}\.\d{2}\.[A-Z-]+\.\d+)<\/strong>/g), match => match[1]);
     assert.equal(buildMarkers.length, 2);
     assert.equal(new Set(buildMarkers).size, 1);
     const dialog = html.match(/<dialog id="radiolabSamplesDialog"[\s\S]*?<\/dialog>/)[0];
@@ -592,6 +592,7 @@ function manualRecordController(hooks = {}) {
             requests.push(request);
             return hooks.fetch ? hooks.fetch(request) : Promise.resolve(response);
         },
+        setInterval, clearInterval,
         setTimeout(handler) { timers.set(++timerId, handler); return timerId; },
         clearTimeout(identifier) { timers.delete(identifier); }
     };

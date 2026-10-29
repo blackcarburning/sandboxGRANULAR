@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const BUILD = 'v2026.10.19.V.2';
+    const BUILD = 'v2026.10.28.INSTAGRAM.1';
     const MAX_SECONDS = 180;
     const MAX_BYTES = 128 * 1024 * 1024;
     const BUILTIN = Object.freeze({ id: 'bbc-archive', name: 'BBC Archive', url: 'https://www.youtube.com/@BBCArchive', builtin: true });
@@ -19,6 +19,17 @@
         const channel = url.pathname.replace(/\/$/, '');
         if (/^\/@[A-Za-z0-9_.%-]+(?:\/(?:videos|featured|shorts|streams))?$/.test(channel) || /^\/(?:channel|c|user)\/[A-Za-z0-9_.%-]+(?:\/(?:videos|featured|shorts|streams))?$/.test(channel)) return { kind: 'channel', url: `https://www.youtube.com${channel}` };
         throw new Error('Choose one video or save a channel bookmark. Playlist downloads are not supported.');
+    }
+
+    function parseSourceURL(value) {
+        let url;
+        try { url = new URL(String(value).trim()); } catch { throw new Error('Paste a complete YouTube or Instagram Reel URL.'); }
+        if (['instagram.com', 'www.instagram.com', 'm.instagram.com'].includes(url.hostname)) {
+            const match = url.pathname.match(/^\/(?:reel|reels)\/([A-Za-z0-9_-]{5,28})\/?$/);
+            if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash || !match) throw new Error('Use a direct HTTPS Instagram Reel link, not a profile, story or collection.');
+            return { kind: 'video', source: 'instagram', videoID: match[1], url: `https://www.instagram.com/reel/${match[1]}/` };
+        }
+        return { ...parseYouTubeURL(value), source: 'youtube' };
     }
 
     function captureSettings(start, duration) {
@@ -122,6 +133,9 @@
                 if (binary && (!payload.byteLength || payload.byteLength > MAX_BYTES)) throw new Error('Server audio is empty or too large. Previous take retained.');
                 if (!binary && payload.ok === false) throw new Error(typeof payload.error === 'string' ? payload.error : 'Video Lab request failed.');
                 return payload;
+            } catch (error) {
+                if (abort.signal.aborted) throw new Error('Video Lab request cancelled or timed out after 45 seconds. Close and reopen the browser to retry.');
+                throw error;
             } finally {
                 this.root.clearTimeout(timer);
                 this.requests.delete(abort);
@@ -164,6 +178,11 @@
             this.dialog.addEventListener('close', () => { if (!this.clearing && !this.closed) this.close(); });
             this.element('videolabSavedURL').addEventListener('change', event => { this.element('videolabURL').value = event.target.value; this.urlChanged(); });
             this.element('videolabURL').addEventListener('input', () => this.urlChanged());
+            this.element('videolabSource').addEventListener('change', () => {
+                this.element('videolabURL').value = this.element('videolabSource').value === 'instagram' ? '' : BUILTIN.url;
+                this.urlChanged();
+                this.status(this.element('videolabSource').value === 'instagram' ? 'Paste a public Instagram Reel link. Audio only: the mixed soundtrack, not isolated music or vocals. No Instagram login connected.' : 'Choose a YouTube video or channel bookmark.');
+            });
             this.element('videolabLoadTarget').addEventListener('change', () => { this.stopPreview(); this.renderSamples(); });
             for (const [id, boundary] of [['videolabTrimStart', 'start'], ['videolabTrimEnd', 'end']]) this.element(id).addEventListener('input', event => this.setTrim(boundary, Number(event.target.value)));
             const canvas = this.element('videolabWaveform');
@@ -201,7 +220,8 @@
             this.locked = !this.username;
             this.status(this.locked ? 'Log in to use your private Video Lab.' : 'Choose a video URL. Start MYGRAIN, then tap Record/Fetch audio.');
             this.render();
-            if (!this.locked) return this.run(() => this.refreshBookmarks());
+            // Bookmarks must not block opening the sample browser or desktop navigation.
+            if (!this.locked) this.refreshBookmarks().catch(error => { if (!this.closed && !this.locked) this.status('Bookmarks: ' + (error.message || 'Could not load. Reopen Video Lab to retry.')); });
         }
 
         close(lock = false) {
@@ -249,11 +269,15 @@
 
         updateURL() {
             let parsed;
-            try { parsed = parseYouTubeURL(this.element('videolabURL').value); } catch {}
+            try { parsed = parseSourceURL(this.element('videolabURL').value); } catch {}
+            const source = this.element('videolabSource');
+            if (parsed) source.value = parsed.source;
+            this.element('videolabURL').placeholder = source.value === 'instagram' ? 'https://www.instagram.com/reel/…/' : 'https://www.youtube.com/watch?v=…';
             const link = this.element('videolabOpenURL');
+            link.textContent = source.value === 'instagram' ? 'Open Reel on Instagram' : 'Open archive / video';
             if (parsed && !this.locked && !this.closed && !this.busy && !this.capture) { link.href = parsed.url; link.removeAttribute('aria-disabled'); link.removeAttribute('tabindex'); }
             else { link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); link.setAttribute('tabindex', '-1'); }
-            this.element('videolabURLHelp').textContent = parsed?.kind === 'channel' ? 'Channel bookmark: open the archive, choose one video, then paste its video URL here. Channels and playlists are not fetched.' : parsed ? 'Single video selected. Enter the source start time and a finite duration (120 seconds by default, maximum 180).' : 'Paste a valid YouTube video URL, or save a channel bookmark. Playlist downloads are not supported.';
+            this.element('videolabURLHelp').textContent = parsed?.kind === 'channel' ? 'Channel bookmark: open the archive, choose one video, then paste its video URL here. Channels and playlists are not fetched.' : parsed ? (parsed.source === 'instagram' ? 'Public Reel selected · mixed soundtrack only. Login-required, private or rate-limited Reels cannot be imported yet. Choose start time and up to 180 seconds.' : 'Single video selected. Enter the source start time and a finite duration (120 seconds by default, maximum 180).') : (source.value === 'instagram' ? 'Paste a direct public Instagram Reel link. Instagram login is not connected; restricted Reels will show an explanation.' : 'Paste a valid YouTube video URL, or save a channel bookmark. Playlist downloads are not supported.');
             return parsed;
         }
 
@@ -264,7 +288,7 @@
             this.bookmarks = [BUILTIN];
             for (const item of entries) {
                 try {
-                    const parsed = parseYouTubeURL(item.url);
+                    const parsed = parseSourceURL(item.url);
                     if (parsed.url === BUILTIN.url) { this.bookmarks[0] = { ...BUILTIN, id: item.id || BUILTIN.id, name: String(item.name || BUILTIN.name).slice(0, 100) }; continue; }
                     if (seen.has(parsed.url)) continue;
                     seen.add(parsed.url);
@@ -281,14 +305,14 @@
             for (const bookmark of this.bookmarks) {
                 const option = this.root.document.createElement('option');
                 option.value = bookmark.url;
-                option.textContent = `${bookmark.name}${parseYouTubeURL(bookmark.url).kind === 'channel' ? ' · channel' : ''}`;
+                option.textContent = `${bookmark.name}${parseSourceURL(bookmark.url).source === 'instagram' ? ' · Reel' : parseSourceURL(bookmark.url).kind === 'channel' ? ' · channel' : ''}`;
                 select.append(option);
             }
             select.value = selected;
         }
 
         async saveURL() {
-            const parsed = parseYouTubeURL(this.element('videolabURL').value);
+            const parsed = parseSourceURL(this.element('videolabURL').value);
             const name = this.element('videolabBookmarkName').value.trim();
             if (!name || name.length > 100) throw new Error('Give this URL a name (1–100 characters).');
             await this.request('bookmarks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url: parsed.url }) });
@@ -298,13 +322,13 @@
 
         showVideo() {
             this.context();
-            const parsed = parseYouTubeURL(this.element('videolabURL').value);
+            const parsed = parseSourceURL(this.element('videolabURL').value);
             if (parsed.kind !== 'video') throw new Error('Open the archive and choose a single video first.');
             this.hideVideo();
             const frame = this.root.document.createElement('iframe');
             frame.id = 'videolabYouTubeFrame';
-            frame.title = 'YouTube video preview · native controls';
-            frame.src = `https://www.youtube.com/embed/${parsed.videoID}?controls=1&playsinline=1&autoplay=0`;
+            frame.title = parsed.source === 'instagram' ? 'Instagram Reel preview' : 'YouTube video preview · native controls';
+            frame.src = parsed.source === 'instagram' ? `${parsed.url}embed/` : `https://www.youtube.com/embed/${parsed.videoID}?controls=1&playsinline=1&autoplay=0`;
             frame.allow = 'encrypted-media; fullscreen; picture-in-picture';
             frame.referrerPolicy = 'strict-origin-when-cross-origin';
             frame.allowFullscreen = true;
@@ -342,7 +366,7 @@
         async fetchAudio() {
             this.assertActive();
             if (this.capture || this.busy) return;
-            const parsed = parseYouTubeURL(this.element('videolabURL').value);
+            const parsed = parseSourceURL(this.element('videolabURL').value);
             if (parsed.kind !== 'video') throw new Error('Channel bookmark: open the archive, choose one video and paste its URL. No channel or playlist is downloaded.');
             const settings = captureSettings(this.element('videolabStart').value, this.element('videolabDuration').value);
             const context = this.context();
@@ -385,10 +409,10 @@
                 this.assertCapture(operation);
                 if (context !== this.adapter.getContext?.() || context.state !== 'running') throw new Error('MYGRAIN audio state changed. Previous take retained; start MYGRAIN and retry.');
                 const capture = payload.capture || payload;
-                const recorder = seedRecorder(buffer, this.root.MygrainRadiolab, { source: { title: String(capture.source?.title || 'YouTube video').slice(0, 200), url: parsed.url }, ...settings });
+                const recorder = seedRecorder(buffer, this.root.MygrainRadiolab, { source: { title: String(capture.source?.title || capture.title || (parsed.source === 'instagram' ? 'Instagram Reel' : 'YouTube video')).slice(0, 200), url: parsed.url }, ...settings });
                 this.recorder?.clear();
                 this.recorder = recorder;
-                this.element('videolabSampleName').value = String(capture.source?.title || 'Video take').slice(0, 100);
+                this.element('videolabSampleName').value = String(capture.source?.title || capture.title || (parsed.source === 'instagram' ? 'Instagram Reel' : 'Video take')).slice(0, 100);
                 this.status(`Take ready: ${recorder.duration.toFixed(2)} s. Trim, Preview, Normalise and Save. No playback was started.`);
             } catch (error) {
                 if (this.capture === operation && operation.epoch === this.epoch) this.status(`${error.message || 'Server retrieval failed.'} Previous take retained.`);
@@ -537,11 +561,19 @@
             const target = this.element('videolabLoadTarget').value;
             if (!Object.hasOwn(TARGETS, target)) throw new Error('Choose Apply, V, Grain A or Grain B.');
             const guard = () => { this.assertActive(epoch); this.assertBrowser(generation); if (context !== this.context()) throw new Error('MYGRAIN audio context changed. Retry loading this sample.'); };
-            const body = await this.sampleBody(sample, generation);
-            guard();
-            this.stopPreview();
-            await this.adapter.load(body, sample, target, guard);
-            guard();
+            let phase = 'Downloading audio';
+            const started = Date.now();
+            const progress = message => { phase = message; this.status(`${message}…`, true); };
+            progress(`Downloading “${sample.name || sample.filename}” for ${TARGETS[target]}`);
+            const ticker = this.root.setInterval(() => { if (this.dialog.open && generation === this.browserEpoch) this.status(`${phase}… ${Math.floor((Date.now()-started)/1000)}s elapsed. Please keep this browser open.`, true); }, 5000);
+            try {
+                const body = await this.sampleBody(sample, generation);
+                guard();
+                this.stopPreview();
+                progress(`Decoding and loading audio into ${TARGETS[target]}`);
+                await this.adapter.load(body, sample, target, guard, progress);
+                guard();
+            } finally { this.root.clearInterval(ticker); }
             this.status(`Loaded “${sample.name || sample.filename}” into ${TARGETS[target]}. Playback was not started.`, true);
         }
 
@@ -661,7 +693,7 @@
         render() {
             const blocked = this.locked || this.closed || this.busy || Boolean(this.capture);
             const parsed = this.updateURL();
-            for (const id of ['videolabSavedURL', 'videolabURL', 'videolabBookmarkName', 'videolabSaveURL', 'videolabStart', 'videolabDuration', 'videolabBrowse', 'videolabSampleName']) this.element(id).disabled = blocked;
+            for (const id of ['videolabSource', 'videolabSavedURL', 'videolabURL', 'videolabBookmarkName', 'videolabSaveURL', 'videolabStart', 'videolabDuration', 'videolabBrowse', 'videolabSampleName']) this.element(id).disabled = blocked;
             this.element('videolabFetch').disabled = blocked || parsed?.kind !== 'video';
             this.element('videolabShowVideo').disabled = blocked || parsed?.kind !== 'video';
             this.element('videolabCancel').disabled = !this.capture;
@@ -702,6 +734,7 @@
 
         drawWaveform() {
             const canvas = this.element('videolabWaveform');
+            if(this.root.mygrainDisplay&&!this.root.mygrainDisplay.canDraw(canvas,()=>this.drawWaveform()))return;
             const painter = canvas.getContext('2d');
             if (!painter) return;
             if (!this.recorder?.frames) { painter.clearRect(0, 0, canvas.width, canvas.height); return; }
@@ -740,12 +773,12 @@
         const card = root.document.getElementById('performanceVideoLabCard');
         if (!card || !root.MygrainRadiolab?.PCMRecorder || typeof root.mygrainVideolabAdapter?.getContext !== 'function' || typeof root.mygrainVideolabAdapter?.load !== 'function') return null;
         controller = new Controller(card, root.mygrainVideolabAdapter);
-        root.mygrainVideolab = Object.freeze({ get state() { return controller.state; }, open: () => controller.open(), close: () => controller.close(), openBrowser: async target => { if (controller.closed) await controller.open(); return controller.run(() => controller.openBrowser(target), true); } });
+        root.mygrainVideolab = Object.freeze({ get state() { return controller.state; }, open: () => controller.open(), close: () => controller.close(), openBrowser: async target => { if (controller.closed) controller.open(); if (controller.locked) throw new Error('Log in to open your private Video Lab samples.'); if (controller.busy || controller.capture) throw new Error('Video Lab is busy. Finish or cancel its current action, then reopen the sample browser.'); return controller.run(() => controller.openBrowser(target), true); } });
         root.dispatchEvent(new Event('mygrain-videolab-ready'));
         return controller;
     }
 
-    const exported = { BUILD, MAX_SECONDS, MAX_BYTES, BUILTIN, TARGETS, parseYouTubeURL, captureSettings, capturePhase, apiBase, seedRecorder, Controller, boot };
+    const exported = { BUILD, MAX_SECONDS, MAX_BYTES, BUILTIN, TARGETS, parseYouTubeURL, parseSourceURL, captureSettings, capturePhase, apiBase, seedRecorder, Controller, boot };
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     root.MygrainVideolab = Object.freeze(exported);
     if (root.document && !root.__mygrainSongRenderDeck) {

@@ -1,0 +1,35 @@
+/* Static print-style instrument sleeves. No animation or audio changes. */
+body .instrument-splash{--splash-a:#f99036;--splash-b:#c53963;--splash-ink:#211827;--splash-paper:#fff0d2;box-sizing:border-box;width:calc(100% + 28px);max-width:calc(100% + 28px);justify-self:start;position:relative;isolation:isolate;display:flex;align-items:center;gap:14px;min-width:0;min-height:166px;margin:-14px -14px 2px;padding:25px 24px;overflow:hidden;border-radius:17px 17px 0 0;border-bottom:5px solid var(--splash-ink);background:repeating-linear-gradient(125deg,var(--splash-a) 0 26px,var(--splash-b) 26px 45px);color:var(--splash-ink)}
+body .instrument-splash:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,transparent 30%,#0002);pointer-events:none}
+body .instrument-splash-copy{position:relative;flex:1;min-width:0;padding:14px 18px;background:var(--splash-paper);border:2px solid var(--splash-ink);border-radius:3px;box-shadow:6px 6px 0 #0004;transform:rotate(-1deg)}
+body .instrument-splash .performance-feature-title{margin:4px 0!important;color:var(--splash-ink)!important;font-size:clamp(25px,3.2vw,40px)!important;line-height:1.05!important;font-weight:950!important;letter-spacing:-.035em!important;text-transform:none!important;text-shadow:none!important;overflow-wrap:anywhere}
+body .instrument-splash-kicker{display:block;font-size:9px;font-weight:900;letter-spacing:.17em;line-height:1.5;color:var(--splash-ink)}
+body .instrument-splash-tagline{margin:8px 0 0!important;color:var(--splash-ink)!important;font-size:13px!important;line-height:1.35!important;font-weight:700}
+body .instrument-splash-badge{position:relative;flex-shrink:0;align-self:flex-start;display:grid;place-items:center;min-width:38px;min-height:38px;padding:6px 9px;background:var(--splash-ink);color:var(--splash-paper);border:2px solid var(--splash-paper);box-shadow:3px 3px 0 #0004;font:900 24px/1 monospace;transform:rotate(-4deg)}
+body .instrument-splash-art{flex:0 0 100px;color:var(--splash-ink);filter:drop-shadow(2px 2px 0 #ffffff55);transform:rotate(6deg)}.instrument-splash-art svg{display:block;width:100%;height:auto}
+body .instrument-splash[data-instrument="B"]{--splash-a:#f9b942;--splash-b:#f45a36;--splash-paper:#fff1a8;background:repeating-linear-gradient(35deg,var(--splash-a) 0 15px,var(--splash-b) 15px 22px)}
+body .instrument-splash[data-instrument="C"]{--splash-a:#b4f439;--splash-b:#375a37;--splash-paper:#e2ffb3;background:repeating-linear-gradient(115deg,var(--splash-a) 0 24px,var(--splash-b) 24px 30px,var(--splash-a) 30px 40px)}
+body .instrument-splash[data-instrument="V"]{--splash-a:#fd789b;--splash-b:#993f72;--splash-paper:#ffe2ed;background:repeating-radial-gradient(ellipse at 100% 50%,var(--splash-a) 0 13px,var(--splash-b) 14px 20px)}
+body .instrument-splash[data-instrument="W"]{--splash-a:#c497fa;--splash-b:#5143a6;--splash-paper:#e9dcff;background:repeating-linear-gradient(0deg,transparent 0 20px,#28234755 20px 23px),repeating-linear-gradient(90deg,var(--splash-a) 0 20px,var(--splash-b) 20px 23px)}
+body .instrument-splash[data-instrument="P"]{--splash-a:#edd9a0;--splash-b:#31302a;--splash-paper:#fff7e0;background:repeating-linear-gradient(90deg,var(--splash-a) 0 30px,var(--splash-b) 30px 42px,var(--splash-a) 42px 57px)}
+body .instrument-splash[data-instrument="O"]{--splash-a:#d4af52;--splash-b:#7c2b40;--splash-paper:#fff0b8;background:repeating-radial-gradient(ellipse at 50% 130%,var(--splash-a) 0 20px,var(--splash-b) 21px 34px)}
+body .instrument-splash[data-instrument="L"]{--splash-a:#ffab53;--splash-b:#c9403e;--splash-paper:#ffe2bb;background:repeating-linear-gradient(155deg,var(--splash-a) 0 17px,var(--splash-b) 17px 21px)}
+body .instrument-splash[data-instrument="X"]{--splash-a:#50d6b1;--splash-b:#276d69;--splash-paper:#d5ffdf;background:repeating-radial-gradient(ellipse at 100% 100%,var(--splash-a) 0 22px,var(--splash-b) 23px 32px)}
+body .instrument-splash[data-instrument="Q"]{--splash-a:#86bdf7;--splash-b:#6559b6;--splash-paper:#e5f0ff;background:repeating-linear-gradient(45deg,var(--splash-a) 0 22px,var(--splash-b) 22px 25px)}
+body .instrument-splash[data-instrument="M"]{--splash-a:#64ba87;--splash-b:#245847;--splash-paper:#d4f9df;background:repeating-linear-gradient(90deg,var(--splash-a) 0 25px,var(--splash-b) 25px 29px)}
+body .instrument-splash[data-instrument="M+"]{--splash-a:#efb477;--splash-b:#9b583e;--splash-paper:#ffecd1;background:repeating-linear-gradient(130deg,var(--splash-a) 0 16px,var(--splash-b) 16px 23px,var(--splash-a) 23px 30px,var(--splash-b) 30px 33px)}
+body .instrument-splash[data-instrument="K"]{--splash-a:#b7bca9;--splash-b:#515f61;--splash-paper:#f1eed8;background:repeating-linear-gradient(0deg,var(--splash-a) 0 18px,var(--splash-b) 18px 22px)}
+body .instrument-splash[data-instrument="dropbox"]{--splash-a:#71c4e1;--splash-b:#507ba6;--splash-paper:#dff8ff;background:repeating-radial-gradient(ellipse at 0 100%,var(--splash-a) 0 18px,var(--splash-b) 19px 24px)}
+body .instrument-splash[data-instrument="Drum Machine"]{--splash-a:#ee6550;--splash-b:#593441;--splash-paper:#ffe4b9;background:repeating-linear-gradient(135deg,var(--splash-a) 0 26px,var(--splash-b) 26px 34px)}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-badge,body .instrument-splash[data-instrument="Drum Machine"] .instrument-splash-badge{font-size:10px;max-width:66px;min-width:0;line-height:1.2;overflow-wrap:anywhere}
+@media(max-width:700px){body .instrument-splash{padding:19px 13px;gap:9px;min-height:154px}body .instrument-splash-copy{padding:12px 13px}body .instrument-splash-art{position:absolute;right:12px;bottom:10px;width:110px;opacity:.25;z-index:-1}body .instrument-splash .performance-feature-title{font-size:clamp(24px,7vw,35px)!important}body .instrument-splash-badge{min-width:29px;min-height:30px;font-size:19px;padding:5px}body .instrument-splash-kicker{font-size:8px;letter-spacing:.11em}body .instrument-splash-tagline{font-size:12px!important}}
+
+body.simplified-ui .performance-feature-card[data-instrument-splash]{min-width:0;grid-template-columns:minmax(0,1fr)}
+
+/* Broadcast sleeves: warm radio dial and cool CRT scan lines. */
+body .instrument-splash[data-instrument="R"]{--splash-a:#f0b45d;--splash-b:#936346;--splash-paper:#fff0c9;background:repeating-radial-gradient(ellipse at 100% 60%,var(--splash-a) 0 15px,var(--splash-b) 16px 21px)}
+body .instrument-splash[data-instrument="TV"]{--splash-a:#8bdfdc;--splash-b:#4d659c;--splash-paper:#dcfdf5;background:repeating-linear-gradient(0deg,transparent 0 8px,#26395844 8px 10px),repeating-linear-gradient(125deg,var(--splash-a) 0 26px,var(--splash-b) 26px 42px)}
+
+/* AI uses the same printed sleeve and line-art system as the instruments. */
+body .instrument-splash[data-instrument="AI"]{--splash-a:#95d9cf;--splash-b:#665bab;--splash-paper:#e8fff1;background:repeating-linear-gradient(135deg,var(--splash-a) 0 23px,var(--splash-b) 23px 31px)}
+body #aiPatchCard > .instrument-splash{width:calc(100% + 40px);max-width:calc(100% + 40px);margin:-20px -20px 16px}

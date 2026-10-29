@@ -434,3 +434,41 @@
     color: #c8d8eb;
     font-size: 12px;
 }
+
+.song-beta-copy-eqs, .song-beta-paste-targets { margin:0 0 16px; min-width:0; border:1px solid #566276; border-radius:8px; padding:12px; }
+.song-beta-copy-eqs summary, .song-beta-paste-targets summary { cursor:pointer; padding:8px 0; }
+.song-beta-eq-destination { min-width:0; display:grid; gap:4px; }
+.song-beta-eq-destination select { min-width:0; max-width:100%; width:100%; min-height:36px; color:#edf6ff; background:#222c38; border:1px solid #7d9bb5; border-radius:5px; }
+.song-beta-copy-dialog fieldset legend { padding:0 6px; }
+
+/* Persistent Amend feedback remains visible while the saved part prepares. */
+#songBetaAmendWait {
+    position: fixed;
+    z-index: 15000;
+    left: 50%;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(620px, calc(100vw - 24px));
+    padding: 16px 20px;
+    border: 2px solid #70e8ff;
+    border-radius: 12px;
+    background: #102a3b;
+    color: #eefaff;
+    box-shadow: 0 8px 30px #0009;
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.5;
+    pointer-events: none;
+    overflow-wrap: anywhere;
+}
+#songBetaCard .song-beta-amend-progress {
+    padding: 12px;
+    border: 1px solid #70e8ff;
+    border-radius: 8px;
+    background: #102a3b;
+    color: #eefaff;
+    font-size: 14px;
+    font-weight: 650;
+}

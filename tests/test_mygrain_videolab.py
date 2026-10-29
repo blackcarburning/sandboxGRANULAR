@@ -495,6 +495,38 @@ class VideoLabTests(unittest.TestCase):
         self.assertEqual(handler.reply[0], 401)
 
 
+    def test_instagram_bookmark_and_capture_source_are_private_and_canonical(self):
+        reel = 'https://www.instagram.com/reel/Chunk8-jurw/'
+        added = self.request('/bookmarks', 'POST', {'name': 'Public Reel', 'url': reel + '?igsh=share'})
+        self.assertEqual(added.reply[0], 200)
+        self.assertEqual(added.reply[1]['bookmarks'][-1]['url'], reel)
+        with self.as_user(self.dan):
+            self.assertEqual(LAB.bookmarks(), [LAB.BUILTIN])
+        with patch.object(LAB.threading, 'Thread'):
+            capture = self.request('/captures', 'POST', {'url': reel, 'startSeconds': 1, 'durationSeconds': 2})
+        self.assertEqual(capture.reply[0], 202)
+        job = LAB.JOBS[capture.reply[1]['capture']['id']]
+        self.assertEqual((job['source'], job['video'], job['startSeconds']), ('instagram', 'Chunk8-jurw', 1))
+        mismatch = self.request('/captures', 'POST', {'url': reel, 'source': 'youtube'})
+        self.assertEqual(mismatch.reply[0], 400)
+
+    def test_instagram_worker_login_failure_is_actionable_and_cleaned(self):
+        job = self.fake_job()
+        job.update(source='instagram', video='Chunk8-jurw', url='https://www.instagram.com/reel/Chunk8-jurw/')
+        process = Mock(pid=987654, returncode=1)
+        process.stdout.fileno.return_value = 123
+        process.poll.return_value = 1
+        failure = json.dumps({'ok': False, 'errorCode': 'access_required'}).encode()
+        with patch.dict(os.environ, {'MYGRAIN_VIDEOLAB_JOBS_ROOT': str(self.root / 'jobs')}), patch.object(LAB.subprocess, 'Popen', return_value=process) as spawn, patch.object(LAB.os, 'chown'), patch.object(LAB.os, 'set_blocking'), patch.object(LAB.os, 'read', side_effect=[failure, b'']), patch.object(LAB, 'terminate'):
+            LAB.run_capture(job, 'session-token', Mock(session_user=Mock(return_value=self.admin)))
+        self.assertEqual(spawn.call_args.args[0][-1], 'instagram')
+        self.assertEqual(job['status'], 'error')
+        self.assertIn('login is not connected yet', job['error'])
+        self.assertNotIn('directory', job)
+        self.assertFalse(job['running'])
+        self.assertEqual(list((self.root / 'jobs').iterdir()), [])
+
+
 class EgressTests(unittest.TestCase):
     def request(self, url, **kwargs):
         from yt_dlp.networking.common import Request

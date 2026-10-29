@@ -4,8 +4,8 @@
     function create(host) {
         const win = host.window || root, doc = win.document;
         if (win.__mygrainSongRenderDeck || !win.IntersectionObserver) return null;
-        const entries = [...doc.querySelectorAll('[data-k-track-meter]')].map(element => ({
-            element, index: Number(element.dataset.kTrackMeter), visible: false, tap: null,
+        const entries = [...doc.querySelectorAll(host.selector || '[data-k-track-meter]')].map(element => ({
+            element, index: host.index ? host.index(element) : Number(element.dataset.kTrackMeter), visible: false, tap: null,
             fill: element.querySelector('[data-k-vu-fill]'), peak: element.querySelector('[data-k-vu-peak]'),
             value: element.querySelector('[data-k-vu-value]'), db: -60, held: -60, holdUntil: 0,
             clipUntil: 0, lastLabel: '', lastText: -Infinity, lastDraw: ''
@@ -19,7 +19,10 @@
             for (const analyser of tap.analysers) try { analyser.disconnect(); } catch {}
             entry.tap = null;
         }
+        const blocked = () => win.mygrainMeters?.blocked || win.mygrainUiActivity?.busy;
+        function inViewport(entry) { const r = entry.element.getBoundingClientRect?.(); return !r || (r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < win.innerHeight && r.left < win.innerWidth); }
         function draw(entry, db, peak, clipped, now) {
+            if (blocked() || !inViewport(entry)) return;
             // Quantise the display to avoid rewriting unchanged/silent DOM on every sample.
             db = Math.round(db * 2) / 2; peak = Math.round(peak * 2) / 2;
             const key = `${db}/${peak}/${clipped}`;
@@ -27,10 +30,10 @@
                 // Reveal a fixed colour scale using a right-anchored dark mask.
                 entry.fill.style.transform = `scaleX(${1 - (db + 60) / 60})`;
                 entry.peak.style.left = `${(peak + 60) / 60 * 100}%`;
-                entry.element.classList.toggle('k-vu-clipped', clipped);
+                if (entry.lastClipped !== clipped) { entry.element.classList.toggle('k-vu-clipped', clipped); entry.lastClipped = clipped; }
                 entry.lastDraw = key;
             }
-            if (now - entry.lastText >= 250) {
+            if (now - entry.lastText >= 500) {
                 const label = db <= -60 ? '−∞' : `${Math.round(db)} dB`;
                 if (label !== entry.lastLabel) {
                     entry.value.textContent = label;
@@ -56,7 +59,7 @@
                 context = nextContext;
                 context?.addEventListener('statechange', syncState);
             }
-            const enabled = !doc.hidden && !pageHidden && context?.state === 'running';
+            const enabled = !doc.hidden && !pageHidden && !blocked() && context?.state === 'running';
             for (const entry of entries) {
                 const voice = enabled && entry.visible && voices.get(entry.index);
                 const source = voice && (voice.output || voice.filters?.at(-1) || voice.pan || voice.gain);
@@ -79,16 +82,17 @@
                 if (!entry.tap) idle(entry);
             }
             if (entries.some(entry => entry.tap)) {
-                if (timer === null) timer = win.setTimeout(tick, 50);
+                if (timer === null) timer = win.setTimeout(tick, 125);
             } else if (timer !== null) { win.clearTimeout(timer); timer = null; }
         }
         function tick() {
             timer = null;
             // Visibility/context events normally handle this; check again before every audio read.
-            if (doc.hidden || pageHidden || context?.state !== 'running' || host.context() !== context) { sync(); return; }
+            if (doc.hidden || pageHidden || blocked() || context?.state !== 'running' || host.context() !== context) { sync(); return; }
             const now = win.performance.now();
             for (const entry of entries) {
                 if (!entry.visible || !entry.tap) continue;
+                if (!inViewport(entry)) { entry.visible = false; disconnect(entry); continue; }
                 let sum = 0, peak = 0;
                 for (let channel = 0; channel < 2; channel++) {
                     const data = entry.tap.data[channel];
@@ -102,7 +106,7 @@
                 if (peak >= 1) entry.clipUntil = now + 600;
                 draw(entry, entry.db, entry.held, now < entry.clipUntil, now);
             }
-            if (entries.some(entry => entry.tap)) timer = win.setTimeout(tick, 50);
+            if (entries.some(entry => entry.tap)) timer = win.setTimeout(tick, 125);
         }
         function syncState() { sync(); }
         function hidePage() { pageHidden = true; sync(); }
@@ -116,6 +120,7 @@
         }, { threshold: [0, 0.01] });
         for (const entry of entries) observer.observe(entry.element);
         doc.addEventListener('visibilitychange', syncState);
+        for (const event of ['mygrain-ui-busy','mygrain-ui-settled','mygrain-jump-change']) win.addEventListener(event, syncState);
         win.addEventListener('pagehide', hidePage); win.addEventListener('pageshow', showPage);
         function destroy() {
             destroyed = true; observer.disconnect();
@@ -123,6 +128,7 @@
             for (const entry of entries) disconnect(entry);
             voices = new Map(); context?.removeEventListener('statechange', syncState); context = null;
             doc.removeEventListener('visibilitychange', syncState);
+            for (const event of ['mygrain-ui-busy','mygrain-ui-settled','mygrain-jump-change']) win.removeEventListener(event, syncState);
             win.removeEventListener('pagehide', hidePage); win.removeEventListener('pageshow', showPage);
         }
         return { sync, destroy, get activeCount() { return entries.filter(entry => entry.tap).length; }, get running() { return timer !== null; } };

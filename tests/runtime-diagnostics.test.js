@@ -235,3 +235,14 @@ test('the early recorder precedes cache redirects and payloads use a separate ba
     assert.match(html, /logData\.runtimeDiagnostics = window\.mygrainRuntimeDiagnostics\.snapshot\(\)/);
     assert.match(html, /song\.memoryBudget\?\.bytes/);
 });
+
+test('masked error storms retain a counted error and the preceding cut control', () => {
+    const setup = fixture();
+    setup.host.document.emit('change', { target: { id: 'bastardLoopVCutEnabled', type: 'checkbox', checked: true } });
+    for (let i = 0; i < 100; i++) setup.host.emit('error', { message: 'Script error.', filename: '', lineno: 0, colno: 0 });
+    const events = setup.recorder.snapshot().events;
+    assert.equal(events.find(e => e.type === 'javascript-error').count, 100);
+    assert(events.some(e => e.type === 'loop-cut-control' && e.value === true));
+    setup.advance(); setup.host.emit('error', { message: 'Script error.', filename: '', lineno: 0, colno: 0 });
+    assert.equal(setup.recorder.snapshot().events.filter(e => e.type === 'javascript-error').length, 2);
+});

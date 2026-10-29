@@ -100,7 +100,7 @@ def compact(row, filename, context, warnings, root):
             'playbackRoot': root, 'warnings': warnings}
 
 
-def retrieve(prompt, current, source_root=None):
+def retrieve(prompt, current, source_root=None, *, l_repository='samples_leads'):
     """Return a model-safe shortlist plus trusted internal identities.
 
     Missing/corrupt/stale catalogues are a labelled legacy fallback. No writeable
@@ -132,6 +132,8 @@ def retrieve(prompt, current, source_root=None):
         requested_mode = {'m': 'minor', 'min': 'minor', 'maj': 'major'}.get(mode, mode)
         rng = secrets.SystemRandom()
         for lane, source in LANES.items():
+            if lane == 'L':
+                source = 'samples_terra' if l_repository == 'samples_terra' else 'samples_leads'
             ranked = []
             for row in rows:
                 if row['source_root'] != str(SOURCE_BASE / source.upper()):

@@ -82,7 +82,7 @@ assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/mygrain\/$/);
                 const open = async () => { if (mobile) await source.locator('.song-beta-copy').tap(); else await source.locator('.song-beta-copy').click(); await page.locator('.song-beta-copy-dialog').waitFor(); };
                 const choose = id => page.locator(`.song-beta-copy-dialog input[data-layer="${id}"]`);
                 await open();
-                assert.equal(await page.locator('.song-beta-copy-dialog input[type="checkbox"]').count(), 25);
+                assert.equal(await page.locator('.song-beta-copy-dialog input[type="checkbox"]').count(), 52);
                 assert.equal(await page.locator('.song-beta-copy-selected').isDisabled(), true);
                 await choose('drums').check();
                 assert.equal(await page.locator('.song-beta-copy-drums input:checked').count(), 9);

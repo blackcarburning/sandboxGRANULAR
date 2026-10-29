@@ -35,6 +35,8 @@
     const contextListeners = [];
     const captureOption = options => typeof options === 'boolean' ? options : Boolean(options?.capture);
     bridge.disposeContext = () => {
+        window.mygrainWasp?.dispose();
+        window.mygrainNoise?.dispose();
         for (const entry of contextListeners) bridge.context.removeEventListener(entry.type, entry.listener, entry.capture);
         contextListeners.length = 0;
         localProperties.clear();
@@ -42,6 +44,7 @@
     };
     const context = new Proxy(bridge.context, {
         get(target, key) {
+            if (key === '__mygrainNativeContext') return bridge.context;
             if (key === 'destination') return bridge.destination;
             if (key === 'state' && bridge.disposed) return 'closed';
             if (key === 'close' || key === 'suspend') return async () => {};

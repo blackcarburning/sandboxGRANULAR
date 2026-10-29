@@ -1,0 +1,60 @@
+.channel-eq-entry { display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+.channel-eq-entry .performance-btn { min-height:36px; min-width:74px; }
+.channel-eq-switch { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:inherit; cursor:pointer; }
+.channel-eq-switch input { width:18px; height:18px; accent-color:#73dcf7; }
+#channelEqDialog { --ceq-ink:#e9f1fb; width:min(1020px,calc(100vw - 24px)); max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); box-sizing:border-box; padding:0; background:#171e29; color:var(--ceq-ink); border:1px solid #697b93; border-radius:12px; box-shadow:0 20px 100px #000b; overflow:auto; }
+#channelEqDialog::backdrop { background:#03070dbb; }
+#channelEqDialog * { box-sizing:border-box; }
+#channelEqDialog .ceq-head { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 18px; position:sticky; top:0; background:#202a38; z-index:3; border-bottom:1px solid #46556a; }
+#channelEqDialog h2 { flex:1; margin:0; font-size:18px; min-width:120px; color:var(--ceq-ink); }
+#channelEqDialog button, #channelEqDialog input, #channelEqDialog select { font:inherit; }
+#channelEqDialog button { cursor:pointer; }
+#channelEqDialog .ceq-action { color:#eef6ff; background:#35465d; border:1px solid #7b8da7; border-radius:6px; padding:8px 12px; min-height:36px; }
+#channelEqDialog .ceq-body { padding:14px 18px 18px; }
+#channelEqDialog .ceq-graph { position:relative; width:100%; height:310px; border:1px solid #4a5d75; border-radius:7px; background:linear-gradient(#101822,#111d2c); touch-action:none; overflow:hidden; }
+#channelEqDialog svg { width:100%; height:100%; display:block; }
+#channelEqDialog .ceq-grid line { stroke:#667488; stroke-width:1; opacity:.26; }
+#channelEqDialog .ceq-grid text { fill:#aebcd0; font:12px system-ui,sans-serif; }
+#channelEqDialog .ceq-response { stroke:#f0f6ff; stroke-width:2.5; fill:none; }
+#channelEqDialog .ceq-preview { stroke:#839ab3; stroke-width:1.5; stroke-dasharray:5 5; fill:none; }
+#channelEqDialog .ceq-spectrum { fill:#4599c438; stroke:#60bdd48c; stroke-width:1; }
+#channelEqDialog .ceq-handle { position:absolute; transform:translate(-50%,-50%); padding:0; width:32px; height:32px; min-width:32px; border-radius:50%; color:#101822; background:var(--ceq-band); border:2px solid #f5f9ff; box-shadow:0 2px 9px #000b; font-weight:800; font-size:13px; touch-action:none; z-index:1; }
+#channelEqDialog .ceq-handle[aria-pressed="true"] { outline:3px solid #ffffff80; outline-offset:3px; }
+#channelEqDialog .ceq-handle[data-off="true"] { opacity:.45; border-style:dashed; }
+#channelEqDialog .ceq-bands { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+#channelEqDialog .ceq-band { min-width:0; padding:10px; border:1px solid var(--ceq-band); border-top-width:4px; border-radius:6px; background:#242f40; }
+#channelEqDialog .ceq-band-header { display:flex; align-items:center; justify-content:space-between; gap:4px; color:var(--ceq-band); margin-bottom:8px; }
+#channelEqDialog .ceq-band label.ceq-field { display:grid; grid-template-columns:1fr minmax(62px,1.1fr); gap:6px; align-items:center; margin:6px 0; font-size:12px; }
+#channelEqDialog .ceq-band input[type="number"], #channelEqDialog select { width:100%; min-width:0; color:#edf5ff; background:#111b29; border:1px solid #6f8199; border-radius:4px; padding:6px 4px; min-height:34px; }
+#channelEqDialog .ceq-band select { font-size:12px; }
+#channelEqDialog input:disabled, #channelEqDialog select:disabled { opacity:.45; }
+#channelEqDialog .ceq-caption { font:12px/1.5 system-ui,sans-serif; color:#bac8db; margin:9px 0 0; }
+#channelEqDialog .ceq-status { min-height:1.5em; color:#91e0ef; font-size:12px; margin:7px 0 0; }
+#channelEqDialog :focus-visible { outline:3px solid #eefaff; outline-offset:2px; }
+@media(max-width:620px) {
+    #channelEqDialog { width:calc(100vw - 12px); max-width:calc(100vw - 12px); max-height:calc(100dvh - 12px); }
+    #channelEqDialog .ceq-head { padding:9px; gap:8px; }
+    #channelEqDialog h2 { font-size:15px; }
+    #channelEqDialog .ceq-body { padding:10px; }
+    #channelEqDialog .ceq-graph { height:250px; }
+    #channelEqDialog .ceq-bands { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    #channelEqDialog .ceq-band { padding:8px; }
+    #channelEqDialog .ceq-handle { width:34px; height:34px; }
+}
+@media(max-height:480px) {
+    #channelEqDialog .ceq-graph { height:200px; }
+    #channelEqDialog .ceq-head { padding:7px 10px; }
+}
+
+#channelEqDialog .ceq-q-slider { display:block; width:100%; min-width:0; height:40px; margin:0 0 6px; padding:0 2px; accent-color:var(--ceq-band); touch-action:pan-y; cursor:ew-resize; }
+
+/* X/L sequence EQ automation: R/W is available both on-card and in the EQ. */
+.ceq-automation { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.ceq-automation[hidden] { display:none; }
+.ceq-automation .ceq-action { min-width:32px; min-height:32px; padding:6px 9px; border:1px solid #7b8da7; border-radius:6px; background:#35465d; color:#eef6ff; font:inherit; cursor:pointer; }
+.ceq-automation .ceq-action:disabled { opacity:.45; cursor:default; }
+#channelEqDialog .ceq-read[aria-pressed="true"], .ceq-read[aria-pressed="true"] { background:#276e49; color:#fff; border-color:#7bd8a1; }
+#channelEqDialog .ceq-write[aria-pressed="true"], .ceq-write[aria-pressed="true"] { background:#a43141; color:#fff; border-color:#ff8a98; }
+.ceq-auto-status { font-size:11px; color:#b7c5ce; }
+#channelEqAutomation { margin-bottom:10px; }
+.channel-eq-entry { flex-wrap:wrap; }

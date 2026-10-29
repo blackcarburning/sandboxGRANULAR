@@ -98,7 +98,9 @@
         const listeners = [];
         const contextIds = new WeakMap();
         const timing = { samples: 0, foregroundSamples: 0, delayedOver120ms: 0, maximumDelayMs: 0,
-            audioClockStallSamples: 0, consecutiveClockStalls: 0, longestClockStallSamples: 0, maximumClockLagMs: 0 };
+            audioClockStallSamples: 0, consecutiveClockStalls: 0, longestClockStallSamples: 0, maximumClockLagMs: 0,
+            audioClockProgressRatio: null, minimumAudioClockProgressRatio: null,
+            audioClockProgressWindowMs: 0, audioClockSlowWindows: 0 };
         const longTasks = { available: false, count: 0, totalMs: 0, maximumMs: 0 };
         let timer = null;
         let observer = null;
@@ -107,14 +109,26 @@
         let contextCount = 0;
         let contextCreatedAt = null;
         let previous = null;
+        let clockWindow = null;
+        let clockWasSlow = false;
         let lastHistoryAt = -Infinity;
         let sequence = 0;
         let contextTransitions = 0;
+        let repeatedError = null;
 
         function record(type, details = {}) {
+            if (type === 'error' || type === 'warn') {
+                if (repeatedError?.type === type && repeatedError.message === details.message && now() - repeatedError.started < 1000) {
+                    repeatedError.entry.count = (repeatedError.entry.count || 1) + 1;
+                    repeatedError.entry.lastTimestamp = new Date(wallNow()).toISOString();
+                    return;
+                }
+                repeatedError = { type, message: details.message, started: now(), entry: null };
+            }
             const entry = { sequence: ++sequence, timestamp: new Date(wallNow()).toISOString(),
                 uptimeSeconds: Math.round((now() - startedAt) / 100) / 10, type, ...details };
             boundedPush(events, entry, limits.events);
+            if (type === 'error' || type === 'warn') repeatedError.entry = entry;
             read(() => options.onEvent?.(entry));
         }
 
@@ -167,7 +181,7 @@
                     sinceLastProbeMs: previous ? now() - previous.instant : null,
                     lastProbe: previous ? { performanceTime: previous.instant, contextTime: previous.audioTime,
                         state: previous.state, visible: previous.visible } : null,
-                    note: 'Foreground 1 Hz main-thread lateness/clock probe; not a hardware underrun detector.' },
+                    note: 'Foreground 1 Hz probe; audio/wall clock ratio over at least 5 seconds; not a hardware underrun detector.' },
                 longTasks: { ...longTasks }, application: read(() => getState(true), { unavailable: true }),
                 history: includeHistory ? history.slice() : [], events: includeHistory ? events.slice() : [],
                 incidents: includeHistory ? incidents.slice() : [],
@@ -195,6 +209,22 @@
                 if (audioTime !== null && previous.audioTime !== null) {
                     const audioElapsedMs = (audioTime - previous.audioTime) * 1000;
                     timing.maximumClockLagMs = Math.max(timing.maximumClockLagMs, elapsed - audioElapsedMs);
+                    // A clock advancing at 70% speed is not frozen. Measure a
+                    // bounded foreground window using the existing probe only.
+                    if (!clockWindow) clockWindow = previous;
+                    const windowMs = instant - clockWindow.instant;
+                    if (windowMs >= 5000) {
+                        const ratio = Math.max(0, (audioTime - clockWindow.audioTime) * 1000 / windowMs);
+                        timing.audioClockProgressRatio = Math.round(ratio * 1000) / 1000;
+                        timing.minimumAudioClockProgressRatio = Math.min(timing.minimumAudioClockProgressRatio ?? ratio, ratio);
+                        timing.audioClockProgressWindowMs = Math.round(windowMs);
+                        const slow = ratio < .9;
+                        if (slow) timing.audioClockSlowWindows += 1;
+                        if (slow !== clockWasSlow) record(slow ? 'audio-clock-slow' : 'audio-clock-recovered', {
+                            progressRatio: timing.audioClockProgressRatio, windowMs: Math.round(windowMs), contextTime: audioTime });
+                        clockWasSlow = slow;
+                        clockWindow = { instant, audioTime };
+                    }
                     if (audioElapsedMs <= 1 && elapsed >= limits.sampleMs * .5) {
                         timing.audioClockStallSamples += 1;
                         timing.consecutiveClockStalls += 1;
@@ -202,7 +232,13 @@
                         if (timing.consecutiveClockStalls === 3) record('audio-clock-not-advancing', { state, contextTime: audioTime });
                     } else timing.consecutiveClockStalls = 0;
                 }
-            } else timing.consecutiveClockStalls = 0;
+            } else {
+                timing.consecutiveClockStalls = 0;
+                clockWindow = null;
+                clockWasSlow = false;
+                timing.audioClockProgressRatio = null;
+                timing.audioClockProgressWindowMs = 0;
+            }
             previous = { instant, audioTime, visible, state };
             if (instant - lastHistoryAt >= limits.historyMs) {
                 lastHistoryAt = instant;
@@ -210,7 +246,11 @@
                 boundedPush(history, { uptimeSeconds: Math.round((instant - startedAt) / 1000), visibility: host.document?.visibilityState || 'unavailable',
                     contextState: state, contextTime: audioTime, sampleRate: finite(currentContext?.sampleRate), heapUsedBytes: describeHeap(host).usedBytes ?? null,
                     maximumDelayMs: timing.maximumDelayMs, delayedOver120ms: timing.delayedOver120ms,
-                    clockStalls: timing.audioClockStallSamples, counts: application.counts, caches: application.caches,
+                    clockStalls: timing.audioClockStallSamples, clockProgressRatio: timing.audioClockProgressRatio,
+                    clockSlowWindows: timing.audioClockSlowWindows, editor: application.editor, uiActivity: application.uiActivity,
+                    counts: application.counts, caches: application.caches,
+                    vuMeters: application.vuMeters, undoMemory: application.undoMemory, loopCuts: application.loopCuts,
+                    idleAudio: application.idleAudio, processing: application.processing, effects: application.effects, panLab: application.panLab, wasp: application.wasp, visualResources: application.visualResources,
                     scheduling: application.scheduling, playback: application.playback, output: application.output,
                     knownPCMBytes: application.buffers?.estimatedPCMBytes ?? null,
                     knownBuffers: application.buffers?.uniqueBuffers ?? null }, limits.history);
@@ -272,6 +312,13 @@
             const capture = snapshot(false);
             capture.history = history.slice(-12);
             capture.events = events.slice(-20);
+            // X keeps its own bounded before/after mark windows in the current
+            // application trace. Do not replicate the full ring in every incident.
+            if (capture.application?.loopX?.trace) {
+                const trace = capture.application.loopX.trace;
+                capture.application.loopX.trace = { version: trace.version, enabled: trace.enabled,
+                    captured: trace.captured, reference: 'See current application.loopX.trace for X mark windows.' };
+            }
             const incident = { timestamp: new Date(wallNow()).toISOString(), capture };
             boundedPush(incidents, incident, limits.incidents);
             return incident;
@@ -282,6 +329,7 @@
             events.length = 0;
             incidents.length = 0;
             delays.length = 0;
+            repeatedError = null;
             for (const key of Object.keys(timing)) timing[key] = 0;
             longTasks.count = 0;
             longTasks.totalMs = 0;
@@ -312,8 +360,11 @@
             `Main thread / clock: ${JSON.stringify(capture.timing)}`,
             `Long tasks: ${JSON.stringify(capture.longTasks)}`,
             `Memory: ${JSON.stringify(capture.heap)}`,
-            `Resources: ${JSON.stringify({ counts: application.counts, caches: application.caches, buffers: application.buffers })}`,
+            `Resources: ${JSON.stringify({ counts: application.counts, caches: application.caches,
+                    vuMeters: application.vuMeters, undoMemory: application.undoMemory, loopCuts: application.loopCuts,
+                    idleAudio: application.idleAudio, processing: application.processing, effects: application.effects, panLab: application.panLab, wasp: application.wasp, visualResources: application.visualResources, buffers: application.buffers })}`,
             `Playback / FX: ${JSON.stringify({ playback: application.playback, synth: application.synth, effects: application.effects })}`,
+            `Loop X state / trace: ${JSON.stringify(application.loopX || null)}`,
             `Microphone tracks (no device IDs): ${JSON.stringify(application.microphones || [])}`,
             `Output sample: ${JSON.stringify(application.output)}`,
             `Scheduling counters: ${JSON.stringify(application.scheduling)}`,
@@ -331,4 +382,247 @@
     const api = { createMonitor, describeEnvironment, describeHeap, describeBuffers, describeMicrophones, formatText, limits };
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.MygrainAudioDiagnostics = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+// X-only, opt-in diagnostics. No PCM recording, network requests, persistent
+// settings, audio destination connections, or work while disabled.
+(function (root) {
+    'use strict';
+    function createXTrace(host) {
+        const bounds = { events: 600, samples: 120, marks: 8, preMark: 48, postMark: 24, sessionMs: 900000,
+            history: 900, health: 180, clickTimeline: 128, audioCues: 96 };
+        let enabled = false, startedAt = null, timer = null, frame = null, observer = null, mutations = null;
+        let activeCalls = [];
+        let events = [], samples = [], marks = [], metrics = {}, dropped = 0, sequence = 0, listeners = [];
+        let history = [], health = [], clickTimeline = [], audioCues = [], lastHealth = -Infinity;
+        const columns = ['second', 'audio', 'notesScheduled', 'voicesEnded', 'cleanups', 'uiSyncs', 'lfoAttaches',
+            'lfoEnsures', 'lfoResets', 'delayUpdates', 'sharedSaves', 'sharedUiSyncs', 'sharedModTicks', 'probes',
+            'maxTimerDelayMs', 'maxFrameGapMs', 'mutations', 'maxVoiceRecords', 'maxXPeak', 'maxXRms',
+            'maxXAdjacentDelta', 'maxCleanupMs', 'slowCalls', 'errors', 'maxProbeCostMs',
+            'sharedDebugRefreshes', 'sharedVuRefreshes', 'sharedConsoleRenders'];
+        const callColumns = { syncBastardLoopXUi: 5, attachBastardLoopXFilterLfoToVoice: 6,
+            ensureBastardLoopXFilterLfoSource: 7, queueBastardLoopXFilterLfoReset: 8,
+            destroyBastardLoopXFilterLfoSource: 8, updateBastardLoopXDelayBusSettings: 9,
+            'saveState (shared)': 10, 'syncPerformanceControlState (shared)': 11, 'updateAudioModulationTick (shared)': 12,
+            'updateDebugPanel (shared)': 25, 'updatePerformanceVuMeter (shared)': 26, 'renderDebugConsole (shared)': 27 };
+        let lastTick = 0, lastAudio = 0, lastFrame = 0, frameCount = 0, worstFrame = 0, mutationCount = 0;
+        let taps = [], lastScroll = 0, lastInput = new WeakMap(), moves = 0, wheels = 0;
+        const now = () => performance.now();
+        const safe = (fn, fallback = null) => { try { return fn() ?? fallback; } catch (_) { return fallback; } };
+        const round = n => Number.isFinite(n) ? Math.round(n * 1000) / 1000 : null;
+        const stamp = () => ({ ms: round(now()), audio: round(safe(() => host.context().currentTime)), utc: new Date().toISOString() });
+        const push = (list, item, max) => { list.push(item); if (list.length > max) { list.shift(); dropped++; } };
+        function bucket() {
+            const second = Math.floor((now() - startedAt) / 1000);
+            if (!history.length || history[history.length - 1][0] !== second) {
+                const row = Array(columns.length).fill(0); row[0] = second;
+                row[1] = round(safe(() => host.context().currentTime)); push(history, row, bounds.history);
+            }
+            return history[history.length - 1];
+        }
+        // Never traverse native nodes, response bodies, buffers, event targets or arbitrary option objects.
+        function summarize(value) {
+            if (value == null || typeof value === 'boolean') return value;
+            if (typeof value === 'number') return round(value);
+            if (typeof value === 'string') return value.split('?')[0].slice(-160);
+            if (Array.isArray(value)) return { arrayLength: value.length };
+            if (typeof value.byteLength === 'number') return { byteLength: value.byteLength, kind: value.constructor?.name };
+            if (typeof value.getChannelData === 'function') return { buffer: true, seconds: round(value.duration), sampleRate: value.sampleRate, channels: value.numberOfChannels, frames: value.length };
+            if (value instanceof Error || (typeof value.message === 'string' && typeof value.stack === 'string')) return { name: value.name, error: value.message.slice(0, 240), stack: String(value.stack || '').slice(0, 1200) };
+            const out = {};
+            for (const key of ['note', 'rest', 'accent', 'slide', 'ratchet', 'role', 'fileName', 'sourceKey', 'start', 'end', 'duration', 'key', 'type', 'status', 'ok', 'levelScale', 'stepWindow']) {
+                if (['string', 'number', 'boolean'].includes(typeof value[key])) out[key] = summarize(value[key]);
+            }
+            return out;
+        }
+        function record(type, detail = {}) {
+            if (!enabled) return;
+            const entry = { ...stamp(), type, callId: activeCalls[activeCalls.length - 1] || null, detail };
+            const row = bucket();
+            if (type === 'voice-scheduled') {
+                row[2]++;
+                for (const [kind, at] of [['note-start', detail.scheduled], ['expected-end', detail.expectedEnd]]) {
+                    if (Number.isFinite(at)) push(audioCues, { kind, audio: at, note: detail.note }, bounds.audioCues);
+                }
+            }
+            if (type === 'voice-ended') row[3]++;
+            if (type === 'voice-cleanup') { row[4]++; row[21] = Math.max(row[21], detail.handlerMs || 0); }
+            if (type === 'error' || type === 'rejection' || type === 'call-error') row[23]++;
+            push(events, entry, bounds.events);
+            for (const mark of marks) if (entry.ms > mark.ms && entry.ms <= mark.ms + 3000 && mark.after.length < bounds.postMark) mark.after.push(entry);
+        }
+        function disconnectTaps() {
+            for (const tap of taps) { safe(() => tap.node.disconnect(tap.analyser)); safe(() => tap.analyser.disconnect()); }
+            taps = [];
+        }
+        function meter() {
+            const nodes = safe(host.nodes, []).filter(entry => entry.node && entry.node.context?.state !== 'closed');
+            if (nodes.length !== taps.length || nodes.some((entry, i) => entry.node !== taps[i]?.node || entry.label !== taps[i]?.label)) {
+                disconnectTaps();
+                for (const entry of nodes) safe(() => {
+                    // Overlap quarter-second probes at 44.1/48kHz instead of
+                    // examining only 46ms and leaving most of the time unseen.
+                    const analyser = entry.node.context.createAnalyser(); analyser.fftSize = 16384;
+                    entry.node.connect(analyser); // Measurement leaf only: never connect back to any audible bus.
+                    taps.push({ ...entry, analyser, data: new Float32Array(analyser.fftSize) });
+                });
+                record('meter-routing', { taps: taps.map(t => t.label), audibleReturn: false });
+            }
+            return taps.map(t => {
+                t.analyser.getFloatTimeDomainData(t.data);
+                let peak = 0, energy = 0, delta = 0, nonFinite = 0, sum = 0, clipped = 0, deltaFrame = 0;
+                for (let i = 0; i < t.data.length; i++) {
+                    const n = t.data[i]; if (!Number.isFinite(n)) { nonFinite++; continue; }
+                    peak = Math.max(peak, Math.abs(n)); energy += n * n; sum += n;
+                    if (Math.abs(n) >= 1) clipped++;
+                    if (i && Number.isFinite(t.data[i - 1])) {
+                        const jump = Math.abs(n - t.data[i - 1]);
+                        if (jump > delta) { delta = jump; deltaFrame = i; }
+                    }
+                }
+                return { tap: t.label, peak: Math.round(peak * 1e7) / 1e7, rms: Math.round(Math.sqrt(energy / t.data.length) * 1e7) / 1e7, maxAdjacentDelta: Math.round(delta * 1e7) / 1e7, nonFinite,
+                    mean: Math.round(sum / t.data.length * 1e7) / 1e7, samplesAtOrAboveFullScale: clipped,
+                    estimatedMaxDeltaAudio: round(t.node.context.currentTime - (t.data.length - deltaFrame) / t.node.context.sampleRate),
+                    windowMs: round(1000 * t.data.length / t.node.context.sampleRate) };
+            });
+        }
+        function tick() {
+            if (!enabled) return;
+            const t = now(), ctx = safe(host.context), audio = ctx?.currentTime;
+            const sample = { ...stamp(), timerDelayMs: round(t - lastTick - 250), audioAdvanceMs: round((audio - lastAudio) * 1000),
+                visibility: document.visibilityState, contextState: ctx?.state, frames: frameCount, pointerMoves: moves, wheelEvents: wheels, worstFrameMs: round(worstFrame), mutations: mutationCount,
+                transport: safe(host.transport), meters: safe(meter, []) };
+            push(samples, sample, bounds.samples);
+            const row = bucket(); row[13]++; row[14] = Math.max(row[14], sample.timerDelayMs || 0);
+            row[15] = Math.max(row[15], sample.worstFrameMs || 0); row[16] += mutationCount;
+            row[17] = Math.max(row[17], sample.transport?.voices || 0);
+            for (const meter of sample.meters) {
+                row[18] = Math.max(row[18], meter.peak); row[19] = Math.max(row[19], meter.rms);
+                row[20] = Math.max(row[20], meter.maxAdjacentDelta);
+            }
+            if (t - lastHealth >= 5000) {
+                push(health, { ...stamp(), state: safe(host.health) }, bounds.health); lastHealth = t;
+            }
+            row[24] = Math.max(row[24], round(now() - t));
+            frameCount = 0; moves = 0; wheels = 0; worstFrame = 0; mutationCount = 0; lastTick = t; lastAudio = audio;
+            if (t - startedAt >= bounds.sessionMs) setEnabled(false);
+        }
+        function frames(t) {
+            if (!enabled) return;
+            if (lastFrame) worstFrame = Math.max(worstFrame, t - lastFrame);
+            lastFrame = t; frameCount++; frame = requestAnimationFrame(frames);
+        }
+        function listen(target, type, callback, opts = { capture: true, passive: true }) {
+            target.addEventListener(type, callback, opts); listeners.push(() => target.removeEventListener(type, callback, opts));
+        }
+        function setEnabled(value) {
+            value = Boolean(value); if (value === enabled) return enabled;
+            if (value) {
+                events = []; samples = []; marks = []; metrics = {}; activeCalls = []; dropped = 0; sequence = 0;
+                history = []; health = []; clickTimeline = []; audioCues = []; lastHealth = -Infinity;
+                lastInput = new WeakMap(); lastScroll = 0; startedAt = now(); enabled = true;
+                lastTick = startedAt; lastAudio = safe(() => host.context().currentTime); lastFrame = 0;
+                frameCount = 0; moves = 0; wheels = 0; worstFrame = 0; mutationCount = 0;
+                record('trace-start', { state: safe(host.state), bounds });
+                const roots = safe(host.roots, []).filter(Boolean);
+                const control = event => {
+                    if (host.acceptEvent && !safe(() => host.acceptEvent(event), false)) return;
+                    if (event.type === 'pointermove') { moves++; return; }
+                    if (event.type === 'wheel') { wheels++; return; }
+                    const target = event.target;
+                    const identity = target.id || target.dataset?.stepIndex || target.dataset?.note || target.tagName;
+                    const detail = { target: String(identity).slice(0, 100), event: event.type, value: summarize(target.value),
+                        checked: target.checked, pointer: event.pointerType, key: event.key, trusted: event.isTrusted,
+                        scrollTop: round(target.scrollTop), scrollHeight: target.scrollHeight, clientHeight: target.clientHeight };
+                    if (event.type === 'scroll') { if (now() - lastScroll < 150) return; lastScroll = now(); }
+                    if (event.type === 'input') { const previous = lastInput.get(target) || 0; if (now() - previous < 80) return; lastInput.set(target, now()); }
+                    record('gui', detail);
+                    if (event.type === 'change') queueMicrotask(() => { if (enabled) record('control-applied', { ...detail, value: summarize(target.value), transport: safe(host.transport) }); });
+                };
+                for (const el of roots) for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'pointermove', 'wheel', 'touchstart', 'touchend', 'touchcancel', 'click', 'input', 'change', 'keydown', 'scroll']) listen(el, type, control);
+                mutations = new MutationObserver(records => { mutationCount += records.filter(r => !host.acceptEvent || safe(() => host.acceptEvent({ target: r.target }), false)).length; });
+                for (const el of roots) mutations.observe(el, { childList: true, subtree: true, attributes: true, characterData: true });
+                listen(root, 'error', e => record('error', { message: String(e.message).slice(0, 240) }));
+                listen(root, 'unhandledrejection', e => record('rejection', { error: summarize(e.reason) }));
+                listen(document, 'visibilitychange', () => record('visibility', { state: document.visibilityState }));
+                if (root.PerformanceObserver) safe(() => {
+                    observer = new PerformanceObserver(list => { for (const e of list.getEntries()) record('long-task', { startMs: round(e.startTime), durationMs: round(e.duration) }); });
+                    observer.observe({ type: 'longtask', buffered: false });
+                });
+                timer = setInterval(tick, 250); frame = requestAnimationFrame(frames);
+            } else {
+                record('trace-stop'); enabled = false; clearInterval(timer); cancelAnimationFrame(frame);
+                timer = null; frame = null; mutations?.disconnect(); observer?.disconnect(); mutations = null; observer = null;
+                listeners.forEach(remove => remove()); listeners = []; disconnectTaps();
+            }
+            safe(() => host.onToggle(enabled)); return enabled;
+        }
+        function wrap(name, fn, verbose = true) {
+            return function (...args) {
+                if (!enabled) return fn.apply(this, args);
+                const start = now(), id = ++sequence, parentId = activeCalls[activeCalls.length - 1] || null;
+                activeCalls.push(id);
+                const metric = metrics[name] || (metrics[name] = { calls: 0, totalMs: 0, maxMs: 0, errors: 0, pending: 0,
+                    firstStartMs: round(start), lastStartMs: null, minIntervalMs: null, maxIntervalMs: null,
+                    caller: String(new Error().stack || '').split('\n').slice(2, 6).join('\n').slice(0, 500) });
+                if (metric.lastStartMs !== null) {
+                    const gap = round(start - metric.lastStartMs);
+                    metric.minIntervalMs = metric.minIntervalMs === null ? gap : Math.min(metric.minIntervalMs, gap);
+                    metric.maxIntervalMs = metric.maxIntervalMs === null ? gap : Math.max(metric.maxIntervalMs, gap);
+                }
+                metric.lastStartMs = round(start);
+                const column = callColumns[name]; if (column !== undefined) bucket()[column]++;
+                metric.calls++;
+                if (verbose) record('call', { id, parentId, name, args: args.slice(0, 5).map(summarize) });
+                const finish = (error, result, async = false) => {
+                    if (!enabled || metrics[name] !== metric) return;
+                    const elapsed = now() - start;
+                    if (async) metric.pending--;
+                    else { metric.totalMs += elapsed; metric.maxMs = Math.max(metric.maxMs, elapsed); }
+                    if (error) metric.errors++;
+                    if (!async && elapsed > 8) bucket()[22]++;
+                    if (verbose || error || elapsed > 8) record(error ? 'call-error' : async ? 'call-resolved' : 'call-end',
+                        { id, parentId, name, args: error ? args.slice(0, 5).map(summarize) : undefined, elapsedMs: round(elapsed), error: error ? summarize(error) : undefined, result: summarize(result), async,
+                            sample: async && /Sample/.test(name) ? safe(host.sampleState) : undefined });
+                };
+                try {
+                    const result = fn.apply(this, args); finish(null, result);
+                    if (result && typeof result.then === 'function') { metric.pending++; result.then(v => finish(null, v, true), e => finish(e, null, true)); }
+                    return result;
+                } catch (error) { finish(error); throw error; } finally { activeCalls.pop(); }
+            };
+        }
+        function mark(label = 'audible-click') {
+            if (!enabled) return false;
+            const time = stamp(), previous = clickTimeline[clickTimeline.length - 1];
+            const nearbyAudio = audioCues.map(cue => ({ ...cue, deltaMs: round((time.audio - cue.audio) * 1000) }))
+                .filter(cue => Math.abs(cue.deltaMs) <= 3000).sort((a, b) => Math.abs(a.deltaMs) - Math.abs(b.deltaMs)).slice(0, 8);
+            const recentCalls = Object.entries(metrics).filter(([name]) => callColumns[name] !== undefined)
+                .map(([name, metric]) => ({ name, agoMs: round(time.ms - metric.lastStartMs) }));
+            const timeline = { ...time, label, intervalMs: previous ? round(time.ms - previous.ms) : null,
+                audioIntervalMs: previous ? round((time.audio - previous.audio) * 1000) : null, nearbyAudio, recentCalls };
+            push(clickTimeline, timeline, bounds.clickTimeline);
+            const entry = { ...timeline, state: safe(host.state), before: events.slice(-bounds.preMark), after: [] };
+            push(marks, entry, bounds.marks); record('user-mark', { label }); return true;
+        }
+        function snapshot() {
+            return { version: 2, enabled, startedAtMs: startedAt, captured: stamp(), bounds, dropped,
+                metrics: JSON.parse(JSON.stringify(metrics)), events: events.slice(), samples: samples.slice(),
+                history: { cadenceMs: 1000, columns, rows: history.map(row => row.slice()) },
+                health: health.slice(), clickTimeline: clickTimeline.slice(),
+                marks: marks.map(m => ({ ...m, before: m.before.slice(), after: m.after.slice() })),
+                limitations: ['Meters are sampled X-only pre-delay windows, not continuous PCM or proof of an audible click.',
+                    'Native hardware underruns and physical speaker output are not available.', 'Observer overhead can affect timing; compare trace on/off.',
+                    'Click markers include human reaction time; nearby note/end times show correlation, not causation. History rows aggregate observed seconds; gaps are not interpolated.'] };
+        }
+        function clear() {
+            events = []; samples = []; marks = []; metrics = {}; activeCalls = []; dropped = 0; sequence = 0;
+            history = []; health = []; clickTimeline = []; audioCues = []; lastHealth = -Infinity;
+            startedAt = enabled ? now() : null; lastTick = now(); lastAudio = safe(() => host.context().currentTime);
+            frameCount = 0; worstFrame = 0; mutationCount = 0; moves = 0; wheels = 0;
+        }
+        return { get enabled() { return enabled; }, setEnabled, wrap, record, mark, snapshot, clear };
+    }
+    if (typeof module === 'object' && module.exports) module.exports.createXTrace = createXTrace;
+    else root.MygrainXTrace = { create: createXTrace };
 })(typeof window !== 'undefined' ? window : globalThis);

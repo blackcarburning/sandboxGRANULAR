@@ -224,7 +224,7 @@
                 };
                 button('Audition', () => this.audition(take));
                 button('Stop Audition', () => { this.stopPreview(); this.setStatus('Vocal audition stopped.'); });
-                button('Load into M', () => this.load(take)).dataset.loadTake = take.id;
+                button(`Load into ${this.targetLane || 'M'}`, () => this.load(take)).dataset.loadTake = take.id;
                 button('Rename', async () => {
                     const name = window.prompt('Rename vocal take:', take.name);
                     if (name === null) return;
@@ -301,8 +301,8 @@
             this.setStatus(`Loading vocal take into ${lane}…`);
             const response = await fetch(`${this.base}/takes/${take.id}/audio`, { cache: 'no-store' });
             if (!response.ok) throw new Error('The vocal take could not be downloaded. Refresh and retry.');
-            await this.adapter.load(await response.arrayBuffer(), take);
-            this.setStatus(`Loaded ${take.name} into ${lane}. Save a song part/amendment if you want that part to use this take.`);
+            const loaded = await this.adapter.load(await response.arrayBuffer(), take);
+            this.setStatus(`Loaded ${take.name} into ${lane}. ${loaded?.playing ? 'Playing in the current loop.' : 'Lane enabled; press Start Bastardloops to hear it.'} Save a song part/amendment to use it in that part.`);
         }
 
         async audition(take) {
@@ -376,9 +376,54 @@
                 const apply = backing ? applyRecordedBastardLoopMPlusBuffer : applyRecordedBastardLoopMBuffer;
                 stop({ skipUi: true });
                 await apply(buffer, { bpm: take.bpm, durationSeconds: take.durationSeconds, summary: `${take.name} · ${take.durationSeconds.toFixed(2)}s vocal take`, statusMessage: `Loaded vocal take into ${lane}: ${take.name}` });
+                (backing ? ensureBastardLoopMPlusReadyForTransport : ensureBastardLoopMReadyForTransport)();
+                (backing ? updateBastardLoopMPlusMix : updateBastardLoopMMix)();
+                syncPerformanceControlState();
                 saveState({ force: true });
+                return { playing: backing ? Boolean(bastardLoopMPlusSource) : Boolean(bastardLoopMSource) };
             }
         };
     }
     root.mygrainVocalTakes = new Library(laneAdapter('M'), { targets: { 'M+': laneAdapter('M+') } });
 })(typeof window !== 'undefined' ? window : globalThis);
+
+// M/M+ playback displays. Branch-only taps: never alter the audible graph.
+(function(root){
+'use strict';
+if(!root.document||root.__mygrainSongRenderDeck||!root.MygrainKTrackMeters)return;
+const style=document.createElement('style');style.textContent=`
+.vocal-playback-display{margin:10px 0;padding:10px;min-width:0;border:1px solid #75dccc40;border-radius:10px;background:#08151b}
+.vocal-playback-display .k-track-vu-head{font-size:11px}.vocal-playback-wave{position:relative;margin-top:8px;overflow:hidden;border-radius:5px;background:#071017}
+.vocal-playback-wave canvas{display:block;width:100%;height:96px}.vocal-playback-cursor{position:absolute;inset:0 auto 0 0;width:2px;background:#fff3a3;pointer-events:none}
+.vocal-playback-meta{font-size:11px;color:#a9c7cb;margin-top:4px}
+`;document.head.append(style);
+const lanes=['M','MPlus'].map((key,index)=>{
+ const prefix='performanceBastardLoop'+key,card=document.getElementById(prefix+'RecordBtn')?.closest('.performance-feature-card');if(!card)return null;
+ const label=index?'M+':'M',el=document.createElement('div');el.className='vocal-playback-display';el.innerHTML=`<div data-vocal-playback-meter="${index}" role="meter" aria-label="${label} playback level" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60"><div class="k-track-vu-head"><span>${label} · Playback VU</span><span data-k-vu-value>−∞</span></div><div class="k-track-vu-bar"><div class="k-track-vu-fill" data-k-vu-fill></div><div class="k-track-vu-peak" data-k-vu-peak></div></div></div><div class="vocal-playback-wave"><canvas id="${prefix}Waveform" role="img" aria-label="${label} take waveform"></canvas><span class="vocal-playback-cursor" hidden></span></div><div class="vocal-playback-meta">No take loaded</div>`;
+ card.querySelector('.performance-feature-head').after(el);
+ return{key,index,label,el,canvas:el.querySelector('canvas'),cursor:el.querySelector('.vocal-playback-cursor'),meta:el.querySelector('.vocal-playback-meta'),visible:false,buffer:null,width:0};
+}).filter(Boolean);
+const meters=root.MygrainKTrackMeters.create({context:()=>audioContext,selector:'[data-vocal-playback-meter]',index:el=>Number(el.dataset.vocalPlaybackMeter)});
+let timer=null,destroyed=false;
+const peaks=new WeakMap();
+function envelope(buffer){let result=peaks.get(buffer);if(result)return result;const bins=Math.min(1024,buffer.length);result=Array.from({length:Math.min(2,buffer.numberOfChannels)},(_,ch)=>{const data=buffer.getChannelData(ch),out=[];for(let b=0;b<bins;b++){let lo=0,hi=0;for(let i=Math.floor(b*data.length/bins);i<Math.floor((b+1)*data.length/bins);i++){lo=Math.min(lo,data[i]);hi=Math.max(hi,data[i])}out.push([lo,hi])}return out});peaks.set(buffer,result);return result}
+function paint(lane,buffer){
+ if(root.mygrainDisplay&&!root.mygrainDisplay.canDraw(lane.canvas,()=>paint(lane,lane.index?bastardLoopMPlusBuffer:bastardLoopMBuffer),'paint',()=>{lane.buffer=null;lane.width=0}))return;
+ const width=Math.max(1,Math.round(lane.canvas.clientWidth));if(buffer===lane.buffer&&width===lane.width)return;lane.width=width;lane.buffer=buffer;
+ const scale=Math.min(2,root.devicePixelRatio||1),height=96;lane.canvas.width=width*scale;lane.canvas.height=height*scale;const c=lane.canvas.getContext('2d');c.scale(scale,scale);c.clearRect(0,0,width,height);
+ const data=buffer?envelope(buffer):[[]];data.forEach((points,ch)=>{const h=height/data.length,center=h*(ch+.5);c.strokeStyle='#26424a';c.beginPath();c.moveTo(0,center);c.lineTo(width,center);c.stroke();c.strokeStyle=ch?'#b6acfa':'#73e5d4';c.beginPath();for(let i=0;i<points.length;i++){const x=i*width/points.length;c.moveTo(x,center-points[i][1]*h*.45);c.lineTo(x,center-points[i][0]*h*.45)}c.stroke();});
+ lane.meta.textContent=buffer?`${buffer.duration.toFixed(2)}s · ${buffer.numberOfChannels===2?'Stereo':buffer.numberOfChannels+' channel'} · ${(buffer.sampleRate/1000).toFixed(1)} kHz`:'No take loaded';
+ lane.canvas.setAttribute('aria-label',`${lane.label} ${lane.meta.textContent} waveform`);
+}
+function tick(){timer=null;if(destroyed||document.hidden||root.mygrainMeters?.blocked||root.mygrainUiActivity?.busy)return;const voices=new Map();for(const l of lanes){if(!l.visible)continue;const backing=l.index===1,buffer=backing?bastardLoopMPlusBuffer:bastardLoopMBuffer,source=backing?bastardLoopMPlusSource:bastardLoopMSource,output=backing?bastardLoopMPlusFxOutputGainNode:bastardLoopMFxOutputGainNode;paint(l,buffer);if(output)voices.set(l.index,{output});
+ const origin=getSharedLoopTransportOriginTime(),cycle=backing?getBastardLoopMPlusCycleDuration():getBastardLoopMCycleDuration(),playing=!!source&&Number.isFinite(origin)&&audioContext?.currentTime>=origin;l.cursor.hidden=!playing;
+ if(playing){const phase=((audioContext.currentTime-origin)%cycle)/cycle;l.cursor.style.left=`${(phase*100).toFixed(2)}%`;}
+ }meters?.sync(voices);if(lanes.some(l=>l.visible))timer=root.setTimeout(tick,100)}
+function wake(){if(timer!==null){root.clearTimeout(timer);timer=null}if(!destroyed)tick()}
+const observer=new IntersectionObserver(changes=>{for(const e of changes){const lane=lanes.find(l=>l.el===e.target);if(lane)lane.visible=e.isIntersecting}wake()});for(const lane of lanes)observer.observe(lane.el);
+document.addEventListener('visibilitychange',wake);
+for(const event of ['mygrain-ui-busy','mygrain-ui-settled','mygrain-jump-change'])root.addEventListener(event,wake);
+function destroy(){destroyed=true;if(timer!==null)root.clearTimeout(timer);timer=null;observer.disconnect();meters?.destroy();document.removeEventListener('visibilitychange',wake);for(const event of ['mygrain-ui-busy','mygrain-ui-settled','mygrain-jump-change'])root.removeEventListener(event,wake)}
+root.addEventListener('mygrain-account-lock',destroy,{once:true});
+root.mygrainVocalDisplays=Object.freeze({meters,get lanes(){return lanes.map(l=>({lane:l.label,visible:l.visible,loaded:!!l.buffer}))},destroy});
+})(typeof window!=='undefined'?window:globalThis);

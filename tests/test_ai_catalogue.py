@@ -25,7 +25,7 @@ class CatalogueTests(unittest.TestCase):
     def test_01_complete_real_catalogue_bounded_shortlist(self):
         c = self.context
         self.assertEqual(c['status'], 'ready')
-        self.assertEqual(c['catalogueCount'], 941)
+        self.assertEqual(c['catalogueCount'], 982)
         self.assertEqual(set(c['candidates']), set(cat.LANES))
         self.assertLessEqual(len(json.dumps(cat.model_context(c))), 40000)
         self.assertNotIn('/srv/', json.dumps(cat.model_context(c)))
@@ -41,6 +41,19 @@ class CatalogueTests(unittest.TestCase):
                 if lane in ('X', 'L'):
                     self.assertIsNotNone(candidate['playbackRoot'])
                     self.assertFalse(candidate['filename']['loopClaim'])
+
+    def test_terra_lead_repository_shortlist(self):
+        context = cat.retrieve('synth lead', CURRENT, cat.SOURCE_BASE, l_repository='samples_terra')
+        self.assertEqual(context['status'], 'ready')
+        self.assertEqual(len(context['candidates']['L']), cat.LIMIT)
+        candidate = context['candidates']['L'][0]
+        entry = context['entries'][candidate['sampleId']]
+        self.assertEqual(entry['source'], 'samples_terra')
+        self.assertTrue(cat.current_file(entry['row'], context['sourceRoot'], entry['source'], verify_hash=True))
+        recipe = {'loops': {'L': {'reload': True, 'sampleId': candidate['sampleId']}}}
+        cat.attach_selections(recipe, context)
+        self.assertEqual(recipe['loops']['L']['selection']['source'], 'samples_terra')
+        self.assertTrue(all(self.context['entries'][c['sampleId']]['source'] == 'samples_leads' for c in self.context['candidates']['L']))
 
     def test_02_unknown_modes_not_major_and_candidates_not_promoted(self):
         c = self.context

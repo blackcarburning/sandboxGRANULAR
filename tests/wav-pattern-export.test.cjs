@@ -4,7 +4,7 @@ const source=html.slice(html.indexOf('        async function renderPatternWithOp
 function fixture(checked=true){
  const events=[],render={blob:new Blob(['wav']),filename:'render.wav'};
  const window={mygrainAccounts:{user:{username:'fixture'}},mygrainSongBetaAdapter:{ready:async()=>events.push('ready'),capture:async()=>{events.push('capture');return new Blob(['pattern'],{type:'application/zip'})},decode:async()=>{events.push('decode');return {}},recall:async()=>events.push('recall'),whenPersisted:async()=>events.push('persisted')},mygrainCardHistory:{busy:false,run:async(label,action)=>{events.push(label);return action()}}};
- const context=vm.createContext({window,Map,confirm:()=>{events.push('prompt');return checked},parseStoredZipEntries:()=>new Map(),document:{getElementById:()=>({checked})},setStatus:()=>{},renderDawReadyBarsExport:async()=>{events.push('render');return render}});
+ const context=vm.createContext({window,Map,patchImportProgress:()=>{},confirm:()=>{events.push('prompt');return checked},parseStoredZipEntries:()=>new Map(),document:{getElementById:()=>({checked})},setStatus:()=>{},renderDawReadyBarsExport:async()=>{events.push('render');return render}});
  vm.runInContext(source,context);return {context,window,events,render};
 }
 test('opt-out remains a plain WAV export without snapshot work',async()=>{const f=fixture(false);delete f.window.mygrainSongBetaAdapter;assert.equal(await f.context.renderPatternWithOptionalSnapshot(),f.render);assert.deepEqual(f.events,['prompt','render'])});
@@ -56,4 +56,30 @@ test('Song patch selection restores the chosen complete patch; cancel never chan
  f.context.getZipText=()=>JSON.stringify(manifest);f.context.prompt=()=>null;
  assert.equal(await f.context.importEditablePattern(bundle,'song.wav'),false);assert.deepEqual(f.events,[]);
  f.context.prompt=()=> '2';await f.context.importEditablePattern(bundle,'song.wav');assert.deepEqual(f.events,['ready','decode','Import Pattern','recall','persisted']);
+});
+
+function downloadFixture(responses, options={}) {
+ const f=fixture(), payload=Buffer.from('verified complete patch'), crypto=require('node:crypto');
+ const file={patternExport:{url:'/mygrain-wavs/api/pattern?filename=saved.wav',size:payload.length,sha256:crypto.createHash('sha256').update(payload).digest('hex')}};
+ let calls=0;
+ f.context.crypto=crypto.webcrypto;
+ f.context.WAV_REPOSITORY_BROWSER_TIMEOUT_MS=180000;
+ f.context.fetchWavRepositoryBrowserData=async(url,config)=>{assert.equal(config.retry,false);const item=responses[Math.min(calls++,responses.length-1)];if(item instanceof Error)throw item;if(options.onFetch)options.onFetch();return new Blob([item]);};
+ return {...f,file,payload,calls:()=>calls};
+}
+test('editable download retries a truncated HTTP 200 and returns only verified complete bytes',async()=>{
+ const f=downloadFixture(['short','verified complete patch']);
+ assert.equal(Buffer.from(await f.context.fetchEditablePatternBytes(f.file)).toString(),'verified complete patch');assert.equal(f.calls(),2);assert.deepEqual(f.events,[]);
+});
+test('persistent truncation reports received/expected sizes and never imports',async()=>{
+ const f=downloadFixture(['short']);await assert.rejects(f.context.fetchEditablePatternBytes(f.file),/incomplete: received 5 of 23 bytes.*No patch was imported[\s\S]*retry also failed/);assert.equal(f.calls(),2);assert.deepEqual(f.events,[]);
+});
+test('same-size corrupt download still fails SHA-256, including after retry',async()=>{
+ const f=downloadFixture(['x'.repeat(23)]);await assert.rejects(f.context.fetchEditablePatternBytes(f.file),/Expected SHA-256:[\s\S]*Received SHA-256:/);assert.equal(f.calls(),2);assert.deepEqual(f.events,[]);
+});
+test('network failure retries once and accepts a verified second download',async()=>{
+ const f=downloadFixture([new Error('network interrupted'),'verified complete patch']);await f.context.fetchEditablePatternBytes(f.file);assert.equal(f.calls(),2);
+});
+test('cancelled editable download does not retry or import',async()=>{
+ const abort=new AbortController(),f=downloadFixture(['short'],{onFetch:()=>abort.abort()});await assert.rejects(f.context.fetchEditablePatternBytes(f.file,abort.signal),{name:'AbortError'});assert.equal(f.calls(),1);assert.deepEqual(f.events,[]);
 });

@@ -1,14 +1,16 @@
-<div class="performance-feature-card videolab-card" id="performanceVideoLabCard" aria-label="Video Lab YouTube audio importer">
+<div class="performance-feature-card videolab-card" id="performanceVideoLabCard" aria-label="Video Lab YouTube and Instagram audio importer">
     <div class="performance-feature-head">
         <div class="performance-feature-copy">
-            <div class="performance-chip">YouTube · Server audio · Raw PCM</div>
+            <div class="performance-chip">YouTube + Instagram Reels · Audio capture</div>
             <h3 class="performance-feature-title">Video Lab</h3>
             <p class="performance-feature-note">Choose one video, fetch a finite audio take, then trim, audition, normalise and save it just like RadioLab. Start MYGRAIN first. No microphone or browser screen/audio capture.</p>
         </div>
     </div>
     <label for="videolabSavedURL">Saved URLs · private to your account</label>
     <select id="videolabSavedURL" disabled><option value="https://www.youtube.com/@BBCArchive">BBC Archive · channel</option></select>
-    <label for="videolabURL">YouTube video or channel URL</label>
+    <label for="videolabSource">Capture source · audio only</label>
+                <select id="videolabSource" disabled><option value="youtube">YouTube · video / channel bookmark</option><option value="instagram">Instagram · public Reel soundtrack</option></select>
+                <label for="videolabURL">YouTube or Instagram Reel URL</label>
     <input id="videolabURL" type="url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" value="https://www.youtube.com/@BBCArchive" aria-describedby="videolabURLHelp" disabled>
     <p class="videolab-note" id="videolabURLHelp">BBC Archive is a channel bookmark. Open the archive, choose one video, then paste that video's URL here. Channels and playlists are not fetched.</p>
     <div class="radiolab-controls videolab-controls">
@@ -23,7 +25,7 @@
         <label for="videolabStart">Start time · mm:ss (minutes:seconds)<input id="videolabStart" type="text" value="00:00" placeholder="mm:ss" maxlength="10" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="videolabStartHelp" disabled></label>
         <label for="videolabDuration">Duration · seconds (max 180)<input id="videolabDuration" type="number" min="0.1" max="180" step="0.1" value="120" inputmode="decimal" disabled></label>
     </div>
-    <p class="videolab-note" id="videolabStartHelp">Use the YouTube timestamp, e.g. 02:30 = 2 minutes 30 seconds. Duration remains in seconds.</p>
+    <p class="videolab-note" id="videolabStartHelp">Use the source timestamp, e.g. 02:30 = 2 minutes 30 seconds. Duration remains in seconds. Reel audio includes music, speech and effects together; no isolated stems. Instagram login is not connected.</p>
     <div class="radiolab-controls videolab-controls">
         <button class="performance-btn primary" id="videolabFetch" type="button" disabled>Record/Fetch audio</button>
         <button class="performance-btn" id="videolabCancel" type="button" disabled>Cancel</button>

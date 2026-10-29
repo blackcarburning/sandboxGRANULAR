@@ -12,6 +12,11 @@ workspace = pathlib.Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('song_test_documenter', workspace / 'fs7300-documenter' / 'server.py')
 server_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server_module)
+sys.path.insert(0, str(workspace / 'sandboxGRANULAR/backend'))
+import mygrain_wav_preview as preview_module
+for route in server_module.PROTECTED_ROUTES:
+    if route['base'] == '/mygrain':
+        route['root'] = workspace / 'sandboxGRANULAR'
 signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
 
 test_root = os.environ.get('MYGRAIN_TEST_ROOT')
@@ -26,6 +31,8 @@ storage = nullcontext(str(candidate)) if test_root else tempfile.TemporaryDirect
 
 class IsolatedHandler(server_module.DocumenterHandler):
     def dispatch_mygrain_request(self, dispatch, *args, **kwargs):
+        if self.path.split('?', 1)[0] == preview_module.ROUTE:
+            return preview_module.handle(self, preview_store)
         if not self.path.startswith('/mygrain'):
             self.send_error(404)
             return
@@ -34,7 +41,11 @@ class IsolatedHandler(server_module.DocumenterHandler):
 
 with storage as folder:
     root = pathlib.Path(folder)
+    # Test-only seed override; the store above is always beneath tempfile.
+    if os.environ.get('MYGRAIN_TEST_ADMIN_PASSWORD'):
+        server_module._accounts_module.SEED_HASHES['admin'] = server_module._accounts_module.hash_password(os.environ['MYGRAIN_TEST_ADMIN_PASSWORD'])
     accounts = server_module.init_account_store(root)
+    preview_store = preview_module.PreviewStore(accounts, root / 'preview-cache')
     server_module._song_module.EDIT_LEASE_SECONDS = int(os.environ.get('SONG_LOCK_TEST_LEASE_SECONDS', '600'))
     server_module.AUTH_CONFIG_PATH = root / 'auth' / 'documenter.json'
     server_module.CUSTOMER_CHAT_STORE_PATH = root / 'customer_chat.json'

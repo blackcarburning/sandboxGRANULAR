@@ -1,0 +1,9 @@
+# Final Mix repository export: PCM capture
+
+Build v2026.10.26.REPO-PCM.1 replaces the preferred MediaRecorder/encoded-audio/decode path with the existing stereo AudioWorklet capture processor. MediaRecorder remains only as a fallback for browsers without AudioWorklet. This avoids relying on MediaRecorder availability and codec round trips for final-mix WAV exports and takes/stems using the same recorder.
+
+Module loading completes before transport timestamps are selected. The processor's output is silent so connecting it to the destination does not double the mix. Success, cancellation, processor errors and interruption release connections, port callbacks, timers and context listeners. Source audio and gap/cut/stretch settings are unchanged.
+
+Verification (2026-10-26): phone viewport 390x844, touch contexts, WebKit and Chromium. Actual final-mix render and authenticated isolated-repository upload succeed with WAV-only and matching editable ZIP. Four fetched WAVs are exactly 2 seconds, with audible surrounding PCM and the configured gap silent. Two lifecycle tests and 22 existing WAV export tests pass. Live HTML HTTP 200 matches the local file byte-for-byte; both visible build badges carry REPO-PCM.1. Inline scripts parse. Physical iPhone verification remains outstanding; desktop WebKit missing MediaRecorder reproduces a concrete failing path but does not establish the original physical device's exact exception.
+
+Run `tests/song-beta-test-server.py 18958` with MYGRAIN_TEST_ADMIN_PASSWORD=isolated-cut-test before `node tests/live-output-repo-browser.cjs`. All test writes stay in the server's temporary account store. Backup: workspace output/mygrain-iphone-repo-20261026/index.before.html. No commit/push: existing checkout has extensive unrelated uncommitted work, preserved in place; supported live host serves this checkout directly.

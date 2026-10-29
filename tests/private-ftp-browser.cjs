@@ -1,0 +1,26 @@
+'use strict';
+const{chromium,webkit}=require('playwright-core');const assert=require('node:assert/strict');
+const base='http://127.0.0.1:18843',out='output/mygrain-private-ftp-20261026';
+function wav(freq=220){const frames=16000,b=Buffer.alloc(44+frames*2);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(8000,24);b.writeUInt32LE(16000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(frames*2,40);for(let i=0;i<frames;i++)b.writeInt16LE(Math.round(8000*Math.sin(2*Math.PI*freq*i/8000)),44+i*2);return b;}
+(async()=>{for(const[name,type]of Object.entries({chromium,webkit})){
+const b=await type.launch(name==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']}:{});
+try{const c=await b.newContext({viewport:{width:1440,height:1000}}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(30000);
+await p.goto(base+'/mygrain/ftp.html');await p.locator('#ftpLogin').waitFor({state:'visible'});await p.locator('[name=username]').fill('admin');await p.locator('[name=password]').fill('ftp-fixture-password');await p.locator('#ftpLogin button').click();await p.locator('#ftpLogin').waitFor({state:'hidden'});await p.waitForFunction(()=>document.querySelector('.ftp-status').textContent.includes('item(s)'));
+const folder=`browser-${name}-${Date.now()}`;p.once('dialog',d=>d.accept(folder));await p.getByRole('button',{name:'New folder',exact:true}).click();await p.locator('.ftp-row').filter({hasText:folder}).getByRole('button',{name:'Open',exact:true}).click();
+await p.waitForFunction(()=>!document.querySelector('input[type=file]').disabled);await p.locator('input[type=file]').setInputFiles([{name:'one.wav',mimeType:'audio/wav',buffer:wav()},{name:'two.wav',mimeType:'audio/wav',buffer:wav(330)}]);await p.waitForFunction(()=>document.querySelector('.ftp-status').textContent.includes('Uploaded 2'));
+assert.equal(await p.locator('.ftp-row').count(),2);
+const row=p.locator('.ftp-row').filter({hasText:'two.wav'});p.once('dialog',d=>d.accept(`${folder}/renamed.wav`));await row.getByRole('button',{name:'Rename / Move',exact:true}).click();await p.locator('.ftp-row').filter({hasText:'renamed.wav'}).waitFor();
+const downloadPromise=p.waitForEvent('download');await p.locator('.ftp-row').filter({hasText:'one.wav'}).getByRole('button',{name:'Download',exact:true}).click();const download=await downloadPromise;assert.equal(download.suggestedFilename(),'one.wav');console.log('PASS',name,'standalone same-account login, mkdir, multi-upload, rename, download');
+await p.goto(base+'/mygrain/');await p.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready');await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&window.mygrainFtpAdapter&&window.mygrainFtp);
+await p.locator('#mygrainFtpImportA').click({force:true});await p.locator('#mygrainFtpCard [data-ftp-path]').filter({hasText:folder}).click();await p.locator('#mygrainFtpCard [data-ftp-path]').filter({hasText:'one.wav'}).click();
+for(const target of ['A','B','C','V']){
+await p.waitForFunction(()=>!stateSaveSuspended&&!mygrainCardHistory.busy&&!bastardLoopGenerationInFlight&&!bastardLoop2GenerationInFlight&&!bastardLoop3GenerationInFlight&&!bastardLoopVGenerationInFlight);
+await p.locator(`[data-ftp-import="${target}"]`).click();await p.waitForFunction(t=>document.querySelector('#mygrainFtpCard .ftp-status').textContent===`Loop ${t} is ready. Original files unchanged.`,target);
+const result=await p.evaluate(t=>{const lanes={A:[bastardLoopBuffer,bastardLoopMetadata],B:[bastardLoop2Buffer,bastardLoop2Metadata],C:[bastardLoop3Buffer,bastardLoop3Metadata],V:[bastardLoopVBuffer,bastardLoopVMetadata]},[buffer,metadata]=lanes[t];return{energy:buffer.getChannelData(0).reduce((s,x)=>s+x*x,0),source:metadata.sourceKey,paths:metadata.samplePaths,names:metadata.sampleNames};},target);assert(result.energy>1);assert.equal(result.source,'user_ftp');assert.deepEqual(result.paths,[`${folder}/one.wav`]);assert.deepEqual(result.names,['one.wav']);
+console.log('PASS',name,'whole-file import',target);
+}
+await p.waitForFunction(()=>!stateSaveSuspended&&!mygrainCardHistory.busy&&!bastardLoopGenerationInFlight&&!bastardLoop2GenerationInFlight&&!bastardLoop3GenerationInFlight&&!bastardLoopVGenerationInFlight);await p.evaluate(()=>generateBastardLoopVWithPlaybackRestart({reuseSamples:true}));assert.equal(await p.evaluate(()=>bastardLoopVMetadata.sourceKey),'user_ftp');
+await p.locator('#performanceBastardLoopVSamplesBtn').click({force:true});assert.match(await p.locator('#bastardLoopSamplesList').innerText(),/one.wav|renamed.wav/);await p.evaluate(()=>closeBastardLoopSamplesDialog());
+await p.setViewportSize({width:390,height:844});await p.locator('#mygrainFtpCard').scrollIntoViewIfNeeded();assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.screenshot({path:`${out}/${name}-phone.png`});assert.deepEqual(errors,[]);console.log('PASS',name,'private-source V re-cut, Used Samples and phone layout');await c.close();
+}finally{await b.close();}
+}})().catch(e=>{console.error(e);process.exitCode=1});

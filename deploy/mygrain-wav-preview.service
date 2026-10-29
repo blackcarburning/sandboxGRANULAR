@@ -1,0 +1,29 @@
+[Unit]
+Description=MYGRAIN high-priority iPhone WAV listening previews
+After=network.target fs7300-documenter.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/.openclaw/workspace/sandboxGRANULAR/backend
+ExecStart=/usr/bin/python3 /root/.openclaw/workspace/sandboxGRANULAR/backend/mygrain_wav_preview.py
+Restart=always
+RestartSec=2
+Nice=-5
+CPUWeight=1000
+IOWeight=1000
+IOSchedulingClass=best-effort
+IOSchedulingPriority=2
+CacheDirectory=mygrain-wav-preview
+CacheDirectoryMode=0700
+UMask=0077
+MemoryMax=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/cache/mygrain-wav-preview
+
+[Install]
+WantedBy=multi-user.target

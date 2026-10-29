@@ -1,6 +1,36 @@
 # Phone loop actions, card history and Solo
 
-Build: v2026.10.20.TOUCH.9.
+Current history limit: **two shared Undo/Redo levels**, as of `v2026.10.29.CRACKLE-LOG.1`.
+Older sections below describe historical ten-level behavior. The current limit overrides it.
+
+## CRACKLE-LOG.1 — bounded history and diagnostics
+
+- Keep only the nearest two main-journal changes, including AI/K operations.
+- Read validated legacy ten-level journals, retain the newest two Undo states
+  (or nearest Redo states in any remaining capacity), atomically prune unused
+  stored PCM, and never hydrate abandoned audio to migrate.
+- Preserve PCM codec, device/account ownership, tab-writer checks, reservation
+  guards and exact sound restoration; no DSP, source archive or audible-render
+  version changes. Render decks continue bypassing card journalling.
+- `mygrainCardHistory.memory(liveBuffers)` deduplicates resident history PCM,
+  Q atlas/cache and hydrated history audio. Additional bytes exclude the live
+  set. Stored references are disk, not RAM. Counts exclude temporary copies and
+  browser/native graph internals.
+- Phone history rows now retain undo memory, VU activity and compact settings,
+  audition/editor status for all seven Loop Cut lanes. Runtime breadcrumbs
+  include Loop Cut controls, including checkbox/numeric/select changes.
+- Repeated errors retain one counted event per second; debug-console repaint
+  is offscreen/hidden-gated and at most once per second. Copy/submit still build
+  current data on demand. Capture available exception stacks; opaque Safari
+  `Script error.` events still cannot reveal a hidden source.
+
+Regression: `tests/two-level-history-browser.cjs` runs isolated authenticated
+Chromium/WebKit portrait/landscape, exact PCM travel, lazy reload, legacy cleanup,
+error-storm/offscreen rendering and account-lock checks. Set `MYGRAIN_TEST_URL`
+and use `MYGRAIN_TEST_ADMIN_PASSWORD=isolated-page-scroll` on the disposable server.
+Physical iPhone resolution remains unverified.
+
+Historical build: v2026.10.20.TOUCH.9.
 
 ## AI.10 — AI patches use the same Undo/Redo journal
 

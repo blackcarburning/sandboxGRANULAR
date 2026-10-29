@@ -335,3 +335,209 @@ body.q-sequencer-open {
 .q-editor-history { align-items: center; gap: 6px; flex: 0 0 auto; }
 .q-editor-history span { font-size: 10px; opacity: .75; }
 #bastardLoopQOverlay .q-editor-history .performance-btn { min-height: 30px; padding: 4px 10px; }
+
+/* Immediate Q-only audition range and candidate pitch controls. */
+.q-sequence-loop { display:flex; flex:0 0 auto; align-items:center; flex-wrap:wrap; gap:4px; }
+.q-sequence-loop label { display:flex; align-items:center; gap:3px; font-size:10px; }
+#bastardLoopQOverlay .q-sequence-loop input { width:42px; min-width:0; height:30px; padding:2px; background:#101827; color:#fff; border:1px solid #64748b; border-radius:4px; font-size:16px; }
+#bastardLoopQOverlay .q-sequence-loop .performance-btn { min-width:0; width:auto; min-height:32px; padding:4px 7px; font-size:10px; }
+#qSequenceLoopStatus { font-size:9px; flex:1 1 90px; }
+#qSequenceLoopSet[aria-pressed="true"], #qSequenceLoopToggle[aria-pressed="true"] { background:#164f42; border-color:#6ce1b1; }
+#bastardLoopQStepGrid .q-step.in-loop { box-shadow:inset 0 -3px #66e1b2; }
+.q-pool-pitch { display:grid; flex:0 0 auto; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+.q-pool-pitch > div { display:flex; min-width:0; align-items:center; justify-content:center; gap:4px; padding:3px; border:1px solid #52637b; border-radius:5px; background:#111c2b; }
+.q-pool-pitch span { font-size:10px; }
+.q-pool-pitch output { font-size:11px; min-width:23px; text-align:center; color:#b8f0d9; }
+#bastardLoopQOverlay .q-pool-pitch .performance-btn { width:30px; min-width:28px; min-height:32px; padding:3px; font-size:17px; }
+@media(max-width:560px) {
+ .q-pool-pitch > div { flex-wrap:wrap; gap:2px; }
+ .q-pool-pitch span { flex-basis:100%; text-align:center; font-size:10px; }
+ #bastardLoopQOverlay .q-pool-pitch .performance-btn { width:28px; min-width:26px; min-height:32px; }
+}
+@media(max-height:700px) {
+ /* Short screens must scroll the workbench rather than hide the sequence. */
+ #bastardLoopQOverlay .q-shell { overflow-y:auto; touch-action:pan-y; }
+ #bastardLoopQOverlay .q-workbench { flex:0 0 360px; min-height:360px; }
+}
+
+/* Phone control drawers: the same controls move back to their desktop anchors. */
+#bastardLoopQOverlay .q-mobile-nav[hidden],
+#bastardLoopQOverlay .q-mobile-panel[hidden],
+#bastardLoopQOverlay .q-mobile-shade[hidden] { display:none; }
+#bastardLoopQOverlay .q-shell.q-mobile-layout {
+    position:relative; padding:8px; overflow:hidden; gap:5px;
+}
+#bastardLoopQOverlay .q-mobile-layout .q-head { margin:0; min-height:34px; flex:0 0 auto; }
+#bastardLoopQOverlay .q-mobile-layout .q-head h3 { font-size:14px; }
+#bastardLoopQOverlay .q-mobile-nav { display:flex; align-items:center; gap:5px; flex:0 0 auto; min-width:0; }
+#bastardLoopQOverlay .q-mobile-nav button,
+#bastardLoopQOverlay .q-mobile-panel header button {
+    width:auto; min-width:0; min-height:44px; margin:0; padding:5px 8px;
+    border:1px solid #d46a7a; border-radius:8px; background:#592438;
+    color:#fff1f4; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation;
+}
+#bastardLoopQOverlay .q-mobile-nav button[aria-expanded="true"] { background:#a53d59; border-color:#ffbecb; }
+#bastardLoopQOverlay .q-mobile-transport { display:flex; gap:4px; margin-left:auto; min-width:0; }
+#bastardLoopQOverlay .q-mobile-nav #bastardLoopQAllPlayBtn,
+#bastardLoopQOverlay .q-mobile-nav #bastardLoopQAllStopBtn { font-size:12px; min-height:44px; min-width:44px; }
+#bastardLoopQOverlay .q-mobile-layout .q-workbench {
+    flex:1 1 0; min-height:0; overflow:hidden; margin:0; gap:5px;
+}
+#bastardLoopQOverlay .q-mobile-layout .q-candidate-pools,
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQPalette { max-height:none; min-height:0; flex:1 1 0; margin:0; }
+#bastardLoopQOverlay .q-mobile-layout .q-grid-scroll { max-height:none; min-height:0; flex:1 1 0; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid .q-step { min-height:44px; font-size:10px; }
+#bastardLoopQOverlay .q-mobile-layout .q-palette-heading,
+#bastardLoopQOverlay .q-mobile-layout .q-grid-heading { flex:0 0 auto; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStatus { display:block; flex:0 0 auto; margin:0; max-height:2.8em; overflow-y:auto; font-size:10px; line-height:1.4; }
+#bastardLoopQOverlay .q-mobile-shade {
+    position:absolute; z-index:5; inset:94px 0 0; width:100%; height:auto; margin:0;
+    border:0; border-radius:0; background:#08040bbb; cursor:pointer;
+}
+#bastardLoopQOverlay .q-mobile-panel {
+    position:absolute; z-index:6; top:94px; bottom:8px; width:min(350px,calc(100% - 16px));
+    box-sizing:border-box; min-width:0; display:flex; flex-direction:column;
+    border:1px solid #e46f86; border-radius:10px; background:#2b1420;
+    box-shadow:0 8px 28px #000b; overflow:hidden; color:#ffedf1;
+}
+#bastardLoopQOverlay .q-mobile-left { left:8px; }
+#bastardLoopQOverlay .q-mobile-right { right:8px; }
+#bastardLoopQOverlay .q-mobile-panel header { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; flex:0 0 auto; border-bottom:1px solid #713346; }
+#bastardLoopQOverlay .q-mobile-panel-content { padding:10px; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; min-width:0; min-height:0; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-pitch { grid-template-columns:1fr; gap:8px; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-pitch > div { display:flex; flex-wrap:nowrap; justify-content:space-between; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-pitch > div > span { width:auto; flex:1; text-align:left; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-pitch button { min-height:44px; min-width:44px; font-size:18px; }
+#bastardLoopQOverlay .q-mobile-panel .q-editor-history { display:grid; grid-template-columns:1fr 1fr; }
+#bastardLoopQOverlay .q-mobile-panel .q-editor-history span { grid-column:1 / -1; }
+#bastardLoopQOverlay .q-mobile-panel .q-settings { max-height:none; overflow:visible; }
+#bastardLoopQOverlay .q-mobile-panel .q-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
+#bastardLoopQOverlay .q-mobile-panel .q-controls select { min-width:0; max-width:100%; font-size:16px; min-height:40px; }
+#bastardLoopQOverlay .q-mobile-panel .q-session-controls { grid-template-columns:repeat(2,minmax(0,1fr)); margin:10px 0; }
+#bastardLoopQOverlay .q-mobile-panel .q-session-controls button,
+#bastardLoopQOverlay .q-mobile-panel .q-toolbar button,
+#bastardLoopQOverlay .q-mobile-panel .q-pool-controls button,
+#bastardLoopQOverlay .q-mobile-panel .q-sequence-loop button { min-height:44px; font-size:12px; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-controls { display:grid; grid-template-columns:1fr 1fr; }
+#bastardLoopQOverlay .q-mobile-panel #qCustomChordOpen,
+#bastardLoopQOverlay .q-mobile-panel #bastardLoopQPoolHelp { grid-column:1 / -1; }
+#bastardLoopQOverlay .q-mobile-panel .q-record-help { margin:8px 0; }
+#bastardLoopQOverlay .q-mobile-panel .q-sequence-loop { margin:10px 0; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQPalette .q-chord { min-height:44px; }
+@media (max-width:480px) {
+    #bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+
+/* Edge handles match the app's Jump/transport pattern, leaving the centre clear. */
+#bastardLoopQOverlay .q-sequence-panel { display:flex; flex-direction:column; gap:4px; flex:4 1 0; min-width:0; min-height:70px; overflow:hidden; }
+#bastardLoopQOverlay .q-sequence-panel .q-grid-scroll { flex:1 1 0; min-height:30px; }
+#bastardLoopQOverlay .q-shell.q-mobile-layout { padding:8px 36px; }
+#bastardLoopQOverlay .q-mobile-layout .q-head h3 { font-size:12px; }
+#bastardLoopQOverlay .q-mobile-layout .q-head { gap:4px; }
+#bastardLoopQOverlay .q-mobile-layout .q-head button { min-width:48px; padding:5px; font-size:11px; }
+#bastardLoopQOverlay .q-mobile-nav { position:absolute; inset:0; display:block; pointer-events:none; z-index:8; }
+#bastardLoopQOverlay .q-mobile-nav > button,
+#bastardLoopQOverlay .q-mobile-nav .q-mobile-transport button {
+    position:absolute; width:32px; min-width:32px; min-height:0; padding:7px 3px;
+    writing-mode:vertical-rl; text-orientation:mixed; pointer-events:auto;
+    border-radius:0 9px 9px 0; font-size:11px;
+}
+#bastardLoopQOverlay #qMobileLeftTab { left:0; top:52px; height:114px; }
+#bastardLoopQOverlay #qMobileRightTab { right:0; top:52px; height:70px; border-radius:9px 0 0 9px; }
+#bastardLoopQOverlay .q-mobile-transport { position:absolute; right:0; top:130px; display:flex; flex-direction:column; gap:6px; margin:0; pointer-events:auto; }
+#bastardLoopQOverlay .q-mobile-nav #bastardLoopQAllPlayBtn,
+#bastardLoopQOverlay .q-mobile-nav #bastardLoopQAllStopBtn { position:static; width:32px; min-width:32px; height:70px; min-height:0; border-radius:9px 0 0 9px; font-size:11px; }
+#bastardLoopQOverlay .q-mobile-panel { top:48px; bottom:6px; width:calc(100% - 72px); max-width:350px; }
+#bastardLoopQOverlay .q-mobile-left { left:36px; }
+#bastardLoopQOverlay .q-mobile-right { right:36px; }
+#bastardLoopQOverlay .q-mobile-shade { inset:46px 32px 0; width:calc(100% - 64px); }
+#bastardLoopQOverlay .q-mobile-layout .q-sequence-panel { flex:1.2 1 0; min-height:136px; }
+#bastardLoopQOverlay .q-mobile-layout .q-sequence-loop { gap:3px; margin:0; flex:0 0 auto; }
+#bastardLoopQOverlay .q-mobile-layout .q-sequence-loop button { min-height:30px; min-width:0; font-size:10px; padding:4px 5px; }
+#bastardLoopQOverlay .q-mobile-layout .q-sequence-loop label { font-size:10px; gap:2px; }
+#bastardLoopQOverlay .q-mobile-layout .q-sequence-loop input { width:34px; height:30px; padding:2px; }
+#bastardLoopQOverlay .q-mobile-layout #qSequenceLoopStatus { font-size:9px; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQDeleteStepBtn { order:-1; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid { grid-template-columns:repeat(8,minmax(0,1fr)); gap:2px; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid .q-step { min-height:30px; padding:2px 1px; font-size:8px; line-height:1.15; }
+#bastardLoopQOverlay .q-mobile-layout .q-candidate-pools { grid-template-columns:minmax(0,1.6fr) minmax(86px,1fr); }
+#bastardLoopQOverlay .q-mobile-layout #qCustomChordList { grid-template-columns:minmax(0,1fr); }
+
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid .q-step { height:30px; white-space:pre; overflow:hidden; text-overflow:ellipsis; }
+
+/* Dedicated edge action rails, on phone and desktop. */
+#bastardLoopQOverlay .q-shell.q-mobile-layout { padding:8px 54px; }
+#bastardLoopQOverlay .q-edge-rail { position:absolute; top:40px; bottom:6px; width:48px; display:flex; flex-direction:column; gap:4px; pointer-events:auto; }
+#bastardLoopQOverlay .q-edge-left { left:0; }
+#bastardLoopQOverlay .q-edge-right { right:0; }
+#bastardLoopQOverlay .q-edge-actions { display:flex; flex-direction:column; gap:4px; flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; touch-action:pan-y; scrollbar-width:thin; }
+#bastardLoopQOverlay .q-edge-fixed, #bastardLoopQOverlay .q-edge-close { display:flex; flex-direction:column; gap:4px; flex:0 0 auto; }
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail button,
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail #qMobileLeftTab,
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail #qMobileRightTab,
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail #bastardLoopQAllPlayBtn,
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail #bastardLoopQAllStopBtn {
+ position:static; writing-mode:horizontal-tb; width:48px; min-width:0; height:auto; min-height:44px; flex:0 0 auto; padding:4px 2px; margin:0; font-size:10px; line-height:1.15; white-space:normal; overflow-wrap:anywhere; border-radius:0 7px 7px 0; pointer-events:auto;
+}
+#bastardLoopQOverlay .q-mobile-nav .q-edge-right button { border-radius:7px 0 0 7px; }
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail #qMobileLeftTab { min-height:52px; }
+#bastardLoopQOverlay .q-mobile-transport { position:static; display:flex; flex-direction:column; gap:4px; margin:0; }
+#bastardLoopQOverlay .q-edge-actions button[aria-pressed="true"] { background:#186047; border-color:#80edbc; }
+#bastardLoopQOverlay .q-mobile-panel { top:40px; bottom:6px; width:calc(100% - 108px); max-width:350px; }
+#bastardLoopQOverlay .q-mobile-left { left:54px; }
+#bastardLoopQOverlay .q-mobile-right { right:54px; }
+#bastardLoopQOverlay .q-mobile-shade { inset:40px 48px 0; width:calc(100% - 96px); }
+#bastardLoopQOverlay .q-mobile-panel #qCustomChordKeep { width:100%; min-height:44px; margin-bottom:8px; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQDeleteStepBtn { order:0; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-pitch > div { flex-wrap:wrap; gap:3px; }
+#bastardLoopQOverlay .q-mobile-panel .q-pool-pitch > div > span { flex-basis:100%; }
+
+/* Keep edge labels readable without splitting short words. */
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail { width:52px; }
+#bastardLoopQOverlay .q-mobile-nav .q-edge-rail button { width:52px; letter-spacing:0; font-size:9px; overflow-wrap:normal; }
+
+/* Compact named chord pools and legible, scrollable rectangular sequence cells. */
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQPalette .q-chord { min-height:30px; height:30px; padding:3px; font-size:10px; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid { grid-template-columns:repeat(8,minmax(80px,1fr)); gap:4px; }
+#bastardLoopQOverlay .q-mobile-layout #bastardLoopQStepGrid .q-step { height:50px; min-height:50px; border-radius:6px; padding:3px 5px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; white-space:normal; text-transform:none; letter-spacing:0; }
+#bastardLoopQOverlay .q-step-number { font-size:9px; opacity:.7; line-height:1; }
+#bastardLoopQOverlay .q-step-name { font-size:11px; line-height:1.2; white-space:nowrap; }
+#bastardLoopQOverlay .q-mobile-layout .q-grid-scroll { overflow:auto; touch-action:pan-x pan-y; overscroll-behavior:contain; }
+
+.q-source-controls { min-width:0; margin:5px 0; padding:7px; border:1px solid #526476; border-radius:7px; }
+.q-source-controls strong { display:block; font-size:12px; margin-bottom:4px; }
+.q-source-buttons { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
+.q-source-buttons>span { display:flex; gap:2px; min-width:0; }
+.q-source-controls .performance-btn { width:auto; min-width:0; min-height:32px; padding:4px 8px; font-size:11px; }
+.q-source-controls [data-q-sound][aria-pressed="true"] { background:#305d72; border-color:#79c7ed; }
+.q-source-controls small { display:block; overflow-wrap:anywhere; font-size:10px; }
+
+.sample-browser-overlay.q-source-browser{z-index:2147483500!important}
+
+/* Q source pairs retain their layer identity in both card and phone Tools. */
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-sound="osc"] { background:#69418c; color:#fff; border-color:#e1bbff; }
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-source-jump="osc"] { background:#e1bbff; color:#241433; border-color:#e1bbff; }
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-sound="grain"] { background:#286747; color:#fff; border-color:#c6dbb1; }
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-source-jump="grain"] { background:#c6dbb1; color:#183024; border-color:#c6dbb1; }
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-sound="osc"][aria-pressed="true"] { background:#8552b0; border-color:#e1bbff; }
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-sound="grain"][aria-pressed="true"] { background:#388659; border-color:#c6dbb1; }
+:is(#bastardLoopQCard, #bastardLoopQOverlay) .q-source-controls [data-q-sound]:is([data-q-sound="osc"],[data-q-sound="grain"])[aria-pressed="true"] { box-shadow:inset 0 0 0 2px #fff; }
+
+/* Desktop exit belongs to the viewport edge, independent of the Q card width. */
+@media (min-width: 961px) {
+    #bastardLoopQOverlay #bastardLoopQCloseBtn {
+        position: fixed;
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        top: auto;
+        left: auto;
+        width: 64px;
+        min-width: 64px;
+        height: 44px;
+        min-height: 44px;
+        margin: 0;
+        z-index: 20;
+        pointer-events: auto;
+        border-radius: 9px 0 0 9px;
+    }
+}

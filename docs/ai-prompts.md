@@ -58,3 +58,11 @@ Opt-in real model: run another isolated server on 18877 with log `/tmp/mygrain-a
 ## Rollback
 
 Pre-AI.6 revision: `afa56e3`. Exact deployed files and shared-host snapshot: `backups/ai-prompts-20261020T092422Z/`. Restore only changed app files and reverse only this task's host dispatch change; do not overwrite unrelated shared-host work. Restart the service. Keep the separate prompt database, account stores, recorded audio, Songs and offline catalogue intact. The new prompt module can remain unused during a rollback.
+
+## Current feature knowledge
+
+`docs/ai-feature-knowledge.md` is loaded by the backend and included in every model
+request (generate, regenerate, refine and Song section). It covers current cards,
+shared effects, transport-aligned filter LFOs, N threshold/envelope behaviour and
+loop retention/artwork changes. It explicitly distinguishes feature awareness from
+the unchanged validated writable recipe schema. Restart the backend after updates.

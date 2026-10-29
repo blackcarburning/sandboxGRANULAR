@@ -17,7 +17,7 @@ const audioContext = { createBuffer(channels, length, sampleRate) {
 } };
 
 test('legacy, absent and invalid cut settings default to the full uncut loop', () => {
-    const defaults = { enabled: false, repeat: false, fromStart: false, start: 0, end: 1, stretch: false, targetStart: null, targetDuration: null, snap: true, grid: 1 / 16 };
+    const defaults = { gapEnabled: false, gaps: [], enabled: false, repeat: false, fromStart: false, start: 0, end: 1, stretch: false, targetStart: null, targetDuration: null, snap: true, grid: 1 / 16 };
     assert.deepEqual(cut.normalize(), defaults);
     assert.deepEqual(cut.normalize(null), defaults);
     for (const range of [[.7, .3], [0, 0], [-.1, 1], [0, 1.1], [NaN, 1]]) {
@@ -126,15 +126,16 @@ test('editor toggles stay independent, describe source placement and reset both 
     const elements = new Map();
     const element = id => {
         if (!elements.has(id)) elements.set(id, {
-            hidden: true, style: {}, attributes: {}, listeners: {}, classes: new Set(),
+            hidden: true, style: {}, dataset: {}, attributes: {}, listeners: {}, classes: new Set(),
             addEventListener(event, handler) { this.listeners[event] = handler; },
             setAttribute(name, value) { this.attributes[name] = value; },
+            before() {},
             append() {},
             classList: { toggle(name, active) { if (active) elements.get(id).classes.add(name); else elements.get(id).classes.delete(name); } }
         });
         return elements.get(id);
     };
-    globalThis.document = { getElementById: element, createElement: () => ({}) };
+    globalThis.document = { getElementById: element, createElement: () => ({style:{},dataset:{},setAttribute(){},append(){},addEventListener(){},classList:{toggle(){}},children:[]}) };
     let settings = cut.normalize({ enabled: true, start: .375, end: .5 });
     try {
         const editor = new cut.Editor({

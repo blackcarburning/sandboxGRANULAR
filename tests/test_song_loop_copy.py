@@ -12,7 +12,7 @@ SONGS = backend.SONGS
 render_wav = backend.render_wav
 
 
-PREFIXES = {'A': '', 'B': '2', 'C': '3', 'V': 'V', 'P': 'P', 'O': 'O', 'L': 'L', 'X': 'X', 'Q': 'Q', 'M': 'M', 'M+': 'MPlus'}
+PREFIXES = {'A': '', 'B': '2', 'C': '3', 'V': 'V', 'W': 'W', 'P': 'P', 'O': 'O', 'L': 'L', 'X': 'X', 'Q': 'Q', 'M': 'M', 'M+': 'MPlus'}
 
 
 def complete_part(tag, steps=16, empty=(), portable=True):

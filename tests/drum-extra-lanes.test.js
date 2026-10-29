@@ -185,7 +185,8 @@ test('song and patch audio entries include both new lanes while retaining all ol
     assert.match(adapter, /drumClap.*drumCymbals/);
     assert.match(html, /path: `drums\/\$\{track.kind\}\.wav`/);
     assert.match(html, /restoreExtraDrumMachineTracks\(state.modes.drumMachineExtraTracks\)/);
-    assert.match(html, /source\.buffer = playbackBuffer/);
+    // Check the drum player itself, not a retired X sample-envelope helper.
+    assert.match(extract('playDrumMachineHit'), /source\.buffer = buffer/);
 });
 
 test('ETC has independent crash-style accent, ratchet, pitch and sample routing', async () => {

@@ -12,7 +12,7 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
         try {
             const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
                 userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1' });
-            assert.equal((await context.request.post(base + 'api/auth/register', { data: { username: `amendedit_${engine[0]}_${Date.now()}`, password: 'isolated-editor-checkpoint' } })).status(), 200);
+            assert.equal((await context.request.post(base + 'api/auth/login', { data: { username: 'admin', password: process.env.MYGRAIN_TEST_ADMIN_PASSWORD || 'isolated-edit-fixture' } })).status(), 200);
             const page = await context.newPage(), errors = [];
             page.on('pageerror', error => errors.push(error.message));
             await page.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
@@ -29,9 +29,9 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
                 // Lower than the production 96 MiB guard: force the checkpoint
                 // branch with modest real buffers, without relying on process OOM.
                 c.memoryBudget.limitBytes = 38 * 1048576;
-                const fill = seed => {
+                const fill = (seed, frames = 524288) => {
                     for (let track = 0; track < 3; track++) {
-                        const buffer = audioContext.createBuffer(2, 524288, 48000);
+                        const buffer = audioContext.createBuffer(2, frames, 48000);
                         for (let channel = 0; channel < 2; channel++) {
                             const pcm = buffer.getChannelData(channel);
                             for (let frame = 0; frame < pcm.length; frame++) pcm[frame] = .1234567 * Math.sin((frame + seed) * (track + 1) * .007 + channel * .15);
@@ -41,9 +41,14 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
                     }
                     k.refreshBuffers();
                 };
+                // A saved wet legacy part used to be rejected by charging full DSP
+                // crossfade banks/cache alongside stopped source preparation.
+                const wet = MygrainLoopFx.normalize();
+                for (const key of ['L', 'M', 'Q']) Object.assign(wet.channels[key], { room: .4, reverbDecay: key === 'L' ? 9.815 : 4.5, delay: .3 });
+                mygrainLoopFx.restore(wet);
                 fill(0); await c.newPart({ name: 'Native-rate K tracks', repeats: 1 });
                 const expectedUndo = await hashLive();
-                await mygrainCardHistory.runDraftEdit('Unsaved exact Float32 sources', () => fill(700));
+                await mygrainCardHistory.runDraftEdit('Unsaved exact Float32 sources', () => fill(700, 1048576));
                 await mygrainCardHistory.flush();
                 async function hashLive() {
                     const result = [];
@@ -56,12 +61,30 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
                     return result;
                 };
                 const before = await hashLive(), counts = mygrainCardHistory.counts;
+                const resident = c.adapter.editingResidency();
+                if (16 * 1048576 + resident.bytes + resident.scratch <= c.memoryBudget.limitBytes) throw new Error('Fixture must reproduce oversized pre-plan admission');
+                let checkpointCopyPeak = 0;
+                const checkpointSave = MygrainSongStorage.EditCheckpoint.prototype.save;
+                MygrainSongStorage.EditCheckpoint.prototype.save = async function (...args) {
+                    const saved = await checkpointSave.apply(this, args);
+                    checkpointCopyPeak = Math.max(checkpointCopyPeak, saved.largest);
+                    return saved;
+                };
                 let checkpoints = 0, restores = 0, originalGets = 0;
                 const detach = c.adapter.detachEditingSources.bind(c.adapter);
                 c.adapter.detachEditingSources = () => { checkpoints++; return detach(); };
                 const restore = MygrainSongStorage.EditCheckpoint.prototype.restore;
                 MygrainSongStorage.EditCheckpoint.prototype.restore = async function (...args) { restores++; return restore.apply(this, args); };
                 const request = c.request.bind(c), samples = [];
+                let parkedDecodes = 0;
+                const decode = c.adapter.decodeEditing.bind(c.adapter);
+                c.adapter.decodeEditing = async (...args) => {
+                    for (const g of mygrainLoopFx.groups) {
+                        if (g.graph.diagnostics().hallOn || g.graph.diagnostics().delayOn || g.graph.banks.some(b => b.node.buffer)) throw new Error('Editing retains wet DSP buffers');
+                    }
+                    parkedDecodes++;
+                    return decode(...args);
+                };
                 const monitor = setInterval(() => samples.push(c.memoryBudget.bytes + c.renderBytes), 5);
                 const failures = [];
                 for (const mode of ['corrupt', 'cancel', 'quota']) {
@@ -82,6 +105,7 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
                     try { await c.amendPart(c.song.parts[0]); } catch (failure) { error = { name: failure.name, message: failure.message }; }
                     MygrainSongStorage.EditCheckpoint.prototype.save = save; c.request = request;
                     if (!error) throw new Error(`${mode} failed to interrupt loading`);
+                    if (JSON.stringify(mygrainLoopFx.settings()) !== JSON.stringify(wet)) throw new Error('Failed editing changed effect settings');
                     const after = await hashLive();
                     if (JSON.stringify(after) !== JSON.stringify(before)) throw new Error(`${mode} changed unsaved PCM/settings`);
                     if (c.memoryBudget.bytes || c.cache.size || c.audioCache.bytes || c.editing) throw new Error(`${mode} leaked state`);
@@ -104,11 +128,14 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
                 await c.savePart(); c.active = null; await c.amendPart(c.song.parts[0]); c.cancelAmendment();
                 clearInterval(monitor);
                 const databases = await indexedDB.databases();
-                return { expectedUndo, failures, checkpoints, restores, originalGets, voices, countsBefore: counts, countsAfter: mygrainCardHistory.counts,
+                if (JSON.stringify(mygrainLoopFx.settings()) !== JSON.stringify(wet)) throw new Error('Editing changed effect settings');
+                return { expectedUndo, checkpointCopyPeak, parkedDecodes, failures, checkpoints, restores, originalGets, voices, countsBefore: counts, countsAfter: mygrainCardHistory.counts,
                     budget: c.memoryBudget.limitBytes, peak: Math.max(...samples), memory: c.memoryBudget.bytes, cache: c.cache.size,
                     audioCache: c.audioCache.bytes, temporaryDatabases: databases.filter(db => db.name.includes('mygrain-edit-checkpoint-')).length,
                     revision: c.song.revision, sourceCount: manifest.audioAssets.length };
             });
+            assert.ok(report.checkpointCopyPeak > 0 && report.checkpointCopyPeak <= 2 * 1048576);
+            assert.ok(report.parkedDecodes >= 4);
             assert.equal(report.restores, 2); assert.ok(report.checkpoints >= 5, JSON.stringify(report));
             assert.equal(report.originalGets, 0); assert.ok(report.peak <= report.budget, JSON.stringify(report));
             assert.deepEqual(report.countsAfter, report.countsBefore);

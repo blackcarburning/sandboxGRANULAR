@@ -26,9 +26,19 @@ CHANNELS = 1
 FRAME_BYTES = CHANNELS * 2
 ALLOWED_HOSTS = frozenset(('youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtubei.youtube.com', 'youtubei.googleapis.com'))
 GOOGLEVIDEO = re.compile(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+googlevideo\.com\Z')
+INSTAGRAM_HOSTS = frozenset(('instagram.com', 'www.instagram.com', 'i.instagram.com', 'm.instagram.com'))
+INSTAGRAM_CDN = re.compile(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:cdninstagram\.com|fbcdn\.net)\Z')
 
 
 class PolicyError(ValueError):
+    pass
+
+
+class AccessRequired(PolicyError):
+    pass
+
+
+class NoSoundtrack(PolicyError):
     pass
 
 
@@ -39,10 +49,12 @@ def checked_target(url):
     host = parsed.hostname or ''
     if parsed.scheme != 'https' or parsed.username is not None or parsed.password is not None or parsed.fragment or parsed.port not in (None, 443):
         raise PolicyError('Only allowed HTTPS endpoints are supported.')
-    if host not in ALLOWED_HOSTS and not GOOGLEVIDEO.fullmatch(host):
+    if host not in ALLOWED_HOSTS and host not in INSTAGRAM_HOSTS and not GOOGLEVIDEO.fullmatch(host) and not INSTAGRAM_CDN.fullmatch(host):
         raise PolicyError('Blocked outbound host.')
     if parsed.netloc not in (host, host + ':443'):
         raise PolicyError('Invalid outbound authority.')
+    if host in INSTAGRAM_HOSTS and re.match(r'/(?:accounts/(?:login|signup)|challenge|checkpoint)(?:/|$)', parsed.path):
+        raise AccessRequired('Instagram requires login.')
     return parsed, host
 
 
@@ -150,7 +162,10 @@ class PinnedDirector:
                     response.close()
                     connection.close()
                     continue
-                maximum = MAX_BYTES if GOOGLEVIDEO.fullmatch(host) else MAX_METADATA_BYTES
+                if host in INSTAGRAM_HOSTS and response.status in (401, 403, 429):
+                    response.close()
+                    raise AccessRequired('Instagram anonymous access is restricted.')
+                maximum = MAX_BYTES if GOOGLEVIDEO.fullmatch(host) or INSTAGRAM_CDN.fullmatch(host) else MAX_METADATA_BYTES
                 length = response.getheader('Content-Length')
                 if length is not None and (not re.fullmatch(r'[0-9]+', length) or int(length) > maximum):
                     raise PolicyError('Outbound response exceeds byte limit.')
@@ -180,8 +195,8 @@ class QuietLogger:
         pass
 
     def warning(self, message):
-        if re.search(r'sign.?in|\bbot\b|\b403\b|\b429\b|restrict|private|unavailable|not available|age.?limit', str(message), re.I):
-            raise PolicyError('Anonymous access restriction; no workaround attempted.')
+        if re.search(r'sign.?in|log.?in|logged.?in|\bbot\b|\b403\b|\b429\b|restrict|private|unavailable|not available|age.?limit|not granting access', str(message), re.I):
+            raise AccessRequired('Anonymous access restriction; no workaround attempted.')
 
     def error(self, message):
         pass
@@ -277,6 +292,51 @@ def original_audio_format(context):
     yield min(useful or eligible, key=bitrate)
 
 
+def checked_instagram_format(info):
+    if (info.get('requested_formats') or info.get('requested_downloads') or info.get('fragments')
+            or info.get('has_drm') or info.get('protocol') != 'https' or info.get('ext') not in ('mp4', 'm4a', 'webm')
+            or info.get('acodec') == 'none'):
+        raise PolicyError('No direct Reel soundtrack is available.')
+    parsed, host = checked_target(info.get('url'))
+    if not INSTAGRAM_CDN.fullmatch(host):
+        raise PolicyError('Reel media must use an Instagram CDN.')
+    for field in ('filesize', 'filesize_approx'):
+        value = info.get(field)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value) or not 0 < value <= MAX_BYTES):
+            raise PolicyError('Reel exceeds 64 MiB.')
+
+
+def instagram_audio_format(context):
+    eligible = []
+    for audio in context['formats']:
+        try:
+            checked_instagram_format(audio)
+            eligible.append(audio)
+        except ValueError:
+            continue
+    if not eligible:
+        if context['formats'] and all(audio.get('acodec') == 'none' for audio in context['formats']):
+            raise NoSoundtrack('This Reel has no audio soundtrack.')
+        raise PolicyError('No direct Reel soundtrack is available.')
+    # Audio-only when offered, otherwise decode the soundtrack from one MP4.
+    yield min(eligible, key=lambda f: (f.get('vcodec') != 'none', f.get('filesize') or f.get('filesize_approx') or math.inf, f.get('height') or math.inf))
+
+
+def checked_instagram_metadata(info, video, start):
+    if (not isinstance(info, dict) or info.get('_type', 'video') != 'video' or info.get('id') != video
+            or info.get('availability') not in (None, 'public') or info.get('age_limit') not in (None, 0)
+            or info.get('is_live') or info.get('is_upcoming') or info.get('has_drm')
+            or info.get('live_status') not in (None, 'not_live')):
+        raise AccessRequired('Only anonymously accessible public Reels are supported.')
+    checked_instagram_format(info)
+    duration = info.get('duration')
+    if duration is None:
+        return None  # Some logged-out Reel metadata omits duration; PCM remains bounded.
+    if isinstance(duration, bool) or not isinstance(duration, (float, int)) or not math.isfinite(duration) or not start < duration <= 86400 * 366:
+        raise PolicyError('Invalid Reel duration or start time.')
+    return float(duration)
+
+
 def decode(source, destination, start, duration):
     skip, remaining = int(start * RATE), int(duration * RATE)
     deadline = time.monotonic() + 110
@@ -319,7 +379,7 @@ def decode(source, destination, start, duration):
         process.stdout.close()
 
 
-def acquire(work, video, start, duration):
+def acquire(work, video, start, duration, source_type='youtube'):
     downloader = downloader_class()
 
     def progress(update):
@@ -329,22 +389,27 @@ def acquire(work, video, start, duration):
     options = {'logger': QuietLogger(), 'quiet': True, 'noprogress': True, 'cachedir': False, 'noplaylist': True,
                'geo_bypass': False, 'socket_timeout': 8, 'retries': 0, 'extractor_retries': 0, 'fragment_retries': 0,
                'file_access_retries': 0, 'continuedl': False, 'max_filesize': MAX_BYTES, 'fixup': 'never',
-               'format': original_audio_format,
+               'format': instagram_audio_format if source_type == 'instagram' else original_audio_format,
                'outtmpl': str(work / 'source.%(ext)s'), 'js_runtimes': {'node': {'path': '/usr/bin/node'}},
                'remote_components': [], 'proxy': '', 'postprocessors': [], 'progress_hooks': [progress],
                'http_headers': {'Accept-Encoding': 'identity'}, 'enable_file_urls': False}
     with downloader(options) as extractor:
-        info = extractor.extract_info('https://www.youtube.com/watch?v=' + video, download=False)
-        source_duration = checked_metadata(info, video, start)
+        source_url = 'https://www.instagram.com/reel/' + video + '/' if source_type == 'instagram' else 'https://www.youtube.com/watch?v=' + video
+        info = extractor.extract_info(source_url, download=False)
+        source_duration = checked_instagram_metadata(info, video, start) if source_type == 'instagram' else checked_metadata(info, video, start)
         extractor.process_info(info)
         source = work / ('source.' + info['ext'])
         details = source.lstat()
         if not source.is_file() or source.is_symlink() or not 0 < details.st_size <= MAX_BYTES:
             raise PolicyError('No finite source audio was downloaded.')
-        title = re.sub(r'https?://\S+', '[link removed]', str(info.get('title') or 'YouTube video'), flags=re.I)
+        title = re.sub(r'https?://\S+', '[link removed]', str(info.get('title') or ('Instagram Reel' if source_type == 'instagram' else 'YouTube video')), flags=re.I)
         title = ''.join(character for character in title if ord(character) >= 32 and ord(character) != 127)[:300] or 'YouTube video'
-        decode(source, work / 'audio.wav', start, min(duration, source_duration - start))
-        return {'ok': True, 'videoId': video, 'title': title, 'sourceDuration': source_duration}
+        decode(source, work / 'audio.wav', start, min(duration, source_duration - start) if source_duration is not None else duration)
+        source_duration_known = source_duration is not None
+        if source_duration is None:
+            with wave.open(str(work / 'audio.wav'), 'rb') as audio:
+                source_duration = start + audio.getnframes() / audio.getframerate()
+        return {'ok': True, 'videoId': video, 'title': title, 'sourceDuration': source_duration, 'sourceDurationKnown': source_duration_known}
 
 
 def restrict_process():
@@ -377,11 +442,13 @@ def main():
             os.environ[name] = str(work)
         os.environ['GST_REGISTRY'] = str(work / 'registry.bin')
         start, duration = float(sys.argv[3]), float(sys.argv[4])
-        if not re.fullmatch(r'[A-Za-z0-9_-]{11}', video) or not math.isfinite(start) or not math.isfinite(duration) or not 0 <= start <= 21600 or not 0.02 < duration <= 180:
+        source_type = sys.argv[5] if len(sys.argv) > 5 else 'youtube'
+        if source_type not in ('youtube', 'instagram') or not re.fullmatch(r'[A-Za-z0-9_-]{5,28}' if source_type == 'instagram' else r'[A-Za-z0-9_-]{11}', video) or not math.isfinite(start) or not math.isfinite(duration) or not 0 <= start <= 21600 or not 0.02 < duration <= 180:
             raise PolicyError('Invalid capture bounds.')
-        print(json.dumps(acquire(work, video, start, duration), ensure_ascii=True), flush=True)
-    except Exception:
-        print('{"ok":false,"error":"Public video import unavailable."}', flush=True)
+        print(json.dumps(acquire(work, video, start, duration, source_type), ensure_ascii=True), flush=True)
+    except Exception as error:
+        restricted = isinstance(error, AccessRequired) or bool(re.search(r'log.?in|logged.?in|sign.?in|rate.?limit|\b(?:401|403|429)\b|private|registered users', str(error), re.I))
+        print(json.dumps({'ok': False, 'error': 'Public video import unavailable.', 'errorCode': 'no_audio' if isinstance(error, NoSoundtrack) else 'access_required' if restricted else 'unavailable'}), flush=True)
         return 1
     return 0
 

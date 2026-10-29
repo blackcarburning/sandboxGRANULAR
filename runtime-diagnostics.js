@@ -21,6 +21,7 @@
         let persistenceError = '';
         let savedAt = null;
         let lastUrgent = -Infinity;
+        let repeatedFailure = null;
         const listeners = [];
         const previousId = safely(() => tab.getItem(tabKey));
         const instant = () => new Date(now()).toISOString();
@@ -125,7 +126,17 @@
         function event(type, details = {}, immediate = false) {
             if (stopped) return;
             safely(() => {
+                if (type === 'javascript-error' || type === 'unhandled-rejection') {
+                    const signature = JSON.stringify([type, details.name, details.message, details.source, details.line, details.column, details.stack]);
+                    if (repeatedFailure?.signature === signature && now() - repeatedFailure.started < 1000) {
+                        repeatedFailure.entry.count = (repeatedFailure.entry.count || 1) + 1;
+                        repeatedFailure.entry.lastTimestamp = instant();
+                        return;
+                    }
+                    repeatedFailure = { signature, started: now(), entry: null };
+                }
                 record.events.push({ timestamp: instant(), type, ...clean(details) });
+                if (repeatedFailure && (type === 'javascript-error' || type === 'unhandled-rejection')) repeatedFailure.entry = record.events.at(-1);
                 if (record.events.length > limits.events) record.events.shift();
                 const lifecycle = ['pagehide', 'visibilitychange', 'freeze', 'build-redirect'].includes(type);
                 if ((immediate && (lifecycle || now() - lastUrgent >= 250)) || now() - lastWrite >= 1000) {
@@ -166,8 +177,15 @@
             const control = entry.target?.closest?.('button, select');
             if (!control) return;
             const classes = [...(control.classList || [])].filter(value => /^song-beta-(copy|paste|amend|load|remove|recall)$/.test(value));
-            if (!/^(songBeta|performance|start-btn|submit.*Debug|.*DebugLog)/.test(control.id || '') && !classes.length) return;
+            if (!/^(songBeta|performance|bastardLoop.*Cut|sectionJump(?:Undo|Redo)Btn|start-btn|submit.*Debug|.*DebugLog)/.test(control.id || '') && !classes.length) return;
             event('control', { control: text(control.id || classes[0], 100), disabled: Boolean(control.disabled) }, true);
+        }, true);
+
+        listen(host.document, 'change', entry => {
+            const control = entry.target;
+            if (!/^bastardLoop.*Cut/.test(control?.id || '')) return;
+            event('loop-cut-control', { control: text(control.id, 100),
+                value: control.type === 'checkbox' ? Boolean(control.checked) : text(control.value, 40) });
         }, true);
 
         const originalFetch = host.fetch;
@@ -223,7 +241,7 @@
             clear(sessionId = id) {
                 safely(() => storage.removeItem(prefix + sessionId));
                 for (let index = previous.length - 1; index >= 0; index -= 1) if (previous[index].sessionId === sessionId) previous.splice(index, 1);
-                if (sessionId === id) { record.events.length = 0; record.history.length = 0; savedAt = null; }
+                if (sessionId === id) { record.events.length = 0; record.history.length = 0; repeatedFailure = null; savedAt = null; }
             },
             stop() {
                 stopped = true;

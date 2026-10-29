@@ -116,3 +116,31 @@ html[data-mygrain-locked="true"] body { margin: 0; background: #040a12; }
 .mygrain-share-thread-item { margin-top: 12px; padding: 12px; border: 1px solid #52617b; border-radius: 8px; }
 .mygrain-share-comment { white-space: pre-wrap; }
 @media (max-width: 480px) { .mygrain-account-panel { padding: 18px; } .mygrain-share-dialog { padding: 14px; } .mygrain-account-toolbar { font-size: 11px; } }
+
+/* Compact desktop welcome screen; phone touch targets remain unchanged. */
+@media(min-width:961px){
+ #start-overlay{gap:8px;padding:16px;height:100dvh}
+ #start-overlay .build-badge{padding:3px 8px;font-size:9px}
+ #start-overlay #mygrain-load-notes-slot{max-width:600px}
+ #start-overlay .mygrain-load-notes{padding:9px 13px;gap:4px;font-size:12px;line-height:1.35}
+ #start-overlay .mygrain-load-notes__latest li{padding:2px 0}
+ #start-overlay .mygrain-start-account{width:320px;gap:5px;padding:7px 10px;font-size:12px}
+ #start-overlay .mygrain-start-account .mygrain-account-actions{gap:6px}
+ #start-overlay .mygrain-start-account .mygrain-account-actions > button{min-height:34px;padding:5px 7px;font-size:11px}
+ #start-overlay #start-btn{width:280px;min-height:42px;padding:9px 20px;font-size:16px;margin:0}
+}
+@media(min-width:961px) and (max-height:620px){
+ #start-overlay{gap:6px;padding:10px}
+ #start-overlay .mygrain-load-notes{font-size:12px;gap:3px;padding:7px 11px}
+ #start-overlay .mygrain-load-notes__text{font-size:12px}
+}
+
+@media(min-width:961px) and (max-height:700px){
+ #start-overlay{gap:5px;padding:8px}
+ #start-overlay #mygrain-load-notes-slot{max-width:900px}
+ #start-overlay #mygrain-load-notes{grid-template-columns:minmax(0,3fr) minmax(0,1fr);column-gap:18px}
+ #start-overlay #mygrain-load-notes > .mygrain-load-notes__label{grid-column:1;grid-row:1}
+ #start-overlay #mygrain-load-notes > ol{grid-column:1;grid-row:2}
+ #start-overlay #mygrain-load-notes > .mygrain-load-notes__random{grid-column:2;grid-row:1 / span 2;border-left:1px solid #79eaff24;padding-left:14px}
+ #start-overlay #mygrain-load-notes .mygrain-load-notes__random > .mygrain-load-notes__divider:first-child{display:none}
+}

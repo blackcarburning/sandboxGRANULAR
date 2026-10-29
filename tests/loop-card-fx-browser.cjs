@@ -1,0 +1,39 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),{chromium,webkit}=require('playwright-core');
+const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18955/mygrain/',out=process.env.MYGRAIN_FX_EVIDENCE||'/tmp/mygrain-loop-fx';fs.mkdirSync(out,{recursive:true});
+(async()=>{const results=[];for(const[engine,type]of Object.entries({chromium,webkit})){if(process.env.FX_ENGINE&&engine!==process.env.FX_ENGINE)continue;
+ const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
+ try{const c=await browser.newContext({viewport:{width:1280,height:900}}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(60000);
+ await p.route('**/*',r=>{const req=r.request(),u=new URL(req.url());if(u.origin!==new URL(base).origin||!['GET','HEAD'].includes(req.method()))return r.abort();if(u.pathname.endsWith('/account-context.js'))return r.fulfill({contentType:'text/javascript',body:'window.mygrainAccountContext={user:{username:"fx-fixture"}};'});if(u.pathname.includes('/api/'))return r.fulfill({json:{ok:true,authenticated:true,user:{username:'fx-fixture'},files:[],songs:[],folders:[],samples:[],patches:[]}});return r.continue()});
+ await p.goto(base);await p.waitForFunction(()=>window.mygrainLoopFx&&window.mygrainCardHistory&&document.documentElement.dataset.mygrainStartup==='ready');await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
+ assert.equal(await p.locator('.loop-fx').count(),14);assert.equal(await p.locator('.loop-fx-hall').count(),14);
+ assert.equal(await p.evaluate(()=>document.querySelector('#loopFxLegacyControls').hidden),true);
+ await p.locator('[data-loop-fx-key="X"] .loop-fx-filter summary').click();await p.locator('#loopFx-X-cutoff').fill('7230');assert.equal(await p.evaluate(()=>mygrainLoopFx.channel('X').cutoff),7230);assert.equal(await p.evaluate(()=>getBastardLoopXFilterCutoff()),7230);
+ await p.locator('[data-loop-fx-key="X"] .loop-fx-hall summary').click();await p.locator('#loopFx-X-room').fill('0.18');await p.locator('#loopFx-X-reverbDecay').fill('5.7');
+ const persistence=await p.evaluate(()=>{const a=saveState({force:true,snapshotOnly:true}),b=gatherPreset();mygrainLoopFx.randomise();restoreState({state:a,songSnapshot:true,throwOnError:true});return{state:a.modes.loopFx,preset:b.loopFx,restored:mygrainLoopFx.settings(),duplicateControls:Object.keys(a.sliders).filter(k=>k.startsWith('loopFx-'))}});assert.equal(persistence.state.channels.X.room,.18);assert.deepEqual(persistence.state,persistence.restored);assert.deepEqual(persistence.state,persistence.preset);assert.deepEqual(persistence.duplicateControls,[]);
+ const audio=await p.evaluate(async()=>{
+  const FX=MygrainLoopFx,checks=[];
+  async function render(config,{tone=1000,seconds=1,pulse=false}={}){
+   const sr=48000,ctx=new OfflineAudioContext(2,sr*seconds,sr),g=FX.createGraph(ctx,ctx.destination,{...FX.defaults(),...config},120),source=ctx.createBufferSource(),b=ctx.createBuffer(1,pulse?480:sr,sr);for(let i=0;i<b.length;i++)b.getChannelData(0)[i]=.08*Math.sin(2*Math.PI*tone*i/sr);source.buffer=b;source.connect(g.input);source.start(.1);const result=await ctx.startRendering(),l=result.getChannelData(0),r=result.getChannelData(1);let energy=0,late=0,diff=0,peak=0;for(let i=0;i<l.length;i++){if(!Number.isFinite(l[i])||!Number.isFinite(r[i]))throw Error('nonfinite');if(i>sr*.5&&i<sr*.9)energy+=l[i]**2;if(i>sr*2&&i<sr*4)late+=l[i]**2;diff+=(l[i]-r[i])**2;peak=Math.max(peak,Math.abs(l[i]),Math.abs(r[i]))}g.dispose();return{energy,late,diff,peak,pcm:Array.from(l.slice(sr*.5,sr*.5+64))};
+  }
+  for(const type of ['lowpass','highpass'])for(const slope of FX.SLOPES){const pass=await render({filterType:type,filterSlope:slope,cutoff:1000},{tone:type==='lowpass'?100:10000}),stop=await render({filterType:type,filterSlope:slope,cutoff:1000},{tone:type==='lowpass'?10000:100});checks.push({type,slope,attenuation:10*Math.log10(stop.energy/pass.energy)});}
+  const off=await render({filterEnabled:false}),slow=await render({filterEnabled:false,lfoDepth:1});
+  const hall=await render({filterEnabled:false,room:1,reverbDecay:6.5},{seconds:8,pulse:true}),short=await render({filterEnabled:false,room:1,reverbDecay:1},{seconds:8,pulse:true}),mono=await render({filterEnabled:false,room:1,reverbDecay:6.5,reverbWidth:0},{seconds:8,pulse:true});
+  const delay=await render({filterEnabled:false,delay:.4,feedback:.5,delayBeats:.5,pingPong:true},{seconds:4,pulse:true});
+  return{checks,off,slow,hall,short,mono,delay};
+ });for(const a of audio.checks)assert(a.attenuation<-30,JSON.stringify(a));assert.deepEqual(audio.off.pcm,audio.slow.pcm);assert(audio.hall.late>audio.short.late*100);assert(audio.hall.diff>.00001);assert(audio.mono.diff<1e-10);assert(audio.delay.peak>0);
+ const routing=await p.evaluate(async()=>{
+  stopAllPerformancePlayback({silent:true});stopModulationLoop();stopPerformanceMixerVuMeters();mygrainXDebug.setEnabled(false);loopLayerSolo=[];
+  const buffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),d=buffer.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=.03*Math.sin(2*Math.PI*110*i/buffer.sampleRate);
+  const suffixes=['','2','3','V','W','P','O','M','MPlus'];for(const s of suffixes){eval(`bastardLoop${s}Buffer=buffer;bastardLoop${s}Enabled=true;bastardLoop${s}Level=.35`);window[`startBastardLoop${s}`](audioContext.currentTime+.2,{skipUi:true})}
+  bastardLoopLSampleBuffer=buffer;bastardLoopXSampleBuffer=buffer;bastardLoopLEnabled=true;bastardLoopXEnabled=true;setBastardLoopLLevelPercent(40,{skipSave:true});setBastardLoopXLevelPercent(40,{skipSave:true});
+  scheduleBastardLoopLSingleVoice({note:'C4',accent:true},audioContext.currentTime+.2,.2,null);scheduleBastardLoopXSingleVoice({note:'C4',accent:true},audioContext.currentTime+.2,.2,null);
+  for(let i=0;i<5;i++){mygrainKMultitrack.setBuffer(i,buffer);mygrainKMultitrack.tracks[i].enabled=true}setBastardLoopKEnabled(true,{silent:true,skipSave:true});startBastardLoopK(audioContext.currentTime+.2);
+  const q=mygrainQ;q.state.enabled=true;Object.assign(q.state,{soundSource:'piano'});q.piano.source=p=>({sample:{midi:p},buffer,offset:0,duration:1});q.voice(60,90,audioContext.currentTime+.2,.5);
+  await new Promise(r=>setTimeout(r,600));const keys=[...mygrainLoopFx.groups].map(g=>g.key),native={M:getBastardLoopMDelayMix(),MRoom:getBastardLoopMRoomReverbMix(),L:getBastardLoopLReverbSettings().mix,X:!!bastardLoopXDelayNode};
+  stopAllPerformancePlayback({silent:true});const qGraph=q.ensureGraph(),group=[...mygrainLoopFx.groups].find(g=>g.key==='Q');q.voice(60,90,audioContext.currentTime+.05,.3);return{keys,native,qConnected:group.sources.has(qGraph.pan),count:mygrainLoopFx.groups.size};
+ });for(const key of ['A','B','C','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q'])assert(routing.keys.includes(key),key+' routing '+JSON.stringify(routing));assert.equal(routing.native.M,0);assert.equal(routing.native.MRoom,0);assert.equal(routing.native.L,0);assert.equal(routing.qConnected,true);
+ for(const size of [{width:390,height:844},{width:844,height:390},{width:1280,height:900}]){await p.setViewportSize(size);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,JSON.stringify(size))}
+ await p.locator('[data-loop-fx-key="X"]').screenshot({path:out+'/'+engine+'-x.png'});
+ assert.deepEqual(errors,[]);results.push({engine,routing,audio,persistence:persistence.state});console.log('PASS',engine,JSON.stringify({routing,filters:audio.checks}));await c.close();}finally{await browser.close()}}
+ fs.writeFileSync(out+'/browser.json',JSON.stringify(results,null,2));})().catch(e=>{console.error(e);process.exitCode=1});

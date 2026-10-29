@@ -105,13 +105,13 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
 
             const snapshots = [await sequence()];
             for (let i = 0; i < 12; i++) { await page.locator('#performanceBastardLoopXRandomPatternBtn').tap(); snapshots.push(await sequence()); }
-            for (let i = 11; i >= 2; i--) { await travel('undo'); assert.equal(await sequence(), snapshots[i]); }
-            assert.deepEqual(await counts(), { undo: 0, redo: 10 }); await flush();
+            for (let i = 11; i >= 10; i--) { await travel('undo'); assert.equal(await sequence(), snapshots[i]); }
+            assert.deepEqual(await counts(), { undo: 0, redo: 2 }); await flush();
             await context.close(); await launch(); await open();
-            assert.deepEqual(await counts(), { undo: 0, redo: 10 });
-            for (let i = 3; i <= 12; i++) { await travel('redo'); assert.equal(await sequence(), snapshots[i]); }
-            assert.deepEqual(await counts(), { undo: 10, redo: 0 });
-            console.log('PASS', name, 'all ten Redo levels survive process restart and restore exact sequences');
+            assert.deepEqual(await counts(), { undo: 0, redo: 2 });
+            for (let i = 11; i <= 12; i++) { await travel('redo'); assert.equal(await sequence(), snapshots[i]); }
+            assert.deepEqual(await counts(), { undo: 2, redo: 0 });
+            console.log('PASS', name, 'both Redo levels survive process restart and restore exact sequences');
 
             const otherTab = await context.newPage();
             otherTab.on('pageerror', error => errors.push(error.message));
@@ -132,7 +132,7 @@ assert.match(base, /^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
             await open(); assert.deepEqual(await counts(), { undo: 0, redo: 0 });
             await page.locator('#performanceBastardLoopXRandomPatternBtn').tap(); await flush();
             await page.evaluate(id => localStorage.setItem('mygrain-song-device-v1', id), device);
-            await open(); assert.deepEqual(await counts(), { undo: 10, redo: 0 });
+            await open(); assert.deepEqual(await counts(), { undo: 2, redo: 0 });
             assert.equal((await context.request.post(base + 'api/auth/register', { data: { username: `other${name}${Date.now()}`, password } })).ok(), true);
             await open(); assert.deepEqual(await counts(), { undo: 0, redo: 0 });
             for (const failure of ['save', 'open']) {

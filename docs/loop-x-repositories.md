@@ -5,7 +5,7 @@ The Bass repository select on X and the Bass Browser control one remembered pref
 - `samples_bass`: existing account-owned SAMPLES_BASS.
 - `samples_altbass`: public-domain original Juno-6 bass library, `SAMPLES_ALTBASS`.
 
-Repository choice is independent of the currently loaded audio and Sample/OSC3 mode. Mega, Sparse, pattern and mix randomisers do not change it. Account state, patches and Song snapshots preserve it. AI may explicitly change it transactionally; Undo and load failure restore the previous choice/source/audio. L and X still cannot share OSC3 simultaneously.
+Repository choice is independent of the currently loaded audio and Sample/OSC3 mode. Mega, pattern and mix randomisers do not change it. Sparse deliberately selects the clean Juno-6 library (`samples_altbass`), switches X to Sample mode, loads a fresh bass and always keeps X enabled: its four musical layers are Bass X plus three random layers, with drums additional. The Granular parent/child constraints and manual-loop exclusions remain unchanged. Account state, patches and Song snapshots preserve the resulting repository. AI may explicitly change it transactionally; Undo and load failure restore the previous choice/source/audio. L and X still cannot share OSC3 simultaneously.
 
 ## Original audio — no conversion
 

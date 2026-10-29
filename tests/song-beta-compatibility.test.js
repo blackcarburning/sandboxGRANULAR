@@ -30,7 +30,7 @@ function audioBytes() {
 function fixture() {
     const context = {
         Uint8Array, Uint32Array, ArrayBuffer, DataView, Blob, TextEncoder, TextDecoder,
-        window: { MygrainQTheory: require('../q-theory.js'), MygrainDrumRoll: require('../drum-roll.js') },
+        window: { MygrainWSongCompat: require('../song-w-compat.js'), MygrainQTheory: require('../q-theory.js'), MygrainDrumRoll: require('../drum-roll.js') },
         audioBindings: audioKeys.map(key => [key]), audioContext: { sampleRate: 48000 }
     };
     vm.createContext(context);

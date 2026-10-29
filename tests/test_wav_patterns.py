@@ -2,11 +2,15 @@
 import hashlib
 import json
 import pathlib
+import socket
+import threading
+import time
 import unittest
 import zipfile
 from io import BytesIO
 from urllib.parse import quote
 from unittest.mock import patch
+from types import SimpleNamespace
 
 import test_mygrain_accounts as account_tests
 from test_mygrain_accounts import SERVER, wav_bytes, part_bytes
@@ -58,6 +62,26 @@ class WavPatternTests(unittest.TestCase):
         self.assertEqual(self.admin.request('GET', '/mygrain-wavs/api/pattern?filename=legacy.wav')[0], 404)
         self.assertEqual(details['filename'], 'paired.zip')
         self.assertEqual(headers['Content-Disposition'], "attachment; filename*=UTF-8''paired.zip")
+
+    def test_download_releases_storage_lock_before_network_io(self):
+        saved = self.save()
+        acquired = threading.Event()
+        original = PATTERNS.send_pattern
+        user = self.accounts.lookup_user('admin')
+        def send(handler, method, filename, body):
+            def contender():
+                with self.accounts.user_lock(user):
+                    acquired.set()
+            worker = threading.Thread(target=contender, daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(acquired.wait(1), 'Download still holds the account lock')
+            finally:
+                original(handler, method, filename, body)
+            worker.join(1)
+        with patch.object(PATTERNS, 'send_pattern', side_effect=send):
+            self.assertEqual(self.success(self.admin, 'GET', saved['patternExport']['url']), PATTERN_BYTES)
+        self.assertTrue(acquired.is_set())
 
     def test_new_pair_never_rewrites_old_wavs_comments_hearts_or_order(self):
         for name in ('first.wav', 'second.wav'):
@@ -172,6 +196,61 @@ class WavPatternTests(unittest.TestCase):
             PATTERNS.save_bundle(root, 'failed.wav', bundle(), lambda name: name, SERVER._song_module.validate_part_zip, self.accounts.wav_created)
         self.assertEqual([row['name'] for row in self.listing()], ['legacy.wav'])
         self.assertEqual(list((root / '.pattern-exports').iterdir()), [])
+
+
+class PatternTransferTests(unittest.TestCase):
+    def handler(self, writer):
+        statuses = []
+        handler = SimpleNamespace(wfile=writer, close_connection=False,
+            send_response=statuses.append, send_header=lambda *args: None,
+            end_headers=lambda: None)
+        return handler, statuses
+
+    def test_slow_transfer_outlives_single_write_deadline(self):
+        # Real socket backpressure: the total transfer exceeds the socket's
+        # sendall timeout, while each bounded chunk continues making progress.
+        sender, receiver = socket.socketpair()
+        sender.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32768)
+        sender.settimeout(.25)
+        body = bytes(range(256)) * 8192
+        received = bytearray()
+        writer = SimpleNamespace(write=sender.sendall)
+        handler, statuses = self.handler(writer)
+        def read_slowly():
+            while True:
+                chunk = receiver.recv(16384)
+                if not chunk:
+                    return
+                received.extend(chunk)
+                time.sleep(.005)
+        worker = threading.Thread(target=read_slowly, daemon=True)
+        started = time.monotonic()
+        worker.start()
+        try:
+            PATTERNS.send_pattern(handler, 'GET', 'large.wav', body)
+            sender.shutdown(socket.SHUT_WR)
+            worker.join(5)
+            self.assertFalse(worker.is_alive())
+            self.assertGreater(time.monotonic() - started, .25)
+            self.assertEqual(received, body)
+            self.assertFalse(handler.close_connection)
+            self.assertEqual(statuses, [200])
+        finally:
+            sender.close()
+            receiver.close()
+
+    def test_failed_stream_closes_without_appending_an_error_response(self):
+        writer = SimpleNamespace(write=lambda data: (_ for _ in ()).throw(TimeoutError('stalled')))
+        handler, statuses = self.handler(writer)
+        PATTERNS.send_pattern(handler, 'GET', 'large.wav', b'zip')
+        self.assertTrue(handler.close_connection)
+        self.assertEqual(statuses, [200])
+
+    def test_head_does_not_write_a_zip_body(self):
+        writer = SimpleNamespace(write=lambda data: self.fail('HEAD wrote body'))
+        handler, statuses = self.handler(writer)
+        PATTERNS.send_pattern(handler, 'HEAD', 'large.wav', b'zip')
+        self.assertEqual(statuses, [200])
 
 
 if __name__ == '__main__':

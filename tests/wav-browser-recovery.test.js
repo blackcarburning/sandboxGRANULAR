@@ -320,3 +320,11 @@ test('rerender releases the full-download blob and buffered playback ignores har
     assert.equal(audio.loadCount, 2);
     assert.equal([...audio.listeners.values()].flat().length, 0);
 });
+
+test('native probe failure before play shows a useful error instead of staying silent', () => {
+    const { audio, messages, requests } = previewHarness();
+    audio.error = { code: 4, message: 'Source rejected' };
+    audio.emit('error');
+    assert.match(messages.at(-1), /Cannot play big.wav: Source rejected/);
+    assert.equal(requests.length, 0, 'A metadata probe must not eagerly download a full WAV');
+});

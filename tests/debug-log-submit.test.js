@@ -39,6 +39,7 @@ function fixture(options = {}) {
         },
         ...options,
     };
+    context.window ||= context;
     vm.createContext(context);
     vm.runInContext(functionSource('buildDebugLogPayload'), context);
     vm.runInContext(functionSource('getDebugLogForExport'), context);

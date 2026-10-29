@@ -1,0 +1,23 @@
+// Read-only live smoke: mocked identity/API, all server writes blocked.
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),{chromium,webkit}=require('playwright-core');
+const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18949/mygrain/',out=process.env.MYGRAIN_TEST_OUTPUT||'/tmp/q-editor-loop-browser';fs.mkdirSync(out,{recursive:true});
+(async()=>{const results=[];for(const[engine,type]of Object.entries({chromium,webkit})){
+const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
+try{const ctx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true}),page=await ctx.newPage(),errors=[],writes=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(45000);
+await page.route('**/*',r=>{const req=r.request(),u=new URL(req.url()),identity={ok:true,authenticated:true,user:{username:'q-quick-readonly-live'}};if(u.origin!==new URL(base).origin)return r.abort();if(!['GET','HEAD'].includes(req.method())){writes.push(req.method()+' '+u.pathname);return r.abort()}if(u.pathname.endsWith('/account-context.js'))return r.fulfill({contentType:'text/javascript',body:'window.mygrainAccountContext='+JSON.stringify(identity)});if(u.pathname.includes('/api/'))return r.fulfill({json:{...identity,files:[],songs:[],folders:[],stations:[],samples:[],favourites:[],patches:[]}});return r.continue()});
+await page.goto(base);await page.waitForFunction(()=>window.mygrainQCustomChords&&document.documentElement.dataset.mygrainStartup==='ready');await page.locator('#start-btn').tap();await page.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);await page.evaluate(()=>{stopAllPerformancePlayback({silent:true});mygrainQ.open();const q=mygrainQ;q.state.sequence.fill(null);for(const[i,n]of[[4,60],[6,65]])q.state.sequence[i]=MygrainQTheory.normalizeStep({notes:[n,n+4,n+7]});q.state.record=false;q.changed({reschedule:false});q.resetEditorHistory();const b=audioContext.createBuffer(1,audioContext.sampleRate,audioContext.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=.1*Math.sin(2*Math.PI*261.63*i/b.sampleRate);drumMachineKickBuffer=b;drumMachineKickPattern=Array.from({length:16},(_,i)=>i===0);q.piano.ensure=async()=>{};q.piano.source=p=>({sample:{midi:p},buffer:b,offset:0,duration:1,loopStart:.1,loopEnd:.9});});
+
+await page.evaluate(()=>{mygrainQ.playbackSolo=true;mygrainQ.clearSequenceLoop(false)});
+for(const viewport of [{width:1280,height:900},{width:390,height:844},{width:320,height:640}]){
+ await page.setViewportSize(viewport);await page.locator('#qSequenceLoopSet').click();assert.equal(await page.evaluate(()=>mygrainQ.mark?.type),'loop');assert.match(await page.locator('#qSequenceLoopStatus').textContent(),/first step/);
+ assert(await page.locator('#qSequenceLoopSet').evaluate(e=>e.parentElement===document.getElementById('qSequenceLoopStart').parentElement.parentElement&&!e.closest('.q-edge-rail')));
+ await page.locator('[data-q-step="4"]').click();assert.match(await page.locator('#qSequenceLoopStatus').textContent(),/last step/);
+ await page.locator('[data-q-step="7"]').click();await page.waitForFunction(()=>mygrainQ.loopRange?.[0]===4&&mygrainQ.loopRange?.[1]===7&&!mygrainQ.loopLoading);
+ assert.equal(await page.locator('#qSequenceLoopStart').inputValue(),'5');assert.equal(await page.locator('#qSequenceLoopEnd').inputValue(),'8');assert.equal(await page.locator('#qSequenceLoopToggle').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('.q-step.in-loop').count(),4);
+ await page.locator('#bastardLoopQAllPlayBtn').click();await page.waitForFunction(()=>mygrainQ.running);
+ await page.locator('#qSequenceLoopSet').click();await page.locator('[data-q-step="6"]').click();await page.locator('[data-q-step="4"]').click();await page.waitForFunction(()=>mygrainQ.loopRange?.[1]===6&&!mygrainQ.loopLoading);assert.equal(await page.evaluate(()=>mygrainQ.running),true);assert.equal(await page.locator('.q-step.in-loop').count(),3);
+ await page.locator('#bastardLoopQAllStopBtn').click();await page.locator('#qSequenceLoopToggle').click();await page.waitForFunction(()=>!mygrainQ.loopRange);
+ results.push({engine,viewport,buttonBesideNumbers:true,firstLastPrompts:true,autoEnablesLoop:true,runningRangeReplaced:true});
+}
+assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);fs.writeFileSync(out+'/range-results.json',JSON.stringify(results,null,2));console.log('PASS',engine);await ctx.close();}finally{await browser.close()}}})().catch(e=>{console.error(e);process.exitCode=1});

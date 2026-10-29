@@ -128,6 +128,7 @@ test('memory reservations include encoded source clones, source buffers, render 
     const part = { ...first, bytes: 1000 };
     const sourceOnly = controller.preparationBytes(part, { decodedBytes: 4000 }, false);
     assert.equal(sourceOnly, 16 * 1048576 + 2000 + 8000);
+    assert.equal(controller.preparationBytes(part, { decodedBytes: 4000, fxBytes: 12345 }, false), sourceOnly + 12345);
     assert.equal(controller.preparationBytes(part, { decodedBytes: 4000 }), sourceOnly + 2 * 48000 * 8 * 4);
 });
 
@@ -575,6 +576,66 @@ test('cancelled rename and delete prompts neither reserve editing nor save', asy
     await controller.renameSong();
     await controller.arrange(first);
     await controller.deletePart(first);
+});
+
+test('successful part deletion jumps to the Song top after the final render', async () => {
+    const { controller, context } = makeController();
+    const part = { ...first, sha256: 'saved' };
+    const shared = { ...part, id: 'shared', sourcePartId: part.id };
+    controller.song = { id: 'song', revision: 1, parts: [part, shared] };
+    const frames = [];
+    const scrolls = [];
+    let renders = 0;
+    context.confirm = () => true;
+    context.requestAnimationFrame = callback => frames.push(callback);
+    controller.render = () => { renders += 1; };
+    controller.element('songBetaCard').scrollIntoView = options => {
+        assert.equal(controller.busy, false);
+        scrolls.push({ ...options, renders });
+    };
+    controller.request = async (endpoint, options) => {
+        assert.equal(endpoint, '/song/parts/intro/delete?sha256=saved');
+        assert.equal(options.method, 'POST');
+        return { song: { ...controller.song, revision: 2, parts: [shared] } };
+    };
+    await controller.run(() => controller.deletePart(part));
+    assert.equal(scrolls.length, 0);
+    assert.equal(frames.length, 1);
+    const finalRenders = renders;
+    frames.shift()();
+    assert.deepEqual(scrolls, [{ behavior: 'instant', block: 'start', inline: 'nearest', renders: finalRenders }]);
+    assert.deepEqual(controller.song.parts, [shared]);
+});
+
+for (const outcome of ['cancelled', 'locked', 'failed']) {
+    test(`${outcome} part deletion does not navigate`, async () => {
+        const { controller, context } = makeController();
+        const part = { ...first, sha256: 'saved' };
+        controller.song = { id: 'song', revision: 1, parts: [part] };
+        const frames = [];
+        context.confirm = () => outcome !== 'cancelled';
+        context.requestAnimationFrame = callback => frames.push(callback);
+        if (outcome === 'locked') controller.ensureEditing = async () => { throw new Error('Another device holds the lock'); };
+        controller.request = async () => { throw new Error('Deletion failed'); };
+        await controller.run(() => controller.deletePart(part));
+        assert.equal(frames.length, 0);
+        assert.deepEqual(controller.song.parts, [part]);
+    });
+}
+
+test('completed deletion does not jump into a different selected Song', async () => {
+    const { controller, context } = makeController();
+    const part = { ...first, sha256: 'saved' };
+    controller.song = { id: 'song', revision: 1, parts: [part] };
+    const frames = [];
+    context.confirm = () => true;
+    context.requestAnimationFrame = callback => frames.push(callback);
+    controller.element('songBetaCard').scrollIntoView = () => assert.fail('Must not navigate after changing Song');
+    controller.request = async () => ({ song: { ...controller.song, revision: 2, parts: [] } });
+    await controller.run(() => controller.deletePart(part));
+    assert.equal(frames.length, 1);
+    controller.song = { id: 'different-song', parts: [] };
+    frames.shift()();
 });
 
 test('Amend retains the saved and live pattern when another device holds editing', async () => {
@@ -2359,7 +2420,7 @@ test('legacy keyboard renders are regenerated and marked without double-counting
     controller.renderSources.set(part.id, part.sha256);
     controller.renderBytes = 16000;
     controller.request = async (path, options) => {
-        assert.match(path, /render\?sha256=snapshot&kreverb=1&keyboard=1$/);
+        assert.match(path, /render\?sha256=snapshot&kreverb=1&channeleq=2&loopfx=1&keyboard=1$/);
         assert.equal(options.method, 'POST');
         return { song: { ...controller.song, parts: [{ ...part, render: { ...part.render, keyboardVersion: 1 } }] } };
     };
@@ -2885,6 +2946,8 @@ test('main-card paste keeps an immutable source revision even when the source is
     await controller.pasteParts([parts[0], parts[1]]);
     assert.equal(requests.length, 2);
     assert.ok(requests.every(request => request.payload.sourceSha256 === 'original-0'));
+    assert.ok(requests[0].path.includes(parts[1].id));
+    assert.ok(requests[1].path.includes(parts[0].id));
 });
 
 test('main-card paste rejects stale song/library/revision or replaced clipboard before saving anything', async () => {
@@ -3163,4 +3226,98 @@ test('old K reverb freezes refresh only for audible wet K tracks, without changi
  for(const key of ['mute','enabled','level']){const copy=JSON.parse(original);copy.snapshot.state.modes.kMultitrack.tracks[0][key]=key==='mute'?true:key==='enabled'?false:0;assert.equal(controller.isRenderCompatible(part,copy),true)}
  assert.equal(controller.isRenderCompatible(part),false,'metadata is inspected before trusting unknown old renders');
  assert.equal(controller.isRenderCompatible({...part,render:{...part.render,kReverbVersion:1}}),true);
+});
+
+
+test('global EQ-only paste sends explicit selected mapping without device capture or unrelated lanes', async () => {
+    const { controller, parts, requests } = pastePickerFixture();
+    controller.copyLoop(parts[0], ['eq:A', 'eq:K5', 'K2']);
+    controller.adapter.capture = () => assert.fail('EQ paste must stay on the server');
+    await controller.pasteParts([parts[1]], undefined, controller.loopClipboard, { layers: ['eq:A'], eqMap: { B: 'A', K2: 'A', drumRoll: 'A' } });
+    assert.deepEqual(requests[0].payload, { sourceSongId: 'paste-song', sourcePartId: first.id, sourceSha256: 'original-0', layer: 'eq:A', eqMap: { B: 'A', K2: 'A', drumRoll: 'A' } });
+});
+
+test('global EQ paste rejects unselected sources and unknown destinations before writing', async () => {
+    for (const selection of [{ layers: ['eq:B'], eqMap: { K1: 'B' } }, { layers: ['eq:A'], eqMap: { unknown: 'A' } }, { layers: ['eq:A'], eqMap: {} }]) {
+        const { controller, parts, requests } = pastePickerFixture();
+        controller.copyLoop(parts[0], ['eq:A']);
+        await assert.rejects(controller.pasteParts([parts[1]], undefined, controller.loopClipboard, selection), /Choose/);
+        assert.equal(requests.length, 0);
+    }
+});
+
+test('all-drums global paste can narrow the sound destination to one individual lane', async () => {
+    const { controller, parts, requests } = pastePickerFixture();
+    controller.copyLoop(parts[0], ['drums']);
+    await controller.pasteParts([parts[1]], undefined, controller.loopClipboard, { layers: ['drumHat'], eqMap: {} });
+    assert.equal(requests[0].payload.layer, 'drumHat');
+    assert.deepEqual(requests[0].payload.eqMap, {});
+});
+
+test('standard loop FX snapshots cannot reuse pre-FX renders; legacy untouched caches remain usable',()=>{
+ const {controller}=makeController();const part={...first,render:{version:1,sourceSha256:first.sha256,keyboardVersion:1,grainVersion:5,portableVersion:1,kReverbVersion:1}};
+ const decoded={snapshot:{state:{modes:{loopFx:{version:1}}}}};
+ assert.equal(controller.isRenderCompatible(part,decoded),false);
+ assert.equal(controller.isRenderCompatible({...part,render:{...part.render,loopFxVersion:1}},decoded),true);
+ assert.equal(controller.isRenderCompatible({...part,loopFxVersion:1}),false);
+ assert.equal(controller.isRenderCompatible(part),true);
+});
+
+
+test('phones offload every new render, including below-budget parts, without loading original sounds', async()=>{
+ for(const sourceMb of [1, 135]){
+  const {controller:c}=makeController({}, {}, {userAgent:'iPhone'});
+  c.song={id:'server-refresh',parts:[{...first,sha256:'source'}]};c.serverPreparation=true;
+  c.snapshots.set(first.id,{snapshot:{},decodedBytes:sourceMb*1048576});
+  c.loadPart=async()=>assert.fail('Phone must not decode original ZIP');
+  let jobs=0;c.prepareOnServer=async part=>{jobs++;return {...part,render:{version:1,sourceSha256:part.sha256}}};
+  await c.arm();assert(c.armed);assert.equal(jobs,1);assert.equal(c.memoryBudget.bytes,0);
+  await c.arm();assert.equal(jobs,1,'warm unchanged render must not enqueue again');
+ }
+});
+test('active EQ rejects pre-fix renders while pre-EQ legacy songs keep their cached audio',()=>{
+ const {controller:c}=makeController();const part={...first,sha256:'source',render:{version:1,sourceSha256:'source',channelEqVersion:1}};
+ c.snapshots.set(first.id,{snapshot:{state:{modes:{channelEq:{channels:{X:{enabled:true}}}}}}});
+ assert.equal(c.isRenderCompatible(part),false);part.render.channelEqVersion=2;assert.equal(c.isRenderCompatible(part),true);
+ c.snapshots.set(first.id,{snapshot:{state:{modes:{}}}});delete part.render.channelEqVersion;assert.equal(c.isRenderCompatible(part),true);
+});
+
+
+test('phone Audition uses cached part looping, while desktop Audition retains live Recall',async()=>{
+ for(const phone of [true,false]){
+  const {controller:c}=makeController();c.phonePreparation=phone;const calls=[];
+  c.loopPart=async id=>calls.push(['cached',id]);c.recall=async part=>calls.push(['live',part.id]);
+  await c.audition(first);assert.deepEqual(calls,[[phone?'cached':'live',first.id]]);
+ }
+});
+
+test('an inherited oversized editor uses bounded checkpoint work and restores it exactly on failure', async () => {
+    const { controller: c, part, trace, context, live } = checkpointEditFixture({ failure: async () => { throw new Error('Injected sound load failure'); } });
+    c.adapter.editingResidency = () => ({ bytes: 103 * 1048576, scratch: 16 * 1048576, checkpointScratch: 2 * 1048576 });
+    const plan = c.adapter.planEditing;
+    let skippedReuse = false;
+    c.adapter.planEditing = (info, check, options) => { skippedReuse ||= options?.skipReuse === true; return plan(info, check); };
+    const save = context.MygrainSongStorage.EditCheckpoint.prototype.save;
+    context.MygrainSongStorage.EditCheckpoint.prototype.save = async function (...args) {
+        const saved = await save.apply(this, args);
+        return { ...saved, bytes: 103 * 1048576, largest: 2 * 1048576 };
+    };
+    let peak = 0;
+    const acquire = c.memoryBudget.acquire.bind(c.memoryBudget);
+    c.memoryBudget.acquire = async (...args) => { const release = await acquire(...args); peak = Math.max(peak, c.memoryBudget.bytes); return release; };
+    await assert.rejects(c.recall(part, { start: false, amend: true }), /Injected sound load failure/);
+    assert.equal(skippedReuse, true);
+    assert.ok(trace.includes('checkpoint') && trace.includes('detach') && trace.includes('rollback-from-disk'));
+    assert.equal(trace.filter(Array.isArray).at(-1)[1], live);
+    assert.ok(peak <= 96 * 1048576);
+    assert.equal(c.memoryBudget.limitBytes, 96 * 1048576);
+    assert.equal(c.memoryBudget.bytes, 0);
+});
+
+test('inherited editor credit cannot admit an oversized replacement deck', async () => {
+    const { controller: c, part, trace } = checkpointEditFixture({ emptyBytes: 97 * 1048576 });
+    c.adapter.editingResidency = () => ({ bytes: 103 * 1048576, scratch: 16 * 1048576, checkpointScratch: 2 * 1048576 });
+    await assert.rejects(c.recall(part, { start: false, amend: true }), /safety budget/);
+    assert.ok(!trace.includes('checkpoint') && !trace.includes('detach'));
+    assert.equal(c.memoryBudget.bytes, 0);
 });

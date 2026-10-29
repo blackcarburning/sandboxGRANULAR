@@ -14,3 +14,7 @@
 .sample-favourite-label { color: #ffb4c2; font-size: 11px; overflow-wrap: anywhere; }
 .sample-favourite-item .sample-favourite-rename { color: #ffd3dd; }
 .sample-browser-card-head:has(.sample-favourite-item) { flex-wrap: wrap; }
+
+.sample-favourites-disclosure { flex:0 0 auto; min-width:0; font-size:11px; }
+.sample-favourites-disclosure > summary { cursor:pointer; padding:5px 7px; color:#a9cbd8; border:1px solid rgba(126,246,255,.15); border-radius:7px; }
+.sample-favourites-disclosure[open] > summary { margin-bottom:4px; }

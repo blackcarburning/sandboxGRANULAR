@@ -34,7 +34,7 @@ class AiPatchTests(unittest.TestCase):
     def test_controls_match_real_sliders(self):
         import re
         html = (pathlib.Path(__file__).parents[1] / 'index.html').read_text()
-        self.assertEqual(len(ai.CONTROLS), 77)
+        self.assertEqual(len(ai.CONTROLS), 78)
         for key, spec in ai.CONTROLS.items():
             tag = re.search(r'<input[^>]+id="' + key + r'"[^>]*>', html).group()
             attrs = dict(re.findall(r'(\w+)="([^"]*)"', tag))
@@ -112,6 +112,21 @@ class AiPatchTests(unittest.TestCase):
             self.assertIn(contract, runner)
         self.assertNotIn('agent', args[0])
         self.assertNotIn('--file', args[0])
+
+    def test_current_feature_knowledge_reaches_all_model_modes(self):
+        for mode in ('generate', 'regenerate', 'refine', 'section'):
+            process = MagicMock(returncode=0)
+            process.__enter__.return_value = process
+            process.communicate.return_value = (json.dumps({'outputs': [{'text': json.dumps(RECIPE)}]}), '')
+            with self.subTest(mode=mode), patch.object(ai.subprocess, 'Popen', return_value=process):
+                ai.run_model('warm', CURRENT, LOOPS, direction={'mode': mode})
+                instruction = process.communicate.call_args.kwargs['input']
+                self.assertIn(ai.FEATURE_KNOWLEDGE, instruction)
+                for feature in ('FILTER-CLOCK.1', 'Triggered ADSR', 'Amplitude follower',
+                                'W (Weird)', 'RADIOLAB', 'Video Lab', 'Grain A and Grain B',
+                                '12/24/36/48/96', '128 KB', 'sole writable contract'):
+                    self.assertIn(feature, instruction)
+                self.assertIn('Do not invent control IDs', instruction)
 
     def test_invalid_provider_response(self):
         for output in ('not json', json.dumps({'outputs': []}), json.dumps({'outputs': [{'text': '```json {} ```'}]})):

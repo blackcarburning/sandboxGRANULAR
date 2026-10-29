@@ -131,12 +131,12 @@ test('missing legacy SC slider defaults to unity and never supplies the drum Kic
 });
 
 test('defaults cover startup after restore, presets and both randomisation modes without changing Song snapshot restore', () => {
-    assert.match(html, /const restored = restoreState\(\);\s*applyFinalBusDefaults\(\);/);
+    assert.match(html, /const restored = restoreState\(\);\s*(?:warmKeyboardSound\(\);\s*)?applyFinalBusDefaults\(\);/);
     assert.match(functionSource('applyPreset'), /applyFinalBusDefaults\(\);/);
     assert.doesNotMatch(functionSource('restoreState'), /applyFinalBusDefaults/);
     assert.match(functionSource('applyRandomizeFinalCompressorDefaults'), /applyFinalBusDefaults\(\);/);
     assert.match(html, /restoreRandomizeBpmState\(bpmSnapshot\);\s*applyFinalBusDefaults\(\);/);
-    assert.match(html, /megaRandomCommentary = null;\s*applyFinalBusDefaults\(\);/);
+    assert.match(html, /megaRandomCommentary = null;\s*resetRandomizeGlobalMixSends\(\);\s*applyFinalBusDefaults\(\);/);
     assert.match(html, /finalCompressorAmount: 30,\s*finalCompressorRelease: 100,/);
     assert.doesNotMatch(html, /setSliderValue\('finalRingDepth', randomIntegerInRange/);
 });

@@ -11,6 +11,7 @@
         preparedRooms.delete(track); try { entry.room.disconnect(); } catch {} entry.room.buffer = null;
     }
     function prepareRoom(track) {
+        if (window.mygrainLoopFx) { clearPreparedRoom(track); return null; }
         const entry = preparedRooms.get(track), decay = track.processing.reverbDecay;
         // Render decks use a context facade; room.context is its native parent.
         if (entry && entry.context === audioContext && entry.decay === decay && track.processing.reverbMix > 0) return entry.room;
@@ -30,10 +31,10 @@
         masterGain: () => getBastardLoopKOutputGain(), boundary: () => transportSync.handoffBoundary,
         timing: time => resolveTransportLaneStart(time, 'K'), startSource: startTransportSource,
         prepare: track => prepareTrack(track),
-        route(gain, pan, track) {
+        route(gain, pan, track, index) {
             const room = takePreparedRoom(track);
             return window.MygrainKTrackDsp.create(audioContext, gain, pan, track.processing, getSharedBpmClockValue(),
-                preFilterGainNode || masterGain || audioContext.destination, undefined, room);
+                preFilterGainNode || masterGain || audioContext.destination, undefined, room, `K${index + 1}`);
         },
         idle(track) { track.rendered = track.padded = track.paddedSource = null; track.renderKey = null; },
         published(voices) {
@@ -248,6 +249,7 @@
     const api = {
         tracks: recorder.tracks, get selected() { return recorder.selected; }, get voices() { return recorder.voices; },
         hasAudio: () => recorder.hasAudio(), select, change, changeProcessing, sync, persistSelected,
+        centrePans() { for(const track of recorder.tracks)track.pan=0;recorder.mix();syncBastardLoopKUi(); },
         prewarm() { for (const track of recorder.tracks) if (recorder.audible(track)) prepareTrack(track); else clearPreparedRoom(track); },
         get preparedReverbCount() { return preparedRooms.size; },
         takePreparedReverb() { return takePreparedRoom(recorder.tracks[recorder.selected]); },

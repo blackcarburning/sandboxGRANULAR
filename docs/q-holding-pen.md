@@ -1,0 +1,15 @@
+# Q fixed-pitch holding pen · 20261024-q-holding-pen-1
+
+Tonic ± moves both scale candidates and bass-root candidates. In From Bass mode, it moves the current pitch-class roots one semitone while preserving that pool and all its chord qualities; From Bass refreshes them from the actual Bass X pattern. Scale Pool returns to scale-derived candidates. Recorded sequence notes are not rewritten by these candidate controls.
+
+The green custom pool is a fixed-note holding pen. It reads the same existing browser/account-scoped `mygrain-q-custom-chords-v1` library; no destructive conversion or storage-key migration. MIDI capture stores exact played notes. Desktop drag copies a red tile's displayed pitches (after candidate transpose, octave and tonic). Touch supports horizontal dragging or hold-then-drag, retaining vertical palette scrolling. Keep selected provides a tap/keyboard alternative. Duplicate exact voicings are not added twice. Cancelled/invalid gestures never record or add a chord; external drag data is ignored.
+
+Holding-pen rendering and play/record no longer derive pitches from global **candidate** controls. Existing original MIDI notes remain original. Saving a dragged chord bakes its current displayed pitches once. The holding-pen library is browser-local, not uploaded into Song archives or synced between devices. Recorded steps are portable as normal.
+
+Recording from the pen adds optional boolean `customChord: true` to the Q step. Normalization, individual-note editing, copy/paste, undo and state restore retain this origin. Those grid cells are green; ordinary legacy chords are not guessed/reclassified by their chord name. Deleting a pen item does not modify previously recorded cells. This marker is provenance/colour only: existing explicit sequence transpose and individual-note edits still work normally, and no DSP or render version changed.
+
+Server validation accepts old steps without the field and validates new fields as booleans. Existing archives remain version one; no production data rewrite. Tests validate old/new portable archives and preserve notes and origin. New source hashes naturally include origin metadata, so it is not discarded by server copy/recall.
+
+Verification: `node --test tests/q-*.test.*`, Python `test_q_*.py` and `test_song_*.py`; `node tests/q-holding-pen-browser.cjs` (read-only mocked account/API; no server writes) runs desktop and phone Chromium/WebKit. Chromium phone uses CDP native touch events, WebKit phone uses synthetic pointer events. Both desktop configurations use native HTML drag. MIDI exercises the selected virtual MIDI input callback, not a physical keyboard. Browser fixtures test tonic in both source modes, adjusted chord snapshots, fixed notes, green step recording, recall/delete/reload and small/landscape containment. The existing edge-loop browser smoke covers shared/solo transport regression.
+
+Before-change backup: `/root/.openclaw/rollback/mygrain-q-holding-pen-20261024T103354Z`; full earlier app/data baseline remains intact. Only code is deployed; no production Song/library/sample data is edited by tests.

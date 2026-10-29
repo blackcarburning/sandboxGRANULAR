@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, quote, urlparse
 MAX_WAV = 64 * 1024 * 1024
 MAX_PATTERN = 128 * 1024 * 1024
 MAX_BUNDLE = MAX_WAV + MAX_PATTERN + 4096
+DOWNLOAD_CHUNK = 256 * 1024
 
 
 def signature(path):
@@ -180,6 +181,30 @@ def delete(root, filename):
         path.unlink(missing_ok=True)
 
 
+def send_pattern(handler, method, filename, body):
+    """Send verified bytes without a single sendall deadline for the whole ZIP.
+
+    The host must release its account storage lock before this slow I/O.
+    After headers, a failed write must close, never append a JSON/HTTP error
+    to an already-started ZIP response.
+    """
+    download_name = pathlib.PurePosixPath(filename).stem + '.zip'
+    try:
+        handler.send_response(200)
+        handler.send_header('Content-Type', 'application/zip')
+        handler.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(download_name, safe=''))
+        handler.send_header('Cache-Control', 'private, no-store')
+        handler.send_header('X-Content-Type-Options', 'nosniff')
+        handler.send_header('Content-Length', str(len(body)))
+        handler.end_headers()
+        if method != 'HEAD':
+            view = memoryview(body)
+            for offset in range(0, len(view), DOWNLOAD_CHUNK):
+                handler.wfile.write(view[offset:offset + DOWNLOAD_CHUNK])
+    except OSError:
+        handler.close_connection = True
+
+
 def handle_request(handler, method, path, *, root, unique_name, validate_pattern, wav_created):
     if path not in ('/api/render-with-pattern', '/api/pattern'):
         return False
@@ -196,20 +221,12 @@ def handle_request(handler, method, path, *, root, unique_name, validate_pattern
             handler.send_json(result, status=201, extra_headers={'Cache-Control': 'no-store'})
         elif path == '/api/pattern' and method in ('GET', 'HEAD'):
             body = read_pattern(root, filename)
-            download_name = pathlib.PurePosixPath(filename).stem + '.zip'
-            handler.send_response(200)
-            handler.send_header('Content-Type', 'application/zip')
-            handler.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(download_name, safe=''))
-            handler.send_header('Cache-Control', 'private, no-store')
-            handler.send_header('X-Content-Type-Options', 'nosniff')
-            handler.send_header('Content-Length', str(len(body)))
-            handler.end_headers()
-            if method != 'HEAD':
-                handler.wfile.write(body)
+            send_pattern(handler, method, filename, body)
         else:
             handler.send_json({'ok': False, 'error': 'Method not allowed.'}, status=405)
     except FileNotFoundError as error:
         handler.send_json({'ok': False, 'error': str(error)}, status=404)
     except (ValueError, OSError, zipfile.BadZipFile, wave.Error) as error:
+        handler.log_message('WAV repository request rejected: %s: %s', type(error).__name__, str(error))
         handler.send_json({'ok': False, 'error': str(error)}, status=400)
     return True

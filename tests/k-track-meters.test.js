@@ -16,7 +16,7 @@ function fixture(options = {}) {
     const doc = { hidden: false, querySelectorAll: () => rows,
         addEventListener: (key, fn) => documentEvents.set(key, fn), removeEventListener: key => documentEvents.delete(key) };
     const win = { document: doc, performance: { now: () => now },
-        setTimeout(fn, interval) { assert.equal(interval, 50); const timer = { fn }; timers.add(timer); return timer; },
+        setTimeout(fn, interval) { assert.equal(interval, 125); const timer = { fn }; timers.add(timer); return timer; },
         clearTimeout(timer) { timers.delete(timer); },
         addEventListener: (key, fn) => windowEvents.set(key, fn), removeEventListener: key => windowEvents.delete(key),
         IntersectionObserver: class { constructor(fn) { callback = fn; } observe() {} disconnect() { callback = null; } },
@@ -42,7 +42,7 @@ function fixture(options = {}) {
     return { meter, doc, rows, timers, win, voices, windowEvents, documentEvents, node, makeContext,
         get context() { return context; }, replaceContext(next) { context = next; meter.sync(voices); },
         visible(indices) { callback(rows.map((target, index) => ({ target, isIntersecting: indices.includes(index), intersectionRatio: indices.includes(index) ? 1 : 0 }))); },
-        frame() { now += 50; const pending = [...timers]; for (const t of pending) { timers.delete(t); t.fn(); } },
+        frame() { now += 125; const pending = [...timers]; for (const t of pending) { timers.delete(t); t.fn(); } },
         counts: () => ({ reads, writes }) };
 }
 
@@ -105,3 +105,12 @@ test('account-lock teardown removes listeners/timers/taps and hidden Song render
     assert.equal(fixture({ __mygrainSongRenderDeck: true }).meter, null);
     assert.equal(fixture({ IntersectionObserver: undefined }).meter, null);
 });
+
+ test('scroll and jump pauses disconnect display taps, cancel clocks and resume without touching audible edges', () => {
+ const f=fixture({mygrainMeters:{blocked:false}}); f.visible([0]); f.frame();
+ f.win.mygrainMeters.blocked=true; f.windowEvents.get('mygrain-ui-busy')();
+ const before=f.counts(); f.frame(); assert.deepEqual(f.counts(),before); assert.equal(f.meter.activeCount,0); assert.equal(f.timers.size,0);
+ f.win.mygrainMeters.blocked=false; f.windowEvents.get('mygrain-ui-settled')(); assert.equal(f.meter.activeCount,1); f.frame(); assert(f.counts().reads>before.reads);
+ f.win.mygrainMeters.blocked=true; f.windowEvents.get('mygrain-jump-change')(); assert.equal(f.timers.size,0);
+ for(const voice of f.voices.values())assert(voice.filters[0].outputs.has(voice.destination));
+ });

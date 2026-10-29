@@ -19,6 +19,16 @@ from contextlib import contextmanager
 from urllib.parse import parse_qs, unquote, urlparse
 
 
+# EQ conversion is metadata-only, used by server preparation and lane copies.
+import importlib.util as _eq_import
+_eq_spec = _eq_import.spec_from_file_location('mygrain_channel_eq', pathlib.Path(__file__).with_name('mygrain_channel_eq.py'))
+_drum_spec = _eq_import.spec_from_file_location('mygrain_drum_patterns', pathlib.Path(__file__).with_name('mygrain_drum_patterns.py'))
+DRUM_PATTERNS = _eq_import.module_from_spec(_drum_spec)
+_drum_spec.loader.exec_module(DRUM_PATTERNS)
+CHANNEL_EQ = _eq_import.module_from_spec(_eq_spec)
+_eq_spec.loader.exec_module(CHANNEL_EQ)
+
+
 SONGS_ROOT = pathlib.Path('/srv/sftp/mark_sftp/files/mygrain-songs')
 MAX_UPLOAD = 128 * 1024 * 1024
 MAX_PARTS = 64
@@ -32,6 +42,8 @@ SERVER_ARM_MODULE = None
 SERVER_ARM_MODULE_LOCK = threading.Lock()
 K_CONVERSION_LOCK = threading.Lock()
 K_CONVERSION_SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'convert-k-snapshot.cjs'
+FX_CONVERSION_SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'convert-fx-snapshot.cjs'
+W_CONVERSION_SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts' / 'convert-w-snapshot.cjs'
 
 
 def server_arm_module():
@@ -49,32 +61,56 @@ def server_arm_module():
     return SERVER_ARM_MODULE
 
 
-def convert_k_snapshot(snapshot):
+def convert_snapshot_metadata(snapshot, script, lane):
     """Use the canonical, bounded server migration without decoding any audio."""
-    if not shutil.which('node') or not K_CONVERSION_SCRIPT.is_file():
-        raise ValueError('Server K conversion is unavailable. No saved part was changed.')
+    if not shutil.which('node') or not script.is_file():
+        raise ValueError(f'Server {lane} conversion is unavailable. No saved part was changed.')
     try:
-        result = subprocess.run(['node', '--max-old-space-size=128', str(K_CONVERSION_SCRIPT)],
+        result = subprocess.run(['node', '--max-old-space-size=128', str(script)],
             input=json.dumps(snapshot), text=True, capture_output=True, timeout=15)
     except subprocess.TimeoutExpired:
-        raise ValueError('Server K conversion timed out. No saved part was changed.') from None
+        raise ValueError(f'Server {lane} conversion timed out. No saved part was changed.') from None
     if result.returncode:
-        raise ValueError('Server K conversion failed: ' + result.stderr.strip()[:500])
+        raise ValueError(f'Server {lane} conversion failed: ' + result.stderr.strip()[:500])
     converted = json_object(json.loads(result.stdout))
     if json_object(converted.get('snapshot')).get('assets') != snapshot['assets']:
-        raise ValueError('K conversion attempted to change recorded audio. Nothing was saved.')
+        raise ValueError(f'{lane} conversion attempted to change recorded audio. Nothing was saved.')
     return converted
 
 
+def convert_k_snapshot(snapshot):
+    return convert_snapshot_metadata(snapshot, K_CONVERSION_SCRIPT, 'K')
+
+
+def convert_w_snapshot(snapshot):
+    return convert_snapshot_metadata(snapshot, W_CONVERSION_SCRIPT, 'W')
+
+
 def convert_song_k(folder, original, edit_headers):
-    """Stage metadata-only K conversions; commit the whole Song in one revision.
+    return convert_song_metadata(folder, original, edit_headers, convert_k_snapshot, K_CONVERSION_SCRIPT, 'K')
+
+
+def convert_song_w(folder, original, edit_headers):
+    return convert_song_metadata(folder, original, edit_headers, convert_w_snapshot, W_CONVERSION_SCRIPT, 'W')
+
+
+def convert_fx_snapshot(snapshot):
+    return convert_snapshot_metadata(snapshot, FX_CONVERSION_SCRIPT, 'FX')
+
+
+def convert_song_fx(folder, original, edit_headers):
+    return convert_song_metadata(folder, original, edit_headers, convert_fx_snapshot, FX_CONVERSION_SCRIPT, 'FX')
+
+
+def convert_song_metadata(folder, original, edit_headers, converter, script, lane):
+    """Stage metadata-only lane conversions; commit the whole Song in one revision.
 
     The canonical JS migration runs on the server. WAV entries are streamed
     unchanged, old archives remain in history, and no browser/source decode is
     involved. The account/storage lock is already held by the route.
     """
-    if not shutil.which('node') or not K_CONVERSION_SCRIPT.is_file():
-        raise ValueError('Server K conversion is unavailable. No saved part was changed.')
+    if not shutil.which('node') or not script.is_file():
+        raise ValueError(f'Server {lane} conversion is unavailable. No saved part was changed.')
     with K_CONVERSION_LOCK:
         song = copy.deepcopy(original)
         used = {part.get('sourcePartId', part['id']) for part in song['parts']}
@@ -87,14 +123,14 @@ def convert_song_k(folder, original, edit_headers):
                 record = read_part_manifest_record(folder, part)
                 snapshot = record['snapshot']
                 expected_audio = {asset['path']: asset['sha256'] for asset in record['audioAssets']}
-                converted = convert_k_snapshot(snapshot)
+                converted = converter(snapshot)
                 if converted.get('changed') is not True:
                     continue
                 updated_snapshot = json_object(converted.get('snapshot'))
                 if updated_snapshot.get('assets') != snapshot['assets']:
-                    raise ValueError('K conversion attempted to change recorded audio. Nothing was saved.')
+                    raise ValueError(f'{lane} conversion attempted to change recorded audio. Nothing was saved.')
                 filename = f'{part["id"]}-{secrets.token_hex(16)}.zip'
-                temporary = folder / 'parts' / f'.convert-k-{secrets.token_hex(16)}.tmp'
+                temporary = folder / 'parts' / f'.convert-{lane.lower()}-{secrets.token_hex(16)}.tmp'
                 staged.append((temporary, folder / 'parts' / filename))
                 with zipfile.ZipFile(folder / 'parts' / part.get('archive', f'{part["id"]}.zip')) as source, \
                      zipfile.ZipFile(temporary, 'w', compression=zipfile.ZIP_STORED) as target:
@@ -124,7 +160,8 @@ def convert_song_k(folder, original, edit_headers):
                 if 'qVersion' not in details:
                     part.pop('qVersion', None)
                 # This migration is exclusively metadata: all source WAVs and
-                # the old mix still sound the same; retain their exact PCM.
+                # existing playback files remain archived byte-for-byte. FX renders
+                # are refreshed explicitly by Arm using loopFxVersion.
                 if part.get('render', {}).get('sourceSha256') == old_digest:
                     part['render'] = {**part['render'], 'sourceSha256': digest}
                 else:
@@ -564,6 +601,9 @@ def validate_q_piano(state, assets):
     instrument = piano.get('instrument', 'piano')
     if instrument not in ('piano', 'strings'):
         raise ValueError('Unsupported Q instrument.')
+    source = piano.get('soundSource', instrument)
+    if source not in ('piano','strings','osc','grain','sample'):
+        raise ValueError('Unsupported Q sound source.')
     string_sections = {'cello': [36, 40, 43, 47], 'viola': [48, 50, 52, 55, 59, 62],
                        'violin': [66, 69, 72, 76, 79, 83, 86]}
     string_roots = [pitch for section in string_sections.values() for pitch in section]
@@ -572,6 +612,8 @@ def validate_q_piano(state, assets):
         value = piano.get(key, default)
         if type(value) not in (int, float) or not minimum <= value <= maximum:
             raise ValueError('Invalid Q piano effect setting.')
+    if 'paletteTranspose' in piano and (type(piano['paletteTranspose']) is not int or not -24 <= piano['paletteTranspose'] <= 24):
+        raise ValueError('Invalid Q candidate transpose.')
     if 'chordHold' in piano and type(piano['chordHold']) is not bool:
         raise ValueError('Invalid Q chord hold flag.')
     if 'arpEnabled' in piano and type(piano['arpEnabled']) is not bool:
@@ -601,8 +643,23 @@ def validate_q_piano(state, assets):
             continue
         if not isinstance(step, dict) or not isinstance(step.get('notes'), list) or not 1 <= len(step['notes']) <= 8 or any(type(note) is not int or not 21 <= note <= 108 for note in step['notes']):
             raise ValueError('Invalid Q chord notes.')
+        if 'customChord' in step and type(step['customChord']) is not bool:
+            raise ValueError('Invalid Q custom chord origin.')
+        if 'customChordId' in step and (step.get('customChord') is not True or not isinstance(step['customChordId'], str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', step['customChordId'])):
+            raise ValueError('Invalid Q custom chord identity.')
+        if 'customChordColour' in step and (step.get('customChord') is not True or type(step['customChordColour']) is not int or not 0 <= step['customChordColour'] < 3600):
+            raise ValueError('Invalid Q custom chord colour.')
         if type(step.get('velocity')) is not int or not 1 <= step['velocity'] <= 127 or not isinstance(step.get('gate'), (int, float)) or not .1 <= step['gate'] <= 64:
             raise ValueError('Invalid Q chord velocity or length.')
+    if source in ('osc','grain','sample'):
+        if piano.get('bank') or asset:
+            raise ValueError('Q live sources must not contain a piano bank.')
+        needed = any(step and step.get('notes') and not step.get('rest') for step in sequence)
+        if source == 'sample' and needed and not any(item.get('key') == 'qSourceSample' for item in assets):
+            raise ValueError('Q sample audio is missing.')
+        if source == 'grain' and needed and not any(item.get('key') in ('grainMainSample','grainASample','grainBSample','grainAMic','grainBMic','mic') for item in assets):
+            raise ValueError('Q grain audio sources are missing.')
+        return piano.get('enabled') is True and needed
     bank = piano.get('bank')
     if not any(step and step.get('notes') and not step.get('rest') for step in sequence) and not bank and not asset:
         return False
@@ -650,6 +707,8 @@ def validate_q_piano(state, assets):
 
 
 def q_render_version(piano):
+    if piano.get('soundSource') in ('osc','grain','sample'):
+        return 9
     if piano.get('chordHold') is True and piano.get('arpEnabled') is not True:
         return 8
     if piano.get('sampleLength', 1) < 1 or piano.get('sampleDecay', 1) < 1:
@@ -676,6 +735,28 @@ def validate_drum_roll_cycle(state, cycle, steps):
         raise ValueError('Invalid part pattern cycle length.')
 
 
+def validate_loop_fx(value):
+    if value is None:
+        return
+    keys = {'A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'M', 'M+', 'Q', 'K1', 'K2', 'K3', 'K4', 'K5'}
+    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('channels'), dict) or set(value['channels']) not in (keys, keys | {'N'}):
+        raise ValueError('Unsupported or incomplete standard loop FX settings.')
+    ranges = {'cutoff': (20, 20000), 'resonance': (.1, 4), 'lfoBeats': (1/16, 64), 'lfoDepth': (0, 1), 'room': (0, 1), 'reverbDecay': (.5, 12), 'reverbSize': (0, 1), 'reverbPredelay': (0, 200), 'reverbDamping': (1000, 18000), 'reverbLowcut': (20, 1500), 'reverbWidth': (0, 1), 'delay': (0, 1), 'delayBeats': (1/12, 6), 'feedback': (0, .7), 'delayCutoff': (200, 18000)}
+    for channel in value['channels'].values():
+        if not isinstance(channel, dict) or channel.get('filterType') not in ('lowpass', 'highpass') or channel.get('filterSlope') not in (12, 24, 36, 48, 96) or channel.get('lfoWave') not in ('sine', 'triangle', 'sawtooth', 'ramp', 'square'):
+            raise ValueError('Invalid standard loop filter settings.')
+        if any(type(channel.get(key)) is not bool for key in ('filterEnabled', 'lfoInvert', 'pingPong')):
+            raise ValueError('Invalid standard loop FX switch.')
+        for key, (minimum, maximum) in ranges.items():
+            number = channel.get(key)
+            if type(number) not in (int, float) or not minimum <= number <= maximum:
+                raise ValueError('Invalid standard loop FX control: ' + key)
+        if 'pan' in channel and (type(channel['pan']) not in (int, float) or not -1 <= channel['pan'] <= 1):
+            raise ValueError('Invalid loop pan.')
+        if 'legacyHighpass' in channel and (type(channel['legacyHighpass']) not in (int, float) or not 20 <= channel['legacyHighpass'] <= 10000):
+            raise ValueError('Invalid legacy Q high-pass cutoff.')
+
+
 def validate_part_zip(body):
     with zipfile.ZipFile(BytesIO(body)) as archive:
         entries = archive.infolist()
@@ -699,6 +780,10 @@ def validate_part_zip(body):
         extra = snapshot.get('extra')
         if not isinstance(state, dict) or not isinstance(state.get('modes'), dict) or not isinstance(extra, dict):
             raise ValueError('Part is missing its complete settings snapshot.')
+        validate_wasp(state['modes'].get('wasp'))
+        validate_loop_fx(state['modes'].get('loopFx'))
+        eq = CHANNEL_EQ.normalize(state['modes'].get('channelEq'))
+        eq_active = any(CHANNEL_EQ.audible(channel) for channel in eq['channels'].values())
         steps = int(state.get('patternLength', 0))
         bpm = float(state.get('globalBpm', 0))
         if not 8 <= steps <= 64 or not 40 <= bpm <= 300 or float(state.get('patternLength', 0)) != steps:
@@ -749,28 +834,42 @@ def validate_part_zip(body):
         piano_active = validate_q_piano(state, assets)
         content = {key: value for key, value in snapshot.items() if key != 'createdAt'}
         content['state'] = {key: value for key, value in state.items() if key != 'timestamp'}
+        content['state']['modes'] = dict(state['modes'])
+        # Bypassed EQ edits must not invalidate an otherwise identical legacy render.
+        content['state']['modes'].pop('channelEq', None)
+        if not state['modes'].get('wasp', {}).get('enabled'):
+            content['state']['modes'].pop('wasp', None)
+        else:
+            content['waspEngineRevision'] = 4 if state['modes']['wasp'].get('filter', {}).get('enabled') else 3
+            if not state['modes']['wasp'].get('filter', {}).get('enabled'):
+                content['state']['modes']['wasp'] = dict(state['modes']['wasp'])
+                content['state']['modes']['wasp'].pop('filter', None)
+        if eq_active:
+            content['state']['modes']['channelEq'] = {'version': 1, 'channels': {key: value for key, value in eq['channels'].items() if CHANNEL_EQ.audible(value)}}
         content['assets'] = sorted(assets, key=lambda asset: asset['key'])
         content['audioHashes'] = audio_hashes
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
-        return {'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
+        return {'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'loopFxVersion': 1} if state.get('modes', {}).get('loopFx', {}).get('version') == 1 else {}), **({'eqVersion': 1} if eq_active else {}), **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
 
 
-LOOP_LAYERS = ('A', 'B', 'C', 'V', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
+LOOP_LAYERS = ('A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
 LOOP_ASSETS = {layer: {f'bastard{layer}'} for layer in LOOP_LAYERS}
+LOOP_ASSETS['Q'].add('qSourceSample')
 LOOP_ASSETS['M'] = {'bastardM', 'bastardMRender'}
 LOOP_ASSETS['M+'] = {'bastardMPlus', 'bastardMPlusRender'}
 DRUM_LANES = ('drumKick', 'drumSnare', 'drumHat', 'drumPerc', 'drumClap', 'drumCymbals', 'drumEtc', 'drumRoll')
 K_TRACKS = ('K1', 'K2', 'K3', 'K4', 'K5')
 K_ASSETS = {track: {'bastardK', 'bastardKRender'} if index == 0 else {f'bastardKTrack{index + 1}'}
             for index, track in enumerate(K_TRACKS)}
-COPY_LAYERS = (*LOOP_LAYERS, *K_TRACKS, 'drums', *DRUM_LANES)
+EQ_LAYERS = tuple('eq:' + key for key in CHANNEL_EQ.KEYS)
+COPY_LAYERS = (*LOOP_LAYERS, *K_TRACKS, 'drums', *DRUM_LANES, *EQ_LAYERS)
 
 
 def copy_layers(value):
     """Accept legacy single-loop payloads and a bounded multi-selection."""
     values = [value] if isinstance(value, str) else value
     if not isinstance(values, list) or not values or len(values) > len(COPY_LAYERS) or any(not isinstance(item, str) or item not in COPY_LAYERS for item in values):
-        raise ValueError('Choose one or more supported loops, K tracks or drum lanes.')
+        raise ValueError('Choose one or more supported loops, K tracks, drum lanes or channel EQs.')
     return tuple(item for item in COPY_LAYERS if item in values and not (item in DRUM_LANES and 'drums' in values))
 
 
@@ -818,7 +917,7 @@ def setting_loop_layer(key):
     # K's shared master/legacy controls are not part of loop A or a K track.
     if suffix.startswith('K') and (len(suffix) == 1 or not suffix[1].islower()):
         return None
-    for prefix, layer in [('MPlus', 'M+'), ('2', 'B'), ('3', 'C'), *[(layer, layer) for layer in ('V', 'P', 'O', 'L', 'X', 'Q', 'M')]]:
+    for prefix, layer in [('MPlus', 'M+'), ('2', 'B'), ('3', 'C'), *[(layer, layer) for layer in ('V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M')]]:
         if suffix.startswith(prefix) and (len(suffix) == len(prefix) or not suffix[len(prefix)].islower()):
             return layer
     return 'A'
@@ -832,8 +931,18 @@ def replace_loop_settings(destination, source, layer):
     return result
 
 
-def paste_loop_archive(destination_body, source_body, layer):
+def paste_loop_archive(destination_body, source_body, layer, eq_map=None):
     layers = copy_layers(layer)
+    # A bounded, explicit destination->source map permits one copied EQ to
+    # several channels, but never to an unchosen/unvalidated source EQ.
+    if eq_map is None:
+        eq_map = {item[3:]: item[3:] for item in layers if item in EQ_LAYERS}
+    if not isinstance(eq_map, dict) or len(eq_map) > len(CHANNEL_EQ.KEYS) or any(
+            target not in CHANNEL_EQ.KEYS or not isinstance(source, str) or 'eq:' + source not in layers
+            for target, source in eq_map.items()):
+        raise ValueError('Choose valid EQ destinations for the copied EQs.')
+    if any(item in EQ_LAYERS for item in layers) and not eq_map:
+        raise ValueError('Choose at least one EQ destination.')
     validate_part_zip(source_body)
     validate_part_zip(destination_body)
     asset_keys = set().union(*(LOOP_ASSETS.get(item, K_ASSETS.get(item, {item} if item in DRUM_LANES and item != 'drumRoll' else set())) for item in layers))
@@ -854,6 +963,22 @@ def paste_loop_archive(destination_body, source_body, layer):
     with zipfile.ZipFile(BytesIO(source_body)) as source_zip, zipfile.ZipFile(BytesIO(destination_body)) as destination_zip:
         source = json.loads(source_zip.read('song-part.json'))
         destination = json.loads(destination_zip.read('song-part.json'))
+        if all(item in EQ_LAYERS for item in layers):
+            # EQ-only migration is deliberately metadata-only. Do not run the
+            # full lane/K converter or add defaults to unrelated legacy fields.
+            eq_source = CHANNEL_EQ.normalize(source['state']['modes'].get('channelEq'))
+            eq_destination = CHANNEL_EQ.normalize(destination['state']['modes'].get('channelEq'))
+            for target_key, source_key in eq_map.items():
+                eq_destination['channels'][target_key] = copy.deepcopy(eq_source['channels'][source_key])
+            destination['state']['modes']['channelEq'] = eq_destination
+            destination['createdAt'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            output = BytesIO()
+            with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as result:
+                for entry in destination_zip.infolist():
+                    result.writestr(entry.filename, json.dumps(destination, separators=(',', ':')) if entry.filename == 'song-part.json' else destination_zip.read(entry.filename))
+                    if output.tell() > MAX_UPLOAD:
+                        raise ValueError('The pasted part exceeds the 128 MB limit.')
+            return output.getvalue()
         if any(item in K_TRACKS for item in layers):
             # Legacy shared processing becomes per-track processing on the
             # server. Keep destination selection/master and every unchosen take.
@@ -866,6 +991,22 @@ def paste_loop_archive(destination_body, source_body, layer):
                         source['state']['modes']['kMultitrack']['tracks'][index])
         for section in ('modes', 'sliders', 'selects'):
             destination['state'][section] = replace_selected(destination['state'].get(section, {}), source['state'].get(section, {}))
+        fx_layers = [key for key in layers if key in LOOP_LAYERS or key in K_TRACKS]
+        if fx_layers and (source['state']['modes'].get('loopFx') is not None or destination['state']['modes'].get('loopFx') is not None):
+            source_fx = convert_fx_snapshot(source)['snapshot']['state']['modes']['loopFx']
+            destination_fx = convert_fx_snapshot(destination)['snapshot']['state']['modes']['loopFx']
+            for key in fx_layers:
+                destination_fx['channels'][key] = copy.deepcopy(source_fx['channels'][key])
+            destination['state']['modes']['loopFx'] = destination_fx
+        eq_source = CHANNEL_EQ.normalize(source['state']['modes'].get('channelEq'))
+        eq_destination = CHANNEL_EQ.normalize(destination['state']['modes'].get('channelEq'))
+        for channel_key in CHANNEL_EQ.KEYS:
+            if channel_key in layers or ('drums' in layers and channel_key in DRUM_LANES):
+                eq_destination['channels'][channel_key] = copy.deepcopy(eq_source['channels'][channel_key])
+        for target_key, source_key in eq_map.items():
+            eq_destination['channels'][target_key] = copy.deepcopy(eq_source['channels'][source_key])
+        if eq_map or source['state']['modes'].get('channelEq') is not None or destination['state']['modes'].get('channelEq') is not None:
+            destination['state']['modes']['channelEq'] = eq_destination
         # Old archives may predate some drum lanes. An absent selected pattern
         # means empty, not "leave whichever pattern is currently live" on recall.
         for item in ('drumKick', 'drumSnare', 'drumHat', 'drumPerc'):
@@ -950,6 +1091,8 @@ def copied_loop_body(payload, owner):
 
 
 def handle_song_request(handler, method, inner_path):
+    if inner_path == '/api/drum-patterns' or inner_path.startswith('/api/drum-patterns/'):
+        return DRUM_PATTERNS.handle(handler, method, inner_path, SONGS_ROOT)
     if inner_path != '/api/songs' and not inner_path.startswith('/api/songs/'):
         return False
     headers = {'Cache-Control': 'no-store'}
@@ -968,7 +1111,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'grainSustainRenders': 2, 'grainControlRenders': 3, 'grainEdgeRenders': 4, 'grainLoopRenders': 5, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 8, 'kHallReverbRenders': 1, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'grainSustainRenders': 2, 'grainControlRenders': 3, 'grainEdgeRenders': 4, 'grainLoopRenders': 5, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumAccentRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 9, 'kHallReverbRenders': 1, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'loopFxRenders': 1, 'serverFxConversion': 1 if FX_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'serverWConversion': 1 if W_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -992,6 +1135,12 @@ def handle_song_request(handler, method, inner_path):
                     handler.send_json({'ok': True, 'song': public_song(song)}, extra_headers=headers)
                 elif segments[1:] == ['convert-k'] and method == 'POST':
                     song, converted = convert_song_k(folder, song, handler.headers)
+                    handler.send_json({'ok': True, 'song': public_song(song), 'converted': converted}, extra_headers=headers)
+                elif segments[1:] == ['convert-fx'] and method == 'POST':
+                    song, converted = convert_song_fx(folder, song, handler.headers)
+                    handler.send_json({'ok': True, 'song': public_song(song), 'converted': converted}, extra_headers=headers)
+                elif segments[1:] == ['convert-w'] and method == 'POST':
+                    song, converted = convert_song_w(folder, song, handler.headers)
                     handler.send_json({'ok': True, 'song': public_song(song), 'converted': converted}, extra_headers=headers)
                 elif segments[1:] == ['rename'] and method == 'POST':
                     song['name'] = clean_name(json_object(handler.read_json()).get('name'))
@@ -1129,6 +1278,9 @@ def handle_song_request(handler, method, inner_path):
                         drum_lanes = (query.get('drumlanes') or [''])[0]
                         if drum_lanes not in ('', '1'):
                             raise ValueError('Unsupported drum-lane render version.')
+                        drum_accent = (query.get('drumaccent') or [''])[0]
+                        if drum_accent not in ('', '1'):
+                            raise ValueError('Unsupported drum accent render version.')
                         drum_sample = (query.get('drumsample') or [''])[0]
                         if drum_sample not in ('', '1'):
                             raise ValueError('Unsupported drum-sample render version.')
@@ -1138,11 +1290,21 @@ def handle_song_request(handler, method, inner_path):
                         portable = (query.get('portable') or [''])[0]
                         if portable not in ('', '1'):
                             raise ValueError('Unsupported portable-freeze render version.')
+                        loop_fx = (query.get('loopfx') or [''])[0]
+                        if loop_fx not in ('', '1'):
+                            raise ValueError('Unsupported loop FX render version.')
+                        if part.get('loopFxVersion') == 1 and loop_fx != '1':
+                            raise ValueError('This part requires standard loop FX-aware rendering.')
+                        channel_eq = (query.get('channeleq') or [''])[0]
+                        if channel_eq not in ('', '1', '2'):
+                            raise ValueError('Unsupported channel EQ render version.')
+                        if part.get('eqVersion') == 1 and channel_eq not in ('1', '2'):
+                            raise ValueError('This part requires channel EQ-aware rendering.')
                         k_reverb = (query.get('kreverb') or [''])[0]
                         if k_reverb not in ('', '1'):
                             raise ValueError('Unsupported K Hall reverb render version.')
                         piano = (query.get('q') or [''])[0]
-                        if piano not in ('', '1', '2', '3', '4', '5', '6', '7', '8'):
+                        if piano not in ('', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
                             raise ValueError('Unsupported Q piano render version.')
                         if part.get('qVersion', 0) > int(piano or '0'):
                             raise ValueError('This part requires Q-aware rendering.')
@@ -1158,12 +1320,18 @@ def handle_song_request(handler, method, inner_path):
                             render['vocalRepeatVersion'] = 1
                         if drum_lanes == '1':
                             render['drumLanesVersion'] = 1
+                        if drum_accent == '1':
+                            render['drumAccentVersion'] = 1
                         if drum_sample == '1':
                             render['drumSampleVersion'] = 1
                         if drum_roll == '1':
                             render['drumRollVersion'] = 1
                         if portable == '1':
                             render['portableVersion'] = 1
+                        if loop_fx:
+                            render['loopFxVersion'] = 1
+                        if channel_eq:
+                            render['channelEqVersion'] = int(channel_eq)
                         if k_reverb:
                             render['kReverbVersion'] = 1
                         if piano:
@@ -1174,14 +1342,15 @@ def handle_song_request(handler, method, inner_path):
                         handler.send_json({'ok': True, 'song': public_song(song)}, extra_headers=headers)
                     elif method == 'POST' and action in ('save', 'paste-loop'):
                         if action == 'paste-loop':
-                            source_body, layer = copied_loop_body(handler.read_json(), owner)
+                            paste_payload = json_object(handler.read_json())
+                            source_body, layer = copied_loop_body(paste_payload, owner)
                             archive_path = folder / 'parts' / part.get('archive', f'{part["id"]}.zip')
                             if archive_path.is_symlink() or archive_path.stat().st_size > MAX_UPLOAD:
                                 raise ValueError('Invalid destination part archive.')
                             destination_body = archive_path.read_bytes()
                             if hashlib.sha256(destination_body).hexdigest() != part['sha256']:
                                 raise ValueError('Destination part integrity check failed. No part was changed.')
-                            body = paste_loop_archive(destination_body, source_body, layer)
+                            body = paste_loop_archive(destination_body, source_body, layer, paste_payload.get('eqMap'))
                         else:
                             body = upload_body(handler)
                         details = validate_part_zip(body)
@@ -1199,6 +1368,8 @@ def handle_song_request(handler, method, inner_path):
                                 slot['playbackSteps'] = new_steps if slot['playbackSteps'] == old_steps else min(slot['playbackSteps'], new_steps)
                         if 'qVersion' not in details:
                             updated.pop('qVersion', None)
+                        if 'eqVersion' not in details:
+                            updated.pop('eqVersion', None)
                         if previous_content == details['contentSha256'] and part.get('render', {}).get('sourceSha256') == part['sha256']:
                             updated['render'] = {**part['render'], 'sourceSha256': digest}
                         else:
@@ -1244,3 +1415,32 @@ def handle_song_request(handler, method, inner_path):
     except OSError:
         handler.send_json({'ok': False, 'error': 'Song storage is unavailable; the save did not complete.'}, status=500, extra_headers=headers)
     return True
+
+
+def validate_wasp(value):
+    if value is None:
+        return
+    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('routes'), list) or len(value['routes']) != 6:
+        raise ValueError('Wasp requires version 1 and six modulation routes.')
+    keys = {'A','B','C','V','W','P','O','L','X','Q','M','M+','K1','K2','K3','K4','K5','generated','sample','N','drumKick','drumSnare','drumHat','drumPerc','drumClap','drumCymbals','drumEtc','drumRoll','K','drums','all'}
+    methods = {'am','ring','duck','frequency','phase','lowpass','highpass','bandpass','notch'}
+    def bounded(obj, name, low, high):
+        number = obj.get(name)
+        if not isinstance(number, (int, float)) or isinstance(number, bool) or not math.isfinite(number) or not low <= number <= high:
+            raise ValueError('Invalid Wasp ' + name + '.')
+    if type(value.get('enabled')) is not bool:
+        raise ValueError('Invalid Wasp power state.')
+    for name, low, high in [('melt',0,1),('blend',0,1),('output',-24,6)]:
+        bounded(value,name,low,high)
+    for route in value['routes']:
+        if not isinstance(route, dict) or type(route.get('enabled')) is not bool or route.get('source') not in keys or route.get('destination') not in keys or route.get('method') not in methods or route.get('mode') not in {'audio','envelope'}:
+            raise ValueError('Invalid Wasp modulation route.')
+        for name, low, high in [('depth',-1,1),('level',-24,6),('cutoff',30,18000),('resonance',.3,4),('attack',.5,500),('release',5,2000),('sensitivity',.1,32)]:
+            bounded(route,name,low,high)
+
+    if 'filter' in value:
+        f = value['filter']
+        if not isinstance(f, dict) or type(f.get('enabled')) is not bool or f.get('mode') not in {'lowpass','highpass','bandpass','notch'} or type(f.get('slope')) is not int or f['slope'] not in {12,24,36,48,60,72,84,96} or f.get('wave') not in {'sine','triangle','saw','square'}:
+            raise ValueError('Invalid Wasp end filter.')
+        for name, low, high in [('cutoff',30,18000),('resonance',.5,4),('highpass',20,18000),('lowpass',30,20000),('rate',.02,20),('sweep',0,5),('envelope',-4,4),('attack',.5,500),('release',5,2000)]:
+            bounded(f,name,low,high)

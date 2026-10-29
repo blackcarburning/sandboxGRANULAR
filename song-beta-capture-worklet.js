@@ -6,6 +6,7 @@ class MygrainSongCapture extends AudioWorkletProcessor {
         this.channels = [new Float32Array(this.frames), new Float32Array(this.frames)];
         this.finished = false;
         this.port.onmessage = event => {
+            if (event.data?.type === 'finish' && !this.finished) { this.finished = true; const channels = this.channels.map(channel => channel.buffer); this.port.postMessage({channels}, channels); return; }
             if (event.data?.type !== 'cancel') return;
             this.finished = true;
             this.channels = [];

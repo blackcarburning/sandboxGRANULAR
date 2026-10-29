@@ -22,10 +22,11 @@
         return buffer;
     }
     function prepare(context, settings, impulseFor = root.createFinalReverbImpulseForContext) {
+        if (root.mygrainLoopFx) return null;
         return settings.reverbMix > 0 ? roomImpulse(context, settings.reverbDecay, impulseFor) : null;
     }
     // Each graph belongs to one audible K voice. No global FX bus or UI timers.
-    function create(context, input, output, settings, bpm, destination, impulseFor = root.createFinalReverbImpulseForContext, preparedRoom = null) {
+    function create(context, input, output, settings, bpm, destination, impulseFor = root.createFinalReverbImpulseForContext, preparedRoom = null, eqKey = null) {
         const nodes = [], filters = [], oscillators = [];
         const own = node => (nodes.push(node), node);
         const gain = value => { const node = own(context.createGain()); node.gain.value = value; return node; };
@@ -34,7 +35,14 @@
         let tail = input, disposed = false, lfo = null, delay = null, delayCapacity = 0;
         const append = node => { tail.connect(node); tail = node; return node; };
         try {
-            if (settings.filterMode !== 'bypass') {
+            const common = root.mygrainLoopFx && eqKey;
+            if (common && settings.envelope > 0) {
+                const config=root.mygrainLoopFx.channel(eqKey);
+                const filter=append(own(context.createBiquadFilter()));
+                filter.type=config.filterType;filter.frequency.value=config.cutoff;filter.Q.value=.707;filters.push(filter);
+                settings={...settings,cutoff:config.cutoff};
+            }
+            if (!common && settings.filterMode !== 'bypass') {
                 const [type, slope] = settings.filterMode.split('-');
                 for (let stage = 0; stage < Math.max(1, Number(slope) / 12); stage++) {
                     const filter = append(own(context.createBiquadFilter()));
@@ -52,7 +60,7 @@
             }
             // Dry signal remains unity at zero mixes; all wet feeds are local and bounded.
             const mix = gain(1); tail.connect(mix);
-            if (settings.delayMix > 0) {
+            if (!common && settings.delayMix > 0) {
                 delayCapacity = Math.min(12, Math.max(.1, 60 / bpm * Number(settings.delayDivision)) + .05);
                 delay = own(context.createDelay(delayCapacity));
                 delay.delayTime.value = Math.min(11.9, 60 / bpm * Number(settings.delayDivision));
@@ -61,7 +69,7 @@
                 tail.connect(delay); delay.connect(lowpass); lowpass.connect(feedback); feedback.connect(delay);
                 lowpass.connect(wet); wet.connect(mix);
             }
-            if (settings.reverbMix > 0) {
+            if (!common && settings.reverbMix > 0) {
                 // Same feed-forward room branch as Loop L: no reverb feedback loop.
                 const predelay = own(context.createDelay(.05)); predelay.delayTime.value = .018;
                 const room = preparedRoom || own(context.createConvolver());
@@ -70,8 +78,10 @@
                 const wet = gain(settings.reverbMix * (.68 + .45 * .18));
                 tail.connect(predelay); predelay.connect(room); room.connect(tone); tone.connect(wet); wet.connect(mix);
             }
-            mix.connect(output); output.connect(destination);
-            if (filters.length && settings.lfoAmount > 0) {
+            mix.connect(output);
+            const eqRoute = eqKey && root.mygrainChannelEq ? root.mygrainChannelEq.connect(eqKey, output, destination) : null;
+            if (eqRoute) nodes.push(eqRoute); else output.connect(destination);
+            if (!common && filters.length && settings.lfoAmount > 0) {
                 lfo = own(context.createOscillator()); oscillators.push(lfo);
                 lfo.type = settings.lfoWave === 'ramp' ? 'sawtooth' : settings.lfoWave;
                 lfo.frequency.value = bpm / 60 / Number(settings.lfoDivision);

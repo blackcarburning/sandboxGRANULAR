@@ -101,6 +101,19 @@ def checked_path(root, name):
     return ACCOUNTS.checked_path(pathlib.Path(root) / name, root)
 
 
+def source_url(value, capture=False):
+    """Canonicalize a single public Reel or an existing YouTube bookmark."""
+    if isinstance(value, str) and urlsplit(value).hostname in ('instagram.com', 'www.instagram.com', 'm.instagram.com'):
+        parsed = urlsplit(value)
+        match = re.fullmatch(r'/(?:reel|reels)/([A-Za-z0-9_-]{5,28})/?', parsed.path)
+        if (len(value) > 2048 or any(ord(c) <= 32 or ord(c) >= 127 for c in value) or '\\' in value
+                or parsed.scheme != 'https' or parsed.netloc not in ('instagram.com', 'www.instagram.com', 'm.instagram.com')
+                or parsed.fragment or not match):
+            raise RequestError('Use a direct HTTPS Instagram Reel link, not a profile, story or collection.')
+        return 'https://www.instagram.com/reel/' + match[1] + '/', match[1], 0
+    return youtube_url(value, capture=capture)
+
+
 def sample_root(create=False):
     root = checked_path(pathlib.Path(SOURCE_ROOT), FOLDER)
     if create:
@@ -314,7 +327,7 @@ def bookmarks():
     for item in items:
         if not isinstance(item, dict) or not IDENTIFIER.fullmatch(str(item.get('id', ''))):
             raise RequestError('Invalid Video Lab bookmark.')
-        url, video, offset = youtube_url(item.get('url'))
+        url, video, offset = source_url(item.get('url'))
         validated.append({'id': item['id'], 'name': checked_name(item.get('name')), 'url': url})
     return validated
 
@@ -328,7 +341,7 @@ def update_bookmarks(payload=None, remove=None):
     else:
         if len(items) >= 100:
             raise RequestError('Video Lab supports up to 100 saved bookmarks.', 409)
-        url, video, offset = youtube_url(payload.get('url'))
+        url, video, offset = source_url(payload.get('url'))
         items.append({'id': secrets.token_hex(16), 'name': checked_name(payload.get('name')), 'url': url})
     root = sample_root(create=True)
     destination = checked_path(root, 'videolab_bookmarks.json')
@@ -420,7 +433,10 @@ def janitor():
 
 def start_capture(payload, token):
     global JANITOR_STARTED
-    url, video, link_start = youtube_url(payload.get('url'), capture=True)
+    url, video, link_start = source_url(payload.get('url'), capture=True)
+    source = 'instagram' if url.startswith('https://www.instagram.com/') else 'youtube'
+    if payload.get('source', source) != source:
+        raise RequestError('The selected source does not match this URL.')
     start = finite_number(payload.get('startSeconds', 0), 0, 21600, 'Start time') or link_start
     duration = finite_number(payload.get('durationSeconds', 120), 0.021, MAX_SECONDS, 'Duration')
     owner = owner_snapshot()
@@ -433,7 +449,7 @@ def start_capture(payload, token):
             raise RequestError('Video Lab capture storage is full. Delete old captures or wait for expiry.', 429)
         identifier = secrets.token_hex(16)
         job = {'id': identifier, 'owner': owner, 'session': session_key(token), 'status': 'queued', 'url': url,
-               'video': video, 'startSeconds': start, 'durationSeconds': duration, 'started': time.monotonic(),
+               'video': video, 'source': source, 'startSeconds': start, 'durationSeconds': duration, 'started': time.monotonic(),
                'createdAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'cancel': threading.Event(), 'running': True}
         JOBS[identifier] = job
         initial = public_capture(job)
@@ -499,6 +515,8 @@ def run_capture(job, token, store):
             if not pathlib.Path(python).is_absolute():
                 raise RequestError('Video Lab runtime must use an absolute Python path.')
             command = [python, '-I', '-B', worker_path, str(work_path), job['video'], str(job['startSeconds']), str(job['durationSeconds'])]
+            if job.get('source') == 'instagram':
+                command.append('instagram')
             privilege = {'user': 65534, 'group': 65534, 'extra_groups': ()} if os.geteuid() == 0 else {}
             with JOB_LOCK:
                 if job['cancel'].is_set():
@@ -537,6 +555,16 @@ def run_capture(job, token, store):
                 break
             job['cancel'].wait(0.05)
         if process.returncode != 0:
+            if job.get('source') == 'instagram':
+                try:
+                    failure = json.loads(output)
+                except (ValueError, UnicodeError):
+                    failure = {}
+                if isinstance(failure, dict) and failure.get('errorCode') == 'access_required':
+                    raise RequestError('Instagram requires login or has limited anonymous access to this Reel. Instagram login is not connected yet. Try another public Reel. Your previous take is unchanged.')
+                if isinstance(failure, dict) and failure.get('errorCode') == 'no_audio':
+                    raise RequestError('This Reel has no audio soundtrack to capture. Try another public Reel. Your previous take is unchanged.')
+                raise RequestError('This public Reel could not be fetched. It may be unavailable, restricted, too large or temporarily blocked. Instagram login is not connected yet. Try another public Reel. Your previous take is unchanged.')
             raise RequestError('Unable to import this public video. Restricted, live, oversized or unavailable videos are not supported.')
         result = json.loads(output)
         if not isinstance(result, dict) or result.get('ok') is not True or result.get('videoId') != job['video']:
@@ -545,6 +573,8 @@ def run_capture(job, token, store):
         if metadata['sampleRate'] != 44100 or metadata['channels'] != 1 or metadata['bitsPerSample'] != 16 or metadata['duration'] > job['durationSeconds'] + 1 / 44100 or metadata['duration'] * metadata['sampleRate'] * metadata['channels'] * 4 > MAX_PCM_BYTES:
             raise RequestError('Capture worker returned invalid PCM audio.')
         source_duration = finite_number(result.get('sourceDuration'), 0.021, 86400 * 366, 'Source duration')
+        if result.get('sourceDurationKnown') is False:
+            source_duration = None
         title = result.get('title')
         if not isinstance(title, str) or not 1 <= len(title) <= 300 or any(ord(character) < 32 for character in title) or re.search(r'https?://', title, re.I):
             raise RequestError('Capture worker returned invalid source title.')
