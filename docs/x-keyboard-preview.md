@@ -59,3 +59,25 @@ measurement. Each case also checks explicit Stop cleans up preview voices.
 The original audible/muted server Song tests are rerun as well. Physical MIDI
 hardware and a physical iPhone remain untested. Evidence:
 `output/x-shared-keys/`. Current visible badge: `v2026.10.29.X-KEYS.2`.
+
+## X-KEYS.3 — preview is not transport
+
+Owner clarified that X previews must work stopped and must not restart the lane.
+Reproduced: Stop X while shared Bastardloop transport is active, then record a
+note; `shouldRestartBastardLoopXPlayback` returned true from the shared flag and
+note entry restarted X. Remove the restart calls from note/rest entry entirely.
+A running scheduler already reads edited cells on its next pass; no phase reset
+is necessary. Other transport actions and source/tempo changes are unchanged.
+
+`x-stopped-preview-browser.cjs` verifies sample and OSC3 through actual on-screen
+keyboard taps, MIDI messages and grid button taps, both with X individually
+stopped and with all playback stopped. Grid cases suspend the AudioContext before
+tapping to verify gesture readiness. All cases require non-silent final PCM,
+X transport remaining stopped and ordinary Stop cleaning up previews. Chromium
+and WebKit, 390×844. The earlier baseline fails the no-restart assertion.
+The clean stopped fixture already produced sound; a separate universal cause of
+the owner's stopped-state silence was not reproduced. Do not describe the
+transport restart fix as proof that every saved configuration is now audible.
+Scheduled DSP and Song compatibility are unchanged; real audible/muted Song jobs
+are rerun with unchanged source hashes/revisions. No physical iPhone test.
+Current badge: `v2026.10.29.X-KEYS.3`.

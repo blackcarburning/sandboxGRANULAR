@@ -19,3 +19,8 @@ for(const cancelled of [false,true])test(`quick X sample release, cancelled=${ca
  assert.equal(scheduled[0][1],cancelled?1:1.12);assert.equal(ctx.sequencerKeyboardHolds.size,0);
  ctx.releaseSequencerKeyboardHold(hold,cancelled);assert.equal(scheduled.length,3);
 });
+for(const armed of [false,true])test(`X note entry never starts or rephases transport (record=${armed})`,()=>{
+ const calls=[],ctx={bastardLoopXEditStepIndex:3,bastardLoopXRecordArmed:armed,getBastardLoopXStep:()=>({note:'D3'}),hasBastardLoopXPlaybackSource:()=>true,isBastardLoopXUsingSynth:()=>false,auditionBastardLoopXVoice:()=>true,updateBastardLoopXStatus(){},setBastardLoopXStep:(index,step)=>calls.push([index,step.note]),advanceBastardLoopXEditStep:()=>calls.push('advance'),restartBastardLoopXPlaybackIfNeeded:()=>{throw Error('Note entry must not restart transport')}};
+ vm.createContext(ctx);const a=html.indexOf('        function applyBastardLoopXNoteEntry('),b=html.indexOf('        function applyBastardLoopXRestEntry(',a);vm.runInContext(html.slice(a,b),ctx);
+ assert.equal(ctx.applyBastardLoopXNoteEntry('C3'),true);assert.deepEqual(calls,armed?[[3,'C3'],'advance']:[]);
+});
