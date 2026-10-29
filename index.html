@@ -6547,7 +6547,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.29.VIEWPORT-RELEASE.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.10.29.X-KEYS.1</strong></div>
         <div id="mygrain-load-notes-slot" aria-live="polite"></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
     </div>
@@ -6645,7 +6645,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="160" height="160" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.29.VIEWPORT-RELEASE.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.10.29.X-KEYS.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -40228,7 +40228,9 @@ if (layer === 'W' && bastardLoopWBuffer) {
             const voiceId = `${role}:${step.note}:${Math.round(start * 1000)}:${Math.random().toString(36).slice(2, 8)}`;
             const note = midiToNoteName(noteNameToMidi(step.note) + getBastardLoopXPitchSemitones());
             const scale = Math.max(0.18, Math.min(1.4, Number(options.levelScale) || 1));
-            const velocity = Math.max(0, Math.min(1, getBastardLoopXLevelValue({ applyLayerToggle: false }) * scale * 1.28));
+            // Like L/sample audition, keyboard previews need an audible floor even
+            // when the sequence fader is zero. Never lift a sequenced voice.
+            const velocity = Math.max(options.audition === true ? 0.06 : 0, Math.min(1, getBastardLoopXLevelValue({ applyLayerToggle: false }) * scale * 1.28));
             if (velocity <= 0) return false;
             const windowSeconds = Math.max(0.025, Number(options.stepWindow) || stepDuration || 0.18);
             let gate = windowSeconds * Math.max(0.16, (getBastardLoopXStepLengthRatio() * 0.52) + (getBastardLoopXDecayRatio() * 0.48));
@@ -40505,7 +40507,7 @@ if (layer === 'W' && bastardLoopWBuffer) {
         function auditionBastardLoopXVoice(step, options = {}) {
             if (isBastardLoopXUsingSynth()) {
                 stopOscillatorsByRole('bastardloopx-preview');
-                return playBastardLoopXSynthVoice(step, audioContext?.currentTime, 0.24, null, { role: 'bastardloopx-preview' });
+                return playBastardLoopXSynthVoice(step, audioContext?.currentTime, 0.24, null, { role: 'bastardloopx-preview', audition: true });
             }
             if (!audioContext || !bastardLoopXSampleBuffer || !step?.note || step.rest) {
                 return false;
