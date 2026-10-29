@@ -1,0 +1,23 @@
+'use strict';
+const assert=require('node:assert/strict'),{chromium,webkit}=require('playwright-core');
+const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18965/mygrain/';
+assert.match(base,/^http:\/\/127\.0\.0\.1:\d+\/mygrain\/$/);
+(async()=>{const results=[];for(const[engine,type]of Object.entries({chromium,webkit})){
+ const b=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
+ try{const ctx=await b.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});assert.equal((await ctx.request.post(base+'api/auth/login',{data:{username:'admin',password:process.env.MYGRAIN_TEST_ADMIN_PASSWORD||'isolated-speedups-test'}})).status(),200);const p=await ctx.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin?r.continue():r.abort());await p.goto(base);await p.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready');await p.evaluate(()=>mygrainCardHistory.ready);await p.locator('#start-btn').tap();await p.waitForFunction(()=>isAudioGraphReady()&&!stateSaveSuspended&&!engineStarting&&!mygrainCardHistory.busy);
+ for(const layer of ['X'])for(const source of ['sample','synth'])for(const input of ['midi','tap']){
+  await p.evaluate(({layer,source})=>{
+   stopAllPerformancePlayback({silent:true});setLoopLayerSolo([],{silent:true,skipSave:true});
+   const data=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate);for(let i=0;i<data.length;i++)data.getChannelData(0)[i]=.2*Math.sin(2*Math.PI*220*i/data.sampleRate);
+   setSliderValue('performanceBastardLoop'+layer+'Level',60);setSliderValue('performanceBastardLoop'+layer+'Attack',1);bastardLoopLSourceMode='sample';bastardLoopXSourceMode='sample';
+   const fx=mygrainLoopFx.settings();Object.assign(fx.channels[layer],{filterEnabled:false,room:0,delay:0});mygrainLoopFx.restore(fx);
+   if(source==='synth-muted'){setSliderValue('performanceBastardLoop'+layer+'Level',0);source='synth'}
+   if(layer==='X'){bastardLoopXSampleMetadata=null;bastardLoopXSampleBuffer=data;bastardLoopXRootNote='C3';bastardLoopXSourceMode=source;bastardLoopXRecordArmed=true;openBastardLoopXOverlay()}
+   else{bastardLoopLSampleMetadata=null;bastardLoopLSampleBuffer=data;bastardLoopLRootNote='C3';bastardLoopLSourceMode=source;bastardLoopLRecordArmed=true;openBastardLoopLOverlay()}
+   bastardLoopPlaying=true;bastardLoopXEnabled=false; window.keyAudio=audioContext.createAnalyser();keyAudio.fftSize=2048;window.keyTaps=connectAnalysisTap(keyAudio);window.keySink=audioContext.createGain();keySink.gain.value=0;keyAudio.connect(keySink);keySink.connect(audioContext.destination);
+  },{layer,source});
+  const key=p.locator('#bastardLoop'+layer+'Keyboard button[data-note="C3"]');await key.scrollIntoViewIfNeeded();const box=await key.boundingBox();await p.mouse.move(box.x+box.width/2,box.y+box.height/2);if(input==='midi')await p.evaluate(()=>{handleMidiMessage({data:[0x90,48,100]});handleMidiMessage({data:[0x80,48,0]})});else await key.tap();await p.waitForTimeout(90);
+  const r=await p.evaluate(({layer,source})=>{const a=new Float32Array(keyAudio.fftSize);keyAudio.getFloatTimeDomainData(a);return{layer,source,rms:Math.sqrt(a.reduce((s,x)=>s+x*x,0)/a.length),holds:sequencerKeyboardHolds.size,voices:activeOscVoices.size,status:document.getElementById('bastardLoop'+layer+'Status').textContent}}, {layer,source});await p.mouse.up();console.log(JSON.stringify({engine,input,...r}));results.push({engine,input,...r});assert(r.rms>.0001,JSON.stringify({engine,input,...r}));await p.evaluate(()=>stopBastardLoopX({fade:false}));await p.waitForTimeout(80);assert.equal(await p.evaluate(()=>bastardLoopXActiveVoices.size+[...activeOscVoices.values()].filter(v=>v.role==='bastardloopx-preview').length),0);await p.evaluate(layer=>{for(const source of keyTaps)source.disconnect(keyAudio);keyAudio.disconnect();keySink.disconnect();if(layer==='X')closeBastardLoopXOverlay();else closeBastardLoopLOverlay()},layer);
+ }
+
+ assert.deepEqual(errors,[]); }finally{await b.close()} }if(process.env.X_KEY_ASSERT)assert(results.every(x=>x.rms>.0001),JSON.stringify(results));})().catch(e=>{console.error(e);process.exitCode=1});
