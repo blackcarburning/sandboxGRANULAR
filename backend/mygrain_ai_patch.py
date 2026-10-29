@@ -32,6 +32,10 @@ RATE_LOCK = threading.Lock()
 REQUESTS = {}
 COOLDOWN = 15
 GENRES = {item['id']: item for item in json.loads((pathlib.Path(__file__).resolve().parent.parent / 'genre-presets.json').read_text())}
+GENRE_MEMORY_PATH = pathlib.Path(__file__).resolve().parent.parent / 'docs' / 'genreator-genre-memory.md'
+GENRE_MEMORY = GENRE_MEMORY_PATH.read_text()
+if any(f'## {genre} — ' not in GENRE_MEMORY for genre in GENRES):
+    raise RuntimeError('GENREator musical memory is incomplete; refusing to generate without it.')
 
 
 def number(value, spec, *, recipe=False):
@@ -260,6 +264,7 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
         + json.dumps({'allowed': CONTROLS, 'loopCapabilities': LOOPS, 'allowedDivisions': SCHEMA['divisions'], 'current': current, 'loopInventory': loops, 'userDirection': prompt, 'sampleCatalogue': catalogue.model_context(catalogue_context) if catalogue_context else {'status': 'fallback', 'candidates': {}}}, separators=(',', ':'))
     )
     instruction += '\nCURRENT APPLICATION KNOWLEDGE (capability limits still apply):\n' + FEATURE_KNOWLEDGE + '\n'
+    instruction += '\nMANDATORY GENRE MUSICAL MEMORY (read and apply the relevant section; never override mode or writable limits):\n' + GENRE_MEMORY + '\n'
     if direction and direction['mode'] == 'refine':
         instruction += ('\nREFINE MODE OVERRIDES NEW-PATCH DEFAULTS: This is a targeted edit of the CURRENT audible patch, not a new arrangement. '
                         'Follow refinement in directionContext. Keep tempo, harmony, notes, enabled lanes and mix unless the requested edit needs them changed. '
@@ -289,7 +294,9 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
             'Choose every actual parameter, notes, drum pattern, levels and source decisions yourself. '
             'Return enabled explicitly for EVERY allowed loop; disabled lanes must not reload or contain instrument/chords/notes. '
             'Preserve recorded audio but leave M/M+/K disabled for this new patch. '
+            'Use the selected genre section of the mandatory memory for rhythm, instruments, density and common tempos. '
             'Set globalBpmSlider to the exact tempo override, or choose a whole BPM within profile.bpm. '
+            'Never inherit the current BPM or a half-time sample BPM: D&B Auto is 170–180, usually 174, NOT 85–90. '
             'Enable 2–4 suitable layers with useful nonzero levels (drums may be another layer); reload sources for a fresh result. '
             'profile.exclude loops must be explicitly disabled. Do not use Q piano/strings to bypass the exclusion. '
             'For profile.terra=true, W must be enabled with reload:true and divisions; L must be enabled with repository:samples_terra,reload:true,notes. '

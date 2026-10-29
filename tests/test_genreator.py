@@ -1,4 +1,6 @@
 import copy
+import json
+from unittest.mock import MagicMock, patch
 import importlib.util
 import pathlib
 import unittest
@@ -26,6 +28,39 @@ class Genres(unittest.TestCase):
    with self.assertRaises(ValueError):ai.validate_genre_recipe(bad,{'genre':'dnb'})
   with self.assertRaises(ValueError):ai.validate_genre_recipe(self.recipe('dnb',120),{'genre':'dnb'})
   ai.validate_genre_recipe(self.recipe('dnb',120),{'genre':'dnb','genreBpm':120})
+ def test_full_genre_memory_is_mandatory_for_every_model_call(self):
+  for genre in [None, *ai.GENRES]:
+   process=MagicMock(returncode=0)
+   process.__enter__.return_value=process
+   process.communicate.return_value=(json.dumps({'outputs':[{'text':json.dumps(self.recipe())}]}),'')
+   direction={'mode':'generate',**({'genre':genre,'genreBpm':None} if genre else {})}
+   with self.subTest(genre=genre),patch.object(ai.subprocess,'Popen',return_value=process):
+    ai.run_model('new musical patch',{}, {},direction=direction)
+    instruction=process.communicate.call_args.kwargs['input']
+    self.assertIn(ai.GENRE_MEMORY,instruction)
+    for key in ai.GENRES:self.assertIn(f'## {key} — ',instruction)
+    if genre:self.assertIn('Never inherit the current BPM or a half-time sample BPM',instruction)
+ def test_genre_memory_reaches_refinement_and_song_sections(self):
+  for mode in ('regenerate','refine','section'):
+   process=MagicMock(returncode=0)
+   process.__enter__.return_value=process
+   process.communicate.return_value=(json.dumps({'outputs':[{'text':json.dumps(self.recipe())}]}),'')
+   with self.subTest(mode=mode),patch.object(ai.subprocess,'Popen',return_value=process):
+    ai.run_model('keep the musical identity',{}, {},direction={'mode':mode})
+    self.assertIn(ai.GENRE_MEMORY,process.communicate.call_args.kwargs['input'])
+ def test_automatic_tempo_boundaries_for_every_genre(self):
+  for genre,profile in ai.GENRES.items():
+   for bpm in [profile['bpm'][0],profile['bpm'][1]]:
+    r=self.recipe(tempo=bpm)
+    with self.subTest(genre=genre,bpm=bpm):ai.validate_genre_recipe(r,{'genre':genre})
+   for bpm in [profile['bpm'][0]-1,profile['bpm'][1]+1]:
+    with self.subTest(genre=genre,bpm=bpm),self.assertRaises(ValueError):
+     ai.validate_genre_recipe(self.recipe(tempo=bpm),{'genre':genre})
+ def test_dnb_half_time_and_previous_tempo_rejected_before_apply(self):
+  for bpm in [85,87,90,120,160,169]:
+   with self.subTest(bpm=bpm),self.assertRaises(ValueError):
+    ai.validate_genre_recipe(self.recipe('dnb',bpm),{'genre':'dnb','genreBpm':None})
+  ai.validate_genre_recipe(self.recipe('dnb',90),{'genre':'dnb','genreBpm':90})
  def test_no_partial_genre_result(self):
   r=self.recipe();del r['loops']['O']
   with self.assertRaises(ValueError):ai.validate_genre_recipe(r,{'genre':'experimental'})

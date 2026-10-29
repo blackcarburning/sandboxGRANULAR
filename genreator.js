@@ -29,7 +29,7 @@ undo.addEventListener('click',async()=>{if(!pending&&!root.mygrainAiPatch?.busy)
 root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
 root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get genres(){return genres.map(g=>g.id)},get lastGenre(){return lastGenre}});
 (async()=>{try{
- const response=await fetch(new URL('genre-presets.json?v=20261029-genre-1',document.baseURI),{credentials:'same-origin'});if(!response.ok)throw Error('Genre list could not load. Reload to try again.');genres=await response.json();
+ const response=await fetch(new URL('genre-presets.json?v=20261029-genre-3',document.baseURI),{credentials:'same-origin'});if(!response.ok)throw Error('Genre list could not load. Reload to try again.');genres=await response.json();
  const host=document.getElementById('genreatorGenres');
  for(const group of [...new Set(genres.map(g=>g.group))]){
   const section=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent=group;section.append(legend);

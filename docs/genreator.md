@@ -12,8 +12,8 @@ Industrial and Experimental Electronic. Auto BPM is selected by the model within
 the profile range. The BPM box overrides that range (60–180); the server verifies
 exact agreement. Canonical genre definitions live in `genre-presets.json`.
 
-G has its own header/icon and scoped CSS. Quick/drawer jump links immediately
-follow AI on desktop and phone and use the existing jump handler. The existing AI
+G has its own header/icon and scoped CSS. The drawer-only jump link immediately
+follows AI on desktop and phone and use the existing jump handler. The existing AI
 progress/cancel/Undo mechanism is reused. Existing cards, render/viewport logic,
 FX graphs and DSP implementations are untouched. The new W level/transpose/
 legacy-cutoff contract uses existing live handlers; shared FX settings are not
@@ -57,3 +57,22 @@ hash and Song revision. Saved-part load/arm uses the existing compatibility path
   old RadioLab registration fixture that omits the now-required approval email.
   Focused AI/genre suites are the task's required checks.
 - Physical iPhone/controller testing is not claimed.
+
+## Mandatory genre memory
+
+`docs/genreator-genre-memory.md` is loaded by the backend and injected into EVERY
+model call, not optionally retrieved. Startup refuses an incomplete reference.
+All 15 genres include tempo choices, drum grammar, density, bass/harmony roles,
+source mapping and anti-patterns. BPM numbers are production guidance, not a
+measured popularity ranking. Auto D&B is 170–180 BPM (174 favoured), never 90;
+Jungle is 160–175. Explicit BPM override remains authoritative. The existing
+server rejection of out-of-range automatic tempos remains in force. No DSP or
+Song rendering implementation changes; generated patches use the same engine.
+
+Memory verification (2026-10-29): 40 focused Python tests passed, including
+injection into all 15 genre requests and all other AI modes, every genre's tempo
+boundaries, and rejection of 85/87/90/120/160/169 BPM Auto D&B. Explicit 90-BPM
+user override still passes. Actual fixed-model low-effort calls starting from
+90 BPM chose D&B 174 BPM (broken drums/X bass, no P/O/Q), house 124 BPM
+(four-on-floor/Q piano/X), experimental 123 BPM (W modular/L Terra).
+These are observed trials, not a guarantee of every patch's musical quality.
