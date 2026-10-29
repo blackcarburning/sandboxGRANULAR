@@ -14,8 +14,9 @@ granular filters for a requested loop filter or N filter and claim equivalence.
   L lead sequencer, X bass sequencer, and Q the piano/strings chord instrument.
   X can retain either samples_bass or the clean Juno samples_altbass library.
 - W (Weird) generates modular audio, offers Re-cut Same Samples and Loop Cut,
-  reverse, pitch, level and shared effects. W is not currently in the AI loop schema:
-  do not generate a W loop recipe or pretend to load/randomise it.
+  reverse, pitch, level and shared effects. W is now an allowed AI loop backed by samples_modular: enabled, reload and divisions.
+  Use its existing generator; never invent new W DSP controls. L supports a
+  repository choice of samples_leads or samples_terra with reload:true.
 - MAIN VOCAL M, BACKING VOCAL M+, and K five-track recordings are user audio;
   preserve recordings. K1–K5 have individual processing. AI's K inventory is aggregate,
   not permission to invent individual track recipe keys.

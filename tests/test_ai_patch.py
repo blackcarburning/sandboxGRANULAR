@@ -34,7 +34,7 @@ class AiPatchTests(unittest.TestCase):
     def test_controls_match_real_sliders(self):
         import re
         html = (pathlib.Path(__file__).parents[1] / 'index.html').read_text()
-        self.assertEqual(len(ai.CONTROLS), 78)
+        self.assertEqual(len(ai.CONTROLS), 81)
         for key, spec in ai.CONTROLS.items():
             tag = re.search(r'<input[^>]+id="' + key + r'"[^>]*>', html).group()
             attrs = dict(re.findall(r'(\w+)="([^"]*)"', tag))

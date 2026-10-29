@@ -256,7 +256,7 @@ def attach_selections(recipe, context):
                 raise ValueError(f'AI omitted a catalogue sampleId for loop {lane}. Nothing was changed; try again.')
             continue
         entry = context['entries'].get(selected)
-        if not entry or entry['lane'] != lane or (lane == 'X' and entry['source'] != repository):
+        if not entry or entry['lane'] != lane or (lane in ('X', 'L') and entry['source'] != (settings.get('repository', entry['source']) if lane == 'L' else repository)):
             raise ValueError('AI selected a sample outside the supplied catalogue shortlist. Nothing was changed.')
         if not current_file(entry['row'], context['sourceRoot'], entry['source'], verify_hash=True):
             raise ValueError('The chosen catalogue sample changed or disappeared. Nothing was changed; try again.')

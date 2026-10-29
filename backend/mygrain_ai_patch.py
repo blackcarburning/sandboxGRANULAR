@@ -31,6 +31,7 @@ INFLIGHT = threading.Lock()
 RATE_LOCK = threading.Lock()
 REQUESTS = {}
 COOLDOWN = 15
+GENRES = {item['id']: item for item in json.loads((pathlib.Path(__file__).resolve().parent.parent / 'genre-presets.json').read_text())}
 
 
 def number(value, spec, *, recipe=False):
@@ -44,7 +45,7 @@ def number(value, spec, *, recipe=False):
 
 
 def validate_request(data):
-    if not isinstance(data, dict) or not {'prompt', 'current', 'loops'} <= set(data) or not set(data) <= {'prompt', 'current', 'loops', 'mode', 'refinement', 'musicalState', 'section'}:
+    if not isinstance(data, dict) or not {'prompt', 'current', 'loops'} <= set(data) or not set(data) <= {'prompt', 'current', 'loops', 'mode', 'refinement', 'musicalState', 'section', 'genre', 'genreBpm'}:
         raise ValueError('Send a prompt, current controls and loop inventory only.')
     prompt, current = data['prompt'], data['current']
     if not isinstance(prompt, str) or not 3 <= len(prompt.strip()) <= 1500 or any(ord(c) < 32 and c not in '\n\t' for c in prompt):
@@ -117,7 +118,16 @@ def validate_direction(data):
             raise ValueError('Generate or recall a take with Q chords first.')
     elif section is not None:
         raise ValueError('Section options require progression generation.')
-    return {'mode': mode, 'refinement': refinement.strip(), 'musicalState': state, **({'section': section} if section is not None else {})}
+    genre = data.get('genre')
+    tempo = data.get('genreBpm')
+    if genre is not None:
+        if not isinstance(genre, str) or genre not in GENRES or mode != 'generate':
+            raise ValueError('Choose a supported GENREator genre.')
+        if tempo is not None and (type(tempo) is not int or not 60 <= tempo <= 180):
+            raise ValueError('GENREator BPM must be a whole number from 60 to 180.')
+    elif tempo is not None:
+        raise ValueError('A genre is required for a genre tempo override.')
+    return {'mode': mode, 'refinement': refinement.strip(), 'musicalState': state, **({'section': section} if section is not None else {}), **({'genre': genre, 'genreBpm': tempo} if genre is not None else {})}
 
 
 def validate_recipe(recipe):
@@ -137,11 +147,11 @@ def validate_recipe(recipe):
         raise ValueError('Invalid loop changes.')
     for key, lane in loops.items():
         spec = LOOPS[key]
-        allowed = ({'repository'} if key == 'X' else set()) | ({'sampleId'} if key in catalogue.LANES else set()) | {'enabled'} | ({'reload'} if spec['reload'] else set()) | ({'divisions'} if spec['divisions'] else set()) | ({'notes'} if spec['notes'] else set()) | ({'instrument', 'chords', 'chordSteps', 'style'} if key == 'Q' else set())
+        allowed = ({'repository'} if key in ('X', 'L') else set()) | ({'sampleId'} if key in catalogue.LANES else set()) | {'enabled'} | ({'reload'} if spec['reload'] else set()) | ({'divisions'} if spec['divisions'] else set()) | ({'notes'} if spec['notes'] else set()) | ({'instrument', 'chords', 'chordSteps', 'style'} if key == 'Q' else set())
         if not isinstance(lane, dict) or not lane or not set(lane) <= allowed:
             raise ValueError('Unsupported loop operation.')
-        if 'repository' in lane and (lane['repository'] not in catalogue.X_REPOSITORIES or not lane.get('reload')):
-            raise ValueError('Loop X repository changes require a valid repository and reload.')
+        if 'repository' in lane and (lane['repository'] not in (catalogue.X_REPOSITORIES if key == 'X' else ('samples_leads', 'samples_terra')) or not lane.get('reload')):
+            raise ValueError('Loop repository changes require a valid repository and reload.')
         if 'sampleId' in lane and (not lane.get('reload') or not isinstance(lane['sampleId'], str) or not re.fullmatch(r'[a-f0-9]{64}', lane['sampleId'])):
             raise ValueError('Catalogue selection requires reload and a supplied sampleId.')
         for field in ['enabled', 'reload']:
@@ -223,7 +233,7 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
         'Set X transpose to 0 so bass matches Q. Q style dry/warm/spacious provides bounded real tone/room/delay shaping. '
         'Default Q and X enabled with useful nonzero levels and drums enabled. Reload X. Disable other loops unless explicitly requested; preserve recordings. '
         'Do not randomize inactive grain controls merely to increase change count. Describe the key, progression and rhythm in the description. '
-        'You can still control ALL twelve loop layers when requested. '
+        'You can still control ALL thirteen loop layers when requested. '
         'Loop objects allow enabled:boolean; sample-backed loops also reload:boolean; A/B/C/V/P/O also divisions:1–3 strings; '
         'L/X also notes:1–64 MIDI integers 24–84 or null rests repeated over the current grid; '
         'Q also instrument:piano|strings and chords:1–8 arrays of 1–4 MIDI integers 36–84 repeated over the grid. '
@@ -272,6 +282,20 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
                         'State how this section relates harmonically to the current take. Output the same strict recipe contract plus patternSteps.\n')
     elif direction and direction['mode'] == 'regenerate':
         instruction += '\nREGENERATE MODE: create a fresh variation of this same prompt. Results need not be identical; use the normal new-patch defaults.\n'
+    if direction and direction.get('genre'):
+        profile = GENRES[direction['genre']]
+        instruction += ('\nGENREATOR MODE — overrides the default Q/X/drums focus above. '
+            'Create a fresh complete coherent genre patch, not a preset or cosmetic change. '
+            'Choose every actual parameter, notes, drum pattern, levels and source decisions yourself. '
+            'Return enabled explicitly for EVERY allowed loop; disabled lanes must not reload or contain instrument/chords/notes. '
+            'Preserve recorded audio but leave M/M+/K disabled for this new patch. '
+            'Set globalBpmSlider to the exact tempo override, or choose a whole BPM within profile.bpm. '
+            'Enable 2–4 suitable layers with useful nonzero levels (drums may be another layer); reload sources for a fresh result. '
+            'profile.exclude loops must be explicitly disabled. Do not use Q piano/strings to bypass the exclusion. '
+            'For profile.terra=true, W must be enabled with reload:true and divisions; L must be enabled with repository:samples_terra,reload:true,notes. '
+            'W uses samples_modular; L supports repository:samples_leads|samples_terra with reload:true. '
+            'Use at most three fresh loop reloads. Existing optional atmospheric audio may be left alone; do not claim an unsupported Dropbox operation. '
+            'Do not invent shared effect controls or change recorded audio. '+ json.dumps({'profile': profile, 'tempoOverride': direction.get('genreBpm')})+'\n')
     instruction += json.dumps({'directionContext': direction or {'mode': 'generate'}}, separators=(',', ':'))
     with subprocess.Popen(
         ['/usr/bin/node', str(pathlib.Path(__file__).with_name('mygrain_model_run.mjs'))],
@@ -302,7 +326,7 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
 
 def generate(prompt, current, loops, source_root=None, catalogue_report=None, direction=None, usage_report=None):
     context = ({'status': 'retained', 'reason': 'Refine and progression retain current sources; no fresh shortlist needed.', 'catalogueCount': 0, 'eligibleCount': 0, 'candidates': {}, 'entries': {}, 'sourceRoot': source_root}
-               if direction and direction['mode'] in ('refine', 'section') else catalogue.retrieve(prompt, current, source_root, l_repository=loops['L'].get('repository', 'samples_leads')))
+               if direction and direction['mode'] in ('refine', 'section') else catalogue.retrieve(prompt, current, source_root, l_repository=('samples_terra' if direction and direction.get('genre') and GENRES[direction['genre']]['terra'] else loops['L'].get('repository', 'samples_leads'))))
     context = catalogue.with_x_repository(context, loops['X'].get('repository', 'samples_bass'), prompt)
     recipe = run_model(prompt, current, loops, context, direction, usage_report=usage_report)
     if direction and direction['mode'] in ('refine', 'section') and (any(lane.get('reload') and not (direction['mode'] == 'refine' and key == 'X' and lane.get('repository')) for key, lane in recipe['loops'].items()) or any(lane.get('reload') for lane in recipe.get('drums', {}).get('tracks', {}).values())):
@@ -334,12 +358,32 @@ def generate(prompt, current, loops, source_root=None, catalogue_report=None, di
                 raise ValueError(f'Loop {key} needs notes as well as a sample.')
             if key == 'Q' and not lane.get('chords'):
                 raise ValueError('Empty Q needs a chord pattern before it can be enabled.')
+    if direction and direction.get('genre'):
+        validate_genre_recipe(recipe, direction)
     catalogue.attach_selections(recipe, context)
     if catalogue_report is not None:
         catalogue_report.update({key: context[key] for key in ('status', 'reason', 'catalogueCount', 'eligibleCount')})
         catalogue_report['shortlistCount'] = sum(map(len, context['candidates'].values()))
         catalogue_report['fallbackLanes'] = [key for key, lane in recipe['loops'].items() if key in catalogue.LANES and lane.get('reload') and not lane.get('selection')]
     return recipe
+
+
+def validate_genre_recipe(recipe, direction):
+    profile = GENRES[direction['genre']]
+    tempo = recipe['parameters'].get('globalBpmSlider')
+    override = direction.get('genreBpm')
+    if type(tempo) is not int or (tempo != override if override is not None else not profile['bpm'][0] <= tempo <= profile['bpm'][1]):
+        raise ValueError('AI did not respect the genre tempo. Nothing changed; try again.')
+    if set(recipe['loops']) != set(LOOPS) or any(type(lane.get('enabled')) is not bool for lane in recipe['loops'].values()):
+        raise ValueError('AI must explicitly choose every loop for a fresh genre patch. Nothing changed.')
+    for key in set(profile['exclude']) | {'M', 'M+', 'K'}:
+        lane = recipe['loops'][key]
+        if lane['enabled'] or lane.get('reload') or any(field in lane for field in ('notes', 'chords', 'instrument')):
+            raise ValueError('AI selected a source excluded by this genre. Nothing changed; try again.')
+    if profile['terra']:
+        w, lead = recipe['loops']['W'], recipe['loops']['L']
+        if not (w['enabled'] and w.get('reload') and lead['enabled'] and lead.get('reload') and lead.get('repository') == 'samples_terra' and lead.get('notes')):
+            raise ValueError('Experimental genres require fresh modular W and Terra L sources. Nothing changed; try again.')
 
 
 def handle_ai_patch_request(handler, method, inner_path, source_root=None, prompt_db=None):

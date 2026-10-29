@@ -546,6 +546,27 @@
       "max": 100,
       "step": 1,
       "unit": "%"
+    },
+    "performanceBastardLoopWLevel": {
+      "label": "Loop W level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "performanceBastardLoopWSemitone": {
+      "label": "Loop W transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "performanceBastardLoopWFilterCutoff": {
+      "label": "Loop W cutoff",
+      "min": 300,
+      "max": 12000,
+      "step": 10,
+      "unit": "Hz"
     }
   },
   "loops": {
@@ -596,7 +617,11 @@
       "reload": true,
       "divisions": false,
       "notes": true,
-      "recorded": false
+      "recorded": false,
+      "repositories": [
+        "samples_leads",
+        "samples_terra"
+      ]
     },
     "X": {
       "source": "samples_bass",
@@ -636,6 +661,13 @@
       "divisions": false,
       "notes": false,
       "recorded": true
+    },
+    "W": {
+      "source": "samples_modular",
+      "reload": true,
+      "divisions": true,
+      "notes": false,
+      "recorded": false
     }
   },
   "divisions": [

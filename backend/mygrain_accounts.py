@@ -40,7 +40,7 @@ PUBLIC_FILES = {
     'drum-pattern-library.js', 'iphone-low-power.js',
     'mygrain-utils.js', 'random-performance-samples.js', 'mygrain-accounts.js', 'mygrain-accounts.css', 'mygrain-load-notes.js',
     'navigation-palette.js', 'navigation-palette.css',
-    'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
+    'genreator.js', 'genreator.css', 'genre-presets.json', 'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
     'k-multitrack.js', 'k-multitrack-host.js', 'k-multitrack.css', 'k-track-meters.js', 'k-track-dsp.js',
     'loop-card-fx.js', 'loop-card-fx-host.js', 'loop-card-fx.css', 'pan-centre-gesture.js', 'eq-automation.js', 'eq-automation-worklet.js',
     'wav-art.js', 'noise-card-dsp.js', 'noise-card.js', 'noise-card.css', 'noise-envelope-worklet.js',

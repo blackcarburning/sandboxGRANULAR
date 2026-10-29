@@ -1,0 +1,224 @@
+[
+  {
+    "id": "dnb",
+    "label": "Drum & Bass",
+    "group": "Dance",
+    "bpm": [
+      160,
+      180
+    ],
+    "direction": "Fast broken kick/snare rhythm, rolling or syncopated deep bass, tight hats; dark or energetic electronic texture. No piano or orchestral material.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "jungle",
+    "label": "Jungle",
+    "group": "Dance",
+    "bpm": [
+      155,
+      175
+    ],
+    "direction": "Chopped breakbeat feel using kick/snare/hat patterns, dubby bass, occasional vocal fragments. No piano or orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "house",
+    "label": "House",
+    "group": "Dance",
+    "bpm": [
+      118,
+      128
+    ],
+    "direction": "Four-on-the-floor kick, offbeat hats, syncopated bass and warm chord stabs; piano P or Q can suit the groove.",
+    "exclude": [],
+    "terra": false
+  },
+  {
+    "id": "deep-house",
+    "label": "Deep House",
+    "group": "Dance",
+    "bpm": [
+      112,
+      124
+    ],
+    "direction": "Restrained four-on-the-floor groove, warm extended chords, rounded bass, space and soulful piano if appropriate.",
+    "exclude": [],
+    "terra": false
+  },
+  {
+    "id": "tech-house",
+    "label": "Tech House",
+    "group": "Dance",
+    "bpm": [
+      124,
+      130
+    ],
+    "direction": "Stripped four-on-the-floor drums, short rolling bass, sparse vocal or electronic stabs; avoid orchestral and piano layers.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "techno",
+    "label": "Techno",
+    "group": "Dance",
+    "bpm": [
+      128,
+      145
+    ],
+    "direction": "Driving four-on-the-floor percussion and repetitive bass or modular motion; no piano or orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "trance",
+    "label": "Trance",
+    "group": "Dance",
+    "bpm": [
+      132,
+      142
+    ],
+    "direction": "Driving kick and offbeat or rolling bass, melodic lead and evolving harmonic tension; choose compatible notes and restrained layers.",
+    "exclude": [],
+    "terra": false
+  },
+  {
+    "id": "garage",
+    "label": "UK Garage",
+    "group": "Dance",
+    "bpm": [
+      128,
+      138
+    ],
+    "direction": "Syncopated two-step kick/snare placement, skipping hats, sub bass and chopped vocals or short chord stabs.",
+    "exclude": [],
+    "terra": false
+  },
+  {
+    "id": "breakbeat",
+    "label": "Breakbeat",
+    "group": "Dance",
+    "bpm": [
+      125,
+      145
+    ],
+    "direction": "Broken syncopated drums, strong snare backbeat, electronic bass and fragmented sample hooks; no orchestra.",
+    "exclude": [
+      "O"
+    ],
+    "terra": false
+  },
+  {
+    "id": "electro",
+    "label": "Electro",
+    "group": "Electronic",
+    "bpm": [
+      115,
+      135
+    ],
+    "direction": "Machine-like broken drums, syncopated bass and short robotic leads; sparse electronic texture, no piano or orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "dub-techno",
+    "label": "Dub Techno",
+    "group": "Electronic",
+    "bpm": [
+      110,
+      125
+    ],
+    "direction": "Restrained steady pulse, deep bass and sparse repetitive electronic chord fragments. No orchestral or piano source.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "ambient",
+    "label": "Ambient Electronic",
+    "group": "Electronic",
+    "bpm": [
+      65,
+      95
+    ],
+    "direction": "Slow evolving electronic textures, long notes and substantial rests; drums optional and minimal. Avoid acoustic piano/orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": false
+  },
+  {
+    "id": "idm",
+    "label": "IDM / Glitch",
+    "group": "Experimental",
+    "bpm": [
+      85,
+      150
+    ],
+    "direction": "Asymmetric kick/snare/hat steps and fractured electronic motifs; use W modular and L Terra together, subtle bass optional. No piano or orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": true
+  },
+  {
+    "id": "industrial",
+    "label": "Industrial",
+    "group": "Experimental",
+    "bpm": [
+      105,
+      145
+    ],
+    "direction": "Mechanical repetition, stark bass and sparse abrasive modular/Terra motifs; use W and L Terra. No piano or orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": true
+  },
+  {
+    "id": "experimental",
+    "label": "Experimental Electronic",
+    "group": "Experimental",
+    "bpm": [
+      60,
+      170
+    ],
+    "direction": "Choose an unusual coherent pulse and unpredictable rests, modular W and Terra L textures; use both. Optional loaded atmospheric audio only if available. No piano or orchestra.",
+    "exclude": [
+      "P",
+      "O",
+      "Q"
+    ],
+    "terra": true
+  }
+]

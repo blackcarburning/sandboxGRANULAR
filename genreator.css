@@ -1,0 +1,11 @@
+#genreatorCard{min-width:0;border-color:rgba(121,223,190,.5)}
+#genreatorCard .instrument-splash{--splash-accent:#87e1c6}
+#genreatorCard>p{line-height:1.5}
+#genreatorCard>label{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+#genreatorBpm{width:110px;max-width:100%;min-height:44px;padding:8px;font-size:16px;border-radius:8px}
+#genreatorCard fieldset{min-width:0;margin:14px 0;padding:12px;border:1px solid rgba(135,225,198,.3);border-radius:12px}
+#genreatorCard legend{padding:0 7px;font-weight:700}
+#genreatorCard .genreator-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}
+#genreatorCard button{min-height:44px;white-space:normal;overflow-wrap:anywhere}
+#genreatorStatus{min-height:3em;overflow-wrap:anywhere}
+.genre-jump{background:#87e1c6!important;color:#122e26!important}
