@@ -337,7 +337,7 @@
             const response = await root.fetch(new URL('ai-patch-controls.json?v=20261029-genre-4', document.baseURI), { credentials: 'same-origin' });
             if (!response.ok) throw Error();
             const data = await response.json();
-            if (data.version !== 3 || !data.controls || Object.keys(data.loops || {}).length !== 13) throw Error();
+            if (data.version !== 4 || !data.controls || Object.keys(data.loops || {}).length !== 13) throw Error();
             schema = data; inventory(); update();
         } catch { status('AI beta could not load. Reload to try again. Your other controls still work.'); }
     }

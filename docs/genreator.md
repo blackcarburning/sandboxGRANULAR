@@ -96,3 +96,18 @@ being overwritten by the actual shared-FX state during application. Contract v4
 marks these 12 values readOnly, keeps all 81 current inventory IDs for older
 clients, omits them from model writable controls and rejects proposals that try
 to write them before any audio transaction. Shared effects and DSP are unchanged.
+
+## G button startup regression (GENRE.5)
+
+The client startup validator still required contract v3 after the catalogue
+changed to v4. This left AI readiness false and all 15 G buttons disabled.
+The validator now accepts the shipped v4 contract; read-only controls remain
+protected. The AI script cache marker and visible build badge are updated.
+No DSP, Song renderer, source store or saved-part compatibility changes.
+
+`MYGRAIN_TEST_URL=http://127.0.0.1:18968/mygrain/ node tests/genreator-bootstrap-browser.cjs`
+uses isolated admin auth and mocked model responses, with the real app and
+shipped controls catalogue. It checks readiness, all 15 buttons enabled, touch
+generation, tempo application, Undo, error recovery, rejection of an actual
+read-only control and Cancel on Chromium/WebKit at 390×844 and 844×390.
+Before the fix it fails with `AI must accept shipped control contract v4`.
