@@ -11,7 +11,7 @@ module.exports=String.raw`(function(){
  if(drumMachineEnabled&&drum&&Number(drum.value)>0)active.push({el:drum,value:Number(drum.value)});
  const filter=document.getElementById('lpfCutoff'),cutoff=Number(filter?.value);
  const noise=window.mygrainNoise,originalNoise=noise?{...noise.settings()}:null;
- const recuts=[['V',()=>bastardLoopVBuffer,()=>getBastardLoopVLevelValue(),()=>bastardLoopVCut,v=>setBastardLoopVCut(v,quiet)],['W',()=>bastardLoopWBuffer,()=>getBastardLoopWLevelValue(),()=>bastardLoopWCut,v=>setBastardLoopWCut(v,quiet)]].map(([key,buffer,audible,get,set])=>({key,buffer,audible,set,original:MygrainVocalCut.normalize(get()),last:''}));
+ const recuts=[['A',()=>bastardLoopBuffer,()=>getBastardLoopLevelValue(),()=>getBastardLoopCycleDuration(),()=>bastardLoopCut,v=>setBastardLoopCut(v,quiet)],['B',()=>bastardLoop2Buffer,()=>getBastardLoop2LevelValue(),()=>getBastardLoop2CycleDuration(),()=>bastardLoop2Cut,v=>setBastardLoop2Cut(v,quiet)],['C',()=>bastardLoop3Buffer,()=>getBastardLoop3LevelValue(),()=>getBastardLoop3CycleDuration(),()=>bastardLoop3Cut,v=>setBastardLoop3Cut(v,quiet)],['V',()=>bastardLoopVBuffer,()=>getBastardLoopVLevelValue(),()=>getBastardLoopVCycleDuration(),()=>bastardLoopVCut,v=>setBastardLoopVCut(v,quiet)],['W',()=>bastardLoopWBuffer,()=>getBastardLoopWLevelValue(),()=>getBastardLoopWCycleDuration(),()=>bastardLoopWCut,v=>setBastardLoopWCut(v,quiet)]].map(([key,buffer,audible,cycle,get,set])=>({key,buffer,audible,cycle,set,original:MygrainVocalCut.normalize(get()),last:'',developed:'',turn:0}));
  const hats=drumMachineHatPattern.slice(),accents=drumMachineHatAccentPattern.slice(),hatRatchets=drumMachineHatRatchetPattern.slice();
  function level(x,value){x.el.value=String(value);x.el.dispatchEvent(new Event('input',{bubbles:true}))}
  let plan={options:{notes:false,drums:false}},leads=null,evolvingHats=hats.slice(),evolvingHatAccents=accents.slice(),hatChanges=new Set(),drumGeneration=0,evolvingSnare=null;
@@ -56,19 +56,6 @@ module.exports=String.raw`(function(){
     if(!noise.running)noise.start();added.push('N');
    }else noise.restore(originalNoise);
   }
-  for(const lane of recuts){let next=lane.original;
-   if(event.amount>0&&lane.buffer()&&lane.audible()>0){
-    const base=lane.original,begin=base.enabled?base.start:0,end=base.enabled?base.end:1,span=end-begin;
-    if(plan.variation!=='subtle'||stage%3===2){
-     const fraction=plan.variation==='subtle'?.75:plan.variation==='moderate'?.5:.25,width=span*fraction;
-     const start=begin+(event.seed%2)*(span-width);
-     next=MygrainVocalCut.normalize({...base,enabled:true,start,end:start+width,repeat:true,fromStart:true,stretch:false,targetStart:null,targetDuration:null});
-    }else{
-     const cell=(event.seed%4)*4+3;next=MygrainVocalCut.normalize({...base,gapEnabled:true,gaps:base.gaps.concat([[cell/16,(cell+1)/16]])});
-    }
-   }
-   const key=JSON.stringify(next);if(key!==lane.last){lane.set(next);lane.last=key}
-  }
   if(filter&&Number.isFinite(cutoff)){filter.value=String(Math.max(Number(filter.min),cutoff*(1-event.amount*.65)));filter.dispatchEvent(new Event('input',{bubbles:true}))}
   if(plan.options.drums&&drumMachineEnabled){
    if(event.amount===0){evolvingHats=hats.slice();evolvingHatAccents=accents.slice();hatChanges.clear();drumGeneration=0}
@@ -102,8 +89,40 @@ module.exports=String.raw`(function(){
   if(plan.options.drums&&drumMachineEnabled)drumMachineBaseAccents.snare=evolvingSnare.slice();
   return {active:active.length,added};
  };
+ // Separate lane-cycle callbacks: arrangement sections may be longer/shorter than a source repeat.
+ apply.cutEvents=()=>{
+  const events=[],closing=plan.events.at(-1).at;
+  for(const lane of recuts){
+   if(!lane.buffer()||lane.key==='V'&&!plan.options.recutV)continue;
+   const seconds=Number(lane.cycle());if(!Number.isFinite(seconds)||seconds<=0)continue;
+   // Bound callbacks for extremely short imported sources; normal musical loops retain every repeat.
+   const cycle=seconds*Math.max(1,Math.ceil(plan.duration/512/seconds)),phase=(plan.warmup||0)%cycle;
+   events.push({at:0,key:lane.key,repeat:0,restore:true});
+   let repeat=1;for(let at=phase<1e-6?cycle:cycle-phase;at<closing-1e-6;at+=cycle){events.push({at,key:lane.key,repeat,restore:lane.key==='V'&&repeat%2===0});repeat++}
+   events.push({at:closing,key:lane.key,repeat,restore:true});
+  }
+  return events.sort((a,b)=>a.at-b.at);
+ };
+ apply.cut=event=>{
+  const lane=recuts.find(x=>x.key===event.key);if(!lane)return;
+  let next=lane.original;
+  if(!event.restore&&lane.buffer()&&lane.audible()>0&&(lane.key!=='V'||plan.options.recutV)){
+   const base=lane.original,begin=base.enabled?base.start:0,end=base.enabled?base.end:1,span=end-begin;
+   const fractions=plan.variation==='subtle'?[.875,.75]:plan.variation==='moderate'?[.75,.5]:[.5,.25,.375];
+   let seed=(plan.seed^Math.imul(lane.key.charCodeAt(0),2654435761)^Math.imul(++lane.turn,1597334677))>>>0;
+   const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+   const fraction=fractions[Math.floor(random()*fractions.length)],slots=Math.round((1-fraction)*32),width=span*fraction;
+   let position=Math.floor(random()*(slots+1));
+   const build=()=>MygrainVocalCut.normalize({...base,enabled:true,start:begin+position*span/32,end:begin+position*span/32+width,repeat:true,fromStart:true,stretch:false,targetStart:null,targetDuration:null});
+   next=build();if(JSON.stringify(next)===lane.developed){position=(position+1)%(slots+1);next=build()}
+   lane.developed=JSON.stringify(next);
+  }
+  const key=JSON.stringify(next);if(key!==lane.last){lane.set(next);lane.last=key}
+  return next;
+ };
  apply.prepare=value=>{
-  plan=value;plan.options=plan.options||{notes:false,drums:false};
+  plan=value;plan.options=plan.options||{notes:false,drums:false,recutV:false};
+  for(const lane of recuts){lane.turn=0;lane.developed=''}
   if(plan.options.notes)leads=[
    {sequence:cloneSequence(bastardLoopLSequence),length:getBastardLoopLPatternLength(),enabled:()=>bastardLoopLEnabled,playable:()=>hasBastardLoopLPlaybackSource(),root:()=>getBastardLoopLRootNote(),seconds:()=>getBastardLoopLStepDurationSeconds(),set:value=>{bastardLoopLSequence=value}},
    {sequence:cloneSequence(bastardLoopXSequence),length:getBastardLoopXPatternLength(),enabled:()=>bastardLoopXEnabled,playable:()=>hasBastardLoopXPlaybackSource(),root:()=>getBastardLoopXRootNote(),seconds:()=>getBastardLoopXStepDurationSeconds(),set:value=>{bastardLoopXSequence=value}}

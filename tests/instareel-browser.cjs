@@ -14,6 +14,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.evaluate(value=>window.instareelMusical=value,!!process.env.INSTAREEL_MUSICAL_TEST);
   await page.evaluate(value=>window.instareelRatchets=value,!!process.env.INSTAREEL_RATCHET_TEST);
   await page.evaluate(value=>window.instareelEvolution=value,!!process.env.INSTAREEL_EVOLUTION_TEST);
+  await page.evaluate(value=>window.instareelRecut=value,!!process.env.INSTAREEL_RECUT_TEST);
   await page.evaluate(()=>{
    stopAllPerformancePlayback({silent:true});
    const buffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),data=buffer.getChannelData(0);
@@ -51,9 +52,21 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
     mygrainNoise.restore({...mygrainNoise.settings(),enabled:false,level:0,source:'drums',cutoff:80,poles:16});
     window.instareelWOriginal=bastardLoopWBuffer;
    }
+   if(window.instareelRecut){
+    const melodic=frequencies=>{const b=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++){const t=i/b.sampleRate,j=Math.min(3,Math.floor(t/.5)),local=t%.5;d[i]=.2*Math.sin(2*Math.PI*frequencies[j]*t)*Math.min(1,local/.006,(.5-local)/.006)}return b};
+    const fixtures=[['',[2000,2200,2400,2600]],['2',[3000,3200,3400,3600]],['3',[4000,4200,4400,4600]],['V',[220,330,440,550]],['W',[880,1100,1320,1540]]];
+    window.recutOriginalBuffers=[];
+    for(const [suffix,frequencies] of fixtures){
+     const b=melodic(frequencies);eval('bastardLoop'+suffix+'Buffer=b');eval('bastardLoop'+suffix+'Enabled=true');eval('bastardLoop'+suffix+'SourceBpm=120');eval('applyBastardLoop'+suffix+'DivisionSelection')(['1'],{save:false});
+     const level=document.getElementById('performanceBastardLoop'+suffix+'Level');level.value='40';level.dispatchEvent(new Event('input',{bubbles:true}));
+     recutOriginalBuffers.push([suffix,b]);
+    }
+    mygrainNoise.restore({...mygrainNoise.settings(),enabled:true,level:0});
+   }
    window.instareelOriginal={buffer:bastardLoopVBuffer,snapshot:JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)};
   });
   await page.locator('#sectionJumpHandle').tap();await page.locator('.section-jump-option[data-jump-target="#genreatorCard"]').tap();
+  if(process.env.INSTAREEL_RECUT_TEST)await page.locator('#instareelRecutV').check();
   if(process.env.INSTAREEL_MUSICAL_TEST){await page.locator('#instareelNotes').check();await page.locator('#instareelDrums').check()}
   await page.locator('#instareelSeconds').fill(process.env.INSTAREEL_SECONDS||'30');await page.locator('#instareelVariation').selectOption(process.env.INSTAREEL_VARIATION||'subtle');await page.locator('#instareelMake').scrollIntoViewIfNeeded();await page.locator('#instareelMake').tap();
   await page.waitForFunction(()=>mygrainInstareel.job||document.getElementById('instareelStatus').textContent.includes('Could not'),null,{timeout:30000});
@@ -62,7 +75,8 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   const status=await page.locator('#instareelStatus').textContent();console.log(engine,status);assert.match(status,/loopable reel ready/);
   assert.equal(await page.evaluate(()=>instareelOriginal.buffer===bastardLoopVBuffer),true,'Live source buffer identity must not change');
   assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true,'Live patch settings must not change');
-  if(process.env.INSTAREEL_MUSICAL_TEST){const first=await page.evaluate(()=>mygrainInstareel.job.id),response=await context.request.get(base+`api/instareel/${first}`,{headers:{'X-Mygrain-User':'admin'}}),data=(await response.json()).job;assert.deepEqual(data.plan.options,{notes:true,drums:true});assert(data.plan.fills.length>0);}
+  if(process.env.INSTAREEL_MUSICAL_TEST){const first=await page.evaluate(()=>mygrainInstareel.job.id),response=await context.request.get(base+`api/instareel/${first}`,{headers:{'X-Mygrain-User':'admin'}}),data=(await response.json()).job;assert.deepEqual(data.plan.options,{notes:true,drums:true,recutV:!!process.env.INSTAREEL_RECUT_TEST});assert(data.plan.fills.length>0);}
+  if(process.env.INSTAREEL_RECUT_TEST){const id=await page.evaluate(()=>mygrainInstareel.job.id);const data=await (await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'admin'}})).json();assert.equal(data.job.plan.options.recutV,true)}
   assert.equal(await page.locator('#instareelLoop').isChecked(),true);
   await page.locator('#instareelPlay').tap();await page.waitForFunction(()=>mygrainInstareel.player.playing);
   const preview=await page.evaluate(()=>{const api=mygrainInstareel.player;window.reelAnalyser=audioContext.createAnalyser();api.source.connect(reelAnalyser);return {duration:api.buffer.duration,loop:api.source.loop,end:api.source.loopEnd}});
@@ -90,16 +104,18 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   assert.equal((await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'wrong-account'}})).status(),401);
   if(process.env.INSTAREEL_RETRY_TEST){
    if(process.env.INSTAREEL_MUSICAL_TEST){await page.locator('#instareelNotes').uncheck();await page.locator('#instareelDrums').uncheck()}
+   if(process.env.INSTAREEL_RECUT_TEST)await page.locator('#instareelRecutV').uncheck();
    await page.locator('#instareelSeconds').fill('60');await page.locator('#instareelVariation').selectOption(process.env.INSTAREEL_RETRY_VARIATION||'moderate');
    await page.locator('#instareelMake').tap();
    await page.waitForFunction(old=>mygrainInstareel.job&&mygrainInstareel.job.id!==old,id,{timeout:30000});
-   const nextId=await page.evaluate(()=>mygrainInstareel.job.id),next=(await (await context.request.get(base+`api/instareel/${nextId}`,{headers:{'X-Mygrain-User':'admin'}})).json()).job;assert.equal(next.plan.requestedSeconds,60);assert.equal(next.plan.variation,process.env.INSTAREEL_RETRY_VARIATION||'moderate');assert.equal(next.plan.duration,60);if(process.env.INSTAREEL_MUSICAL_TEST){assert.deepEqual(next.plan.options,{notes:false,drums:false});assert.equal(next.plan.fills.length,0)}
+   const nextId=await page.evaluate(()=>mygrainInstareel.job.id),next=(await (await context.request.get(base+`api/instareel/${nextId}`,{headers:{'X-Mygrain-User':'admin'}})).json()).job;assert.equal(next.plan.requestedSeconds,60);assert.equal(next.plan.variation,process.env.INSTAREEL_RETRY_VARIATION||'moderate');assert.equal(next.plan.duration,60);assert.equal(next.plan.options.recutV,false);if(process.env.INSTAREEL_MUSICAL_TEST){assert.deepEqual(next.plan.options,{notes:false,drums:false,recutV:false});assert.equal(next.plan.fills.length,0)}
    assert.equal(await page.locator('#instareelPreview').isVisible(),false,'Old preview must not masquerade as the new render');
    await page.waitForFunction(()=>!mygrainInstareel.busy,null,{timeout:240000});assert((await page.locator('#instareelStatus').textContent()).includes('60.0s loopable reel ready · '+(process.env.INSTAREEL_RETRY_VARIATION||'moderate')));
    assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true);
    const nextWav=await context.request.get(base+`api/instareel/${next.id}/wav`,{headers:{'X-Mygrain-User':'admin'}});assert.equal(nextWav.status(),200);if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-retry.wav',await nextWav.body());
    console.log('PASS',engine,'Try Another rereads 60s/'+(process.env.INSTAREEL_RETRY_VARIATION||'moderate')+' and preserves live disabled layers');
   }
+  if(process.env.INSTAREEL_RECUT_TEST)assert(await page.evaluate(()=>recutOriginalBuffers.every(([suffix,b])=>eval('bastardLoop'+suffix+'Buffer')===b)),'All live source buffers unchanged');
   if(process.env.INSTAREEL_EVOLUTION_TEST)assert(await page.evaluate(()=>instareelWOriginal===bastardLoopWBuffer),'Live W source identity unchanged');
   // Existing G generation contracts remain untouched and ready.
   assert.equal(await page.locator('#genreatorGenres [data-genre]:enabled').count(),15);

@@ -185,5 +185,31 @@ four-note V/W sources and initially disabled N with intentionally inaudible
 settings. Paired Chromium Subtle, WebKit Extreme and same-page 60s Extreme
 notes/drums-off retry WAVs are measured by
 `tests/instareel-evolution-evidence.py EVIDENCE_DIR`: broadband N entry/withdrawal,
-actual V/W note-order changes, L/X transposed-note energy and independent seams.
+actual W note-order changes, protected unselected V, L/X transposed-note energy and independent seams.
 The library browser test also verifies normal `/mygrain-wavs/api/list` exclusion.
+
+## Recurring signature and fresh lane repeats · 7
+
+G adds an unchecked **Re-cut V · original phrase every other repeat** option,
+read on every Make/Try Another and validated in the canonical server plan.
+Off leaves V's original cut untouched. On alternates fresh cuts with exact
+original cut settings, preserving the signature phrase throughout the reel.
+A/B/C/W receive a fresh bounded cut every audible repeat without intermediate
+original resets. All lanes restore for the final closure, retaining loopability.
+
+Dedicated disposable-deck callbacks follow each lane's original native cycle,
+including warm-up phase, rather than the independent arrangement section size.
+No source replacement, duration/tempo change or global randomise/power toggle is
+used. Each new cut derives from the immutable original region and retained gaps;
+a seeded generator and duplicate guard prevent repeating the previous developed
+cut. Subtle uses 75–87.5%, Moderate 50–75%, Extreme 25–50% regions, using existing
+normal crossfaded setters. Sub-120ms imports group native cycles to cap callbacks
+at 512 per lane over a reel. Solos and current audibility remain authoritative.
+
+`INSTAREEL_RECUT_TEST=1 INSTAREEL_RETRY_TEST=1` supplies distinct four-note sources
+for all five lanes: 30s V-on then 60s V-off in the same page. Both browser engines
+verify original live source identities/settings, preview/loop controls, save and
+phone layouts. `tests/instareel-signature-evidence.py EVIDENCE_DIR` measures the
+actual source-tone profiles for every repeat, V original returns, fresh successive
+cuts, V-off equality and independent wrap continuity. Shared Song/DSP/playback
+and the normal WAV library are unchanged.

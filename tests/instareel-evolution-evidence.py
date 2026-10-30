@@ -43,7 +43,10 @@ for name, audio in audios.items():
             return [frequencies[int(np.argmax([tone(audio, offset + t, f) for f in frequencies]))] for t in [.6, 1.1, 1.6]]
         original, changed, closing = melody(0), melody(4), melody(seconds - 2)
         assert original == frequencies[1:] and closing == original
-        assert sum(a != b for a, b in zip(original, changed)) >= 2, lane + ' re-cut must change audible source order'
+        if lane == 'V':
+            assert changed == original, 'Unselected V must retain its signature phrase'
+        else:
+            assert any(melody(at) != original for at in range(2,26,2)), 'W re-cuts must change audible source order'
         cuts[lane] = {'opening': original, 'developed': changed, 'closing': closing}
     result[name] = {'wrapStep': audio[2], 'noiseOnPower': on, 'noiseOffPower': off, 'cuts': cuts}
 assert min(result['webkit']['noiseOnPower']) > max(result['chromium']['noiseOnPower']) * 3, 'Extreme N must be stronger than Subtle'

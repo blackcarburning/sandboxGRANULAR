@@ -300,9 +300,9 @@ def handle(handler, accounts, songs):
             if len(body) != length:
                 raise ValueError('Incomplete source upload.')
             meta = songs.validate_part_zip(body)
-            flags = {key:(query.get(key) or ['0'])[0] for key in ('notes','drums')}
+            flags = {key:(query.get(key) or ['0'])[0] for key in ('notes','drums','recutV')}
             if any(value not in ('0','1') for value in flags.values()):
-                raise ValueError('Choose valid note/drum variation options.')
+                raise ValueError('Choose valid reel variation options.')
             layout = plan(meta, seconds, variation, secrets.randbits(32), {key:value=='1' for key,value in flags.items()})
             ident = secrets.token_hex(16)
             folder = checked(root / ('job-'+ident), root)

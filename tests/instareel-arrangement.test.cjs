@@ -8,8 +8,14 @@ function fixture(){
   ctx[set]=value=>{assert(ctx[buffer]||!value,'Never enable an unloaded lane');ctx[on]=value};
   elements.set(id,{value:'50',dispatchEvent(){this.applied=Number(this.value)}});
  }
- ctx.MygrainVocalCut=require('../vocal-loop-cut.js');ctx.bastardLoopVCut=ctx.MygrainVocalCut.normalize();ctx.bastardLoopWCut=ctx.MygrainVocalCut.normalize();
- for(const key of ['V','W']){ctx['getBastardLoop'+key+'LevelValue']=()=>ctx['bastardLoop'+key+'Enabled']?Number(elements.get('performanceBastardLoop'+key+'Level').value)/100:0;ctx['setBastardLoop'+key+'Cut']=(value)=>ctx['bastardLoop'+key+'Cut']=ctx.MygrainVocalCut.normalize(value)}
+ ctx.MygrainVocalCut=require('../vocal-loop-cut.js');
+ for(const suffix of ['','2','3','V','W']){
+  ctx['bastardLoop'+suffix+'Cut']=ctx.MygrainVocalCut.normalize();
+  ctx['getBastardLoop'+suffix+'LevelValue']=()=>ctx['bastardLoop'+suffix+'Enabled']?Number(elements.get('performanceBastardLoop'+suffix+'Level').value)/100:0;
+  ctx['getBastardLoop'+suffix+'CycleDuration']=()=>2;
+  ctx['setBastardLoop'+suffix+'Cut']=value=>ctx['bastardLoop'+suffix+'Cut']=ctx.MygrainVocalCut.normalize(value);
+ }
+
  ctx.hasPlayableBastardLoopLTransportSource=()=>!!ctx.bastardLoopLSampleBuffer;ctx.hasPlayableBastardLoopXTransportSource=()=>!!ctx.bastardLoopXSampleBuffer;
  elements.set('lpfCutoff',{value:'12000',min:'500',dispatchEvent(){}});ctx.document={getElementById:id=>elements.get(id)};
  return {ctx,elements,apply:vm.runInNewContext(script,ctx)};
@@ -107,15 +113,41 @@ test('N enters even with no dormant sample lanes, withdraws and restores origina
  apply(p.events[3]);assert.deepEqual(state,original);apply(p.events.at(-1));assert.deepEqual(state,original);
  c.hasAnyPerformanceLayerSoloSelection=()=>true;c.loopLayerSolo=['bastardv'];assert(!apply(p.events[1]).added.includes('N'));assert.deepEqual(state,original);
 });
-test('V/W re-cuts retain source bounds and exact original closure; Extreme cuts are stronger',()=>{
- const f=musicalFixture({notes:false,drums:false}),c=f.ctx,p=f.plan;
- f.apply(p.events[1]);assert(c.bastardLoopVCut.gaps.length>0);
- f.apply(p.events[2]);assert(c.bastardLoopVCut.repeat);assert.equal(c.bastardLoopVCut.end-c.bastardLoopVCut.start,.75);
- p.variation='extreme';f.apply(p.events[2]);assert.equal(c.bastardLoopVCut.end-c.bastardLoopVCut.start,.25);
- f.apply(p.events.at(-1));assert.deepEqual(c.bastardLoopVCut,c.MygrainVocalCut.normalize());assert.deepEqual(c.bastardLoopWCut,c.MygrainVocalCut.normalize());
+test('V optional alternating original, fresh cuts every developed repeat; A/B/C/W never alternate back',()=>{
+ const f=fixture(),c=f.ctx,plan=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:64},32,'subtle',123,{recutV:true});
+ for(const suffix of ['','2','3','W']){c['bastardLoop'+suffix+'Enabled']=true;c['bastardLoop'+suffix+'Buffer']={}}
+ const apply=vm.runInNewContext(script,c);apply.prepare(plan);
+ const originals=Object.fromEntries(['','2','3','V','W'].map(suffix=>[suffix,JSON.stringify(c['bastardLoop'+suffix+'Cut'])]));
+ const timeline=apply.cutEvents(),seen={};
+ for(const event of timeline){
+  const cut=apply.cut(event),suffix={A:'',B:'2',C:'3',V:'V',W:'W'}[event.key];
+  if(event.restore){assert.equal(JSON.stringify(cut),originals[suffix]);continue}
+  if(event.key==='V')assert.equal(event.repeat%2,1);
+  const key=JSON.stringify(cut);assert.notEqual(key,originals[suffix]);assert.notEqual(key,seen[event.key]);seen[event.key]=key;
+ }
+ assert.deepEqual(Array.from(timeline.filter(e=>e.key==='V'&&e.at>0&&e.at<28).slice(0,6),e=>e.restore),[false,true,false,true,false,true]);
+ for(const key of ['A','B','C','W']){const events=timeline.filter(e=>e.key===key&&e.at>0&&e.at<28);assert(events.length>8);assert(events.every(e=>!e.restore));assert.equal(events[1].at-events[0].at,2)}
+ for(const suffix of ['','2','3','V','W'])assert.equal(JSON.stringify(c['bastardLoop'+suffix+'Cut']),originals[suffix]);
+});
+test('V option off is untouched; native lane lengths, existing cut regions, solos and boundaries are respected',()=>{
+ const f=fixture(),c=f.ctx;c.bastardLoopWEnabled=true;c.getBastardLoopWCycleDuration=()=>1;
+ c.bastardLoopWCut=c.MygrainVocalCut.normalize({enabled:true,start:.25,end:.75,gapEnabled:true,gaps:[[.4,.45]]});
+ const apply=vm.runInNewContext(script,c),p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'extreme',123);
+ apply.prepare(p);const timeline=apply.cutEvents();assert(!timeline.some(e=>e.key==='V'));assert.equal(timeline.filter(e=>e.key==='W')[1].at,1);
+ const event=timeline.find(e=>e.key==='W'&&!e.restore);const next=apply.cut(event);assert(next.start>=.25&&next.end<=.75);assert.deepEqual([...next.gaps[0]],[.4,.45]);
+ c.getBastardLoopWLevelValue=()=>0;assert.equal(JSON.stringify(apply.cut({...event,repeat:3})),JSON.stringify(c.MygrainVocalCut.normalize({enabled:true,start:.25,end:.75,gapEnabled:true,gaps:[[.4,.45]]})));
 });
 test('native-synth L is an eligible layer without a sample but empty sequences are not',()=>{
  const f=fixture(),c=f.ctx;c.bastardLoopWBuffer=null;c.hasPlayableBastardLoopLTransportSource=()=>true;c.setBastardLoopLEnabled=value=>c.bastardLoopLEnabled=value;
  const apply=vm.runInNewContext(script,c);assert(apply({amount:.25,pick:0,at:2,seed:4}).added.includes('L'));
  c.bastardLoopLEnabled=false;c.hasPlayableBastardLoopLTransportSource=()=>false;const empty=vm.runInNewContext(script,c);assert(!empty({amount:.25,pick:0,at:2,seed:4}).added.includes('L'));
+});
+
+test('native repeat phase and callback bounds survive unequal cycles; original V regions are exact',()=>{
+ const f=fixture(),c=f.ctx;c.bastardLoopWEnabled=true;c.getBastardLoopWCycleDuration=()=>.75;
+ c.bastardLoopVCut=c.MygrainVocalCut.normalize({enabled:true,start:.125,end:.875,repeat:false,stretch:true,fromStart:false,targetStart:.25,targetDuration:.5,gapEnabled:true,gaps:[[.4,.45]]});
+ const original=JSON.stringify(c.bastardLoopVCut),apply=vm.runInNewContext(script,c),p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123,{recutV:true});apply.prepare(p);
+ const timeline=apply.cutEvents();assert.equal(timeline.find(e=>e.key==='W'&&e.at>0).at,.25);
+ for(const event of timeline.filter(e=>e.key==='V')){apply.cut(event);if(event.restore)assert.equal(JSON.stringify(c.bastardLoopVCut),original)}
+ c.getBastardLoopWCycleDuration=()=>.01;assert(apply.cutEvents().filter(e=>e.key==='W').length<=514);
 });

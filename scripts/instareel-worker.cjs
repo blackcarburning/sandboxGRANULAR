@@ -35,6 +35,11 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
       const check=()=>{const remaining=due-audioContext.currentTime;if(remaining>.008){timers.push(deck.setTimeout(check,Math.min(remaining*1000,100)));return}const applied=deck.__instareelApply(event);window.instareelStage(`Rendering ${Math.min(100,Math.round(event.at/plan.duration*100))}% · ${plan.variation} variations${applied.added.length?' · add '+applied.added.join(' + '):event.amount?' · developing layers':' · original groove'}`)};
       timers.push(deck.setTimeout(check,Math.max(0,(due-audioContext.currentTime)*1000-20)));
      }
+     for(const event of deck.__instareelApply.cutEvents()){
+      const due=start+plan.warmup+event.at;
+      const check=()=>{const remaining=due-audioContext.currentTime;if(remaining>.008){timers.push(deck.setTimeout(check,Math.min(remaining*1000,100)));return}deck.__instareelApply.cut(event)};
+      timers.push(deck.setTimeout(check,Math.max(0,(due-audioContext.currentTime)*1000-20)));
+     }
     },
     afterCapture(deck){for(const timer of deck.__instareelTimers||[])deck.clearTimeout(timer)}
    });
