@@ -213,3 +213,21 @@ phone layouts. `tests/instareel-signature-evidence.py EVIDENCE_DIR` measures the
 actual source-tone profiles for every repeat, V original returns, fresh successive
 cuts, V-off equality and independent wrap continuity. Shared Song/DSP/playback
 and the normal WAV library are unchanged.
+
+## Noise tone and filter motion · 8
+
+N now uses seeded occasional entry/withdrawal rather than a fixed third-section
+pattern, whether initially enabled or disabled. Every entry changes filter EQ
+(cutoff, pass type and resonance), at a quiet 3–7% level, four poles and a tight
+35–85ms decay, zero sustain. Its filter envelope is driven by drums or an
+amplitude-only sum of current mix taps (continuous follower with 35ms release), explicitly excluding N to prevent
+feedback. The mix copies exist only in the disposable reel deck, follow newly
+created voices, and disconnect on withdrawal/capture. No shared noise DSP changes.
+
+Occasional master low-pass movements use four poles and a slow sine LFO
+(4/8/16 beats); X/L filter envelope amounts vary independently of optional pitch
+changes. All original parameters return for closure. Every successive developed
+A/B/C/V/W cut now changes width as well as its seeded position; V retains its
+optional alternating-original signature behavior. Worker-owned timers stop with
+the deck. Song rendering, saved source compatibility and live playback are
+unchanged: all changes are inside the dedicated server INSTAREEL arrangement.

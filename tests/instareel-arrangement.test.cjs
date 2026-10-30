@@ -109,8 +109,9 @@ test('N enters even with no dormant sample lanes, withdraws and restores origina
  const f=fixture(),c=f.ctx,DSP=require('../noise-card-dsp.js'),original=DSP.normalize({enabled:false,level:0,source:'drums',cutoff:80,poles:16});let state={...original};
  c.window.mygrainNoise={settings:()=>state,restore:value=>state={...value},start(){this.running=true},running:false};c.bastardLoopWBuffer=null;
  const apply=vm.runInNewContext(script,c),p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123);apply.prepare(p);
- assert(apply(p.events[1]).added.includes('N'));assert.equal(state.enabled,true);assert.equal(state.level,6);assert.equal(state.filterType,'bandpass');assert(c.window.mygrainNoise.running);
- apply(p.events[3]);assert.deepEqual(state,original);apply(p.events.at(-1));assert.deepEqual(state,original);
+ const tones=new Set(),drivers=new Set(),entries=[];
+ for(const e of p.events){const result=apply(e);entries.push(result.added.includes('N'));if(result.added.includes('N')){assert(state.level>=3&&state.level<=7);assert(state.filterEnabled);assert.equal(state.poles,4);assert(state.amount>=2);assert(state.decay<=85);assert.equal(state.sustain,0);tones.add(state.cutoff);drivers.add(state.source)}}
+ assert(entries.some(Boolean));assert(entries.slice(1,-1).some(x=>!x));assert(tones.size>1);assert(drivers.has('sample'));assert(c.window.mygrainNoise.running);assert.deepEqual(state,original);
  c.hasAnyPerformanceLayerSoloSelection=()=>true;c.loopLayerSolo=['bastardv'];assert(!apply(p.events[1]).added.includes('N'));assert.deepEqual(state,original);
 });
 test('V optional alternating original, fresh cuts every developed repeat; A/B/C/W never alternate back',()=>{
@@ -118,11 +119,12 @@ test('V optional alternating original, fresh cuts every developed repeat; A/B/C/
  for(const suffix of ['','2','3','W']){c['bastardLoop'+suffix+'Enabled']=true;c['bastardLoop'+suffix+'Buffer']={}}
  const apply=vm.runInNewContext(script,c);apply.prepare(plan);
  const originals=Object.fromEntries(['','2','3','V','W'].map(suffix=>[suffix,JSON.stringify(c['bastardLoop'+suffix+'Cut'])]));
- const timeline=apply.cutEvents(),seen={};
+ const timeline=apply.cutEvents(),seen={},widths={};
  for(const event of timeline){
   const cut=apply.cut(event),suffix={A:'',B:'2',C:'3',V:'V',W:'W'}[event.key];
   if(event.restore){assert.equal(JSON.stringify(cut),originals[suffix]);continue}
   if(event.key==='V')assert.equal(event.repeat%2,1);
+  const width=Number((cut.end-cut.start).toFixed(6));assert.notEqual(width,widths[event.key]);widths[event.key]=width;
   const key=JSON.stringify(cut);assert.notEqual(key,originals[suffix]);assert.notEqual(key,seen[event.key]);seen[event.key]=key;
  }
  assert.deepEqual(Array.from(timeline.filter(e=>e.key==='V'&&e.at>0&&e.at<28).slice(0,6),e=>e.restore),[false,true,false,true,false,true]);
@@ -150,4 +152,22 @@ test('native repeat phase and callback bounds survive unequal cycles; original V
  const timeline=apply.cutEvents();assert.equal(timeline.find(e=>e.key==='W'&&e.at>0).at,.25);
  for(const event of timeline.filter(e=>e.key==='V')){apply.cut(event);if(event.restore)assert.equal(JSON.stringify(c.bastardLoopVCut),original)}
  c.getBastardLoopWCycleDuration=()=>.01;assert(apply.cutEvents().filter(e=>e.key==='W').length<=514);
+});
+
+test('reel-only four-pole LFO and X/L envelope amounts vary and restore exactly',()=>{
+ const f=fixture(),c=f.ctx,p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},60,'extreme',717);
+ Object.assign(c,{lpfSlope:12,lpfEnabled:false,setFilterPoles:(key,poles)=>c.lpfSlope=poles*6,setFilterEnabled:(key,on)=>c.lpfEnabled=on});
+ for(const key of ['L','X']){c['bastardLoop'+key+'Enabled']=true;f.elements.set('performanceBastardLoop'+key+'FilterEnvelope',{value:'30',dispatchEvent(){}})}
+ const apply=vm.runInNewContext(script,c);apply.prepare(p);let moves=0;
+ for(const e of p.events){apply(e);if(c.lpfSlope===24&&c.lpfEnabled){apply.tick(e.at+.1);const first=Number(f.elements.get('lpfCutoff').value);apply.tick(e.at+.4);assert.notEqual(Number(f.elements.get('lpfCutoff').value),first);moves++}}
+ assert(moves>0);assert.equal(c.lpfSlope,12);assert.equal(c.lpfEnabled,false);assert.equal(Number(f.elements.get('lpfCutoff').value),12000);
+ for(const key of ['L','X'])assert.equal(Number(f.elements.get('performanceBastardLoop'+key+'FilterEnvelope').value),30);
+});
+
+test('mix driver copies current sources only, excludes N feedback and disconnects at closure',()=>{
+ const f=fixture(),c=f.ctx,DSP=require('../noise-card-dsp.js'),native={},target={},connected=new Set(),make=key=>({key,context:native,source:{connect:t=>{assert.equal(t,target);connected.add(key)},disconnect:t=>{assert.equal(t,target);connected.delete(key)}}});
+ let state=DSP.normalize({enabled:false});c.drumMachineEnabled=true;c.window.mygrainNoise={mixDriverSources:()=>[],settings:()=>state,restore:s=>state=s,start(){},graph:{native,envelope:target},taps:new Set([make('V'),make('N')])};
+ const apply=vm.runInNewContext(script,c),p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123);apply.prepare(p);
+ let heard=false;for(const e of p.events){apply(e);apply.tick(e.at);assert(!connected.has('N'));if(state.enabled){assert.equal(state.source,'sample');assert(connected.has('V'));heard=true}}
+ assert(heard);assert.equal(connected.size,0);apply.cleanup();assert.equal(connected.size,0);
 });

@@ -103,6 +103,8 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   assert.match(wav.headers()['cache-control'],/private, no-store/);
   assert.equal((await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'wrong-account'}})).status(),401);
   if(process.env.INSTAREEL_RETRY_TEST){
+   // Rotation may switch the mobile performance panel; navigate back through G.
+   await page.setViewportSize({width:390,height:844});await page.locator('#sectionJumpHandle').tap();await page.locator('.section-jump-option[data-jump-target="#genreatorCard"]').tap();await page.locator('#instareelNotes').waitFor({state:'visible'});
    if(process.env.INSTAREEL_MUSICAL_TEST){await page.locator('#instareelNotes').uncheck();await page.locator('#instareelDrums').uncheck()}
    if(process.env.INSTAREEL_RECUT_TEST)await page.locator('#instareelRecutV').uncheck();
    await page.locator('#instareelSeconds').fill('60');await page.locator('#instareelVariation').selectOption(process.env.INSTAREEL_RETRY_VARIATION||'moderate');

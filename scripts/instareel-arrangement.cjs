@@ -11,7 +11,16 @@ module.exports=String.raw`(function(){
  if(drumMachineEnabled&&drum&&Number(drum.value)>0)active.push({el:drum,value:Number(drum.value)});
  const filter=document.getElementById('lpfCutoff'),cutoff=Number(filter?.value);
  const noise=window.mygrainNoise,originalNoise=noise?{...noise.settings()}:null;
- const recuts=[['A',()=>bastardLoopBuffer,()=>getBastardLoopLevelValue(),()=>getBastardLoopCycleDuration(),()=>bastardLoopCut,v=>setBastardLoopCut(v,quiet)],['B',()=>bastardLoop2Buffer,()=>getBastardLoop2LevelValue(),()=>getBastardLoop2CycleDuration(),()=>bastardLoop2Cut,v=>setBastardLoop2Cut(v,quiet)],['C',()=>bastardLoop3Buffer,()=>getBastardLoop3LevelValue(),()=>getBastardLoop3CycleDuration(),()=>bastardLoop3Cut,v=>setBastardLoop3Cut(v,quiet)],['V',()=>bastardLoopVBuffer,()=>getBastardLoopVLevelValue(),()=>getBastardLoopVCycleDuration(),()=>bastardLoopVCut,v=>setBastardLoopVCut(v,quiet)],['W',()=>bastardLoopWBuffer,()=>getBastardLoopWLevelValue(),()=>getBastardLoopWCycleDuration(),()=>bastardLoopWCut,v=>setBastardLoopWCut(v,quiet)]].map(([key,buffer,audible,cycle,get,set])=>({key,buffer,audible,cycle,set,original:MygrainVocalCut.normalize(get()),last:'',developed:'',turn:0}));
+ const leadFilters=['L','X'].map(key=>({key,el:document.getElementById('performanceBastardLoop'+key+'FilterEnvelope')})).filter(x=>x.el).map(x=>({...x,value:Number(x.el.value)}));
+ const originalGlobal=typeof lpfSlope==='number'?{slope:lpfSlope,enabled:lpfEnabled}:null;
+ let motion=null,mixDriver=false;const mixTaps=new Set();
+ function refreshMix(){
+  const target=noise?.graph?.envelope,wanted=new Set(mixDriver&&target?[...(noise.taps||[])].filter(t=>t.context===noise.graph.native&&!['N','noise'].includes(t.key)).map(t=>t.source):[]);
+  if(mixDriver&&target)for(const tap of noise.taps||[])if(tap.target===target){try{tap.source.disconnect(target)}catch{}tap.target=null;mixTaps.delete(tap.source)}
+  for(const source of mixTaps)if(!wanted.has(source)){try{source.disconnect(target)}catch{}mixTaps.delete(source)}
+  for(const source of wanted)if(!mixTaps.has(source)){source.connect(target);mixTaps.add(source)}
+ }
+ const recuts=[['A',()=>bastardLoopBuffer,()=>getBastardLoopLevelValue(),()=>getBastardLoopCycleDuration(),()=>bastardLoopCut,v=>setBastardLoopCut(v,quiet)],['B',()=>bastardLoop2Buffer,()=>getBastardLoop2LevelValue(),()=>getBastardLoop2CycleDuration(),()=>bastardLoop2Cut,v=>setBastardLoop2Cut(v,quiet)],['C',()=>bastardLoop3Buffer,()=>getBastardLoop3LevelValue(),()=>getBastardLoop3CycleDuration(),()=>bastardLoop3Cut,v=>setBastardLoop3Cut(v,quiet)],['V',()=>bastardLoopVBuffer,()=>getBastardLoopVLevelValue(),()=>getBastardLoopVCycleDuration(),()=>bastardLoopVCut,v=>setBastardLoopVCut(v,quiet)],['W',()=>bastardLoopWBuffer,()=>getBastardLoopWLevelValue(),()=>getBastardLoopWCycleDuration(),()=>bastardLoopWCut,v=>setBastardLoopWCut(v,quiet)]].map(([key,buffer,audible,cycle,get,set])=>({key,buffer,audible,cycle,set,original:MygrainVocalCut.normalize(get()),last:'',developed:'',turn:0,width:null}));
  const hats=drumMachineHatPattern.slice(),accents=drumMachineHatAccentPattern.slice(),hatRatchets=drumMachineHatRatchetPattern.slice();
  function level(x,value){x.el.value=String(value);x.el.dispatchEvent(new Event('input',{bubbles:true}))}
  let plan={options:{notes:false,drums:false}},leads=null,evolvingHats=hats.slice(),evolvingHatAccents=accents.slice(),hatChanges=new Set(),drumGeneration=0,evolvingSnare=null;
@@ -47,16 +56,28 @@ module.exports=String.raw`(function(){
    // Set the level before waking a parked lane; never add unloaded sources.
    level(x,on?Math.min(x.value||35,plan.variation==='extreme'?42:event.amount>.3?30:16):x.value);x.enable(on||x.on);if(on)added.push(x.key);
   });
-  const section=Math.min(plan.cycle||2,480/(plan.bpm||120)),stage=Math.round(event.at/section)||0;
+  let seed=((event.seed||0)^Math.imul(event.pick||0,2654435761)^plan.seed)>>>0;
+  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
   const nAllowed=typeof hasAnyPerformanceLayerSoloSelection!=='function'||!hasAnyPerformanceLayerSoloSelection()||loopLayerSolo.includes('noise');
+  mixDriver=false;refreshMix();
   if(noise&&originalNoise){
-   if(originalNoise.enabled){noise.restore({...originalNoise,level:originalNoise.level*(1-event.amount*.35),cutoff:originalNoise.cutoff*(1-event.amount*.25)})}
-   else if(event.amount>0&&nAllowed&&stage%3!==0){
-    noise.restore({...originalNoise,enabled:true,type:'pink',level:plan.variation==='subtle'?6:plan.variation==='moderate'?10:16,filterEnabled:true,filterType:'bandpass',poles:4,cutoff:plan.variation==='extreme'?1800:1100,resonance:.707,drive:0,source:'L1',mode:'follow',amount:1.5});
+   // N is an ordinary occasional layer, not a fixed every-third-section gesture.
+   const on=event.amount>0&&nAllowed&&random()<.55;
+   if(on){
+    mixDriver=!drumMachineEnabled||!noise.mixDriverSources?.().includes('drums')||random()<.4;
+    noise.restore({...originalNoise,enabled:true,level:3+random()*4,type:originalNoise.type,filterEnabled:true,filterType:random()<.5?'lowpass':'bandpass',poles:4,cutoff:180+random()*1600,resonance:.5+random()*.5,drive:0,source:mixDriver?'sample':'drums',mode:mixDriver?'follow':'trigger',amount:2+random()*3,sensitivity:8,threshold:.035,attack:2,decay:35+random()*50,sustain:0,release:35,hold:5});
     if(!noise.running)noise.start();added.push('N');
-   }else noise.restore(originalNoise);
+   }else noise.restore(event.amount===0?originalNoise:{...originalNoise,enabled:false});
   }
-  if(filter&&Number.isFinite(cutoff)){filter.value=String(Math.max(Number(filter.min),cutoff*(1-event.amount*.65)));filter.dispatchEvent(new Event('input',{bubbles:true}))}
+  refreshMix();
+  for(const x of leadFilters){const used=x.key==='L'?bastardLoopLEnabled:bastardLoopXEnabled;level(x,event.amount>0&&used?Math.max(5,Math.min(90,x.value+(random()-.35)*event.amount*90)):x.value)}
+  motion=null;
+  if(originalGlobal){
+   const on=event.amount>0&&random()<.35;
+   setFilterPoles('lpf',on?4:originalGlobal.slope/6);setFilterEnabled('lpf',on||originalGlobal.enabled);
+   if(on)motion={at:event.at,base:Math.min(cutoff,(plan.variation==='subtle'?6000:plan.variation==='moderate'?3500:1800)+random()*2400),depth:.15+random()*.25,hz:(plan.bpm||120)/60/[4,8,16][Math.floor(random()*3)]};
+  }
+  if(filter&&Number.isFinite(cutoff)){filter.value=String(cutoff);filter.dispatchEvent(new Event('input',{bubbles:true}))}
   if(plan.options.drums&&drumMachineEnabled){
    if(event.amount===0){evolvingHats=hats.slice();evolvingHatAccents=accents.slice();hatChanges.clear();drumGeneration=0}
    else drumGeneration++;
@@ -111,7 +132,8 @@ module.exports=String.raw`(function(){
    const fractions=plan.variation==='subtle'?[.875,.75]:plan.variation==='moderate'?[.75,.5]:[.5,.25,.375];
    let seed=(plan.seed^Math.imul(lane.key.charCodeAt(0),2654435761)^Math.imul(++lane.turn,1597334677))>>>0;
    const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
-   const fraction=fractions[Math.floor(random()*fractions.length)],slots=Math.round((1-fraction)*32),width=span*fraction;
+   let fraction=fractions[Math.floor(random()*fractions.length)];if(fraction===lane.width)fraction=fractions[(fractions.indexOf(fraction)+1)%fractions.length];lane.width=fraction;
+   const slots=Math.round((1-fraction)*32),width=span*fraction;
    let position=Math.floor(random()*(slots+1));
    const build=()=>MygrainVocalCut.normalize({...base,enabled:true,start:begin+position*span/32,end:begin+position*span/32+width,repeat:true,fromStart:true,stretch:false,targetStart:null,targetDuration:null});
    next=build();if(JSON.stringify(next)===lane.developed){position=(position+1)%(slots+1);next=build()}
@@ -120,6 +142,8 @@ module.exports=String.raw`(function(){
   const key=JSON.stringify(next);if(key!==lane.last){lane.set(next);lane.last=key}
   return next;
  };
+ apply.tick=seconds=>{refreshMix();if(motion&&filter){filter.value=String(Math.max(Number(filter.min)||20,motion.base*(1+motion.depth*Math.sin(2*Math.PI*motion.hz*(seconds-motion.at)))));filter.dispatchEvent(new Event('input',{bubbles:true}))}};
+ apply.cleanup=()=>{mixDriver=false;refreshMix()};
  apply.prepare=value=>{
   plan=value;plan.options=plan.options||{notes:false,drums:false,recutV:false};
   for(const lane of recuts){lane.turn=0;lane.developed=''}

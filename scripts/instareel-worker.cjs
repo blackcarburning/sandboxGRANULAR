@@ -31,6 +31,7 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
     },
     beforeStart(deck,start){
      const timers=[];deck.__instareelTimers=timers;
+     const modulate=()=>{deck.__instareelApply.tick(audioContext.currentTime-start-plan.warmup);timers.push(deck.setTimeout(modulate,50))};modulate();
      for(const event of plan.events){const due=start+plan.warmup+event.at;
       const check=()=>{const remaining=due-audioContext.currentTime;if(remaining>.008){timers.push(deck.setTimeout(check,Math.min(remaining*1000,100)));return}const applied=deck.__instareelApply(event);window.instareelStage(`Rendering ${Math.min(100,Math.round(event.at/plan.duration*100))}% · ${plan.variation} variations${applied.added.length?' · add '+applied.added.join(' + '):event.amount?' · developing layers':' · original groove'}`)};
       timers.push(deck.setTimeout(check,Math.max(0,(due-audioContext.currentTime)*1000-20)));
@@ -41,7 +42,7 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
       timers.push(deck.setTimeout(check,Math.max(0,(due-audioContext.currentTime)*1000-20)));
      }
     },
-    afterCapture(deck){for(const timer of deck.__instareelTimers||[])deck.clearTimeout(timer)}
+    afterCapture(deck){deck.__instareelApply.cleanup();for(const timer of deck.__instareelTimers||[])deck.clearTimeout(timer)}
    });
    const rate=buffer.sampleRate,start=Math.round(plan.warmup*rate),frames=Math.round(plan.duration*rate),fade=Math.round(.05*rate),output=audioContext.createBuffer(2,frames,rate);
    let peak=0,sum=0;

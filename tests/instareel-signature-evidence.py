@@ -7,7 +7,10 @@ import numpy as np
 root = pathlib.Path(sys.argv[1])
 frequencies = {'A': [2000,2200,2400,2600], 'B': [3000,3200,3400,3600], 'C': [4000,4200,4400,4600], 'V': [220,330,440,550], 'W': [880,1100,1320,1540]}
 result = {}
-for name, seconds, v_enabled in [('chromium',30,True), ('webkit',30,True), ('chromium-retry',60,False)]:
+renders = [('chromium',30,True), ('webkit',30,True), ('chromium-retry',60,False)]
+if (root / 'webkit-retry.wav').exists():
+    renders.append(('webkit-retry',60,False))
+for name, seconds, v_enabled in renders:
     if len(sys.argv)>2 and name not in sys.argv[2:]:continue
     with wave.open(str(root / (name + '.wav'))) as audio:
         rate = audio.getframerate()
