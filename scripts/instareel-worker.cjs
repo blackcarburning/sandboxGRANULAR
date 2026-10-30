@@ -3,6 +3,7 @@ const fs=require('node:fs'),{chromium}=require('playwright-core');
 const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
 (async()=>{
  const job=JSON.parse(fs.readFileSync(0,'utf8')),base=new URL(job.baseUrl);
+ job.arrangementScript=require('./instareel-arrangement.cjs');
  if(base.protocol!=='http:'||base.hostname!=='127.0.0.1'||base.pathname!=='/mygrain/')throw Error('Loopback renderer required');
  const browser=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
  try{
@@ -25,25 +26,12 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
     durationSeconds:plan.warmup+plan.duration+.08,
     prepareDeck(deck){
      // Every change lives inside the disposable render deck. Never touch live editor settings.
-     deck.__instareelApply=deck.eval(`(function(){
-      const lanes=[['performanceBastardLoopLevel',bastardLoopEnabled],['performanceBastardLoop2Level',bastardLoop2Enabled],['performanceBastardLoop3Level',bastardLoop3Enabled],['performanceBastardLoopVLevel',bastardLoopVEnabled],['performanceBastardLoopWLevel',bastardLoopWEnabled],['performanceBastardLoopPLevel',bastardLoopPEnabled],['performanceBastardLoopOLevel',bastardLoopOEnabled],['performanceBastardLoopLLevelMixer',bastardLoopLEnabled],['performanceBastardLoopXLevelMixer',bastardLoopXEnabled],['performanceBastardLoopQLevelMixer',!!window.mygrainQ?.state.enabled],['performanceBastardLoopMLevelMixer',bastardLoopMEnabled],['performanceBastardLoopMPlusLevelMixer',bastardLoopMPlusEnabled],['performanceDrumMachineLevel',drumMachineEnabled]];
-      const controls=lanes.filter(([id,on])=>on&&Number(document.getElementById(id)?.value)>0).map(([id])=>{const el=document.getElementById(id);return {el,value:Number(el.value)}});
-      const filter=document.getElementById('lpfCutoff'),cutoff=Number(filter?.value);
-      const hats=drumMachineHatPattern.slice(),accents=drumMachineHatAccentPattern.slice();
-      return event=>{
-       controls.forEach(({el,value},i)=>{el.value=String(value*(1-event.amount*(i===event.pick%Math.max(1,controls.length)?1:.2)));el.dispatchEvent(new Event('input',{bubbles:true}))});
-       if(filter&&Number.isFinite(cutoff)){filter.value=String(Math.max(Number(filter.min),cutoff*(1-event.amount*.65)));filter.dispatchEvent(new Event('input',{bubbles:true}))}
-       if(drumMachineEnabled&&drumMachineHatBuffer){drumMachineHatPattern=hats.slice();drumMachineHatAccentPattern=accents.slice();
-        if(event.hat){const count=getPatternLengthSteps(),i=(event.seed%Math.max(1,Math.floor(count/4)))*4+3;drumMachineHatPattern[i]=true;drumMachineHatAccentPattern[i]=false;
-         if(event.amount>.2&&count>8){const j=(i+count-4)%count;drumMachineHatPattern[j]=!hats[j]}}
-       }
-      };
-     })()`);
+     deck.__instareelApply=deck.eval(job.arrangementScript);
     },
     beforeStart(deck,start){
      const timers=[];deck.__instareelTimers=timers;
      for(const event of plan.events){const due=start+plan.warmup+event.at;
-      const check=()=>{const remaining=due-audioContext.currentTime;if(remaining>.008){timers.push(deck.setTimeout(check,Math.min(remaining*1000,100)));return}deck.__instareelApply(event);window.instareelStage(`Rendering ${Math.min(100,Math.round(event.at/plan.duration*100))}% · ${plan.variation} variations`)};
+      const check=()=>{const remaining=due-audioContext.currentTime;if(remaining>.008){timers.push(deck.setTimeout(check,Math.min(remaining*1000,100)));return}const applied=deck.__instareelApply(event);window.instareelStage(`Rendering ${Math.min(100,Math.round(event.at/plan.duration*100))}% · ${plan.variation} variations${applied.added.length?' · add '+applied.added.join(' + '):event.amount?' · developing layers':' · original groove'}`)};
       timers.push(deck.setTimeout(check,Math.max(0,(due-audioContext.currentTime)*1000-20)));
      }
     },

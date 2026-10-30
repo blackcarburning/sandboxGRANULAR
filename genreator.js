@@ -47,7 +47,7 @@ root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get gen
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
-box.innerHTML=`<legend>INSTAREEL <small>· 1</small></legend>
+box.innerHTML=`<legend>INSTAREEL <small>· 2</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
  <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option></select></label></div>
@@ -119,7 +119,7 @@ async function poll(token,identity){
   const data=await json(`${base}/${job.id}`,{signal:controller.signal});if(token!==generation||identity!==user())return;job=data.job;message(job.message);
   if(job.state==='done'){
    const ready=job;busy=false;controller=null;select({jobId:ready.id,preview:`${base}/${ready.id}/preview`,duration:ready.plan.duration,name:`${ready.plan.duration.toFixed(1)}s · ${ready.plan.variation} · ${ready.plan.bpm} BPM`});
-   message(`${ready.plan.duration.toFixed(1)}s loopable reel ready (${ready.plan.requestedSeconds}s requested). Preview, save, or Try Another. Current patch unchanged.`);sync();return;
+   message(`${ready.plan.duration.toFixed(1)}s loopable reel ready · ${ready.plan.variation} variations (${ready.plan.requestedSeconds}s requested). Preview, save, or Try Another. Current patch unchanged.`);sync();return;
   }
   if(['failed','cancelled'].includes(job.state)){busy=false;controller=null;sync();return}
   timer=setTimeout(()=>poll(token,identity),1000);
@@ -130,9 +130,9 @@ el('Make').addEventListener('click',async()=>{
  if(!Number.isFinite(seconds)||seconds<30||seconds>60){message('Enter a target from 30 to 60 seconds.');return}
  if(!identity||!root.mygrainSongBetaAdapter){message('Start MYGRAIN and sign in first.');return}
  if(root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy){message('Wait for the current patch change to finish.');return}
- abortTask();job=null;const token=generation;controller=new AbortController();busy=true;capturing=true;sync();root.dispatchEvent(new Event('mygrain-ai-update'));
+ abortTask();cancelPlayer();el('Preview').hidden=true;job=null;const token=generation;controller=new AbortController();busy=true;capturing=true;sync();root.dispatchEvent(new Event('mygrain-ai-update'));
  try{
-  message('Capturing your current sounds for an isolated server render…');
+  message(`Capturing current sounds · ${seconds}s requested · ${variation} variations…`);
   const adapter=root.mygrainSongBetaAdapter;
   const live=await adapter.capture({liveOnly:true});
   const estimated=[...live.buffers.values()].reduce((sum,b)=>sum+(b?b.length*b.numberOfChannels*2:0),0);
@@ -145,7 +145,7 @@ el('Make').addEventListener('click',async()=>{
   const query=new URLSearchParams({seconds:String(seconds),variation});
   message('Uploading snapshot. Rendering runs on the server; your current patch stays unchanged.');
   const data=await json(base+'?'+query,{method:'POST',headers:{'Content-Type':'application/zip'},body:archive,signal:controller.signal});
-  if(token!==generation||identity!==user())return;job=data.job;sync();message(`Rendering ${job.plan.duration.toFixed(1)}s in complete source cycles…`);poll(token,identity);
+  if(token!==generation||identity!==user())return;job=data.job;sync();message(`Rendering ${job.plan.duration.toFixed(1)}s · ${job.plan.variation} variations (${job.plan.requestedSeconds}s requested)…`);poll(token,identity);
  }catch(error){if(token===generation){abortTask();message(`Could not make reel: ${error.message}. Current patch unchanged.`)}}
  finally{if(token===generation){capturing=false;root.dispatchEvent(new Event('mygrain-ai-update'));sync()}}
 });

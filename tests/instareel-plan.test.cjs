@@ -11,10 +11,14 @@ test('duration is whole source cycles within 30–60s; boundary sections retain 
 test('repeatable seeds and modest changes preserve tempo; try another is actually different',()=>{
  const meta={bpm:120,patternSteps:16};const a=plan(meta,45,'subtle',123);
  assert.deepEqual(a,plan(meta,45,'subtle',123));assert.notDeepEqual(a.events,plan(meta,45,'subtle',456).events);assert.notDeepEqual(a.events.map(e=>e.amount),plan(meta,45,'subtle',456).events.map(e=>e.amount),'One-layer reels must also differ between seeds');
- assert(a.events.some(e=>e.amount>0));assert(a.events.every(e=>e.amount<=.12));assert.equal(a.bpm,120);
+ assert(a.events.some(e=>e.amount>0));assert(a.events.every(e=>e.amount<=.28));assert.equal(a.bpm,120);
 });
 test('reject unsafe targets and source cycles that cannot fit the range',()=>{
  for(const seconds of [0,29,61,NaN,Infinity])assert.throws(()=>plan({bpm:120,patternSteps:16},seconds,'subtle',1));
  assert.throws(()=>plan({bpm:40,patternSteps:64,patternCycleMultiplier:8},45,'subtle',1));
  assert.throws(()=>plan({bpm:120,patternSteps:16},45,'extreme',1));
+});
+
+test('one or two long source cycles still contain audible interior changes',()=>{
+ for(const steps of [64,128]){const a=plan({bpm:120,patternSteps:steps},32,'subtle',8),b=plan({bpm:120,patternSteps:steps},32,'moderate',8);assert(a.events.some(e=>e.amount>.15));assert(b.events.some(e=>e.amount>.35));assert.equal(a.events.at(-1).amount,0)}
 });

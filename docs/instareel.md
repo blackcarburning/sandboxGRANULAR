@@ -14,12 +14,16 @@ randomized, stopped or replaced. Targets round to complete source cycles within
   `mygrainSongBetaAdapter` snapshot validation/decoding and `MygrainSongClock`
   isolated render deck. The worker cannot make any HTTP write. No existing Song
   source, saved part, render version or compatibility policy changes.
-- `scripts/instareel-plan.cjs`: seeded source-cycle/bar-aligned development.
-  Active layer levels and master-filter brightness recede and return; a loaded,
+- `scripts/instareel-plan.cjs` and `scripts/instareel-arrangement.cjs`: seeded source-cycle/bar-aligned development.
+  Active layer levels and master-filter brightness recede and return on bar-aligned
+  sections, including when only one or two source cycles fit. A bounded selection
+  of loaded-but-disabled sample layers can enter (one quiet layer in Subtle, up to
+  two in Moderate), using normal enable/wake setters in the disposable deck; missing
+  sources are never enabled. All additions leave again for the original boundary. A loaded,
   enabled hat lane can gain occasional offbeats. No new samples, pitches, key,
-  tempo, kick/snare patterns or previously disabled layers are introduced.
+  tempo, kick/snare patterns are introduced.
 - Warm one source cycle before capture, return to the original groove for the
-  final cycle, and blend the actual continuation into the first 50ms. Retains
+  final bar-aligned section, and blend the actual continuation into the first 50ms. Retains
   exact duration and audio at the join rather than fading to silence. Peak-only
   attenuation prevents output clipping; silence is reported, not saved as success.
 
@@ -57,3 +61,12 @@ Before-edit files and measured evidence: workspace
 `output/mygrain-instareel-20261030/`. To roll back, restore only the G assets/index
 script versions and remove the exact server hook, then restart documenter. Do
 not remove saved WAVs, account state or unrelated current server changes.
+
+## Variation repair · 2
+
+G reads Target seconds and Variation on every Make/Try Another click. The old
+preview is hidden and stopped during replacement so it cannot be mistaken for
+the new result. Both requested seconds and actual variation are displayed.
+Regression coverage retries 30s/Subtle as 60s/Moderate on the same page and checks
+the server plan, output duration and untouched live disabled layer settings.
+The existing preview/loop transport and all Song audio compatibility remain unchanged.

@@ -10,6 +10,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.goto(base);await page.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready'&&window.mygrainInstareel);
   await page.evaluate(()=>mygrainCardHistory.ready);await page.locator('#start-btn').tap();await page.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
   await page.evaluate(hats=>window.instareelTestHats=hats,!!process.env.INSTAREEL_HATS);
+  await page.evaluate(value=>window.instareelTestVariations=value,!!process.env.INSTAREEL_RETRY_TEST);
   await page.evaluate(()=>{
    stopAllPerformancePlayback({silent:true});
    const buffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),data=buffer.getChannelData(0);
@@ -21,6 +22,10 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
    drumMachineEnabled=false;oscillatorsEnabled=false;seqGrainsEnabled=false;window.mygrainQ.state.enabled=false;
    syncBastardLoopVUi();syncPerformanceControlState();
    if(window.instareelTestHats){drumMachineEnabled=true;drumMachineHatBuffer=audioContext.createBuffer(1,2205,44100);const hat=drumMachineHatBuffer.getChannelData(0);for(let i=0;i<hat.length;i++)hat[i]=.08*Math.sin(i*2.3)*Math.exp(-i/300);drumMachineKickBuffer=null;drumMachineSnareBuffer=null;}
+   if(window.instareelTestVariations){
+    bastardLoopWBuffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate);const w=bastardLoopWBuffer.getChannelData(0);for(let i=0;i<w.length;i++)w[i]=.3*Math.sin(2*Math.PI*880*i/audioContext.sampleRate);
+    bastardLoopWSourceBpm=120;applyBastardLoopWDivisionSelection(['1'],{save:false});bastardLoopWEnabled=false;document.getElementById('performanceBastardLoopWLevel').value='50';
+   }
    window.instareelOriginal={buffer:bastardLoopVBuffer,snapshot:JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)};
   });
   await page.locator('#sectionJumpHandle').tap();await page.locator('.section-jump-option[data-jump-target="#genreatorCard"]').tap();
@@ -51,6 +56,17 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'.wav',await wav.body());
   assert.match(wav.headers()['cache-control'],/private, no-store/);
   assert.equal((await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'wrong-account'}})).status(),401);
+  if(process.env.INSTAREEL_RETRY_TEST){
+   await page.locator('#instareelSeconds').fill('60');await page.locator('#instareelVariation').selectOption('moderate');
+   await page.locator('#instareelMake').tap();
+   await page.waitForFunction(old=>mygrainInstareel.job&&mygrainInstareel.job.id!==old,id,{timeout:30000});
+   const nextId=await page.evaluate(()=>mygrainInstareel.job.id),next=(await (await context.request.get(base+`api/instareel/${nextId}`,{headers:{'X-Mygrain-User':'admin'}})).json()).job;assert.equal(next.plan.requestedSeconds,60);assert.equal(next.plan.variation,'moderate');assert.equal(next.plan.duration,60);
+   assert.equal(await page.locator('#instareelPreview').isVisible(),false,'Old preview must not masquerade as the new render');
+   await page.waitForFunction(()=>!mygrainInstareel.busy,null,{timeout:240000});assert.match(await page.locator('#instareelStatus').textContent(),/60.0s loopable reel ready · moderate/);
+   assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true);
+   const nextWav=await context.request.get(base+`api/instareel/${next.id}/wav`,{headers:{'X-Mygrain-User':'admin'}});assert.equal(nextWav.status(),200);if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-retry.wav',await nextWav.body());
+   console.log('PASS',engine,'Try Another rereads 60s/moderate and preserves live disabled layers');
+  }
   // Existing G generation contracts remain untouched and ready.
   assert.equal(await page.locator('#genreatorGenres [data-genre]:enabled').count(),15);
   await page.evaluate(()=>window.dispatchEvent(new Event('mygrain-account-lock')));assert.equal(await page.evaluate(()=>mygrainInstareel.player.buffer),null);
