@@ -22,3 +22,7 @@ test('reject unsafe targets and source cycles that cannot fit the range',()=>{
 test('one or two long source cycles still contain audible interior changes',()=>{
  for(const steps of [64,128]){const a=plan({bpm:120,patternSteps:steps},32,'subtle',8),b=plan({bpm:120,patternSteps:steps},32,'moderate',8);assert(a.events.some(e=>e.amount>.15));assert(b.events.some(e=>e.amount>.35));assert.equal(a.events.at(-1).amount,0)}
 });
+test('musical options default off and produce sparse interior fills only when requested',()=>{
+ const meta={bpm:120,patternSteps:16},a=plan(meta,30,'subtle',12),b=plan(meta,30,'subtle',12,{notes:true,drums:true}),c=plan(meta,30,'moderate',12,{drums:true});
+ assert.deepEqual(a.options,{notes:false,drums:false});assert.deepEqual(a.fills,[]);assert.deepEqual(b.options,{notes:true,drums:true});assert.equal(b.fills.length,1);assert(c.fills.length>b.fills.length);for(const fill of c.fills){assert(fill.at>=4&&fill.end<28);assert(fill.end-fill.at<=.5);assert(fill.ratchet<=2)}
+});

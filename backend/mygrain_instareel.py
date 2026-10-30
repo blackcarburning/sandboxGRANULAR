@@ -39,7 +39,7 @@ def reel_root(accounts, user):
     return folder
 
 
-def plan(meta, seconds, variation, seed):
+def plan(meta, seconds, variation, seed, options=None):
     if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle', 'moderate'):
         raise ValueError('Choose 30–60 seconds and Subtle or Moderate variation.')
     cycle = meta['patternSteps'] * meta.get('patternCycleMultiplier', 1) * 60 / meta['bpm'] / 4
@@ -49,7 +49,7 @@ def plan(meta, seconds, variation, seed):
     repeats = max(low, min(high, math.floor(seconds / cycle + .5)))
     # Canonical musical plan is shared with Node unit tests and the worker.
     result = subprocess.run(['node', '-e', 'const p=require(process.argv[1]);process.stdout.write(JSON.stringify(p.plan(...JSON.parse(process.argv[2]))))',
-                             str(ROOT / 'scripts/instareel-plan.cjs'), json.dumps([meta, seconds, variation, seed])],
+                             str(ROOT / 'scripts/instareel-plan.cjs'), json.dumps([meta, seconds, variation, seed, options or {}])],
                             capture_output=True, timeout=5, check=True)
     value = json.loads(result.stdout)
     if abs(value['duration'] - cycle * repeats) > .00001:
@@ -224,7 +224,10 @@ def handle(handler, accounts, songs):
             if len(body) != length:
                 raise ValueError('Incomplete source upload.')
             meta = songs.validate_part_zip(body)
-            layout = plan(meta, seconds, variation, secrets.randbits(32))
+            flags = {key:(query.get(key) or ['0'])[0] for key in ('notes','drums')}
+            if any(value not in ('0','1') for value in flags.values()):
+                raise ValueError('Choose valid note/drum variation options.')
+            layout = plan(meta, seconds, variation, secrets.randbits(32), {key:value=='1' for key,value in flags.items()})
             ident = secrets.token_hex(16)
             folder = checked(root / ('job-'+ident), root)
             folder.mkdir(mode=0o700)

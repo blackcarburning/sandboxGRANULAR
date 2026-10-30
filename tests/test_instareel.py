@@ -23,6 +23,8 @@ class ReelTests(unittest.TestCase):
  def test_plan_rounds_cycles_and_bounds_the_target(self):
   meta={'bpm':120,'patternSteps':16,'patternCycleMultiplier':1}
   self.assertEqual(REELS.plan(meta,45,'subtle',123)['duration'],46)
+  self.assertEqual(REELS.plan(meta,30,'subtle',123,{'notes':True,'drums':True})['options'],{'notes':True,'drums':True})
+  self.assertEqual(REELS.plan(meta,30,'subtle',123)['fills'],[])
   for seconds in (0,29,61,float('nan'),float('inf')):
    with self.assertRaises(ValueError):REELS.plan(meta,seconds,'subtle',123)
  def test_job_and_library_reads_cannot_cross_account_scope(self):

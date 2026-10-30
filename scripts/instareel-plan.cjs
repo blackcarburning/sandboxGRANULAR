@@ -1,5 +1,6 @@
 'use strict';
-function plan(meta, seconds, variation, seed) {
+function plan(meta, seconds, variation, seed, options = {}) {
+ options={notes:options.notes===true,drums:options.drums===true};
  const cycle=meta.patternSteps*(meta.patternCycleMultiplier||1)*60/meta.bpm/4;
  if(!Number.isFinite(seconds)||seconds<30||seconds>60||!['subtle','moderate'].includes(variation)||!Number.isFinite(cycle)||cycle<=0||cycle>60)throw Error('Choose 30–60 seconds and a source pattern no longer than 60 seconds.');
  const low=Math.ceil((30-1e-8)/cycle),high=Math.floor((60+1e-8)/cycle);
@@ -13,6 +14,7 @@ function plan(meta, seconds, variation, seed) {
  }
  // Always restore the original arrangement for a complete final bar.
  if(events.at(-1).amount!==0)events.push({at:duration-bar,amount:0,pick:0,hat:false,seed:0});
- return {version:2,requestedSeconds:seconds,duration,cycle,repeats,bpm:meta.bpm,variation,seed,warmup:cycle,events:events.sort((a,b)=>a.at-b.at)};
+ const fills=[];if(options.drums){const phrase=bar*(variation==='subtle'?8:4);for(let end=phrase;end<duration-section+1e-8;end+=phrase)fills.push({at:end-bar/4,end,ratchet:variation==='subtle'?1:2});}
+ return {version:3,options,fills,requestedSeconds:seconds,duration,cycle,repeats,bpm:meta.bpm,variation,seed,warmup:cycle,events:events.sort((a,b)=>a.at-b.at)};
 }
 module.exports={plan};

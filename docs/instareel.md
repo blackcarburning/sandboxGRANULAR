@@ -20,8 +20,8 @@ randomized, stopped or replaced. Targets round to complete source cycles within
   of loaded-but-disabled sample layers can enter (one quiet layer in Subtle, up to
   two in Moderate), using normal enable/wake setters in the disposable deck; missing
   sources are never enabled. All additions leave again for the original boundary. A loaded,
-  enabled hat lane can gain occasional offbeats. No new samples, pitches, key,
-  tempo, kick/snare patterns are introduced.
+  enabled hat lane can gain occasional offbeats. No new samples, key or
+  tempo are introduced.
 - Warm one source cycle before capture, return to the original groove for the
   final bar-aligned section, and blend the actual continuation into the first 50ms. Retains
   exact duration and audio at the join rather than fading to silence. Peak-only
@@ -70,3 +70,35 @@ the new result. Both requested seconds and actual variation are displayed.
 Regression coverage retries 30s/Subtle as 60s/Moderate on the same page and checks
 the server plan, output duration and untouched live disabled layer settings.
 The existing preview/loop transport and all Song audio compatibility remain unchanged.
+
+## Optional note and drum development · 3
+
+G adds two unchecked-by-default options: X/L root-note variations and Drum
+variations + Roll fills. Every Make/Try Another request reads both checkboxes,
+duration and strength again; the authenticated server validates and records them
+in the canonical plan. Controls are excluded from patch/history serialization.
+
+With Notes selected, only used/playable X/L lanes with an existing sequence are
+developed: one cell per Subtle section or two per Moderate section. Notes stay
+around each lane's existing root/fifth/octave, retain the root setting, and reset
+to the original sequence before the loop join. No scale's major/minor third is
+assumed, no samples are replaced, and no unused empty lead sequence is invented.
+
+With Drums selected, existing hats/backbeat accents develop while kick/snare
+placements stay intact. Short quiet Snare Roll fills occur at phrase boundaries
+(roughly eight bars Subtle / four bars Moderate), not every bar. They require
+enabled drums, a loaded Snare and an audible Roll lane; lane solos are respected.
+The full independent Roll timeline is compiled before start, because the existing
+Song-deck scheduler queues Roll two seconds ahead. The timeline stays within its
+existing 1024-step limit, preserves original Roll notes/dips/ratchets, and contains
+no added fills at the opening or closing section. No shared scheduler/DSP changes,
+Song compatibility invalidation, new Jump controls or preview transport changes.
+
+`INSTAREEL_MUSICAL_TEST=1 INSTAREEL_RETRY_TEST=1` extends the real browser test
+with used X/L samples and drums: first render both options on, then rerender the
+same page with both off at a different duration/strength; compare source/settings
+identities and the actual server plan. Unit tests cover off-state preservation,
+root-related sparse note changes, boundary restoration and precompiled Roll hits.
+
+`tests/instareel-musical-evidence.py` measures both X/L fifth-note energy and
+Roll fill transients in paired on/off WAVs, plus independent wrap-step checks.

@@ -27,6 +27,7 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
     prepareDeck(deck){
      // Every change lives inside the disposable render deck. Never touch live editor settings.
      deck.__instareelApply=deck.eval(job.arrangementScript);
+     const prepared=deck.__instareelApply.prepare(plan);window.instareelStage(`Prepared ${plan.options?.notes?'X/L note variations · ':''}${prepared.fills} Roll fills · starting render`);
     },
     beforeStart(deck,start){
      const timers=[];deck.__instareelTimers=timers;
