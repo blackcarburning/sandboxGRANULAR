@@ -5,7 +5,7 @@ const card=document.getElementById('genreatorCard');if(!card)return;
 const bpm=document.getElementById('genreatorBpm'),status=document.getElementById('genreatorStatus'),cancel=document.getElementById('genreatorCancel'),undo=document.getElementById('genreatorUndo');
 let genres=[],pending=false,lastGenre=null;
 function sync(){
- const ai=root.mygrainAiPatch,busy=pending||ai?.busy||root.mygrainCardHistory?.busy;
+ const ai=root.mygrainAiPatch,busy=pending||ai?.busy||root.mygrainCardHistory?.busy||root.mygrainInstareel?.capturing;
  for(const b of card.querySelectorAll('[data-genre]'))b.disabled=!!busy||!ai?.ready;
  bpm.disabled=!!busy;cancel.hidden=!pending;undo.disabled=!!busy||!root.mygrainCardHistory?.undoLabel;
  card.setAttribute('aria-busy',String(!!busy));
@@ -39,4 +39,138 @@ root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get gen
  }
  sync();
 }catch(error){status.textContent=error.message;sync()}})();
+})(window);
+
+// INSTAREEL is deliberately confined to G; it never recalls or edits the live patch.
+(function(root){
+'use strict';
+if(root.__mygrainSongRenderDeck)return;
+const card=document.getElementById('genreatorCard');if(!card)return;
+const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
+box.innerHTML=`<legend>INSTAREEL <small>· 1</small></legend>
+ <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
+ <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
+ <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option></select></label></div>
+ <p id="instareelLength">Duration rounds to complete source cycles for a musical loop.</p>
+ <div class="instareel-actions"><button id="instareelMake" type="button">Make Reel</button><button id="instareelCancel" type="button" hidden>Cancel reel</button></div>
+ <p id="instareelStatus" role="status" aria-live="polite">Find a patch you like, then make a reel. No extra AI calls.</p>
+ <div id="instareelPreview" hidden><strong id="instareelPreviewTitle">Rendered reel</strong>
+ <div class="instareel-player"><button id="instareelPlay" type="button">Load & Play</button><label class="instareel-loop"><input id="instareelLoop" type="checkbox" checked> Loop</label><input id="instareelSeek" data-mirror-control="instareel-playback" type="range" min="0" max="1" value="0" step=".01" aria-label="Reel playback position" disabled><span id="instareelTime">0.0s</span></div>
+ <div id="instareelSaveControls"><label>Reel name <input id="instareelName" type="text" maxlength="64" value="My Reel"></label><div class="instareel-actions"><button id="instareelSave" type="button">Save to INSTAREEL</button><button id="instareelDiscard" type="button">Discard preview</button></div></div></div>
+ <details id="instareelLibrary"><summary>INSTAREEL WAV Browser</summary><button id="instareelRefresh" type="button">Refresh reels</button><div id="instareelLibraryList">Open to load your saved reels.</div></details>`;
+card.append(box);
+const el=id=>document.getElementById('instareel'+id),base='/mygrain/api/instareel';
+let busy=false,capturing=false,job=null,generation=0,controller=null,timer=null,current=null,buffer=null,source=null,context=null,position=0,started=0,frame=0,loading=false,playerGeneration=0,disposed=false;
+const user=()=>root.mygrainAccounts?.user?.username;
+const message=text=>{el('Status').textContent=text};
+function sync(){
+ const blocked=busy||root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy;
+ el('Make').disabled=!!blocked;el('Seconds').disabled=busy;el('Variation').disabled=busy;el('Cancel').hidden=!busy;el('Cancel').disabled=busy&&!job;
+ el('Make').textContent=current?.jobId?'Try Another':'Make Reel';
+ el('Save').disabled=busy||!current?.jobId||!!current?.saved;
+}
+function abortTask(){generation++;clearTimeout(timer);timer=null;controller?.abort();controller=null;busy=false;capturing=false;sync();root.dispatchEvent(new Event('mygrain-ai-update'))}
+async function json(url,options={}){
+ const response=await fetch(url,{...options,cache:'no-store'}),payload=await response.json();
+ if(!response.ok||!payload.ok){const error=Error(payload.error||`Request failed (${response.status})`);error.status=response.status;throw error}return payload;
+}
+function currentPosition(){if(!source||!buffer)return position;const t=position+context.currentTime-started;return source.loop?t%(current.duration||buffer.duration):Math.min(current.duration||buffer.duration,t)}
+function update(){const time=currentPosition();el('Seek').value=String(time);el('Time').textContent=`${time.toFixed(1)} / ${(current?.duration||0).toFixed(1)}s`;if(source)frame=requestAnimationFrame(update)}
+function stopSource(){if(source){position=currentPosition();const old=source;source=null;old.onended=null;try{old.stop()}catch{}old.disconnect();old.buffer=null}cancelAnimationFrame(frame);frame=0;el('Play').textContent=buffer?'Play':'Load & Play'}
+function cancelPlayer(){playerGeneration++;playerRequest?.abort();playerRequest=null;stopSource();buffer=null;context=null;position=0;loading=false;el('Play').disabled=false;el('Seek').disabled=true;el('Play').textContent='Load & Play';if(typeof wavIphonePreviewActive!=='undefined'&&wavIphonePreviewActive===player)wavIphonePreviewActive=null;update()}
+let playerRequest=null;
+const player={cancel:cancelPlayer,get playing(){return !!source},get buffer(){return buffer},get source(){return source}};
+function playBuffer(){
+ const length=Math.min(buffer.duration,current.duration);if(position>=length)position=0;
+ source=context.createBufferSource();source.buffer=buffer;source.loop=el('Loop').checked;source.loopEnd=length;source.connect(context.destination);
+ source.onended=()=>{stopSource();position=0;update()};started=context.currentTime;source.start(0,position);
+ if(!source.loop)source.stop(started+length-position);
+ el('Play').textContent='Pause';update();
+}
+el('Play').addEventListener('click',async()=>{
+ if(!current||loading||disposed)return;if(source){stopSource();update();return}
+ const identity=user();context=audioContext;
+ if(!identity||!context){message('Start MYGRAIN and sign in before previewing.');return}
+ if(typeof wavIphonePreviewActive!=='undefined'){if(wavIphonePreviewActive&&wavIphonePreviewActive!==player)wavIphonePreviewActive.cancel();wavIphonePreviewActive=player}
+ context.resume().catch(()=>{});const token=++playerGeneration,selected=current;
+ const valid=()=>!disposed&&token===playerGeneration&&selected===current&&identity===user()&&context===audioContext;
+ let timeout;
+ try{
+  if(!buffer){loading=true;el('Play').disabled=true;el('Play').textContent='Loading…';playerRequest=new AbortController();timeout=setTimeout(()=>playerRequest?.abort(),120000);
+   const response=await fetch(selected.preview,{cache:'no-store',signal:playerRequest.signal,priority:'high'});
+   const decoded=await loadLoopAudioResponse(response,context,{signal:playerRequest.signal,maxEncodedBytes:4*1048576,maxDecodedBytes:64*1048576});
+   if(!valid())return;buffer=decoded;playerRequest=null;el('Seek').max=String(Math.min(current.duration,buffer.duration));el('Seek').disabled=false;
+  }
+  await context.resume();if(valid())playBuffer();
+ }catch(error){if(valid()){cancelPlayer();message(`Preview could not play: ${error.name==='AbortError'?'Download timed out; tap Play to retry':error.message}`)}}
+ finally{clearTimeout(timeout);if(valid()){loading=false;el('Play').disabled=false}}
+});
+el('Loop').addEventListener('change',()=>{if(source){stopSource();playBuffer()}});
+el('Seek').addEventListener('input',()=>{if(!buffer)return;const playing=!!source;stopSource();position=Number(el('Seek').value)||0;if(playing)playBuffer();else update()});
+function select(item){cancelPlayer();current=item;el('Preview').hidden=false;el('PreviewTitle').textContent=item.name;el('SaveControls').hidden=!item.jobId;el('Seek').max=String(item.duration);update();sync()}
+function length(){
+ const seconds=Number(el('Seconds').value),bpm=Number(document.getElementById('globalBpmSlider')?.value)||120;
+ el('Length').textContent=`Target ${Number.isFinite(seconds)?seconds:45}s · ${bpm} BPM. Actual duration rounds to complete source cycles (30–60s).`;
+}
+el('Seconds').addEventListener('input',length);
+async function poll(token,identity){
+ if(token!==generation||identity!==user())return;
+ try{
+  const data=await json(`${base}/${job.id}`,{signal:controller.signal});if(token!==generation||identity!==user())return;job=data.job;message(job.message);
+  if(job.state==='done'){
+   const ready=job;busy=false;controller=null;select({jobId:ready.id,preview:`${base}/${ready.id}/preview`,duration:ready.plan.duration,name:`${ready.plan.duration.toFixed(1)}s · ${ready.plan.variation} · ${ready.plan.bpm} BPM`});
+   message(`${ready.plan.duration.toFixed(1)}s loopable reel ready (${ready.plan.requestedSeconds}s requested). Preview, save, or Try Another. Current patch unchanged.`);sync();return;
+  }
+  if(['failed','cancelled'].includes(job.state)){busy=false;controller=null;sync();return}
+  timer=setTimeout(()=>poll(token,identity),1000);
+ }catch(error){if(token===generation){if(error.status===404||error.status===401){busy=false;controller=null;message(error.message);sync()}else{message(`Reel status unavailable: ${error.message}. Retrying; Cancel remains available.`);timer=setTimeout(()=>poll(token,identity),2000)}}}
+}
+el('Make').addEventListener('click',async()=>{
+ if(busy||disposed)return;const seconds=Number(el('Seconds').value),variation=el('Variation').value,identity=user();
+ if(!Number.isFinite(seconds)||seconds<30||seconds>60){message('Enter a target from 30 to 60 seconds.');return}
+ if(!identity||!root.mygrainSongBetaAdapter){message('Start MYGRAIN and sign in first.');return}
+ if(root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy){message('Wait for the current patch change to finish.');return}
+ abortTask();job=null;const token=generation;controller=new AbortController();busy=true;capturing=true;sync();root.dispatchEvent(new Event('mygrain-ai-update'));
+ try{
+  message('Capturing your current sounds for an isolated server render…');
+  const adapter=root.mygrainSongBetaAdapter;
+  const live=await adapter.capture({liveOnly:true});
+  const estimated=[...live.buffers.values()].reduce((sum,b)=>sum+(b?b.length*b.numberOfChannels*2:0),0);
+  const maxBytes=/iPhone|iPad|iPod/.test(navigator.userAgent)||navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1?48*1048576:96*1048576;
+  if(estimated>maxBytes)throw Error('This patch has too much source audio to snapshot safely. Shorten its samples before making a reel.');
+  const serial=sourceMutationSerial,archive=await adapter.capture();
+  if(token!==generation||identity!==user())return;
+  if(sourceMutationSerial!==serial)throw Error('Source sounds changed during capture. Try Make Reel again.');
+  capturing=false;root.dispatchEvent(new Event('mygrain-ai-update'));
+  const query=new URLSearchParams({seconds:String(seconds),variation});
+  message('Uploading snapshot. Rendering runs on the server; your current patch stays unchanged.');
+  const data=await json(base+'?'+query,{method:'POST',headers:{'Content-Type':'application/zip'},body:archive,signal:controller.signal});
+  if(token!==generation||identity!==user())return;job=data.job;sync();message(`Rendering ${job.plan.duration.toFixed(1)}s in complete source cycles…`);poll(token,identity);
+ }catch(error){if(token===generation){abortTask();message(`Could not make reel: ${error.message}. Current patch unchanged.`)}}
+ finally{if(token===generation){capturing=false;root.dispatchEvent(new Event('mygrain-ai-update'));sync()}}
+});
+el('Cancel').addEventListener('click',async()=>{const pending=job;abortTask();const token=generation;busy=true;sync();message('Cancelling reel…');try{if(pending&&['queued','running'].includes(pending.state)){const data=await json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(token!==generation)return;job=data.job}busy=false;message('Reel cancelled. Current patch unchanged.');sync()}catch(error){if(token===generation){message(`Cancellation could not be confirmed: ${error.message}. Tap Cancel to retry.`);sync()}}});
+el('Save').addEventListener('click',async()=>{
+ if(!current?.jobId||current.saved||busy)return;const item=current,identity=user();el('Save').disabled=true;
+ try{const data=await json(`${base}/${item.jobId}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:el('Name').value})});if(identity!==user()||item!==current)return;item.saved=true;message(`Saved ${data.reel.filename} to INSTAREEL and the WAV repository.`);await library()}
+ catch(error){message(`Save failed: ${error.message}. Your preview is still available.`)}finally{sync()}
+});
+el('Discard').addEventListener('click',()=>{cancelPlayer();current=null;el('Preview').hidden=true;message('Preview discarded. Saved reels and current patch unchanged.');sync()});
+async function library(){
+ const identity=user(),list=el('LibraryList');list.textContent='Loading reels…';
+ try{const data=await json(base+'/library');if(identity!==user()||disposed)return;list.replaceChildren();
+  if(!data.reels.length){list.textContent='No saved reels yet.';return}
+  for(const reel of data.reels){const row=document.createElement('div');row.className='instareel-library-row';const title=document.createElement('span');title.textContent=`${reel.name} · ${reel.duration.toFixed(1)}s · ${reel.bpm} BPM`;
+   const play=document.createElement('button');play.type='button';play.textContent='Preview';play.addEventListener('click',()=>{select({name:title.textContent,duration:reel.duration,preview:`${base}/library/${reel.id}/preview`});el('Play').focus()});
+   const download=document.createElement('button');download.type='button';download.textContent='Download WAV';download.addEventListener('click',async()=>{download.disabled=true;try{const response=await fetch(`${base}/library/${reel.id}/wav`,{cache:'no-store'});if(!response.ok)throw Error('Download failed');const blob=await response.blob();if(identity!==user()||disposed)return;downloadBlob(blob,reel.filename)}catch(error){message(error.message)}finally{download.disabled=false}});
+   row.append(title,play,download);list.append(row);
+  }
+ }catch(error){if(identity===user())list.textContent=`Could not load reels: ${error.message}`}
+}
+el('Library').addEventListener('toggle',()=>{if(el('Library').open)library()});el('Refresh').addEventListener('click',library);
+function dispose(){disposed=true;const pending=job;abortTask();cancelPlayer();current=null;job=null;el('Preview').hidden=true;el('LibraryList').replaceChildren();message('Sign in again to use INSTAREEL.');if(pending&&['queued','running'].includes(pending.state))json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+root.addEventListener('mygrain-account-lock',dispose);root.addEventListener('mygrain-account-changed',dispose);
+root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
+root.mygrainInstareel=Object.freeze({get busy(){return busy},get capturing(){return capturing},get player(){return player},get job(){return job?{id:job.id,state:job.state}:null}});
+length();sync();
 })(window);

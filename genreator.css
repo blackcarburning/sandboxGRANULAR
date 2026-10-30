@@ -14,3 +14,19 @@
 #genreatorCard button:not(:disabled):hover{background:#315c69}
 #genreatorCard .instrument-splash{--splash-a:#87e1c6;--splash-b:#6361a4;--splash-paper:#e8fff1}
 @media(max-width:700px){#genreatorCard .instrument-splash-art{display:block;position:absolute;right:6px;bottom:6px;width:20px;height:20px;opacity:.85}}
+#genreatorCard #instareelControls{margin-top:24px}
+#instareelControls small{font-weight:400;font-size:11px}
+#instareelControls p{line-height:1.5;overflow-wrap:anywhere}
+#instareelControls .instareel-options,#instareelControls .instareel-actions,#instareelControls .instareel-player{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0;min-width:0}
+#instareelControls label{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
+#instareelControls input:not([type=range]):not([type=checkbox]),#instareelControls select{min-height:44px;max-width:100%;box-sizing:border-box;border-radius:8px;padding:8px;font-size:16px;background:#102632;color:#edf8ff;border:1px solid #52778a}
+#instareelSeconds{width:85px}
+#instareelName{width:min(100%,260px)}
+#instareelSeek{flex:1;min-width:100px;touch-action:none}
+#instareelControls input[type=checkbox]{width:22px;height:22px}
+#instareelControls summary{cursor:pointer;padding:12px 0;font-weight:700;min-height:24px}
+#instareelControls .instareel-library-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid #52778a}
+#instareelControls .instareel-library-row>span{flex:1 1 100%;overflow-wrap:anywhere}
+#instareelPreviewTitle{display:block;overflow-wrap:anywhere}
+#instareelSaveControls>label{margin-top:12px}
+#instareelControls [hidden]{display:none!important}
