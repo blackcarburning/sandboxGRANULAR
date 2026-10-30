@@ -47,12 +47,12 @@ root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get gen
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
-box.innerHTML=`<legend>INSTAREEL <small>· 3</small></legend>
+box.innerHTML=`<legend>INSTAREEL <small>· 4</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
  <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option></select></label></div>
  <div class="instareel-options"><label><input id="instareelNotes" type="checkbox"> X / L root-note variations</label><label><input id="instareelDrums" type="checkbox"> Drum variations + Roll fills</label></div>
- <p>Optional: vary X/L sequences when used; develop existing drums with occasional short Snare Roll fills.</p>
+ <p>Optional: X/L notes and drums evolve from each previous loop, with occasional hat ratchets and short Roll fills. The original groove returns at the loop boundary.</p>
  <p id="instareelLength">Duration rounds to complete source cycles for a musical loop.</p>
  <div class="instareel-actions"><button id="instareelMake" type="button">Make Reel</button><button id="instareelCancel" type="button" hidden>Cancel reel</button></div>
  <p id="instareelStatus" role="status" aria-live="polite">Find a patch you like, then make a reel. No extra AI calls.</p>
@@ -89,7 +89,7 @@ function playBuffer(){
  if(!source.loop)source.stop(started+length-position);
  el('Play').textContent='Pause';update();
 }
-el('Play').addEventListener('click',async()=>{
+async function togglePreview(){
  if(!current||loading||disposed)return;if(source){stopSource();update();return}
  const identity=user();context=audioContext;
  if(!identity||!context){message('Start MYGRAIN and sign in before previewing.');return}
@@ -106,7 +106,8 @@ el('Play').addEventListener('click',async()=>{
   await context.resume();if(valid())playBuffer();
  }catch(error){if(valid()){cancelPlayer();message(`Preview could not play: ${error.name==='AbortError'?'Download timed out; tap Play to retry':error.message}`)}}
  finally{clearTimeout(timeout);if(valid()){loading=false;el('Play').disabled=false}}
-});
+}
+el('Play').addEventListener('click',togglePreview);
 el('Loop').addEventListener('change',()=>{if(source){stopSource();playBuffer()}});
 el('Seek').addEventListener('input',()=>{if(!buffer)return;const playing=!!source;stopSource();position=Number(el('Seek').value)||0;if(playing)playBuffer();else update()});
 function select(item){cancelPlayer();current=item;el('Preview').hidden=false;el('PreviewTitle').textContent=item.name;el('SaveControls').hidden=!item.jobId;el('Seek').max=String(item.duration);update();sync()}
@@ -163,7 +164,7 @@ async function library(){
  try{const data=await json(base+'/library');if(identity!==user()||disposed)return;list.replaceChildren();
   if(!data.reels.length){list.textContent='No saved reels yet.';return}
   for(const reel of data.reels){const row=document.createElement('div');row.className='instareel-library-row';const title=document.createElement('span');title.textContent=`${reel.name} · ${reel.duration.toFixed(1)}s · ${reel.bpm} BPM`;
-   const play=document.createElement('button');play.type='button';play.textContent='Preview';play.addEventListener('click',()=>{select({name:title.textContent,duration:reel.duration,preview:`${base}/library/${reel.id}/preview`});el('Play').focus()});
+   const play=document.createElement('button');play.type='button';play.textContent='Preview';play.addEventListener('click',()=>{select({name:title.textContent,duration:reel.duration,preview:`${base}/library/${reel.id}/preview`});togglePreview();el('Preview').scrollIntoView({block:'nearest'});el('Play').focus({preventScroll:true})});
    const download=document.createElement('button');download.type='button';download.textContent='Download WAV';download.addEventListener('click',async()=>{download.disabled=true;try{const response=await fetch(`${base}/library/${reel.id}/wav`,{cache:'no-store'});if(!response.ok)throw Error('Download failed');const blob=await response.blob();if(identity!==user()||disposed)return;downloadBlob(blob,reel.filename)}catch(error){message(error.message)}finally{download.disabled=false}});
    row.append(title,play,download);list.append(row);
   }

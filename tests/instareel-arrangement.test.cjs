@@ -2,7 +2,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
 const script=require('../scripts/instareel-arrangement.cjs');
 function fixture(){
- const elements=new Map(),ctx={window:{},Event:class{},drumMachineEnabled:false,drumMachineHatBuffer:null,drumMachineHatPattern:[],drumMachineHatAccentPattern:[],getPatternLengthSteps:()=>16};
+ const elements=new Map(),ctx={window:{},Event:class{},drumMachineEnabled:false,drumMachineHatBuffer:null,drumMachineHatPattern:[],drumMachineHatAccentPattern:[],drumMachineHatRatchetPattern:Array(16).fill(0),getPatternLengthSteps:()=>16};
  for(const match of script.matchAll(/\['([^']+)','([^']+)',(bastardLoop\w*Enabled),!!(bastardLoop\w*),v=>(setBastardLoop\w*Enabled)\(v,quiet\)\]/g)){
   const [,key,id,on,buffer,set]=match;ctx[on]=key==='V';ctx[buffer]=['V','W'].includes(key)?{}:null;
   ctx[set]=value=>{assert(ctx[buffer]||!value,'Never enable an unloaded lane');ctx[on]=value};
@@ -36,8 +36,8 @@ test('note option changes a bounded number of root/fifth notes only in used lane
  c.hasBastardLoopLPlaybackSource=()=>false;f.apply(event);assert.equal(JSON.stringify(c.bastardLoopLSequence),original);
 });
 test('unchecked options leave note/drum sequences and Roll exactly unchanged',()=>{
- const f=musicalFixture({notes:false,drums:false}),c=f.ctx,before=JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineHatPattern,c.drumMachineBaseAccents]);
- for(const e of f.plan.events)f.apply(e);assert.equal(JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineHatPattern,c.drumMachineBaseAccents]),before);assert.equal(f.prepared.fills,0);
+ const f=musicalFixture({notes:false,drums:false}),c=f.ctx,before=JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineHatPattern,c.drumMachineHatRatchetPattern,c.drumMachineBaseAccents]);
+ for(const e of f.plan.events)f.apply(e);assert.equal(JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineHatPattern,c.drumMachineHatRatchetPattern,c.drumMachineBaseAccents]),before);assert.equal(f.prepared.fills,0);
 });
 test('Roll fills compile before scheduling with quiet short hits, no opening/closing fill and no missing-snare fallback',()=>{
  const f=musicalFixture({notes:false,drums:true}),c=f.ctx;assert(f.prepared.fills>0);assert.equal(c.drumMachineRoll.length,240);
@@ -48,4 +48,50 @@ test('precompiled Roll preserves independently repeating existing notes, ratchet
  const f=musicalFixture({notes:false,drums:false}),c=f.ctx,roll=c.window.MygrainDrumRoll.normalize({length:64,dip:70});roll.pattern[20]=true;roll.ratchets[20]=3;roll.dips[20]=true;roll.accents[20]=true;c.drumMachineRoll=roll;
  const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16,patternCycleMultiplier:4},32,'subtle',123,{drums:true});f.apply.prepare(p);
  assert.equal(c.drumMachineRoll.dip,70);for(let i=20;i<c.drumMachineRoll.length;i+=64){assert(c.drumMachineRoll.pattern[i]);assert.equal(c.drumMachineRoll.ratchets[i],3);assert(c.drumMachineRoll.dips[i]);assert(c.drumMachineRoll.accents[i])}
+});
+test('successive loops retain prior bass changes, develop gradually within a cap and restore at the join',()=>{
+ const f=musicalFixture({notes:true,drums:false}),c=f.ctx,original=JSON.parse(JSON.stringify(c.bastardLoopXSequence)),events=f.plan.events.filter(e=>e.amount>0);
+ f.apply(events[0]);const first=JSON.parse(JSON.stringify(c.bastardLoopXSequence)),firstIndex=first.findIndex((s,i)=>JSON.stringify(s)!==JSON.stringify(original[i]));
+ f.apply(events[1]);const second=JSON.parse(JSON.stringify(c.bastardLoopXSequence));assert.deepEqual(second[firstIndex],first[firstIndex]);assert.equal(second.filter((s,i)=>JSON.stringify(s)!==JSON.stringify(original[i])).length,2);
+ const stages=new Set([JSON.stringify(first),JSON.stringify(second)]);
+ for(const event of events.slice(2)){f.apply(event);stages.add(JSON.stringify(c.bastardLoopXSequence));assert(c.bastardLoopXSequence.filter((s,i)=>JSON.stringify(s)!==JSON.stringify(original[i])).length<=4)}assert(stages.size>=5);
+ f.apply(f.plan.events.at(-1));assert.equal(JSON.stringify(c.bastardLoopXSequence),JSON.stringify(original));
+});
+test('hat and backbeat detail carries into following loops without unbounded density growth',()=>{
+ const f=musicalFixture({notes:false,drums:true}),c=f.ctx;c.drumMachineHatBuffer={};c.drumMachineHatPattern=Array(16).fill(false);c.drumMachineHatAccentPattern=Array(16).fill(false);
+ const events=f.plan.events.filter(e=>e.amount>0);f.apply(events[0]);const first=c.drumMachineHatPattern.findIndex(Boolean),accent=c.drumMachineBaseAccents.snare.slice();
+ f.apply(events[1]);assert(c.drumMachineHatPattern[first]);assert.equal(c.drumMachineHatPattern.filter(Boolean).length,2);assert.equal(c.drumMachineBaseAccents.snare[4],accent[4]);
+ for(const event of events.slice(2)){f.apply(event);assert(c.drumMachineHatPattern.filter(Boolean).length<=2)}
+ f.apply(f.plan.events.at(-1));assert(!c.drumMachineHatPattern.some(Boolean));assert(!c.drumMachineBaseAccents.snare.some(Boolean));
+});
+
+test('temporary hat ratchets enter periodically, withdraw next loop and preserve manual ratchets',()=>{
+ const f=musicalFixture({drums:true}),c=f.ctx;c.drumMachineHatBuffer={};
+ const events=f.plan.events.filter(e=>e.amount>0);
+ const states=[];for(const event of events){f.apply(event);states.push(c.drumMachineHatRatchetPattern.some(n=>n>1))}
+ assert.deepEqual(states.slice(0,7),[true,false,false,true,false,false,true]);
+ f.apply(f.plan.events.at(-1));assert(!c.drumMachineHatRatchetPattern.some(n=>n>1));
+ const g=fixture();g.ctx.drumMachineHatRatchetPattern[2]=4;
+ // Baseline is captured when the isolated script is evaluated, before preparation.
+ const apply=vm.runInNewContext(script,g.ctx);Object.assign(g.ctx,{drumMachineEnabled:true,drumMachineHatBuffer:{},drumMachineSnareBuffer:null,drumMachineBaseAccents:{snare:[]},isDrumMachineLaneAudible:()=>true});
+ apply.prepare(f.plan);for(const event of f.plan.events){apply(event);assert.equal(g.ctx.drumMachineHatRatchetPattern[2],4)}
+});
+
+test('generated ratchets respect hat audibility and stay outside the queued closing section',()=>{
+ const f=musicalFixture({drums:true}),c=f.ctx;c.drumMachineHatBuffer={};c.isDrumMachineLaneAudible=()=>false;
+ const events=f.plan.events.filter(e=>e.amount>0);for(const event of events){f.apply(event);assert(!c.drumMachineHatRatchetPattern.some(n=>n>1))}
+ c.isDrumMachineLaneAudible=()=>true;f.apply(f.plan.events[0]);
+ for(const event of events){f.apply(event);if(event.at+2>=f.plan.events.at(-1).at)assert(!c.drumMachineHatRatchetPattern.some(n=>n>1))}
+});
+
+test('moderate hat bursts use three hits then return to unratcheted steps',()=>{
+ const f=musicalFixture({drums:true}),c=f.ctx;c.drumMachineHatBuffer={};f.plan.variation='moderate';
+ const events=f.plan.events.filter(e=>e.amount>0);f.apply(events[0]);assert(c.drumMachineHatRatchetPattern.includes(3));
+ f.apply(events[1]);assert(!c.drumMachineHatRatchetPattern.some(n=>n>1));
+});
+
+test('four-second sections also withdraw ratchets before the two-second queued closing boundary',()=>{
+ const f=musicalFixture({drums:true}),c=f.ctx;c.drumMachineHatBuffer={};
+ const plan=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:32},60,'subtle',123,{drums:true});f.apply.prepare(plan);
+ for(const event of plan.events){f.apply(event);if(c.drumMachineHatRatchetPattern.some(n=>n>1))assert(event.at+4+2<=plan.events.at(-1).at)}
 });

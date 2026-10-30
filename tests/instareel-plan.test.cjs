@@ -26,3 +26,6 @@ test('musical options default off and produce sparse interior fills only when re
  const meta={bpm:120,patternSteps:16},a=plan(meta,30,'subtle',12),b=plan(meta,30,'subtle',12,{notes:true,drums:true}),c=plan(meta,30,'moderate',12,{drums:true});
  assert.deepEqual(a.options,{notes:false,drums:false});assert.deepEqual(a.fills,[]);assert.deepEqual(b.options,{notes:true,drums:true});assert.equal(b.fills.length,1);assert(c.fills.length>b.fills.length);for(const fill of c.fills){assert(fill.at>=4&&fill.end<28);assert(fill.end-fill.at<=.5);assert(fill.ratchet<=2)}
 });
+test('phrase-end fills develop gradually instead of repeating identical fills',()=>{
+ const p=plan({bpm:120,patternSteps:16},60,'subtle',123,{drums:true});assert.deepEqual(p.fills.map(f=>f.hits),[1,2,2]);assert(p.fills.every(f=>f.ratchet===1));
+});

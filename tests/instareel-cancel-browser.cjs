@@ -6,7 +6,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
  await context.request.post(base+'api/auth/login',{data:{username:'admin',password:'instareel-fixture'}});await page.goto(base);await page.waitForFunction(()=>window.mygrainInstareel&&document.documentElement.dataset.mygrainStartup==='ready');await page.evaluate(()=>mygrainCardHistory.ready);await page.locator('#start-btn').tap();await page.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
  await page.locator('#sectionJumpHandle').tap();await page.locator('.section-jump-option[data-jump-target="#genreatorCard"]').tap();
  await page.locator('#instareelLibrary summary').tap();await page.locator('.instareel-library-row').first().waitFor();await page.locator('.instareel-library-row button').first().tap();
- await page.locator('#instareelPlay').tap();await page.waitForFunction(()=>mygrainInstareel.player.playing);await page.waitForTimeout(9500);
+ await page.waitForFunction(()=>mygrainInstareel.player.playing);await page.waitForTimeout(9500);
  assert.equal(await page.evaluate(()=>audioContext.state),'running');assert.equal(await page.evaluate(()=>mygrainInstareel.player.playing),true);
  if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)await page.screenshot({path:process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/portrait-g.png'});
  await page.locator('#instareelPlay').tap();

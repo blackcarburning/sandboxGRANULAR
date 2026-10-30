@@ -12,6 +12,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.evaluate(hats=>window.instareelTestHats=hats,!!process.env.INSTAREEL_HATS);
   await page.evaluate(value=>window.instareelTestVariations=value,!!process.env.INSTAREEL_RETRY_TEST);
   await page.evaluate(value=>window.instareelMusical=value,!!process.env.INSTAREEL_MUSICAL_TEST);
+  await page.evaluate(value=>window.instareelRatchets=value,!!process.env.INSTAREEL_RATCHET_TEST);
   await page.evaluate(()=>{
    stopAllPerformancePlayback({silent:true});
    const buffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),data=buffer.getChannelData(0);
@@ -38,6 +39,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
     for(const key of ['L','X']){const el=document.getElementById('performanceBastardLoop'+key+'Level');el.value='40';el.dispatchEvent(new Event('input',{bubbles:true}))}
     drumMachineEnabled=true;drumMachineKickBuffer=tone(60,.07);drumMachineSnareBuffer=tone(1000,.05);drumMachineHatBuffer=null;
     drumMachineKickPattern=Array.from({length:64},(_,i)=>i%16===0||i%16===8);drumMachineSnarePattern=Array.from({length:64},(_,i)=>i%16===4||i%16===12);drumMachineHatPattern=Array(64).fill(false);drumMachineRoll=MygrainDrumRoll.normalize({length:64});
+    if(window.instareelRatchets){drumMachineHatBuffer=tone(5000,.025);drumMachineHatPattern=Array.from({length:64},(_,i)=>i%2===0);drumMachineHatRatchetPattern=Array(64).fill(0);drumMachineHatAccentPattern=Array(64).fill(false)}
     syncPerformanceControlState();
    }
    window.instareelOriginal={buffer:bastardLoopVBuffer,snapshot:JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)};
@@ -65,6 +67,11 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.locator('#instareelPlay').tap();await page.waitForFunction(()=>mygrainInstareel.player.playing);await page.locator('#instareelPlay').tap();assert.equal(await page.evaluate(()=>mygrainInstareel.player.playing),false);
   await page.locator('#instareelName').fill('Test Reel '+engine);await page.locator('#instareelSave').tap();await page.waitForFunction(()=>document.getElementById('instareelStatus').textContent.startsWith('Saved '));
   await page.locator('#instareelLibrary summary').tap();await page.locator('.instareel-library-row').first().waitFor();
+  await page.locator('.instareel-library-row button').first().tap();await page.waitForFunction(()=>mygrainInstareel.player.playing);
+  await page.evaluate(()=>{window.savedReelAnalyser=audioContext.createAnalyser();mygrainInstareel.player.source.connect(savedReelAnalyser)});
+  await page.waitForFunction(()=>{const pcm=new Float32Array(savedReelAnalyser.fftSize);savedReelAnalyser.getFloatTimeDomainData(pcm);return pcm.some(x=>Math.abs(x)>.001)});
+  await page.locator('#instareelPlay').tap();assert.equal(await page.evaluate(()=>mygrainInstareel.player.playing),false);
+  console.log('PASS',engine,'saved-browser Preview starts audible playback with one tap');
   for(const viewport of [{width:390,height:844},{width:844,height:390}]){await page.setViewportSize(viewport);await page.locator('#instareelControls').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
   if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)await page.screenshot({path:process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-g.png'});
   const id=await page.evaluate(()=>mygrainInstareel.job.id);

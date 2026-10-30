@@ -14,7 +14,7 @@ function plan(meta, seconds, variation, seed, options = {}) {
  }
  // Always restore the original arrangement for a complete final bar.
  if(events.at(-1).amount!==0)events.push({at:duration-bar,amount:0,pick:0,hat:false,seed:0});
- const fills=[];if(options.drums){const phrase=bar*(variation==='subtle'?8:4);for(let end=phrase;end<duration-section+1e-8;end+=phrase)fills.push({at:end-bar/4,end,ratchet:variation==='subtle'?1:2});}
- return {version:3,options,fills,requestedSeconds:seconds,duration,cycle,repeats,bpm:meta.bpm,variation,seed,warmup:cycle,events:events.sort((a,b)=>a.at-b.at)};
+ const fills=[];if(options.drums){const phrase=bar*(variation==='subtle'?8:4);for(let end=phrase;end<duration-section+1e-8;end+=phrase)fills.push({at:end-bar/4,end,ratchet:variation==='subtle'?1:2,hits:Math.min(variation==='subtle'?2:3,(variation==='subtle'?1:2)+fills.length)});}
+ return {version:4,options,fills,requestedSeconds:seconds,duration,cycle,repeats,bpm:meta.bpm,variation,seed,warmup:cycle,events:events.sort((a,b)=>a.at-b.at)};
 }
 module.exports={plan};

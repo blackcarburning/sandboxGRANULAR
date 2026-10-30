@@ -102,3 +102,32 @@ root-related sparse note changes, boundary restoration and precompiled Roll hits
 
 `tests/instareel-musical-evidence.py` measures both X/L fifth-note energy and
 Roll fill transients in paired on/off WAVs, plus independent wrap-step checks.
+
+## Evolving development and saved preview · 4
+
+Notes and drum detail now carry forward from the previous section rather than
+starting from the source each time. The changed-note footprint is capped at a
+quarter of the sequence in Subtle (three eighths in Moderate); subsequent changes
+develop those cells around the original root rather than drifting in register.
+Hats gain at most two/four offbeats and then evolve their accents. Short Roll
+fills grow from one to two Subtle hits (two to three Moderate hits). The final
+section restores the source groove.
+
+With Drum variations selected, one playable hat step occasionally gains a
+double ratchet (triple in Moderate), then loses the added ratchet in the next
+section. These bursts recur every third developed section, respect Hat audibility,
+preserve manual ratchets, and stop early enough for the existing two-second
+drum scheduling horizon before the closing section. No shared scheduler changes.
+
+Saved INSTAREEL Browser Preview now selects **and starts** the existing G preview
+from the same trusted tap; previously it only selected the file and focused Play.
+The buffered player, loop behavior and main WAV Browser/iPhone code are unchanged.
+`INSTAREEL_RATCHET_TEST=1` adds a distinctive 5kHz hat to the musical browser
+fixture. Both browser engines assert audible one-tap saved preview; the
+cancellation fixture also checks it past the idle threshold.
+
+`tests/instareel-ratchet-evidence.py EVIDENCE_DIR [ON_WAV ...]` detects
+actual 62.5ms double-hit spacings in the 5kHz hat fixture: recurring burst sections,
+intervening withdrawal, untouched opening/closing and no doubles with Drums off.
+`instareel-musical-evidence.py EVIDENCE_DIR [ON_WAV]` supports a selected on-render
+paired against the same-page Chromium options-off retry.
