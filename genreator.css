@@ -33,3 +33,11 @@
 
 #instareelControls .instareel-rename{display:flex;flex-wrap:wrap;gap:8px;min-width:0;flex:1 1 100%}
 #instareelControls .instareel-rename input{flex:1 1 160px;min-width:0}
+
+#genreatorTempoDialog{box-sizing:border-box;width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:20px;background:#172e39;color:#edf8ff;border:1px solid #87e1c6;border-radius:14px;z-index:2147483000}
+#genreatorTempoDialog::backdrop{background:rgba(0,0,0,.7)}
+#genreatorTempoDialog h2{margin:0 0 12px;font-size:20px}
+#genreatorTempoDialog p{line-height:1.5;overflow-wrap:anywhere}
+.genreator-tempo-actions{display:flex;flex-wrap:wrap;gap:10px}
+.genreator-tempo-actions button{flex:1 1 100px;min-width:0;min-height:44px;padding:10px;border:1px solid #52778a;border-radius:10px;background:#263b49;color:#edf8ff;font:inherit}
+@media(max-width:450px){.genreator-tempo-actions{flex-direction:column}.genreator-tempo-actions button{flex:auto;width:100%}}

@@ -111,3 +111,21 @@ shipped controls catalogue. It checks readiness, all 15 buttons enabled, touch
 generation, tempo application, Undo, error recovery, rejection of an actual
 read-only control and Cancel on Chromium/WebKit at 390×844 and 844×390.
 Before the fix it fails with `AI must accept shipped control contract v4`.
+
+## BPM confirmation · GENRE.6
+
+The override starts blank (**Auto**), resets on page open/reopen and on Random
+(including the common Mega/Sparse patch-randomization entrypoint). Browser
+numeric-field autocomplete is disabled. A number prompts **Yes / Cancel / Use
+suggested** before any AI request: Yes uses the existing 60–180 BPM validation,
+Cancel does not generate or change the patch, and Use suggested clears the field
+and sends a null genreBpm so the existing genre policy chooses tempo. Invalid
+numbers can therefore be discarded using Use suggested rather than blocking the
+genre action. The accessible three-choice dialog is mounted on body in the native
+modal top layer; page/account resets dismiss a pending confirmation.
+
+`tests/genreator-tempo-browser.cjs` checks request payloads, reset paths, all three
+choices, invalid input, unchanged patch fingerprints, and portrait/landscape modal
+bounds and hit targets in Chromium/WebKit. The existing bootstrap/browser genre
+fixtures explicitly confirm manually entered tempo. No audio engine, Song render
+compatibility or server genre rules change.

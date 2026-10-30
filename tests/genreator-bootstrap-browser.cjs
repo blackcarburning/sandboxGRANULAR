@@ -51,7 +51,7 @@ assert.match(base, /^http:\/\/127\.0\.0\.1:\d+\/mygrain\/$/);
                     const before = await page.locator('#globalBpmSlider').inputValue();
                     await page.locator('#genreatorBpm').fill('123');
                     const button = page.locator('[data-genre="house"]');
-                    await button.tap();
+                    await button.tap();if(await page.locator('#genreatorTempoDialog').isVisible())await page.locator('[data-tempo-choice="yes"]').tap();
                     await page.waitForFunction(() => document.getElementById('genreatorStatus').textContent.includes('patch applied'));
                     assert.equal(requests.at(-1).genre, 'house');
                     assert.equal(requests.at(-1).genreBpm, 123);
@@ -61,14 +61,14 @@ assert.match(base, /^http:\/\/127\.0\.0\.1:\d+\/mygrain\/$/);
                     assert.equal(await page.locator('#globalBpmSlider').inputValue(), before);
                     for (mode of ['error', 'readOnly']) {
                         const fingerprint = await page.evaluate(() => mygrainAiPatchAdapter.fingerprint());
-                        await button.tap();
+                        await button.tap();if(await page.locator('#genreatorTempoDialog').isVisible())await page.locator('[data-tempo-choice="yes"]').tap();
                         await page.waitForFunction(() => !mygrainGenreator.busy && !mygrainAiPatch.busy);
                         assert.match(await page.locator('#genreatorStatus').innerText(), mode === 'error' ? /unavailable/ : /Unsupported or out-of-range/);
                         assert.equal(await page.evaluate(() => mygrainAiPatchAdapter.fingerprint()), fingerprint);
                         assert.equal(await page.locator('#genreatorCard [data-genre]:enabled').count(), 15);
                     }
                     mode = 'hold';
-                    await button.tap();
+                    await button.tap();if(await page.locator('#genreatorTempoDialog').isVisible())await page.locator('[data-tempo-choice="yes"]').tap();
                     await page.waitForFunction(() => mygrainAiPatch.busy);
                     assert.equal(await page.locator('#genreatorCard [data-genre]:disabled').count(), 15);
                     await page.locator('#genreatorCancel').tap();

@@ -3,18 +3,34 @@
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const bpm=document.getElementById('genreatorBpm'),status=document.getElementById('genreatorStatus'),cancel=document.getElementById('genreatorCancel'),undo=document.getElementById('genreatorUndo');
-let genres=[],pending=false,lastGenre=null;
+let genres=[],pending=false,lastGenre=null,confirming=false;
+const tempoDialog=document.createElement('dialog');tempoDialog.id='genreatorTempoDialog';tempoDialog.setAttribute('aria-labelledby','genreatorTempoTitle');
+tempoDialog.innerHTML='<h2 id="genreatorTempoTitle">Use BPM override?</h2><p id="genreatorTempoQuestion"></p><div class="genreator-tempo-actions"><button type="button" data-tempo-choice="yes">Yes</button><button type="button" data-tempo-choice="cancel" autofocus>Cancel</button><button type="button" data-tempo-choice="suggested">Use suggested</button></div>';
+document.body.append(tempoDialog);
+for(const button of tempoDialog.querySelectorAll('[data-tempo-choice]'))button.addEventListener('click',()=>tempoDialog.close(button.dataset.tempoChoice));
+function resetTempo(){bpm.value='';bpm.defaultValue='';if(tempoDialog.open)tempoDialog.close('cancel')}
+bpm.autocomplete='off';resetTempo();
+root.addEventListener('pageshow',resetTempo);
+Promise.resolve(root.mygrainCardHistory?.ready).then(resetTempo);
+document.getElementById('randomizeBtn')?.addEventListener('click',resetTempo,{capture:true});
+root.addEventListener('mygrain-account-lock',resetTempo);root.addEventListener('mygrain-account-changed',resetTempo);
+function confirmTempo(profile,tempo){
+ confirming=true;sync();document.getElementById('genreatorTempoQuestion').textContent=`Use ${tempo} BPM for ${profile.label}? Use suggested lets the genre choose its tempo (${profile.bpm[0]}–${profile.bpm[1]} BPM).`;
+ return new Promise(resolve=>{const previous=document.activeElement;tempoDialog.returnValue='';tempoDialog.addEventListener('close',()=>{confirming=false;sync();if(previous?.isConnected)previous.focus({preventScroll:true});resolve(tempoDialog.returnValue||'cancel')},{once:true});tempoDialog.showModal()});
+}
 function sync(){
- const ai=root.mygrainAiPatch,busy=pending||ai?.busy||root.mygrainCardHistory?.busy||root.mygrainInstareel?.capturing;
+ const ai=root.mygrainAiPatch,busy=confirming||pending||ai?.busy||root.mygrainCardHistory?.busy||root.mygrainInstareel?.capturing;
  for(const b of card.querySelectorAll('[data-genre]'))b.disabled=!!busy||!ai?.ready;
  bpm.disabled=!!busy;cancel.hidden=!pending;undo.disabled=!!busy||!root.mygrainCardHistory?.undoLabel;
- card.setAttribute('aria-busy',String(!!busy));
+ card.dataset.genreBuild='GENRE.6';card.setAttribute('aria-busy',String(!!busy));
  if(pending&&ai?.diagnostics().status)status.textContent=ai.diagnostics().status;
 }
 async function generate(id){
  const profile=genres.find(g=>g.id===id),ai=root.mygrainAiPatch;
- if(!profile||pending||ai?.busy||!ai?.ready)return;
- const raw=bpm.value.trim(),tempo=raw===''?null:Number(raw);
+ if(!profile||pending||confirming||ai?.busy||!ai?.ready)return;
+ let tempo=bpm.value.trim()===''?null:Number(bpm.value);
+ if(tempo!==null){const choice=await confirmTempo(profile,tempo);if(choice==='cancel'){status.textContent='Generation cancelled. Current patch unchanged.';return}if(choice==='suggested'){resetTempo();tempo=null}}
+ if(ai?.busy||!ai?.ready||root.mygrainCardHistory?.busy)return;
  if(tempo!==null&&(!Number.isInteger(tempo)||tempo<60||tempo>180)){status.textContent='Enter a whole BPM from 60 to 180, or leave blank for AI tempo.';return;}
  pending=true;lastGenre=id;status.textContent=`Choosing a fresh ${profile.label} patch…`;sync();
  try{
@@ -27,7 +43,7 @@ async function generate(id){
 cancel.addEventListener('click',()=>root.mygrainAiPatch?.cancel());
 undo.addEventListener('click',async()=>{if(!pending&&!root.mygrainAiPatch?.busy){await root.mygrainCardHistory?.undo();status.textContent='Undo finished.';sync()}});
 root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
-root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get genres(){return genres.map(g=>g.id)},get lastGenre(){return lastGenre}});
+root.mygrainGenreator=Object.freeze({generate,resetTempo,get busy(){return pending||confirming},get genres(){return genres.map(g=>g.id)},get lastGenre(){return lastGenre}});
 (async()=>{try{
  const response=await fetch(new URL('genre-presets.json?v=20261029-genre-3',document.baseURI),{credentials:'same-origin'});if(!response.ok)throw Error('Genre list could not load. Reload to try again.');genres=await response.json();
  const host=document.getElementById('genreatorGenres');
