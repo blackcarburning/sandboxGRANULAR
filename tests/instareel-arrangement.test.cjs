@@ -172,17 +172,29 @@ test('mix driver copies current sources only, excludes N feedback and disconnect
  assert(heard);assert.equal(connected.size,0);apply.cleanup();assert.equal(connected.size,0);
 });
 
-test('Roll lane gets straight hits then end ratchets, including an existing shallow Dip',()=>{
+test('Roll compiles each per-pattern rhythm and exact ratchets, including an existing shallow Dip',()=>{
  for(const variation of ['subtle','moderate','extreme'])for(const dip of [0,15,100]){
   const f=musicalFixture({drums:false}),c=f.ctx,old=c.window.MygrainDrumRoll.normalize({length:64,dip});
   old.pattern[0]=true;old.ratchets[0]=3;old.dips[0]=dip>0;c.drumMachineRoll=old;
   const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,variation,123,{drums:true});
   assert(f.apply.prepare(p).fills>0);
-  for(const fill of p.fills){const end=Math.round((p.warmup+fill.end)/.125);
-   for(let j=0;j<4;j++){const i=(end-4+j)%c.drumMachineRoll.length;assert(c.drumMachineRoll.pattern[i]);assert.equal(c.drumMachineRoll.ratchets[i],j<2?1:fill.ratchet);if(dip===100)assert(!c.drumMachineRoll.dips[i])}
+  for(const fill of p.fills){const start=Math.round((p.warmup+fill.at)/.125);
+   for(const note of fill.notes){const i=(start+note.step)%c.drumMachineRoll.length;if(i%64===0)continue;assert(c.drumMachineRoll.pattern[i]);assert.equal(c.drumMachineRoll.ratchets[i],note.ratchet);if(dip===100)assert(!c.drumMachineRoll.dips[i])}
   }
   assert.equal(c.drumMachineRoll.ratchets[0],3);
  }
+});
+
+test('Roll inserts only planned notes, retains colliding manual events and accepts older queued fill plans',()=>{
+ const f=musicalFixture({drums:false}),c=f.ctx,p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'moderate',123,{drums:true});
+ const before=c.window.MygrainDrumRoll.normalize({length:64,dip:35}),first=p.fills[0],collision=(Math.round((p.warmup+first.at)/.125)+first.notes[0].step)%64;
+ before.pattern[collision]=true;before.ratchets[collision]=7;before.dips[collision]=true;before.accents[collision]=true;c.drumMachineRoll=before;
+ f.apply.prepare(p);const roll=c.drumMachineRoll,expected=new Map();
+ for(let i=0;i<roll.length;i++)if(before.pattern[i%64])expected.set(i,{ratchet:7,manual:true});
+ for(const fill of p.fills)for(const note of fill.notes){const i=(Math.round((p.warmup+fill.at)/.125)+note.step)%roll.length;if(!expected.has(i))expected.set(i,note)}
+ for(let i=0;i<roll.length;i++){assert.equal(roll.pattern[i],expected.has(i));if(expected.has(i)){assert.equal(roll.ratchets[i],expected.get(i).ratchet);if(expected.get(i).manual){assert(roll.dips[i]);assert(roll.accents[i])}}}
+ const g=musicalFixture({drums:false}),legacy={...p,version:7,fills:[{at:15.5,end:16,hits:4,ratchet:2}]};g.apply.prepare(legacy);
+ assert.deepEqual(Array.from({length:4},(_,j)=>g.ctx.drumMachineRoll.ratchets[(16+124+j)%240]),[1,1,2,2]);
 });
 
 test('Roll development respects blocked lanes and disabled drums without touching the saved pattern',()=>{

@@ -22,24 +22,43 @@ test('reject unsafe targets and source cycles that cannot fit the range',()=>{
 test('one or two long source cycles still contain audible interior changes',()=>{
  for(const steps of [64,128]){const a=plan({bpm:120,patternSteps:steps},32,'subtle',8),b=plan({bpm:120,patternSteps:steps},32,'moderate',8);assert(a.events.some(e=>e.amount>.15));assert(b.events.some(e=>e.amount>.35));assert.equal(a.events.at(-1).amount,0)}
 });
-test('musical options default off and produce sparse interior fills only when requested',()=>{
+test('musical options default off and produce bounded interior fills only when requested',()=>{
  const meta={bpm:120,patternSteps:16},a=plan(meta,30,'subtle',12),b=plan(meta,30,'subtle',12,{notes:true,drums:true,recutV:false}),c=plan(meta,30,'moderate',12,{drums:true});
- assert.deepEqual(a.options,{notes:false,drums:false,recutV:false});assert.deepEqual(a.fills,[]);assert.deepEqual(b.options,{notes:true,drums:true,recutV:false});assert.equal(b.fills.length,1);assert(c.fills.length>b.fills.length);for(const fill of c.fills){assert(fill.at>=4&&fill.end<28);assert(fill.end-fill.at<=.5);assert.equal(fill.ratchet,3)}
+ assert.deepEqual(a.options,{notes:false,drums:false,recutV:false});assert.deepEqual(a.fills,[]);assert.deepEqual(a.rollIterations,[]);assert.deepEqual(b.options,{notes:true,drums:true,recutV:false});assert(b.fills.length>0);for(const fill of c.fills){assert(fill.at>=2&&fill.end<=28);assert(fill.end-fill.at<=1);assert(fill.ratchet>=2&&fill.ratchet<=3)}
 });
-test('phrase-end rolls use four straight-to-ratcheted steps even in Subtle',()=>{
- const p=plan({bpm:120,patternSteps:16},60,'subtle',123,{drums:true});assert.deepEqual(p.fills.map(f=>f.hits),[4,4,4]);assert(p.fills.every(f=>f.ratchet===2));
+test('Roll is freshly evaluated each main pattern, independently of a longer saved Roll cycle',()=>{
+ const p=plan({bpm:120,patternSteps:16,patternCycleMultiplier:4},60,'subtle',123,{drums:true});
+ assert.equal(p.version,8);assert.equal(p.duration,56,'The existing complete-source-cycle rounding remains in force');assert.equal(p.rollIterations.length,24);assert(p.rollIterations.every((d,i)=>d.iteration===i+2&&d.at===4+i*2&&d.end===6+i*2));
+ assert(p.rollIterations.some(d=>d.fill));assert(p.rollIterations.some(d=>!d.fill));assert.equal(p.fills.length,p.rollIterations.filter(d=>d.fill).length);
+ assert(new Set(p.fills.map(f=>f.hits)).size>1);assert(p.fills.some(f=>f.hits!==4));
+ const signature=f=>JSON.stringify([p.rollIterations.find(d=>d.iteration===f.iteration).end-f.end,f.windowSteps,f.notes]);
+ for(let i=1;i<p.fills.length;i++)assert.notEqual(signature(p.fills[i]),signature(p.fills[i-1]));
+ assert.notDeepEqual(p.fills,plan({bpm:120,patternSteps:16,patternCycleMultiplier:4},60,'subtle',456,{drums:true}).fills);
 });
 
 test('Extreme is deterministic and stronger, while retaining original boundary and duration',()=>{
  const meta={bpm:120,patternSteps:16},a=plan(meta,30,'moderate',123,{notes:true,drums:true,recutV:false}),b=plan(meta,30,'extreme',123,{notes:true,drums:true,recutV:false});
- assert(b.events[1].amount>a.events[1].amount);assert(b.fills.length>a.fills.length);assert(b.fills.every(f=>f.ratchet===4));assert.equal(b.duration,30);assert.equal(b.events[0].amount,0);assert.equal(b.events.at(-1).amount,0);assert.deepEqual(b,plan(meta,30,'extreme',123,{notes:true,drums:true,recutV:false}));
+ assert(b.events[1].amount>a.events[1].amount);assert(b.fills.length>a.fills.length);assert(b.fills.every(f=>f.ratchet>=2&&f.ratchet<=4));assert.equal(b.duration,30);assert.equal(b.events[0].amount,0);assert.equal(b.events.at(-1).amount,0);assert.deepEqual(b,plan(meta,30,'extreme',123,{notes:true,drums:true,recutV:false}));
 });
 
 test('V re-cut option is explicit and defaults off',()=>{const meta={bpm:120,patternSteps:16};assert.equal(plan(meta,30,'subtle',1).options.recutV,false);assert.equal(plan(meta,30,'subtle',1,{recutV:true}).options.recutV,true);assert.equal(plan(meta,30,'subtle',1,{recutV:'1'}).options.recutV,false)});
 
-test('short slow reels still receive an interior roll and all strengths keep full beat timing',()=>{
- for(const bpm of [60,90,120,175])for(const variation of ['subtle','moderate','extreme']){
-  const p=plan({bpm,patternSteps:16},30,variation,123,{drums:true});assert(p.fills.length>0);
-  for(const f of p.fills){assert(Math.abs((f.end-f.at)-60/bpm)<1e-7);assert(f.at>=p.events[1].at);assert(f.end<=p.events.at(-1).at);assert.equal(f.hits,4);assert(f.ratchet>1)}
+test('random Roll decisions stay on-grid and within each pattern and protected boundaries across seeds and lengths',()=>{
+ for(const bpm of [60,90,120,175])for(const patternSteps of [16,32,64,128])for(const variation of ['subtle','moderate','extreme'])for(const seed of [0,1,123,456,0xffffffff]){
+  const meta={bpm,patternSteps},p=plan(meta,30,variation,seed,{drums:true}),step=60/bpm/4;assert(p.fills.length>0);assert.deepEqual(p,plan(meta,30,variation,seed,{drums:true}));
+  assert.deepEqual(p.events,plan(meta,30,variation,seed).events,'Roll draws must not change unrelated arrangement choices');
+  for(const f of p.fills){const d=p.rollIterations.find(d=>d.iteration===f.iteration);assert(d.fill);assert(f.at>=d.at-1e-7&&f.end<=d.end+1e-7);assert(f.at>=p.events[1].at-1e-7);assert(f.end<=p.events.at(-1).at+1e-7);assert.equal(f.hits,f.notes.length);assert(f.ratchet>1);assert.equal(f.windowSteps,Math.round((f.end-f.at)/step));assert(Math.abs(f.at/step-Math.round(f.at/step))<1e-7);
+   assert.equal(new Set(f.notes.map(n=>n.step)).size,f.notes.length);for(const note of f.notes){assert(Number.isInteger(note.step)&&note.step>=0&&note.step<f.windowSteps);assert(note.ratchet>=1&&note.ratchet<=(variation==='subtle'?2:variation==='moderate'?3:4))}
+  }
  }
+});
+
+test('strength increases average density and Roll rhythms vary in length, position, gaps and ratchets',()=>{
+ const totals=[],meta={bpm:120,patternSteps:16};
+ for(const variation of ['subtle','moderate','extreme']){
+  let hits=0;const widths=new Set(),positions=new Set(),rhythms=new Set();
+  for(let seed=1;seed<=100;seed++)for(const f of plan(meta,60,variation,seed,{drums:true}).fills){hits+=f.notes.reduce((sum,n)=>sum+n.ratchet,0);widths.add(f.windowSteps);positions.add(Math.round(f.end/.125)%16);rhythms.add(JSON.stringify(f.notes))}
+  assert(widths.size>2);assert(positions.size>2);assert(rhythms.size>20);totals.push(hits);
+ }
+ assert(totals[0]<totals[1]&&totals[1]<totals[2]);
 });

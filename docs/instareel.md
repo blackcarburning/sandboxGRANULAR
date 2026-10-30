@@ -262,3 +262,32 @@ new ratchets; a 100% Dip does not silence newly generated notes. All changes
 remain inside the server reel deck using the shared Song engine; saved Song
 compatibility and live editor sequences/DSP are unchanged. New canonical plans
 are version 7; existing WAVs remain intact.
+
+## Fresh per-pattern Roll rhythms · 11
+
+With Drum variations selected, Roll is re-evaluated on **every main pattern
+iteration**, independently of a longer saved Roll cycle and arrangement sections.
+Each eligible iteration makes a fresh seeded presence decision (45% Subtle,
+70% Moderate, 90% Extreme). An interior roll is retained even in a short reel.
+Length, position near the pattern ending, gaps and individual ratchets are newly
+chosen: 2–4 steps in Subtle, up to 8 in Moderate and 16 in Extreme, clipped to
+the available interior. The previous generated rhythm cannot be copied unchanged.
+This replaces the fixed four-step phrase-ending fill in version 7.
+
+Canonical version-8 plans expose `rollIterations` and explicit `fills[].notes`
+(`step` relative to the fill start, `ratchet` per occupied step). The entire
+timeline is still compiled before the two-second-lookahead scheduler starts;
+this is per-iteration musical generation, not late timer mutation. Original
+manual Roll events win on collisions and retain their dips, accents and ratchets.
+The opening/closing groove, loaded-Snare requirement, optional Drums gate and
+additive Roll solo behavior are unchanged. Older queued fill plans remain accepted.
+Fresh backend jobs read the updated canonical planner and arrangement modules;
+no service restart, shared DSP/Song change or existing saved-WAV regeneration is
+needed. The live editor and source ZIPs are not edited.
+
+`tests/instareel-roll-evidence.py EVIDENCE_DIR [WAV ...]` now uses the saved
+`*-plan.json` from the musical browser fixture to measure each actually rendered
+rhythm against its Drums-off retry. It checks new 1kHz Snare hits, varying step
+counts, non-copied rhythms, empty patterns and the protected join. Use
+`INSTAREEL_SECONDS=60 INSTAREEL_VARIATION=subtle INSTAREEL_MUSICAL_TEST=1
+INSTAREEL_RETRY_TEST=1 INSTAREEL_SOLO_TEST=kick,snare` for a representative run.

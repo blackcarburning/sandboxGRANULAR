@@ -72,7 +72,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
    adapter.capture=async options=>{
     const original=await capture(options);if(options?.liveOnly)return original;
     const entries=parseStoredZipEntries(await original.arrayBuffer()),snapshot=JSON.parse(getZipText(entries,'song-part.json'));
-    delete snapshot.state.modes.drumMachineLaneSolos;delete snapshot.state.modes.noiseN;
+    delete snapshot.state.modes.drumMachineLaneSolos;delete snapshot.state.modes.drumMachineRoll;delete snapshot.state.modes.noiseN;
     for(const lane of ['Kick','Snare','Perc','Roll'])delete snapshot.state.sliders['drumMachine'+lane+'AccentAmount'];
     const legacy=await createStoredZip([...entries].map(([path,data])=>({path,data:path==='song-part.json'?JSON.stringify(snapshot):data})));
     const decoded=parseStoredZipEntries(await legacy.arrayBuffer());
@@ -92,7 +92,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   const status=await page.locator('#instareelStatus').textContent();console.log(engine,status);assert.match(status,/loopable reel ready/);
   assert.equal(await page.evaluate(()=>instareelOriginal.buffer===bastardLoopVBuffer),true,'Live source buffer identity must not change');
   assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true,'Live patch settings must not change');
-  if(process.env.INSTAREEL_MUSICAL_TEST){const first=await page.evaluate(()=>mygrainInstareel.job.id),response=await context.request.get(base+`api/instareel/${first}`,{headers:{'X-Mygrain-User':'admin'}}),data=(await response.json()).job;assert.deepEqual(data.plan.options,{notes:true,drums:true,recutV:!!process.env.INSTAREEL_RECUT_TEST});assert(data.plan.fills.length>0);}
+  if(process.env.INSTAREEL_MUSICAL_TEST){const first=await page.evaluate(()=>mygrainInstareel.job.id),response=await context.request.get(base+`api/instareel/${first}`,{headers:{'X-Mygrain-User':'admin'}}),data=(await response.json()).job;assert.deepEqual(data.plan.options,{notes:true,drums:true,recutV:!!process.env.INSTAREEL_RECUT_TEST});assert(data.plan.fills.length>0);assert.equal(data.plan.version,8);assert(data.plan.rollIterations.length>=data.plan.fills.length);if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-plan.json',JSON.stringify(data.plan,null,2));}
   if(process.env.INSTAREEL_RECUT_TEST){const id=await page.evaluate(()=>mygrainInstareel.job.id);const data=await (await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'admin'}})).json();assert.equal(data.job.plan.options.recutV,true)}
   assert.equal(await page.locator('#instareelLoop').isChecked(),true);
   await page.locator('#instareelPlay').tap();await page.waitForFunction(()=>mygrainInstareel.player.playing);
@@ -128,6 +128,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
    await page.locator('#instareelMake').tap();
    await page.waitForFunction(old=>mygrainInstareel.job&&mygrainInstareel.job.id!==old,id,{timeout:30000});
    const nextId=await page.evaluate(()=>mygrainInstareel.job.id),next=(await (await context.request.get(base+`api/instareel/${nextId}`,{headers:{'X-Mygrain-User':'admin'}})).json()).job;assert.equal(next.plan.requestedSeconds,60);assert.equal(next.plan.variation,process.env.INSTAREEL_RETRY_VARIATION||'moderate');assert.equal(next.plan.duration,60);assert.equal(next.plan.options.recutV,false);if(process.env.INSTAREEL_MUSICAL_TEST){assert.deepEqual(next.plan.options,{notes:false,drums:false,recutV:false});assert.equal(next.plan.fills.length,0)}
+   if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-retry-plan.json',JSON.stringify(next.plan,null,2));
    assert.equal(await page.locator('#instareelPreview').isVisible(),false,'Old preview must not masquerade as the new render');
    await page.waitForFunction(()=>!mygrainInstareel.busy,null,{timeout:240000});assert((await page.locator('#instareelStatus').textContent()).includes('60.0s loopable reel ready · '+(process.env.INSTAREEL_RETRY_VARIATION||'moderate')));
    assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true);

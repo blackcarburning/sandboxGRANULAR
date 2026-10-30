@@ -168,9 +168,11 @@ module.exports=String.raw`(function(){
   for(let i=0;i<length;i++){const j=i%old.length;roll.pattern[i]=old.pattern[j];roll.ratchets[i]=old.ratchets[j];roll.dips[i]=old.dip>0&&old.dips[j];roll.accents[i]=old.accents[j]}
   let fills=0;
   for(const fill of plan.fills||[]){let added=false;
-   const end=Math.round(fill.end/step),hits=fill.hits||(plan.variation==='subtle'?2:3),indices=Array.from({length:hits},(_,j)=>end-hits+j);
-   for(const index of new Set(indices)){const i=(offset+index)%length;if(roll.pattern[i])continue;
-    roll.pattern[i]=true;roll.ratchets[i]=index>=end-2?fill.ratchet:1;roll.dips[i]=roll.dip<100;roll.accents[i]=false;added=true;
+   const start=Math.round(fill.at/step),end=Math.round(fill.end/step),hits=fill.hits||(plan.variation==='subtle'?2:3);
+   // Version 8 carries each newly chosen rhythm; retain queued older plan support.
+   const notes=fill.notes||Array.from({length:hits},(_,j)=>({step:end-hits+j-start,ratchet:j>=hits-2?fill.ratchet:1}));
+   for(const note of notes){const i=(offset+start+note.step)%length;if(roll.pattern[i])continue;
+    roll.pattern[i]=true;roll.ratchets[i]=note.ratchet;roll.dips[i]=roll.dip<100;roll.accents[i]=false;added=true;
    }
    if(added)fills++;
   }
