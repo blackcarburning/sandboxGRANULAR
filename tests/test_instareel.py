@@ -50,6 +50,43 @@ class ReelTests(unittest.TestCase):
     REELS.handle(handler,accounts,Mock());first=handler.send_json.call_args.args[0]['reel'];REELS.handle(handler,accounts,Mock());second=handler.send_json.call_args.args[0]['reel']
     self.assertEqual(first,second);self.assertEqual((wavs/first['filename']).read_bytes(),b'EXACT-WAV');self.assertEqual(len(json.loads((root/'library.json').read_text())),1);self.assertEqual(accounts.wav_created.call_count,2)
    finally:REELS.JOBS.clear()
+ def test_saved_rename_delete_preserve_bytes_reject_conflicts_and_keep_recovery(self):
+  import json,hashlib
+  with tempfile.TemporaryDirectory() as directory:
+   wavs=pathlib.Path(directory);root=wavs/'.instareel';root.mkdir();ident='c'*32;original='original.wav';data=b'EXACT-AUDIO'
+   (wavs/original).write_bytes(data);(root/(ident+'.m4a')).write_bytes(b'PREVIEW')
+   row={'id':ident,'name':'Original','filename':original,'bpm':120,'sha256':hashlib.sha256(data).hexdigest()}
+   REELS.write_library(root,[row]);accounts=Mock()
+   renamed=REELS.change_saved(root,wavs,ident,'rename',{'name':'New Name'},accounts)
+   self.assertEqual((wavs/renamed['filename']).read_bytes(),data);self.assertFalse((wavs/original).exists());self.assertEqual(renamed['name'],'New Name')
+   with self.assertRaises(FileNotFoundError):REELS.change_saved(root,wavs,'d'*32,'delete',{},accounts)
+   conflict=wavs/f'INSTAREEL-Conflict-{ident[:8]}.120.wav';conflict.write_bytes(b'OTHER')
+   with self.assertRaises(FileExistsError):REELS.change_saved(root,wavs,ident,'rename',{'name':'Conflict'},accounts)
+   self.assertEqual(conflict.read_bytes(),b'OTHER');self.assertEqual(REELS.read_library(root,wavs)[0]['name'],'New Name')
+   with self.assertRaises(ValueError):REELS.change_saved(root,wavs,ident,'rename',{'name':'////'},accounts)
+   REELS.change_saved(root,wavs,ident,'delete',{},accounts)
+   self.assertEqual(REELS.read_library(root,wavs),[]);self.assertFalse((wavs/renamed['filename']).exists());self.assertFalse((root/(ident+'.m4a')).exists())
+   saved=list((root/'trash').glob('*'));self.assertEqual(len(saved),1);self.assertEqual((saved[0]/renamed['filename']).read_bytes(),data);self.assertEqual((saved[0]/'preview.m4a').read_bytes(),b'PREVIEW')
+ def test_rename_rolls_back_if_library_write_fails(self):
+  import hashlib
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as directory:
+   wavs=pathlib.Path(directory);root=wavs/'.instareel';root.mkdir();ident='e'*32;source=wavs/'original.wav';source.write_bytes(b'PCM')
+   REELS.write_library(root,[{'id':ident,'name':'Old','filename':source.name,'bpm':120,'sha256':hashlib.sha256(b'PCM').hexdigest()}])
+   with patch.object(REELS,'write_library',side_effect=OSError('storage unavailable')):
+    with self.assertRaises(OSError):REELS.change_saved(root,wavs,ident,'rename',{'name':'New'},Mock())
+    with self.assertRaises(OSError):REELS.change_saved(root,wavs,ident,'delete',{},Mock())
+   self.assertEqual(source.read_bytes(),b'PCM');self.assertEqual(REELS.read_library(root,wavs)[0]['name'],'Old');self.assertEqual(len(list(wavs.glob('*.wav'))),1)
+ def test_saved_action_errors_do_not_expose_filesystem_paths(self):
+  import contextlib
+  from types import SimpleNamespace
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as directory:
+   accounts=Mock();accounts.path_for.return_value=pathlib.Path(directory);accounts.user_lock.side_effect=lambda user:contextlib.nullcontext()
+   handler=SimpleNamespace(mygrain_user={'id':'alice'},command='POST',path='/mygrain/api/instareel/library/'+'f'*32+'/rename',read_json=lambda:{'name':'Conflict'},send_json=Mock())
+   with patch.object(REELS,'change_saved',side_effect=FileExistsError(17,'File exists',directory+'/private.wav')):
+    REELS.handle(handler,accounts,Mock())
+   self.assertEqual(handler.send_json.call_args.kwargs['status'],400);self.assertNotIn(directory,str(handler.send_json.call_args));self.assertIn('already exists',handler.send_json.call_args.args[0]['error'])
  def test_cleanup_only_removes_expired_generated_scratch(self):
   import os,time
   with tempfile.TemporaryDirectory() as directory:

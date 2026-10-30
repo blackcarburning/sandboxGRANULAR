@@ -131,3 +131,29 @@ actual 62.5ms double-hit spacings in the 5kHz hat fixture: recurring burst secti
 intervening withdrawal, untouched opening/closing and no doubles with Drums off.
 `instareel-musical-evidence.py EVIDENCE_DIR [ON_WAV]` supports a selected on-render
 paired against the same-page Chromium options-off retry.
+
+## Saved library management · 5
+
+Each saved G-browser row now has Rename, Delete and Upload to FTP alongside
+Preview/Download. Rename changes both its display name and WAV filename, retains
+its ID, PCM hash and AAC preview, and registers the new repository provenance.
+Creation is exclusive: no other WAV can be overwritten. Delete requires a visible
+confirmation, stops a selected reel's G player and removes it from both browsers;
+WAV/preview/metadata recovery copies remain beneath the account-private
+`.instareel/trash/` directory. Uploaded FTP copies are independent and never
+removed by this action. Account locks protect library operations, and metadata
+write failures roll the source file back.
+
+FTP uses the existing private folder picker (including folder creation) and
+existing authenticated `/api/ftp/upload` endpoint; it asks for a destination
+before downloading the lossless saved WAV. Transfers retain exact WAV bytes,
+are capped at the existing 24MiB reel size, reject overwrites normally and abort
+on account lock/change. No FTP credentials, shared storage, audio engine or main
+WAV-player changes. There are no extra Jump buttons.
+
+`tests/instareel-library-browser.cjs` follows a real `instareel-browser.cjs` fixture
+in the same isolated test server. Both Chromium and WebKit test rename, one-tap
+preview, folder-picker cancellation, exact-byte FTP upload, conflict recovery,
+delete cancellation/confirmation, retained FTP copy, rejected cross-account
+writes, untouched live patch and portrait/landscape controls. Python tests also
+verify recovery copies, collisions, invalid names and metadata-write rollback.

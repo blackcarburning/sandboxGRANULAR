@@ -47,7 +47,7 @@ root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get gen
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
-box.innerHTML=`<legend>INSTAREEL <small>· 4</small></legend>
+box.innerHTML=`<legend>INSTAREEL <small>· 5</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
  <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option></select></label></div>
@@ -81,6 +81,7 @@ function update(){const time=currentPosition();el('Seek').value=String(time);el(
 function stopSource(){if(source){position=currentPosition();const old=source;source=null;old.onended=null;try{old.stop()}catch{}old.disconnect();old.buffer=null}cancelAnimationFrame(frame);frame=0;el('Play').textContent=buffer?'Play':'Load & Play'}
 function cancelPlayer(){playerGeneration++;playerRequest?.abort();playerRequest=null;stopSource();buffer=null;context=null;position=0;loading=false;el('Play').disabled=false;el('Seek').disabled=true;el('Play').textContent='Load & Play';if(typeof wavIphonePreviewActive!=='undefined'&&wavIphonePreviewActive===player)wavIphonePreviewActive=null;update()}
 let playerRequest=null;
+const libraryRequest=new AbortController();
 const player={cancel:cancelPlayer,get playing(){return !!source},get buffer(){return buffer},get source(){return source}};
 function playBuffer(){
  const length=Math.min(buffer.duration,current.duration);if(position>=length)position=0;
@@ -164,14 +165,37 @@ async function library(){
  try{const data=await json(base+'/library');if(identity!==user()||disposed)return;list.replaceChildren();
   if(!data.reels.length){list.textContent='No saved reels yet.';return}
   for(const reel of data.reels){const row=document.createElement('div');row.className='instareel-library-row';const title=document.createElement('span');title.textContent=`${reel.name} · ${reel.duration.toFixed(1)}s · ${reel.bpm} BPM`;
-   const play=document.createElement('button');play.type='button';play.textContent='Preview';play.addEventListener('click',()=>{select({name:title.textContent,duration:reel.duration,preview:`${base}/library/${reel.id}/preview`});togglePreview();el('Preview').scrollIntoView({block:'nearest'});el('Play').focus({preventScroll:true})});
+   const play=document.createElement('button');play.type='button';play.textContent='Preview';play.addEventListener('click',()=>{select({libraryId:reel.id,name:title.textContent,duration:reel.duration,preview:`${base}/library/${reel.id}/preview`});togglePreview();el('Preview').scrollIntoView({block:'nearest'});el('Play').focus({preventScroll:true})});
    const download=document.createElement('button');download.type='button';download.textContent='Download WAV';download.addEventListener('click',async()=>{download.disabled=true;try{const response=await fetch(`${base}/library/${reel.id}/wav`,{cache:'no-store'});if(!response.ok)throw Error('Download failed');const blob=await response.blob();if(identity!==user()||disposed)return;downloadBlob(blob,reel.filename)}catch(error){message(error.message)}finally{download.disabled=false}});
-   row.append(title,play,download);list.append(row);
+   const rename=document.createElement('button');rename.type='button';rename.textContent='Rename';
+   const remove=document.createElement('button');remove.type='button';remove.textContent='Delete';
+   const upload=document.createElement('button');upload.type='button';upload.textContent='Upload to FTP';
+   const form=document.createElement('form');form.className='instareel-rename';form.hidden=true;
+   const input=document.createElement('input');input.value=reel.name;input.maxLength=64;input.setAttribute('aria-label','New reel name');
+   const save=document.createElement('button');save.type='submit';save.textContent='Save name';
+   const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancel';cancel.onclick=()=>{form.hidden=true};form.append(input,save,cancel);
+   let acting=false;
+   const run=async action=>{if(acting||disposed||identity!==user())return;acting=true;for(const b of row.querySelectorAll('button,input'))b.disabled=true;try{await action()}catch(error){if(identity===user()&&!disposed)message(error.message)}finally{acting=false;for(const b of row.querySelectorAll('button,input'))b.disabled=false}};
+   const mutate=(action,payload)=>json(`${base}/library/${reel.id}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:libraryRequest.signal});
+   rename.onclick=()=>{form.hidden=false;input.focus()};
+   form.onsubmit=event=>{event.preventDefault();run(async()=>{const data=await mutate('rename',{name:input.value});if(disposed||identity!==user())return;if(current?.libraryId===reel.id){current.name=data.reel.name;el('PreviewTitle').textContent=current.name}await library();message(`Renamed to ${data.reel.name}.`)})};
+   remove.onclick=()=>{if(!confirm(`Delete “${reel.name}” from INSTAREEL and the WAV repository? Uploaded FTP copies are kept.`))return;run(async()=>{await mutate('delete',{});if(disposed||identity!==user())return;if(current?.libraryId===reel.id||current?.jobId===reel.id){cancelPlayer();current=null;el('Preview').hidden=true;sync()}await library();message('Reel deleted. Uploaded FTP copies are unchanged.')})};
+   upload.onclick=()=>run(async()=>{
+    if(!root.mygrainFtp?.pickFolder)throw Error('FTP browser is not ready. Reload MYGRAIN and try again.');
+    const folder=await root.mygrainFtp.pickFolder({title:'INSTAREEL · Choose private FTP folder',signal:libraryRequest.signal});if(disposed||identity!==user())return;if(folder===null){message('FTP upload cancelled.');return}
+    message('Uploading reel to private FTP…');
+    const response=await fetch(`${base}/library/${reel.id}/wav`,{cache:'no-store',signal:libraryRequest.signal});if(!response.ok)throw Error('Reel download failed. Refresh the INSTAREEL browser.');
+    if(Number(response.headers.get('Content-Length'))>24*1048576)throw Error('Reel exceeds the upload memory limit.');
+    const blob=await response.blob();if(blob.size>24*1048576)throw Error('Reel exceeds the upload memory limit.');if(disposed||identity!==user())return;
+    const path=[folder,reel.filename].filter(Boolean).join('/');await json(`/mygrain/api/ftp/upload?${new URLSearchParams({path})}`,{method:'POST',body:blob,headers:{'Content-Type':'application/octet-stream'},signal:libraryRequest.signal});
+    if(!disposed&&identity===user())message(`Uploaded ${reel.filename} to private FTP /${identity}/${folder}.`);
+   });
+   row.append(title,play,download,rename,remove,upload,form);list.append(row);
   }
  }catch(error){if(identity===user())list.textContent=`Could not load reels: ${error.message}`}
 }
 el('Library').addEventListener('toggle',()=>{if(el('Library').open)library()});el('Refresh').addEventListener('click',library);
-function dispose(){disposed=true;const pending=job;abortTask();cancelPlayer();current=null;job=null;el('Preview').hidden=true;el('LibraryList').replaceChildren();message('Sign in again to use INSTAREEL.');if(pending&&['queued','running'].includes(pending.state))json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function dispose(){disposed=true;libraryRequest.abort();const pending=job;abortTask();cancelPlayer();current=null;job=null;el('Preview').hidden=true;el('LibraryList').replaceChildren();message('Sign in again to use INSTAREEL.');if(pending&&['queued','running'].includes(pending.state))json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
 root.addEventListener('mygrain-account-lock',dispose);root.addEventListener('mygrain-account-changed',dispose);
 root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
 root.mygrainInstareel=Object.freeze({get busy(){return busy},get capturing(){return capturing},get player(){return player},get job(){return job?{id:job.id,state:job.state}:null}});

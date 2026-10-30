@@ -30,3 +30,6 @@
 #instareelPreviewTitle{display:block;overflow-wrap:anywhere}
 #instareelSaveControls>label{margin-top:12px}
 #instareelControls [hidden]{display:none!important}
+
+#instareelControls .instareel-rename{display:flex;flex-wrap:wrap;gap:8px;min-width:0;flex:1 1 100%}
+#instareelControls .instareel-rename input{flex:1 1 160px;min-width:0}

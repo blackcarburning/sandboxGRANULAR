@@ -175,6 +175,62 @@ def read_library(root, wavs):
     return [r for r in rows if re.fullmatch(r'[a-f0-9]{32}', r['id']) and checked(wavs/r['filename'], wavs).is_file()]
 
 
+def write_library(root, rows):
+    temporary = checked(root / 'library.tmp', root)
+    temporary.write_text(json.dumps(rows))
+    temporary.chmod(0o600)
+    os.replace(temporary, root / 'library.json')
+
+
+def change_saved(root, wavs, ident, action, payload, accounts):
+    # Caller owns the account storage lock. IDs never identify another account's files.
+    rows = read_library(root, wavs)
+    row = next((r for r in rows if r['id'] == ident), None)
+    if row is None:
+        raise FileNotFoundError('Saved reel not found.')
+    source = checked(wavs / row['filename'], wavs)
+    if hashlib.sha256(source.read_bytes()).hexdigest() != row['sha256']:
+        raise ValueError('Saved audio changed. Refresh the INSTAREEL browser.')
+    if action == 'rename':
+        name = re.sub(r'[^A-Za-z0-9 _-]+', '', str(payload.get('name', ''))).strip()[:64]
+        if not name:
+            raise ValueError('Enter a reel name using letters, numbers, spaces, hyphens or underscores.')
+        filename = f"INSTAREEL-{name}-{ident[:8]}.{row['bpm']:g}.wav"
+        target = checked(wavs / filename, wavs)
+        if target != source:
+            # Exclusive hard link: a rename cannot overwrite any existing file.
+            os.link(source, target)
+        updated = dict(row, name=name, filename=filename)
+        try:
+            write_library(root, [updated if r['id'] == ident else r for r in rows])
+        except Exception:
+            if target != source:
+                target.unlink()
+            raise
+        if target != source:
+            source.unlink()
+        accounts.wav_created(filename)
+        return updated
+    # Deletion removes the browser/repository entry but retains recovery copies.
+    trash = checked(root / 'trash', root)
+    trash.mkdir(mode=0o700, exist_ok=True)
+    folder = checked(trash / (ident + '-' + secrets.token_hex(4)), root)
+    folder.mkdir(mode=0o700)
+    (folder / 'metadata.json').write_text(json.dumps(row))
+    preview = checked(root / (ident + '.m4a'), root)
+    if preview.exists():
+        shutil.copyfile(preview, folder / 'preview.m4a')
+    target = folder / row['filename']
+    os.replace(source, target)
+    try:
+        write_library(root, [r for r in rows if r['id'] != ident])
+    except Exception:
+        os.replace(target, source)
+        raise
+    preview.unlink(missing_ok=True)
+    return row
+
+
 def media(handler, path, content_type, download=None):
     with path.open('rb') as audio:
         handler.send_response(200)
@@ -249,6 +305,20 @@ def handle(handler, accounts, songs):
             with accounts.user_lock(user):
                 rows = read_library(root,wavs)
             return handler.send_json({'ok':True,'reels':rows},extra_headers=PRIVATE)
+        if len(parts)==3 and parts[0]=='library' and re.fullmatch(r'[a-f0-9]{32}',parts[1]) and parts[2] in ('rename','delete') and method=='POST':
+            payload = handler.read_json()
+            if not isinstance(payload, dict):
+                raise ValueError('Expected a reel action object.')
+            try:
+                with accounts.user_lock(user):
+                    row = change_saved(root, wavs, parts[1], parts[2], payload, accounts)
+            except FileNotFoundError:
+                raise
+            except FileExistsError:
+                raise ValueError('A WAV with that name already exists. Choose another name.') from None
+            except OSError:
+                raise ValueError('Saved reel could not be updated. Refresh the INSTAREEL browser and try again.') from None
+            return handler.send_json({'ok':True,'reel':row},extra_headers=PRIVATE)
         if len(parts)==3 and parts[0]=='library' and re.fullmatch(r'[a-f0-9]{32}',parts[1]) and parts[2] in ('preview','wav') and method=='GET':
             with accounts.user_lock(user):
                 row = next((r for r in read_library(root,wavs) if r['id']==parts[1]),None)
