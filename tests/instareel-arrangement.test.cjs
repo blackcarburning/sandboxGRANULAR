@@ -30,7 +30,7 @@ test('subtle additions are quieter than moderate; no missing source is activated
  const a=fixture(),b=fixture();a.apply({amount:.25,pick:0});b.apply({amount:.5,pick:0});assert(a.elements.get('performanceBastardLoopWLevel').applied<b.elements.get('performanceBastardLoopWLevel').applied);
 });
 function musicalFixture(options){
- const f=fixture(),c=f.ctx;Object.assign(c,{drumMachineEnabled:true,drumMachineSnareBuffer:{},drumMachineSnarePattern:Array.from({length:16},(_,i)=>i%8===4),drumMachineBaseAccents:{snare:Array(16).fill(false)},drumMachineRoll:require('../drum-roll.js').normalize({length:64}),isDrumMachineLaneAudible:()=>true});
+ const f=fixture(),c=f.ctx;Object.assign(c,{drumMachineEnabled:true,drumMachineSnareBuffer:{},drumMachineSnarePattern:Array.from({length:16},(_,i)=>i%8===4),drumMachineBaseAccents:{snare:Array(16).fill(false)},drumMachineRoll:require('../drum-roll.js').normalize({length:64}),drumMachineLaneSolos:[],restoreDrumMachineLaneSolos:value=>c.drumMachineLaneSolos=[...value],isDrumMachineLaneAudible:kind=>!c.drumMachineLaneSolos.length||c.drumMachineLaneSolos.includes(kind)});
  c.window.MygrainDrumRoll=require('../drum-roll.js');c.noteNameToMidi=note=>{const m=/^([A-G])(#?)(-?\d)$/.exec(note);return (Number(m[3])+1)*12+({C:0,D:2,E:4,F:5,G:7,A:9,B:11})[m[1]]+(m[2]?1:0)};
  c.midiToNoteName=n=>['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][n%12]+(Math.floor(n/12)-1);
  for(const key of ['L','X']){c['bastardLoop'+key+'Sequence']=Array.from({length:64},(_,i)=>({note:i%4===0?'C3':'',rest:i%4!==0,accent:false,slide:false,ratchet:1}));c['bastardLoop'+key+'Enabled']=true;c['bastardLoop'+key+'SampleBuffer']={};c['getBastardLoop'+key+'PatternLength']=()=>16;c['hasBastardLoop'+key+'PlaybackSource']=()=>true;c['getBastardLoop'+key+'RootNote']=()=> 'C3';c['getBastardLoop'+key+'StepDurationSeconds']=()=>.125;}
@@ -185,11 +185,35 @@ test('Roll lane gets straight hits then end ratchets, including an existing shal
  }
 });
 
-test('Roll development respects lane mute/solo and disabled drums without touching the saved pattern',()=>{
+test('Roll development respects blocked lanes and disabled drums without touching the saved pattern',()=>{
  for(const blocked of ['roll','drums']){
   const f=musicalFixture({drums:false}),c=f.ctx,original=JSON.stringify(c.drumMachineRoll);
   if(blocked==='roll')c.isDrumMachineLaneAudible=lane=>lane!=='roll';else c.drumMachineEnabled=false;
   const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123,{drums:true});
   assert.equal(f.apply.prepare(p).fills,0);assert.equal(JSON.stringify(c.drumMachineRoll),original);
+ }
+});
+
+test('reel Roll joins existing drum-lane solos additively; no solos stays unrestricted',()=>{
+ for(const solos of [[],['kick'],['snare'],['hat'],['kick','hat'],['roll'],['kick','roll']]){
+  const f=musicalFixture({drums:false}),c=f.ctx;c.drumMachineLaneSolos=solos.slice();let writes=0;
+  c.restoreDrumMachineLaneSolos=value=>{writes++;c.drumMachineLaneSolos=[...value]};
+  const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123,{drums:true});
+  assert(f.apply.prepare(p).fills>0);assert(c.isDrumMachineLaneAudible('roll'));
+  assert.deepEqual(c.drumMachineLaneSolos,solos.length?[...new Set([...solos,'roll'])]:[]);
+  assert.equal(writes,solos.length&&!solos.includes('roll')?1:0);
+  for(const lane of ['kick','snare','hat','perc'])assert.equal(c.isDrumMachineLaneAudible(lane),!solos.length||solos.includes(lane));
+  f.apply.prepare(p);assert.equal(writes,solos.length&&!solos.includes('roll')?1:0,'Repeated preparation must not duplicate Roll');
+ }
+});
+
+test('Drums off, disabled drums and missing Snare preserve the original lane solos',()=>{
+ for(const blocked of ['option','drums','snare']){
+  const f=musicalFixture({drums:false}),c=f.ctx;c.drumMachineLaneSolos=['kick','hat'];
+  c.restoreDrumMachineLaneSolos=()=>assert.fail('Ineligible reel must not change lane solos');
+  if(blocked==='drums')c.drumMachineEnabled=false;
+  if(blocked==='snare')c.drumMachineSnareBuffer=null;
+  const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123,{drums:blocked!=='option'});
+  assert.equal(f.apply.prepare(p).fills,0);assert.deepEqual(c.drumMachineLaneSolos,['kick','hat']);
  }
 });

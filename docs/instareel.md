@@ -87,7 +87,10 @@ assumed, no samples are replaced, and no unused empty lead sequence is invented.
 With Drums selected, existing hats/backbeat accents develop while kick/snare
 placements stay intact. Short quiet Snare Roll fills occur at phrase boundaries
 (roughly eight bars Subtle / four bars Moderate), not every bar. They require
-enabled drums, a loaded Snare and an audible Roll lane; lane solos are respected.
+enabled drums and a loaded Snare. When the original patch has drum-lane solos,
+Roll joins that selection additively in the disposable reel deck; existing solos
+stay selected and other drum lanes stay excluded. With no lane solos, nothing is
+changed. The live patch and saved source solos are never edited.
 The full independent Roll timeline is compiled before start, because the existing
 Song-deck scheduler queues Roll two seconds ahead. The timeline stays within its
 existing 1024-step limit, preserves original Roll notes/dips/ratchets, and contains
@@ -131,6 +134,11 @@ actual 62.5ms double-hit spacings in the 5kHz hat fixture: recurring burst secti
 intervening withdrawal, untouched opening/closing and no doubles with Drums off.
 `instareel-musical-evidence.py EVIDENCE_DIR [ON_WAV]` supports a selected on-render
 paired against the same-page Chromium options-off retry.
+
+`INSTAREEL_SOLO_TEST=kick,snare INSTAREEL_MUSICAL_TEST=1` verifies real server
+Roll fills while the live source retains its exact drum-lane solos.
+`INSTAREEL_LEGACY_TEST=1` strips newer lane-solo/noise/accent metadata from the
+test upload only, retaining exact audio assets, to check older no-solo snapshots.
 
 ## Saved library management · 5
 

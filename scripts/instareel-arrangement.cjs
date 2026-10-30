@@ -153,7 +153,11 @@ module.exports=String.raw`(function(){
   ];
   if(!plan.options.drums)return {fills:0};
   apply.snareAccents=drumMachineBaseAccents.snare.slice();
-  if(!drumMachineEnabled||!drumMachineSnareBuffer||!isDrumMachineLaneAudible('roll'))return {fills:0};
+  if(!drumMachineEnabled||!drumMachineSnareBuffer)return {fills:0};
+  // The source patch may solo other drum lanes. Include Roll additively in this
+  // disposable deck so generated fills remain audible; no solos means no change.
+  if(drumMachineLaneSolos.length&&!drumMachineLaneSolos.includes('roll'))restoreDrumMachineLaneSolos([...drumMachineLaneSolos,'roll']);
+  if(!isDrumMachineLaneAudible('roll'))return {fills:0};
   // Compile the entire independent Roll timeline BEFORE starting the scheduler.
   // The existing renderer queues Roll two seconds ahead; late timer edits miss hits.
   const old=window.MygrainDrumRoll.normalize(drumMachineRoll),step=60/plan.bpm/4,length=Math.round(plan.duration/step),offset=Math.round(plan.warmup/step);

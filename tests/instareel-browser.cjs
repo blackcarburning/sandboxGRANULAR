@@ -15,6 +15,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.evaluate(value=>window.instareelRatchets=value,!!process.env.INSTAREEL_RATCHET_TEST);
   await page.evaluate(value=>window.instareelEvolution=value,!!process.env.INSTAREEL_EVOLUTION_TEST);
   await page.evaluate(value=>window.instareelRecut=value,!!process.env.INSTAREEL_RECUT_TEST);
+  await page.evaluate(value=>window.instareelSolo=value,process.env.INSTAREEL_SOLO_TEST||'');
   await page.evaluate(()=>{
    stopAllPerformancePlayback({silent:true});
    const buffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),data=buffer.getChannelData(0);
@@ -63,7 +64,23 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
     }
     mygrainNoise.restore({...mygrainNoise.settings(),enabled:true,level:0});
    }
+   if(window.instareelSolo)restoreDrumMachineLaneSolos(instareelSolo.split(','));
    window.instareelOriginal={buffer:bastardLoopVBuffer,snapshot:JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)};
+  });
+  if(process.env.INSTAREEL_LEGACY_TEST)await page.evaluate(()=>{
+   const adapter=mygrainSongBetaAdapter,capture=adapter.capture.bind(adapter);
+   adapter.capture=async options=>{
+    const original=await capture(options);if(options?.liveOnly)return original;
+    const entries=parseStoredZipEntries(await original.arrayBuffer()),snapshot=JSON.parse(getZipText(entries,'song-part.json'));
+    delete snapshot.state.modes.drumMachineLaneSolos;delete snapshot.state.modes.noiseN;
+    for(const lane of ['Kick','Snare','Perc','Roll'])delete snapshot.state.sliders['drumMachine'+lane+'AccentAmount'];
+    const legacy=await createStoredZip([...entries].map(([path,data])=>({path,data:path==='song-part.json'?JSON.stringify(snapshot):data})));
+    const decoded=parseStoredZipEntries(await legacy.arrayBuffer());
+    for(const [path,data]of entries)if(path!=='song-part.json'){
+     const restored=decoded.get(path);if(!restored||restored.length!==data.length||!data.every((byte,i)=>byte===restored[i]))throw Error('Legacy fixture changed source audio');
+    }
+    return legacy;
+   };
   });
   await page.locator('#sectionJumpHandle').tap();await page.locator('.section-jump-option[data-jump-target="#genreatorCard"]').tap();
   if(process.env.INSTAREEL_RECUT_TEST)await page.locator('#instareelRecutV').check();
