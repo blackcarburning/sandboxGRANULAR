@@ -231,3 +231,13 @@ A/B/C/V/W cut now changes width as well as its seeded position; V retains its
 optional alternating-original signature behavior. Worker-owned timers stop with
 the deck. Song rendering, saved source compatibility and live playback are
 unchanged: all changes are inside the dedicated server INSTAREEL arrangement.
+
+## Explicit current-patch action · 9
+
+**New reel with current patch** sits directly below Make Reel / Try Another.
+Both buttons share the existing fresh live snapshot and bounded render path;
+no previous reel snapshot is reused. Duration/variation/options are reread, and
+both buttons obey the same busy/history/account guards. The focused
+`tests/instareel-current-patch-browser.cjs` inspects actual portable submission
+ZIPs before and after a BPM change, checks the live patch stays unchanged, and
+checks the button placement in Chromium/WebKit portrait and landscape.

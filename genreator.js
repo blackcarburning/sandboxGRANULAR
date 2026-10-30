@@ -47,7 +47,7 @@ root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get gen
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
-box.innerHTML=`<legend>INSTAREEL <small>· 8</small></legend>
+box.innerHTML=`<legend>INSTAREEL <small>· 9</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
  <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option><option value="extreme">Extreme</option></select></label></div>
@@ -56,6 +56,7 @@ box.innerHTML=`<legend>INSTAREEL <small>· 8</small></legend>
  <p>N Noise enters and leaves; A/B/C/W receive fresh cuts each repeat. V stays original unless re-cut is selected, then alternates fresh cuts with the original phrase. Optional X/L notes and drums evolve from each previous loop, with occasional hat ratchets and short Roll fills. Extreme makes bolder changes. Existing solos are respected. The original groove returns at the loop boundary.</p>
  <p id="instareelLength">Duration rounds to complete source cycles for a musical loop.</p>
  <div class="instareel-actions"><button id="instareelMake" type="button">Make Reel</button><button id="instareelCancel" type="button" hidden>Cancel reel</button></div>
+ <div class="instareel-actions"><button id="instareelNewCurrent" type="button">New reel with current patch</button></div>
  <p id="instareelStatus" role="status" aria-live="polite">Find a patch you like, then make a reel. No extra AI calls.</p>
  <div id="instareelPreview" hidden><strong id="instareelPreviewTitle">Rendered reel</strong>
  <div class="instareel-player"><button id="instareelPlay" type="button">Load & Play</button><label class="instareel-loop"><input id="instareelLoop" type="checkbox" checked> Loop</label><input id="instareelSeek" data-mirror-control="instareel-playback" type="range" min="0" max="1" value="0" step=".01" aria-label="Reel playback position" disabled><span id="instareelTime">0.0s</span></div>
@@ -68,7 +69,7 @@ const user=()=>root.mygrainAccounts?.user?.username;
 const message=text=>{el('Status').textContent=text};
 function sync(){
  const blocked=busy||root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy;
- el('Make').disabled=!!blocked;el('Seconds').disabled=busy;el('Variation').disabled=busy;el('Notes').disabled=busy;el('Drums').disabled=busy;el('RecutV').disabled=busy;el('Cancel').hidden=!busy;el('Cancel').disabled=busy&&!job;
+ el('NewCurrent').disabled=!!blocked;el('Make').disabled=!!blocked;el('Seconds').disabled=busy;el('Variation').disabled=busy;el('Notes').disabled=busy;el('Drums').disabled=busy;el('RecutV').disabled=busy;el('Cancel').hidden=!busy;el('Cancel').disabled=busy&&!job;
  el('Make').textContent=current?.jobId?'Try Another':'Make Reel';
  el('Save').disabled=busy||!current?.jobId||!!current?.saved;
 }
@@ -130,7 +131,7 @@ async function poll(token,identity){
   timer=setTimeout(()=>poll(token,identity),1000);
  }catch(error){if(token===generation){if(error.status===404||error.status===401){busy=false;controller=null;message(error.message);sync()}else{message(`Reel status unavailable: ${error.message}. Retrying; Cancel remains available.`);timer=setTimeout(()=>poll(token,identity),2000)}}}
 }
-el('Make').addEventListener('click',async()=>{
+async function makeCurrentReel(){
  if(busy||disposed)return;const seconds=Number(el('Seconds').value),variation=el('Variation').value,notes=el('Notes').checked,drums=el('Drums').checked,recutV=el('RecutV').checked,identity=user();
  if(!Number.isFinite(seconds)||seconds<30||seconds>60){message('Enter a target from 30 to 60 seconds.');return}
  if(!identity||!root.mygrainSongBetaAdapter){message('Start MYGRAIN and sign in first.');return}
@@ -153,7 +154,9 @@ el('Make').addEventListener('click',async()=>{
   if(token!==generation||identity!==user())return;job=data.job;sync();message(`Rendering ${job.plan.duration.toFixed(1)}s · ${job.plan.variation} variations (${job.plan.requestedSeconds}s requested)…`);poll(token,identity);
  }catch(error){if(token===generation){abortTask();message(`Could not make reel: ${error.message}. Current patch unchanged.`)}}
  finally{if(token===generation){capturing=false;root.dispatchEvent(new Event('mygrain-ai-update'));sync()}}
-});
+}
+el('Make').addEventListener('click',makeCurrentReel);
+el('NewCurrent').addEventListener('click',makeCurrentReel);
 el('Cancel').addEventListener('click',async()=>{const pending=job;abortTask();const token=generation;busy=true;sync();message('Cancelling reel…');try{if(pending&&['queued','running'].includes(pending.state)){const data=await json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(token!==generation)return;job=data.job}busy=false;message('Reel cancelled. Current patch unchanged.');sync()}catch(error){if(token===generation){message(`Cancellation could not be confirmed: ${error.message}. Tap Cancel to retry.`);sync()}}});
 el('Save').addEventListener('click',async()=>{
  if(!current?.jobId||current.saved||busy)return;const item=current,identity=user();el('Save').disabled=true;
