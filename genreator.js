@@ -63,7 +63,7 @@ root.mygrainGenreator=Object.freeze({generate,resetTempo,get busy(){return pendi
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
-box.innerHTML=`<legend>INSTAREEL <small>· 9</small></legend>
+box.innerHTML=`<legend>INSTAREEL <small>· 10</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
  <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option><option value="extreme">Extreme</option></select></label></div>

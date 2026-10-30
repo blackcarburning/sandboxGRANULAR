@@ -166,7 +166,7 @@ module.exports=String.raw`(function(){
   for(const fill of plan.fills||[]){let added=false;
    const end=Math.round(fill.end/step),hits=fill.hits||(plan.variation==='subtle'?2:3),indices=Array.from({length:hits},(_,j)=>end-hits+j);
    for(const index of new Set(indices)){const i=(offset+index)%length;if(roll.pattern[i])continue;
-    roll.pattern[i]=true;roll.ratchets[i]=roll.dip<30?1:fill.ratchet;roll.dips[i]=true;roll.accents[i]=false;added=true;
+    roll.pattern[i]=true;roll.ratchets[i]=index>=end-2?fill.ratchet:1;roll.dips[i]=roll.dip<100;roll.accents[i]=false;added=true;
    }
    if(added)fills++;
   }

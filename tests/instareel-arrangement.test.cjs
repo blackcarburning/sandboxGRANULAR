@@ -171,3 +171,25 @@ test('mix driver copies current sources only, excludes N feedback and disconnect
  let heard=false;for(const e of p.events){apply(e);apply.tick(e.at);assert(!connected.has('N'));if(state.enabled){assert.equal(state.source,'sample');assert(connected.has('V'));heard=true}}
  assert(heard);assert.equal(connected.size,0);apply.cleanup();assert.equal(connected.size,0);
 });
+
+test('Roll lane gets straight hits then end ratchets, including an existing shallow Dip',()=>{
+ for(const variation of ['subtle','moderate','extreme'])for(const dip of [0,15,100]){
+  const f=musicalFixture({drums:false}),c=f.ctx,old=c.window.MygrainDrumRoll.normalize({length:64,dip});
+  old.pattern[0]=true;old.ratchets[0]=3;old.dips[0]=dip>0;c.drumMachineRoll=old;
+  const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,variation,123,{drums:true});
+  assert(f.apply.prepare(p).fills>0);
+  for(const fill of p.fills){const end=Math.round((p.warmup+fill.end)/.125);
+   for(let j=0;j<4;j++){const i=(end-4+j)%c.drumMachineRoll.length;assert(c.drumMachineRoll.pattern[i]);assert.equal(c.drumMachineRoll.ratchets[i],j<2?1:fill.ratchet);if(dip===100)assert(!c.drumMachineRoll.dips[i])}
+  }
+  assert.equal(c.drumMachineRoll.ratchets[0],3);
+ }
+});
+
+test('Roll development respects lane mute/solo and disabled drums without touching the saved pattern',()=>{
+ for(const blocked of ['roll','drums']){
+  const f=musicalFixture({drums:false}),c=f.ctx,original=JSON.stringify(c.drumMachineRoll);
+  if(blocked==='roll')c.isDrumMachineLaneAudible=lane=>lane!=='roll';else c.drumMachineEnabled=false;
+  const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123,{drums:true});
+  assert.equal(f.apply.prepare(p).fills,0);assert.equal(JSON.stringify(c.drumMachineRoll),original);
+ }
+});

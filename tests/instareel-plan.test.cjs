@@ -24,15 +24,22 @@ test('one or two long source cycles still contain audible interior changes',()=>
 });
 test('musical options default off and produce sparse interior fills only when requested',()=>{
  const meta={bpm:120,patternSteps:16},a=plan(meta,30,'subtle',12),b=plan(meta,30,'subtle',12,{notes:true,drums:true,recutV:false}),c=plan(meta,30,'moderate',12,{drums:true});
- assert.deepEqual(a.options,{notes:false,drums:false,recutV:false});assert.deepEqual(a.fills,[]);assert.deepEqual(b.options,{notes:true,drums:true,recutV:false});assert.equal(b.fills.length,1);assert(c.fills.length>b.fills.length);for(const fill of c.fills){assert(fill.at>=4&&fill.end<28);assert(fill.end-fill.at<=.5);assert(fill.ratchet<=2)}
+ assert.deepEqual(a.options,{notes:false,drums:false,recutV:false});assert.deepEqual(a.fills,[]);assert.deepEqual(b.options,{notes:true,drums:true,recutV:false});assert.equal(b.fills.length,1);assert(c.fills.length>b.fills.length);for(const fill of c.fills){assert(fill.at>=4&&fill.end<28);assert(fill.end-fill.at<=.5);assert.equal(fill.ratchet,3)}
 });
-test('phrase-end fills develop gradually instead of repeating identical fills',()=>{
- const p=plan({bpm:120,patternSteps:16},60,'subtle',123,{drums:true});assert.deepEqual(p.fills.map(f=>f.hits),[1,2,2]);assert(p.fills.every(f=>f.ratchet===1));
+test('phrase-end rolls use four straight-to-ratcheted steps even in Subtle',()=>{
+ const p=plan({bpm:120,patternSteps:16},60,'subtle',123,{drums:true});assert.deepEqual(p.fills.map(f=>f.hits),[4,4,4]);assert(p.fills.every(f=>f.ratchet===2));
 });
 
 test('Extreme is deterministic and stronger, while retaining original boundary and duration',()=>{
  const meta={bpm:120,patternSteps:16},a=plan(meta,30,'moderate',123,{notes:true,drums:true,recutV:false}),b=plan(meta,30,'extreme',123,{notes:true,drums:true,recutV:false});
- assert(b.events[1].amount>a.events[1].amount);assert(b.fills.length>a.fills.length);assert(b.fills.every(f=>f.ratchet===3));assert.equal(b.duration,30);assert.equal(b.events[0].amount,0);assert.equal(b.events.at(-1).amount,0);assert.deepEqual(b,plan(meta,30,'extreme',123,{notes:true,drums:true,recutV:false}));
+ assert(b.events[1].amount>a.events[1].amount);assert(b.fills.length>a.fills.length);assert(b.fills.every(f=>f.ratchet===4));assert.equal(b.duration,30);assert.equal(b.events[0].amount,0);assert.equal(b.events.at(-1).amount,0);assert.deepEqual(b,plan(meta,30,'extreme',123,{notes:true,drums:true,recutV:false}));
 });
 
 test('V re-cut option is explicit and defaults off',()=>{const meta={bpm:120,patternSteps:16};assert.equal(plan(meta,30,'subtle',1).options.recutV,false);assert.equal(plan(meta,30,'subtle',1,{recutV:true}).options.recutV,true);assert.equal(plan(meta,30,'subtle',1,{recutV:'1'}).options.recutV,false)});
+
+test('short slow reels still receive an interior roll and all strengths keep full beat timing',()=>{
+ for(const bpm of [60,90,120,175])for(const variation of ['subtle','moderate','extreme']){
+  const p=plan({bpm,patternSteps:16},30,variation,123,{drums:true});assert(p.fills.length>0);
+  for(const f of p.fills){assert(Math.abs((f.end-f.at)-60/bpm)<1e-7);assert(f.at>=p.events[1].at);assert(f.end<=p.events.at(-1).at);assert.equal(f.hits,4);assert(f.ratchet>1)}
+ }
+});

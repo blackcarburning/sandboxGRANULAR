@@ -241,3 +241,16 @@ both buttons obey the same busy/history/account guards. The focused
 `tests/instareel-current-patch-browser.cjs` inspects actual portable submission
 ZIPs before and after a BPM change, checks the live patch stays unchanged, and
 checks the button placement in Chromium/WebKit portrait and landscape.
+
+## Conventional Roll fills · 10
+
+When Drum variations is checked, phrase endings now receive a four-sixteenth
+Roll-lane fill: two straight steps followed by two ratcheted steps (doubles in
+Subtle, triples in Moderate, quadruples in Extreme). The usual 8/4/2-bar spacing
+is shortened only when needed to fit an interior fill in a short/slower reel.
+Opening/closing sections, lane audibility, loaded-Snare requirements and existing
+manual Roll events remain protected. Shallow original Dip no longer suppresses
+new ratchets; a 100% Dip does not silence newly generated notes. All changes
+remain inside the server reel deck using the shared Song engine; saved Song
+compatibility and live editor sequences/DSP are unchanged. New canonical plans
+are version 7; existing WAVs remain intact.
