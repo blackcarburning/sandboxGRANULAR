@@ -47,12 +47,12 @@ root.mygrainGenreator=Object.freeze({generate,get busy(){return pending},get gen
 if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const box=document.createElement('fieldset');box.id='instareelControls';box.dataset.mygrainWorkspace='instareel';
-box.innerHTML=`<legend>INSTAREEL <small>· 5</small></legend>
+box.innerHTML=`<legend>INSTAREEL <small>· 6</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
- <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option></select></label></div>
+ <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option><option value="extreme">Extreme</option></select></label></div>
  <div class="instareel-options"><label><input id="instareelNotes" type="checkbox"> X / L root-note variations</label><label><input id="instareelDrums" type="checkbox"> Drum variations + Roll fills</label></div>
- <p>Optional: X/L notes and drums evolve from each previous loop, with occasional hat ratchets and short Roll fills. The original groove returns at the loop boundary.</p>
+ <p>N Noise enters and leaves; V/W are re-cut as the reel develops. Optional X/L notes and drums evolve from each previous loop, with occasional hat ratchets and short Roll fills. Extreme makes bolder changes. Existing solos are respected. The original groove returns at the loop boundary.</p>
  <p id="instareelLength">Duration rounds to complete source cycles for a musical loop.</p>
  <div class="instareel-actions"><button id="instareelMake" type="button">Make Reel</button><button id="instareelCancel" type="button" hidden>Cancel reel</button></div>
  <p id="instareelStatus" role="status" aria-live="polite">Find a patch you like, then make a reel. No extra AI calls.</p>
@@ -156,7 +156,7 @@ el('Make').addEventListener('click',async()=>{
 el('Cancel').addEventListener('click',async()=>{const pending=job;abortTask();const token=generation;busy=true;sync();message('Cancelling reel…');try{if(pending&&['queued','running'].includes(pending.state)){const data=await json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(token!==generation)return;job=data.job}busy=false;message('Reel cancelled. Current patch unchanged.');sync()}catch(error){if(token===generation){message(`Cancellation could not be confirmed: ${error.message}. Tap Cancel to retry.`);sync()}}});
 el('Save').addEventListener('click',async()=>{
  if(!current?.jobId||current.saved||busy)return;const item=current,identity=user();el('Save').disabled=true;
- try{const data=await json(`${base}/${item.jobId}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:el('Name').value})});if(identity!==user()||item!==current)return;item.saved=true;message(`Saved ${data.reel.filename} to INSTAREEL and the WAV repository.`);await library()}
+ try{const data=await json(`${base}/${item.jobId}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:el('Name').value})});if(identity!==user()||item!==current)return;item.saved=true;message(`Saved ${data.reel.filename} to INSTAREEL.`);await library()}
  catch(error){message(`Save failed: ${error.message}. Your preview is still available.`)}finally{sync()}
 });
 el('Discard').addEventListener('click',()=>{cancelPlayer();current=null;el('Preview').hidden=true;message('Preview discarded. Saved reels and current patch unchanged.');sync()});
@@ -179,7 +179,7 @@ async function library(){
    const mutate=(action,payload)=>json(`${base}/library/${reel.id}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:libraryRequest.signal});
    rename.onclick=()=>{form.hidden=false;input.focus()};
    form.onsubmit=event=>{event.preventDefault();run(async()=>{const data=await mutate('rename',{name:input.value});if(disposed||identity!==user())return;if(current?.libraryId===reel.id){current.name=data.reel.name;el('PreviewTitle').textContent=current.name}await library();message(`Renamed to ${data.reel.name}.`)})};
-   remove.onclick=()=>{if(!confirm(`Delete “${reel.name}” from INSTAREEL and the WAV repository? Uploaded FTP copies are kept.`))return;run(async()=>{await mutate('delete',{});if(disposed||identity!==user())return;if(current?.libraryId===reel.id||current?.jobId===reel.id){cancelPlayer();current=null;el('Preview').hidden=true;sync()}await library();message('Reel deleted. Uploaded FTP copies are unchanged.')})};
+   remove.onclick=()=>{if(!confirm(`Delete “${reel.name}” from INSTAREEL? Uploaded FTP copies are kept.`))return;run(async()=>{await mutate('delete',{});if(disposed||identity!==user())return;if(current?.libraryId===reel.id||current?.jobId===reel.id){cancelPlayer();current=null;el('Preview').hidden=true;sync()}await library();message('Reel deleted. Uploaded FTP copies are unchanged.')})};
    upload.onclick=()=>run(async()=>{
     if(!root.mygrainFtp?.pickFolder)throw Error('FTP browser is not ready. Reload MYGRAIN and try again.');
     const folder=await root.mygrainFtp.pickFolder({title:'INSTAREEL · Choose private FTP folder',signal:libraryRequest.signal});if(disposed||identity!==user())return;if(folder===null){message('FTP upload cancelled.');return}
@@ -199,5 +199,5 @@ function dispose(){disposed=true;libraryRequest.abort();const pending=job;abortT
 root.addEventListener('mygrain-account-lock',dispose);root.addEventListener('mygrain-account-changed',dispose);
 root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
 root.mygrainInstareel=Object.freeze({get busy(){return busy},get capturing(){return capturing},get player(){return player},get job(){return job?{id:job.id,state:job.state}:null}});
-length();sync();
+length();sync();library();
 })(window);

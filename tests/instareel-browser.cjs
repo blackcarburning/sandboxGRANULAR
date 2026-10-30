@@ -13,6 +13,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.evaluate(value=>window.instareelTestVariations=value,!!process.env.INSTAREEL_RETRY_TEST);
   await page.evaluate(value=>window.instareelMusical=value,!!process.env.INSTAREEL_MUSICAL_TEST);
   await page.evaluate(value=>window.instareelRatchets=value,!!process.env.INSTAREEL_RATCHET_TEST);
+  await page.evaluate(value=>window.instareelEvolution=value,!!process.env.INSTAREEL_EVOLUTION_TEST);
   await page.evaluate(()=>{
    stopAllPerformancePlayback({silent:true});
    const buffer=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),data=buffer.getChannelData(0);
@@ -41,6 +42,14 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
     drumMachineKickPattern=Array.from({length:64},(_,i)=>i%16===0||i%16===8);drumMachineSnarePattern=Array.from({length:64},(_,i)=>i%16===4||i%16===12);drumMachineHatPattern=Array(64).fill(false);drumMachineRoll=MygrainDrumRoll.normalize({length:64});
     if(window.instareelRatchets){drumMachineHatBuffer=tone(5000,.025);drumMachineHatPattern=Array.from({length:64},(_,i)=>i%2===0);drumMachineHatRatchetPattern=Array(64).fill(0);drumMachineHatAccentPattern=Array(64).fill(false)}
     syncPerformanceControlState();
+   }
+   if(window.instareelEvolution){
+    const melodic=frequencies=>{const b=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++){const t=i/b.sampleRate,j=Math.min(3,Math.floor(t/.5)),local=t% .5;d[i]=.2*Math.sin(2*Math.PI*frequencies[j]*t)*Math.min(1,local/.006,(.5-local)/.006)}return b};
+    bastardLoopVBuffer=melodic([220,330,440,550]);bastardLoopWBuffer=melodic([880,1100,1320,1540]);bastardLoopVEnabled=true;bastardLoopWEnabled=true;bastardLoopVSourceBpm=bastardLoopWSourceBpm=120;
+    applyBastardLoopVDivisionSelection(['1'],{save:false});applyBastardLoopWDivisionSelection(['1'],{save:false});
+    for(const key of ['V','W']){const e=document.getElementById('performanceBastardLoop'+key+'Level');e.value='40';e.dispatchEvent(new Event('input',{bubbles:true}))}
+    mygrainNoise.restore({...mygrainNoise.settings(),enabled:false,level:0,source:'drums',cutoff:80,poles:16});
+    window.instareelWOriginal=bastardLoopWBuffer;
    }
    window.instareelOriginal={buffer:bastardLoopVBuffer,snapshot:JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)};
   });
@@ -81,16 +90,17 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   assert.equal((await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'wrong-account'}})).status(),401);
   if(process.env.INSTAREEL_RETRY_TEST){
    if(process.env.INSTAREEL_MUSICAL_TEST){await page.locator('#instareelNotes').uncheck();await page.locator('#instareelDrums').uncheck()}
-   await page.locator('#instareelSeconds').fill('60');await page.locator('#instareelVariation').selectOption('moderate');
+   await page.locator('#instareelSeconds').fill('60');await page.locator('#instareelVariation').selectOption(process.env.INSTAREEL_RETRY_VARIATION||'moderate');
    await page.locator('#instareelMake').tap();
    await page.waitForFunction(old=>mygrainInstareel.job&&mygrainInstareel.job.id!==old,id,{timeout:30000});
-   const nextId=await page.evaluate(()=>mygrainInstareel.job.id),next=(await (await context.request.get(base+`api/instareel/${nextId}`,{headers:{'X-Mygrain-User':'admin'}})).json()).job;assert.equal(next.plan.requestedSeconds,60);assert.equal(next.plan.variation,'moderate');assert.equal(next.plan.duration,60);if(process.env.INSTAREEL_MUSICAL_TEST){assert.deepEqual(next.plan.options,{notes:false,drums:false});assert.equal(next.plan.fills.length,0)}
+   const nextId=await page.evaluate(()=>mygrainInstareel.job.id),next=(await (await context.request.get(base+`api/instareel/${nextId}`,{headers:{'X-Mygrain-User':'admin'}})).json()).job;assert.equal(next.plan.requestedSeconds,60);assert.equal(next.plan.variation,process.env.INSTAREEL_RETRY_VARIATION||'moderate');assert.equal(next.plan.duration,60);if(process.env.INSTAREEL_MUSICAL_TEST){assert.deepEqual(next.plan.options,{notes:false,drums:false});assert.equal(next.plan.fills.length,0)}
    assert.equal(await page.locator('#instareelPreview').isVisible(),false,'Old preview must not masquerade as the new render');
-   await page.waitForFunction(()=>!mygrainInstareel.busy,null,{timeout:240000});assert.match(await page.locator('#instareelStatus').textContent(),/60.0s loopable reel ready · moderate/);
+   await page.waitForFunction(()=>!mygrainInstareel.busy,null,{timeout:240000});assert((await page.locator('#instareelStatus').textContent()).includes('60.0s loopable reel ready · '+(process.env.INSTAREEL_RETRY_VARIATION||'moderate')));
    assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true);
    const nextWav=await context.request.get(base+`api/instareel/${next.id}/wav`,{headers:{'X-Mygrain-User':'admin'}});assert.equal(nextWav.status(),200);if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-retry.wav',await nextWav.body());
-   console.log('PASS',engine,'Try Another rereads 60s/moderate and preserves live disabled layers');
+   console.log('PASS',engine,'Try Another rereads 60s/'+(process.env.INSTAREEL_RETRY_VARIATION||'moderate')+' and preserves live disabled layers');
   }
+  if(process.env.INSTAREEL_EVOLUTION_TEST)assert(await page.evaluate(()=>instareelWOriginal===bastardLoopWBuffer),'Live W source identity unchanged');
   // Existing G generation contracts remain untouched and ready.
   assert.equal(await page.locator('#genreatorGenres [data-genre]:enabled').count(),15);
   await page.evaluate(()=>window.dispatchEvent(new Event('mygrain-account-lock')));assert.equal(await page.evaluate(()=>mygrainInstareel.player.buffer),null);

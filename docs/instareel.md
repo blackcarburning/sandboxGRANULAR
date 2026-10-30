@@ -5,7 +5,7 @@ current editor. No additional AI request is made. The editor is never recalled,
 randomized, stopped or replaced. Targets round to complete source cycles within
 30–60s (the actual duration is shown while queued and when ready).
 
-- `genreator.js`/`.css`: duration, Subtle/Moderate, Make/Try Another, cancellation,
+- `genreator.js`/`.css`: duration, Subtle/Moderate/Extreme, Make/Try Another, cancellation,
   buffered preview with Loop checkbox, naming/save and INSTAREEL WAV Browser.
 - `backend/mygrain_instareel.py`: authenticated/account-pinned bounded jobs and
   private library. `deploy/instareel-server-hook.patch` adds only the dedicated
@@ -40,8 +40,8 @@ WAV Browser and its iPhone playback code are unchanged.
 Temporary sources and renders live in account WAV root `/.instareel/job-<id>`;
 source ZIPs are removed after worker completion/cancellation. Unsaved scratch
 expires after one hour and is cleaned on later requests. Save exclusively creates
-`INSTAREEL-<name>-<id>.<bpm>.wav` in the account WAV repository, registers normal
-provenance and adds the dedicated G library entry. Repeated Save is idempotent.
+`INSTAREEL-<name>-<id>.<bpm>.wav` inside account-private `.instareel/saved/`
+and adds only the dedicated G library entry; the normal WAV browser excludes it. Repeated Save is idempotent.
 Original WAV downloads stay lossless PCM; only the listening copy is AAC.
 Private routes enforce existing session and account-header checks, never expose
 filesystem paths, reject changed/missing originals and use private/no-store.
@@ -136,9 +136,9 @@ paired against the same-page Chromium options-off retry.
 
 Each saved G-browser row now has Rename, Delete and Upload to FTP alongside
 Preview/Download. Rename changes both its display name and WAV filename, retains
-its ID, PCM hash and AAC preview, and registers the new repository provenance.
+its ID, PCM hash and AAC preview.
 Creation is exclusive: no other WAV can be overwritten. Delete requires a visible
-confirmation, stops a selected reel's G player and removes it from both browsers;
+confirmation, stops a selected reel's G player and removes it from the G browser;
 WAV/preview/metadata recovery copies remain beneath the account-private
 `.instareel/trash/` directory. Uploaded FTP copies are independent and never
 removed by this action. Account locks protect library operations, and metadata
@@ -157,3 +157,33 @@ preview, folder-picker cancellation, exact-byte FTP upload, conflict recovery,
 delete cancellation/confirmation, retained FTP copy, rejected cross-account
 writes, untouched live patch and portrait/landscape controls. Python tests also
 verify recovery copies, collisions, invalid names and metadata-write rollback.
+
+## N, re-cuts, Extreme and private storage · 6
+
+N participates in development even when originally disabled: quiet filtered pink
+noise enters and leaves in interior sections, with original settings restored at
+the boundary. Existing enabled N retains its source and filter character. Solos
+remain authoritative. Native L/X synth sources and loaded K multitracks qualify
+as dormant layers without requiring a selected sample-buffer alias.
+
+Audible V/W use their existing crossfaded cut setters, never source replacement:
+Subtle alternates sparse gaps with 75% region repeats, Moderate uses half-region
+repeats, Extreme quarter-region repeats. Original cut settings return for closure.
+Optional X/L notes remain bounded to root/fifth/octave. Extreme permits three
+changed cells per section, up to half a sequence, stronger layer development and
+denser but still sparse drum detail. Every retry rereads all current controls.
+
+Saved WAVs now live only in `.instareel/saved/`, outside the normal root-only WAV
+listing. On authenticated library load, legacy library records migrate only when
+their audio hash matches; unrelated or replaced WAVs are untouched. Migration
+preserves exact audio bytes and IDs. Rename/delete, AAC preview, lossless download
+and existing private FTP upload use the dedicated library endpoints. No normal
+WAV-browser, shared playback, DSP or Song compatibility code changes.
+
+`INSTAREEL_EVOLUTION_TEST=1 INSTAREEL_MUSICAL_TEST=1` supplies distinct
+four-note V/W sources and initially disabled N with intentionally inaudible
+settings. Paired Chromium Subtle, WebKit Extreme and same-page 60s Extreme
+notes/drums-off retry WAVs are measured by
+`tests/instareel-evolution-evidence.py EVIDENCE_DIR`: broadband N entry/withdrawal,
+actual V/W note-order changes, L/X transposed-note energy and independent seams.
+The library browser test also verifies normal `/mygrain-wavs/api/list` exclusion.

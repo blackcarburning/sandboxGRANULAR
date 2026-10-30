@@ -8,6 +8,9 @@ function fixture(){
   ctx[set]=value=>{assert(ctx[buffer]||!value,'Never enable an unloaded lane');ctx[on]=value};
   elements.set(id,{value:'50',dispatchEvent(){this.applied=Number(this.value)}});
  }
+ ctx.MygrainVocalCut=require('../vocal-loop-cut.js');ctx.bastardLoopVCut=ctx.MygrainVocalCut.normalize();ctx.bastardLoopWCut=ctx.MygrainVocalCut.normalize();
+ for(const key of ['V','W']){ctx['getBastardLoop'+key+'LevelValue']=()=>ctx['bastardLoop'+key+'Enabled']?Number(elements.get('performanceBastardLoop'+key+'Level').value)/100:0;ctx['setBastardLoop'+key+'Cut']=(value)=>ctx['bastardLoop'+key+'Cut']=ctx.MygrainVocalCut.normalize(value)}
+ ctx.hasPlayableBastardLoopLTransportSource=()=>!!ctx.bastardLoopLSampleBuffer;ctx.hasPlayableBastardLoopXTransportSource=()=>!!ctx.bastardLoopXSampleBuffer;
  elements.set('lpfCutoff',{value:'12000',min:'500',dispatchEvent(){}});ctx.document={getElementById:id=>elements.get(id)};
  return {ctx,elements,apply:vm.runInNewContext(script,ctx)};
 }
@@ -94,4 +97,25 @@ test('four-second sections also withdraw ratchets before the two-second queued c
  const f=musicalFixture({drums:true}),c=f.ctx;c.drumMachineHatBuffer={};
  const plan=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:32},60,'subtle',123,{drums:true});f.apply.prepare(plan);
  for(const event of plan.events){f.apply(event);if(c.drumMachineHatRatchetPattern.some(n=>n>1))assert(event.at+4+2<=plan.events.at(-1).at)}
+});
+
+test('N enters even with no dormant sample lanes, withdraws and restores original settings',()=>{
+ const f=fixture(),c=f.ctx,DSP=require('../noise-card-dsp.js'),original=DSP.normalize({enabled:false,level:0,source:'drums',cutoff:80,poles:16});let state={...original};
+ c.window.mygrainNoise={settings:()=>state,restore:value=>state={...value},start(){this.running=true},running:false};c.bastardLoopWBuffer=null;
+ const apply=vm.runInNewContext(script,c),p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123);apply.prepare(p);
+ assert(apply(p.events[1]).added.includes('N'));assert.equal(state.enabled,true);assert.equal(state.level,6);assert.equal(state.filterType,'bandpass');assert(c.window.mygrainNoise.running);
+ apply(p.events[3]);assert.deepEqual(state,original);apply(p.events.at(-1));assert.deepEqual(state,original);
+ c.hasAnyPerformanceLayerSoloSelection=()=>true;c.loopLayerSolo=['bastardv'];assert(!apply(p.events[1]).added.includes('N'));assert.deepEqual(state,original);
+});
+test('V/W re-cuts retain source bounds and exact original closure; Extreme cuts are stronger',()=>{
+ const f=musicalFixture({notes:false,drums:false}),c=f.ctx,p=f.plan;
+ f.apply(p.events[1]);assert(c.bastardLoopVCut.gaps.length>0);
+ f.apply(p.events[2]);assert(c.bastardLoopVCut.repeat);assert.equal(c.bastardLoopVCut.end-c.bastardLoopVCut.start,.75);
+ p.variation='extreme';f.apply(p.events[2]);assert.equal(c.bastardLoopVCut.end-c.bastardLoopVCut.start,.25);
+ f.apply(p.events.at(-1));assert.deepEqual(c.bastardLoopVCut,c.MygrainVocalCut.normalize());assert.deepEqual(c.bastardLoopWCut,c.MygrainVocalCut.normalize());
+});
+test('native-synth L is an eligible layer without a sample but empty sequences are not',()=>{
+ const f=fixture(),c=f.ctx;c.bastardLoopWBuffer=null;c.hasPlayableBastardLoopLTransportSource=()=>true;c.setBastardLoopLEnabled=value=>c.bastardLoopLEnabled=value;
+ const apply=vm.runInNewContext(script,c);assert(apply({amount:.25,pick:0,at:2,seed:4}).added.includes('L'));
+ c.bastardLoopLEnabled=false;c.hasPlayableBastardLoopLTransportSource=()=>false;const empty=vm.runInNewContext(script,c);assert(!empty({amount:.25,pick:0,at:2,seed:4}).added.includes('L'));
 });

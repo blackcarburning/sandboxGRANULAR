@@ -23,6 +23,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
    await page.waitForFunction(name=>document.getElementById('instareelStatus').textContent===`Renamed to ${name}.`,reelName);
    const renamed=(await (await context.request.get(base+'api/instareel/library',{headers})).json()).reels[0];assert.equal(renamed.name,reelName);assert(renamed.filename.startsWith('INSTAREEL-'+reelName+'-'));
    assert(original.equals(await (await context.request.get(base+`api/instareel/library/${fixture.id}/wav`,{headers})).body()));
+   const normal=await context.request.get(new URL('/mygrain-wavs/api/list?refresh=1',base).href,{headers});assert.equal(normal.status(),200);assert(!(await normal.json()).files.some(f=>f.name===renamed.filename||f.name===fixture.filename),'Saved reels must not appear in the normal WAV browser');
    // Cancelled folder selection does not upload or delete anything.
    row=page.locator('.instareel-library-row').first();await row.getByRole('button',{name:'Upload to FTP',exact:true}).tap();await page.locator('dialog.ftp-picker').getByRole('button',{name:'Cancel',exact:true}).tap();
    await row.getByRole('button',{name:'Upload to FTP',exact:true}).tap();await page.locator('dialog.ftp-picker').getByRole('button',{name:'Use this folder',exact:true}).tap();await page.waitForFunction(()=>document.getElementById('instareelStatus').textContent.startsWith('Uploaded '));

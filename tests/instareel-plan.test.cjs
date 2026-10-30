@@ -16,7 +16,7 @@ test('repeatable seeds and modest changes preserve tempo; try another is actuall
 test('reject unsafe targets and source cycles that cannot fit the range',()=>{
  for(const seconds of [0,29,61,NaN,Infinity])assert.throws(()=>plan({bpm:120,patternSteps:16},seconds,'subtle',1));
  assert.throws(()=>plan({bpm:40,patternSteps:64,patternCycleMultiplier:8},45,'subtle',1));
- assert.throws(()=>plan({bpm:120,patternSteps:16},45,'extreme',1));
+ assert.throws(()=>plan({bpm:120,patternSteps:16},45,'unsupported',1));
 });
 
 test('one or two long source cycles still contain audible interior changes',()=>{
@@ -28,4 +28,9 @@ test('musical options default off and produce sparse interior fills only when re
 });
 test('phrase-end fills develop gradually instead of repeating identical fills',()=>{
  const p=plan({bpm:120,patternSteps:16},60,'subtle',123,{drums:true});assert.deepEqual(p.fills.map(f=>f.hits),[1,2,2]);assert(p.fills.every(f=>f.ratchet===1));
+});
+
+test('Extreme is deterministic and stronger, while retaining original boundary and duration',()=>{
+ const meta={bpm:120,patternSteps:16},a=plan(meta,30,'moderate',123,{notes:true,drums:true}),b=plan(meta,30,'extreme',123,{notes:true,drums:true});
+ assert(b.events[1].amount>a.events[1].amount);assert(b.fills.length>a.fills.length);assert(b.fills.every(f=>f.ratchet===3));assert.equal(b.duration,30);assert.equal(b.events[0].amount,0);assert.equal(b.events.at(-1).amount,0);assert.deepEqual(b,plan(meta,30,'extreme',123,{notes:true,drums:true}));
 });

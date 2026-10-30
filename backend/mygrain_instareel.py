@@ -40,8 +40,8 @@ def reel_root(accounts, user):
 
 
 def plan(meta, seconds, variation, seed, options=None):
-    if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle', 'moderate'):
-        raise ValueError('Choose 30–60 seconds and Subtle or Moderate variation.')
+    if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle', 'moderate', 'extreme'):
+        raise ValueError('Choose 30–60 seconds and Subtle, Moderate or Extreme variation.')
     cycle = meta['patternSteps'] * meta.get('patternCycleMultiplier', 1) * 60 / meta['bpm'] / 4
     low, high = math.ceil((30 - 1e-8) / cycle), math.floor((60 + 1e-8) / cycle)
     if cycle > 60 or low > high:
@@ -169,10 +169,30 @@ def cleanup(root):
                 folder.rmdir()
 
 
+def saved_wavs(root):
+    folder = checked(root / 'saved', root)
+    folder.mkdir(mode=0o700, exist_ok=True)
+    return folder
+
+
 def read_library(root, wavs):
     path = checked(root / 'library.json', root)
     rows = json.loads(path.read_text()) if path.exists() else []
-    return [r for r in rows if re.fullmatch(r'[a-f0-9]{32}', r['id']) and checked(wavs/r['filename'], wavs).is_file()]
+    saved, result = saved_wavs(root), []
+    for row in rows:
+        if not re.fullmatch(r'[a-f0-9]{32}', row['id']):
+            continue
+        target = checked(saved / row['filename'], saved)
+        if not target.is_file():
+            # Adopt only hash-verified library records from the old shared WAV root.
+            # An unrelated or externally replaced WAV is never moved by its prefix.
+            legacy = checked(wavs / row['filename'], wavs)
+            if not legacy.is_file() or hashlib.sha256(legacy.read_bytes()).hexdigest() != row['sha256']:
+                continue
+            os.link(legacy, target)
+            legacy.unlink()
+        result.append(row)
+    return result
 
 
 def write_library(root, rows):
@@ -188,7 +208,8 @@ def change_saved(root, wavs, ident, action, payload, accounts):
     row = next((r for r in rows if r['id'] == ident), None)
     if row is None:
         raise FileNotFoundError('Saved reel not found.')
-    source = checked(wavs / row['filename'], wavs)
+    saved = saved_wavs(root)
+    source = checked(saved / row['filename'], saved)
     if hashlib.sha256(source.read_bytes()).hexdigest() != row['sha256']:
         raise ValueError('Saved audio changed. Refresh the INSTAREEL browser.')
     if action == 'rename':
@@ -196,7 +217,7 @@ def change_saved(root, wavs, ident, action, payload, accounts):
         if not name:
             raise ValueError('Enter a reel name using letters, numbers, spaces, hyphens or underscores.')
         filename = f"INSTAREEL-{name}-{ident[:8]}.{row['bpm']:g}.wav"
-        target = checked(wavs / filename, wavs)
+        target = checked(saved / filename, saved)
         if target != source:
             # Exclusive hard link: a rename cannot overwrite any existing file.
             os.link(source, target)
@@ -209,9 +230,8 @@ def change_saved(root, wavs, ident, action, payload, accounts):
             raise
         if target != source:
             source.unlink()
-        accounts.wav_created(filename)
         return updated
-    # Deletion removes the browser/repository entry but retains recovery copies.
+    # Deletion removes the private library entry but retains recovery copies.
     trash = checked(root / 'trash', root)
     trash.mkdir(mode=0o700, exist_ok=True)
     folder = checked(trash / (ident + '-' + secrets.token_hex(4)), root)
@@ -267,8 +287,8 @@ def handle(handler, accounts, songs):
                 raise ValueError('Use Make Reel to create an INSTAREEL.')
             seconds = float((query.get('seconds') or ['45'])[0])
             variation = (query.get('variation') or ['subtle'])[0]
-            if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle','moderate'):
-                raise ValueError('Choose 30–60 seconds and Subtle or Moderate variation.')
+            if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle','moderate','extreme'):
+                raise ValueError('Choose 30–60 seconds and Subtle, Moderate or Extreme variation.')
             length = int(handler.headers.get('Content-Length', '0'))
             if not 0 < length <= LIMIT:
                 raise ValueError('Source snapshot exceeds the 96 MB upload limit. Shorten source samples.')
@@ -324,7 +344,7 @@ def handle(handler, accounts, songs):
                 row = next((r for r in read_library(root,wavs) if r['id']==parts[1]),None)
                 if not row:
                     raise FileNotFoundError('Saved reel not found.')
-                path = checked(wavs/row['filename'],wavs)
+                path = checked(saved_wavs(root)/row['filename'],root)
                 if hashlib.sha256(path.read_bytes()).hexdigest()!=row['sha256']:
                     raise ValueError('Saved audio changed. Refresh the INSTAREEL browser.')
                 target = checked(root/(row['id']+'.m4a'),root) if parts[2]=='preview' else path
@@ -357,7 +377,7 @@ def handle(handler, accounts, songs):
                     row = next((r for r in rows if r['id']==job['id']),None)
                     if row is None:
                         filename = f"INSTAREEL-{name}-{job['id'][:8]}.{job['plan']['bpm']:g}.wav"
-                        target = checked(wavs/filename,wavs)
+                        target = checked(saved_wavs(root)/filename,root)
                         # Exclusive creation: saving can never overwrite an existing WAV.
                         with target.open('xb') as output, (job['folder']/'reel.wav').open('rb') as source:
                             shutil.copyfileobj(source,output)
@@ -368,7 +388,6 @@ def handle(handler, accounts, songs):
                                'variation':job['plan']['variation'],'createdAt':time.time(),'sha256':hashlib.sha256(target.read_bytes()).hexdigest()}
                         rows.insert(0,row)
                         temporary = checked(root/'library.tmp',root);temporary.write_text(json.dumps(rows));temporary.chmod(0o600);os.replace(temporary,root/'library.json')
-                    accounts.wav_created(row['filename'])
                 return handler.send_json({'ok':True,'reel':row},extra_headers=PRIVATE)
             else:
                 raise ValueError('This reel is not ready for that action.')

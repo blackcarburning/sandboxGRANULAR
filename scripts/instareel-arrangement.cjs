@@ -2,12 +2,16 @@
 // Evaluated only inside the disposable server-render deck.
 module.exports=String.raw`(function(){
  const quiet={silent:true,skipSave:true},lanes=[['A','performanceBastardLoopLevel',bastardLoopEnabled,!!bastardLoopBuffer,v=>setBastardLoopEnabled(v,quiet)],['B','performanceBastardLoop2Level',bastardLoop2Enabled,!!bastardLoop2Buffer,v=>setBastardLoop2Enabled(v,quiet)],['C','performanceBastardLoop3Level',bastardLoop3Enabled,!!bastardLoop3Buffer,v=>setBastardLoop3Enabled(v,quiet)],['V','performanceBastardLoopVLevel',bastardLoopVEnabled,!!bastardLoopVBuffer,v=>setBastardLoopVEnabled(v,quiet)],['W','performanceBastardLoopWLevel',bastardLoopWEnabled,!!bastardLoopWBuffer,v=>setBastardLoopWEnabled(v,quiet)],['P','performanceBastardLoopPLevel',bastardLoopPEnabled,!!bastardLoopPBuffer,v=>setBastardLoopPEnabled(v,quiet)],['O','performanceBastardLoopOLevel',bastardLoopOEnabled,!!bastardLoopOBuffer,v=>setBastardLoopOEnabled(v,quiet)],['L','performanceBastardLoopLLevel',bastardLoopLEnabled,!!bastardLoopLSampleBuffer,v=>setBastardLoopLEnabled(v,quiet)],['X','performanceBastardLoopXLevel',bastardLoopXEnabled,!!bastardLoopXSampleBuffer,v=>setBastardLoopXEnabled(v,quiet)],['M','performanceBastardLoopMLevel',bastardLoopMEnabled,!!bastardLoopMRawBuffer,v=>setBastardLoopMEnabled(v,quiet)],['M+','performanceBastardLoopMPlusLevel',bastardLoopMPlusEnabled,!!bastardLoopMPlusRawBuffer,v=>setBastardLoopMPlusEnabled(v,quiet)],['K','performanceBastardLoopKLevel',bastardLoopKEnabled,!!bastardLoopKRawBuffer,v=>setBastardLoopKEnabled(v,quiet)]];
+ // Synth-mode lead lanes are playable without an audio sample. Empty sequences are not layers.
+ for(const lane of lanes){if(lane[0]==='L')lane[3]=hasPlayableBastardLoopLTransportSource();if(lane[0]==='X')lane[3]=hasPlayableBastardLoopXTransportSource();if(lane[0]==='K'&&window.mygrainKMultitrack)lane[3]=window.mygrainKMultitrack.hasAudio()}
  const controls=lanes.map(([key,id,on,loaded,enable])=>({key,el:document.getElementById(id),on,loaded,enable})).filter(x=>x.el).map(x=>({...x,value:Number(x.el.value)}));
  const active=controls.filter(x=>x.on&&x.value>0),available=controls.filter(x=>(!x.on||x.value<=0)&&x.loaded);
  const q=document.getElementById('performanceBastardLoopQLevelMixer');if(window.mygrainQ?.state.enabled&&q&&Number(q.value)>0)active.push({el:q,value:Number(q.value)});
  const drum=document.getElementById('performanceDrumMachineLevel');
  if(drumMachineEnabled&&drum&&Number(drum.value)>0)active.push({el:drum,value:Number(drum.value)});
  const filter=document.getElementById('lpfCutoff'),cutoff=Number(filter?.value);
+ const noise=window.mygrainNoise,originalNoise=noise?{...noise.settings()}:null;
+ const recuts=[['V',()=>bastardLoopVBuffer,()=>getBastardLoopVLevelValue(),()=>bastardLoopVCut,v=>setBastardLoopVCut(v,quiet)],['W',()=>bastardLoopWBuffer,()=>getBastardLoopWLevelValue(),()=>bastardLoopWCut,v=>setBastardLoopWCut(v,quiet)]].map(([key,buffer,audible,get,set])=>({key,buffer,audible,set,original:MygrainVocalCut.normalize(get()),last:''}));
  const hats=drumMachineHatPattern.slice(),accents=drumMachineHatAccentPattern.slice(),hatRatchets=drumMachineHatRatchetPattern.slice();
  function level(x,value){x.el.value=String(value);x.el.dispatchEvent(new Event('input',{bubbles:true}))}
  let plan={options:{notes:false,drums:false}},leads=null,evolvingHats=hats.slice(),evolvingHatAccents=accents.slice(),hatChanges=new Set(),drumGeneration=0,evolvingSnare=null;
@@ -17,7 +21,7 @@ module.exports=String.raw`(function(){
   if(event.amount===0){lane.touched=new Set();lane.turn=0}
   if(event.amount>0&&lane.enabled()&&lane.playable()&&original.slice(0,lane.length).some(step=>step.note&&!step.rest)){
    const stepSeconds=lane.seconds(),start=Math.ceil((plan.warmup+event.at+.2)/stepSeconds)+event.seed%3;
-   const count=plan.variation==='subtle'?1:2,root=noteNameToMidi(lane.root()),cap=Math.max(1,Math.floor(lane.length*(plan.variation==='subtle'?.25:.375)));
+   const count=plan.variation==='subtle'?1:plan.variation==='moderate'?2:3,root=noteNameToMidi(lane.root()),cap=Math.max(1,Math.floor(lane.length*(plan.variation==='subtle'?.25:plan.variation==='moderate'?.375:.5)));
    lane.touched||=new Set();lane.turn=(lane.turn||0)+1;
    for(let j=0;j<count;j++){
     let index=(start+j*2)%lane.length;
@@ -37,19 +41,41 @@ module.exports=String.raw`(function(){
  }
  const apply=event=>{
   active.forEach((x,i)=>level(x,x.value*(1-event.amount*(i===event.pick%Math.max(1,active.length)?1:.15))));
-  const selected=event.amount>0?Math.min(available.length,event.amount>.3?2:1):0;
+  const selected=event.amount>0?Math.min(available.length,plan.variation==='extreme'?3:event.amount>.3?2:1):0;
   const added=[];
   available.forEach((x,i)=>{const offset=(i-event.pick%Math.max(1,available.length)+available.length)%available.length,on=offset<selected;
    // Set the level before waking a parked lane; never add unloaded sources.
-   level(x,on?Math.min(x.value||35,event.amount>.3?30:16):x.value);x.enable(on||x.on);if(on)added.push(x.key);
+   level(x,on?Math.min(x.value||35,plan.variation==='extreme'?42:event.amount>.3?30:16):x.value);x.enable(on||x.on);if(on)added.push(x.key);
   });
+  const section=Math.min(plan.cycle||2,480/(plan.bpm||120)),stage=Math.round(event.at/section)||0;
+  const nAllowed=typeof hasAnyPerformanceLayerSoloSelection!=='function'||!hasAnyPerformanceLayerSoloSelection()||loopLayerSolo.includes('noise');
+  if(noise&&originalNoise){
+   if(originalNoise.enabled){noise.restore({...originalNoise,level:originalNoise.level*(1-event.amount*.35),cutoff:originalNoise.cutoff*(1-event.amount*.25)})}
+   else if(event.amount>0&&nAllowed&&stage%3!==0){
+    noise.restore({...originalNoise,enabled:true,type:'pink',level:plan.variation==='subtle'?6:plan.variation==='moderate'?10:16,filterEnabled:true,filterType:'bandpass',poles:4,cutoff:plan.variation==='extreme'?1800:1100,resonance:.707,drive:0,source:'L1',mode:'follow',amount:1.5});
+    if(!noise.running)noise.start();added.push('N');
+   }else noise.restore(originalNoise);
+  }
+  for(const lane of recuts){let next=lane.original;
+   if(event.amount>0&&lane.buffer()&&lane.audible()>0){
+    const base=lane.original,begin=base.enabled?base.start:0,end=base.enabled?base.end:1,span=end-begin;
+    if(plan.variation!=='subtle'||stage%3===2){
+     const fraction=plan.variation==='subtle'?.75:plan.variation==='moderate'?.5:.25,width=span*fraction;
+     const start=begin+(event.seed%2)*(span-width);
+     next=MygrainVocalCut.normalize({...base,enabled:true,start,end:start+width,repeat:true,fromStart:true,stretch:false,targetStart:null,targetDuration:null});
+    }else{
+     const cell=(event.seed%4)*4+3;next=MygrainVocalCut.normalize({...base,gapEnabled:true,gaps:base.gaps.concat([[cell/16,(cell+1)/16]])});
+    }
+   }
+   const key=JSON.stringify(next);if(key!==lane.last){lane.set(next);lane.last=key}
+  }
   if(filter&&Number.isFinite(cutoff)){filter.value=String(Math.max(Number(filter.min),cutoff*(1-event.amount*.65)));filter.dispatchEvent(new Event('input',{bubbles:true}))}
   if(plan.options.drums&&drumMachineEnabled){
    if(event.amount===0){evolvingHats=hats.slice();evolvingHatAccents=accents.slice();hatChanges.clear();drumGeneration=0}
    else drumGeneration++;
    if(drumMachineHatBuffer){
     if(event.amount>0){
-     const count=getPatternLengthSteps(),weak=Array.from({length:count},(_,i)=>i).filter(i=>i%4===3),cap=plan.variation==='subtle'?2:4;
+     const count=getPatternLengthSteps(),weak=Array.from({length:count},(_,i)=>i).filter(i=>i%4===3),cap=plan.variation==='subtle'?2:plan.variation==='moderate'?4:6;
      if(weak.length){
       const fresh=weak.filter(i=>!hatChanges.has(i)),choices=hatChanges.size<cap&&fresh.length?fresh:[...hatChanges],i=choices[event.seed%choices.length];
       if(!evolvingHats[i]){evolvingHats[i]=true;evolvingHatAccents[i]=false}else evolvingHatAccents[i]=!evolvingHatAccents[i];
@@ -61,7 +87,7 @@ module.exports=String.raw`(function(){
     drumMachineHatRatchetPattern=hatRatchets.slice();
     if(event.amount>0&&drumGeneration%3===1&&event.at+Math.min(plan.cycle,480/plan.bpm)+2<=plan.events.at(-1).at&&isDrumMachineLaneAudible('hat')){
      const candidates=evolvingHats.slice(0,getPatternLengthSteps()).map((on,i)=>on&&(Number(hatRatchets[i])||1)<=1?i:-1).filter(i=>i>=0);
-     if(candidates.length){const i=candidates[event.seed%candidates.length];drumMachineHatRatchetPattern[i]=plan.variation==='subtle'?2:3}
+     if(candidates.length){const i=candidates[event.seed%candidates.length];drumMachineHatRatchetPattern[i]=plan.variation==='subtle'?2:plan.variation==='moderate'?3:4}
     }
    }
   }
