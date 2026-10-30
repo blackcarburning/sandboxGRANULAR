@@ -55,3 +55,20 @@ Song DSP or regenerate existing original renders for this change.
 
 Initial backup and verification evidence are under
 `../output/mygrain-iphone-wav-fast-20261028/` in the workspace (not public URLs).
+
+## Preview idle protection (2026-10-30)
+
+The shared AudioContext has an eight-second idle sleep timer. Include
+`wavIphonePreviewActive.playing` in the background controller's playback predicate:
+a resident preview is real playback even when the sequencer is stopped. Without
+that guard, real browser tests froze at about 7.6 seconds with
+`idleSuspended: true`; the download had already finished. Do not raise transport
+buffers or idle timeouts to conceal this lifecycle omission. Pause/end/Close still
+release the guard and allow ordinary idle sleep. The AAC service, decoded-buffer
+player, original fallback, memory limits and desktop native audio are unchanged.
+No Song render/DSP compatibility change is needed: render decks exclude the
+background controller and do not use the repository audition player.
+
+`tests/wav-preview-idle-browser.cjs` uses a disposable localhost account and WAVs
+longer than 23 seconds. It measures uninterrupted playback across the idle
+threshold, verifies PCM, then Pause -> idle sleep -> Play with no second fetch.
