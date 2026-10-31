@@ -16301,6 +16301,53 @@ if (normalized === 'W') {
             }
         }
 
+        // SAMPLE-LOAD-FEEDBACK.1: independent of transient/randomisation status.
+        let sampleLoadFailureDialog = null;
+        const sampleLoadFailureMessages = new Set();
+        function reportSampleLoadFailure(label, error) {
+            const message = String(error?.message || error || 'No usable audio returned.');
+            // Intentional navigation/account/source changes are not network failures.
+            if (window.__mygrainSongRenderDeck || error?.name === 'AbortError' || /cancelled because|Wait for the current|Start MYGRAIN|Finish Record/i.test(message)) return;
+            if (!sampleLoadFailureDialog) {
+                const dialog = document.createElement('dialog');
+                dialog.id = 'sampleLoadFailureDialog';
+                dialog.setAttribute('aria-labelledby', 'sampleLoadFailureTitle');
+                dialog.style.cssText = 'box-sizing:border-box;position:fixed;inset:0;margin:auto;width:min(92vw,460px);max-height:80dvh;overflow:auto;padding:20px;border:1px solid #df935b;border-radius:12px;background:#191d26;color:#f5f5f5;box-shadow:0 12px 48px #0009;';
+                const title = document.createElement('h2');
+                title.id = 'sampleLoadFailureTitle'; title.textContent = 'Samples could not be loaded';
+                title.style.cssText = 'font-size:18px;margin:0 0 12px';
+                const help = document.createElement('p');
+                help.textContent = 'Some requested samples were empty or could not be downloaded or decoded. Check your connection and try Randomise or Reload again. Previously loaded samples are kept where available; other samples may have loaded successfully.';
+                const details = document.createElement('p'); details.dataset.sampleLoadDetails = '';
+                details.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px';
+                const close = document.createElement('button'); close.type = 'button'; close.textContent = 'OK';
+                close.style.cssText = 'min-height:44px;min-width:80px';
+                close.addEventListener('click', () => dialog.close());
+                dialog.addEventListener('close', () => sampleLoadFailureMessages.clear());
+                dialog.append(title, help, details, close); document.body.append(dialog);
+                sampleLoadFailureDialog = dialog;
+                window.addEventListener('mygrain-account-lock', () => dialog.close());
+            }
+            if (sampleLoadFailureMessages.size < 20) sampleLoadFailureMessages.add(`${label}: ${message}`.slice(0, 500));
+            sampleLoadFailureDialog.querySelector('[data-sample-load-details]').textContent = [...sampleLoadFailureMessages].join('\n');
+            if (!sampleLoadFailureDialog.open) sampleLoadFailureDialog.showModal();
+        }
+
+        async function withSampleLoadFeedback(label, load) {
+            try { return await load(); }
+            catch (error) {
+                try { reportSampleLoadFailure(label, error); } catch (feedbackError) { console.warn('Sample load feedback unavailable', feedbackError); }
+                throw error;
+            }
+        }
+
+        async function decodeNonemptySample(bytes, context = audioContext) {
+            if (!bytes?.byteLength) throw new Error('The server returned empty audio.');
+            const buffer = await context.decodeAudioData(bytes.slice(0));
+            if (!buffer?.length || !buffer.numberOfChannels || !(buffer.duration > 0)) throw new Error('The server returned no usable audio.');
+            return buffer;
+        }
+
         function hideSettlePopup() {
             if (!settlePopup) return;
             if (settlePopupTimer) {
@@ -33999,7 +34046,11 @@ if (layer === 'W') {
             if (drumMachineExtraTracks[kind]) saveState();
         }
 
-        async function loadDrumMachineSample(kind, options = {}) {
+        async function loadDrumMachineSample(...args) {
+            return withSampleLoadFeedback('Drums', () => loadDrumMachineSampleImpl(...args));
+        }
+
+        async function loadDrumMachineSampleImpl(kind, options = {}) {
             if (kind === 'etc') return false; // Manual lane: random loaders must never replace its sample.
             if (!DRUM_MACHINE_SOURCE_KEYS[kind]) throw new Error('Unknown drum lane.');
             if (!audioContext) {
@@ -34058,11 +34109,15 @@ if (layer === 'W') {
                 throw new Error(`No ${kind} sample could be loaded.`);
             }
 
-            const decoded = await audioContext.decodeAudioData(selectedPayload.arrayBuffer.slice(0));
+            const decoded = await decodeNonemptySample(selectedPayload.arrayBuffer);
             await applyLoadedDrumMachineSampleBuffer(kind, decoded, selectedPayload.metadata);
         }
 
-        async function loadDrumMachineSampleFromSourceRelativePath(kind, sourceKey, relativePath, fileName = '') {
+        async function loadDrumMachineSampleFromSourceRelativePath(...args) {
+            return withSampleLoadFeedback('Drum sample', () => loadDrumMachineSampleFromSourceRelativePathImpl(...args));
+        }
+
+        async function loadDrumMachineSampleFromSourceRelativePathImpl(kind, sourceKey, relativePath, fileName = '') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading drum samples.');
             }
@@ -34088,7 +34143,7 @@ if (layer === 'W') {
                 const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || resolvedSourceKey;
                 const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || sourceLabel;
                 const arrayBuffer = await response.arrayBuffer();
-                const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                const decoded = await decodeNonemptySample(arrayBuffer);
                 await applyLoadedDrumMachineSampleBuffer(kind, decoded, {
                     sourceKey: responseSourceKey,
                     sourceLabel: responseSourceLabel,
@@ -34143,6 +34198,7 @@ if (layer === 'W') {
                     ? `Beat ready: ${describeDrumMachineSummary()}.`
                     : `Drum samples ready: ${describeDrumMachineSummary()}. Pattern kept.`;
                 if (failures.length > 0) {
+                    reportSampleLoadFailure('Drum samples', new Error(failures.join(' | ')));
                     setStatus(`${successMessage} Warning: ${failures.join(' | ')}`, 'error');
                 } else {
                     setStatus(successMessage);
@@ -36034,7 +36090,11 @@ if (layer === 'W' && bastardLoopWBuffer) {
             return Object.hasOwn(BASTARD_LOOP_SOURCE_LABELS, value) ? value : 'samples_piano';
         }
 
-        async function loadRandomPerformanceSample(target) {
+        async function loadRandomPerformanceSample(...args) {
+            return withSampleLoadFeedback('Random sample', () => loadRandomPerformanceSampleImpl(...args));
+        }
+
+        async function loadRandomPerformanceSampleImpl(target) {
             window.mygrainPower?.set(false, { silent: true });
             const qSample = target === SAMPLE_BROWSER_TARGETS.qSample, keyboard = target === SAMPLE_BROWSER_TARGETS.keyboardSample || qSample;
             if (!keyboard && ![SAMPLE_BROWSER_TARGETS.grainA, SAMPLE_BROWSER_TARGETS.grainB].includes(target)) throw new Error('Unknown random sample target.');
@@ -36091,7 +36151,11 @@ if (layer === 'W' && bastardLoopWBuffer) {
 
         // Mega/Sparse already own the history transaction. Use the same restricted
         // picker and atomic sample loader without opening competing draft edits.
-        async function loadMegaRandomGranularSample(target) {
+        async function loadMegaRandomGranularSample(...args) {
+            return withSampleLoadFeedback('Grain sample', () => loadMegaRandomGranularSampleImpl(...args));
+        }
+
+        async function loadMegaRandomGranularSampleImpl(target) {
             const details = GRAIN_SAMPLE_BROWSER_TARGET_DETAILS[target];
             if (![SAMPLE_BROWSER_TARGETS.grainA, SAMPLE_BROWSER_TARGETS.grainB].includes(target) || !details) throw new Error('Unknown granular random sample target.');
             const context = audioContext, account = window.mygrainAccounts?.user?.username;
@@ -36128,7 +36192,11 @@ if (layer === 'W' && bastardLoopWBuffer) {
             }
         }
 
-        async function loadKeyboardSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '', options = {}) {
+        async function loadKeyboardSampleFromSourceRelativePath(...args) {
+            return withSampleLoadFeedback('Keyboard / Q sample', () => loadKeyboardSampleFromSourceRelativePathImpl(...args));
+        }
+
+        async function loadKeyboardSampleFromSourceRelativePathImpl(sourceKey, relativePath, fileName = '', options = {}) {
             // Reuse the card history boundary: sample changes are editable in Amend,
             // but must not join an unrelated asynchronous history operation.
             if (window.mygrainCardHistory?.busy) throw new Error('Wait for the current sound change to finish.');
@@ -49897,6 +49965,7 @@ if (layer === 'W' && bastardLoopWBuffer) {
                 await spec.applyBuffer(decoded, metadata);
                 megaRandomCommentary?.task(spec.label, 'ready', `${spec.label} ready: ${metadata.sampleNames?.slice(0, 2).join(', ') || metadata.savedName || 'audio loaded'}.`);
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 megaRandomCommentary?.task(spec.label, 'warning', `${spec.label}: ${error.message}`);
                 spec.restoreState(previousState);
                 appendBastardLoopTrace(spec.traceLayer, 'build-error', { error: error.message });
@@ -55780,7 +55849,11 @@ W: {
             return metadata;
         }
 
-        async function requestGeneratedBastardLoopAudio(requestPayload, options = {}) {
+        async function requestGeneratedBastardLoopAudio(...args) {
+            return withSampleLoadFeedback('Generated loop', () => requestGeneratedBastardLoopAudioImpl(...args));
+        }
+
+        async function requestGeneratedBastardLoopAudioImpl(requestPayload, options = {}) {
             const traceLayer = options.traceLayer || 'A';
             const errorLabel = options.errorLabel || 'Bastardloop build';
             const fallbackSourceKey = String(options.fallbackSourceKey || requestPayload?.source || 'sampledrop').trim();
@@ -55846,7 +55919,7 @@ W: {
             const responseSourceKey = response.headers.get('X-Mygrain-Source-Key') || fallback.sourceKey || getDropboxSampleLayerSourceKey();
             const responseSourceLabel = response.headers.get('X-Mygrain-Source-Label') || fallback.sourceLabel || getDropboxSampleLayerSourceLabel(responseSourceKey);
             const arrayBuffer = await response.arrayBuffer();
-            const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            const decoded = await decodeNonemptySample(arrayBuffer);
             await applyLoadedDropboxSampleLayerBuffer(decoded, {
                 sourceKey: responseSourceKey,
                 sourceLabel: responseSourceLabel,
@@ -56038,7 +56111,7 @@ W: {
             if (fallback.maxBytes && Number(response.headers.get('Content-Length')) > fallback.maxBytes) throw new Error('Random sample exceeds 32 MB.');
             const arrayBuffer = await response.arrayBuffer();
             if (fallback.maxBytes && arrayBuffer.byteLength > fallback.maxBytes) throw new Error('Random sample exceeds 32 MB.');
-            const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            const decoded = await decodeNonemptySample(arrayBuffer);
 
             fallback.guard?.();
             const previousBuffer = getSourceBuffer(config.slotKind);
@@ -56075,7 +56148,11 @@ W: {
             setStatus(`${sourceName} ready in ${config.layerLabel} from ${responseSourceLabel}.`);
         }
 
-        async function loadGranularBrowserSampleFromSourceRelativePath(target, sourceKey, relativePath, fileName = '', options = {}) {
+        async function loadGranularBrowserSampleFromSourceRelativePath(...args) {
+            return withSampleLoadFeedback('Grain sample', () => loadGranularBrowserSampleFromSourceRelativePathImpl(...args));
+        }
+
+        async function loadGranularBrowserSampleFromSourceRelativePathImpl(target, sourceKey, relativePath, fileName = '', options = {}) {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a grain sample.');
             }
@@ -56519,12 +56596,14 @@ W: {
                         feedbackDraft: null
                     }))
                     : [];
+                if (!dropboxSampleBrowserFiles.length) reportSampleLoadFailure(resolvedSourceLabel, new Error('The sample list returned empty.'));
                 setDropboxSampleBrowserStatus(`${dropboxSampleBrowserFiles.length} sample${dropboxSampleBrowserFiles.length === 1 ? '' : 's'} from ${resolvedSourceLabel}.`);
             } catch (error) {
                 if (error?.name === 'AbortError') return;
                 if (refreshToken !== dropboxSampleBrowserRefreshToken) return;
                 dropboxSampleBrowserVisibleCount = DROPBOX_SAMPLE_BROWSER_INITIAL_RENDER_COUNT;
                 dropboxSampleBrowserFiles = [];
+                reportSampleLoadFailure(sourceLabel, error);
                 setDropboxSampleBrowserStatus(`Preview load failed: ${error.message}`);
             } finally {
                 if (dropboxSampleBrowserRefreshAbortController === abortController) {
@@ -56577,7 +56656,11 @@ W: {
             closeDropboxSampleBrowser();
         }
 
-        async function loadDropboxSampleLayerFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
+        async function loadDropboxSampleLayerFromSourceRelativePath(...args) {
+            return withSampleLoadFeedback('Dropbox sample', () => loadDropboxSampleLayerFromSourceRelativePathImpl(...args));
+        }
+
+        async function loadDropboxSampleLayerFromSourceRelativePathImpl(sourceKey, relativePath, fileName = '') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Dropbox sample.');
             }
@@ -56644,7 +56727,7 @@ W: {
             const fileName = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Name')) || fallback.fileName || 'lead.wav';
             const relativePath = decodeRepositoryHeader(response.headers.get('X-Mygrain-Source-Path')) || fallback.relativePath || '';
             const arrayBuffer = await response.arrayBuffer();
-            const buffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+            const buffer = await decodeNonemptySample(arrayBuffer);
             await applyLoadedBastardLoopLSampleBuffer(buffer, sourceLabel, {
                 sourceKey,
                 sourceLabel,
@@ -56654,7 +56737,11 @@ W: {
             });
         }
 
-        async function loadBastardLoopLSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
+        async function loadBastardLoopLSampleFromSourceRelativePath(...args) {
+            return withSampleLoadFeedback('Loop L', () => loadBastardLoopLSampleFromSourceRelativePathImpl(...args));
+        }
+
+        async function loadBastardLoopLSampleFromSourceRelativePathImpl(sourceKey, relativePath, fileName = '') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop L sample.');
             }
@@ -56672,7 +56759,11 @@ W: {
             });
         }
 
-        async function loadBastardLoopLSampleFromSource() {
+        async function loadBastardLoopLSampleFromSource(...args) {
+            return withSampleLoadFeedback('Loop L', () => loadBastardLoopLSampleFromSourceImpl(...args));
+        }
+
+        async function loadBastardLoopLSampleFromSourceImpl() {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop L sample.');
             }
@@ -56755,8 +56846,9 @@ W: {
         }
 
         async function decodeRepositoryAudio(bytes, context = audioContext) {
+            if (!bytes?.byteLength) throw new Error('The server returned empty audio.');
             const info = readOriginalAiffInfo(bytes);
-            if (!info) return context.decodeAudioData(bytes);
+            if (!info) return decodeNonemptySample(bytes, context);
             // Decode the original integer PCM directly: preserve rate, frames,
             // tuning and samples. No re-encoding or asset conversion is involved.
             if (info.frames * info.channels * 4 > 32 * 1024 * 1024) throw new Error('Original AIFF exceeds the decoded-audio budget.');
@@ -56843,7 +56935,11 @@ W: {
             });
         }
 
-        async function loadBastardLoopXSampleFromSourceRelativePath(sourceKey, relativePath, fileName = '') {
+        async function loadBastardLoopXSampleFromSourceRelativePath(...args) {
+            return withSampleLoadFeedback('Loop X', () => loadBastardLoopXSampleFromSourceRelativePathImpl(...args));
+        }
+
+        async function loadBastardLoopXSampleFromSourceRelativePathImpl(sourceKey, relativePath, fileName = '') {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop X sample.');
             }
@@ -56861,7 +56957,11 @@ W: {
             });
         }
 
-        async function loadBastardLoopXSampleFromSource() {
+        async function loadBastardLoopXSampleFromSource(...args) {
+            return withSampleLoadFeedback('Loop X', () => loadBastardLoopXSampleFromSourceImpl(...args));
+        }
+
+        async function loadBastardLoopXSampleFromSourceImpl() {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Bastardloop X sample.');
             }
@@ -56882,7 +56982,11 @@ W: {
             await loadBastardLoopXSampleFromResponse(response, { sourceKey, sourceLabel });
         }
 
-        async function loadDropboxSampleLayerFromSource() {
+        async function loadDropboxSampleLayerFromSource(...args) {
+            return withSampleLoadFeedback('Dropbox sample', () => loadDropboxSampleLayerFromSourceImpl(...args));
+        }
+
+        async function loadDropboxSampleLayerFromSourceImpl() {
             if (!audioContext) {
                 throw new Error('Start MYGRAIN before loading a Dropbox sample.');
             }
@@ -57037,6 +57141,7 @@ W: {
                     : 'Bastardloop ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('A', 'build-error', { error: error.message });
                 bastardLoopBuffer = previousBuffer;
                 bastardLoopMetadata = previousMetadata;
@@ -57119,6 +57224,7 @@ W: {
                     : 'Bastardloop B ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('B', 'build-error', { error: error.message });
                 bastardLoop2Buffer = previousBuffer;
                 bastardLoop2Metadata = previousMetadata;
@@ -57201,6 +57307,7 @@ W: {
                     : 'Bastardloop C ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('C', 'build-error', { error: error.message });
                 bastardLoop3Buffer = previousBuffer;
                 bastardLoop3Metadata = previousMetadata;
@@ -57341,6 +57448,7 @@ W: {
                     : 'Bastardloop V ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('V', 'build-error', { error: error.message });
                 const replacedBuffer = bastardLoopVBuffer !== previousBuffer;
                 bastardLoopVBuffer = previousBuffer;
@@ -57431,6 +57539,7 @@ W: {
                     : 'Bastardloop W · Weird ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('W', 'build-error', { error: error.message });
                 const replacedBuffer = bastardLoopWBuffer !== previousBuffer;
                 bastardLoopWBuffer = previousBuffer;
@@ -57521,6 +57630,7 @@ W: {
                     : 'Bastardloop P ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('P', 'build-error', { error: error.message });
                 bastardLoopPBuffer = previousBuffer;
                 bastardLoopPMetadata = previousMetadata;
@@ -57606,6 +57716,7 @@ W: {
                     : 'Bastardloop O ready.');
                 saveState();
             } catch (error) {
+                reportSampleLoadFailure('Generated loop', error);
                 appendBastardLoopTrace('O', 'build-error', { error: error.message });
                 bastardLoopOBuffer = previousBuffer;
                 bastardLoopOMetadata = previousMetadata;
