@@ -163,7 +163,7 @@ only, settles while playing, and is off by default. It is not LUFS matching and
 neither it nor bypass changes export. Long WAVs can use Previous mastering.
 
 The existing authenticated mastering job API additionally accepts
-`engine: "live-master-1"`, all five `liveSettings`, and `sourceSha256` computed
+`engine: "live-master-2"`, all thirteen `liveSettings`, and `sourceSha256` computed
 from the preview WAV. Server re-resolves the owned WAV/reel, snapshots and hashes
 it under the account lock, and rejects a changed source before queuing DSP.
 Existing queue/concurrency/ownership rules still apply. Cache identity includes
@@ -176,7 +176,7 @@ a new render. A worker continues if its dialog closes.
 
 Verification:
 - `node tests/mastering-live-dsp.cjs`: actual worklet process vs Node renderer,
-  identical PCM, all four presets bit-identical, finite/nonzero output, ceiling,
+  identical PCM, all six presets bit-identical, finite/nonzero output, ceiling,
   impulse delay, silence and live reconfiguration.
 - `python3 tests/test_mastering.py`: legacy regressions plus live settings
   validation, 44.1→48k mono/stereo conversion, exact frames, loop/finite paths,
@@ -188,8 +188,31 @@ Verification:
   `MYGRAIN_LIVE_TEST_WAV` selects a local diagnostic source in disposable storage.
 - Existing mastering browser tests explicitly select Previous mastering.
 
-Static entrypoint marker: `v2026.10.31.LIVE.1`; live dialog: `Live mastering · LIVE.1`.
+Static entrypoint marker: `v2026.10.31.LIVE.2`; live dialog: `Live mastering · LIVE.2`.
 The public asset allowlist includes the three live JS assets. Node is required
 on the server; there are no additional plugin licences or external audio uploads.
 Physical iPhone performance/listening remains a device audition, not an emulation
 claim.
+
+## LIVE.2 — extended mastering
+
+Input Drive now spans −24 to +36 dB. Independent post-dynamics Limiter drive
+adds 0–24 dB, with Loud and Hot presets. Three complementary bands (180 Hz and
+3.5 kHz) provide ±12 dB EQ and independent stereo-linked compression amounts.
+High-band parallel tanh excitation adds harmonics before the limiter. Controls
+are smoothed; meters show each band's reduction. Neutral new controls preserve
+the previous chain. This is a lightweight fixed-crossover processor, not a
+linear-phase crossover or oversampled exciter. Ceiling spans −6 to −0.3 dBFS
+and remains sample-peak, with measured true peak reported after rendering.
+
+Server validation, cache engine identity and metadata use live-master-2. Old
+live-master-1 metadata remains readable/shareable without altering audio. New
+presets are accepted only by the new live engine; legacy target mastering is
+unchanged. The same server worker applies this chain to saved complete Song
+WAVs (finite, tail-flushed and delay-compensated) and loop WAVs (warmed/cropped).
+Song arrangement synthesis/freeze DSP is intentionally unchanged: mastering is
+a separate saved-WAV post-process, not an edit to the arrangement engine.
+
+Additional checks cover EQ frequency response, each compression band, excitation
+harmonics, post-dynamics loudness, maximum settings, old metadata, and Hot preset
+server saves in Chromium/WebKit. Device audition remains unverified.

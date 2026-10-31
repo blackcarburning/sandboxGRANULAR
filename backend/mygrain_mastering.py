@@ -162,17 +162,22 @@ def process(source, output, preset='clean', loop=True, target=None):
         return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': target}
 
 
-LIVE_VERSION = 'live-master-1'
-LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 24), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -1)}
+LIVE_VERSION = 'live-master-2'
+LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 36), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -.3), 'lowEQ': (-12, 12), 'midEQ': (-12, 12), 'highEQ': (-12, 12), 'lowComp': (0, 100), 'midComp': (0, 100), 'highComp': (0, 100), 'exciter': (0, 100), 'outputDrive': (0, 24)}
 
 
-def live_settings(value):
-    if not isinstance(value, dict) or set(value) != set(LIVE_LIMITS):
-        raise ValueError('Provide all five live mastering controls.')
-    for key, (low, high) in LIVE_LIMITS.items():
+LIVE_PRESETS = set(PRESETS) | {'loud', 'hot'}
+OLD_LIVE_LIMITS = {k: v for k, v in LIVE_LIMITS.items() if k in ('subcut', 'drive', 'bass', 'compression', 'ceiling')}
+OLD_LIVE_LIMITS.update(drive=(-24, 24), ceiling=(-6, -1))
+
+def live_settings(value, legacy=False):
+    limits = OLD_LIVE_LIMITS if legacy else LIVE_LIMITS
+    if not isinstance(value, dict) or set(value) != set(limits):
+        raise ValueError('Provide all live mastering controls.')
+    for key, (low, high) in limits.items():
         if type(value[key]) not in (int, float) or not math.isfinite(value[key]) or not low <= value[key] <= high:
             raise ValueError('Invalid live mastering ' + key)
-    return {key: float(value[key]) for key in LIVE_LIMITS}
+    return {key: float(value[key]) for key in limits}
 
 
 def process_live(source, output, preset, loop, settings):
@@ -250,11 +255,11 @@ def info(root, name):
         data = json.loads(path.read_text())
         if data['signature'] != signature(Path(root) / name) or data.get('kind') not in ('waves', 'reels'):
             return None
-        if data.get('engine') == LIVE_VERSION:
-            values = live_settings(data['liveSettings'])
-            if data['preset'] not in PRESETS:
+        if data.get('engine') in (LIVE_VERSION, 'live-master-1'):
+            values = live_settings(data['liveSettings'], data['engine'] == 'live-master-1')
+            if data['preset'] not in LIVE_PRESETS:
                 return None
-            return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data}, 'engine': LIVE_VERSION, 'liveSettings': values, 'label': 'master-live-' + data['preset'] + '.wav'}
+            return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data}, 'engine': data['engine'], 'liveSettings': values, 'label': 'master-live-' + data['preset'] + '.wav'}
         target = target_lufs(data['preset'], data['targetLufs'])
         return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data},
                 'targetLufs': target, 'label': master_label(data['preset'], target) + '.wav'}
@@ -280,9 +285,9 @@ def decorate(root, files):
                 if hashlib.sha256((root / name).read_bytes()).hexdigest() != entry['sha256']:
                     continue
                 adopted = {'kind': entry.get('kind', 'waves'), 'preset': report['preset'],
-                           'targetLufs': report.get('targetLufs', PRESETS[report['preset']][0])}
-                if report.get('engine') == LIVE_VERSION:
-                    adopted.update(engine=LIVE_VERSION, liveSettings=live_settings(report['settings']))
+                           'targetLufs': report.get('targetLufs', PRESETS.get(report['preset'], (-16,))[0])}
+                if report.get('engine') in (LIVE_VERSION, 'live-master-1'):
+                    adopted.update(engine=report['engine'], liveSettings=live_settings(report['settings'], report['engine'] == 'live-master-1'))
                 save_info(root, name, adopted)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
@@ -339,7 +344,7 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                 raise ValueError('Choose one reel source.')
             source_path, name = reels.mastering_source(accounts, user, reel_id, reel_job)
         kind = 'reels' if is_reel else 'waves'
-        if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in PRESETS or type(loop) is not bool:
+        if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in (LIVE_PRESETS if payload.get('engine') == LIVE_VERSION else PRESETS) or type(loop) is not bool:
             raise ValueError('Invalid mastering request.')
         engine = payload.get('engine')
         if engine not in (None, LIVE_VERSION):
