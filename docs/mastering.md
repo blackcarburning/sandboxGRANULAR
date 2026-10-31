@@ -99,3 +99,28 @@ through real server audio to `tests/instareel-browser.cjs` (use its isolated
 server URL/password environment options). The host hooks in
 `deploy/mastering-host-integration.patch` include library decoration and metadata
 lifecycle in addition to worker dispatch; apply only to the documented baseline.
+
+## MASTER.5 iPhone playback and library freshness
+
+The iPhone/iPad comparison uses `createWavIphonePreview` with the authenticated
+original WAV URL, a dialog-owned AudioContext and one gain per side. It does not
+use the lossy AAC listening copies used for ordinary library auditions. Trusted
+Load & Play clicks resume the context before download/decode. A/B retains both
+decoded buffers, pauses the opposite side, and supports seek/retry; Close and
+account lock abort pending requests, invalidate decode completions, release PCM
+and close the comparison context. Desktop native playback is unchanged.
+
+Master completion refreshes the library, and tapping Masters refreshes again.
+Masters has its own favourites-view state; crossing sections clears source-text
+searches so a main-list filter cannot silently hide the newly saved master.
+Comments/category/storage and server Song/reel rendering are unchanged.
+
+`tests/mastering-iphone-browser.cjs` runs against the isolated test server on
+18959 with the same fixture passwords as `mastering-browser.cjs`. It sets an
+actual iPhone UA (viewport alone does not enter the iOS player branch), starts
+the engine with a trusted tap and exercises real 24-bit WAVs, PCM analyser
+output, live compensation gains, A/B reuse, HTTP failure/retry, seek, close
+cleanup, stale list and inherited-filter regressions in Chromium and WebKit at
+390x844 and 844x390. `MYGRAIN_IPHONE_TEST_WAV` optionally uses a local failing
+source WAV in the disposable account. These are automated browser checks, not
+physical iPhone verification.
