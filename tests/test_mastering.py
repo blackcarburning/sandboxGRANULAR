@@ -141,6 +141,35 @@ class Mastering(unittest.TestCase):
             self.assertEqual(m.info(root, output.name)['engine'], 'live-master-1')
             self.assertEqual(source.read_bytes(), original)
 
+    def test_replace_original_recovery_and_changed_source(self):
+        import hashlib, json
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            source = root/'My track.wav'; source.write_bytes(b'original')
+            output = root/'render.tmp'; output.write_bytes(b'mastered')
+            m.save_info(root, source.name, {'kind':'waves', 'preset':'clean', 'targetLufs':-16})
+            expected = hashlib.sha256(source.read_bytes()).hexdigest()
+            def checked(p, base):
+                if p.is_symlink() or not p.resolve().is_relative_to(base.resolve()):
+                    raise ValueError('unsafe')
+                return p
+            cache = root/'.mastering-cache'; cache.mkdir()
+            (cache/'old.json').write_text(json.dumps({'savedName':source.name}))
+            m.replace_wav(root, source.name, output, expected, checked)
+            self.assertFalse((cache/'old.json').exists())
+            self.assertEqual(source.read_bytes(), b'mastered')
+            self.assertIsNone(m.info(root, source.name))
+            recovery = list((root/'.mastering-recovery').iterdir())
+            self.assertEqual(len(recovery), 1)
+            self.assertEqual((recovery[0]/'original.wav').read_bytes(), b'original')
+            self.assertEqual(json.loads((recovery[0]/'recovery.json').read_text())['filename'], source.name)
+            self.assertTrue((recovery[0]/'mastering.json').is_file())
+            with self.assertRaises(ValueError):
+                m.replace_wav(root, source.name, output, expected, checked)
+            self.assertEqual(source.read_bytes(), b'mastered')
+            self.assertEqual(len(list((root/'.mastering-recovery').iterdir())), 1)
+            self.assertIn('My track', m.track_master_stem(source.name, 'master-live-clean'))
+
     def test_silent_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             source = pathlib.Path(folder)/'silent.wav'

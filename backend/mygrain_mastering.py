@@ -216,6 +216,50 @@ def process_live(source, output, preset, loop, settings):
                 'peakMode': 'sample', 'notice': 'Sample-peak ceiling; true peak is measured, not limited. No automatic loudness chasing.'}
 
 
+def track_master_stem(name, label):
+    # Keep the source track recognisable, but never accept path components.
+    title = re.sub(r'[^\w .()-]+', '-', Path(name).stem, flags=re.UNICODE).strip(' .-') or 'track'
+    while len(title.encode('utf-8')) > 150:
+        title = title[:-1]
+    return label + '-' + title
+
+
+def replace_wav(root, name, output, expected_hash, checked):
+    """Caller holds the owner lock. Backup first, compare again at commit."""
+    root = Path(root)
+    target = checked(root / name, root)
+    if not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest() != expected_hash:
+        raise ValueError('The original WAV changed during rendering. Nothing was replaced; reload it.')
+    recovery = checked(root / '.mastering-recovery', root)
+    recovery.mkdir(mode=0o700, exist_ok=True)
+    backup = checked(recovery / secrets.token_hex(16), root)
+    backup.mkdir(mode=0o700)
+    shutil.copy2(target, backup / 'original.wav')
+    (backup / 'recovery.json').write_text(json.dumps({'filename': name, 'sha256': expected_hash}))
+    old_metadata = metadata_path(root, name)
+    if old_metadata.is_file():
+        shutil.copy2(old_metadata, backup / 'mastering.json')
+    staging = checked(root / ('.master-replace-' + secrets.token_hex(16)), root)
+    try:
+        shutil.copyfile(output, staging)
+        os.replace(staging, target)
+    finally:
+        staging.unlink(missing_ok=True)
+    # A replaced WAV remains a normal source, never a Masters library entry.
+    old_metadata.unlink(missing_ok=True)
+    # Do not let historical cache adoption reclassify an unchanged/neutral
+    # replacement as a Masters entry. Other masters remain untouched.
+    cache = checked(root / '.mastering-cache', root)
+    if cache.is_dir():
+        for entry in cache.glob('*.json'):
+            entry = checked(entry, root)
+            try:
+                if json.loads(entry.read_text()).get('savedName') == name:
+                    entry.unlink()
+            except (OSError, ValueError, TypeError):
+                continue
+
+
 def master_label(preset, target):
     return f'master-{preset}-minus{abs(float(target)):g}LUFS'
 
@@ -291,7 +335,7 @@ def decorate(root, files):
                 save_info(root, name, adopted)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
-    canonical = lambda name: re.fullmatch(r'master-(?:[a-z]+-minus[0-9.]+LUFS|live-[a-z]+)(?:-[0-9]+)?\.wav', name)
+    canonical = lambda name: re.fullmatch(r'master-(?:[a-z]+-minus[0-9.]+LUFS|live-[a-z]+)(?:-[^/\\]+)?\.wav', name)
     used = {f['name'] for f in files if canonical(f['name'])}
     for file in files:
         data = info(root, file['name'])
@@ -343,6 +387,9 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
             if reels is None or name is not None or (reel_id is not None and reel_job is not None):
                 raise ValueError('Choose one reel source.')
             source_path, name = reels.mastering_source(accounts, user, reel_id, reel_job)
+        replace_original = payload.get('replaceOriginal', False)
+        if type(replace_original) is not bool or (replace_original and is_reel):
+            raise ValueError('Replace original is available for saved WAVs only.')
         kind = 'reels' if is_reel else 'waves'
         if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in (LIVE_PRESETS if payload.get('engine') == LIVE_VERSION else PRESETS) or type(loop) is not bool:
             raise ValueError('Invalid mastering request.')
@@ -376,7 +423,8 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                 shutil.copyfile(source, snapshot)
                 if live is not None and (not isinstance(payload.get('sourceSha256'), str) or hashlib.sha256(snapshot.read_bytes()).hexdigest() != payload['sourceSha256']):
                     raise ValueError('The source WAV changed since preview. Reopen mastering and load again.')
-            cache_settings = ['live-library-v1', LIVE_VERSION, kind, preset, loop, live] if live is not None else ['library-v1', VERSION, kind, preset, loop, loudness_target]
+            source_hash = hashlib.sha256(snapshot.read_bytes()).hexdigest()
+            cache_settings = ['track-names-v2', name, replace_original] + (['live-library-v1', LIVE_VERSION, kind, preset, loop, live] if live is not None else ['library-v1', VERSION, kind, preset, loop, loudness_target])
             digest = hashlib.sha256(snapshot.read_bytes() + json.dumps(cache_settings).encode()).hexdigest()
         except Exception:
             with LOCK:
@@ -388,7 +436,7 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                 cache = checked(Path(root) / '.mastering-cache', root)
                 cache_file = checked(cache / (digest + '.json'), root)
                 with accounts.user_lock(user):
-                    if cache_file.is_file():
+                    if not replace_original and cache_file.is_file():
                         try:
                             entry = json.loads(cache_file.read_text())
                             saved = entry['savedName']
@@ -405,7 +453,15 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                 report = process_live(snapshot, output, preset, loop, live) if live is not None else process(snapshot, output, preset, loop, loudness_target)
                 # Content-addressed, private result. Never replace an original or
                 # attach an editable patch that misrepresents the mastered DSP.
-                stem = ('master-live-' + preset) if live is not None else master_label(preset, loudness_target)
+                if replace_original:
+                    with accounts.user_lock(user):
+                        replace_wav(root, name, output, source_hash, checked)
+                        accounts.begin_file_change(name, deleting=True)
+                        accounts.wav_created(name)
+                    with LOCK:
+                        job.update(status='done', savedName=name, report=report, replaced=True)
+                    return
+                stem = track_master_stem(name, ('master-live-' + preset) if live is not None else master_label(preset, loudness_target))
                 with accounts.user_lock(user):
                     saved = stem + '.wav'
                     counter = 2
@@ -427,7 +483,7 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                     job.update(status='done', savedName=saved, report=report)
             except Exception as error:
                 with LOCK:
-                    job.update(status='error', error=str(error) if isinstance(error, ValueError) else 'Mastering failed. The original is unchanged.')
+                    job.update(status='error', error=str(error) if isinstance(error, ValueError) else ('Replacement failed. Reload the WAV to check its current state.' if replace_original else 'Mastering failed. The original is unchanged.'))
             finally:
                 temp.cleanup()
         POOL.submit(contextvars.copy_context().run, worker)

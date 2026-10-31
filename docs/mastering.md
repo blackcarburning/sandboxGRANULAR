@@ -188,7 +188,7 @@ Verification:
   `MYGRAIN_LIVE_TEST_WAV` selects a local diagnostic source in disposable storage.
 - Existing mastering browser tests explicitly select Previous mastering.
 
-Static entrypoint marker: `v2026.10.31.LIVE.2`; live dialog: `Live mastering · LIVE.2`.
+Static entrypoint marker: `v2026.10.31.LIVE.3`; live dialog: `Live mastering · LIVE.3`.
 The public asset allowlist includes the three live JS assets. Node is required
 on the server; there are no additional plugin licences or external audio uploads.
 Physical iPhone performance/listening remains a device audition, not an emulation
@@ -216,3 +216,24 @@ a separate saved-WAV post-process, not an edit to the arrangement engine.
 Additional checks cover EQ frequency response, each compression band, excitation
 harmonics, post-dynamics loudness, maximum settings, old metadata, and Hot preset
 server saves in Chromium/WebKit. Device audition remains unverified.
+
+## LIVE.3 — track names and original replacement
+
+Master copies now include the original track stem in their actual filename and
+visible label, for live and legacy mastering, including saved Songs/Reels. Cache
+identity includes the source name and copy/replace destination so differently
+named equal audio cannot reuse another track's filename. Existing masters stay
+untouched. DSP/version remains live-master-2; this release changes storage/UI only.
+
+Saved WAV mastering offers Replace original WAV → Yes, replace / Cancel. A
+confirmed job renders in temporary storage and, under the owner lock, compares
+the original's SHA-256 again before atomically replacing its same filename. A
+private hidden `.mastering-recovery/<random-id>/` retains the previous WAV and
+mastering metadata. Editable patch attachments are intentionally unchanged. The
+replacement creates neither a new WAV nor a Masters metadata/cache entry; old
+master metadata is removed if the source itself was a master. Share provenance
+is refreshed for the changed source; existing recipient file bytes stay intact.
+Reel library audio is immutable and does not expose replacement. After replacing,
+the panel releases the old audition buffer and requires Load & Play to load the
+updated WAV. Tests cover cancel, exact replacement, recovery, concurrent source
+change rejection, no new library file and no Masters classification.
