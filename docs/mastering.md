@@ -328,3 +328,20 @@ it is not an authenticated production transaction or a physical phone test.
 The authenticated mastering browser suite still covers real saves, cache/privacy
 and replacement. Meter tests cover stereo VU calibration and bit-identical audio
 with telemetry disabled; worklet/server parity and FFmpeg LUFS checks still pass.
+
+## LIVE.8 — optional floating VU
+
+VU meters are removed from the pinned header grid. A VU meters button lazily
+creates a floating stereo graphic in the modal top layer; its drag handle uses
+pointer capture, and Minimise returns it to the button without changing audio.
+The floating frame is viewport-constrained on drag/open/resize. Minimized VUs
+receive no needle paints and their worklet-only ballistics sampling is disabled;
+the other console meters continue. Closing the console removes the frame and
+resize listener. The numeric/bar meters use three columns on phones (two rows),
+six on larger desktop screens, preserving more adjustment space. The redundant
+“Meters:” explanation is removed; peak hold and band reductions remain.
+DSP, renders, settings, save/replace and gain calibration are unchanged.
+Browser tests cover lazy opening, minimise/reopen, drag, unchanged header height
+and viewport containment at 320/390/844/1024 in Chromium and WebKit, alongside the
+existing audio/display gating checks. Unit tests verify independent VU sampling
+suspension without stopping the remaining meter telemetry.
