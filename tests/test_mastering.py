@@ -108,8 +108,8 @@ class Mastering(unittest.TestCase):
             with self.assertRaises(ValueError): m.save_info(root, 'link.wav', {})
 
     def test_live_render_and_metadata(self):
-        values = {**dict.fromkeys(('lowEQ', 'midEQ', 'highEQ', 'lowComp', 'midComp', 'highComp', 'exciter', 'outputDrive'), 0), 'subcut': 25, 'drive': 6, 'bass': 35, 'compression': 30, 'ceiling': -1.5}
-        for bad in ({}, {**values, 'drive': True}, {**values, 'ceiling': float('nan')}, {**values, 'bass': 101}):
+        values = {**dict.fromkeys(('lowEQ', 'midEQ', 'highEQ', 'lowComp', 'midComp', 'highComp', 'exciter', 'outputDrive'), 0), 'maximiser': 0, 'targetLufs': -10, 'subcut': 25, 'drive': 6, 'bass': 35, 'compression': 30, 'ceiling': -1.5}
+        for bad in ({}, {**values, 'drive': True}, {**values, 'ceiling': float('nan')}, {**values, 'bass': 101}, {**values, 'maximiser': .5}, {**values, 'targetLufs': -5}):
             with self.assertRaises(ValueError):
                 m.live_settings(bad)
         with tempfile.TemporaryDirectory() as folder:
@@ -136,6 +136,9 @@ class Mastering(unittest.TestCase):
                 m.copy_info(root, output.name, other, output.name)
                 self.assertNotIn('sourceName', m.info(other, output.name))
                 self.assertEqual(m.info(other, output.name)['engine'], m.LIVE_VERSION)
+            v2 = {k: values[k] for k in m.V2_LIVE_LIMITS}
+            m.save_info(root, output.name, {'kind':'waves', 'preset':'punch', 'engine':'live-master-2', 'liveSettings':v2})
+            self.assertEqual(m.info(root, output.name)['engine'], 'live-master-2')
             old = {k: values[k] for k in m.OLD_LIVE_LIMITS}
             m.save_info(root, output.name, {'kind':'waves', 'preset':'punch', 'engine':'live-master-1', 'liveSettings':old})
             self.assertEqual(m.info(root, output.name)['engine'], 'live-master-1')

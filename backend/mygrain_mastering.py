@@ -162,21 +162,24 @@ def process(source, output, preset='clean', loop=True, target=None):
         return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': target}
 
 
-LIVE_VERSION = 'live-master-2'
-LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 36), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -.3), 'lowEQ': (-12, 12), 'midEQ': (-12, 12), 'highEQ': (-12, 12), 'lowComp': (0, 100), 'midComp': (0, 100), 'highComp': (0, 100), 'exciter': (0, 100), 'outputDrive': (0, 24)}
+LIVE_VERSION = 'live-master-3'
+LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 36), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -.3), 'lowEQ': (-12, 12), 'midEQ': (-12, 12), 'highEQ': (-12, 12), 'lowComp': (0, 100), 'midComp': (0, 100), 'highComp': (0, 100), 'exciter': (0, 100), 'outputDrive': (0, 24), 'maximiser': (0, 1), 'targetLufs': (-24, -6)}
 
 
 LIVE_PRESETS = set(PRESETS) | {'loud', 'hot'}
+V2_LIVE_LIMITS = {k:v for k,v in LIVE_LIMITS.items() if k not in ('maximiser', 'targetLufs')}
 OLD_LIVE_LIMITS = {k: v for k, v in LIVE_LIMITS.items() if k in ('subcut', 'drive', 'bass', 'compression', 'ceiling')}
 OLD_LIVE_LIMITS.update(drive=(-24, 24), ceiling=(-6, -1))
 
 def live_settings(value, legacy=False):
-    limits = OLD_LIVE_LIMITS if legacy else LIVE_LIMITS
+    limits = OLD_LIVE_LIMITS if legacy is True else V2_LIVE_LIMITS if legacy == 'v2' else LIVE_LIMITS
     if not isinstance(value, dict) or set(value) != set(limits):
         raise ValueError('Provide all live mastering controls.')
     for key, (low, high) in limits.items():
         if type(value[key]) not in (int, float) or not math.isfinite(value[key]) or not low <= value[key] <= high:
             raise ValueError('Invalid live mastering ' + key)
+    if not legacy and value['maximiser'] not in (0, 1):
+        raise ValueError('Maximiser must be off or on.')
     return {key: float(value[key]) for key in limits}
 
 
@@ -212,8 +215,8 @@ def process_live(source, output, preset, loop, settings):
         return {**report, 'preset': preset, 'loop': loop, 'before': before, 'after': after,
                 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)),
                 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)),
-                'gainDb': settings['drive'], 'makeupDb': 0, 'targetLufs': None,
-                'peakMode': 'sample', 'notice': 'Sample-peak ceiling; true peak is measured, not limited. No automatic loudness chasing.'}
+                'gainDb': settings['drive'], 'makeupDb': 0, 'targetLufs': settings['targetLufs'] if settings['maximiser'] else None,
+                'peakMode': 'sample', 'notice': 'Sample-peak ceiling; true peak is measured, not limited. Maximiser target is an aim, not guaranteed integrated loudness.'}
 
 
 def track_master_stem(name, label):
@@ -299,8 +302,8 @@ def info(root, name):
         data = json.loads(path.read_text())
         if data['signature'] != signature(Path(root) / name) or data.get('kind') not in ('waves', 'reels'):
             return None
-        if data.get('engine') in (LIVE_VERSION, 'live-master-1'):
-            values = live_settings(data['liveSettings'], data['engine'] == 'live-master-1')
+        if data.get('engine') in (LIVE_VERSION, 'live-master-1', 'live-master-2'):
+            values = live_settings(data['liveSettings'], True if data['engine'] == 'live-master-1' else 'v2' if data['engine'] == 'live-master-2' else False)
             if data['preset'] not in LIVE_PRESETS:
                 return None
             return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data}, 'engine': data['engine'], 'liveSettings': values, 'label': 'master-live-' + data['preset'] + '.wav'}
@@ -330,8 +333,8 @@ def decorate(root, files):
                     continue
                 adopted = {'kind': entry.get('kind', 'waves'), 'preset': report['preset'],
                            'targetLufs': report.get('targetLufs', PRESETS.get(report['preset'], (-16,))[0])}
-                if report.get('engine') in (LIVE_VERSION, 'live-master-1'):
-                    adopted.update(engine=report['engine'], liveSettings=live_settings(report['settings'], report['engine'] == 'live-master-1'))
+                if report.get('engine') in (LIVE_VERSION, 'live-master-1', 'live-master-2'):
+                    adopted.update(engine=report['engine'], liveSettings=live_settings(report['settings'], True if report['engine'] == 'live-master-1' else 'v2' if report['engine'] == 'live-master-2' else False))
                 save_info(root, name, adopted)
             except (OSError, ValueError, KeyError, TypeError):
                 continue

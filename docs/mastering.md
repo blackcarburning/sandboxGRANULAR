@@ -263,3 +263,33 @@ References: [ITU-R BS.1770](https://www.itu.int/rec/R-REC-BS.1770),
 `node tests/mastering-loudness.cjs` compares actual worklet output readings with
 FFmpeg ebur128 on 50 Hz, 1 kHz and 8 kHz asymmetric stereo fixtures (within
 0.15 LU), plus startup/silence. Existing worklet/server PCM parity still passes.
+
+## LIVE.6 — optional target loudness maximiser
+
+The shared live-master-3 engine adds `maximiser` (0/off, 1/on) and `targetLufs`
+(−24 to −6). All presets leave it off, target initially −10. It applies smoothed
+gain after EQ/manual limiter drive and before the existing sample-peak limiter.
+A 400 ms K-weighted input measurement supplies the initial gain estimate; slow
+400 ms output feedback then adjusts it toward the chosen target. Automatic gain
+is bounded to ±24 dB. Input below −60 LUFS does not drive increases; gain rises
+pause when limiter reduction exceeds 12 dB. That is an upward-drive restraint,
+not a strict 12 dB reduction cap or a guarantee of distortion-free sound.
+
+The target follows recent loudness, NOT exact gated full-track integrated LUFS.
+Changing music, startup/seek settling, manual processing, ceiling and gain limits
+can produce a different saved integrated reading. No export-only loudness pass or
+normalisation is added: actual worklet and server renderer execute identical DSP.
+Finite WAVs retain startup and flushed-tail handling; loop exports warm at least
+12 seconds with the maximiser enabled (2 seconds otherwise). Phone memory
+admission now includes a 4 MiB fixed meter/servo reservation.
+
+Saved metadata/cache uses live-master-3 and all fifteen canonical controls.
+Previously saved v1/v2 masters remain recognised without rewriting audio.
+Replacement and track-named output paths are unchanged. Saved complete Song WAVs
+use this same standalone post-process; arrangement synthesis/freeze is unchanged.
+
+Verification includes enabled actual-worklet/server bit-identical PCM, steady
+target convergence at −14/−10/−6 within 0.15 LU after 12 seconds, silence/on-off
+validation, peak safety at maximum controls, preserved v1/v2 metadata, enabled
+Hot preset server save and original replacement in Chromium/WebKit phone contexts.
+Device listening remains unverified.
