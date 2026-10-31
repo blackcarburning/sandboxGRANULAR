@@ -246,3 +246,20 @@ percentage and zero/off values as applicable. Positive gain values show a + sign
 Notes distinguish bass compression from bass boost, limiter drive from input
 drive, and a less-negative sample ceiling from a loudness target. DSP and saved
 settings are unchanged.
+
+## LIVE.5 — output loudness metering
+
+The preview worklet meters processed stereo output before audition-only bypass
+and RMS compensation. K-weighting uses the ITU-R BS.1770 48 kHz coefficients;
+rectangular rolling windows provide momentary (400 ms) and short-term (3 s) LUFS.
+The bounded 3 s energy ring uses 1.15 MB, independent of track duration. Readings
+are blank until their window fills and for silence; a fresh worklet on play/seek
+resets the meter. This is not a gated integrated live meter. The saved server
+report continues to provide full-track integrated LUFS. No audio, DSP engine
+version, server settings or render-cache identity changes.
+
+References: [ITU-R BS.1770](https://www.itu.int/rec/R-REC-BS.1770),
+[EBU loudness metering windows](https://tech.ebu.ch/loudness).
+`node tests/mastering-loudness.cjs` compares actual worklet output readings with
+FFmpeg ebur128 on 50 Hz, 1 kHz and 8 kHz asymmetric stereo fixtures (within
+0.15 LU), plus startup/silence. Existing worklet/server PCM parity still passes.
