@@ -148,3 +148,39 @@ output/mygrain-scroll-trace-20261031/ outside the public app root.
 For the next physical-iPhone capture: reload SCROLL-TRACE.1, reproduce for
 30–60 seconds, Mark Crackle while slow, allow ten seconds at rest, then Submit
 Current Log before refreshing. No claim that this diagnostic build fixes audio.
+
+## KEYS-TRACE.1 — sampled-key lifetime visibility
+
+The next submitted SCROLL-TRACE.1 capture is current and records an active arp:
+5-second progress drops to 0.834, with individual late samples near 0.76 even
+while scrolling is idle. L/X/drum counts remain modest and there are no missed
+steps. This does not isolate the sampled keyboard: its voices and PCM were
+missing from both the generic voice counts and the known-buffer inventory.
+
+Added a small scalar keyboardSamples snapshot to each 1Hz timeline and the full
+phone report: current instrument, active/keyed/pending/released/future/overdue
+voices, arp/retired ownership, per-instrument counts, sample bytes/duration,
+Q keyboard cache bytes, output bus count, hold and decay. The full deduplicated
+PCM inventory now includes the selected keyboard sample, keyboard Piano/Strings
+atlases/caches and active/retiring sample sources. There is no PCM duplication
+per voice and no new probe timer. Counters distinguish a shared large buffer
+from many simultaneous voices; overdue means scheduled end >250ms behind the
+current audio clock, not a hardware CPU measurement.
+
+No audible engine, note scheduling, source cleanup or saved-state change is
+made: existing KeyboardPlayer has a 64-voice ceiling, reuses the selected sample
+and removes/disconnects voices on native ended callbacks. Browser stress checks
+exercise 1,000 real sample notes per case across five cycles, low pitches,
+scheduled notes, deliberate 120-note pressure, the actual arp retirement path,
+and explicit Stop. They wait beyond the scheduler horizon plus retirement grace
+before asserting retired ownership is empty. This is not proof that a physical
+iPhone cannot suffer native DSP pressure or another retaining path.
+
+Evidence: output/mygrain-keyboard-lifetime-20261031/ outside the public app root.
+Server Song compatibility is unchanged because this is diagnostic metadata only.
+
+Verification: 69 focused checks pass; all 77 inline scripts parse. All four
+Chromium/WebKit cases at 390×844 and 844×390 complete 1,000 sample notes each
+with at most six transient voices, zero after each settled cycle, 64 under
+intentional held-note overload, and zero active/retired voices after arp Stop.
+Those findings do not confirm or exclude the physical iPhone symptom.
