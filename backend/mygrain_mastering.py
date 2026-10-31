@@ -15,7 +15,7 @@ import threading
 import time
 import wave
 
-VERSION = 'lsp-1.2.14-ffmpeg-v2'
+VERSION = 'lsp-1.2.14-ffmpeg-v3'
 PRESETS = {'clean': (-16, 1.3, 30, 140), 'punch': (-14, 1.7, 25, 100), 'dense': (-11, 2.3, 12, 120), 'level': (-16, 1, 30, 140)}
 POOL = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='mastering')
 LOCK = threading.Lock()
@@ -48,7 +48,7 @@ def lv2(name, controls):
     return "lv2=p='http\\://lsp-plug.in/plugins/lv2/" + name + "':c='" + controls + "'"
 
 
-def chain(preset, gain, makeup=0):
+def chain(preset, gain, makeup=0, rate=48000):
     _, ratio, attack, release = PRESETS[preset]
     filters = [f'volume={gain}dB']
     if preset not in ('clean', 'level'):
@@ -58,6 +58,7 @@ def chain(preset, gain, makeup=0):
     if preset != 'level':
         filters.append(f'volume={makeup}dB')
         filters.append(lv2('limiter_stereo', 'alr=0|boost=0|th=0.870964|ovs=16|lk=5|slink=100'))
+        filters.append(f'aresample={rate * 4},alimiter=limit=0.881049:attack=1:release=20:level=0:latency=1,aresample={rate}')
     return ','.join(filters)
 
 
@@ -73,7 +74,7 @@ def latency(rate, preset, folder):
     with wave.open(str(path), 'wb') as out:
         out.setparams((1, 2, rate, 0, 'NONE', 'not compressed'))
         out.writeframes(struct.pack('<%dh' % rate, *samples))
-    result = run(['-i', str(path), '-af', 'aformat=channel_layouts=stereo,' + chain(preset, 0), '-f', 'f32le', '-'])
+    result = run(['-i', str(path), '-af', 'aformat=channel_layouts=stereo,' + chain(preset, 0, rate=rate), '-f', 'f32le', '-'])
     values = struct.unpack('<%df' % (len(result.stdout) // 4), result.stdout)[::2]
     delay = max(range(len(values)), key=lambda i: abs(values[i])) - rate // 4
     if not 0 <= delay <= rate // 5:
@@ -83,9 +84,20 @@ def latency(rate, preset, folder):
     return delay
 
 
-def process(source, output, preset='clean', loop=True):
+def target_lufs(preset, value=None):
+    if preset not in PRESETS:
+        raise ValueError('Invalid mastering preset.')
+    if value is None:
+        return float(PRESETS[preset][0])
+    if type(value) not in (int, float) or not math.isfinite(value) or not -24 <= value <= -6:
+        raise ValueError('Target loudness must be between -24 and -6 LUFS.')
+    return float(value)
+
+
+def process(source, output, preset='clean', loop=True, target=None):
     if preset not in PRESETS or type(loop) is not bool:
         raise ValueError('Invalid mastering settings.')
+    target = target_lufs(preset, target)
     with tempfile.TemporaryDirectory(prefix='mygrain-master-audio-') as temporary:
         folder = Path(temporary)
         decoded = folder / 'decoded.wav'
@@ -107,7 +119,7 @@ def process(source, output, preset='clean', loop=True):
         before = measure(decoded)
         if not all(math.isfinite(v) for v in before.values()):
             raise ValueError('No measurable audio. The original is unchanged.')
-        gain = min(12, max(-24, PRESETS[preset][0] - before['lufs']))
+        gain = min(12, max(-24, target - before['lufs']))
         if preset == 'level':
             gain = min(gain, -1.2 - before['truePeakDb'])
         delay = latency(rate, preset, folder)
@@ -119,8 +131,8 @@ def process(source, output, preset='clean', loop=True):
         makeup = 0.0
         # Compensate compressor loss before limiting, not by raising saved peaks.
         # Re-render from the original each time; never repeatedly process a master.
-        for attempt in range(4):
-            filters = chain(preset, gain, makeup) + f',atrim=start_sample={warm_frames + delay}:end_sample={warm_frames + delay + frames},asetpts=PTS-STARTPTS'
+        for attempt in range(12):
+            filters = chain(preset, gain, makeup, rate) + f',atrim=start_sample={warm_frames + delay}:end_sample={warm_frames + delay + frames},asetpts=PTS-STARTPTS'
             if not loop:
                 filters = f'apad=pad_len={delay + 1024},' + filters
             run([*args, '-af', filters, '-t', str(frames / rate), '-ar', str(rate), '-ac', '2', '-c:a', 'pcm_s24le', str(filtered)])
@@ -131,9 +143,9 @@ def process(source, output, preset='clean', loop=True):
             else:
                 shutil.copyfile(filtered, output)
             after = measure(output)
-            error = PRESETS[preset][0] - after['lufs']
-            next_makeup = min(6.0, max(-6.0, makeup + error))
-            if preset == 'level' or abs(error) <= .3 or abs(next_makeup - makeup) < .05 or attempt == 3:
+            error = target - after['lufs']
+            next_makeup = min(18.0, max(-12.0, makeup + error))
+            if preset == 'level' or abs(error) <= .3 or abs(next_makeup - makeup) < .05 or attempt == 11:
                 break
             makeup = next_makeup
         after = measure(output)
@@ -146,7 +158,7 @@ def process(source, output, preset='clean', loop=True):
             seam = max(abs(int.from_bytes(first[i:i+3], 'little', signed=True) - int.from_bytes(last[i:i+3], 'little', signed=True)) / 8388608 for i in (0, 3))
         if not all(math.isfinite(v) for v in after.values()) or after['truePeakDb'] > -1.0:
             raise ValueError('Mastered peak verification failed.')
-        return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': PRESETS[preset][0]}
+        return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': target}
 
 
 def handle(handler, method, inner, accounts, user, root, checked):
@@ -160,6 +172,7 @@ def handle(handler, method, inner, accounts, user, root, checked):
         name, preset, loop = payload.get('filename'), payload.get('preset', 'clean'), payload.get('loop', True)
         if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in PRESETS or type(loop) is not bool:
             raise ValueError('Invalid mastering request.')
+        loudness_target = target_lufs(preset, payload.get('targetLufs'))
         with LOCK:
             now = time.time()
             for key in list(JOBS):
@@ -180,7 +193,7 @@ def handle(handler, method, inner, accounts, user, root, checked):
                 temp = tempfile.TemporaryDirectory(prefix='mygrain-master-job-')
                 snapshot = Path(temp.name) / 'source.wav'
                 shutil.copyfile(source, snapshot)
-            digest = hashlib.sha256(snapshot.read_bytes() + json.dumps([VERSION, preset, loop]).encode()).hexdigest()
+            digest = hashlib.sha256(snapshot.read_bytes() + json.dumps([VERSION, preset, loop, loudness_target]).encode()).hexdigest()
         except Exception:
             with LOCK:
                 JOBS.pop(job_id, None)
@@ -204,7 +217,7 @@ def handle(handler, method, inner, accounts, user, root, checked):
                         except (ValueError, KeyError, OSError):
                             pass
                 output = Path(temp.name) / 'master.wav'
-                report = process(snapshot, output, preset, loop)
+                report = process(snapshot, output, preset, loop, loudness_target)
                 # Content-addressed, private result. Never replace an original or
                 # attach an editable patch that misrepresents the mastered DSP.
                 saved = f'{Path(name).stem[:100]}.master-{preset}-{digest[:16]}.wav'

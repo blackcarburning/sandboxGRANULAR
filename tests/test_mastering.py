@@ -33,6 +33,11 @@ class Mastering(unittest.TestCase):
                     self.assertGreater(report['makeupDb'], .3)
                     self.assertLess(abs(report['after']['lufs'] - m.PRESETS[preset][0]), .3)
                 print(preset, loop, report)
+            loud = m.process(source, root/'loud-song.wav', 'dense', False, -6)
+            self.assertLess(abs(loud['after']['lufs'] + 6), .4)
+            self.assertLessEqual(loud['after']['truePeakDb'], -1)
+            self.assertEqual(loud['frames'], len(t))
+            self.assertEqual(source.read_bytes(), original)
     def test_rates_short_loops_and_alignment(self):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)
@@ -60,6 +65,13 @@ class Mastering(unittest.TestCase):
                     raw = w.readframes(n)
                 values = [int.from_bytes(raw[i:i+3], 'little', signed=True) for i in range(0,len(raw),6)]
                 self.assertEqual(max(range(n),key=lambda i: abs(values[i])), n//2)
+
+    def test_target_validation(self):
+        for value in (-25, -5, float('nan'), float('inf'), True, '-6'):
+            with self.assertRaises(ValueError):
+                m.target_lufs('dense', value)
+        self.assertEqual(m.target_lufs('dense', -6), -6)
+        self.assertEqual(m.target_lufs('clean'), -16)
 
     def test_silent_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
